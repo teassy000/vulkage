@@ -16,6 +16,9 @@
     <Filter Include="glfw">
       <UniqueIdentifier>{1ec14076-2c32-480e-9623-2f1bf098d518}</UniqueIdentifier>
     </Filter>
+    <Filter Include="shaders">
+      <UniqueIdentifier>{50a32a50-6d95-4b7c-9442-a6142bb58f4f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="proj_vk.cpp">
@@ -104,5 +107,13 @@
     <ClInclude Include="..\extern\glfw\src\null_platform.h">
       <Filter>glfw</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="shaders\triangle.frag.glsl">
+      <Filter>shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="shaders\triangle.vert.glsl">
+      <Filter>shaders</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>

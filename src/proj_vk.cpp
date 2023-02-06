@@ -32,7 +32,7 @@ VkSurfaceKHR createSurface(VkInstance instance, GLFWwindow* window)
 #endif
 }
 
-uint32_t getGraphicsQueueFamily(VkPhysicalDevice physicalDevice)
+uint32_t getGraphicsFamilyIndex(VkPhysicalDevice physicalDevice)
 {
     VkQueueFamilyProperties queueFamilyProperties[64] = {};
     uint32_t propertyCount = sizeof(queueFamilyProperties) / sizeof(queueFamilyProperties[0]);
@@ -44,34 +44,61 @@ uint32_t getGraphicsQueueFamily(VkPhysicalDevice physicalDevice)
             return i;
     }
 
-    assert(!"No queue families supports graphics, is this a computer-only device?");
-    return 0u;
+    return VK_QUEUE_FAMILY_IGNORED;
 }
 
-VkPhysicalDevice pickPhysicalDevice(VkPhysicalDevice * physicalDevices, uint32_t physicalDevicesCount)
+bool supportPresentation(VkPhysicalDevice physicalDevice, uint32_t familyIndex)
 {
+#if defined(VK_USE_PLATFORM_WIN32_KHR)
+    return vkGetPhysicalDeviceWin32PresentationSupportKHR(physicalDevice, familyIndex);
+#else
+    return true;
+#endif
+}
+
+VkPhysicalDevice pickPhysicalDevice(VkPhysicalDevice* physicalDevices, uint32_t physicalDevicesCount)
+{
+    VkPhysicalDevice discrete = 0;
+    VkPhysicalDevice fallback = 0;
+
 	for (uint32_t i = 0; i < physicalDevicesCount; ++i)
 	{
         VkPhysicalDeviceProperties props;
         vkGetPhysicalDeviceProperties(physicalDevices[i], &props);
 
-		if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
-			printf("picking discrete GPU %s\n", props.deviceName);
-			return physicalDevices[i];
-		}
+        printf("GPU%d: %s\n", i, props.deviceName);
+
+        uint32_t familyIndex = getGraphicsFamilyIndex(physicalDevices[i]);
+
+        if(familyIndex == VK_QUEUE_FAMILY_IGNORED)
+            continue;
+
+        if (!supportPresentation(physicalDevices[i], familyIndex))
+            continue;
+
+        if (!discrete && props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
+            discrete = physicalDevices[i];
+        }
+
+        if (!fallback) {
+            fallback = physicalDevices[i];
+        }
 	}
 
-    if (physicalDevicesCount > 0) 
-	{
-        VkPhysicalDeviceProperties props;
-        vkGetPhysicalDeviceProperties(physicalDevices[0], &props);
+    VkPhysicalDevice result = discrete ? discrete : fallback;
 
-        printf("picking fall back GPU %s\n", props.deviceName);
-        return physicalDevices[0];
+    if(result) { 
+        VkPhysicalDeviceProperties props;
+        vkGetPhysicalDeviceProperties(result, &props);
+
+        printf("Selected GPU %s\n", props.deviceName);
+    }
+    else {
+        printf("ERROR: No GPU Found!\n");
     }
 
-	printf("no valid GPU available!\n");
-	return 0;
+
+    return result;
 }
 
 
@@ -461,7 +488,10 @@ int main()
 
 	VkPhysicalDevice physicalDevice = pickPhysicalDevice(physicalDevices, deviceCount);
 	assert(physicalDevice);
-    uint32_t familyIndex = getGraphicsQueueFamily(physicalDevice);
+
+    uint32_t familyIndex = getGraphicsFamilyIndex(physicalDevice);
+    assert(familyIndex != VK_QUEUE_FAMILY_IGNORED);
+
 	VkDevice device = createDevice(instance, physicalDevice, familyIndex);
 	assert(device);
 
