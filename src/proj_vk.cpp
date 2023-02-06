@@ -9,6 +9,8 @@
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_win32.h>
 
+#include <algorithm>
+
 #define VK_CHECK(call) \
 	do{ \
 		VkResult result = call; \
@@ -72,6 +74,47 @@ VkPhysicalDevice pickPhysicalDevice(VkPhysicalDevice * physicalDevices, uint32_t
 	return 0;
 }
 
+
+VkBool32 debugReportCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage, void* pUserData)
+{
+    const char* type =
+        flags & VK_DEBUG_REPORT_ERROR_BIT_EXT
+        ? "ERROR"
+        : (flags & (VK_DEBUG_REPORT_WARNING_BIT_EXT | VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT))
+            ? "WARNING"
+            : "INFO";
+        
+    char message[4096];
+    snprintf(message, ARRAYSIZE(message), "%s: %s\n", type, pMessage);
+
+    printf("%s\n", message);
+
+#ifdef _WIN32
+    OutputDebugStringA(message);
+#endif
+
+    if (flags & VK_DEBUG_REPORT_ERROR_BIT_EXT)
+    {
+        assert(!"validation error encountered!");
+    }
+    return VK_FALSE;
+}
+
+
+VkDebugReportCallbackEXT registerDebugCallback(VkInstance instance)
+{
+    VkDebugReportCallbackCreateInfoEXT createInfo = { VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT };
+    createInfo.flags = VK_DEBUG_REPORT_WARNING_BIT_EXT | VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT | VK_DEBUG_REPORT_ERROR_BIT_EXT;
+    createInfo.pfnCallback = &debugReportCallback;
+
+    PFN_vkCreateDebugReportCallbackEXT vkCreateDebugReportCallbackEXT = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugReportCallbackEXT");
+
+    VkDebugReportCallbackEXT callback = 0;
+    VK_CHECK(vkCreateDebugReportCallbackEXT(instance, &createInfo, 0, &callback));
+
+    return callback;
+}
+
 VkInstance createInstance()
 {
 
@@ -94,6 +137,7 @@ VkInstance createInstance()
 #ifdef VK_USE_PLATFORM_WIN32_KHR
         VK_KHR_WIN32_SURFACE_EXTENSION_NAME,
 #endif // VK_USE_PLATFORM_WIN32_KHR
+        VK_EXT_DEBUG_REPORT_EXTENSION_NAME,
 
     };
     createInfo.ppEnabledExtensionNames = extensions;
@@ -138,16 +182,36 @@ VkFormat getSwapchainFormat(VkPhysicalDevice physicalDevice, VkSurfaceKHR surfac
     uint32_t formatCount = sizeof(formats) / sizeof(formats[0]);
     VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, formats));
 
+    if (formatCount == 1 && formats[0].format == VK_FORMAT_UNDEFINED) {
+        return VK_FORMAT_R8G8B8A8_UNORM;
+    }
+
+    for (uint32_t i = 0; i < formatCount; ++i) {
+        if (formats[i].format == VK_FORMAT_R8G8B8A8_UNORM || formats[i].format == VK_FORMAT_B8G8R8A8_UNORM) {
+            return formats[i].format;
+        }
+    }
+
     return formats[0].format;
 }
 
-VkSwapchainKHR createSwapchain(VkDevice device, VkSurfaceKHR surface, uint32_t* familyIndex, VkFormat fromat, uint32_t width, uint32_t height)
+
+VkSwapchainKHR createSwapchain(VkDevice device, VkSurfaceKHR surface, VkSurfaceCapabilitiesKHR surfaceCaps, uint32_t* familyIndex, VkFormat fromat, uint32_t width, uint32_t height)
 {
+
+    VkCompositeAlphaFlagBitsKHR surfaceComposite =
+        (surfaceCaps.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)
+        ? VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR
+        : (surfaceCaps.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR)
+        ? VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR
+        : (surfaceCaps.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR)
+        ? VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR
+        : VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
 
 
     VkSwapchainCreateInfoKHR createInfo = { VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
     createInfo.surface = surface;
-    createInfo.minImageCount = 2;
+    createInfo.minImageCount = std::max(2u, surfaceCaps.minImageCount);
     
     createInfo.imageFormat = fromat;
     createInfo.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
@@ -157,9 +221,9 @@ VkSwapchainKHR createSwapchain(VkDevice device, VkSurfaceKHR surface, uint32_t* 
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     createInfo.queueFamilyIndexCount = 1;
     createInfo.pQueueFamilyIndices = familyIndex;
-    createInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR;
     createInfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
-    createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    createInfo.compositeAlpha = surfaceComposite;
+    createInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR;
 
     VkSwapchainKHR swapchain = 0;
     VK_CHECK(vkCreateSwapchainKHR(device, &createInfo, 0, &swapchain));
@@ -360,6 +424,26 @@ VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache
     return pipeline;
 }
 
+
+
+VkImageMemoryBarrier imageBarrier(VkImage image, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, VkImageLayout oldLayout,  VkImageLayout newLayout)
+{   
+    VkImageMemoryBarrier result = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+
+    result.srcAccessMask = srcAccessMask;
+    result.dstAccessMask = dstAccessMask;
+    result.oldLayout = oldLayout;
+    result.newLayout = newLayout;
+    result.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    result.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    result.image = image;
+    result.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    result.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
+    result.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+
+    return result;
+}
+
 int main()
 {
 	int rc = glfwInit();
@@ -367,6 +451,10 @@ int main()
 
 	VkInstance instance = createInstance();
 	assert(instance);
+
+
+
+    VkDebugReportCallbackEXT callback = registerDebugCallback(instance);
 
 	VkPhysicalDevice physicalDevices[16];
 	uint32_t deviceCount = sizeof(physicalDevices) / sizeof(physicalDevices[0]);
@@ -385,12 +473,20 @@ int main()
 	VkSurfaceKHR surface = createSurface(instance, window);
 	assert(surface);
 
+    VkBool32 presentSupported = 0;
+    VK_CHECK(vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, familyIndex, surface, &presentSupported));
+    assert(presentSupported);
+
     VkFormat swapchainFormat = getSwapchainFormat(physicalDevice, surface);
     assert(swapchainFormat);
     
     int windowWidth = 0, windowHeight = 0;
     glfwGetWindowSize(window, &windowWidth, &windowHeight);
-    VkSwapchainKHR swapchain = createSwapchain(device, surface, &familyIndex, swapchainFormat, windowWidth, windowHeight);
+    
+    VkSurfaceCapabilitiesKHR surfaceCaps;
+    VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCaps));
+
+    VkSwapchainKHR swapchain = createSwapchain(device, surface, surfaceCaps, &familyIndex, swapchainFormat, windowWidth, windowHeight);
     assert(swapchain);
 
     VkSemaphore acquirSemaphore = createSemaphore(device);
@@ -461,6 +557,12 @@ int main()
 
         VK_CHECK(vkBeginCommandBuffer(cmdBuffer, &beginInfo));
         
+        VkImageMemoryBarrier renderBeginBarrier = imageBarrier(swapchainImages[imageIndex], 0, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
+            , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+            , VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &renderBeginBarrier);
+        
+
         VkClearColorValue color = { 33.f/255.f, 200.f/255.f, 242.f/255.f, 1 };
         VkClearValue clearColor = { color };
 
@@ -476,7 +578,7 @@ int main()
 
         // drawcalls
         VkViewport viewport = { 0.f, float(windowHeight), float(windowWidth), -float(windowHeight), 0.f, 1.f };
-        VkRect2D scissor = { {0, 0}, {windowWidth, windowHeight } };
+        VkRect2D scissor = { {0, 0}, {uint32_t(windowWidth), uint32_t(windowHeight)}};
 
         vkCmdSetViewport(cmdBuffer, 0, 1, &viewport);
         vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
@@ -485,6 +587,11 @@ int main()
         vkCmdDraw(cmdBuffer, 3, 1, 0, 0);
 
         vkCmdEndRenderPass(cmdBuffer);
+
+        VkImageMemoryBarrier renderEndBarrier = imageBarrier(swapchainImages[imageIndex], VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, 0
+            , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+        vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT
+            , VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &renderEndBarrier);
 
         VK_CHECK(vkEndCommandBuffer(cmdBuffer));
 
