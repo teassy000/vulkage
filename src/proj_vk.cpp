@@ -452,9 +452,7 @@ int main()
 	VkInstance instance = createInstance();
 	assert(instance);
 
-
-
-    VkDebugReportCallbackEXT callback = registerDebugCallback(instance);
+    VkDebugReportCallbackEXT debugCallback = registerDebugCallback(instance);
 
 	VkPhysicalDevice physicalDevices[16];
 	uint32_t deviceCount = sizeof(physicalDevices) / sizeof(physicalDevices[0]);
@@ -621,7 +619,39 @@ int main()
         VK_CHECK(vkDeviceWaitIdle(device));
                 
 	}
+    VK_CHECK(vkDeviceWaitIdle(device));
+    
+    vkDestroyCommandPool(device, commandPool, 0);
+
+    for (uint32_t i = 0; i < swapchainImageCount; ++i) {
+        vkDestroyFramebuffer(device, swapchainFrameBuffers[i], 0);
+    }
+
+    for (uint32_t i = 0; i < swapchainImageCount; ++i) {
+        vkDestroyImageView(device, swapchainImageViews[i], 0);
+    }
+
+
+    vkDestroyPipeline(device, trianglePipeline, 0);
+    vkDestroyPipelineLayout(device, triangleLayout, 0);
+
+    vkDestroyShaderModule(device, triangleFS, 0);
+    vkDestroyShaderModule(device, triangleVS, 0);
+    vkDestroyRenderPass(device, renderPass, 0);
+
+    vkDestroySemaphore(device, releaseSemaphore, 0);
+    vkDestroySemaphore(device, acquirSemaphore, 0);
+    vkDestroySwapchainKHR(device, swapchain, 0);
+    vkDestroySurfaceKHR(instance, surface, 0);
 
 	glfwDestroyWindow(window);
-	vkDestroyInstance(instance, 0);
+
+    
+    vkDestroyDevice(device, 0);
+
+    PFN_vkDestroyDebugReportCallbackEXT vkDestroyDebugReportCallbackEXT = (PFN_vkDestroyDebugReportCallbackEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugReportCallbackEXT");
+    vkDestroyDebugReportCallbackEXT(instance, debugCallback, 0);
+
+
+    vkDestroyInstance(instance, 0);
 }
