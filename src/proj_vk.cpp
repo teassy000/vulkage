@@ -30,6 +30,22 @@ VkSurfaceKHR createSurface(VkInstance instance, GLFWwindow* window)
 #endif
 }
 
+uint32_t getGraphicsQueueFamily(VkPhysicalDevice physicalDevice)
+{
+    VkQueueFamilyProperties queueFamilyProperties[64] = {};
+    uint32_t propertyCount = sizeof(queueFamilyProperties) / sizeof(queueFamilyProperties[0]);
+    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &propertyCount, queueFamilyProperties);
+
+    for (uint32_t i = 0; i < propertyCount; ++i)
+    {
+        if (queueFamilyProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+            return i;
+    }
+
+    assert(!"No queue families supports graphics, is this a computer-only device?");
+    return 0u;
+}
+
 VkPhysicalDevice pickPhysicalDevice(VkPhysicalDevice * physicalDevices, uint32_t physicalDevicesCount)
 {
 	for (uint32_t i = 0; i < physicalDevicesCount; ++i)
@@ -91,14 +107,12 @@ VkInstance createInstance()
 }
 
 
-VkDevice createDevice(VkInstance instance, VkPhysicalDevice physicalDevice, uint32_t* familyIndex)
+VkDevice createDevice(VkInstance instance, VkPhysicalDevice physicalDevice, uint32_t familyIndex)
 {
-    *familyIndex = 0; // should computed from queue props;
-
     float queueProps[] = { 1.0f };
 
     VkDeviceQueueCreateInfo queueInfo = { VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO };
-    queueInfo.queueFamilyIndex = *familyIndex;
+    queueInfo.queueFamilyIndex = familyIndex;
     queueInfo.queueCount = 1;
     queueInfo.pQueuePriorities = queueProps;
 
@@ -140,7 +154,7 @@ VkSwapchainKHR createSwapchain(VkDevice device, VkSurfaceKHR surface, uint32_t* 
     createInfo.imageExtent.width = width;
     createInfo.imageExtent.height = height;
     createInfo.imageArrayLayers = 1;
-    createInfo.imageUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     createInfo.queueFamilyIndexCount = 1;
     createInfo.pQueueFamilyIndices = familyIndex;
     createInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR;
@@ -185,8 +199,8 @@ VkRenderPass createRenderPass(VkDevice device, VkFormat format)
     attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    attachments[0].initialLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
-    attachments[0].finalLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+    attachments[0].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    attachments[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 
     VkAttachmentReference colorAttachments = { 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
@@ -240,6 +254,112 @@ VkImageView createImageView(VkDevice device, VkImage image, VkFormat format)
     return imageView;
 }
 
+VkShaderModule loadShader(VkDevice device, const char* path)
+{
+    FILE* file = fopen(path, "rb");
+    assert(file);
+
+    fseek(file, 0, SEEK_END);
+    long length = ftell(file);
+    assert(length >= 0);
+    fseek(file, 0, SEEK_SET);
+
+    char* buffer = new char[length];
+    assert(buffer);
+
+    size_t rc = fread(buffer, 1, length, file);
+    assert(rc = size_t(length));
+    fclose(file);
+
+    assert(length % 4 == 0);
+
+    VkShaderModuleCreateInfo createInfo = { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
+    createInfo.pCode = reinterpret_cast<const uint32_t*>(buffer);
+    createInfo.codeSize = length;
+
+    VkShaderModule shaderModule = 0;
+    VK_CHECK(vkCreateShaderModule(device, &createInfo, 0, &shaderModule));
+
+    return shaderModule;
+}
+
+VkPipelineLayout createPipelineLayout(VkDevice device)
+{
+    VkPipelineLayoutCreateInfo createInfo = { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+
+    VkPipelineLayout layout = 0;
+    VK_CHECK(vkCreatePipelineLayout(device, &createInfo, 0, &layout));
+
+    return layout;
+}
+
+VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, VkRenderPass renderPass, VkShaderModule VS, VkShaderModule FS)
+{
+    VkGraphicsPipelineCreateInfo createInfo = { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
+
+    VkPipelineShaderStageCreateInfo stages[2] = {};
+    stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+    stages[0].module = VS;
+    stages[0].pName = "main";
+
+    stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    stages[1].module = FS;
+    stages[1].pName = "main";
+
+    createInfo.stageCount = sizeof(stages) / sizeof(stages[0]);
+    createInfo.pStages = stages;
+
+    VkPipelineVertexInputStateCreateInfo vertexInput = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+    createInfo.pVertexInputState = &vertexInput;
+    
+    VkPipelineInputAssemblyStateCreateInfo inputAssemply = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
+    inputAssemply.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    createInfo.pInputAssemblyState = &inputAssemply;
+
+    VkPipelineViewportStateCreateInfo viewportState = { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
+    viewportState.viewportCount = 1;
+    viewportState.scissorCount = 1;
+    createInfo.pViewportState = &viewportState;
+
+    VkPipelineRasterizationStateCreateInfo rasterizationState = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
+    rasterizationState.lineWidth = 1.f;
+    createInfo.pRasterizationState = &rasterizationState;
+
+    VkPipelineMultisampleStateCreateInfo multisampleState = { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
+    multisampleState.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    createInfo.pMultisampleState = &multisampleState;
+    
+    VkPipelineDepthStencilStateCreateInfo depthStencilState = { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
+    createInfo.pDepthStencilState = &depthStencilState;
+
+    VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
+    colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+    VkPipelineColorBlendStateCreateInfo colorBlendState = { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
+    colorBlendState.attachmentCount = 1;
+    colorBlendState.pAttachments = &colorBlendAttachment;
+    createInfo.pColorBlendState = &colorBlendState;
+
+    VkDynamicState dynamicStates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+
+    VkPipelineDynamicStateCreateInfo dynamicState = { VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO };
+    dynamicState.dynamicStateCount = sizeof(dynamicStates) / sizeof(dynamicStates[0]);
+    dynamicState.pDynamicStates = dynamicStates;
+    createInfo.pDynamicState = &dynamicState;
+
+    createInfo.layout = layout;
+    createInfo.renderPass = renderPass;
+
+    VkPipeline pipeline = 0;
+
+
+    VK_CHECK(vkCreateGraphicsPipelines(device, pipelineCache, 1, &createInfo, 0, &pipeline));
+
+    return pipeline;
+}
+
 int main()
 {
 	int rc = glfwInit();
@@ -252,11 +372,11 @@ int main()
 	uint32_t deviceCount = sizeof(physicalDevices) / sizeof(physicalDevices[0]);
 	VK_CHECK( vkEnumeratePhysicalDevices(instance, &deviceCount, physicalDevices));
 
+
 	VkPhysicalDevice physicalDevice = pickPhysicalDevice(physicalDevices, deviceCount);
 	assert(physicalDevice);
-
-    uint32_t familyIndex = 0;
-	VkDevice device = createDevice(instance, physicalDevice, &familyIndex);
+    uint32_t familyIndex = getGraphicsQueueFamily(physicalDevice);
+	VkDevice device = createDevice(instance, physicalDevice, familyIndex);
 	assert(device);
 
 	GLFWwindow* window = glfwCreateWindow(1920, 1080, "proj_vk", 0, 0);
@@ -267,7 +387,7 @@ int main()
 
     VkFormat swapchainFormat = getSwapchainFormat(physicalDevice, surface);
     assert(swapchainFormat);
-
+    
     int windowWidth = 0, windowHeight = 0;
     glfwGetWindowSize(window, &windowWidth, &windowHeight);
     VkSwapchainKHR swapchain = createSwapchain(device, surface, &familyIndex, swapchainFormat, windowWidth, windowHeight);
@@ -283,6 +403,24 @@ int main()
     vkGetDeviceQueue(device, familyIndex, 0, &queue);
     assert(queue);
 
+    VkRenderPass renderPass = createRenderPass(device, swapchainFormat);
+    assert(renderPass);
+
+    VkShaderModule triangleVS = loadShader(device, "shaders/triangle.vert.spv");
+    assert(triangleVS);  
+
+    VkShaderModule triangleFS = loadShader(device, "shaders/triangle.frag.spv");
+    assert(triangleFS);
+
+
+    VkPipelineLayout triangleLayout = createPipelineLayout(device);
+    assert(triangleLayout);
+
+    VkPipelineCache pipelineCache = 0;
+    VkPipeline trianglePipeline = createGraphicsPipeline(device, pipelineCache, triangleLayout,renderPass, triangleVS, triangleFS);
+    assert(trianglePipeline);
+
+
     VkImage swapchainImages[16];
     uint32_t swapchainImageCount = sizeof(swapchainImages) / sizeof(swapchainImages[0]);
     VK_CHECK(vkGetSwapchainImagesKHR(device, swapchain, &swapchainImageCount, swapchainImages));
@@ -293,10 +431,7 @@ int main()
         assert(swapchainImageViews[i]);
     }
 
-    VkRenderPass renderPass = createRenderPass(device, swapchainFormat);
-    assert(renderPass);
-
-    VkFramebuffer swapchainFrameBuffers[16];
+    VkFramebuffer swapchainFrameBuffers[16] = {};
     for (uint32_t i = 0; i < swapchainImageCount; ++i) {
         swapchainFrameBuffers[i] = createFramebuffer(device, renderPass, swapchainImageViews[i], windowWidth, windowHeight);
         assert(swapchainFrameBuffers[i]);
@@ -340,15 +475,16 @@ int main()
         vkCmdBeginRenderPass(cmdBuffer, &passBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
         // drawcalls
+        VkViewport viewport = { 0.f, float(windowHeight), float(windowWidth), -float(windowHeight), 0.f, 1.f };
+        VkRect2D scissor = { {0, 0}, {windowWidth, windowHeight } };
+
+        vkCmdSetViewport(cmdBuffer, 0, 1, &viewport);
+        vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
+
+        vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, trianglePipeline);
+        vkCmdDraw(cmdBuffer, 3, 1, 0, 0);
 
         vkCmdEndRenderPass(cmdBuffer);
-        
-        VkImageSubresourceRange range = {};
-        range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        range.levelCount = 1;
-        range.layerCount = 1;
-        
-        vkCmdClearColorImage(cmdBuffer, swapchainImages[imageIndex], VK_IMAGE_LAYOUT_GENERAL, &color, 1, &range);
 
         VK_CHECK(vkEndCommandBuffer(cmdBuffer));
 
@@ -363,11 +499,6 @@ int main()
         submitInfo.pCommandBuffers = &cmdBuffer;
         submitInfo.signalSemaphoreCount = 1;
         submitInfo.pSignalSemaphores = &releaseSemaphore;
-
-        VkFenceCreateInfo createInfo = { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
-// 
-//         VkFence fence = 0;
-//         VK_CHECK(vkCreateFence(device, &createInfo, 0, &fence));
 
         VK_CHECK(vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE));
 
