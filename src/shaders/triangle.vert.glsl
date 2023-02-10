@@ -1,28 +1,30 @@
 #version 450
-/*
-const vec3 vertices[] = 
+
+struct Vertex
 {
-   vec3(0, 0.5, 0),
-   vec3(0.5, -0.5, 0),
-   vec3(-0.5, -0.5, 0),
+    float vx, vy, vz;
+    float nx, ny, nz;
+    float tu, tv;
 };
 
-void main()
+layout(binding = 0) buffer Vertices
 {
-    gl_Position = vec4(vertices[gl_VertexIndex], 1.0);
-}
-*/
-
-layout(location = 0) in vec3 pos;
-layout(location = 1) in vec3 norm;
-layout(location = 2) in vec2 uv;
+    Vertex vertices[];
+};
 
 layout(location = 0)
 out vec4 color;
 
 void main()
 {
+    Vertex v = vertices[gl_VertexIndex];
+
+    vec3 pos = vec3(v.vx, v.vy, v.vz);
+    vec3 norm = vec3(v.nx, v.ny, v.nz);
+    vec2 uv = vec2(v.tu, v.tv);
+
     gl_Position = vec4(pos + vec3(0, 0, 0.5), 1.0);
+
 
     color = vec4(norm / 256.0, 1.0);
 }

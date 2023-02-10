@@ -192,7 +192,8 @@ VkDevice createDevice(VkInstance instance, VkPhysicalDevice physicalDevice, uint
     queueInfo.pQueuePriorities = queueProps;
 
 	const char* extensions[] = {
-		VK_KHR_SWAPCHAIN_EXTENSION_NAME
+		VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+        VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
 	};
 
     VkDeviceCreateInfo createInfo = { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
@@ -384,12 +385,30 @@ VkShaderModule loadShader(VkDevice device, const char* path)
     return shaderModule;
 }
 
-VkPipelineLayout createPipelineLayout(VkDevice device)
+VkPipelineLayout createPipelineLayout(VkDevice device, vkDestroyDescriptorSetLayout& outSetLayout)
 {
+    VkDescriptorSetLayoutBinding setBindings[1] = {};
+    setBindings[0].binding = 0;
+    setBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    setBindings[0].descriptorCount = 1;
+    setBindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+    VkDescriptorSetLayoutCreateInfo setCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+    setCreateInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
+    setCreateInfo.bindingCount = ARRAYSIZE(setBindings);
+    setCreateInfo.pBindings = setBindings;
+
+    VkDescriptorSetLayout setLayout = 0;
+
+    VK_CHECK(vkCreateDescriptorSetLayout(device, &setCreateInfo, 0, &setLayout));
     VkPipelineLayoutCreateInfo createInfo = { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+    createInfo.setLayoutCount = 1;
+    createInfo.pSetLayouts = &setLayout;
 
     VkPipelineLayout layout = 0;
     VK_CHECK(vkCreatePipelineLayout(device, &createInfo, 0, &layout));
+
+    vkDestroyDescriptorSetLayout(device, setLayout, 0);
 
     return layout;
 }
@@ -415,7 +434,7 @@ VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache
     VkPipelineVertexInputStateCreateInfo vertexInput = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
     createInfo.pVertexInputState = &vertexInput;
 
-    if (1)
+    if (0)
     {
         VkVertexInputBindingDescription stream = { 0, 8 * 4, VK_VERTEX_INPUT_RATE_VERTEX };
        
@@ -824,7 +843,7 @@ int main(int argc, const char** argv)
     bool rcm = loadMesh(mesh, argv[1]);
 
     Buffer vb = {};
-    createBuffer(vb, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+    createBuffer(vb, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
 
     Buffer ib = {};
@@ -886,11 +905,22 @@ int main(int argc, const char** argv)
 
         vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, trianglePipeline);
 
+        VkDescriptorBufferInfo bufferInfo = { };
+        bufferInfo.buffer = vb.buffer;
+        bufferInfo.offset = 0;
+        bufferInfo.range = vb.size;
 
-        VkDeviceSize dummyOffset = 0;
-        vkCmdBindVertexBuffers(cmdBuffer, 0, 1, &vb.buffer, &dummyOffset);
+        VkWriteDescriptorSet descSets[1] = {};
+
+        descSets[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descSets[0].dstBinding = 0;
+        descSets[0].descriptorCount = 1;
+        descSets[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        descSets[0].pBufferInfo = &bufferInfo;
+
+        vkCmdPushDescriptorSetKHR(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, triangleLayout, 0, ARRAYSIZE(descSets), descSets);
+
         vkCmdBindIndexBuffer(cmdBuffer, ib.buffer, 0, VK_INDEX_TYPE_UINT32);
-
         vkCmdDrawIndexed(cmdBuffer, mesh.indices.size(), 1, 0, 0, 0);
 
         vkCmdEndRenderPass(cmdBuffer);
@@ -931,6 +961,7 @@ int main(int argc, const char** argv)
     VK_CHECK(vkDeviceWaitIdle(device));
     
     
+
     destroyBuffer(ib, device); 
     destroyBuffer(vb, device);
 
