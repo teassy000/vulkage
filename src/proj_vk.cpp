@@ -385,7 +385,7 @@ VkShaderModule loadShader(VkDevice device, const char* path)
     return shaderModule;
 }
 
-VkPipelineLayout createPipelineLayout(VkDevice device, vkDestroyDescriptorSetLayout& outSetLayout)
+VkPipelineLayout createPipelineLayout(VkDevice device, VkDescriptorSetLayout& outSetLayout)
 {
     VkDescriptorSetLayoutBinding setBindings[1] = {};
     setBindings[0].binding = 0;
@@ -408,7 +408,7 @@ VkPipelineLayout createPipelineLayout(VkDevice device, vkDestroyDescriptorSetLay
     VkPipelineLayout layout = 0;
     VK_CHECK(vkCreatePipelineLayout(device, &createInfo, 0, &layout));
 
-    vkDestroyDescriptorSetLayout(device, setLayout, 0);
+    
 
     return layout;
 }
@@ -813,8 +813,8 @@ int main(int argc, const char** argv)
     VkShaderModule triangleFS = loadShader(device, "shaders/triangle.frag.spv");
     assert(triangleFS);
 
-
-    VkPipelineLayout triangleLayout = createPipelineLayout(device);
+    VkDescriptorSetLayout setLayout = 0;
+    VkPipelineLayout triangleLayout = createPipelineLayout(device, setLayout);
     assert(triangleLayout);
 
     VkPipelineCache pipelineCache = 0;
@@ -960,7 +960,7 @@ int main(int argc, const char** argv)
 	}
     VK_CHECK(vkDeviceWaitIdle(device));
     
-    
+    vkDestroyDescriptorSetLayout(device, setLayout, 0);
 
     destroyBuffer(ib, device); 
     destroyBuffer(vb, device);
