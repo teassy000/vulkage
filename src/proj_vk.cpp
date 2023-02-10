@@ -6,11 +6,14 @@
 
 #include <glfw/glfw3.h>
 #include <glfw/glfw3native.h>
-#include <vulkan/vulkan.h>
-#include <vulkan/vulkan_win32.h>
+
+#include <volk.h>
 
 #include <vector>
 #include <algorithm>
+
+#include <fast_obj.h>
+#include <meshoptimizer.h>
 
 #define VK_CHECK(call) \
 	do{ \
@@ -226,8 +229,11 @@ VkFormat getSwapchainFormat(VkPhysicalDevice physicalDevice, VkSurfaceKHR surfac
 
 
 VkSwapchainKHR createSwapchain(VkDevice device, VkSurfaceKHR surface, VkSurfaceCapabilitiesKHR surfaceCaps, uint32_t* familyIndex, VkFormat format
-    , uint32_t width, uint32_t height, VkSwapchainKHR oldSwapchain)
+    , VkSwapchainKHR oldSwapchain)
 {
+
+    uint32_t width = surfaceCaps.currentExtent.width;
+    uint32_t height = surfaceCaps.currentExtent.height;
 
     VkCompositeAlphaFlagBitsKHR surfaceComposite =
         (surfaceCaps.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)
@@ -408,7 +414,33 @@ VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache
 
     VkPipelineVertexInputStateCreateInfo vertexInput = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
     createInfo.pVertexInputState = &vertexInput;
-    
+
+    if (1)
+    {
+        VkVertexInputBindingDescription stream = { 0, 8 * 4, VK_VERTEX_INPUT_RATE_VERTEX };
+       
+
+        VkVertexInputAttributeDescription attrs[3] = {};
+        
+        attrs[0].location = 0;
+        attrs[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+        attrs[0].offset = 0;
+        
+        attrs[1].location = 1;
+        attrs[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+        attrs[1].offset = 12;
+        
+        attrs[2].location = 2;
+        attrs[2].format = VK_FORMAT_R32G32_SFLOAT;
+        attrs[2].offset = 24;
+
+        vertexInput.vertexBindingDescriptionCount = 1;
+        vertexInput.pVertexBindingDescriptions = &stream;
+
+        vertexInput.vertexAttributeDescriptionCount = 3;
+        vertexInput.pVertexAttributeDescriptions = attrs;
+    }
+
     VkPipelineInputAssemblyStateCreateInfo inputAssemply = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
     inputAssemply.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     createInfo.pInputAssemblyState = &inputAssemply;
@@ -489,12 +521,15 @@ struct Swapchain
 };
 
 void createSwapchain(Swapchain& result, VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, uint32_t* familyIndex
-    , VkFormat format, uint32_t width, uint32_t height, VkRenderPass renderPass, VkSwapchainKHR oldSwapchain = 0)
+    , VkFormat format, VkRenderPass renderPass, VkSwapchainKHR oldSwapchain = 0)
 {
     VkSurfaceCapabilitiesKHR surfaceCaps;
     VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCaps));
 
-    VkSwapchainKHR swapchain = createSwapchain(device, surface, surfaceCaps, familyIndex, format, width, height, oldSwapchain);
+    uint32_t width = surfaceCaps.currentExtent.width;
+    uint32_t height= surfaceCaps.currentExtent.height;
+
+    VkSwapchainKHR swapchain = createSwapchain(device, surface, surfaceCaps, familyIndex, format, oldSwapchain);
     assert(swapchain);
 
     std::vector<VkImage> images(16);
@@ -538,31 +573,178 @@ void destroySwapchain(VkDevice device, const Swapchain& swapchain)
 }
 
 void resizeSwapchainIfNecessary(Swapchain& result, VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, uint32_t* familyIndex
-    , VkFormat format, uint32_t width, uint32_t height, VkRenderPass renderPass)
+    , VkFormat format, VkRenderPass renderPass)
 {
     VkSurfaceCapabilitiesKHR surfaceCaps;
     VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCaps));
 
-    if (width == surfaceCaps.currentExtent.width && height == surfaceCaps.currentExtent.height)
+    if (result.width == surfaceCaps.currentExtent.width && result.height == surfaceCaps.currentExtent.height)
     {
         return;
     }
 
     Swapchain old = result;
-    createSwapchain(result, physicalDevice, device, surface, familyIndex, format, surfaceCaps.currentExtent.width, surfaceCaps.currentExtent.height, renderPass, old.swapchain);
+    createSwapchain(result, physicalDevice, device, surface, familyIndex, format, renderPass, old.swapchain);
     
 
     VK_CHECK(vkDeviceWaitIdle(device));
     destroySwapchain(device, old);
 }
 
-int main()
+struct Vertex
 {
+    float vx, vy, vz;
+    float nx, ny, nz;
+    float tu, tv;
+};
+
+struct Mesh
+{
+    std::vector<Vertex> vertices;
+    std::vector<uint32_t> indices;
+};
+
+struct Buffer
+{
+    VkBuffer buffer;
+    VkDeviceMemory memory;
+    void* data;
+    size_t size;
+};
+
+uint32_t selectMemoryType(const VkPhysicalDeviceMemoryProperties& memoryProps, uint32_t memoryTypeBits, VkMemoryPropertyFlags flags)
+{
+    for (uint32_t i = 0; i < memoryProps.memoryTypeCount; ++i) {
+        if ( (memoryTypeBits & (1 << i)) != 0 && (memoryProps.memoryTypes[i].propertyFlags & flags) == flags) {
+            return i;
+        }
+    }
+
+    assert(!"No compatible memory type found!\n");
+    return ~0u;
+}
+
+void createBuffer(Buffer& result, const VkPhysicalDeviceMemoryProperties memoryProps, VkDevice device, size_t sz, VkBufferUsageFlags usage)
+{
+    VkBufferCreateInfo createInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+    createInfo.size = sz;
+    createInfo.usage = usage;
+
+    VkBuffer buffer = 0;
+    VK_CHECK(vkCreateBuffer(device, &createInfo, 0, &buffer));
+
+    VkMemoryRequirements memoryReqs;
+    vkGetBufferMemoryRequirements(device, buffer, &memoryReqs);
+
+    uint32_t memoryTypeIdx = selectMemoryType(memoryProps, memoryReqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    assert(memoryTypeIdx != ~0u);
+
+    VkMemoryAllocateInfo allocInfo = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
+    allocInfo.allocationSize = memoryReqs.size;
+    allocInfo.memoryTypeIndex = memoryTypeIdx;
+    
+    VkDeviceMemory memory = 0;
+    VK_CHECK(vkAllocateMemory(device, &allocInfo, 0, &memory));
+
+    VK_CHECK(vkBindBufferMemory(device, buffer, memory, 0));
+
+    void* data = 0;
+    VK_CHECK(vkMapMemory(device, memory, 0, sz, 0, &data));
+
+    result.buffer = buffer;
+    result.memory = memory;
+    result.data = data;
+    result.size = sz;
+}
+
+void destroyBuffer(const Buffer& buffer, VkDevice device)
+{
+    // depends on the doc:
+    //    If a memory object is mapped at the time it is freed, it is implicitly unmapped.
+    // https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/vkFreeMemory.html
+    vkFreeMemory(device, buffer.memory, 0);
+    vkDestroyBuffer(device, buffer.buffer, 0);
+}
+
+bool loadMesh(Mesh& result, const char* path)
+{
+    fastObjMesh* obj =  fast_obj_read(path);
+    if (!obj)
+        return false;
+
+    size_t index_count = obj->index_count;
+
+    std::vector<Vertex> triangle_vertices;
+    triangle_vertices.resize(index_count);
+
+
+    size_t vertex_offset = 0, index_offset = 0;
+
+    for (uint32_t i = 0; i < obj->face_count; ++i)
+    {
+        for (uint32_t j = 0; j < obj->face_vertices[i]; ++j)
+        {
+            fastObjIndex gi = obj->indices[index_offset + j];
+
+            assert(j < 3);
+
+            Vertex& v = triangle_vertices[vertex_offset++];
+
+            v.vx = obj->positions[gi.p * 3 + 0];
+            v.vy = obj->positions[gi.p * 3 + 1];
+            v.vz = obj->positions[gi.p * 3 + 2];
+
+            v.nx = obj->normals[gi.n * 3 + 0] * 127.f + 127.5f;
+            v.ny = obj->normals[gi.n * 3 + 1] * 127.f + 127.5f;
+            v.nz = obj->normals[gi.n * 3 + 2] * 127.f + 127.5f;
+
+            v.tu = meshopt_quantizeHalf( obj->texcoords[gi.t * 2 + 0]);
+            v.tu = meshopt_quantizeHalf( obj->texcoords[gi.t * 2 + 1]);
+        }
+
+        index_offset += obj->face_vertices[i];
+    }
+
+    assert(vertex_offset == index_count);
+
+    fast_obj_destroy(obj);
+
+    std::vector<uint32_t> remap(index_count);
+    size_t vertex_count = meshopt_generateVertexRemap(remap.data(), 0, index_count, triangle_vertices.data(), index_count, sizeof(Vertex));
+
+    std::vector<Vertex> vertices(vertex_count);
+    std::vector<uint32_t> indices(index_count);
+
+
+    meshopt_remapVertexBuffer(vertices.data(), triangle_vertices.data(), index_count, sizeof(Vertex), remap.data());
+    meshopt_remapIndexBuffer(indices.data(), 0, index_count, remap.data());
+
+    meshopt_optimizeVertexCache(indices.data(), indices.data(), index_count, vertex_count);
+    meshopt_optimizeVertexFetch(vertices.data(), indices.data(), index_count, vertices.data(), vertex_count, sizeof(Vertex));
+
+    result.vertices.insert(result.vertices.end(), vertices.begin(), vertices.end());
+    result.indices.insert(result.indices.end(), indices.begin(), indices.end());
+
+
+    return true;
+}
+
+int main(int argc, const char** argv)
+{
+    if (argc < 2) {
+        printf("Usage: %s [mesh]\n", argv[0]);
+        return 1;
+    }
+
 	int rc = glfwInit();
-	assert(rc == GLFW_TRUE);
+	assert(rc);
+
+    VK_CHECK(volkInitialize());
 
 	VkInstance instance = createInstance();
 	assert(instance);
+
+    volkLoadInstance(instance);
 
     VkDebugReportCallbackEXT debugCallback = registerDebugCallback(instance);
 
@@ -593,9 +775,6 @@ int main()
     VkFormat swapchainFormat = getSwapchainFormat(physicalDevice, surface);
     assert(swapchainFormat);
     
-    int windowWidth = 0, windowHeight = 0;
-    glfwGetWindowSize(window, &windowWidth, &windowHeight);
-    
     VkSemaphore acquirSemaphore = createSemaphore(device);
     assert(acquirSemaphore);
 
@@ -624,7 +803,7 @@ int main()
     assert(trianglePipeline);
 
     Swapchain swapchain = {};
-    createSwapchain(swapchain, physicalDevice, device, surface, &familyIndex, swapchainFormat, windowWidth, windowHeight, renderPass);
+    createSwapchain(swapchain, physicalDevice, device, surface, &familyIndex, swapchainFormat, renderPass);
 
     VkCommandPool commandPool = createCommandPool(device, familyIndex);
     assert(commandPool);
@@ -637,6 +816,26 @@ int main()
     VkCommandBuffer cmdBuffer = 0;
     VK_CHECK(vkAllocateCommandBuffers(device, &allocateInfo, &cmdBuffer));
 
+    
+    VkPhysicalDeviceMemoryProperties memoryProps = {};
+    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProps);
+    
+    Mesh mesh;
+    bool rcm = loadMesh(mesh, argv[1]);
+
+    Buffer vb = {};
+    createBuffer(vb, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+
+
+    Buffer ib = {};
+    createBuffer(ib, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+
+    assert(vb.data && vb.size >= mesh.vertices.size() * sizeof(Vertex));
+    memcpy(vb.data, mesh.vertices.data(), mesh.vertices.size() * sizeof(Vertex));
+    
+    assert(ib.data&& ib.size >= mesh.indices.size() * sizeof(uint32_t));
+    memcpy(ib.data, mesh.indices.data(), mesh.indices.size() * sizeof(uint32_t));
+
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
 
@@ -644,7 +843,7 @@ int main()
         glfwGetWindowSize(window, &newWindowWidth, &newWindowHeight);
 
 
-        resizeSwapchainIfNecessary(swapchain, physicalDevice, device, surface, &familyIndex, swapchainFormat, windowWidth, windowHeight, renderPass);
+        resizeSwapchainIfNecessary(swapchain, physicalDevice, device, surface, &familyIndex, swapchainFormat, renderPass);
 
 
         uint32_t imageIndex = 0;
@@ -686,7 +885,13 @@ int main()
         vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
 
         vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, trianglePipeline);
-        vkCmdDraw(cmdBuffer, 3, 1, 0, 0);
+
+
+        VkDeviceSize dummyOffset = 0;
+        vkCmdBindVertexBuffers(cmdBuffer, 0, 1, &vb.buffer, &dummyOffset);
+        vkCmdBindIndexBuffer(cmdBuffer, ib.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+        vkCmdDrawIndexed(cmdBuffer, mesh.indices.size(), 1, 0, 0, 0);
 
         vkCmdEndRenderPass(cmdBuffer);
 
@@ -725,6 +930,10 @@ int main()
 	}
     VK_CHECK(vkDeviceWaitIdle(device));
     
+    
+    destroyBuffer(ib, device); 
+    destroyBuffer(vb, device);
+
     vkDestroyCommandPool(device, commandPool, 0);
 
     destroySwapchain(device, swapchain);
