@@ -1,13 +1,16 @@
 #version 450
 
+#extension GL_EXT_shader_16bit_storage: require
+#extension GL_EXT_shader_8bit_storage: require
+
 struct Vertex
 {
     float vx, vy, vz;
-    float nx, ny, nz;
+    uint8_t nx, ny, nz, nw;
     float tu, tv;
 };
 
-layout(binding = 0) buffer Vertices
+layout(binding = 0) readonly buffer Vertices
 {
     Vertex vertices[];
 };
@@ -17,14 +20,12 @@ out vec4 color;
 
 void main()
 {
-    Vertex v = vertices[gl_VertexIndex];
-
-    vec3 pos = vec3(v.vx, v.vy, v.vz);
-    vec3 norm = vec3(v.nx, v.ny, v.nz);
-    vec2 uv = vec2(v.tu, v.tv);
+    vec3 pos = vec3(vertices[gl_VertexIndex].vx, vertices[gl_VertexIndex].vy, vertices[gl_VertexIndex].vz);
+    vec3 norm = vec3(int(vertices[gl_VertexIndex].nx), int(vertices[gl_VertexIndex].ny), int(vertices[gl_VertexIndex].nz)) / 127.0 - 1;
+    vec2 uv = vec2(vertices[gl_VertexIndex].tu, vertices[gl_VertexIndex].tv);
 
     gl_Position = vec4(pos + vec3(0, 0, 0.5), 1.0);
 
 
-    color = vec4(norm / 256.0, 1.0);
+    color = vec4(norm, 1.0);
 }

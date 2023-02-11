@@ -128,7 +128,8 @@ VkBool32 debugReportCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTyp
     {
         assert(!"validation error encountered!");
     }
-    return VK_FALSE;
+   return VK_FALSE;
+
 }
 
 
@@ -194,13 +195,29 @@ VkDevice createDevice(VkInstance instance, VkPhysicalDevice physicalDevice, uint
 	const char* extensions[] = {
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME,
         VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
+        VK_KHR_16BIT_STORAGE_EXTENSION_NAME,
+        VK_KHR_8BIT_STORAGE_EXTENSION_NAME,
 	};
+
+    VkPhysicalDeviceFeatures2 features = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
+    features.features.vertexPipelineStoresAndAtomics = true;
+
+    VkPhysicalDevice8BitStorageFeatures features8 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES };
+    features8.storageBuffer8BitAccess = true;
+    features8.uniformAndStorageBuffer8BitAccess = true; // TODO: this is seems something weird that SPIV-R automatic enabled the Access in assembly. need find a way to fix it.
+
+    VkPhysicalDevice16BitStorageFeatures features16 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_16BIT_STORAGE_FEATURES };
+    features16.storageBuffer16BitAccess = true;
 
     VkDeviceCreateInfo createInfo = { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
     createInfo.queueCreateInfoCount = 1;
     createInfo.pQueueCreateInfos = &queueInfo;
     createInfo.ppEnabledExtensionNames = extensions;
     createInfo.enabledExtensionCount = sizeof(extensions) / sizeof(extensions[0]);
+
+    createInfo.pNext = &features;
+    features.pNext = &features16;
+    features16.pNext = &features8;
 
     VkDevice device = 0;
     VK_CHECK(vkCreateDevice(physicalDevice, &createInfo, 0, &device));
@@ -408,8 +425,6 @@ VkPipelineLayout createPipelineLayout(VkDevice device, VkDescriptorSetLayout& ou
     VkPipelineLayout layout = 0;
     VK_CHECK(vkCreatePipelineLayout(device, &createInfo, 0, &layout));
 
-    
-
     return layout;
 }
 
@@ -433,32 +448,6 @@ VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache
 
     VkPipelineVertexInputStateCreateInfo vertexInput = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
     createInfo.pVertexInputState = &vertexInput;
-
-    if (0)
-    {
-        VkVertexInputBindingDescription stream = { 0, 8 * 4, VK_VERTEX_INPUT_RATE_VERTEX };
-       
-
-        VkVertexInputAttributeDescription attrs[3] = {};
-        
-        attrs[0].location = 0;
-        attrs[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attrs[0].offset = 0;
-        
-        attrs[1].location = 1;
-        attrs[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attrs[1].offset = 12;
-        
-        attrs[2].location = 2;
-        attrs[2].format = VK_FORMAT_R32G32_SFLOAT;
-        attrs[2].offset = 24;
-
-        vertexInput.vertexBindingDescriptionCount = 1;
-        vertexInput.pVertexBindingDescriptions = &stream;
-
-        vertexInput.vertexAttributeDescriptionCount = 3;
-        vertexInput.pVertexAttributeDescriptions = attrs;
-    }
 
     VkPipelineInputAssemblyStateCreateInfo inputAssemply = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
     inputAssemply.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
@@ -613,7 +602,7 @@ void resizeSwapchainIfNecessary(Swapchain& result, VkPhysicalDevice physicalDevi
 struct Vertex
 {
     float vx, vy, vz;
-    float nx, ny, nz;
+    uint8_t nx, ny, nz;
     float tu, tv;
 };
 
@@ -713,12 +702,12 @@ bool loadMesh(Mesh& result, const char* path)
             v.vy = obj->positions[gi.p * 3 + 1];
             v.vz = obj->positions[gi.p * 3 + 2];
 
-            v.nx = obj->normals[gi.n * 3 + 0] * 127.f + 127.5f;
-            v.ny = obj->normals[gi.n * 3 + 1] * 127.f + 127.5f;
-            v.nz = obj->normals[gi.n * 3 + 2] * 127.f + 127.5f;
+            v.nx = uint8_t(obj->normals[gi.n * 3 + 0] * 127.f + 127.5f);
+            v.ny = uint8_t(obj->normals[gi.n * 3 + 1] * 127.f + 127.5f);
+            v.nz = uint8_t(obj->normals[gi.n * 3 + 2] * 127.f + 127.5f);
 
             v.tu = meshopt_quantizeHalf( obj->texcoords[gi.t * 2 + 0]);
-            v.tu = meshopt_quantizeHalf( obj->texcoords[gi.t * 2 + 1]);
+            v.tv = meshopt_quantizeHalf( obj->texcoords[gi.t * 2 + 1]);
         }
 
         index_offset += obj->face_vertices[i];
