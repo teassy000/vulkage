@@ -16,7 +16,7 @@
 #include <meshoptimizer.h>
 #include <string>
 
-#define USE_TASK_MESH_SHADER 0
+#define USE_TASK_MESH_SHADER 0 // TODO: task shader not work correctly with the mesh shader
 
 #define USE_MESH_SHADER 1
 

@@ -4,7 +4,7 @@
 #extension GL_EXT_shader_8bit_storage: require
 #extension GL_EXT_mesh_shader: require
 
-layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
 layout(triangles, max_vertices= 64, max_primitives = 42) out;
 
 struct Vertex
@@ -38,7 +38,7 @@ layout(location = 0) out vec4 color[];
 
 void main()
 {
-    uint mi = gl_GlobalInvocationID.x;
+    uint mi = gl_WorkGroupID.x;
 
     SetMeshOutputsEXT(uint(meshlets[mi].vertexCount), uint(meshlets[mi].indexCount) / 3);
 
@@ -49,7 +49,8 @@ void main()
         vec3 pos = vec3(vertices[vi].vx, vertices[vi].vy, vertices[vi].vz);
         vec3 norm = vec3(int(vertices[vi].nx), int(vertices[vi].ny), int(vertices[vi].nz)) / 127.0 - 1;
         vec2 uv = vec2(vertices[vi].tu, vertices[vi].tv);
-        
+       
+
         gl_MeshVerticesEXT[i].gl_Position = vec4(pos + vec3(0, 0, 0.5), 1.0);
         color[i] = vec4(norm, 1.0);
     }
