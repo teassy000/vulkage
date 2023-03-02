@@ -532,6 +532,7 @@ VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache
 
     VkPipelineRasterizationStateCreateInfo rasterizationState = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
     rasterizationState.lineWidth = 1.f;
+    rasterizationState.frontFace = VK_FRONT_FACE_CLOCKWISE;
     rasterizationState.cullMode = VK_CULL_MODE_FRONT_BIT;
     createInfo.pRasterizationState = &rasterizationState;
 
@@ -756,6 +757,33 @@ void destroyBuffer(const Buffer& buffer, VkDevice device)
     vkDestroyBuffer(device, buffer.buffer, 0);
 }
 
+
+bool checkExtSupportness(std::vector<VkExtensionProperties>& props, const char* extName)
+{
+    bool extSupported = false;
+    for (const auto& extension : props) {
+        if (std::string(extension.extensionName) == extName) {
+            extSupported = true;
+            break;
+        }
+    }
+
+    printf("%s : %s\n", extName, extSupported ? "true" : "false");
+
+    return extSupported;
+}
+
+VkQueryPool createQueryPool(VkDevice device, uint32_t queryCount)
+{
+    VkQueryPoolCreateInfo createInfo = { VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO };
+    createInfo.queryType = VK_QUERY_TYPE_TIMESTAMP;
+    createInfo.queryCount = queryCount;
+
+    VkQueryPool queryPool = nullptr;
+    VK_CHECK(vkCreateQueryPool(device, &createInfo, 0, &queryPool));
+    return queryPool;
+}
+
 void buildMeshlets(Mesh& mesh)
 {
     Meshlet meshlet = {};
@@ -773,8 +801,14 @@ void buildMeshlets(Mesh& mesh)
         if (meshlet.vertexCount + (av == 0xff) + (bv == 0xff) + (cv == 0xff) > 64
             || meshlet.indexCount + 3 > 126) {
             mesh.meshlets.push_back(meshlet);
+
+
+            for (size_t j = 0; j < meshlet.vertexCount; ++j)
+            {
+                meshletVertices[meshlet.vertices[j]] = (uint8_t)0xff;
+            }
+
             meshlet = {};
-            memset(meshletVertices.data(), (uint8_t)0xff, mesh.vertices.size());
         }
 
         if (av == 0xff)
@@ -804,21 +838,6 @@ void buildMeshlets(Mesh& mesh)
         mesh.meshlets.push_back(meshlet);
     }
 
-}
-
-bool checkExtSupportness(std::vector<VkExtensionProperties>& props, const char* extName)
-{
-    bool extSupported = false;
-    for (const auto& extension : props) {
-        if (std::string(extension.extensionName) == extName) {
-            extSupported = true;
-            break;
-        }
-    }
-
-    printf("%s : %s\n", extName, extSupported ? "true" : "false");
-
-    return extSupported;
 }
 
 void dumpExtensionSupport(VkPhysicalDevice physicalDevice)
@@ -890,8 +909,8 @@ bool loadMesh(Mesh& result, const char* path)
     meshopt_remapVertexBuffer(vertices.data(), triangle_vertices.data(), index_count, sizeof(Vertex), remap.data());
     meshopt_remapIndexBuffer(indices.data(), 0, index_count, remap.data());
 
-    //meshopt_optimizeVertexCache(indices.data(), indices.data(), index_count, vertex_count);
-    //meshopt_optimizeVertexFetch(vertices.data(), indices.data(), index_count, vertices.data(), vertex_count, sizeof(Vertex));
+    meshopt_optimizeVertexCache(indices.data(), indices.data(), index_count, vertex_count);
+    meshopt_optimizeVertexFetch(vertices.data(), indices.data(), index_count, vertices.data(), vertex_count, sizeof(Vertex));
 
     result.vertices.insert(result.vertices.end(), vertices.begin(), vertices.end());
     result.indices.insert(result.indices.end(), indices.begin(), indices.end());
@@ -927,6 +946,10 @@ int main(int argc, const char** argv)
 	assert(physicalDevice);
 
     dumpExtensionSupport(physicalDevice);
+
+    VkPhysicalDeviceProperties props = {};
+    vkGetPhysicalDeviceProperties(physicalDevice, &props);
+    assert(props.limits.timestampPeriod);
 
     uint32_t familyIndex = getGraphicsFamilyIndex(physicalDevice);
     assert(familyIndex != VK_QUEUE_FAMILY_IGNORED);
@@ -984,11 +1007,14 @@ int main(int argc, const char** argv)
     assert(descSetLayout);
 
     VkPipelineCache pipelineCache = 0;
-    VkPipeline trianglePipeline = createGraphicsPipeline(device, pipelineCache, triangleLayout,renderPass, triangleVS, triangleFS, meshletTS, meshletMS);
-    assert(trianglePipeline);
+    VkPipeline pipeline = createGraphicsPipeline(device, pipelineCache, triangleLayout,renderPass, triangleVS, triangleFS, meshletTS, meshletMS);
+    assert(pipeline);
 
     Swapchain swapchain = {};
     createSwapchain(swapchain, physicalDevice, device, surface, &familyIndex, swapchainFormat, renderPass);
+
+    VkQueryPool queryPool = createQueryPool(device, 128);
+    assert(queryPool);
 
     VkCommandPool commandPool = createCommandPool(device, familyIndex);
     assert(commandPool);
@@ -1034,6 +1060,9 @@ int main(int argc, const char** argv)
 #endif
 
     while (!glfwWindowShouldClose(window)) {
+
+        double frameCpuBegin = glfwGetTime() * 1000.0;
+
         glfwPollEvents();
 
         int newWindowWidth = 0, newWindowHeight = 0;
@@ -1052,6 +1081,10 @@ int main(int argc, const char** argv)
         beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
         VK_CHECK(vkBeginCommandBuffer(cmdBuffer, &beginInfo));
+
+        vkCmdResetQueryPool(cmdBuffer, queryPool, 0, 128);
+        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 0);
+
         
         VkImageMemoryBarrier renderBeginBarrier = imageBarrier(swapchain.images[imageIndex], 0, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
             , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
@@ -1081,7 +1114,7 @@ int main(int argc, const char** argv)
         vkCmdSetViewport(cmdBuffer, 0, 1, &viewport);
         vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
 
-        vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, trianglePipeline);
+        vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
         VkDescriptorBufferInfo vbInfo = { };
         vbInfo.buffer = vb.buffer;
@@ -1134,6 +1167,8 @@ int main(int argc, const char** argv)
         vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT
             , VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &renderEndBarrier);
 
+        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 1);
+
         VK_CHECK(vkEndCommandBuffer(cmdBuffer));
 
  
@@ -1160,6 +1195,18 @@ int main(int argc, const char** argv)
         VK_CHECK(vkQueuePresentKHR(queue, &presentInfo));
 
         VK_CHECK(vkDeviceWaitIdle(device));
+        
+        uint64_t queryResults[2] = {};
+        vkGetQueryPoolResults(device, queryPool, 0, ARRAYSIZE(queryResults), sizeof(queryResults), queryResults, sizeof(queryResults[0]), VK_QUERY_RESULT_64_BIT);
+
+        double frameCpuEnd = glfwGetTime() * 1000.0;
+
+        double frameGpuBegin = double(queryResults[0]) * props.limits.timestampPeriod * 1e-6;
+        double frameGpuEnd = double(queryResults[1]) * props.limits.timestampPeriod * 1e-6;
+        
+        char title[256];
+        sprintf(title, "cpu: %.1f ms; gpu %.1f ms;", frameCpuEnd - frameCpuBegin, frameGpuEnd - frameGpuBegin);
+        glfwSetWindowTitle(window, title);
                 
 	}
     VK_CHECK(vkDeviceWaitIdle(device));
@@ -1177,7 +1224,9 @@ int main(int argc, const char** argv)
 
     destroySwapchain(device, swapchain);
 
-    vkDestroyPipeline(device, trianglePipeline, 0);
+    vkDestroyQueryPool(device, queryPool, 0);
+
+    vkDestroyPipeline(device, pipeline, 0);
     vkDestroyDescriptorSetLayout(device, descSetLayout, 0);
     vkDestroyPipelineLayout(device, triangleLayout, 0);
 
