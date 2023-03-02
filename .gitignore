@@ -3,3 +3,4 @@ src/*.user
 src/x64
 src/*.spv
 src/*.db
+data/*

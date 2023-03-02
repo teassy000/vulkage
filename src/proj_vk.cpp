@@ -16,7 +16,9 @@
 #include <meshoptimizer.h>
 #include <string>
 
-#define USE_MESH_SHADER 0
+#define USE_TASK_MESH_SHADER 0
+
+#define USE_MESH_SHADER 1
 
 #define VK_CHECK(call) \
 	do{ \
@@ -199,9 +201,11 @@ VkDevice createDevice(VkInstance instance, VkPhysicalDevice physicalDevice, uint
         VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
         VK_KHR_8BIT_STORAGE_EXTENSION_NAME,
         VK_KHR_16BIT_STORAGE_EXTENSION_NAME,
+#if USE_MESH_SHADER
         VK_EXT_MESH_SHADER_EXTENSION_NAME,
         VK_KHR_SPIRV_1_4_EXTENSION_NAME, // required by VK_EXT_MESH_SHADER_EXTENSION_NAME
         VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME, //required by VK_KHR_SPIRV_1_4_EXTENSION_NAME
+#endif
 	};
 
     VkPhysicalDeviceFeatures2 features = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
@@ -214,8 +218,13 @@ VkDevice createDevice(VkInstance instance, VkPhysicalDevice physicalDevice, uint
     VkPhysicalDevice16BitStorageFeatures features16 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_16BIT_STORAGE_FEATURES };
     features16.storageBuffer16BitAccess = true;
 
+#if USE_MESH_SHADER
     VkPhysicalDeviceMeshShaderFeaturesEXT featuresMesh = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT };
     featuresMesh.meshShader = true;
+#if USE_TASK_MESH_SHADER
+    featuresMesh.taskShader = true;
+#endif
+#endif
 
     VkDeviceCreateInfo createInfo = { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
     createInfo.queueCreateInfoCount = 1;
@@ -226,9 +235,12 @@ VkDevice createDevice(VkInstance instance, VkPhysicalDevice physicalDevice, uint
     createInfo.pNext = &features;
     features.pNext = &features16;
     features16.pNext = &features8;
+#if USE_MESH_SHADER
     features8.pNext = &featuresMesh;
+#endif
 
     VkDevice device = 0;
+
     VK_CHECK(vkCreateDevice(physicalDevice, &createInfo, 0, &device));
 
 	return device;
@@ -450,21 +462,37 @@ VkPipelineLayout createPipelineLayout(VkDevice device, VkDescriptorSetLayout& ou
     return layout;
 }
 
-VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, VkRenderPass renderPass, VkShaderModule VS, VkShaderModule FS, VkShaderModule MS)
+VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, VkRenderPass renderPass, VkShaderModule VS, VkShaderModule FS, VkShaderModule TS, VkShaderModule MS)
 {
     VkGraphicsPipelineCreateInfo createInfo = { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
 
-    VkPipelineShaderStageCreateInfo stages[2] = {};
+#if USE_MESH_SHADER && USE_TASK_MESH_SHADER
+    VkPipelineShaderStageCreateInfo stages[3] = {};
+
     stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-#if USE_MESH_SHADER
+    stages[0].stage = VK_SHADER_STAGE_TASK_BIT_EXT;
+    stages[0].module = TS;
+    stages[0].pName = "main";
+
+    stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    stages[1].stage = VK_SHADER_STAGE_MESH_BIT_EXT;
+    stages[1].module = MS;
+    stages[1].pName = "main";
+
+    stages[2].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    stages[2].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    stages[2].module = FS;
+    stages[2].pName = "main";
+
+    createInfo.stageCount = sizeof(stages) / sizeof(stages[0]);
+    createInfo.pStages = stages;
+#elif USE_MESH_SHADER && !USE_TASK_MESH_SHADER
+    VkPipelineShaderStageCreateInfo stages[2] = {};
+
+    stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     stages[0].stage = VK_SHADER_STAGE_MESH_BIT_EXT;
     stages[0].module = MS;
     stages[0].pName = "main";
-#else
-    stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-    stages[0].module = VS;
-    stages[0].pName = "main";
-#endif
 
     stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
@@ -473,6 +501,22 @@ VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache
 
     createInfo.stageCount = sizeof(stages) / sizeof(stages[0]);
     createInfo.pStages = stages;
+#else
+    VkPipelineShaderStageCreateInfo stages[2] = {};
+
+    stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+    stages[0].module = VS;
+    stages[0].pName = "main";
+
+    stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    stages[1].module = FS;
+    stages[1].pName = "main";
+
+    createInfo.stageCount = sizeof(stages) / sizeof(stages[0]);
+    createInfo.pStages = stages;
+#endif
 
     VkPipelineVertexInputStateCreateInfo vertexInput = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
     createInfo.pVertexInputState = &vertexInput;
@@ -488,6 +532,7 @@ VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache
 
     VkPipelineRasterizationStateCreateInfo rasterizationState = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
     rasterizationState.lineWidth = 1.f;
+    rasterizationState.cullMode = VK_CULL_MODE_FRONT_BIT;
     createInfo.pRasterizationState = &rasterizationState;
 
     VkPipelineMultisampleStateCreateInfo multisampleState = { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
@@ -716,25 +761,20 @@ void buildMeshlets(Mesh& mesh)
     Meshlet meshlet = {};
     std::vector<uint8_t> meshletVertices(mesh.vertices.size(), (uint8_t)0xff);
 
-
     for (size_t i = 0; i < mesh.indices.size(); i += 3)
     {
-        unsigned int a = mesh.indices[i + 0];
-        unsigned int b = mesh.indices[i + 1];
-        unsigned int c = mesh.indices[i + 2];
+        uint32_t a = mesh.indices[i + 0];
+        uint32_t b = mesh.indices[i + 1];
+        uint32_t c = mesh.indices[i + 2];
 
         uint8_t& av = meshletVertices[a];
         uint8_t& bv = meshletVertices[b];
         uint8_t& cv = meshletVertices[c];
-        if (meshlet.vertexCount + (av == 0xff) + (bv == 0xff) + (cv == 0xff) > 64) {
+        if (meshlet.vertexCount + (av == 0xff) + (bv == 0xff) + (cv == 0xff) > 64
+            || meshlet.indexCount + 3 > 126) {
             mesh.meshlets.push_back(meshlet);
             meshlet = {};
-        }
-
-        if (meshlet.indexCount + 3 > 126)
-        {
-            mesh.meshlets.push_back(meshlet);
-            meshlet = {};
+            memset(meshletVertices.data(), (uint8_t)0xff, mesh.vertices.size());
         }
 
         if (av == 0xff)
@@ -766,6 +806,37 @@ void buildMeshlets(Mesh& mesh)
 
 }
 
+bool checkExtSupportness(std::vector<VkExtensionProperties>& props, const char* extName)
+{
+    bool extSupported = false;
+    for (const auto& extension : props) {
+        if (std::string(extension.extensionName) == extName) {
+            extSupported = true;
+            break;
+        }
+    }
+
+    printf("%s : %s\n", extName, extSupported ? "true" : "false");
+
+    return extSupported;
+}
+
+void dumpExtensionSupport(VkPhysicalDevice physicalDevice)
+{
+    uint32_t extensionCount = 0;
+    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr);
+    std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, availableExtensions.data());
+
+    checkExtSupportness(availableExtensions, VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+    checkExtSupportness(availableExtensions, VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
+    checkExtSupportness(availableExtensions, VK_KHR_8BIT_STORAGE_EXTENSION_NAME);
+    checkExtSupportness(availableExtensions, VK_KHR_16BIT_STORAGE_EXTENSION_NAME);
+    checkExtSupportness(availableExtensions, VK_EXT_MESH_SHADER_EXTENSION_NAME);
+    checkExtSupportness(availableExtensions, VK_KHR_SPIRV_1_4_EXTENSION_NAME);
+    checkExtSupportness(availableExtensions, VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME);
+}
+
 bool loadMesh(Mesh& result, const char* path)
 {
     fastObjMesh* obj =  fast_obj_read(path);
@@ -776,7 +847,6 @@ bool loadMesh(Mesh& result, const char* path)
 
     std::vector<Vertex> triangle_vertices;
     triangle_vertices.resize(index_count);
-
 
     size_t vertex_offset = 0, index_offset = 0;
 
@@ -789,6 +859,7 @@ bool loadMesh(Mesh& result, const char* path)
             assert(j < 3);
 
             Vertex& v = triangle_vertices[vertex_offset++];
+
 
             v.vx = obj->positions[gi.p * 3 + 0];
             v.vy = obj->positions[gi.p * 3 + 1];
@@ -819,12 +890,11 @@ bool loadMesh(Mesh& result, const char* path)
     meshopt_remapVertexBuffer(vertices.data(), triangle_vertices.data(), index_count, sizeof(Vertex), remap.data());
     meshopt_remapIndexBuffer(indices.data(), 0, index_count, remap.data());
 
-    meshopt_optimizeVertexCache(indices.data(), indices.data(), index_count, vertex_count);
-    meshopt_optimizeVertexFetch(vertices.data(), indices.data(), index_count, vertices.data(), vertex_count, sizeof(Vertex));
+    //meshopt_optimizeVertexCache(indices.data(), indices.data(), index_count, vertex_count);
+    //meshopt_optimizeVertexFetch(vertices.data(), indices.data(), index_count, vertices.data(), vertex_count, sizeof(Vertex));
 
     result.vertices.insert(result.vertices.end(), vertices.begin(), vertices.end());
     result.indices.insert(result.indices.end(), indices.begin(), indices.end());
-
 
     return true;
 }
@@ -856,29 +926,7 @@ int main(int argc, const char** argv)
 	VkPhysicalDevice physicalDevice = pickPhysicalDevice(physicalDevices, deviceCount);
 	assert(physicalDevice);
 
-    {
-        uint32_t extensionCount = 0;
-        vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr);
-        std::vector<VkExtensionProperties> availableExtensions(extensionCount);
-        vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, availableExtensions.data());
-        
-
-        bool meshShaderSupported = false;
-        for (const auto& extension : availableExtensions) {
-            if (std::string(extension.extensionName) == "VK_EXT_mesh_shader") {
-                meshShaderSupported = true;
-                break;
-            }
-        }
-
-        if (meshShaderSupported) {
-            // VK_EXT_mesh_shader is supported
-        }
-        else {
-            // VK_EXT_mesh_shader is not supported
-        }
-
-    }
+    dumpExtensionSupport(physicalDevice);
 
     uint32_t familyIndex = getGraphicsFamilyIndex(physicalDevice);
     assert(familyIndex != VK_QUEUE_FAMILY_IGNORED);
@@ -918,15 +966,25 @@ int main(int argc, const char** argv)
     VkShaderModule triangleFS = loadShader(device, "shaders/triangle.frag.spv");
     assert(triangleFS);
 
-    VkShaderModule meshletMS = loadShader(device, "shaders/meshlet.mesh.spv");
+    VkShaderModule meshletMS = 0;
+#if USE_MESH_SHADER
+    meshletMS = loadShader(device, "shaders/meshlet.mesh.spv");
     assert(meshletMS);
+#endif
 
-    VkDescriptorSetLayout setLayout = 0;
-    VkPipelineLayout triangleLayout = createPipelineLayout(device, setLayout);
+    VkShaderModule meshletTS = 0;
+#if USE_TASK_MESH_SHADER
+    meshletTS = loadShader(device, "shaders/meshlet.task.spv");
+    assert(meshletTS);
+#endif
+
+    VkDescriptorSetLayout descSetLayout = 0;
+    VkPipelineLayout triangleLayout = createPipelineLayout(device, descSetLayout);
     assert(triangleLayout);
+    assert(descSetLayout);
 
     VkPipelineCache pipelineCache = 0;
-    VkPipeline trianglePipeline = createGraphicsPipeline(device, pipelineCache, triangleLayout,renderPass, triangleVS, triangleFS, meshletMS);
+    VkPipeline trianglePipeline = createGraphicsPipeline(device, pipelineCache, triangleLayout,renderPass, triangleVS, triangleFS, meshletTS, meshletMS);
     assert(trianglePipeline);
 
     Swapchain swapchain = {};
@@ -1053,7 +1111,7 @@ int main(int argc, const char** argv)
 
         vkCmdPushDescriptorSetKHR(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, triangleLayout, 0, ARRAYSIZE(descSets), descSets);
 
-        vkCmdDrawMeshTasksEXT(cmdBuffer, 32, 1, 1);
+        vkCmdDrawMeshTasksEXT(cmdBuffer, (uint32_t)mesh.meshlets.size(), 1, 1);
 #else
         VkWriteDescriptorSet descSets[1] = {};
 
@@ -1120,12 +1178,18 @@ int main(int argc, const char** argv)
     destroySwapchain(device, swapchain);
 
     vkDestroyPipeline(device, trianglePipeline, 0);
-    vkDestroyDescriptorSetLayout(device, setLayout, 0);
+    vkDestroyDescriptorSetLayout(device, descSetLayout, 0);
     vkDestroyPipelineLayout(device, triangleLayout, 0);
 
     vkDestroyShaderModule(device, triangleFS, 0);
     vkDestroyShaderModule(device, triangleVS, 0);
+#if USE_MESH_SHADER
     vkDestroyShaderModule(device, meshletMS, 0);
+#endif
+
+#if USE_TASK_MESH_SHADER
+    vkDestroyShaderModule(device, meshletTS, 0);
+#endif
 
     vkDestroyRenderPass(device, renderPass, 0);
 

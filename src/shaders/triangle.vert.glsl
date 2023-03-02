@@ -3,6 +3,8 @@
 #extension GL_EXT_shader_16bit_storage: require
 #extension GL_EXT_shader_8bit_storage: require
 
+
+
 struct Vertex
 {
     float vx, vy, vz;
@@ -17,6 +19,7 @@ layout(binding = 0) readonly buffer Vertices
 
 layout(location = 0)
 out vec4 color;
+
 
 void main()
 {
