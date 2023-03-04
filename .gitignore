@@ -3,4 +3,6 @@ src/*.user
 src/x64
 src/*.spv
 src/*.db
+src/shaders/*.spv
 data/*
+extern/*

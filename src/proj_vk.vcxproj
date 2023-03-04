@@ -107,7 +107,7 @@
       <PreprocessorDefinitions>_DEBUG;GLFW_EXPOSE_NATIVE_WIN32;VK_USE_PLATFORM_WIN32_KHR;NOMINMAX;_GLFW_WIN32;_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile />
-      <AdditionalIncludeDirectories>../extern/glfw/include;../extern/volk;../extern/meshoptimizer/src;../extern/fast_obj;../data;$(VULKAN_SDK)/Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../extern/glfw/include;../extern/volk;../extern/meshoptimizer/src;../extern/ligitProfiler;../extern/dear-imgui;../extern/fast_obj;../data;$(VULKAN_SDK)/Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -130,7 +130,7 @@
       <PreprocessorDefinitions>NDEBUG;GLFW_EXPOSE_NATIVE_WIN32;VK_USE_PLATFORM_WIN32_KHR;NOMINMAX;_GLFW_WIN32;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile />
-      <AdditionalIncludeDirectories>../extern/glfw/include;../extern/volk;../extern/meshoptimizer/src;../extern/fast_obj;../data;$(VULKAN_SDK)/Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../extern/glfw/include;../extern/volk;../extern/meshoptimizer/src;../extern/ligitProfiler;../extern/dear-imgui;../extern/fast_obj;../data;$(VULKAN_SDK)/Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -147,6 +147,11 @@
     </CustomBuild>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\extern\dear-imgui\imgui.cpp" />
+    <ClCompile Include="..\extern\dear-imgui\imgui_demo.cpp" />
+    <ClCompile Include="..\extern\dear-imgui\imgui_draw.cpp" />
+    <ClCompile Include="..\extern\dear-imgui\imgui_tables.cpp" />
+    <ClCompile Include="..\extern\dear-imgui\imgui_widgets.cpp" />
     <ClCompile Include="..\extern\fast_obj\fast_obj.c" />
     <ClCompile Include="..\extern\glfw\src\context.c" />
     <ClCompile Include="..\extern\glfw\src\egl_context.c" />
@@ -185,9 +190,16 @@
     <ClCompile Include="..\extern\meshoptimizer\src\vfetchanalyzer.cpp" />
     <ClCompile Include="..\extern\meshoptimizer\src\vfetchoptimizer.cpp" />
     <ClCompile Include="..\extern\volk\volk.c" />
+    <ClCompile Include="imgui_impl\imgui_impl_vulkan.cpp" />
     <ClCompile Include="proj_vk.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\extern\dear-imgui\imconfig.h" />
+    <ClInclude Include="..\extern\dear-imgui\imgui.h" />
+    <ClInclude Include="..\extern\dear-imgui\imgui_internal.h" />
+    <ClInclude Include="..\extern\dear-imgui\imstb_rectpack.h" />
+    <ClInclude Include="..\extern\dear-imgui\imstb_textedit.h" />
+    <ClInclude Include="..\extern\dear-imgui\imstb_truetype.h" />
     <ClInclude Include="..\extern\fast_obj\fast_obj.h" />
     <ClInclude Include="..\extern\glfw\src\null_joystick.h" />
     <ClInclude Include="..\extern\glfw\src\null_platform.h" />
@@ -195,16 +207,14 @@
     <ClInclude Include="..\extern\glfw\src\win32_platform.h" />
     <ClInclude Include="..\extern\glfw\src\win32_thread.h" />
     <ClInclude Include="..\extern\glfw\src\win32_time.h" />
+    <ClInclude Include="..\extern\ligitProfiler\ImGuiProfilerRenderer.h" />
+    <ClInclude Include="..\extern\ligitProfiler\ProfilerTask.h" />
     <ClInclude Include="..\extern\meshoptimizer\src\meshoptimizer.h" />
     <ClInclude Include="..\extern\volk\volk.h" />
+    <ClInclude Include="imgui_impl\imgui_impl_vulkan.h" />
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="shaders\triangle.frag.glsl">
-      <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders\%(outputpath)\%(Filename).spv</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders\%(outputpath)\%(Filename).spv</Command>
-    </CustomBuild>
-    <CustomBuild Include="shaders\triangle.vert.glsl">
+    <CustomBuild Include="shaders\meshfvf.vert.glsl">
       <FileType>Document</FileType>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders\%(outputpath)\%(Filename).spv</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders\%(outputpath)\%(Filename).spv</Command>
@@ -214,13 +224,26 @@
     <CustomBuild Include="shaders\meshlet.mesh.glsl">
       <FileType>Document</FileType>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders\%(outputpath)\%(Filename).spv --target-env spirv1.4</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders\%(outputpath)\%(Filename).spv --target-env vulkan1.3</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders\%(outputpath)\%(Filename).spv --target-env spirv1.4</Command>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="shaders\meshlet.task.glsl">
       <FileType>Document</FileType>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders\%(outputpath)\%(Filename).spv --target-env spirv1.4</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders\%(outputpath)\%(Filename).spv --target-env spirv1.4</Command>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="shaders\mesh.frag.glsl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders\%(outputpath)\%(Filename).spv</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders\%(outputpath)\%(Filename).spv</Command>
+    </CustomBuild>
+    <CustomBuild Include="shaders\mesh.vert.glsl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders\%(outputpath)\%(Filename).spv</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders\%(outputpath)\%(Filename).spv</Command>
     </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

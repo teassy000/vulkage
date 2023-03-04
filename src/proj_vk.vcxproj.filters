@@ -16,6 +16,15 @@
     <Filter Include="fast_obj">
       <UniqueIdentifier>{da0a16de-2714-4c76-a749-c66df8e5e749}</UniqueIdentifier>
     </Filter>
+    <Filter Include="imgui">
+      <UniqueIdentifier>{4895a97a-82e4-4d82-bf29-f428983a5c0b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ligitprofiler">
+      <UniqueIdentifier>{fbd5a505-8eb1-46bc-8387-16b68999c2e2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="imgui_impl">
+      <UniqueIdentifier>{7f870a22-bf8d-4773-845e-10cc4243123f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\extern\glfw\src\context.c">
@@ -133,6 +142,24 @@
     <ClCompile Include="..\extern\fast_obj\fast_obj.c">
       <Filter>fast_obj</Filter>
     </ClCompile>
+    <ClCompile Include="..\extern\dear-imgui\imgui.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\extern\dear-imgui\imgui_demo.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\extern\dear-imgui\imgui_draw.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\extern\dear-imgui\imgui_tables.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\extern\dear-imgui\imgui_widgets.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="imgui_impl\imgui_impl_vulkan.cpp">
+      <Filter>imgui_impl</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\extern\glfw\src\win32_joystick.h">
@@ -162,18 +189,48 @@
     <ClInclude Include="..\extern\fast_obj\fast_obj.h">
       <Filter>fast_obj</Filter>
     </ClInclude>
+    <ClInclude Include="..\extern\dear-imgui\imconfig.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\extern\dear-imgui\imgui.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\extern\dear-imgui\imgui_internal.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\extern\dear-imgui\imstb_rectpack.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\extern\dear-imgui\imstb_textedit.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\extern\dear-imgui\imstb_truetype.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\extern\ligitProfiler\ImGuiProfilerRenderer.h">
+      <Filter>ligitprofiler</Filter>
+    </ClInclude>
+    <ClInclude Include="..\extern\ligitProfiler\ProfilerTask.h">
+      <Filter>ligitprofiler</Filter>
+    </ClInclude>
+    <ClInclude Include="imgui_impl\imgui_impl_vulkan.h">
+      <Filter>imgui_impl</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="shaders\triangle.frag.glsl">
-      <Filter>shaders</Filter>
-    </CustomBuild>
-    <CustomBuild Include="shaders\triangle.vert.glsl">
+    <CustomBuild Include="shaders\meshfvf.vert.glsl">
       <Filter>shaders</Filter>
     </CustomBuild>
     <CustomBuild Include="shaders\meshlet.mesh.glsl">
       <Filter>shaders</Filter>
     </CustomBuild>
     <CustomBuild Include="shaders\meshlet.task.glsl">
+      <Filter>shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="shaders\mesh.vert.glsl">
+      <Filter>shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="shaders\mesh.frag.glsl">
       <Filter>shaders</Filter>
     </CustomBuild>
   </ItemGroup>

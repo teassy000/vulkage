@@ -18,7 +18,10 @@
 
 #define USE_TASK_MESH_SHADER 0 // TODO: task shader not work correctly with the mesh shader
 
-#define USE_MESH_SHADER 1
+#define USE_FVF 1
+#define USE_MESH_SHADER 0
+
+
 
 #define VK_CHECK(call) \
 	do{ \
@@ -445,8 +448,11 @@ VkPipelineLayout createPipelineLayout(VkDevice device, VkDescriptorSetLayout& ou
 
     VkDescriptorSetLayoutCreateInfo setCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
     setCreateInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
+
+#if !USE_FVF
     setCreateInfo.bindingCount = ARRAYSIZE(setBindings);
     setCreateInfo.pBindings = setBindings;
+#endif
 
     VkDescriptorSetLayout setLayout = 0;
 
@@ -461,6 +467,15 @@ VkPipelineLayout createPipelineLayout(VkDevice device, VkDescriptorSetLayout& ou
     outSetLayout = setLayout;
     return layout;
 }
+
+
+struct Vertex
+{
+    float vx, vy, vz;
+    uint8_t nx, ny, nz, nw;
+    float tu, tv;
+};
+
 
 VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, VkRenderPass renderPass, VkShaderModule VS, VkShaderModule FS, VkShaderModule TS, VkShaderModule MS)
 {
@@ -484,8 +499,6 @@ VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache
     stages[2].module = FS;
     stages[2].pName = "main";
 
-    createInfo.stageCount = sizeof(stages) / sizeof(stages[0]);
-    createInfo.pStages = stages;
 #elif USE_MESH_SHADER && !USE_TASK_MESH_SHADER
     VkPipelineShaderStageCreateInfo stages[2] = {};
 
@@ -499,8 +512,6 @@ VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache
     stages[1].module = FS;
     stages[1].pName = "main";
 
-    createInfo.stageCount = sizeof(stages) / sizeof(stages[0]);
-    createInfo.pStages = stages;
 #else
     VkPipelineShaderStageCreateInfo stages[2] = {};
 
@@ -513,13 +524,38 @@ VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache
     stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
     stages[1].module = FS;
     stages[1].pName = "main";
+#endif
 
     createInfo.stageCount = sizeof(stages) / sizeof(stages[0]);
     createInfo.pStages = stages;
-#endif
+
 
     VkPipelineVertexInputStateCreateInfo vertexInput = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
     createInfo.pVertexInputState = &vertexInput;
+
+#if USE_FVF
+    VkVertexInputBindingDescription fvfBindingDescs[1] = {};
+    fvfBindingDescs[0].stride = sizeof(Vertex);
+
+
+    VkVertexInputAttributeDescription fvfAttrDescs[3] = {};
+    fvfAttrDescs[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+    fvfAttrDescs[0].location = 0;
+    fvfAttrDescs[0].offset = offsetof(Vertex, vx);
+    fvfAttrDescs[1].format = VK_FORMAT_R8G8B8A8_UINT;
+    fvfAttrDescs[1].location = 1;
+    fvfAttrDescs[1].offset = offsetof(Vertex, nx);
+    fvfAttrDescs[2].format = VK_FORMAT_R32G32_SFLOAT;
+    fvfAttrDescs[2].location = 2;
+    fvfAttrDescs[2].offset = offsetof(Vertex, tu);
+
+
+    vertexInput.vertexBindingDescriptionCount = ARRAYSIZE(fvfBindingDescs);
+    vertexInput.pVertexBindingDescriptions = fvfBindingDescs;
+
+    vertexInput.vertexAttributeDescriptionCount = ARRAYSIZE(fvfAttrDescs);
+    vertexInput.pVertexAttributeDescriptions = fvfAttrDescs;
+#endif
 
     VkPipelineInputAssemblyStateCreateInfo inputAssemply = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
     inputAssemply.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
@@ -533,7 +569,7 @@ VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache
     VkPipelineRasterizationStateCreateInfo rasterizationState = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
     rasterizationState.lineWidth = 1.f;
     rasterizationState.frontFace = VK_FRONT_FACE_CLOCKWISE;
-    rasterizationState.cullMode = VK_CULL_MODE_FRONT_BIT;
+    rasterizationState.cullMode = VK_CULL_MODE_BACK_BIT;
     createInfo.pRasterizationState = &rasterizationState;
 
     VkPipelineMultisampleStateCreateInfo multisampleState = { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
@@ -679,13 +715,6 @@ struct Meshlet
     uint8_t indices[126]; //this is 42 triangles
     uint8_t indexCount;
     uint8_t vertexCount;
-};
-
-struct Vertex
-{
-    float vx, vy, vz;
-    uint8_t nx, ny, nz;
-    float tu, tv;
 };
 
 struct Mesh
@@ -879,10 +908,9 @@ bool loadMesh(Mesh& result, const char* path)
 
             Vertex& v = triangle_vertices[vertex_offset++];
 
-
-            v.vx = obj->positions[gi.p * 3 + 0];
-            v.vy = obj->positions[gi.p * 3 + 1];
-            v.vz = obj->positions[gi.p * 3 + 2];
+            v.vx = obj->positions[gi.p * 3 + 0] * 0.008f;
+            v.vy = obj->positions[gi.p * 3 + 1] * 0.008f;
+            v.vz = obj->positions[gi.p * 3 + 2] * 0.008f;
 
             v.nx = uint8_t(obj->normals[gi.n * 3 + 0] * 127.f + 127.5f);
             v.ny = uint8_t(obj->normals[gi.n * 3 + 1] * 127.f + 127.5f);
@@ -983,11 +1011,16 @@ int main(int argc, const char** argv)
     VkRenderPass renderPass = createRenderPass(device, swapchainFormat);
     assert(renderPass);
 
-    VkShaderModule triangleVS = loadShader(device, "shaders/triangle.vert.spv");
-    assert(triangleVS);  
+#if USE_FVF
+    VkShaderModule meshVS = loadShader(device, "shaders/meshfvf.vert.spv");
+    assert(meshVS);
+#else
+    VkShaderModule meshVS = loadShader(device, "shaders/mesh.vert.spv");
+    assert(meshVS);
+#endif
 
-    VkShaderModule triangleFS = loadShader(device, "shaders/triangle.frag.spv");
-    assert(triangleFS);
+    VkShaderModule meshFS = loadShader(device, "shaders/mesh.frag.spv");
+    assert(meshFS);
 
     VkShaderModule meshletMS = 0;
 #if USE_MESH_SHADER
@@ -1002,12 +1035,12 @@ int main(int argc, const char** argv)
 #endif
 
     VkDescriptorSetLayout descSetLayout = 0;
-    VkPipelineLayout triangleLayout = createPipelineLayout(device, descSetLayout);
-    assert(triangleLayout);
+    VkPipelineLayout meshLayout = createPipelineLayout(device, descSetLayout);
+    assert(meshLayout);
     assert(descSetLayout);
 
     VkPipelineCache pipelineCache = 0;
-    VkPipeline pipeline = createGraphicsPipeline(device, pipelineCache, triangleLayout,renderPass, triangleVS, triangleFS, meshletTS, meshletMS);
+    VkPipeline pipeline = createGraphicsPipeline(device, pipelineCache, meshLayout,renderPass, meshVS, meshFS, meshletTS, meshletMS);
     assert(pipeline);
 
     Swapchain swapchain = {};
@@ -1038,7 +1071,11 @@ int main(int argc, const char** argv)
     buildMeshlets(mesh);
 #endif
     Buffer vb = {};
+#if USE_FVF
+    createBuffer(vb, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+#else
     createBuffer(vb, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+#endif
 
     Buffer ib = {};
     createBuffer(ib, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
@@ -1116,11 +1153,18 @@ int main(int argc, const char** argv)
 
         vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
+
+#if USE_FVF
+        VkDeviceSize vbOffset = 0;
+        vkCmdBindVertexBuffers(cmdBuffer, 0, 1, &vb.buffer, &vbOffset);
+        vkCmdBindIndexBuffer(cmdBuffer, ib.buffer, 0, VK_INDEX_TYPE_UINT32);
+        vkCmdDrawIndexed(cmdBuffer, (uint32_t)mesh.indices.size(), 1, 0, 0, 0);
+
+#elif USE_MESH_SHADER
         VkDescriptorBufferInfo vbInfo = { };
         vbInfo.buffer = vb.buffer;
         vbInfo.offset = 0;
         vbInfo.range = vb.size;
-#if USE_MESH_SHADER
 
         VkDescriptorBufferInfo mbInfo = { };
         mbInfo.buffer = mb.buffer;
@@ -1142,10 +1186,15 @@ int main(int argc, const char** argv)
         descSets[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         descSets[1].pBufferInfo = &mbInfo;
 
-        vkCmdPushDescriptorSetKHR(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, triangleLayout, 0, ARRAYSIZE(descSets), descSets);
+        vkCmdPushDescriptorSetKHR(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, meshLayout, 0, ARRAYSIZE(descSets), descSets);
 
         vkCmdDrawMeshTasksEXT(cmdBuffer, (uint32_t)mesh.meshlets.size(), 1, 1);
 #else
+        VkDescriptorBufferInfo vbInfo = { };
+        vbInfo.buffer = vb.buffer;
+        vbInfo.offset = 0;
+        vbInfo.range = vb.size;
+
         VkWriteDescriptorSet descSets[1] = {};
 
         descSets[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1154,9 +1203,10 @@ int main(int argc, const char** argv)
         descSets[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         descSets[0].pBufferInfo = &vbInfo;
 
-        vkCmdPushDescriptorSetKHR(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, triangleLayout, 0, ARRAYSIZE(descSets), descSets);
+        vkCmdPushDescriptorSetKHR(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, meshLayout, 0, ARRAYSIZE(descSets), descSets);
 
         vkCmdBindIndexBuffer(cmdBuffer, ib.buffer, 0, VK_INDEX_TYPE_UINT32);
+
         vkCmdDrawIndexed(cmdBuffer, (uint32_t)mesh.indices.size(), 1, 0, 0, 0);
 
 #endif
@@ -1194,7 +1244,11 @@ int main(int argc, const char** argv)
 
         VK_CHECK(vkQueuePresentKHR(queue, &presentInfo));
 
+        double waitTimeBegin = glfwGetTime() * 1000.0;
+
         VK_CHECK(vkDeviceWaitIdle(device));
+        
+        double waitTimeEnd = glfwGetTime() * 1000.0;
         
         uint64_t queryResults[2] = {};
         vkGetQueryPoolResults(device, queryPool, 0, ARRAYSIZE(queryResults), sizeof(queryResults), queryResults, sizeof(queryResults[0]), VK_QUERY_RESULT_64_BIT);
@@ -1205,7 +1259,9 @@ int main(int argc, const char** argv)
         double frameGpuEnd = double(queryResults[1]) * props.limits.timestampPeriod * 1e-6;
         
         char title[256];
-        sprintf(title, "cpu: %.1f ms; gpu %.1f ms;", frameCpuEnd - frameCpuBegin, frameGpuEnd - frameGpuBegin);
+        sprintf(title, "cpu: %.1f ms; gpu %.1f ms; wait %.2f ms; primitive: %zu; meshlets: %zu"
+            , frameCpuEnd - frameCpuBegin, frameGpuEnd - frameGpuBegin, waitTimeEnd - waitTimeBegin
+            , mesh.indices.size() / 3, mesh.meshlets.size());
         glfwSetWindowTitle(window, title);
                 
 	}
@@ -1228,10 +1284,10 @@ int main(int argc, const char** argv)
 
     vkDestroyPipeline(device, pipeline, 0);
     vkDestroyDescriptorSetLayout(device, descSetLayout, 0);
-    vkDestroyPipelineLayout(device, triangleLayout, 0);
+    vkDestroyPipelineLayout(device, meshLayout, 0);
 
-    vkDestroyShaderModule(device, triangleFS, 0);
-    vkDestroyShaderModule(device, triangleVS, 0);
+    vkDestroyShaderModule(device, meshFS, 0);
+    vkDestroyShaderModule(device, meshVS, 0);
 #if USE_MESH_SHADER
     vkDestroyShaderModule(device, meshletMS, 0);
 #endif
