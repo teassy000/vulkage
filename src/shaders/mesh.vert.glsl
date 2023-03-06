@@ -7,7 +7,7 @@
 
 struct Vertex
 {
-    float16_t vx, vy, vz;
+    float16_t vx, vy, vz, vw;
     uint8_t nx, ny, nz, nw;
     float16_t tu, tv;
 };

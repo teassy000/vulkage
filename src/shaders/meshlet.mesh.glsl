@@ -40,7 +40,6 @@ void main()
 {
     uint mi = gl_WorkGroupID.x;
     uint ti = gl_LocalInvocationID.x;
-    
 
     SetMeshOutputsEXT(uint(meshlets[mi].vertexCount), uint(meshlets[mi].triangleCount));
 
