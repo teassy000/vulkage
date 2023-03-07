@@ -369,7 +369,45 @@ static uint32_t gatherResources(Shaders shaders, VkDescriptorType(&resourceTypes
     return resourceMask;
 }
 
-Program createProgram(VkDevice device, Shaders shaders)
+static VkDescriptorUpdateTemplate createDescriptorTemplates(VkDevice device, VkPipelineBindPoint bindingPoint, VkPipelineLayout layout, VkDescriptorSetLayout setLayout, Shaders shaders)
+{
+    std::vector<VkDescriptorUpdateTemplateEntry> entries;
+
+    VkDescriptorType resourceTypes[32] = {};
+    uint32_t resourceMask = gatherResources(shaders, resourceTypes);
+
+    for (uint32_t i = 0; i < 32; ++i)
+    {
+        if (resourceMask & (1 << i))
+        {
+            VkDescriptorUpdateTemplateEntry entry = {};
+            entry.dstBinding = i;
+            entry.dstArrayElement = 0;
+            entry.descriptorCount = 1;
+            entry.descriptorType = resourceTypes[i];
+            entry.offset = sizeof(DescriptorInfo) * i;
+            entry.stride = sizeof(DescriptorInfo);
+
+            entries.push_back(entry);
+        }
+    }
+
+    VkDescriptorUpdateTemplateCreateInfo createInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_UPDATE_TEMPLATE_CREATE_INFO };
+    createInfo.descriptorUpdateEntryCount = uint32_t(entries.size());
+    createInfo.pDescriptorUpdateEntries = entries.data();
+    createInfo.templateType = VK_DESCRIPTOR_UPDATE_TEMPLATE_TYPE_PUSH_DESCRIPTORS_KHR;
+    createInfo.descriptorSetLayout = setLayout;
+    createInfo.pipelineBindPoint = bindingPoint;
+    createInfo.pipelineLayout = layout;
+
+    VkDescriptorUpdateTemplate updateTemplate = 0;
+    VK_CHECK(vkCreateDescriptorUpdateTemplate(device, &createInfo, 0, &updateTemplate));
+
+    return updateTemplate;
+}
+
+
+Program createProgram(VkDevice device, VkPipelineBindPoint bindingPoint, Shaders shaders)
 {
     Program program = {};
 
@@ -379,11 +417,15 @@ Program createProgram(VkDevice device, Shaders shaders)
     program.layout = createPipelineLayout(device, program.setLayout);
     assert(program.layout);
 
+    program.updateTemplate = createDescriptorTemplates(device, bindingPoint, program.layout, program.setLayout, shaders);
+    assert(program.updateTemplate);
+
     return program;
 }
 
 void destroyProgram(VkDevice device, const Program& program)
 {
+    vkDestroyDescriptorUpdateTemplate(device, program.updateTemplate, 0);
     vkDestroyPipelineLayout(device, program.layout, 0);
     vkDestroyDescriptorSetLayout(device, program.setLayout, 0);
 }

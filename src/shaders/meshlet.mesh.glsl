@@ -5,7 +5,7 @@
 #extension GL_EXT_mesh_shader: require
 
 layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
-layout(triangles, max_vertices= 64, max_primitives = 126) out;
+layout(triangles, max_vertices= 64, max_primitives = 84) out;
 
 struct Vertex
 {
@@ -23,7 +23,7 @@ layout(binding = 0) readonly buffer Vertices
 struct Meshlet
 {
     uint vertices[64];
-    uint8_t indices[126*3]; //126 triangles
+    uint8_t indices[84*3]; // 84 triangles
     uint8_t triangleCount;
     uint8_t vertexCount;
 };
@@ -58,38 +58,6 @@ void main()
 
 
     for(uint i = ti; i < uint(meshlets[mi].triangleCount); i += 32 )
-    {
-        uint idx0 = uint(meshlets[mi].indices[i * 3 + 0]);
-        uint idx1 = uint(meshlets[mi].indices[i * 3 + 1]);
-        uint idx2 = uint(meshlets[mi].indices[i * 3 + 2]);
-        
-        gl_PrimitiveTriangleIndicesEXT[i] = uvec3(idx0, idx1, idx2);
-    }
-}
-
-
-void main1()
-{
-    uint mi = gl_WorkGroupID.x;
-    uint ti = gl_LocalInvocationID.x;
-    
-
-    SetMeshOutputsEXT(uint(meshlets[mi].vertexCount), uint(meshlets[mi].triangleCount));
-
-    for(uint i = 0; i < uint(meshlets[mi].vertexCount); i++)
-    {
-        uint vi = meshlets[mi].vertices[i];
-    
-        vec3 pos = vec3(vertices[vi].vx, vertices[vi].vy, vertices[vi].vz);
-        vec3 norm = vec3(int(vertices[vi].nx), int(vertices[vi].ny), int(vertices[vi].nz)) / 127.0 - 1;
-        vec2 uv = vec2(vertices[vi].tu, vertices[vi].tv);
-       
-        gl_MeshVerticesEXT[i].gl_Position = vec4(pos + vec3(0, 0, 0.5), 1.0);
-
-        color[i] = vec4(norm, 1.0);
-    }
-
-    for(uint i = 0; i < uint(meshlets[mi].triangleCount); i++ )
     {
         uint idx0 = uint(meshlets[mi].indices[i * 3 + 0]);
         uint idx1 = uint(meshlets[mi].indices[i * 3 + 1]);

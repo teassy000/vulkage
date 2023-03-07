@@ -22,7 +22,7 @@
 #include <meshoptimizer.h>
 #include <string>
 
-static bool meshShaderEnabled = true;
+static bool meshShadingEnabled = true;
 
 VkSemaphore createSemaphore(VkDevice device)
 {
@@ -121,7 +121,7 @@ void buildMeshlets(Mesh& mesh)
         uint8_t& bv = meshletVertices[b];
         uint8_t& cv = meshletVertices[c];
         if (meshlet.vertexCount + (av == 0xff) + (bv == 0xff) + (cv == 0xff) > 64
-            || meshlet.triangleCount >= 126) {
+            || meshlet.triangleCount >= 84) {
             mesh.meshlets.push_back(meshlet);
 
 
@@ -246,11 +246,25 @@ bool loadMesh(Mesh& result, const char* path)
     meshopt_optimizeVertexCache(indices.data(), indices.data(), index_count, vertex_count);
     meshopt_optimizeVertexFetch(vertices.data(), indices.data(), index_count, vertices.data(), vertex_count, sizeof(Vertex));
 
-    
     result.vertices.insert(result.vertices.end(), vertices.begin(), vertices.end());
     result.indices.insert(result.indices.end(), indices.begin(), indices.end());
 
     return true;
+}
+
+void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    if (action == GLFW_PRESS) 
+    {
+        if (key == GLFW_KEY_M)
+        {
+            meshShadingEnabled = !meshShadingEnabled;
+        }
+        if (key == GLFW_KEY_F4)
+        {
+            // toggle imgui window
+        }
+    }
 }
 
 int main(int argc, const char** argv)
@@ -300,6 +314,8 @@ int main(int argc, const char** argv)
 	GLFWwindow* window = glfwCreateWindow(1920, 1080, "proj_vk", 0, 0);
 	assert(window);
 
+    glfwSetKeyCallback(window, keyCallback);
+
 	VkSurfaceKHR surface = createSurface(instance, window);
 	assert(surface);
 
@@ -346,12 +362,12 @@ int main(int argc, const char** argv)
         assert(lsr);
     }
 
-    Program meshProgram = createProgram(device, { &meshVS, &meshFS });
+    Program meshProgram = createProgram(device, VK_PIPELINE_BIND_POINT_GRAPHICS, { &meshVS, &meshFS });
     
     Program meshProgramMS = {};
     if (meshShadingSupported)
     {
-        meshProgramMS = createProgram(device, { &meshletMS, &meshFS });
+        meshProgramMS = createProgram(device, VK_PIPELINE_BIND_POINT_GRAPHICS, { &meshletMS, &meshFS });
     }
 
     VkPipelineCache pipelineCache = 0;
@@ -394,7 +410,6 @@ int main(int argc, const char** argv)
     {
         buildMeshlets(mesh);
     }
-     
 
 
     Buffer scratch = {};
@@ -476,56 +491,25 @@ int main(int argc, const char** argv)
         vkCmdSetViewport(cmdBuffer, 0, 1, &viewport);
         vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
 
+        bool meshShadingOn = meshShadingEnabled && meshShadingSupported;
 
-        if(meshShaderEnabled && meshShadingSupported)
+        if(meshShadingOn)
         {
             vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, meshPipelineMS);
 
-            VkDescriptorBufferInfo vbInfo = { };
-            vbInfo.buffer = vb.buffer;
-            vbInfo.offset = 0;
-            vbInfo.range = vb.size;
+            DescriptorInfo descInfos[2] = { vb.buffer, mb.buffer };
 
-            VkDescriptorBufferInfo mbInfo = { };
-            mbInfo.buffer = mb.buffer;
-            mbInfo.offset = 0;
-            mbInfo.range = mb.size;
+            vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, meshProgramMS.updateTemplate, meshProgramMS.layout, 0, descInfos);
 
-            VkWriteDescriptorSet descSets[2] = {};
-
-            descSets[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descSets[0].dstBinding = 0;
-            descSets[0].descriptorCount = 1;
-            descSets[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            descSets[0].pBufferInfo = &vbInfo;
-
-
-            descSets[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descSets[1].dstBinding = 1;
-            descSets[1].descriptorCount = 1;
-            descSets[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            descSets[1].pBufferInfo = &mbInfo;
-
-            vkCmdPushDescriptorSetKHR(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, meshProgramMS.layout, 0, ARRAYSIZE(descSets), descSets);
             vkCmdDrawMeshTasksEXT(cmdBuffer, (uint32_t)mesh.meshlets.size(), 1, 1);
         }
         else
         {
             vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, meshPipeline);
-            VkDescriptorBufferInfo vbInfo = { };
-            vbInfo.buffer = vb.buffer;
-            vbInfo.offset = 0;
-            vbInfo.range = vb.size;
 
-            VkWriteDescriptorSet descSets[1] = {};
+            DescriptorInfo descInfos[1] = { vb.buffer };
 
-            descSets[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descSets[0].dstBinding = 0;
-            descSets[0].descriptorCount = 1;
-            descSets[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            descSets[0].pBufferInfo = &vbInfo;
-
-            vkCmdPushDescriptorSetKHR(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, meshProgram.layout, 0, ARRAYSIZE(descSets), descSets);
+            vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, meshProgram.updateTemplate, meshProgram.layout, 0, descInfos);
 
             vkCmdBindIndexBuffer(cmdBuffer, ib.buffer, 0, VK_INDEX_TYPE_UINT32);
 
@@ -580,9 +564,9 @@ int main(int argc, const char** argv)
         double frameGpuEnd = double(queryResults[1]) * props.limits.timestampPeriod * 1e-6;
 
         char title[256];
-        sprintf(title, "cpu: %.2f ms; gpu %.2f ms; wait %.2f ms; primitive: %zu; meshlets: %zu"
+        sprintf(title, "cpu: %.2f ms; gpu %.2f ms; wait %.2f ms; primitive: %zu; meshlets: %zu, MS: %s"
             , frameCpuEnd - frameCpuBegin, frameGpuEnd - frameGpuBegin, waitTimeEnd - waitTimeBegin
-            , mesh.indices.size() / 3, mesh.meshlets.size());
+            , mesh.indices.size() / 3, mesh.meshlets.size(), meshShadingOn ? "ON" : "OFF");
         glfwSetWindowTitle(window, title);
                 
 	}

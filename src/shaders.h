@@ -19,6 +19,8 @@ struct Program
 {
     VkPipelineLayout        layout;
     VkDescriptorSetLayout   setLayout;
+
+    VkDescriptorUpdateTemplate updateTemplate;
 };
 
 using Shaders = std::initializer_list<const Shader*>;
@@ -30,5 +32,48 @@ VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache
 VkDescriptorSetLayout createSetLayout(VkDevice device, Shaders shaders);
 VkPipelineLayout createPipelineLayout(VkDevice device, VkDescriptorSetLayout outSetLayout);
 
-Program createProgram(VkDevice device, Shaders shaders);
+Program createProgram(VkDevice device, VkPipelineBindPoint bindingPoint, Shaders shaders);
 void destroyProgram(VkDevice device, const Program& program);
+
+
+struct DescriptorInfo
+{
+    union
+    {
+        VkDescriptorBufferInfo buffer;
+        VkDescriptorImageInfo image;
+    };
+
+    DescriptorInfo()
+    {
+
+    }
+
+    DescriptorInfo(VkBuffer _buffer, VkDeviceSize offset, VkDeviceSize range)
+    {
+        buffer.buffer = _buffer;
+        buffer.offset = offset;
+        buffer.range = range;
+    }
+
+    DescriptorInfo(VkBuffer _buffer)
+    {
+        buffer.buffer = _buffer;
+        buffer.offset = 0;
+        buffer.range = VK_WHOLE_SIZE;
+    }
+
+    DescriptorInfo(VkSampler sampler, VkImageView imageView, VkImageLayout imageLayout)
+    {
+        image.sampler = sampler;
+        image.imageView = imageView;
+        image.imageLayout = imageLayout;
+    }
+
+    DescriptorInfo(VkImageView imageView, VkImageLayout imageLayout)
+    {
+        image.sampler = VK_NULL_HANDLE;
+        image.imageView = imageView;
+        image.imageLayout = imageLayout;
+    }
+};
