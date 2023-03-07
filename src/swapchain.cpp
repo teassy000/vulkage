@@ -22,8 +22,6 @@ VkSurfaceKHR createSurface(VkInstance instance, GLFWwindow* window)
 #endif
 }
 
-
-
 VkFormat getSwapchainFormat(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface)
 {
     std::vector<VkSurfaceFormatKHR> formats(32);

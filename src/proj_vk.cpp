@@ -8,6 +8,7 @@
 #include "shaders.h"
 #include "device.h"
 
+#include "imgui_impl/imgui_impl_vulkan.h"
 
 #include <stdio.h>
 
@@ -20,6 +21,7 @@
 #include <fast_obj.h>
 #include <meshoptimizer.h>
 #include <string>
+
 
 static bool meshShadingEnabled = true;
 
@@ -289,6 +291,7 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
     }
 }
 
+
 int main(int argc, const char** argv)
 {
     if (argc < 2) {
@@ -361,7 +364,6 @@ int main(int argc, const char** argv)
     VkRenderPass renderPass = createRenderPass(device, swapchainFormat);
     assert(renderPass);
 
-    
     bool lsr = false;
 
     Shader meshVS = {};
@@ -422,6 +424,29 @@ int main(int argc, const char** argv)
     VK_CHECK(vkAllocateCommandBuffers(device, &allocateInfo, &cmdBuffer));
 
     
+    VkDescriptorPool descPool = 0;
+    {
+        uint32_t descriptorCount = 512;
+
+        VkDescriptorPoolSize poolSizes[] =
+        {
+            { VK_DESCRIPTOR_TYPE_SAMPLER, descriptorCount },
+            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, descriptorCount },
+            { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, descriptorCount },
+            { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, descriptorCount },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, descriptorCount },
+            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, descriptorCount },
+        };
+
+        VkDescriptorPoolCreateInfo poolCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
+        poolCreateInfo.maxSets = descriptorCount;
+        poolCreateInfo.poolSizeCount = COUNTOF(poolSizes);
+        poolCreateInfo.pPoolSizes = poolSizes;
+
+        VK_CHECK(vkCreateDescriptorPool(device, &poolCreateInfo, 0, &descPool));
+    }
+
+
     VkPhysicalDeviceMemoryProperties memoryProps = {};
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProps);
     
@@ -432,7 +457,6 @@ int main(int argc, const char** argv)
     {
         buildMeshlets(mesh);
     }
-
 
     Buffer scratch = {};
     createBuffer(scratch, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
@@ -457,6 +481,61 @@ int main(int argc, const char** argv)
         uploadBuffer(device, cmdPool, cmdBuffer, queue, mb, scratch, mesh.meshlets.data(), mesh.meshlets.size() * sizeof(Meshlet));
     }
 
+
+    // imgui
+    {
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+        ImGuiIO& io = ImGui::GetIO(); (void)io;
+        io.DisplaySize.x = swapchain.width;
+        io.DisplaySize.y = swapchain.height;
+        ImGui_ImplVulkan_FunctionsLoaded(); // already use volk loaded vulkan funcs
+
+        ImGui_ImplVulkan_InitInfo initInfo = {};
+
+        initInfo.Instance = instance;
+        initInfo.PhysicalDevice = physicalDevice;
+        initInfo.Device = device;
+        initInfo.Queue = queue;
+        initInfo.DescriptorPool = descPool;
+        initInfo.PipelineCache = pipelineCache;
+        initInfo.MinImageCount = 2;
+        initInfo.ImageCount = swapchain.imageCount;
+        initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+
+        ImGui_ImplVulkan_Init(&initInfo, renderPass);
+
+        // upload fonts
+        {
+            // Use any command queue
+            VkCommandPool command_pool = cmdPool;
+            VkCommandBuffer command_buffer = cmdBuffer;
+
+            VK_CHECK(vkResetCommandPool(device, command_pool, 0));
+            VkCommandBufferBeginInfo begin_info = {};
+            begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+            begin_info.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+            VK_CHECK(vkBeginCommandBuffer(command_buffer, &begin_info));
+
+
+            ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
+
+            VkSubmitInfo end_info = {};
+            end_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+            end_info.commandBufferCount = 1;
+            end_info.pCommandBuffers = &command_buffer;
+            VK_CHECK(vkEndCommandBuffer(command_buffer));
+            
+            VK_CHECK(vkQueueSubmit(queue, 1, &end_info, VK_NULL_HANDLE));
+
+            VK_CHECK(vkDeviceWaitIdle(device));
+
+            ImGui_ImplVulkan_DestroyFontUploadObjects();
+        }
+    }
+
+    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+
     while (!glfwWindowShouldClose(window)) 
     {
 
@@ -467,10 +546,31 @@ int main(int argc, const char** argv)
         int newWindowWidth = 0, newWindowHeight = 0;
         glfwGetWindowSize(window, &newWindowWidth, &newWindowHeight);
 
-
         resizeSwapchainIfNecessary(swapchain, physicalDevice, device, surface, &familyIndex, swapchainFormat, renderPass);
 
+        ImGui_ImplVulkan_NewFrame();
+        ImGui::NewFrame();
+        {
 
+            static float f = 0.0f;
+            static int counter = 0;
+
+            ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+
+            ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
+
+            ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+            ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+
+            if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+                counter++;
+            ImGui::SameLine();
+            ImGui::Text("counter = %d", counter);
+
+            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+            ImGui::End();
+        }
+        
         uint32_t imageIndex = 0;
         VK_CHECK(vkAcquireNextImageKHR(device, swapchain.swapchain, ~0ull, acquirSemaphore, VK_NULL_HANDLE, &imageIndex));
 
@@ -537,6 +637,18 @@ int main(int argc, const char** argv)
 
             vkCmdDrawIndexed(cmdBuffer, (uint32_t)mesh.indices.size(), 1, 0, 0, 0);
         }
+        if(1)
+        {
+            ImGui::Render();
+            ImDrawData* draw_data = ImGui::GetDrawData();
+            const bool is_minimized = (draw_data->DisplaySize.x <= 0.0f || draw_data->DisplaySize.y <= 0.0f);
+            if (!is_minimized)
+            {
+                // Record dear imgui primitives into command buffer
+                ImGui_ImplVulkan_RenderDrawData(draw_data, cmdBuffer);
+            }
+        }
+
         vkCmdEndRenderPass(cmdBuffer);
 
         VkImageMemoryBarrier renderEndBarrier = imageBarrier(swapchain.images[imageIndex], VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, 0
@@ -594,6 +706,8 @@ int main(int argc, const char** argv)
 	}
     VK_CHECK(vkDeviceWaitIdle(device));
 
+    ImGui_ImplVulkan_Shutdown();
+
     destroyBuffer(scratch, device);
     destroyBuffer(ib, device); 
     destroyBuffer(vb, device);
@@ -604,6 +718,8 @@ int main(int argc, const char** argv)
     
 
     vkDestroyCommandPool(device, cmdPool, 0);
+
+    vkDestroyDescriptorPool(device, descPool, 0);
 
     destroySwapchain(device, swapchain);
 

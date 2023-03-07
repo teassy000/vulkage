@@ -65,6 +65,8 @@
 //  2016-10-18: Vulkan: Add location decorators & change to use structs as in/out in glsl, update embedded spv (produced with glslangValidator -x). Null the released resources.
 //  2016-08-27: Vulkan: Fix Vulkan example for use when a depth buffer is active.
 
+
+#include "../common.h"
 #include "imgui_impl_vulkan.h"
 #include <stdio.h>
 
@@ -144,6 +146,7 @@ static bool g_FunctionsLoaded = false;
 #else
 static bool g_FunctionsLoaded = true;
 #endif
+/*
 #ifdef VK_NO_PROTOTYPES
 #define IMGUI_VULKAN_FUNC_MAP(IMGUI_VULKAN_FUNC_MAP_MACRO) \
     IMGUI_VULKAN_FUNC_MAP_MACRO(vkAllocateCommandBuffers) \
@@ -211,6 +214,8 @@ static bool g_FunctionsLoaded = true;
 IMGUI_VULKAN_FUNC_MAP(IMGUI_VULKAN_FUNC_DEF)
 #undef IMGUI_VULKAN_FUNC_DEF
 #endif // VK_NO_PROTOTYPES
+*/
+
 
 //-----------------------------------------------------------------------------
 // SHADERS
@@ -939,25 +944,9 @@ void    ImGui_ImplVulkan_DestroyDeviceObjects()
     if (bd->Pipeline)             { vkDestroyPipeline(v->Device, bd->Pipeline, v->Allocator); bd->Pipeline = VK_NULL_HANDLE; }
 }
 
-bool    ImGui_ImplVulkan_LoadFunctions(PFN_vkVoidFunction(*loader_func)(const char* function_name, void* user_data), void* user_data)
+void ImGui_ImplVulkan_FunctionsLoaded()
 {
-    // Load function pointers
-    // You can use the default Vulkan loader using:
-    //      ImGui_ImplVulkan_LoadFunctions([](const char* function_name, void*) { return vkGetInstanceProcAddr(your_vk_isntance, function_name); });
-    // But this would be equivalent to not setting VK_NO_PROTOTYPES.
-#ifdef VK_NO_PROTOTYPES
-#define IMGUI_VULKAN_FUNC_LOAD(func) \
-    func = reinterpret_cast<decltype(func)>(loader_func(#func, user_data)); \
-    if (func == nullptr)   \
-        return false;
-    IMGUI_VULKAN_FUNC_MAP(IMGUI_VULKAN_FUNC_LOAD)
-#undef IMGUI_VULKAN_FUNC_LOAD
-#else
-    IM_UNUSED(loader_func);
-    IM_UNUSED(user_data);
-#endif
     g_FunctionsLoaded = true;
-    return true;
 }
 
 bool    ImGui_ImplVulkan_Init(ImGui_ImplVulkan_InitInfo* info, VkRenderPass render_pass)

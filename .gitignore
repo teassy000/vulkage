@@ -4,5 +4,6 @@ src/x64
 src/*.spv
 src/*.db
 src/shaders/*.spv
+src/imgui.ini
 data/*
 extern/*

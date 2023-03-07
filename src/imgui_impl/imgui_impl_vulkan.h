@@ -36,13 +36,7 @@
 //     - Do not simply add it in a .cpp file!
 // (2) Call ImGui_ImplVulkan_LoadFunctions() before ImGui_ImplVulkan_Init() with your custom function.
 // If you have no idea what this is, leave it alone!
-//#define IMGUI_IMPL_VULKAN_NO_PROTOTYPES
 
-// Vulkan includes
-#if defined(IMGUI_IMPL_VULKAN_NO_PROTOTYPES) && !defined(VK_NO_PROTOTYPES)
-#define VK_NO_PROTOTYPES
-#endif
-#include <vulkan/vulkan.h>
 
 // Initialization data, for ImGui_ImplVulkan_Init()
 // [Please zero-clear before use!]
@@ -78,9 +72,9 @@ IMGUI_IMPL_API void         ImGui_ImplVulkan_SetMinImageCount(uint32_t min_image
 IMGUI_IMPL_API VkDescriptorSet ImGui_ImplVulkan_AddTexture(VkSampler sampler, VkImageView image_view, VkImageLayout image_layout);
 IMGUI_IMPL_API void            ImGui_ImplVulkan_RemoveTexture(VkDescriptorSet descriptor_set);
 
-// Optional: load Vulkan functions with a custom function loader
-// This is only useful with IMGUI_IMPL_VULKAN_NO_PROTOTYPES / VK_NO_PROTOTYPES
-IMGUI_IMPL_API bool         ImGui_ImplVulkan_LoadFunctions(PFN_vkVoidFunction(*loader_func)(const char* function_name, void* user_data), void* user_data = nullptr);
+
+IMGUI_IMPL_API void         ImGui_ImplVulkan_FunctionsLoaded(); // use volk directly for simplification
+
 
 //-------------------------------------------------------------------------
 // Internal / Miscellaneous Vulkan Helpers
