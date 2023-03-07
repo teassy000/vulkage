@@ -291,6 +291,15 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
     }
 }
 
+struct ProfilingData
+{
+    float cpuTime;
+    float gpuTime;
+    float waitTime;
+    uint32_t primitiveCount;
+    uint32_t meshletCount;
+    bool usingMS;
+};
 
 int main(int argc, const char** argv)
 {
@@ -487,8 +496,8 @@ int main(int argc, const char** argv)
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
         ImGuiIO& io = ImGui::GetIO(); (void)io;
-        io.DisplaySize.x = swapchain.width;
-        io.DisplaySize.y = swapchain.height;
+        io.DisplaySize.x = (float)swapchain.width;
+        io.DisplaySize.y = (float)swapchain.height;
         ImGui_ImplVulkan_FunctionsLoaded(); // already use volk loaded vulkan funcs
 
         ImGui_ImplVulkan_InitInfo initInfo = {};
@@ -534,8 +543,11 @@ int main(int argc, const char** argv)
         }
     }
 
-    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+    ProfilingData pd = {};
+    pd.meshletCount = (uint32_t)mesh.meshlets.size();
+    pd.primitiveCount = (uint32_t)(mesh.indices.size() / 3);
 
+    double deltaTime = 0.f;
     while (!glfwWindowShouldClose(window)) 
     {
 
@@ -551,23 +563,17 @@ int main(int argc, const char** argv)
         ImGui_ImplVulkan_NewFrame();
         ImGui::NewFrame();
         {
+            ImGui::SetNextWindowSize({300, 300});
+            ImGui::Begin("info:");
+            
+            ImGui::Text("cpu: [%.2f]ms", pd.cpuTime);
+            ImGui::Text("gpu: [%.2f]ms", pd.gpuTime);
+            ImGui::Text("wait: [%.2f]ms", pd.waitTime);
+            ImGui::Text("primitive count: [%d]", pd.primitiveCount);
+            ImGui::Text("primitive count: [%d]", pd.meshletCount);
+            ImGui::Text("frame: [%.2f]fps", 1000.f / pd.cpuTime);
+            ImGui::Checkbox("Mesh Shading", &pd.usingMS);
 
-            static float f = 0.0f;
-            static int counter = 0;
-
-            ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
-
-            ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-
-            ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-            ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
-
-            if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-                counter++;
-            ImGui::SameLine();
-            ImGui::Text("counter = %d", counter);
-
-            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::End();
         }
         
@@ -697,12 +703,15 @@ int main(int argc, const char** argv)
         double frameGpuBegin = double(queryResults[0]) * props.limits.timestampPeriod * 1e-6;
         double frameGpuEnd = double(queryResults[1]) * props.limits.timestampPeriod * 1e-6;
 
-        char title[256];
-        sprintf(title, "cpu: %.2f ms; gpu %.2f ms; wait %.2f ms; primitive: %zu; meshlets: %zu, MS: %s"
-            , frameCpuEnd - frameCpuBegin, frameGpuEnd - frameGpuBegin, waitTimeEnd - waitTimeBegin
-            , mesh.indices.size() / 3, mesh.meshlets.size(), meshShadingOn ? "ON" : "OFF");
-        glfwSetWindowTitle(window, title);
-                
+        deltaTime += (frameCpuEnd - frameCpuBegin);
+        if(deltaTime >= 500)
+        {
+            pd.cpuTime = float(frameCpuEnd - frameCpuBegin);
+            pd.gpuTime = float(frameGpuEnd - frameGpuBegin);
+            pd.waitTime = float(waitTimeEnd - waitTimeBegin);
+            pd.usingMS = meshShadingOn;
+            deltaTime = 0.0;
+        }
 	}
     VK_CHECK(vkDeviceWaitIdle(device));
 
