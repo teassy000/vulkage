@@ -4,28 +4,18 @@
 #extension GL_EXT_shader_8bit_storage: require
 #extension GL_EXT_mesh_shader: require
 
+#extension GL_GOOGLE_include_directive: require
+
+#include "mesh.h"
+
+#define DEBUG 1
+
 layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
 layout(triangles, max_vertices= 64, max_primitives = 84) out;
-
-struct Vertex
-{
-    float16_t vx, vy, vz, vw;
-    uint8_t nx, ny, nz, nw;
-    float16_t tu, tv;
-};
 
 layout(binding = 0) readonly buffer Vertices
 {
     Vertex vertices[];
-};
-
-
-struct Meshlet
-{
-    uint vertices[64];
-    uint8_t indices[84*3]; // 84 triangles
-    uint8_t triangleCount;
-    uint8_t vertexCount;
 };
 
 layout(binding = 1) readonly buffer Meshlets
@@ -35,6 +25,16 @@ layout(binding = 1) readonly buffer Meshlets
 
 layout(location = 0) out vec4 color[];
 
+uint hash(uint a)
+{
+   a = (a+0x7ed55d16) + (a<<12);
+   a = (a^0xc761c23c) ^ (a>>19);
+   a = (a+0x165667b1) + (a<<5);
+   a = (a+0xd3a2646c) ^ (a<<9);
+   a = (a+0xfd7046c5) + (a<<3);
+   a = (a^0xb55a4f09) ^ (a>>16);
+   return a;
+}
 
 void main()
 {
@@ -42,6 +42,11 @@ void main()
     uint ti = gl_LocalInvocationID.x;
 
     SetMeshOutputsEXT(uint(meshlets[mi].vertexCount), uint(meshlets[mi].triangleCount));
+
+#if DEBUG
+    uint mhash = hash(mi);
+    vec3 mcolor = vec3(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255)) / 255.0;
+#endif
 
     for(uint i = ti; i < uint(meshlets[mi].vertexCount); i += 32)
     {
@@ -53,7 +58,11 @@ void main()
        
         gl_MeshVerticesEXT[i].gl_Position = vec4(pos + vec3(0, 0, 0.5), 1.0);
 
+#if DEBUG
+        color[i] = vec4(mcolor, 1.0);
+#else
         color[i] = vec4(norm, 1.0);
+#endif
     }
 
 

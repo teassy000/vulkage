@@ -3,23 +3,16 @@
 #extension GL_EXT_shader_16bit_storage: require
 #extension GL_EXT_shader_8bit_storage: require
 
+#extension GL_GOOGLE_include_directive: require
 
-
-struct Vertex
-{
-    float16_t vx, vy, vz, vw;
-    uint8_t nx, ny, nz, nw;
-    float16_t tu, tv;
-};
+#include "mesh.h"
 
 layout(binding = 0) readonly buffer Vertices
 {
     Vertex vertices[];
 };
 
-layout(location = 0)
-out vec4 color;
-
+layout(location = 0) out vec4 color;
 
 void main()
 {

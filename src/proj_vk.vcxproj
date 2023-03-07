@@ -218,9 +218,9 @@
     <ClInclude Include="common.h" />
     <ClInclude Include="device.h" />
     <ClInclude Include="imgui_impl\imgui_impl_vulkan.h" />
-    <ClInclude Include="mesh.h" />
     <ClInclude Include="resources.h" />
     <ClInclude Include="shaders.h" />
+    <ClInclude Include="shaders\mesh.h" />
     <ClInclude Include="swapchain.h" />
   </ItemGroup>
   <ItemGroup>
