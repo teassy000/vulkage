@@ -22,9 +22,6 @@
     <Filter Include="ligitprofiler">
       <UniqueIdentifier>{fbd5a505-8eb1-46bc-8387-16b68999c2e2}</UniqueIdentifier>
     </Filter>
-    <Filter Include="imgui_impl">
-      <UniqueIdentifier>{7f870a22-bf8d-4773-845e-10cc4243123f}</UniqueIdentifier>
-    </Filter>
     <Filter Include="src">
       <UniqueIdentifier>{6b141d51-11ac-4f03-88c0-2ce852e0f880}</UniqueIdentifier>
     </Filter>
@@ -160,9 +157,6 @@
     <ClCompile Include="..\extern\dear-imgui\imgui_widgets.cpp">
       <Filter>imgui</Filter>
     </ClCompile>
-    <ClCompile Include="imgui_impl\imgui_impl_vulkan.cpp">
-      <Filter>imgui_impl</Filter>
-    </ClCompile>
     <ClCompile Include="resources.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -173,6 +167,9 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="device.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="ui.cpp">
       <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>
@@ -228,9 +225,6 @@
     <ClInclude Include="..\extern\ligitProfiler\ProfilerTask.h">
       <Filter>ligitprofiler</Filter>
     </ClInclude>
-    <ClInclude Include="imgui_impl\imgui_impl_vulkan.h">
-      <Filter>imgui_impl</Filter>
-    </ClInclude>
     <ClInclude Include="resources.h">
       <Filter>src</Filter>
     </ClInclude>
@@ -249,6 +243,9 @@
     <ClInclude Include="shaders\mesh.h">
       <Filter>shaders</Filter>
     </ClInclude>
+    <ClInclude Include="ui.h">
+      <Filter>src</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="shaders\meshlet.mesh.glsl">
@@ -261,6 +258,12 @@
       <Filter>shaders</Filter>
     </CustomBuild>
     <CustomBuild Include="shaders\mesh.frag.glsl">
+      <Filter>shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="shaders\ui.frag.glsl">
+      <Filter>shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="shaders\ui.vert.glsl">
       <Filter>shaders</Filter>
     </CustomBuild>
   </ItemGroup>

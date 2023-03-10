@@ -21,18 +21,20 @@ struct Program
     VkDescriptorSetLayout   setLayout;
 
     VkDescriptorUpdateTemplate updateTemplate;
+
+    VkShaderStageFlags pushConstantStages;
 };
 
 using Shaders = std::initializer_list<const Shader*>;
 
 bool loadShader(Shader& shader, VkDevice device, const char* path);
 
-VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, VkRenderPass renderPass, Shaders shaders);
+VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, VkRenderPass renderPass, Shaders shaders, VkPipelineVertexInputStateCreateInfo* vtxInputState);
 
 VkDescriptorSetLayout createSetLayout(VkDevice device, Shaders shaders);
-VkPipelineLayout createPipelineLayout(VkDevice device, VkDescriptorSetLayout outSetLayout);
+VkPipelineLayout createPipelineLayout(VkDevice device, VkDescriptorSetLayout outSetLayout, VkShaderStageFlags pushConstantStages, size_t pushConstantSize);
 
-Program createProgram(VkDevice device, VkPipelineBindPoint bindingPoint, Shaders shaders);
+Program createProgram(VkDevice device, VkPipelineBindPoint bindingPoint, Shaders shaders, size_t pushConstantSize = 0);
 void destroyProgram(VkDevice device, const Program& program);
 
 

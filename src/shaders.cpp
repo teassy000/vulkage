@@ -273,7 +273,7 @@ bool loadShader(Shader& shader ,VkDevice device, const char* path)
     return true;
 }
 
-VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, VkRenderPass renderPass, Shaders shaders)
+VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, VkRenderPass renderPass, Shaders shaders, VkPipelineVertexInputStateCreateInfo* pVertexInput)
 {
     VkGraphicsPipelineCreateInfo createInfo = { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
 
@@ -291,9 +291,8 @@ VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache
     createInfo.stageCount = uint32_t(stages.size());
     createInfo.pStages = stages.data();
 
-
-    VkPipelineVertexInputStateCreateInfo vertexInput = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
-    createInfo.pVertexInputState = &vertexInput;
+    VkPipelineVertexInputStateCreateInfo defaultVertexInput = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+    createInfo.pVertexInputState = (pVertexInput != nullptr) ? pVertexInput : &defaultVertexInput;
 
     VkPipelineInputAssemblyStateCreateInfo inputAssemply = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
     inputAssemply.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
@@ -319,6 +318,13 @@ VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache
 
     VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
     colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    colorBlendAttachment.blendEnable = VK_TRUE;
+    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
 
     VkPipelineColorBlendStateCreateInfo colorBlendState = { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
     colorBlendState.attachmentCount = 1;
@@ -407,18 +413,25 @@ static VkDescriptorUpdateTemplate createDescriptorTemplates(VkDevice device, VkP
 }
 
 
-Program createProgram(VkDevice device, VkPipelineBindPoint bindingPoint, Shaders shaders)
+Program createProgram(VkDevice device, VkPipelineBindPoint bindingPoint, Shaders shaders, size_t pushConstantSize)
 {
+    VkShaderStageFlags pushConstantStages = 0;
+    for (const Shader* shader : shaders)
+        if (shader->usesPushConstants)
+            pushConstantStages |= shader->stage;
+
     Program program = {};
 
     program.setLayout = createSetLayout(device, shaders);
     assert(program.setLayout);
 
-    program.layout = createPipelineLayout(device, program.setLayout);
+    program.layout = createPipelineLayout(device, program.setLayout, pushConstantStages, pushConstantSize);
     assert(program.layout);
 
     program.updateTemplate = createDescriptorTemplates(device, bindingPoint, program.layout, program.setLayout, shaders);
     assert(program.updateTemplate);
+
+    program.pushConstantStages = pushConstantStages;
 
     return program;
 }
@@ -467,11 +480,21 @@ VkDescriptorSetLayout createSetLayout(VkDevice device, Shaders shaders)
 }
 
 
-VkPipelineLayout createPipelineLayout(VkDevice device, VkDescriptorSetLayout setLayout)
+VkPipelineLayout createPipelineLayout(VkDevice device, VkDescriptorSetLayout outSetLayout, VkShaderStageFlags pushConstantStages, size_t pushConstantSize)
 {
     VkPipelineLayoutCreateInfo createInfo = { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
     createInfo.setLayoutCount = 1;
-    createInfo.pSetLayouts = &setLayout;
+    createInfo.pSetLayouts = &outSetLayout;
+
+    VkPushConstantRange pushConstantRange = {};
+    if (pushConstantSize) 
+    {
+        pushConstantRange.stageFlags = pushConstantStages;
+        pushConstantRange.size = uint32_t(pushConstantSize);
+
+        createInfo.pushConstantRangeCount = 1;
+        createInfo.pPushConstantRanges = &pushConstantRange;
+    }
 
     VkPipelineLayout layout = 0;
     VK_CHECK(vkCreatePipelineLayout(device, &createInfo, 0, &layout));

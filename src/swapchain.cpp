@@ -118,7 +118,7 @@ void createSwapchain(Swapchain& result, VkPhysicalDevice physicalDevice, VkDevic
 
     std::vector<VkImageView> imageViews(imageCount);
     for (uint32_t i = 0; i < imageCount; ++i) {
-        imageViews[i] = createImageView(device, images[i], format);
+        imageViews[i] = createImageView(device, images[i], format, 0, 1);
         assert(imageViews[i]);
     }
 

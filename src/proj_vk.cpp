@@ -8,7 +8,10 @@
 #include "shaders.h"
 #include "device.h"
 
-#include "imgui_impl/imgui_impl_vulkan.h"
+// for ui
+#include "glm/glm.hpp"
+#include "imgui.h"
+#include "ui.h"
 
 #include <stdio.h>
 
@@ -404,14 +407,14 @@ int main(int argc, const char** argv)
     }
 
     VkPipelineCache pipelineCache = 0;
-    VkPipeline meshPipeline = createGraphicsPipeline(device, pipelineCache, meshProgram.layout, renderPass, { &meshVS, &meshFS});
+    VkPipeline meshPipeline = createGraphicsPipeline(device, pipelineCache, meshProgram.layout, renderPass, { &meshVS, &meshFS}, nullptr);
     assert(meshPipeline);
 
 
     VkPipeline meshPipelineMS = 0;
     if (meshShadingSupported)
     {
-        meshPipelineMS = createGraphicsPipeline(device, pipelineCache, meshProgramMS.layout, renderPass, { &meshletMS, &meshFS });
+        meshPipelineMS = createGraphicsPipeline(device, pipelineCache, meshProgramMS.layout, renderPass, { &meshletMS, &meshFS }, nullptr);
         assert(meshPipelineMS);
     }
 
@@ -492,63 +495,18 @@ int main(int argc, const char** argv)
 
 
     // imgui
-    {
-        IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
-        ImGuiIO& io = ImGui::GetIO(); (void)io;
-        io.DisplaySize.x = (float)swapchain.width;
-        io.DisplaySize.y = (float)swapchain.height;
-        ImGui_ImplVulkan_FunctionsLoaded(); // already use volk loaded vulkan funcs
+    UI ui = {};
+    initializeUI(ui, device, queue);
+    prepareUIPipeline(ui, pipelineCache, renderPass);
+    prepareUIResources(ui, memoryProps, cmdPool);
 
-        ImGui_ImplVulkan_InitInfo initInfo = {};
-
-        initInfo.Instance = instance;
-        initInfo.PhysicalDevice = physicalDevice;
-        initInfo.Device = device;
-        initInfo.Queue = queue;
-        initInfo.DescriptorPool = descPool;
-        initInfo.PipelineCache = pipelineCache;
-        initInfo.MinImageCount = 2;
-        initInfo.ImageCount = swapchain.imageCount;
-        initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-
-        ImGui_ImplVulkan_Init(&initInfo, renderPass);
-
-        // upload fonts
-        {
-            // Use any command queue
-            VkCommandPool command_pool = cmdPool;
-            VkCommandBuffer command_buffer = cmdBuffer;
-
-            VK_CHECK(vkResetCommandPool(device, command_pool, 0));
-            VkCommandBufferBeginInfo begin_info = {};
-            begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-            begin_info.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-            VK_CHECK(vkBeginCommandBuffer(command_buffer, &begin_info));
-
-
-            ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
-
-            VkSubmitInfo end_info = {};
-            end_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-            end_info.commandBufferCount = 1;
-            end_info.pCommandBuffers = &command_buffer;
-            VK_CHECK(vkEndCommandBuffer(command_buffer));
-            
-            VK_CHECK(vkQueueSubmit(queue, 1, &end_info, VK_NULL_HANDLE));
-
-            VK_CHECK(vkDeviceWaitIdle(device));
-
-            ImGui_ImplVulkan_DestroyFontUploadObjects();
-        }
-    }
 
     ProfilingData pd = {};
     pd.meshletCount = (uint32_t)mesh.meshlets.size();
     pd.primitiveCount = (uint32_t)(mesh.indices.size() / 3);
 
     double deltaTime = 0.f;
-    while (!glfwWindowShouldClose(window)) 
+    while (!glfwWindowShouldClose(window))
     {
 
         double frameCpuBegin = glfwGetTime() * 1000.0;
@@ -560,9 +518,11 @@ int main(int argc, const char** argv)
 
         resizeSwapchainIfNecessary(swapchain, physicalDevice, device, surface, &familyIndex, swapchainFormat, renderPass);
 
-        ImGui_ImplVulkan_NewFrame();
-        ImGui::NewFrame();
         {
+            ImGuiIO& io = ImGui::GetIO();
+
+            io.DisplaySize = ImVec2((float)newWindowWidth, (float)newWindowHeight);
+            ImGui::NewFrame();
             ImGui::SetNextWindowSize({300, 300});
             ImGui::Begin("info:");
             
@@ -575,7 +535,11 @@ int main(int argc, const char** argv)
             ImGui::Checkbox("Mesh Shading", &pd.usingMS);
 
             ImGui::End();
+            ImGui::Render();
         }
+
+        updateUI(ui, memoryProps);
+        
         
         uint32_t imageIndex = 0;
         VK_CHECK(vkAcquireNextImageKHR(device, swapchain.swapchain, ~0ull, acquirSemaphore, VK_NULL_HANDLE, &imageIndex));
@@ -591,7 +555,7 @@ int main(int argc, const char** argv)
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 0);
 
         
-        VkImageMemoryBarrier renderBeginBarrier = imageBarrier(swapchain.images[imageIndex], 0, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
+        VkImageMemoryBarrier renderBeginBarrier = imageBarrier(swapchain.images[imageIndex], VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
             , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
         // check https://github.com/KhronosGroup/Vulkan-Docs/wiki/Synchronization-Examples#combined-graphicspresent-queue
@@ -643,21 +607,12 @@ int main(int argc, const char** argv)
 
             vkCmdDrawIndexed(cmdBuffer, (uint32_t)mesh.indices.size(), 1, 0, 0, 0);
         }
-        if(1)
-        {
-            ImGui::Render();
-            ImDrawData* draw_data = ImGui::GetDrawData();
-            const bool is_minimized = (draw_data->DisplaySize.x <= 0.0f || draw_data->DisplaySize.y <= 0.0f);
-            if (!is_minimized)
-            {
-                // Record dear imgui primitives into command buffer
-                ImGui_ImplVulkan_RenderDrawData(draw_data, cmdBuffer);
-            }
-        }
+
+        drawUI(ui, cmdBuffer);
 
         vkCmdEndRenderPass(cmdBuffer);
 
-        VkImageMemoryBarrier renderEndBarrier = imageBarrier(swapchain.images[imageIndex], VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, 0
+        VkImageMemoryBarrier renderEndBarrier = imageBarrier(swapchain.images[imageIndex], VK_IMAGE_ASPECT_COLOR_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, 0
             , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
         vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT
             , VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &renderEndBarrier);
@@ -715,16 +670,15 @@ int main(int argc, const char** argv)
 	}
     VK_CHECK(vkDeviceWaitIdle(device));
 
-    ImGui_ImplVulkan_Shutdown();
-
-    destroyBuffer(scratch, device);
-    destroyBuffer(ib, device); 
-    destroyBuffer(vb, device);
+    destroyUI(ui);
+   
+    destroyBuffer(device, scratch);
+    destroyBuffer(device, ib); 
+    destroyBuffer(device, vb);
     if (meshShadingSupported)
     {
-        destroyBuffer(mb, device);
+        destroyBuffer(device, mb);
     }
-    
 
     vkDestroyCommandPool(device, cmdPool, 0);
 
@@ -759,7 +713,6 @@ int main(int argc, const char** argv)
 
 	glfwDestroyWindow(window);
 
-    
     vkDestroyDevice(device, 0);
 
     PFN_vkDestroyDebugReportCallbackEXT vkDestroyDebugReportCallbackEXT = (PFN_vkDestroyDebugReportCallbackEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugReportCallbackEXT");
