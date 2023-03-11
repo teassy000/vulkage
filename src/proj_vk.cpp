@@ -28,6 +28,8 @@
 
 static bool meshShadingEnabled = true;
 
+static Input input = {};
+
 VkSemaphore createSemaphore(VkDevice device)
 {
 
@@ -294,6 +296,46 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
     }
 }
 
+void mousekeyCallback(GLFWwindow* window, int key, int action, int mods)
+{
+    if (action == GLFW_PRESS)
+    {
+        if (key == GLFW_MOUSE_BUTTON_LEFT)
+        {
+            input.mouseButtons.left = true;
+        }
+        if (key == GLFW_MOUSE_BUTTON_RIGHT)
+        {
+            input.mouseButtons.right = true;
+        }
+        if (key == GLFW_MOUSE_BUTTON_MIDDLE)
+        {
+            input.mouseButtons.middle = true;
+        }
+    }
+    if (action == GLFW_RELEASE)
+    {
+        if (key == GLFW_MOUSE_BUTTON_LEFT)
+        {
+            input.mouseButtons.left = false;
+        }
+        if (key == GLFW_MOUSE_BUTTON_RIGHT)
+        {
+            input.mouseButtons.right = false;
+        }
+        if (key == GLFW_MOUSE_BUTTON_MIDDLE)
+        {
+            input.mouseButtons.middle = false;
+        }
+    }
+}
+
+void mouseMoveCallback(GLFWwindow* window, double xpos, double ypos)
+{
+    input.mousePosx = (float)xpos;
+    input.mousePosy = (float)ypos;
+}
+
 struct ProfilingData
 {
     float cpuTime;
@@ -352,6 +394,8 @@ int main(int argc, const char** argv)
 	assert(window);
 
     glfwSetKeyCallback(window, keyCallback);
+    glfwSetMouseButtonCallback(window, mousekeyCallback);
+    glfwSetCursorPosCallback(window, mouseMoveCallback);
 
 	VkSurfaceKHR surface = createSurface(instance, window);
 	assert(surface);
@@ -496,7 +540,7 @@ int main(int argc, const char** argv)
 
     // imgui
     UI ui = {};
-    initializeUI(ui, device, queue);
+    initializeUI(ui, device, queue, 1.3f);
     prepareUIPipeline(ui, pipelineCache, renderPass);
     prepareUIResources(ui, memoryProps, cmdPool);
 
@@ -506,6 +550,7 @@ int main(int argc, const char** argv)
     pd.primitiveCount = (uint32_t)(mesh.indices.size() / 3);
 
     double deltaTime = 0.f;
+
     while (!glfwWindowShouldClose(window))
     {
 
@@ -518,6 +563,11 @@ int main(int argc, const char** argv)
 
         resizeSwapchainIfNecessary(swapchain, physicalDevice, device, surface, &familyIndex, swapchainFormat, renderPass);
 
+        // set input data
+        input.width = (float)newWindowWidth;
+        input.height = (float)newWindowHeight;
+
+        updateImguiIO(input);
         {
             ImGuiIO& io = ImGui::GetIO();
 

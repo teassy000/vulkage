@@ -32,7 +32,20 @@ struct UI
     PushConstBlock pushConstBlock;
 };
 
-void initializeUI(UI& ui, VkDevice device, VkQueue queue);
+struct Input
+{
+    float mousePosx, mousePosy;
+
+    struct {
+        bool left = false;
+        bool right = false;
+        bool middle = false;
+    } mouseButtons;
+
+    float width, height;
+};
+
+void initializeUI(UI& ui, VkDevice device, VkQueue queue, float scale = 1.f);
 void destroyUI(UI& ui);
 
 void prepareUIPipeline(UI& ui, const VkPipelineCache pipelineCache, const VkRenderPass renderPass);
@@ -42,3 +55,4 @@ void updateUI(UI& ui, const VkPhysicalDeviceMemoryProperties& memoryProps);
 void drawUI(UI& ui, const VkCommandBuffer cmdBuffer);
 
 
+void updateImguiIO(const Input& input);

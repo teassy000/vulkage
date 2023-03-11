@@ -6,11 +6,14 @@
 
 #include "ui.h"
 
-void initializeUI(UI& ui, VkDevice device, VkQueue queue)
+void initializeUI(UI& ui, VkDevice device, VkQueue queue, float scale /* = 1.f*/)
 {
     ui.device = device;
     ui.queue = queue;
     ImGui::CreateContext();
+
+    ImGuiIO& io = ImGui::GetIO();
+    io.FontGlobalScale = scale;
 }
 
 void destroyUI(UI& ui)
@@ -118,6 +121,18 @@ void prepareUIResources(UI& ui, const VkPhysicalDeviceMemoryProperties& memoryPr
     ui.fontImage.height = image.height;
 
     ui.sampler = sampler;
+}
+
+void updateImguiIO(const Input& input)
+{
+    ImGuiIO& io = ImGui::GetIO();
+
+    io.DisplaySize = ImVec2((float)input.width, (float)input.height);
+
+    io.MousePos = ImVec2(input.mousePosx, input.mousePosy);
+    io.MouseDown[0] = input.mouseButtons.left;
+    io.MouseDown[1] = input.mouseButtons.right;
+    io.MouseDown[2] = input.mouseButtons.middle;
 }
 
 void updateUI(UI& ui, const VkPhysicalDeviceMemoryProperties& memoryProps)
