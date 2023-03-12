@@ -120,8 +120,9 @@ struct Vertex
     uint16_t    tu, tv;
 };
 
-struct Meshlet
+struct alignas(16) Meshlet
 {
+    float cone[4];
     uint32_t vertices[64];
     uint8_t  indices[84 * 3]; //this is 84 triangles
     uint8_t  triangleCount;
@@ -188,6 +189,109 @@ void buildMeshlets(Mesh& mesh)
     if (meshlet.triangleCount)
     {
         mesh.meshlets.push_back(meshlet);
+    }
+
+    // TODO: remove this after implement a proper way to deal with dynamic meshlet count. currently assume all 32 meshlet required in task shaders
+    while (mesh.meshlets.size() % 32)
+    {
+        mesh.meshlets.push_back(Meshlet{});
+    }
+}
+
+float halfToFloat(uint16_t v)
+{
+    // according to IEEE 754: half
+    uint16_t sign = v >> 15;
+    uint16_t exp = (v >> 10) & 0x1f; // 5 bit exp
+    uint16_t mant = v & 0x3ff; // 10 bit mant
+
+    assert(exp != 31);
+
+    if (exp == 0)
+    {
+        assert(mant == 0);
+        return 0.f;
+    }
+    else
+    {
+        return(sign ? -1.f : 1.f) * ldexpf(float(mant + 1024) / 1024.f, exp - 15);
+    }
+}
+
+
+void buildMeshletCones(Mesh& mesh)
+{
+    for (Meshlet& meshlet : mesh.meshlets)
+    {
+        float normals[84][3] = {};
+        for (uint32_t i = 0; i < meshlet.triangleCount; i++)
+        {
+            uint32_t a = meshlet.indices[i * 3 + 0];
+            uint32_t b = meshlet.indices[i * 3 + 1];
+            uint32_t c = meshlet.indices[i * 3 + 2];
+
+            const Vertex& va = mesh.vertices[meshlet.vertices[a]];
+            const Vertex& vc = mesh.vertices[meshlet.vertices[b]];
+            const Vertex& vb = mesh.vertices[meshlet.vertices[c]];
+
+            float p0[3] = { halfToFloat(va.vx), halfToFloat(va.vy), halfToFloat(va.vz) };
+            float p1[3] = { halfToFloat(vb.vx), halfToFloat(vb.vy), halfToFloat(vb.vz) };
+            float p2[3] = { halfToFloat(vc.vx), halfToFloat(vc.vy), halfToFloat(vc.vz) }; 
+            
+            float p10[3] = {p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]};
+            float p20[3] = {p2[0] - p0[0], p2[1] - p0[1], p2[2] - p0[2]};
+            
+            float normalx = p10[1] * p20[2] - p10[2] * p20[1];
+            float normaly = p10[2] * p20[0] - p10[0] * p20[2];
+            float normalz = p10[0] * p20[1] - p10[1] * p20[0];
+
+            float area = sqrtf(normalx * normalx + normaly * normaly + normalz * normalz);
+            float invaera = (area == 0.f) ? 0.f : 1 / area;
+
+            normals[i][0] = normalx * invaera;
+            normals[i][1] = normaly * invaera;
+            normals[i][2] = normalz * invaera;
+        }
+
+        float avgnormal[3] = {};
+
+        for (uint32_t i = 0; i < meshlet.triangleCount; ++i)
+        {
+            avgnormal[0] += normals[i][0];
+            avgnormal[1] += normals[i][1];
+            avgnormal[2] += normals[i][2];
+        }
+
+        float avglength = sqrtf(avgnormal[0]* avgnormal[0] + avgnormal[1] * avgnormal[1] + avgnormal[2] * avgnormal[2]);
+        
+        if (avglength == 0.f)
+        {
+            avgnormal[0] = 1.f;
+            avgnormal[1] = 0.f;
+            avgnormal[2] = 0.f;
+        }
+        else
+        {
+            avgnormal[0] /= avglength;
+            avgnormal[1] /= avglength;
+            avgnormal[2] /= avglength;
+        }
+
+        float mindp = 1.f;
+
+        for (uint32_t i = 0; i < meshlet.triangleCount; ++i)
+        {
+            float dp = normals[i][0] * avgnormal[0] + normals[i][1] * avgnormal[1] + normals[i][2] * avgnormal[2];
+            mindp = glm::min(mindp, dp);
+        }
+
+        // cone back face culling: 
+        float conew = mindp <= 0.f ? 1.f : sqrtf(1.f - mindp * mindp);
+
+        meshlet.cone[0] = avgnormal[0];
+        meshlet.cone[1] = avgnormal[1];
+        meshlet.cone[2] = avgnormal[2];
+        meshlet.cone[3] = conew;
     }
 }
 
@@ -289,9 +393,9 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
         {
             meshShadingEnabled = !meshShadingEnabled;
         }
-        if (key == GLFW_KEY_F4)
+        if (key == GLFW_KEY_ESCAPE)
         {
-            // toggle imgui window
+            exit(0);
         }
     }
 }
@@ -339,6 +443,7 @@ void mouseMoveCallback(GLFWwindow* window, double xpos, double ypos)
 struct ProfilingData
 {
     float cpuTime;
+    float avrageCpuTime;
     float gpuTime;
     float waitTime;
     uint32_t primitiveCount;
@@ -447,7 +552,7 @@ int main(int argc, const char** argv)
     Program meshProgramMS = {};
     if (meshShadingSupported)
     {
-        meshProgramMS = createProgram(device, VK_PIPELINE_BIND_POINT_GRAPHICS, { &meshletMS, &meshFS });
+        meshProgramMS = createProgram(device, VK_PIPELINE_BIND_POINT_GRAPHICS, { &meshletTS, &meshletMS, &meshFS });
     }
 
     VkPipelineCache pipelineCache = 0;
@@ -458,7 +563,7 @@ int main(int argc, const char** argv)
     VkPipeline meshPipelineMS = 0;
     if (meshShadingSupported)
     {
-        meshPipelineMS = createGraphicsPipeline(device, pipelineCache, meshProgramMS.layout, renderPass, { &meshletMS, &meshFS }, nullptr);
+        meshPipelineMS = createGraphicsPipeline(device, pipelineCache, meshProgramMS.layout, renderPass, { &meshletTS, &meshletMS, &meshFS }, nullptr);
         assert(meshPipelineMS);
     }
 
@@ -512,6 +617,7 @@ int main(int argc, const char** argv)
     if (meshShadingSupported)
     {
         buildMeshlets(mesh);
+        buildMeshletCones(mesh);
     }
 
     Buffer scratch = {};
@@ -550,6 +656,7 @@ int main(int argc, const char** argv)
     pd.primitiveCount = (uint32_t)(mesh.indices.size() / 3);
 
     double deltaTime = 0.f;
+    double avrageTime = 0.f;
 
     while (!glfwWindowShouldClose(window))
     {
@@ -573,15 +680,16 @@ int main(int argc, const char** argv)
 
             io.DisplaySize = ImVec2((float)newWindowWidth, (float)newWindowHeight);
             ImGui::NewFrame();
-            ImGui::SetNextWindowSize({300, 300});
+            ImGui::SetNextWindowSize({400, 400});
             ImGui::Begin("info:");
             
             ImGui::Text("cpu: [%.2f]ms", pd.cpuTime);
+            ImGui::Text("avg cpu: [%.2f]ms", pd.avrageCpuTime);
             ImGui::Text("gpu: [%.2f]ms", pd.gpuTime);
             ImGui::Text("wait: [%.2f]ms", pd.waitTime);
             ImGui::Text("primitive count: [%d]", pd.primitiveCount);
             ImGui::Text("primitive count: [%d]", pd.meshletCount);
-            ImGui::Text("frame: [%.2f]fps", 1000.f / pd.cpuTime);
+            ImGui::Text("frame: [%.2f]fps", 1000.f / pd.avrageCpuTime);
             ImGui::Checkbox("Mesh Shading", &pd.usingMS);
 
             ImGui::End();
@@ -612,8 +720,8 @@ int main(int argc, const char** argv)
         vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
             , VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &renderBeginBarrier);
         
-
-        VkClearColorValue color = { 33.f/255.f, 200.f/255.f, 242.f/255.f, 1 };
+        // jinzi - from http://zhongguose.com
+        VkClearColorValue color = { 128.f/255.f, 109.f/255.f, 158.f/255.f, 1 };
         VkClearValue clearColor = { color };
 
         VkRenderPassBeginInfo passBeginInfo = { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
@@ -643,7 +751,8 @@ int main(int argc, const char** argv)
 
             vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, meshProgramMS.updateTemplate, meshProgramMS.layout, 0, descInfos);
 
-            vkCmdDrawMeshTasksEXT(cmdBuffer, (uint32_t)mesh.meshlets.size(), 1, 1);
+            vkCmdDrawMeshTasksEXT(cmdBuffer, (uint32_t)mesh.meshlets.size() / 32, 1, 1);
+
         }
         else
         {
@@ -658,6 +767,7 @@ int main(int argc, const char** argv)
             vkCmdDrawIndexed(cmdBuffer, (uint32_t)mesh.indices.size(), 1, 0, 0, 0);
         }
 
+        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 1);
         drawUI(ui, cmdBuffer);
 
         vkCmdEndRenderPass(cmdBuffer);
@@ -667,7 +777,7 @@ int main(int argc, const char** argv)
         vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT
             , VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &renderEndBarrier);
 
-        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 1);
+        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 2);
 
         VK_CHECK(vkEndCommandBuffer(cmdBuffer));
 
@@ -700,14 +810,18 @@ int main(int argc, const char** argv)
         
         double waitTimeEnd = glfwGetTime() * 1000.0;
         
-        uint64_t queryResults[2] = {};
+        uint64_t queryResults[3] = {};
         vkGetQueryPoolResults(device, queryPool, 0, ARRAYSIZE(queryResults), sizeof(queryResults), queryResults, sizeof(queryResults[0]), VK_QUERY_RESULT_64_BIT);
 
         double frameCpuEnd = glfwGetTime() * 1000.0;
 
         double frameGpuBegin = double(queryResults[0]) * props.limits.timestampPeriod * 1e-6;
-        double frameGpuEnd = double(queryResults[1]) * props.limits.timestampPeriod * 1e-6;
+        double frameUIBegin = double(queryResults[1]) * props.limits.timestampPeriod * 1e-6;
+        double frameGpuEnd = double(queryResults[2]) * props.limits.timestampPeriod * 1e-6;
 
+        avrageTime = avrageTime * 0.9995 + (frameCpuEnd - frameCpuBegin) * 0.0005;
+
+        pd.avrageCpuTime = (float)avrageTime;
         deltaTime += (frameCpuEnd - frameCpuBegin);
         if(deltaTime >= 500)
         {

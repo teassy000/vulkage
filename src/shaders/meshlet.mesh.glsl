@@ -10,7 +10,8 @@
 
 #define DEBUG 1
 
-layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
+
+layout(local_size_x = MESH_SIZE, local_size_y = 1, local_size_z = 1) in;
 layout(triangles, max_vertices= 64, max_primitives = 84) out;
 
 layout(binding = 0) readonly buffer Vertices
@@ -25,6 +26,8 @@ layout(binding = 1) readonly buffer Meshlets
 
 layout(location = 0) out vec4 color[];
 
+taskPayloadSharedEXT TaskPayload payload;
+
 uint hash(uint a)
 {
    a = (a+0x7ed55d16) + (a<<12);
@@ -36,9 +39,14 @@ uint hash(uint a)
    return a;
 }
 
+bool coneCull(vec4 cone, vec3 view)
+{
+    return dot(cone.xyz, view) > cone.w;
+}
+
 void main()
 {
-    uint mi = gl_WorkGroupID.x;
+    uint mi = gl_WorkGroupID.x + payload.offset;
     uint ti = gl_LocalInvocationID.x;
 
     SetMeshOutputsEXT(uint(meshlets[mi].vertexCount), uint(meshlets[mi].triangleCount));
@@ -48,7 +56,7 @@ void main()
     vec3 mcolor = vec3(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255)) / 255.0;
 #endif
 
-    for(uint i = ti; i < uint(meshlets[mi].vertexCount); i += 32)
+    for(uint i = ti; i < uint(meshlets[mi].vertexCount); i += MESH_SIZE)
     {
         uint vi = meshlets[mi].vertices[i];
     
@@ -66,7 +74,7 @@ void main()
     }
 
 
-    for(uint i = ti; i < uint(meshlets[mi].triangleCount); i += 32 )
+    for(uint i = ti; i < uint(meshlets[mi].triangleCount); i += MESH_SIZE )
     {
         uint idx0 = uint(meshlets[mi].indices[i * 3 + 0]);
         uint idx1 = uint(meshlets[mi].indices[i * 3 + 1]);

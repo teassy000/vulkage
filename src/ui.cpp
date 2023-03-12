@@ -84,6 +84,8 @@ void prepareUIResources(UI& ui, const VkPhysicalDeviceMemoryProperties& memoryPr
     // create font texture
     unsigned char* fontData = nullptr;
     int width = 0, height = 0;
+    
+    io.Fonts->AddFontFromFileTTF("../data/fonts/consola.ttf", 16.f * io.FontGlobalScale);
     io.Fonts->GetTexDataAsRGBA32(&fontData, &width, &height);
     assert(fontData);
     size_t uploadSize = width * height * 4 * sizeof(char);
