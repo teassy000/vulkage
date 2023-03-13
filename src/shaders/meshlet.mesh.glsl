@@ -39,15 +39,11 @@ uint hash(uint a)
    return a;
 }
 
-bool coneCull(vec4 cone, vec3 view)
-{
-    return dot(cone.xyz, view) > cone.w;
-}
-
 void main()
 {
-    uint mi = gl_WorkGroupID.x + payload.offset;
     uint ti = gl_LocalInvocationID.x;
+    uint mi = payload.meshletIndices[gl_WorkGroupID.x];
+
 
     SetMeshOutputsEXT(uint(meshlets[mi].vertexCount), uint(meshlets[mi].triangleCount));
 
@@ -69,7 +65,7 @@ void main()
 #if DEBUG
         color[i] = vec4(mcolor, 1.0);
 #else
-        color[i] = vec4(norm, 1.0);
+        color[i] = vec4(norm * 0.5 + vec3(0.5), 1.0);
 #endif
     }
 

@@ -3,11 +3,13 @@
 #extension GL_EXT_shader_16bit_storage: require
 #extension GL_EXT_shader_8bit_storage: require
 #extension GL_EXT_mesh_shader: require
+#extension GL_KHR_shader_subgroup_ballot: require
 
 #extension GL_GOOGLE_include_directive: require
 
 #include "mesh.h"
 
+#define CULL 1
 
 layout(local_size_x = TASK_SIZE, local_size_y = 1, local_size_z = 1) in;
 
@@ -18,14 +20,43 @@ layout(binding = 1) readonly buffer Meshlets
 
 taskPayloadSharedEXT TaskPayload payload;
 
+
+#if CULL
+shared int sharedCount;
+#endif
+
+
+bool coneCull(vec4 cone, vec3 view)
+{
+    return dot(-view, cone.xyz) > cone.w;
+}
+
+
+
+
 void main()
 {
-    uint mi = gl_WorkGroupID.x;
+    uint mgi = gl_WorkGroupID.x;
     uint ti = gl_LocalInvocationID.x;
+    uint mi = mgi * TASK_SIZE + ti;
 
-    if(ti == 0) {
-        payload.offset = mi * gl_WorkGroupSize.x;   
-        EmitMeshTasksEXT(TASK_SIZE, 1, 1);
+#if CULL
+    sharedCount = 0;
+    barrier();
+
+    bool accept = !coneCull(meshlets[mi].cone, vec3(0, 0, 1));
+    
+    if(accept)
+    {
+        uint index = atomicAdd(sharedCount, 1);
+        payload.meshletIndices[index] = mi;
     }
+
+    
+    EmitMeshTasksEXT(sharedCount, 1, 1);
+#else
+    payload.meshletIndices[ti] = mi;
+    EmitMeshTasksEXT(TASK_SIZE, 1, 1);
+#endif
 
 }

@@ -202,8 +202,8 @@ float halfToFloat(uint16_t v)
 {
     // according to IEEE 754: half
     uint16_t sign = v >> 15;
-    uint16_t exp = (v >> 10) & 0x1f; // 5 bit exp
-    uint16_t mant = v & 0x3ff; // 10 bit mant
+    uint16_t exp = (v >> 10) & 31; // 5 bit exp
+    uint16_t mant = v & 1023; // 10 bit mant
 
     assert(exp != 31);
 

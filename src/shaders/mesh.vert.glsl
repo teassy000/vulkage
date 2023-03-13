@@ -23,5 +23,5 @@ void main()
     gl_Position = vec4(pos + vec3(0, 0, 0.5), 1.0);
 
 
-    color = vec4(norm, 1.0);
+    color = vec4(norm * 0.5 + vec3(0.5), 1.0);
 }

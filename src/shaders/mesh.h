@@ -20,4 +20,5 @@ struct Meshlet
 struct TaskPayload
 {
     uint offset;
+    uint meshletIndices[TASK_SIZE];
 };
