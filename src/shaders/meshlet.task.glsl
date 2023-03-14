@@ -28,7 +28,10 @@ shared int sharedCount;
 
 bool coneCull(vec4 cone, vec3 view)
 {
-    return dot(-view, cone.xyz) > cone.w;
+    // alpha: angle between view and avgNorm
+    // theta: between avgNorm and cone boundary
+    // pi/2 - alpha > theta
+    return dot(-view, cone.xyz) > cone.w; 
 }
 
 

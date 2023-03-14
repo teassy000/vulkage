@@ -115,7 +115,7 @@ VkQueryPool createQueryPool(VkDevice device, uint32_t queryCount)
 
 struct Vertex
 {
-    uint16_t    vx, vy, vz, vw;
+    float       vx, vy, vz;
     uint8_t     nx, ny, nz, nw;
     uint16_t    tu, tv;
 };
@@ -234,9 +234,9 @@ void buildMeshletCones(Mesh& mesh)
             const Vertex& vc = mesh.vertices[meshlet.vertices[b]];
             const Vertex& vb = mesh.vertices[meshlet.vertices[c]];
 
-            float p0[3] = { halfToFloat(va.vx), halfToFloat(va.vy), halfToFloat(va.vz) };
-            float p1[3] = { halfToFloat(vb.vx), halfToFloat(vb.vy), halfToFloat(vb.vz) };
-            float p2[3] = { halfToFloat(vc.vx), halfToFloat(vc.vy), halfToFloat(vc.vz) }; 
+            float p0[3] = {va.vx, va.vy, va.vz };
+            float p1[3] = {vb.vx, vb.vy, vb.vz };
+            float p2[3] = {vc.vx, vc.vy, vc.vz }; 
             
             float p10[3] = {p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]};
             float p20[3] = {p2[0] - p0[0], p2[1] - p0[1], p2[2] - p0[2]};
@@ -346,10 +346,9 @@ bool loadMesh(Mesh& result, const char* path)
 
             Vertex& v = triangle_vertices[vertex_offset++];
 
-            v.vx = meshopt_quantizeHalf(obj->positions[gi.p * 3 + 0]);
-            v.vy = meshopt_quantizeHalf(obj->positions[gi.p * 3 + 1]);
-            v.vz = meshopt_quantizeHalf(obj->positions[gi.p * 3 + 2]);
-            v.vw = uint16_t(0);
+            v.vx = (obj->positions[gi.p * 3 + 0]);
+            v.vy = (obj->positions[gi.p * 3 + 1]);
+            v.vz = (obj->positions[gi.p * 3 + 2]);
 
             v.nx = uint8_t(obj->normals[gi.n * 3 + 0] * 127.f + 127.5f);
             v.ny = uint8_t(obj->normals[gi.n * 3 + 1] * 127.f + 127.5f);
