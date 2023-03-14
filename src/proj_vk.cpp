@@ -578,6 +578,7 @@ int main(int argc, const char** argv)
 
     double deltaTime = 0.f;
     double avrageTime = 0.f;
+    bool renderUI = false;
 
     while (!glfwWindowShouldClose(window))
     {
@@ -595,8 +596,9 @@ int main(int argc, const char** argv)
         input.width = (float)newWindowWidth;
         input.height = (float)newWindowHeight;
 
-        updateImguiIO(input);
+        if(deltaTime > 33.3333)
         {
+            updateImguiIO(input);
             ImGuiIO& io = ImGui::GetIO();
 
             io.DisplaySize = ImVec2((float)newWindowWidth, (float)newWindowHeight);
@@ -609,16 +611,19 @@ int main(int argc, const char** argv)
             ImGui::Text("gpu: [%.2f]ms", pd.gpuTime);
             ImGui::Text("wait: [%.2f]ms", pd.waitTime);
             ImGui::Text("primitive count: [%d]", pd.primitiveCount);
-            ImGui::Text("primitive count: [%d]", pd.meshletCount);
+            ImGui::Text("meshlet count: [%d]", pd.meshletCount);
             ImGui::Text("tri/sec: [%.2f]B", pd.trianlesPerSecond);
             ImGui::Text("frame: [%.2f]fps", 1000.f / pd.avrageCpuTime);
             ImGui::Checkbox("Mesh Shading", &pd.usingMS);
 
             ImGui::End();
-            ImGui::Render();
-        }
 
-        updateUI(ui, memoryProps);
+            ImGui::Render();
+            updateUI(ui, memoryProps);
+            deltaTime = 0.0;
+            renderUI = true;
+        }
+        
         
         
         uint32_t imageIndex = 0;
@@ -663,7 +668,7 @@ int main(int argc, const char** argv)
         vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
 
 
-        uint32_t drawCount = 1;
+        uint32_t drawCount = 1000;
         bool meshShadingOn = meshShadingEnabled && meshShadingSupported;
 
         if(meshShadingOn)
@@ -752,16 +757,13 @@ int main(int argc, const char** argv)
         double tps = double(mesh.indices.size() * drawCount / 3) / double((frameGpuEnd - frameGpuBegin) * 1e-3);
         pd.avrageCpuTime = (float)avrageTime;
         deltaTime += (frameCpuEnd - frameCpuBegin);
-        if(deltaTime >= 100)
-        {
-            pd.cpuTime = float(frameCpuEnd - frameCpuBegin);
-            pd.gpuTime = float(frameGpuEnd - frameGpuBegin);
-            pd.waitTime = float(waitTimeEnd - waitTimeBegin);
-            pd.trianlesPerSecond = float(tps * 1e-9);
-            pd.usingMS = meshShadingOn;
-            deltaTime = 0.0;
-        }
+        pd.cpuTime = float(frameCpuEnd - frameCpuBegin);
+        pd.gpuTime = float(frameGpuEnd - frameGpuBegin);
+        pd.waitTime = float(waitTimeEnd - waitTimeBegin);
+        pd.trianlesPerSecond = float(tps * 1e-9);
+        pd.usingMS = meshShadingOn;
 	}
+
     VK_CHECK(vkDeviceWaitIdle(device));
 
     destroyUI(ui);
