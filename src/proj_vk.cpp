@@ -123,8 +123,7 @@ struct Vertex
 struct alignas(16) Meshlet
 {
     float cone[4];
-    uint32_t vertices[64];
-    uint8_t  indices[84 * 3]; //this is 84 triangles
+    uint32_t dataOffset;
     uint8_t  triangleCount;
     uint8_t  vertexCount;
 };
@@ -134,69 +133,61 @@ struct Mesh
     std::vector<Vertex>     vertices;
     std::vector<uint32_t>   indices;
     std::vector<Meshlet>    meshlets;
+    std::vector<uint32_t>   meshletdata;
 };
 
 void buildMeshlets(Mesh& mesh)
 {
-    Meshlet meshlet = {};
-    std::vector<uint8_t> meshletVertices(mesh.vertices.size(), (uint8_t)0xff);
+    const size_t max_vertices = 64;
+    const size_t max_triangles = 84;
+    const float cone_weight = 1.f;
 
-    for (size_t i = 0; i < mesh.indices.size(); i += 3)
+    std::vector<meshopt_Meshlet> meshlets(meshopt_buildMeshletsBound(mesh.indices.size(), max_vertices, max_triangles));
+    std::vector<unsigned int> meshlet_vertices(meshlets.size() * max_vertices);
+    std::vector<unsigned char> meshlet_triangles(meshlets.size() * max_triangles * 3);
+
+    meshopt_buildMeshlets(meshlets.data(), meshlet_vertices.data(), meshlet_triangles.data(), mesh.indices.data(), mesh.indices.size()
+        , &mesh.vertices[0].vx, mesh.vertices.size(), sizeof(Vertex), max_vertices, max_triangles, cone_weight);
+
+    while (meshlets.size() % 32)
     {
-        uint32_t a = mesh.indices[i + 0];
-        uint32_t b = mesh.indices[i + 1];
-        uint32_t c = mesh.indices[i + 2];
-
-        uint8_t& av = meshletVertices[a];
-        uint8_t& bv = meshletVertices[b];
-        uint8_t& cv = meshletVertices[c];
-        if (meshlet.vertexCount + (av == 0xff) + (bv == 0xff) + (cv == 0xff) > 64
-            || meshlet.triangleCount >= 84) {
-            mesh.meshlets.push_back(meshlet);
-
-
-            for (size_t j = 0; j < meshlet.vertexCount; ++j)
-            {
-                meshletVertices[meshlet.vertices[j]] = (uint8_t)0xff;
-            }
-
-            meshlet = {};
-        }
-
-        if (av == 0xff)
-        {
-            av = meshlet.vertexCount;
-            meshlet.vertices[meshlet.vertexCount++] = a;
-        }
-        if (bv == 0xff)
-        {
-            bv = meshlet.vertexCount;
-            meshlet.vertices[meshlet.vertexCount++] = b;
-        }
-        if (cv == 0xff)
-        {
-            cv = meshlet.vertexCount;
-            meshlet.vertices[meshlet.vertexCount++] = c;
-        }
-
-        meshlet.indices[meshlet.triangleCount * 3 + 0] = av;
-        meshlet.indices[meshlet.triangleCount * 3 + 1] = bv;
-        meshlet.indices[meshlet.triangleCount * 3 + 2] = cv;
-        meshlet.triangleCount++;
-
+        meshlets.push_back(meshopt_Meshlet{});
     }
-
-    if (meshlet.triangleCount)
+    
+    for (const meshopt_Meshlet meshlet : meshlets)
     {
-        mesh.meshlets.push_back(meshlet);
-    }
+        Meshlet m = {};
+        size_t dataOffset = mesh.meshletdata.size();
 
-    // TODO: remove this after implement a proper way to deal with dynamic meshlet count. currently assume all 32 meshlet required in task shaders
-    while (mesh.meshlets.size() % 32)
-    {
-        mesh.meshlets.push_back(Meshlet{});
+        for (unsigned int i = 0; i < meshlet.vertex_count; ++i)
+        {
+            mesh.meshletdata.push_back(meshlet_vertices[meshlet.vertex_offset + i]);
+        }
+
+        const uint32_t* idxGroup = reinterpret_cast<const unsigned int*>(&meshlet_triangles[0] + meshlet.triangle_offset);
+        uint32_t idxGroupCount = (meshlet.triangle_count * 3 + 3) / 4;
+
+        for (uint32_t i = 0; i < idxGroupCount; ++i)
+        {
+            mesh.meshletdata.push_back(idxGroup[i]);
+        }
+
+        meshopt_Bounds bounds = meshopt_computeMeshletBounds(&meshlet_vertices[meshlet.vertex_offset], &meshlet_triangles[meshlet.triangle_offset]
+            , meshlet.triangle_count, &mesh.vertices[0].vx, mesh.vertices.size(), sizeof(Vertex));
+
+
+        m.dataOffset = uint32_t(dataOffset);
+        m.triangleCount = meshlet.triangle_count;
+        m.vertexCount = meshlet.vertex_count;
+
+        m.cone[0] = bounds.cone_axis_s8[0];
+        m.cone[1] = bounds.cone_axis_s8[1];
+        m.cone[2] = bounds.cone_axis_s8[2];
+        m.cone[3] = bounds.cone_cutoff_s8;
+
+        mesh.meshlets.push_back(m);
     }
-}
+ }
 
 float halfToFloat(uint16_t v)
 {
@@ -218,82 +209,6 @@ float halfToFloat(uint16_t v)
     }
 }
 
-
-void buildMeshletCones(Mesh& mesh)
-{
-    for (Meshlet& meshlet : mesh.meshlets)
-    {
-        float normals[84][3] = {};
-        for (uint32_t i = 0; i < meshlet.triangleCount; i++)
-        {
-            uint32_t a = meshlet.indices[i * 3 + 0];
-            uint32_t b = meshlet.indices[i * 3 + 1];
-            uint32_t c = meshlet.indices[i * 3 + 2];
-
-            const Vertex& va = mesh.vertices[meshlet.vertices[a]];
-            const Vertex& vc = mesh.vertices[meshlet.vertices[b]];
-            const Vertex& vb = mesh.vertices[meshlet.vertices[c]];
-
-            float p0[3] = {va.vx, va.vy, va.vz };
-            float p1[3] = {vb.vx, vb.vy, vb.vz };
-            float p2[3] = {vc.vx, vc.vy, vc.vz }; 
-            
-            float p10[3] = {p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]};
-            float p20[3] = {p2[0] - p0[0], p2[1] - p0[1], p2[2] - p0[2]};
-            
-            float normalx = p10[1] * p20[2] - p10[2] * p20[1];
-            float normaly = p10[2] * p20[0] - p10[0] * p20[2];
-            float normalz = p10[0] * p20[1] - p10[1] * p20[0];
-
-            float area = sqrtf(normalx * normalx + normaly * normaly + normalz * normalz);
-            float invaera = (area == 0.f) ? 0.f : 1 / area;
-
-            normals[i][0] = normalx * invaera;
-            normals[i][1] = normaly * invaera;
-            normals[i][2] = normalz * invaera;
-        }
-
-        float avgnormal[3] = {};
-
-        for (uint32_t i = 0; i < meshlet.triangleCount; ++i)
-        {
-            avgnormal[0] += normals[i][0];
-            avgnormal[1] += normals[i][1];
-            avgnormal[2] += normals[i][2];
-        }
-
-        float avglength = sqrtf(avgnormal[0]* avgnormal[0] + avgnormal[1] * avgnormal[1] + avgnormal[2] * avgnormal[2]);
-        
-        if (avglength == 0.f)
-        {
-            avgnormal[0] = 1.f;
-            avgnormal[1] = 0.f;
-            avgnormal[2] = 0.f;
-        }
-        else
-        {
-            avgnormal[0] /= avglength;
-            avgnormal[1] /= avglength;
-            avgnormal[2] /= avglength;
-        }
-
-        float mindp = 1.f;
-
-        for (uint32_t i = 0; i < meshlet.triangleCount; ++i)
-        {
-            float dp = normals[i][0] * avgnormal[0] + normals[i][1] * avgnormal[1] + normals[i][2] * avgnormal[2];
-            mindp = glm::min(mindp, dp);
-        }
-
-        // cone back face culling: 
-        float conew = mindp <= 0.f ? 1.f : sqrtf(1.f - mindp * mindp);
-
-        meshlet.cone[0] = avgnormal[0];
-        meshlet.cone[1] = avgnormal[1];
-        meshlet.cone[2] = avgnormal[2];
-        meshlet.cone[3] = conew;
-    }
-}
 
 void enumrateDeviceExtPorps(VkPhysicalDevice physicalDevice, std::vector<VkExtensionProperties>& availableExtensions)
 {
@@ -445,6 +360,7 @@ struct ProfilingData
     float avrageCpuTime;
     float gpuTime;
     float waitTime;
+    float trianlesPerSecond;
     uint32_t primitiveCount;
     uint32_t meshletCount;
     bool usingMS;
@@ -616,7 +532,9 @@ int main(int argc, const char** argv)
     if (meshShadingSupported)
     {
         buildMeshlets(mesh);
-        buildMeshletCones(mesh);
+
+        printf("mesh data size: %d\n", (uint32_t)mesh.meshletdata.size());
+        printf("meshlet size: %d\n", (uint32_t)mesh.meshlets.size());
     }
 
     Buffer scratch = {};
@@ -629,9 +547,11 @@ int main(int argc, const char** argv)
     createBuffer(ib, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
     Buffer mb = {};
+    Buffer mdb = {};
     if (meshShadingSupported)
     {
         createBuffer(mb, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+        createBuffer(mdb, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
     }
 
     uploadBuffer(device, cmdPool, cmdBuffer, queue, vb, scratch, mesh.vertices.data(), mesh.vertices.size() * sizeof(Vertex));
@@ -640,6 +560,8 @@ int main(int argc, const char** argv)
     if (meshShadingSupported)
     {
         uploadBuffer(device, cmdPool, cmdBuffer, queue, mb, scratch, mesh.meshlets.data(), mesh.meshlets.size() * sizeof(Meshlet));
+        uploadBuffer(device, cmdPool, cmdBuffer, queue, mdb, scratch, mesh.meshletdata.data(), mesh.meshletdata.size() * sizeof(uint32_t));
+
     }
 
 
@@ -688,6 +610,7 @@ int main(int argc, const char** argv)
             ImGui::Text("wait: [%.2f]ms", pd.waitTime);
             ImGui::Text("primitive count: [%d]", pd.primitiveCount);
             ImGui::Text("primitive count: [%d]", pd.meshletCount);
+            ImGui::Text("tri/sec: [%.2f]B", pd.trianlesPerSecond);
             ImGui::Text("frame: [%.2f]fps", 1000.f / pd.avrageCpuTime);
             ImGui::Checkbox("Mesh Shading", &pd.usingMS);
 
@@ -711,7 +634,6 @@ int main(int argc, const char** argv)
         vkCmdResetQueryPool(cmdBuffer, queryPool, 0, 128);
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 0);
 
-        
         VkImageMemoryBarrier renderBeginBarrier = imageBarrier(swapchain.images[imageIndex], VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
             , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
@@ -740,18 +662,22 @@ int main(int argc, const char** argv)
         vkCmdSetViewport(cmdBuffer, 0, 1, &viewport);
         vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
 
+
+        uint32_t drawCount = 1;
         bool meshShadingOn = meshShadingEnabled && meshShadingSupported;
 
         if(meshShadingOn)
         {
             vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, meshPipelineMS);
 
-            DescriptorInfo descInfos[2] = { vb.buffer, mb.buffer };
+            DescriptorInfo descInfos[3] = { vb.buffer, mb.buffer, mdb.buffer };
 
             vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, meshProgramMS.updateTemplate, meshProgramMS.layout, 0, descInfos);
-
-            vkCmdDrawMeshTasksEXT(cmdBuffer, (uint32_t)mesh.meshlets.size() / 32, 1, 1);
-
+            
+            for (uint32_t i = 0; i < drawCount; i++)
+            {
+                vkCmdDrawMeshTasksEXT(cmdBuffer, (uint32_t)mesh.meshlets.size() / 32, 1, 1);
+            }
         }
         else
         {
@@ -763,7 +689,11 @@ int main(int argc, const char** argv)
 
             vkCmdBindIndexBuffer(cmdBuffer, ib.buffer, 0, VK_INDEX_TYPE_UINT32);
 
-            vkCmdDrawIndexed(cmdBuffer, (uint32_t)mesh.indices.size(), 1, 0, 0, 0);
+            
+            for (uint32_t i = 0; i < drawCount; i++)
+            {
+                vkCmdDrawIndexed(cmdBuffer, (uint32_t)mesh.indices.size(), 1, 0, 0, 0);
+            }
         }
 
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 1);
@@ -819,14 +749,15 @@ int main(int argc, const char** argv)
         double frameGpuEnd = double(queryResults[2]) * props.limits.timestampPeriod * 1e-6;
 
         avrageTime = avrageTime * 0.9995 + (frameCpuEnd - frameCpuBegin) * 0.0005;
-
+        double tps = double(mesh.indices.size() * drawCount / 3) / double((frameGpuEnd - frameGpuBegin) * 1e-3);
         pd.avrageCpuTime = (float)avrageTime;
         deltaTime += (frameCpuEnd - frameCpuBegin);
-        if(deltaTime >= 500)
+        if(deltaTime >= 100)
         {
             pd.cpuTime = float(frameCpuEnd - frameCpuBegin);
             pd.gpuTime = float(frameGpuEnd - frameGpuBegin);
             pd.waitTime = float(waitTimeEnd - waitTimeBegin);
+            pd.trianlesPerSecond = float(tps * 1e-9);
             pd.usingMS = meshShadingOn;
             deltaTime = 0.0;
         }
@@ -841,6 +772,7 @@ int main(int argc, const char** argv)
     if (meshShadingSupported)
     {
         destroyBuffer(device, mb);
+        destroyBuffer(device, mdb);
     }
 
     vkDestroyCommandPool(device, cmdPool, 0);

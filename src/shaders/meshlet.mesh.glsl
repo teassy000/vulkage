@@ -24,6 +24,17 @@ layout(binding = 1) readonly buffer Meshlets
     Meshlet meshlets[];
 };
 
+layout(binding = 2) readonly buffer MeshletData
+{
+    uint meshletData[];
+};
+
+layout(binding = 2) readonly buffer MeshletData8
+{
+    uint8_t meshletData8[];
+};
+
+
 layout(location = 0) out vec4 color[];
 
 taskPayloadSharedEXT TaskPayload payload;
@@ -44,17 +55,24 @@ void main()
     uint ti = gl_LocalInvocationID.x;
     uint mi = payload.meshletIndices[gl_WorkGroupID.x];
 
+    uint vertexCount = uint(meshlets[mi].vertexCount); 
+    uint triangleCount = uint(meshlets[mi].triangleCount); 
 
-    SetMeshOutputsEXT(uint(meshlets[mi].vertexCount), uint(meshlets[mi].triangleCount));
+    SetMeshOutputsEXT( vertexCount, triangleCount);
+
+    uint dataOffset = meshlets[mi].dataOffset;
+    uint vertexOffset = dataOffset;
+    uint indexOffset = dataOffset + vertexCount;
 
 #if DEBUG
     uint mhash = hash(mi);
     vec3 mcolor = vec3(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255)) / 255.0;
 #endif
 
+
     for(uint i = ti; i < uint(meshlets[mi].vertexCount); i += MESH_SIZE)
     {
-        uint vi = meshlets[mi].vertices[i];
+        uint vi = meshletData[vertexOffset + i];
     
         vec3 pos = vec3(vertices[vi].vx, vertices[vi].vy, vertices[vi].vz);
         vec3 norm = vec3(int(vertices[vi].nx), int(vertices[vi].ny), int(vertices[vi].nz)) / 127.0 - 1.0;
@@ -72,9 +90,12 @@ void main()
 
     for(uint i = ti; i < uint(meshlets[mi].triangleCount); i += MESH_SIZE )
     {
-        uint idx0 = uint(meshlets[mi].indices[i * 3 + 0]);
-        uint idx1 = uint(meshlets[mi].indices[i * 3 + 1]);
-        uint idx2 = uint(meshlets[mi].indices[i * 3 + 2]);
+        uint offset = indexOffset * 4 + i * 3;
+        uint iid = meshletData[indexOffset + i];
+
+        uint idx0 = uint(meshletData8[ offset + 0]);
+        uint idx1 = uint(meshletData8[ offset + 1]);
+        uint idx2 = uint(meshletData8[ offset + 2]);
         
         gl_PrimitiveTriangleIndicesEXT[i] = uvec3(idx0, idx1, idx2);
     }

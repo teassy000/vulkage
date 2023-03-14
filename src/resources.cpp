@@ -43,7 +43,6 @@ void createBuffer(Buffer& result, const VkPhysicalDeviceMemoryProperties& memory
         VK_CHECK(vkMapMemory(device, memory, 0, sz, 0, &data));
     }
 
-
     result.buffer = buffer;
     result.memory = memory;
     result.data = data;
