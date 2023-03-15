@@ -28,6 +28,8 @@
 
 static bool meshShadingEnabled = true;
 
+static float modelScale = 1.0f;
+
 static Input input = {};
 
 VkSemaphore createSemaphore(VkDevice device)
@@ -112,6 +114,11 @@ VkQueryPool createQueryPool(VkDevice device, uint32_t queryCount)
     return queryPool;
 }
 
+struct alignas(16) MeshParameters
+{
+    float scale[2];
+    float offset[2];
+};
 
 struct Vertex
 {
@@ -124,8 +131,8 @@ struct alignas(16) Meshlet
 {
     float cone[4];
     uint32_t dataOffset;
-    uint8_t  triangleCount;
-    uint8_t  vertexCount;
+    uint8_t triangleCount;
+    uint8_t vertexCount;
 };
 
 struct Mesh
@@ -136,10 +143,11 @@ struct Mesh
     std::vector<uint32_t>   meshletdata;
 };
 
+
 void buildMeshlets(Mesh& mesh)
 {
     const size_t max_vertices = 64;
-    const size_t max_triangles = 84;
+    const size_t max_triangles = 124;
     const float cone_weight = 1.f;
 
     std::vector<meshopt_Meshlet> meshlets(meshopt_buildMeshletsBound(mesh.indices.size(), max_vertices, max_triangles));
@@ -261,9 +269,9 @@ bool loadMesh(Mesh& result, const char* path)
 
             Vertex& v = triangle_vertices[vertex_offset++];
 
-            v.vx = (obj->positions[gi.p * 3 + 0]);
-            v.vy = (obj->positions[gi.p * 3 + 1]);
-            v.vz = (obj->positions[gi.p * 3 + 2]);
+            v.vx = (obj->positions[gi.p * 3 + 0] * modelScale);
+            v.vy = (obj->positions[gi.p * 3 + 1]* modelScale);
+            v.vz = (obj->positions[gi.p * 3 + 2]* modelScale);
 
             v.nx = uint8_t(obj->normals[gi.n * 3 + 0] * 127.f + 127.5f);
             v.ny = uint8_t(obj->normals[gi.n * 3 + 1] * 127.f + 127.5f);
@@ -359,8 +367,9 @@ struct ProfilingData
     float cpuTime;
     float avrageCpuTime;
     float gpuTime;
+    float uiTime;
     float waitTime;
-    float trianlesPerSecond;
+    float trianglesPerSecond;
     uint32_t primitiveCount;
     uint32_t meshletCount;
     bool usingMS;
@@ -462,12 +471,12 @@ int main(int argc, const char** argv)
         assert(lsr);
     }
 
-    Program meshProgram = createProgram(device, VK_PIPELINE_BIND_POINT_GRAPHICS, { &meshVS, &meshFS });
+    Program meshProgram = createProgram(device, VK_PIPELINE_BIND_POINT_GRAPHICS, { &meshVS, &meshFS }, sizeof(MeshParameters));
     
     Program meshProgramMS = {};
     if (meshShadingSupported)
     {
-        meshProgramMS = createProgram(device, VK_PIPELINE_BIND_POINT_GRAPHICS, { &meshletTS, &meshletMS, &meshFS });
+        meshProgramMS = createProgram(device, VK_PIPELINE_BIND_POINT_GRAPHICS, { &meshletTS, &meshletMS, &meshFS }, sizeof(MeshParameters));
     }
 
     VkPipelineCache pipelineCache = 0;
@@ -526,6 +535,13 @@ int main(int argc, const char** argv)
     VkPhysicalDeviceMemoryProperties memoryProps = {};
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProps);
     
+    if (argc == 3)
+    {
+        char* ending;
+        modelScale = strtof(argv[2], &ending);
+        assert(ending == 0);
+    }
+
     Mesh mesh;
     bool rcm = loadMesh(mesh, argv[1]);
     assert(rcm);
@@ -576,8 +592,22 @@ int main(int argc, const char** argv)
     pd.meshletCount = (uint32_t)mesh.meshlets.size();
     pd.primitiveCount = (uint32_t)(mesh.indices.size() / 3);
 
-    double deltaTime = 0.f;
-    double avrageTime = 0.f;
+
+    uint32_t drawCount = 100;
+
+    std::vector<MeshParameters> meshConstants(drawCount);
+
+    for (uint32_t i = 0; i < drawCount; i++)
+    {
+        meshConstants[i].offset[0] = (i % 10) * 1 / 10.f + 0.5f / 10.f;
+        meshConstants[i].offset[1] = (i / 10) * 1 / 10.f + 0.5f / 10.f;
+        meshConstants[i].scale[0] = 2 / 10.f;
+        meshConstants[i].scale[1] = 2 / 10.f;
+    }
+
+    double deltaTime = 0.;
+    double avrageCpuTime = 0.;
+    double avrageGpuTime = 0.;
     bool renderUI = false;
 
     while (!glfwWindowShouldClose(window))
@@ -589,6 +619,7 @@ int main(int argc, const char** argv)
 
         int newWindowWidth = 0, newWindowHeight = 0;
         glfwGetWindowSize(window, &newWindowWidth, &newWindowHeight);
+        assert(newWindowWidth&& newWindowHeight);
 
         resizeSwapchainIfNecessary(swapchain, physicalDevice, device, surface, &familyIndex, swapchainFormat, renderPass);
 
@@ -606,14 +637,15 @@ int main(int argc, const char** argv)
             ImGui::SetNextWindowSize({400, 400});
             ImGui::Begin("info:");
             
-            ImGui::Text("cpu: [%.2f]ms", pd.cpuTime);
-            ImGui::Text("avg cpu: [%.2f]ms", pd.avrageCpuTime);
-            ImGui::Text("gpu: [%.2f]ms", pd.gpuTime);
-            ImGui::Text("wait: [%.2f]ms", pd.waitTime);
+            ImGui::Text("cpu: [%.3f]ms", pd.cpuTime);
+            ImGui::Text("avg cpu: [%.3f]ms", pd.avrageCpuTime);
+            ImGui::Text("gpu: [%.3f]ms", pd.gpuTime);
+            ImGui::Text("ui: [%.3f]ms", pd.uiTime);
+            ImGui::Text("wait: [%.3f]ms", pd.waitTime);
             ImGui::Text("primitive count: [%d]", pd.primitiveCount);
             ImGui::Text("meshlet count: [%d]", pd.meshletCount);
-            ImGui::Text("tri/sec: [%.2f]B", pd.trianlesPerSecond);
-            ImGui::Text("frame: [%.2f]fps", 1000.f / pd.avrageCpuTime);
+            ImGui::Text("tri/sec: [%.2f]B", pd.trianglesPerSecond);
+            ImGui::Text("frame: [%.2f]fps", 1000.f / pd.cpuTime);
             ImGui::Checkbox("Mesh Shading", &pd.usingMS);
 
             ImGui::End();
@@ -623,8 +655,6 @@ int main(int argc, const char** argv)
             deltaTime = 0.0;
             renderUI = true;
         }
-        
-        
         
         uint32_t imageIndex = 0;
         VK_CHECK(vkAcquireNextImageKHR(device, swapchain.swapchain, ~0ull, acquirSemaphore, VK_NULL_HANDLE, &imageIndex));
@@ -667,8 +697,6 @@ int main(int argc, const char** argv)
         vkCmdSetViewport(cmdBuffer, 0, 1, &viewport);
         vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
 
-
-        uint32_t drawCount = 1000;
         bool meshShadingOn = meshShadingEnabled && meshShadingSupported;
 
         if(meshShadingOn)
@@ -681,7 +709,8 @@ int main(int argc, const char** argv)
             
             for (uint32_t i = 0; i < drawCount; i++)
             {
-                vkCmdDrawMeshTasksEXT(cmdBuffer, (uint32_t)mesh.meshlets.size() / 32, 1, 1);
+                vkCmdPushConstants(cmdBuffer, meshProgramMS.layout, meshProgramMS.pushConstantStages, 0, sizeof(meshConstants[0]), &meshConstants[i]);
+                vkCmdDrawMeshTasksEXT(cmdBuffer, (uint32_t)mesh.meshlets.size() / 64, 1, 1);
             }
         }
         else
@@ -697,12 +726,14 @@ int main(int argc, const char** argv)
             
             for (uint32_t i = 0; i < drawCount; i++)
             {
+                vkCmdPushConstants(cmdBuffer, meshProgram.layout, meshProgram.pushConstantStages, 0, sizeof(meshConstants[0]), &meshConstants[i]);
                 vkCmdDrawIndexed(cmdBuffer, (uint32_t)mesh.indices.size(), 1, 0, 0, 0);
             }
         }
 
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 1);
         drawUI(ui, cmdBuffer);
+        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 2);
 
         vkCmdEndRenderPass(cmdBuffer);
 
@@ -711,7 +742,7 @@ int main(int argc, const char** argv)
         vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT
             , VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &renderEndBarrier);
 
-        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 2);
+        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 3);
 
         VK_CHECK(vkEndCommandBuffer(cmdBuffer));
 
@@ -744,23 +775,26 @@ int main(int argc, const char** argv)
         
         double waitTimeEnd = glfwGetTime() * 1000.0;
         
-        uint64_t queryResults[3] = {};
+        uint64_t queryResults[4] = {};
         vkGetQueryPoolResults(device, queryPool, 0, ARRAYSIZE(queryResults), sizeof(queryResults), queryResults, sizeof(queryResults[0]), VK_QUERY_RESULT_64_BIT);
 
         double frameCpuEnd = glfwGetTime() * 1000.0;
 
         double frameGpuBegin = double(queryResults[0]) * props.limits.timestampPeriod * 1e-6;
         double frameUIBegin = double(queryResults[1]) * props.limits.timestampPeriod * 1e-6;
-        double frameGpuEnd = double(queryResults[2]) * props.limits.timestampPeriod * 1e-6;
+        double frameUIEnd = double(queryResults[2]) * props.limits.timestampPeriod * 1e-6;
+        double frameGpuEnd = double(queryResults[3]) * props.limits.timestampPeriod * 1e-6;
 
-        avrageTime = avrageTime * 0.9995 + (frameCpuEnd - frameCpuBegin) * 0.0005;
-        double tps = double(mesh.indices.size() * drawCount / 3) / double((frameGpuEnd - frameGpuBegin) * 1e-3);
-        pd.avrageCpuTime = (float)avrageTime;
+        avrageCpuTime = avrageCpuTime * 0.95 + (frameCpuEnd - frameCpuBegin) * 0.05;
+        avrageGpuTime = avrageGpuTime * 0.95 + (frameGpuEnd - frameGpuBegin) * 0.05;
+        double tps = double(mesh.indices.size() * drawCount / 3) * double(1000 / avrageGpuTime );
+        pd.avrageCpuTime = (float)avrageCpuTime;
         deltaTime += (frameCpuEnd - frameCpuBegin);
         pd.cpuTime = float(frameCpuEnd - frameCpuBegin);
         pd.gpuTime = float(frameGpuEnd - frameGpuBegin);
+        pd.uiTime = float(frameUIEnd - frameUIBegin);
         pd.waitTime = float(waitTimeEnd - waitTimeBegin);
-        pd.trianlesPerSecond = float(tps * 1e-9);
+        pd.trianglesPerSecond = float(tps * 1e-9);
         pd.usingMS = meshShadingOn;
 	}
 

@@ -109,6 +109,8 @@ void createSwapchain(Swapchain& result, VkPhysicalDevice physicalDevice, VkDevic
     uint32_t width = surfaceCaps.currentExtent.width;
     uint32_t height = surfaceCaps.currentExtent.height;
 
+    assert(width && height);
+
     VkSwapchainKHR swapchain = createSwapchain(device, surface, surfaceCaps, familyIndex, format, oldSwapchain);
     assert(swapchain);
 

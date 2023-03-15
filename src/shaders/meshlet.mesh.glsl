@@ -11,8 +11,13 @@
 #define DEBUG 1
 
 
-layout(local_size_x = MESH_SIZE, local_size_y = 1, local_size_z = 1) in;
-layout(triangles, max_vertices= 64, max_primitives = 84) out;
+layout(local_size_x = MESHGP_SIZE, local_size_y = 1, local_size_z = 1) in;
+layout(triangles, max_vertices= 64, max_primitives = 124) out;
+
+layout(push_constant) uniform block 
+{
+    Constants constants;
+};
 
 layout(binding = 0) readonly buffer Vertices
 {
@@ -70,15 +75,17 @@ void main()
 #endif
 
 
-    for(uint i = ti; i < uint(meshlets[mi].vertexCount); i += MESH_SIZE)
+    for(uint i = ti; i < uint(meshlets[mi].vertexCount); i += MESHGP_SIZE)
     {
         uint vi = meshletData[vertexOffset + i];
     
         vec3 pos = vec3(vertices[vi].vx, vertices[vi].vy, vertices[vi].vz);
         vec3 norm = vec3(int(vertices[vi].nx), int(vertices[vi].ny), int(vertices[vi].nz)) / 127.0 - 1.0;
         vec2 uv = vec2(vertices[vi].tu, vertices[vi].tv);
-       
-        gl_MeshVerticesEXT[i].gl_Position = vec4(pos + vec3(0, 0, 0.5), 1.0);
+
+        vec3 result = vec3(pos * vec3(constants.scale, 1.0) + vec3(constants.offset, 0.0) * vec3(2, 2, 0.5) + vec3(-1, -1, 0.5));
+
+        gl_MeshVerticesEXT[i].gl_Position = vec4(result, 1.0);
 
 #if DEBUG
         color[i] = vec4(mcolor, 1.0);
@@ -88,7 +95,7 @@ void main()
     }
 
 
-    for(uint i = ti; i < uint(meshlets[mi].triangleCount); i += MESH_SIZE )
+    for(uint i = ti; i < uint(meshlets[mi].triangleCount); i += MESHGP_SIZE )
     {
         uint offset = indexOffset * 4 + i * 3;
         uint iid = meshletData[indexOffset + i];

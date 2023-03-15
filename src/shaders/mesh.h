@@ -1,5 +1,5 @@
-#define TASK_SIZE 32
-#define MESH_SIZE 32
+#define TASKGP_SIZE 64 
+#define MESHGP_SIZE 32
 
 struct Vertex
 {
@@ -11,13 +11,19 @@ struct Vertex
 struct Meshlet
 {
     vec4 cone;
-    uint     dataOffset;
-    uint8_t  triangleCount;
-    uint8_t  vertexCount;
+    uint dataOffset;
+    uint8_t triangleCount;
+    uint8_t vertexCount;
 };
 
 struct TaskPayload
 {
     uint offset;
-    uint meshletIndices[TASK_SIZE];
+    uint meshletIndices[TASKGP_SIZE];
+};
+
+struct Constants
+{
+    vec2 scale;
+    vec2 offset;
 };

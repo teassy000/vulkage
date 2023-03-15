@@ -11,7 +11,7 @@
 
 #define CULL 1
 
-layout(local_size_x = TASK_SIZE, local_size_y = 1, local_size_z = 1) in;
+layout(local_size_x = TASKGP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
 layout(binding = 1) readonly buffer Meshlets
 {
@@ -37,9 +37,9 @@ bool coneCull(vec4 cone, vec3 view)
 
 void main()
 {
-    uint mgi = gl_WorkGroupID.x;
+    uint mgi = gl_WorkGroupID.x ;
     uint ti = gl_LocalInvocationID.x;
-    uint mi = mgi * TASK_SIZE + ti;
+    uint mi = mgi * TASKGP_SIZE + ti;
 
 #if CULL
     sharedCount = 0;
@@ -57,7 +57,7 @@ void main()
     EmitMeshTasksEXT(sharedCount, 1, 1);
 #else
     payload.meshletIndices[ti] = mi;
-    EmitMeshTasksEXT(TASK_SIZE, 1, 1);
+    EmitMeshTasksEXT(TASKGP_SIZE, 1, 1);
 #endif
 
 }
