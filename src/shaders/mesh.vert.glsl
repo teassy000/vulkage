@@ -26,7 +26,7 @@ void main()
     vec3 norm = vec3(int(vertices[gl_VertexIndex].nx), int(vertices[gl_VertexIndex].ny), int(vertices[gl_VertexIndex].nz)) / 127.0 - 1;
     vec2 uv = vec2(vertices[gl_VertexIndex].tu, vertices[gl_VertexIndex].tv);
 
-    vec3 result = vec3(pos * vec3(constants.scale, 1.0) + vec3(constants.offset, 0.0) * vec3(2, 2, 0.5) + vec3(-1, -1, 0.5));
+    vec3 result = vec3(pos * vec3(constants.scale, 1.0) + vec3(constants.offset, 0.0) * vec3(2, 2, -0.5) + vec3(-1, -1, 0.5));
 
     gl_Position = vec4(result, 1.0);
 

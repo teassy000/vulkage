@@ -185,7 +185,7 @@ VkDevice createDevice(VkInstance instance, VkPhysicalDevice physicalDevice, uint
 
     VkPhysicalDevice8BitStorageFeatures features8 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES };
     features8.storageBuffer8BitAccess = true;
-    features8.uniformAndStorageBuffer8BitAccess = true; // TODO: this is seems something weird that SPIV-R automatic enabled the Access in assembly. need find a way to fix it.
+    features8.uniformAndStorageBuffer8BitAccess = true; // TODO: this is seems something weird that SPIV-R automatic enabled the Access in assembly.
 
     VkPhysicalDevice16BitStorageFeatures features16 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_16BIT_STORAGE_FEATURES };
     features16.storageBuffer16BitAccess = true;

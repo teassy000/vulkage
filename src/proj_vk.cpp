@@ -55,10 +55,10 @@ VkCommandPool createCommandPool(VkDevice device, uint32_t familyIndex)
     return cmdPool;
 }
 
-VkRenderPass createRenderPass(VkDevice device, VkFormat format)
+VkRenderPass createRenderPass(VkDevice device, VkFormat colorFormat, VkFormat depthFormat)
 {
-    VkAttachmentDescription attachments[1] = {};
-    attachments[0].format = format;
+    VkAttachmentDescription attachments[2] = {};
+    attachments[0].format = colorFormat;
     attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
     attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -67,16 +67,26 @@ VkRenderPass createRenderPass(VkDevice device, VkFormat format)
     attachments[0].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     attachments[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
+    attachments[1].format = depthFormat;
+    attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
+    attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    attachments[1].initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    attachments[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL ;
 
-    VkAttachmentReference colorAttachments = { 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
+    VkAttachmentReference colorAttachment = { 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+    VkAttachmentReference depthAttachment = { 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL };
 
     VkSubpassDescription subpass = {};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = &colorAttachments;
+    subpass.pColorAttachments = &colorAttachment;
+    subpass.pDepthStencilAttachment = &depthAttachment;
 
     VkRenderPassCreateInfo createInfo = { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
-    createInfo.attachmentCount = sizeof(attachments) / sizeof(attachments[0]);
+    createInfo.attachmentCount = ARRAYSIZE(attachments);
     createInfo.pAttachments = attachments;
     createInfo.subpassCount = 1;
     createInfo.pSubpasses = &subpass;
@@ -365,8 +375,9 @@ void mouseMoveCallback(GLFWwindow* window, double xpos, double ypos)
 struct ProfilingData
 {
     float cpuTime;
-    float avrageCpuTime;
+    float avgCpuTime;
     float gpuTime;
+    float avgGpuTime;
     float uiTime;
     float waitTime;
     float trianglesPerSecond;
@@ -434,7 +445,7 @@ int main(int argc, const char** argv)
     assert(presentSupported);
 
     VkFormat swapchainFormat = getSwapchainFormat(physicalDevice, surface);
-    assert(swapchainFormat);
+    VkFormat depthFormat = VK_FORMAT_D32_SFLOAT;
     
     VkSemaphore acquirSemaphore = createSemaphore(device);
     assert(acquirSemaphore);
@@ -446,7 +457,7 @@ int main(int argc, const char** argv)
     vkGetDeviceQueue(device, familyIndex, 0, &queue);
     assert(queue);
 
-    VkRenderPass renderPass = createRenderPass(device, swapchainFormat);
+    VkRenderPass renderPass = createRenderPass(device, swapchainFormat, depthFormat);
     assert(renderPass);
 
     bool lsr = false;
@@ -580,6 +591,9 @@ int main(int argc, const char** argv)
 
     }
 
+    Image colorTarget = {};
+    Image depthTarget = {};
+    VkFramebuffer targetFrameBuffer = 0;
 
     // imgui
     UI ui = {};
@@ -587,16 +601,12 @@ int main(int argc, const char** argv)
     prepareUIPipeline(ui, pipelineCache, renderPass);
     prepareUIResources(ui, memoryProps, cmdPool);
 
-
     ProfilingData pd = {};
     pd.meshletCount = (uint32_t)mesh.meshlets.size();
     pd.primitiveCount = (uint32_t)(mesh.indices.size() / 3);
 
-
     uint32_t drawCount = 100;
-
     std::vector<MeshParameters> meshConstants(drawCount);
-
     for (uint32_t i = 0; i < drawCount; i++)
     {
         meshConstants[i].offset[0] = (i % 10) * 1 / 10.f + 0.5f / 10.f;
@@ -620,9 +630,28 @@ int main(int argc, const char** argv)
         int newWindowWidth = 0, newWindowHeight = 0;
         glfwGetWindowSize(window, &newWindowWidth, &newWindowHeight);
 
-        SwapchainStatus scStatus = resizeSwapchainIfNecessary(swapchain, physicalDevice, device, surface, &familyIndex, swapchainFormat, renderPass);
-        if(scStatus == NotReady)
+        SwapchainStatus swapchainStatus = resizeSwapchainIfNecessary(swapchain, physicalDevice, device, surface, &familyIndex, swapchainFormat, renderPass);
+        if(swapchainStatus == NotReady)
             continue;
+
+        if (swapchainStatus == Resized || !targetFrameBuffer)
+        {
+            if (colorTarget.image)
+                destroyImage(device, colorTarget);
+            if (depthTarget.image)
+                destroyImage(device, depthTarget);
+            if (targetFrameBuffer)
+                vkDestroyFramebuffer(device, targetFrameBuffer, 0);
+
+            createImage(colorTarget, device, memoryProps, swapchain.width, swapchain.height, 1 
+                , swapchainFormat
+                , VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT );
+            createImage(depthTarget, device, memoryProps, swapchain.width, swapchain.height, 1
+                , depthFormat 
+                , VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+
+            targetFrameBuffer = createFramebuffer(device, renderPass, colorTarget.imageView, depthTarget.imageView, swapchain.width, swapchain.height);
+        }
 
         // set input data
         input.width = (float)newWindowWidth;
@@ -639,14 +668,15 @@ int main(int argc, const char** argv)
             ImGui::Begin("info:");
             
             ImGui::Text("cpu: [%.3f]ms", pd.cpuTime);
-            ImGui::Text("avg cpu: [%.3f]ms", pd.avrageCpuTime);
+            ImGui::Text("avg cpu: [%.3f]ms", pd.avgCpuTime);
             ImGui::Text("gpu: [%.3f]ms", pd.gpuTime);
+            ImGui::Text("avg gpu: [%.3f]ms", pd.avgGpuTime);
             ImGui::Text("ui: [%.3f]ms", pd.uiTime);
             ImGui::Text("wait: [%.3f]ms", pd.waitTime);
             ImGui::Text("primitive count: [%d]", pd.primitiveCount);
             ImGui::Text("meshlet count: [%d]", pd.meshletCount);
             ImGui::Text("tri/sec: [%.2f]B", pd.trianglesPerSecond);
-            ImGui::Text("frame: [%.2f]fps", 1000.f / pd.cpuTime);
+            ImGui::Text("frame: [%.2f]fps", 1000.f / pd.avgCpuTime);
             ImGui::Checkbox("Mesh Shading", &meshShadingEnabled);
 
             ImGui::End();
@@ -670,24 +700,25 @@ int main(int argc, const char** argv)
         vkCmdResetQueryPool(cmdBuffer, queryPool, 0, 128);
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 0);
 
-        VkImageMemoryBarrier renderBeginBarrier = imageBarrier(swapchain.images[imageIndex], VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
-            , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-
+        VkImageMemoryBarrier renderBeginBarriers[] = {
+            imageBarrier(colorTarget.image, VK_IMAGE_ASPECT_COLOR_BIT, 0, 0 , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL),           
+            imageBarrier(depthTarget.image, VK_IMAGE_ASPECT_DEPTH_BIT, 0, 0, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL),
+        };
         // check https://github.com/KhronosGroup/Vulkan-Docs/wiki/Synchronization-Examples#combined-graphicspresent-queue
-        vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
-            , VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &renderBeginBarrier);
+        vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+            , VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, ARRAYSIZE(renderBeginBarriers), renderBeginBarriers);
         
-        // jinzi - from http://zhongguose.com
-        VkClearColorValue color = { 128.f/255.f, 109.f/255.f, 158.f/255.f, 1 };
-        VkClearValue clearColor = { color };
+        VkClearValue clearValues[2] = {};
+        clearValues[0].color = { 128.f/255.f, 109.f/255.f, 158.f/255.f, 1 };
+        clearValues[1].depthStencil =  { 0.f, 0 };
 
         VkRenderPassBeginInfo passBeginInfo = { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
         passBeginInfo.renderPass = renderPass;
-        passBeginInfo.framebuffer = swapchain.framebuffers[imageIndex];
+        passBeginInfo.framebuffer = targetFrameBuffer;
         passBeginInfo.renderArea.extent.width = swapchain.width;
         passBeginInfo.renderArea.extent.height = swapchain.height;
-        passBeginInfo.clearValueCount = 1;
-        passBeginInfo.pClearValues = &clearColor;
+        passBeginInfo.clearValueCount = ARRAYSIZE(clearValues);
+        passBeginInfo.pClearValues = clearValues;
 
         vkCmdBeginRenderPass(cmdBuffer, &passBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
@@ -711,7 +742,7 @@ int main(int argc, const char** argv)
             for (uint32_t i = 0; i < drawCount; i++)
             {
                 vkCmdPushConstants(cmdBuffer, meshProgramMS.layout, meshProgramMS.pushConstantStages, 0, sizeof(meshConstants[0]), &meshConstants[i]);
-                vkCmdDrawMeshTasksEXT(cmdBuffer, (uint32_t)mesh.meshlets.size() / 64, 1, 1);
+                vkCmdDrawMeshTasksEXT(cmdBuffer, (uint32_t)mesh.meshlets.size() / 32, 1, 1);
             }
         }
         else
@@ -737,18 +768,35 @@ int main(int argc, const char** argv)
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 2);
 
         vkCmdEndRenderPass(cmdBuffer);
+       
+        VkImageMemoryBarrier copyBarriers[] = {
+            imageBarrier(colorTarget.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL),
+            imageBarrier(swapchain.images[imageIndex], VK_IMAGE_ASPECT_COLOR_BIT,  0, VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL),
+        };
+        // check https://github.com/KhronosGroup/Vulkan-Docs/wiki/Synchronization-Examples#combined-graphicspresent-queue
+        vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT
+            , VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, ARRAYSIZE(copyBarriers), copyBarriers);
 
-        VkImageMemoryBarrier renderEndBarrier = imageBarrier(swapchain.images[imageIndex], VK_IMAGE_ASPECT_COLOR_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, 0
-            , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-        vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT
-            , VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &renderEndBarrier);
+        VkImageCopy copyRegion = {};
+        copyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        copyRegion.srcSubresource.layerCount = 1;
+        copyRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        copyRegion.dstSubresource.layerCount = 1;
+        copyRegion.extent = { swapchain.width, swapchain.height, 1 };
 
+        vkCmdCopyImage(cmdBuffer, colorTarget.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, swapchain.images[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+        
+        
+        VkImageMemoryBarrier presentBarrier = imageBarrier(swapchain.images[imageIndex], VK_IMAGE_ASPECT_COLOR_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, 0
+            , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+        vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT
+            , VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &presentBarrier);
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 3);
 
         VK_CHECK(vkEndCommandBuffer(cmdBuffer));
 
  
-        VkPipelineStageFlags submitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        VkPipelineStageFlags submitStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
 
         VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
         submitInfo.waitSemaphoreCount = 1;
@@ -789,10 +837,11 @@ int main(int argc, const char** argv)
         avrageCpuTime = avrageCpuTime * 0.95 + (frameCpuEnd - frameCpuBegin) * 0.05;
         avrageGpuTime = avrageGpuTime * 0.95 + (frameGpuEnd - frameGpuBegin) * 0.05;
         double tps = double(mesh.indices.size() * drawCount / 3) * double(1000 / avrageGpuTime );
-        pd.avrageCpuTime = (float)avrageCpuTime;
+        pd.avgCpuTime = (float)avrageCpuTime;
         deltaTime += (frameCpuEnd - frameCpuBegin);
         pd.cpuTime = float(frameCpuEnd - frameCpuBegin);
         pd.gpuTime = float(frameGpuEnd - frameGpuBegin);
+        pd.avgGpuTime = float(avrageGpuTime);
         pd.uiTime = float(frameUIEnd - frameUIBegin);
         pd.waitTime = float(waitTimeEnd - waitTimeBegin);
         pd.trianglesPerSecond = float(tps * 1e-9);
@@ -800,6 +849,10 @@ int main(int argc, const char** argv)
 	}
 
     VK_CHECK(vkDeviceWaitIdle(device));
+
+    destroyImage(device, colorTarget);
+    destroyImage(device, depthTarget);
+    vkDestroyFramebuffer(device, targetFrameBuffer, 0);
 
     destroyUI(ui);
    

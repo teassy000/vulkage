@@ -6,9 +6,6 @@ struct Swapchain
     VkSwapchainKHR swapchain;
 
     std::vector<VkImage> images;
-    std::vector<VkImageView> imageViews;
-    std::vector<VkFramebuffer> framebuffers;
-
 
     uint32_t width, height;
     uint32_t imageCount;
@@ -32,3 +29,5 @@ void createSwapchain(Swapchain& result, VkPhysicalDevice physicalDevice, VkDevic
 void destroySwapchain(VkDevice device, const Swapchain& swapchain);
 
 SwapchainStatus resizeSwapchainIfNecessary(Swapchain& result, VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, uint32_t* familyIndex, VkFormat format, VkRenderPass renderPass);
+
+VkFramebuffer createFramebuffer(VkDevice device, VkRenderPass renderPass, VkImageView colorView, VkImageView depthView, uint32_t width, uint32_t height);

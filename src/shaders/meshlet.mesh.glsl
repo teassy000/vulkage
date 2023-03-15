@@ -83,7 +83,7 @@ void main()
         vec3 norm = vec3(int(vertices[vi].nx), int(vertices[vi].ny), int(vertices[vi].nz)) / 127.0 - 1.0;
         vec2 uv = vec2(vertices[vi].tu, vertices[vi].tv);
 
-        vec3 result = vec3(pos * vec3(constants.scale, 1.0) + vec3(constants.offset, 0.0) * vec3(2, 2, 0.5) + vec3(-1, -1, 0.5));
+        vec3 result = vec3(pos * vec3(constants.scale, 1.0) + vec3(constants.offset, 0.0) * vec3(2, 2, -0.5) + vec3(-1, -1, 0.5));
 
         gl_MeshVerticesEXT[i].gl_Position = vec4(result, 1.0);
 

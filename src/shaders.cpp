@@ -316,7 +316,7 @@ VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache
     VkPipelineDepthStencilStateCreateInfo depthStencilState = { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
     depthStencilState.depthTestEnable = true;
     depthStencilState.depthWriteEnable = true;
-    depthStencilState.depthCompareOp = VK_COMPARE_OP_LESS;
+    depthStencilState.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL; // for UI it equals to 1.0
     depthStencilState.depthBoundsTestEnable = false;
     depthStencilState.minDepthBounds = 0.f;
     depthStencilState.maxDepthBounds = 1.f;

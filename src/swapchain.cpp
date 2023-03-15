@@ -68,7 +68,7 @@ VkSwapchainKHR createSwapchain(VkDevice device, VkSurfaceKHR surface, VkSurfaceC
     createInfo.imageExtent.width = width;
     createInfo.imageExtent.height = height;
     createInfo.imageArrayLayers = 1;
-    createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    createInfo.imageUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     createInfo.queueFamilyIndexCount = 1;
     createInfo.pQueueFamilyIndices = familyIndex;
     createInfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
@@ -82,12 +82,14 @@ VkSwapchainKHR createSwapchain(VkDevice device, VkSurfaceKHR surface, VkSurfaceC
     return swapchain;
 }
 
-VkFramebuffer createFramebuffer(VkDevice device, VkRenderPass renderPass, VkImageView imageView, uint32_t width, uint32_t height)
+VkFramebuffer createFramebuffer(VkDevice device, VkRenderPass renderPass, VkImageView colorView, VkImageView depthView, uint32_t width, uint32_t height)
 {
+    VkImageView attachments[] = { colorView, depthView };
+
     VkFramebufferCreateInfo createInfo = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
     createInfo.renderPass = renderPass;
-    createInfo.attachmentCount = 1;
-    createInfo.pAttachments = &imageView;
+    createInfo.attachmentCount = ARRAYSIZE(attachments);
+    createInfo.pAttachments = attachments;
     createInfo.width = width;
     createInfo.height = height;
     createInfo.layers = 1;
@@ -116,23 +118,9 @@ void createSwapchain(Swapchain& result, VkPhysicalDevice physicalDevice, VkDevic
     uint32_t imageCount = 16;
     VK_CHECK(vkGetSwapchainImagesKHR(device, swapchain, &imageCount, images.data()));
 
-    std::vector<VkImageView> imageViews(imageCount);
-    for (uint32_t i = 0; i < imageCount; ++i) {
-        imageViews[i] = createImageView(device, images[i], format, 0, 1);
-        assert(imageViews[i]);
-    }
-
-    std::vector <VkFramebuffer> framebuffers(imageCount);
-    for (uint32_t i = 0; i < imageCount; ++i) {
-        framebuffers[i] = createFramebuffer(device, renderPass, imageViews[i], width, height);
-        assert(framebuffers[i]);
-    }
-
     result.swapchain = swapchain;
 
     result.images = images;
-    result.imageViews = imageViews;
-    result.framebuffers = framebuffers;
 
     result.width = width;
     result.height = height;
@@ -143,14 +131,6 @@ void createSwapchain(Swapchain& result, VkPhysicalDevice physicalDevice, VkDevic
 
 void destroySwapchain(VkDevice device, const Swapchain& swapchain)
 {
-    for (uint32_t i = 0; i < swapchain.imageCount; ++i) {
-        vkDestroyFramebuffer(device, swapchain.framebuffers[i], 0);
-    }
-
-    for (uint32_t i = 0; i < swapchain.imageCount; ++i) {
-        vkDestroyImageView(device, swapchain.imageViews[i], 0);
-    }
-
     vkDestroySwapchainKHR(device, swapchain.swapchain, 0);
 }
 
