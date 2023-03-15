@@ -108,9 +108,7 @@ void createSwapchain(Swapchain& result, VkPhysicalDevice physicalDevice, VkDevic
 
     uint32_t width = surfaceCaps.currentExtent.width;
     uint32_t height = surfaceCaps.currentExtent.height;
-
-    assert(width && height);
-
+    
     VkSwapchainKHR swapchain = createSwapchain(device, surface, surfaceCaps, familyIndex, format, oldSwapchain);
     assert(swapchain);
 
@@ -157,7 +155,7 @@ void destroySwapchain(VkDevice device, const Swapchain& swapchain)
 }
 
 
-void resizeSwapchainIfNecessary(Swapchain& result, VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, uint32_t* familyIndex
+SwapchainStatus resizeSwapchainIfNecessary(Swapchain& result, VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, uint32_t* familyIndex
     , VkFormat format, VkRenderPass renderPass)
 {
     VkSurfaceCapabilitiesKHR surfaceCaps;
@@ -165,7 +163,12 @@ void resizeSwapchainIfNecessary(Swapchain& result, VkPhysicalDevice physicalDevi
 
     if (result.width == surfaceCaps.currentExtent.width && result.height == surfaceCaps.currentExtent.height)
     {
-        return;
+        return Ready;
+    }
+
+    if (surfaceCaps.currentExtent.width == 0 || surfaceCaps.currentExtent.height == 0)
+    {
+        return NotReady;
     }
 
     Swapchain old = result;
@@ -174,4 +177,6 @@ void resizeSwapchainIfNecessary(Swapchain& result, VkPhysicalDevice physicalDevi
 
     VK_CHECK(vkDeviceWaitIdle(device));
     destroySwapchain(device, old);
+
+    return Resized;
 }

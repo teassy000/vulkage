@@ -619,9 +619,10 @@ int main(int argc, const char** argv)
 
         int newWindowWidth = 0, newWindowHeight = 0;
         glfwGetWindowSize(window, &newWindowWidth, &newWindowHeight);
-        assert(newWindowWidth&& newWindowHeight);
 
-        resizeSwapchainIfNecessary(swapchain, physicalDevice, device, surface, &familyIndex, swapchainFormat, renderPass);
+        SwapchainStatus scStatus = resizeSwapchainIfNecessary(swapchain, physicalDevice, device, surface, &familyIndex, swapchainFormat, renderPass);
+        if(scStatus == NotReady)
+            continue;
 
         // set input data
         input.width = (float)newWindowWidth;
@@ -646,7 +647,7 @@ int main(int argc, const char** argv)
             ImGui::Text("meshlet count: [%d]", pd.meshletCount);
             ImGui::Text("tri/sec: [%.2f]B", pd.trianglesPerSecond);
             ImGui::Text("frame: [%.2f]fps", 1000.f / pd.cpuTime);
-            ImGui::Checkbox("Mesh Shading", &pd.usingMS);
+            ImGui::Checkbox("Mesh Shading", &meshShadingEnabled);
 
             ImGui::End();
 

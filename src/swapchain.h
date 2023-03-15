@@ -14,6 +14,13 @@ struct Swapchain
     uint32_t imageCount;
 };
 
+enum SwapchainStatus
+{
+    Ready,
+    NotReady,
+    Resized,
+};
+
 typedef struct GLFWwindow GLFWwindow;
 
 VkSurfaceKHR createSurface(VkInstance instance, GLFWwindow* window);
@@ -24,4 +31,4 @@ void createSwapchain(Swapchain& result, VkPhysicalDevice physicalDevice, VkDevic
 
 void destroySwapchain(VkDevice device, const Swapchain& swapchain);
 
-void resizeSwapchainIfNecessary(Swapchain& result, VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, uint32_t* familyIndex, VkFormat format, VkRenderPass renderPass);
+SwapchainStatus resizeSwapchainIfNecessary(Swapchain& result, VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, uint32_t* familyIndex, VkFormat format, VkRenderPass renderPass);
