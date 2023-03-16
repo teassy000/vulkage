@@ -25,6 +25,8 @@
 #include <meshoptimizer.h>
 #include <string>
 
+#include "glm/ext/quaternion_float.hpp"
+#include "glm/ext/quaternion_transform.hpp"
 
 static bool meshShadingEnabled = true;
 
@@ -126,8 +128,10 @@ VkQueryPool createQueryPool(VkDevice device, uint32_t queryCount)
 
 struct alignas(16) MeshParameters
 {
-    float scale[2];
-    float offset[2];
+    glm::mat4 projection;
+    glm::vec3 pos;
+    float scale;
+    glm::quat orit;
 };
 
 struct Vertex
@@ -386,6 +390,17 @@ struct ProfilingData
     bool usingMS;
 };
 
+glm::mat4 persectiveProjection(float fovY, float aspectWbyH, float zNear)
+{
+    float f = 1.0f / tanf(fovY/ 2.0f);
+
+    return glm::mat4(
+        f / aspectWbyH, 0.0f, 0.0f, 0.0f,
+        0.0f, f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f,
+        0.0f, 0.0f, zNear, 0.0f);
+}
+
 int main(int argc, const char** argv)
 {
     if (argc < 2) {
@@ -605,14 +620,22 @@ int main(int argc, const char** argv)
     pd.meshletCount = (uint32_t)mesh.meshlets.size();
     pd.primitiveCount = (uint32_t)(mesh.indices.size() / 3);
 
-    uint32_t drawCount = 100;
+    
+
+    srand(100);
+
+    uint32_t drawCount = 3000;
     std::vector<MeshParameters> meshConstants(drawCount);
     for (uint32_t i = 0; i < drawCount; i++)
     {
-        meshConstants[i].offset[0] = (i % 10) * 1 / 10.f + 0.5f / 10.f;
-        meshConstants[i].offset[1] = (i / 10) * 1 / 10.f + 0.5f / 10.f;
-        meshConstants[i].scale[0] = 2 / 10.f;
-        meshConstants[i].scale[1] = 2 / 10.f;
+        meshConstants[i].pos[0] = float(rand()) / RAND_MAX * 40 - 20;
+        meshConstants[i].pos[1] = float(rand()) / RAND_MAX * 40 - 20;
+        meshConstants[i].pos[2] = float(rand()) / RAND_MAX * 40 - 20;
+        meshConstants[i].scale = (float(rand()) / RAND_MAX)+ 1.f;
+        meshConstants[i].orit = glm::rotate(
+            glm::quat(1, 0, 0, 0)
+            , glm::radians((float(rand()) / RAND_MAX) * 90.f)
+            , glm::vec3((float(rand()) / RAND_MAX) * 2 - 1, (float(rand()) / RAND_MAX) * 2 - 1, (float(rand()) / RAND_MAX) * 2 - 1));
     }
 
     double deltaTime = 0.;
@@ -730,7 +753,8 @@ int main(int argc, const char** argv)
         vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
 
         bool meshShadingOn = meshShadingEnabled && meshShadingSupported;
-
+    
+        glm::mat4 projection = persectiveProjection(glm::radians(70.f), (float)swapchain.width / (float)swapchain.height, 0.01f);
         if(meshShadingOn)
         {
             vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, meshPipelineMS);
@@ -741,6 +765,7 @@ int main(int argc, const char** argv)
             
             for (uint32_t i = 0; i < drawCount; i++)
             {
+                meshConstants[i].projection = projection;
                 vkCmdPushConstants(cmdBuffer, meshProgramMS.layout, meshProgramMS.pushConstantStages, 0, sizeof(meshConstants[0]), &meshConstants[i]);
                 vkCmdDrawMeshTasksEXT(cmdBuffer, (uint32_t)mesh.meshlets.size() / 32, 1, 1);
             }

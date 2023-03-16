@@ -24,6 +24,13 @@ struct TaskPayload
 
 struct Constants
 {
-    vec2 scale;
-    vec2 offset;
+    mat4 projection;
+    vec3 pos;
+    float scale;
+    vec4 orit;
 };
+
+vec3 rotateQuat(vec3 v, vec4 q)
+{
+    return v + 2.0 * cross(q.xyz, cross(q.xyz, v) + q.w * v);
+}
