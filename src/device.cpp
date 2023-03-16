@@ -52,7 +52,7 @@ VkInstance createInstance()
 {
 
     VkApplicationInfo appInfo = { VK_STRUCTURE_TYPE_APPLICATION_INFO };
-    appInfo.apiVersion = VK_API_VERSION_1_1;
+    appInfo.apiVersion = VK_API_VERSION_1_2;
 
     VkInstanceCreateInfo createInfo = { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
     createInfo.pApplicationInfo = &appInfo;
@@ -169,8 +169,6 @@ VkDevice createDevice(VkInstance instance, VkPhysicalDevice physicalDevice, uint
     {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
         VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
-        VK_KHR_8BIT_STORAGE_EXTENSION_NAME,
-        VK_KHR_16BIT_STORAGE_EXTENSION_NAME,
     };
 
     if (meshShadingSupported)
@@ -182,19 +180,22 @@ VkDevice createDevice(VkInstance instance, VkPhysicalDevice physicalDevice, uint
 
     VkPhysicalDeviceFeatures2 features = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
     features.features.vertexPipelineStoresAndAtomics = true;
+    features.features.multiDrawIndirect = true;
 
-    VkPhysicalDevice8BitStorageFeatures features8 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES };
-    features8.storageBuffer8BitAccess = true;
-    features8.uniformAndStorageBuffer8BitAccess = true; // TODO: this is seems something weird that SPIV-R automatic enabled the Access in assembly.
+    VkPhysicalDeviceVulkan11Features features11 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES };
+    features11.storageBuffer16BitAccess = true;
+    features11.uniformAndStorageBuffer16BitAccess = true;
+    features11.shaderDrawParameters = true;
 
-    VkPhysicalDevice16BitStorageFeatures features16 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_16BIT_STORAGE_FEATURES };
-    features16.storageBuffer16BitAccess = true;
-    features16.uniformAndStorageBuffer16BitAccess = true;
+    VkPhysicalDeviceVulkan12Features features12 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES };
+    features12.drawIndirectCount = true;
+    features12.storageBuffer8BitAccess = true;
+    features12.uniformAndStorageBuffer8BitAccess = true;
+    features12.shaderFloat16 = true;
 
     VkPhysicalDeviceMeshShaderFeaturesEXT featuresMesh = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT };
     featuresMesh.meshShader = true;
     featuresMesh.taskShader = true;
-
 
     VkDeviceCreateInfo createInfo = { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
     createInfo.queueCreateInfoCount = 1;
@@ -203,10 +204,10 @@ VkDevice createDevice(VkInstance instance, VkPhysicalDevice physicalDevice, uint
     createInfo.enabledExtensionCount = uint32_t(extensions.size());
 
     createInfo.pNext = &features;
-    features.pNext = &features16;
-    features16.pNext = &features8;
+    features.pNext = &features11;
+    features11.pNext = &features12;
     if (meshShadingSupported)
-        features8.pNext = &featuresMesh;
+        features12.pNext = &featuresMesh;
 
 
     VkDevice device = 0;

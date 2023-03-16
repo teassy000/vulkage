@@ -1,27 +1,31 @@
 #version 450
 
+#extension GL_ARB_shader_draw_parameters: require
 #extension GL_EXT_shader_16bit_storage: require
 #extension GL_EXT_shader_8bit_storage: require
 #extension GL_EXT_mesh_shader: require
 #extension GL_KHR_shader_subgroup_ballot: require
 
+
 #extension GL_GOOGLE_include_directive: require
 
 #include "mesh.h"
 
-#define CULL 1
+#define CULL 0
 
 layout(local_size_x = TASKGP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
-layout(push_constant) uniform block 
+
+layout(binding = 0) readonly buffer CommandDatas
 {
-    Constants constants;
+    MeshDraw meshDraws[];
 };
 
 layout(binding = 1) readonly buffer Meshlets
 {
     Meshlet meshlets[];
 };
+
 
 taskPayloadSharedEXT TaskPayload payload;
 
@@ -46,12 +50,14 @@ void main()
     uint ti = gl_LocalInvocationID.x;
     uint mi = mgi * TASKGP_SIZE + ti;
 
+    MeshDraw meshDraw = meshDraws[gl_DrawIDARB];
+
 #if CULL
     sharedCount = 0;
     barrier();
     vec3 axit = vec3( int(meshlets[mi].cone_axis[0]) / 127.0, int(meshlets[mi].cone_axis[1]) / 127.0, int(meshlets[mi].cone_axis[2]) / 127.0); 
-    vec3 cone_axis = rotateQuat(axit, constants.orit);
-    vec3 cone_center = rotateQuat(meshlets[mi].center, constants.orit) * constants.scale + constants.pos;
+    vec3 cone_axis = rotateQuat(axit, meshDraw.orit);
+    vec3 cone_center = rotateQuat(meshlets[mi].center, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
     float cone_radians = meshlets[mi].radians;
     float cone_cutoff = int(meshlets[mi].cone_cutoff) / 127.0;
 

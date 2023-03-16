@@ -26,12 +26,29 @@ struct TaskPayload
     uint meshletIndices[TASKGP_SIZE];
 };
 
-struct Constants
+struct Globals
 {
     mat4 projection;
+};
+
+struct MeshDraw
+{
     vec3 pos;
     float scale;
     vec4 orit;
+};
+
+struct MeshDrawCommand
+{
+    uint    indexCount;
+    uint    instanceCount;
+    uint    firstIndex;
+    int     vertexOffset;
+    uint    firstInstance;
+
+    uint    local_x;
+    uint    local_y;
+    uint    local_z;
 };
 
 vec3 rotateQuat(vec3 v, vec4 q)

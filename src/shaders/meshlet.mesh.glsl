@@ -1,14 +1,17 @@
 #version 450
 
+#extension GL_ARB_shader_draw_parameters: require
 #extension GL_EXT_shader_16bit_storage: require
 #extension GL_EXT_shader_8bit_storage: require
 #extension GL_EXT_mesh_shader: require
 
+
 #extension GL_GOOGLE_include_directive: require
+
 
 #include "mesh.h"
 
-#define DEBUG 0
+#define DEBUG 1
 
 
 layout(local_size_x = MESHGP_SIZE, local_size_y = 1, local_size_z = 1) in;
@@ -16,12 +19,12 @@ layout(triangles, max_vertices= 64, max_primitives = 124) out;
 
 layout(push_constant) uniform block 
 {
-    Constants constants;
+    Globals globals;
 };
 
-layout(binding = 0) readonly buffer Vertices
+layout(binding = 0) readonly buffer MeshDraws 
 {
-    Vertex vertices[];
+    MeshDraw meshDraws[];
 };
 
 layout(binding = 1) readonly buffer Meshlets
@@ -38,6 +41,12 @@ layout(binding = 2) readonly buffer MeshletData8
 {
     uint8_t meshletData8[];
 };
+
+layout(binding = 3) readonly buffer Vertices
+{
+    Vertex vertices[];
+};
+
 
 
 layout(location = 0) out vec4 color[];
@@ -60,6 +69,8 @@ void main()
     uint ti = gl_LocalInvocationID.x;
     uint mi = payload.meshletIndices[gl_WorkGroupID.x];
 
+    MeshDraw meshDraw = meshDraws[gl_DrawIDARB];
+
     uint vertexCount = uint(meshlets[mi].vertexCount); 
     uint triangleCount = uint(meshlets[mi].triangleCount); 
 
@@ -74,6 +85,7 @@ void main()
     vec3 mcolor = vec3(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255)) / 255.0;
 #endif
 
+    float c = gl_DrawIDARB / 3000;
 
     for(uint i = ti; i < uint(meshlets[mi].vertexCount); i += MESHGP_SIZE)
     {
@@ -83,12 +95,12 @@ void main()
         vec3 norm = vec3(int(vertices[vi].nx), int(vertices[vi].ny), int(vertices[vi].nz)) / 127.0 - 1.0;
         vec2 uv = vec2(vertices[vi].tu, vertices[vi].tv);
 
-       vec3 result = vec3(rotateQuat( pos, constants.orit) * constants.scale + constants.pos);
+        vec3 result = vec3(rotateQuat( pos, meshDraw.orit) * meshDraw.scale + meshDraw.pos);
 
-        gl_MeshVerticesEXT[i].gl_Position = constants.projection * vec4(result, 1.0);
+        gl_MeshVerticesEXT[i].gl_Position = globals.projection * vec4(result, 1.0);
 
 #if DEBUG
-        color[i] = vec4(mcolor, 1.0);
+        color[i] = vec4(c, c, 0.0, 1.0);
 #else
         color[i] = vec4(norm * 0.5 + vec3(0.5), 1.0);
 #endif
