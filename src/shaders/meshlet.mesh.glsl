@@ -69,7 +69,7 @@ void main()
     uint ti = gl_LocalInvocationID.x;
     uint mi = payload.meshletIndices[gl_WorkGroupID.x];
 
-    MeshDraw meshDraw = meshDraws[gl_DrawIDARB];
+    MeshDraw meshDraw = meshDraws[payload.drawId];
 
     uint vertexCount = uint(meshlets[mi].vertexCount); 
     uint triangleCount = uint(meshlets[mi].triangleCount); 
@@ -85,8 +85,6 @@ void main()
     vec3 mcolor = vec3(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255)) / 255.0;
 #endif
 
-    float c = gl_DrawIDARB / 3000;
-
     for(uint i = ti; i < uint(meshlets[mi].vertexCount); i += MESHGP_SIZE)
     {
         uint vi = meshletData[vertexOffset + i];
@@ -100,7 +98,7 @@ void main()
         gl_MeshVerticesEXT[i].gl_Position = globals.projection * vec4(result, 1.0);
 
 #if DEBUG
-        color[i] = vec4(c, c, 0.0, 1.0);
+        color[i] = vec4(mcolor, 1.0);
 #else
         color[i] = vec4(norm * 0.5 + vec3(0.5), 1.0);
 #endif

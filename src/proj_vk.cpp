@@ -636,21 +636,22 @@ int main(int argc, const char** argv)
     prepareUIResources(ui, memoryProps, cmdPool);
 
 
-    srand(100);
-
     uint32_t drawCount = 3000;
     std::vector<MeshDraw> meshDraws(drawCount);
     std::vector<MeshDrawCommand> meshDrawCmds(drawCount);
+    srand(42);
     for (uint32_t i = 0; i < drawCount; i++)
     {
-        meshDraws[i].pos[0] = (float(rand()) / RAND_MAX) * 40;// -20;
-        meshDraws[i].pos[1] = (float(rand()) / RAND_MAX) * 40;// -20;
-        meshDraws[i].pos[2] = (float(rand()) / RAND_MAX) * 40;// -20;
-        meshDraws[i].scale = (float(rand()) / RAND_MAX)+ 1.f;
+        meshDraws[i].pos[0] = (float(rand()) / RAND_MAX) * 40 -20;
+        meshDraws[i].pos[1] = (float(rand()) / RAND_MAX) * 40 -20;
+        meshDraws[i].pos[2] = (float(rand()) / RAND_MAX) * 40 -20;
+        meshDraws[i].scale = (float(rand()) / RAND_MAX) + 1.f;
+
         meshDraws[i].orit = glm::rotate(
             glm::quat(1, 0, 0, 0)
             , glm::radians((float(rand()) / RAND_MAX) * 90.f)
             , glm::vec3((float(rand()) / RAND_MAX) * 2 - 1, (float(rand()) / RAND_MAX) * 2 - 1, (float(rand()) / RAND_MAX) * 2 - 1));
+
 
         // fill draw commands
         meshDrawCmds[i] = {};
@@ -668,7 +669,7 @@ int main(int argc, const char** argv)
 
 
     Buffer mdrawb = {};
-    createBuffer(mdrawb, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    createBuffer(mdrawb, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     uploadBuffer(device, cmdPool, cmdBuffer, queue, mdrawb, scratch, meshDraws.data(), meshDraws.size() * sizeof(MeshDraw));
 
@@ -809,8 +810,8 @@ int main(int argc, const char** argv)
  
             vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, meshProgramMS.updateTemplate, meshProgramMS.layout, 0, descInfos);
             vkCmdPushConstants(cmdBuffer, meshProgramMS.layout, meshProgramMS.pushConstantStages, 0, sizeof(globals), &globals);
-
-            vkCmdDrawMeshTasksIndirectEXT(cmdBuffer, mdcb.buffer, offsetof(MeshDrawCommand, indirectMS), (uint32_t)1, sizeof(MeshDrawCommand));
+           
+            vkCmdDrawMeshTasksIndirectEXT(cmdBuffer, mdcb.buffer, offsetof(MeshDrawCommand, indirectMS), (uint32_t)meshDrawCmds.size(), sizeof(MeshDrawCommand));
             
         }
         else

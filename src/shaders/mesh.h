@@ -23,6 +23,7 @@ struct Meshlet
 struct TaskPayload
 {
     uint offset;
+    uint drawId;
     uint meshletIndices[TASKGP_SIZE];
 };
 
