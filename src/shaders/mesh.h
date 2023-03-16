@@ -10,7 +10,11 @@ struct Vertex
 
 struct Meshlet
 {
-    vec4 cone;
+    vec3 center;
+    float radians;
+    int8_t cone_axis[3];
+    int8_t cone_cutoff;
+   
     uint dataOffset;
     uint8_t triangleCount;
     uint8_t vertexCount;

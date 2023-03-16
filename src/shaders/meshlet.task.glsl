@@ -13,6 +13,11 @@
 
 layout(local_size_x = TASKGP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
+layout(push_constant) uniform block 
+{
+    Constants constants;
+};
+
 layout(binding = 1) readonly buffer Meshlets
 {
     Meshlet meshlets[];
@@ -25,15 +30,15 @@ taskPayloadSharedEXT TaskPayload payload;
 shared int sharedCount;
 #endif
 
-
-bool coneCull(vec4 cone, vec3 view)
+bool coneCullApex(vec3 cone_apex, vec3 cone_axis, float cone_cutoff, vec3 camera_position)
 {
-    // alpha: angle between view and avgNorm 
-    // theta: between avgNorm and cone boundary
-    // pi/2 - alpha > theta
-    return dot(view, cone.xyz) > cone.w; 
+    return dot(normalize(cone_apex - camera_position), cone_axis) >= cone_cutoff;
 }
 
+bool coneCull(vec3 center, float radius, vec3 cone_axis, float cone_cutoff, vec3 camera_position)
+{
+	return dot(center - camera_position, cone_axis) >= cone_cutoff * length(center - camera_position) + radius;
+}
 
 void main()
 {
@@ -44,9 +49,14 @@ void main()
 #if CULL
     sharedCount = 0;
     barrier();
+    vec3 axit = vec3( int(meshlets[mi].cone_axis[0]) / 127.0, int(meshlets[mi].cone_axis[1]) / 127.0, int(meshlets[mi].cone_axis[2]) / 127.0); 
+    vec3 cone_axis = rotateQuat(axit, constants.orit);
+    vec3 cone_center = rotateQuat(meshlets[mi].center, constants.orit) * constants.scale + constants.pos;
+    float cone_radians = meshlets[mi].radians;
+    float cone_cutoff = int(meshlets[mi].cone_cutoff) / 127.0;
 
-    bool accept = !coneCull(meshlets[mi].cone, vec3(0, 0, 1));
-    
+    bool accept = !coneCull(cone_center, cone_radians, cone_axis, cone_cutoff, vec3(0, 0, 0));
+
     if(accept)
     {
         uint index = atomicAdd(sharedCount, 1);

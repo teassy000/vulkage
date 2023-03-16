@@ -143,7 +143,11 @@ struct Vertex
 
 struct alignas(16) Meshlet
 {
-    float cone[4];
+    glm::vec3 center;
+    float radians;
+    int8_t cone_axis[3];
+    int8_t cone_cutoff;
+
     uint32_t dataOffset;
     uint8_t triangleCount;
     uint8_t vertexCount;
@@ -202,10 +206,15 @@ void buildMeshlets(Mesh& mesh)
         m.triangleCount = meshlet.triangle_count;
         m.vertexCount = meshlet.vertex_count;
 
-        m.cone[0] = bounds.cone_axis_s8[0];
-        m.cone[1] = bounds.cone_axis_s8[1];
-        m.cone[2] = bounds.cone_axis_s8[2];
-        m.cone[3] = bounds.cone_cutoff_s8;
+        m.center[0] = bounds.center[0];
+        m.center[1] = bounds.center[1];
+        m.center[2] = bounds.center[2];
+        m.radians = bounds.radius;
+
+        m.cone_axis[0] = bounds.cone_axis_s8[0];
+        m.cone_axis[1] = bounds.cone_axis_s8[1];
+        m.cone_axis[2] = bounds.cone_axis_s8[2];
+        m.cone_cutoff = bounds.cone_cutoff_s8;
 
         mesh.meshlets.push_back(m);
     }
