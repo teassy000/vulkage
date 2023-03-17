@@ -37,16 +37,21 @@ struct MeshDraw
     vec3 pos;
     float scale;
     vec4 orit;
+
+    uint meshletOffset;
+    uint meshletCount;
 };
 
 struct MeshDrawCommand
 {
+    // struct VkDrawIndexedIndirectCommand
     uint    indexCount;
     uint    instanceCount;
     uint    firstIndex;
     int     vertexOffset;
     uint    firstInstance;
-
+    
+    // struct VkDrawMeshTasksIndirectCommandEXT
     uint    local_x;
     uint    local_y;
     uint    local_z;

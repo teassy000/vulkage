@@ -46,15 +46,15 @@ bool coneCull(vec3 center, float radius, vec3 cone_axis, float cone_cutoff, vec3
 
 void main()
 {
-    uint mgi = gl_WorkGroupID.x ;
-    uint ti = gl_LocalInvocationID.x;
-    uint mi = mgi * TASKGP_SIZE + ti;
-
-    uint drawId = gl_DrawIDARB;  //TODO: the gl_DrawIDARB is alwasy 0 in mesh shader for some reason, should figure it out
+    uint drawId = gl_DrawIDARB;  //TODO: the gl_DrawIDARB is alwasy 0 in mesh shader for some reason, should figure it out why
     MeshDraw meshDraw = meshDraws[drawId];
 
-#if CULL
+    uint mgi = gl_WorkGroupID.x ;
+    uint ti = gl_LocalInvocationID.x;
+    uint mi = mgi * TASKGP_SIZE + ti + meshDraw.meshletOffset;
+    uint mLocalId = mgi * TASKGP_SIZE + ti;
 
+#if CULL
     vec3 axit = vec3( int(meshlets[mi].cone_axis[0]) / 127.0, int(meshlets[mi].cone_axis[1]) / 127.0, int(meshlets[mi].cone_axis[2]) / 127.0); 
     vec3 cone_axis = rotateQuat(axit, meshDraw.orit);
     vec3 cone_center = rotateQuat(meshlets[mi].center, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
@@ -64,13 +64,14 @@ void main()
     sharedCount = 0;
     barrier();
     bool accept = !coneCull(cone_center, cone_radians, cone_axis, cone_cutoff, vec3(0, 0, 0));
+    accept = (accept == mLocalId < meshDraw.meshletCount);
 
     if(accept)
     {
         uint index = atomicAdd(sharedCount, 1);
         payload.meshletIndices[index] = mi;
     }
-    barrier();
+
     payload.drawId = drawId;
     
     EmitMeshTasksEXT(sharedCount, 1, 1);
@@ -79,7 +80,10 @@ void main()
 
     payload.drawId = drawId;
     
-    EmitMeshTasksEXT(TASKGP_SIZE, 1, 1);
+
+
+    uint emitCount = min(TASKGP_SIZE, meshDraw.meshletCount - mLocalId );
+    EmitMeshTasksEXT(emitCount, 1, 1);
 #endif
 
 }

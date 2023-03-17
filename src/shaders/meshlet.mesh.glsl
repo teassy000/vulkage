@@ -11,11 +11,11 @@
 
 #include "mesh.h"
 
-#define DEBUG 1
+#define DEBUG 0
 
 
 layout(local_size_x = MESHGP_SIZE, local_size_y = 1, local_size_z = 1) in;
-layout(triangles, max_vertices= 64, max_primitives = 124) out;
+layout(triangles, max_vertices= 64, max_primitives = 84) out;
 
 layout(push_constant) uniform block 
 {
@@ -104,11 +104,9 @@ void main()
 #endif
     }
 
-
     for(uint i = ti; i < uint(meshlets[mi].triangleCount); i += MESHGP_SIZE )
     {
         uint offset = indexOffset * 4 + i * 3;
-        uint iid = meshletData[indexOffset + i];
 
         uint idx0 = uint(meshletData8[ offset + 0]);
         uint idx1 = uint(meshletData8[ offset + 1]);

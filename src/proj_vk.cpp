@@ -1,6 +1,5 @@
 // proj_vk.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
-
 #include "common.h"
 
 #include "resources.h"
@@ -8,29 +7,30 @@
 #include "shaders.h"
 #include "device.h"
 
-// for ui
-#include "glm/glm.hpp"
-#include "imgui.h"
-#include "ui.h"
+// math
+#include <glm/ext/quaternion_float.hpp>
+#include <glm/ext/quaternion_transform.hpp>
+#include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
 
-#include <stdio.h>
+// for ui
+#include <imgui.h>
+#include "ui.h"
 
 #include <glfw/glfw3.h>
 #include <glfw/glfw3native.h>
 
+#include <stdio.h>
 #include <vector>
 #include <algorithm>
+#include <string>
 
 #include <fast_obj.h>
 #include <meshoptimizer.h>
-#include <string>
 
-#include "glm/ext/quaternion_float.hpp"
-#include "glm/ext/quaternion_transform.hpp"
 
 static bool meshShadingEnabled = true;
-
-static float modelScale = 1.0f;
 
 static Input input = {};
 
@@ -136,6 +136,9 @@ struct alignas(16) MeshDraw
     glm::vec3 pos;
     float scale;
     glm::quat orit;
+   
+    uint32_t meshletOffset;
+    uint32_t meshletCount;
 };
 
 struct MeshDrawCommand
@@ -164,121 +167,29 @@ struct alignas(16) Meshlet
     uint8_t vertexCount;
 };
 
+
 struct Mesh
+{
+    uint32_t meshletOffset;
+    uint32_t meshletCount;
+
+    uint32_t vertexOffset;
+
+    uint32_t indexOffset;
+    uint32_t indexCount;
+};
+
+struct Geometry
 {
     std::vector<Vertex>     vertices;
     std::vector<uint32_t>   indices;
     std::vector<Meshlet>    meshlets;
     std::vector<uint32_t>   meshletdata;
+    std::vector<Mesh>       meshes;
 };
 
 
-void buildMeshlets(Mesh& mesh)
-{
-    const size_t max_vertices = 64;
-    const size_t max_triangles = 124;
-    const float cone_weight = 1.f;
-
-    std::vector<meshopt_Meshlet> meshlets(meshopt_buildMeshletsBound(mesh.indices.size(), max_vertices, max_triangles));
-    std::vector<unsigned int> meshlet_vertices(meshlets.size() * max_vertices);
-    std::vector<unsigned char> meshlet_triangles(meshlets.size() * max_triangles * 3);
-
-    meshopt_buildMeshlets(meshlets.data(), meshlet_vertices.data(), meshlet_triangles.data(), mesh.indices.data(), mesh.indices.size()
-        , &mesh.vertices[0].vx, mesh.vertices.size(), sizeof(Vertex), max_vertices, max_triangles, cone_weight);
-
-    while (meshlets.size() % 32)
-    {
-        meshlets.push_back(meshopt_Meshlet{});
-    }
-    
-    for (const meshopt_Meshlet meshlet : meshlets)
-    {
-        Meshlet m = {};
-        size_t dataOffset = mesh.meshletdata.size();
-
-        for (unsigned int i = 0; i < meshlet.vertex_count; ++i)
-        {
-            mesh.meshletdata.push_back(meshlet_vertices[meshlet.vertex_offset + i]);
-        }
-
-        const uint32_t* idxGroup = reinterpret_cast<const unsigned int*>(&meshlet_triangles[0] + meshlet.triangle_offset);
-        uint32_t idxGroupCount = (meshlet.triangle_count * 3 + 3) / 4;
-
-        for (uint32_t i = 0; i < idxGroupCount; ++i)
-        {
-            mesh.meshletdata.push_back(idxGroup[i]);
-        }
-
-        meshopt_Bounds bounds = meshopt_computeMeshletBounds(&meshlet_vertices[meshlet.vertex_offset], &meshlet_triangles[meshlet.triangle_offset]
-            , meshlet.triangle_count, &mesh.vertices[0].vx, mesh.vertices.size(), sizeof(Vertex));
-
-
-        m.dataOffset = uint32_t(dataOffset);
-        m.triangleCount = meshlet.triangle_count;
-        m.vertexCount = meshlet.vertex_count;
-
-        m.center[0] = bounds.center[0];
-        m.center[1] = bounds.center[1];
-        m.center[2] = bounds.center[2];
-        m.radians = bounds.radius;
-
-        m.cone_axis[0] = bounds.cone_axis_s8[0];
-        m.cone_axis[1] = bounds.cone_axis_s8[1];
-        m.cone_axis[2] = bounds.cone_axis_s8[2];
-        m.cone_cutoff = bounds.cone_cutoff_s8;
-
-        mesh.meshlets.push_back(m);
-    }
- }
-
-float halfToFloat(uint16_t v)
-{
-    // according to IEEE 754: half
-    uint16_t sign = v >> 15;
-    uint16_t exp = (v >> 10) & 31; // 5 bit exp
-    uint16_t mant = v & 1023; // 10 bit mant
-
-    assert(exp != 31);
-
-    if (exp == 0)
-    {
-        assert(mant == 0);
-        return 0.f;
-    }
-    else
-    {
-        return(sign ? -1.f : 1.f) * ldexpf(float(mant + 1024) / 1024.f, exp - 15);
-    }
-}
-
-
-void enumrateDeviceExtPorps(VkPhysicalDevice physicalDevice, std::vector<VkExtensionProperties>& availableExtensions)
-{
-    uint32_t extensionCount = 0;
-    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr);
-    availableExtensions.resize(extensionCount);
-    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, availableExtensions.data());
-}
-
-
-void dumpExtensionSupport(VkPhysicalDevice physicalDevice)
-{
-    uint32_t extensionCount = 0;
-    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr);
-    std::vector<VkExtensionProperties> availableExtensions(extensionCount);
-    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, availableExtensions.data());
-
-    checkExtSupportness(availableExtensions, VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-    checkExtSupportness(availableExtensions, VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
-    checkExtSupportness(availableExtensions, VK_KHR_8BIT_STORAGE_EXTENSION_NAME);
-    checkExtSupportness(availableExtensions, VK_KHR_16BIT_STORAGE_EXTENSION_NAME);
-    checkExtSupportness(availableExtensions, VK_EXT_MESH_SHADER_EXTENSION_NAME);
-    checkExtSupportness(availableExtensions, VK_KHR_SPIRV_1_4_EXTENSION_NAME);
-    checkExtSupportness(availableExtensions, VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME);
-}
-
-
-bool loadMesh(Mesh& result, const char* path)
+bool loadMesh(Geometry& result, const char* path, bool buildMeshlets)
 {
     fastObjMesh* obj =  fast_obj_read(path);
     if (!obj)
@@ -303,9 +214,9 @@ bool loadMesh(Mesh& result, const char* path)
 
             Vertex& v = triangle_vertices[vertex_offset++];
 
-            v.vx = (obj->positions[gi.p * 3 + 0] * modelScale);
-            v.vy = (obj->positions[gi.p * 3 + 1]* modelScale);
-            v.vz = (obj->positions[gi.p * 3 + 2]* modelScale);
+            v.vx = (obj->positions[gi.p * 3 + 0]);
+            v.vy = (obj->positions[gi.p * 3 + 1]);
+            v.vz = (obj->positions[gi.p * 3 + 2]);
 
             v.nx = uint8_t(obj->normals[gi.n * 3 + 0] * 127.f + 127.5f);
             v.ny = uint8_t(obj->normals[gi.n * 3 + 1] * 127.f + 127.5f);
@@ -335,10 +246,108 @@ bool loadMesh(Mesh& result, const char* path)
     meshopt_optimizeVertexCache(indices.data(), indices.data(), index_count, vertex_count);
     meshopt_optimizeVertexFetch(vertices.data(), indices.data(), index_count, vertices.data(), vertex_count, sizeof(Vertex));
 
+
+
+    uint32_t indexCount = uint32_t(indices.size());
+    uint32_t indexOffset = uint32_t(result.indices.size());
+    uint32_t vertexOffset = uint32_t(result.vertices.size());
+
+
+    uint32_t meshletCount = 0u, meshletOffset = 0u;
+    if (buildMeshlets)
+    {
+        const size_t max_vertices = 64;
+        const size_t max_triangles = 84;
+        const float cone_weight = 1.f;
+
+        std::vector<meshopt_Meshlet> meshlets(meshopt_buildMeshletsBound(indices.size(), max_vertices, max_triangles));
+        std::vector<unsigned int> meshlet_vertices(meshlets.size() * max_vertices);
+        std::vector<unsigned char> meshlet_triangles(meshlets.size() * max_triangles * 3);
+
+        meshopt_buildMeshlets(meshlets.data(), meshlet_vertices.data(), meshlet_triangles.data(), indices.data(), indices.size()
+            , &vertices[0].vx, vertices.size(), sizeof(Vertex), max_vertices, max_triangles, cone_weight);
+
+        meshletCount = (uint32_t)meshlets.size();
+        meshletOffset = (uint32_t)result.meshlets.size();
+
+        for (const meshopt_Meshlet meshlet : meshlets)
+        {
+            Meshlet m = {};
+            size_t dataOffset = result.meshletdata.size();
+
+            for (unsigned int i = 0; i < meshlet.vertex_count; ++i)
+            {
+                result.meshletdata.push_back(meshlet_vertices[meshlet.vertex_offset + i] + vertexOffset);
+            }
+
+            const uint32_t* idxGroup = reinterpret_cast<const unsigned int*>(&meshlet_triangles[0] + meshlet.triangle_offset);
+            uint32_t idxGroupCount = (meshlet.triangle_count * 3 + 3) / 4;
+
+            for (uint32_t i = 0; i < idxGroupCount; ++i)
+            {
+                result.meshletdata.push_back(idxGroup[i]);
+            }
+
+            meshopt_Bounds bounds = meshopt_computeMeshletBounds(&meshlet_vertices[meshlet.vertex_offset], &meshlet_triangles[meshlet.triangle_offset]
+                , meshlet.triangle_count, &vertices[0].vx, vertices.size(), sizeof(Vertex));
+
+
+            m.dataOffset = uint32_t(dataOffset);
+            m.triangleCount = meshlet.triangle_count;
+            m.vertexCount = meshlet.vertex_count;
+
+            m.center[0] = bounds.center[0];
+            m.center[1] = bounds.center[1];
+            m.center[2] = bounds.center[2];
+            m.radians = bounds.radius;
+
+            m.cone_axis[0] = bounds.cone_axis_s8[0];
+            m.cone_axis[1] = bounds.cone_axis_s8[1];
+            m.cone_axis[2] = bounds.cone_axis_s8[2];
+            m.cone_cutoff = bounds.cone_cutoff_s8;
+
+            result.meshlets.push_back(m);
+        }
+    }
+    
+    Mesh mesh = {};
+    mesh.indexCount = indexCount;
+    mesh.indexOffset = indexOffset;
+    mesh.meshletCount = meshletCount;
+    mesh.meshletOffset = meshletOffset;
+    mesh.vertexOffset = vertexOffset;
+
+    result.meshes.push_back(mesh);
+    
     result.vertices.insert(result.vertices.end(), vertices.begin(), vertices.end());
     result.indices.insert(result.indices.end(), indices.begin(), indices.end());
 
     return true;
+}
+
+void enumrateDeviceExtPorps(VkPhysicalDevice physicalDevice, std::vector<VkExtensionProperties>& availableExtensions)
+{
+    uint32_t extensionCount = 0;
+    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr);
+    availableExtensions.resize(extensionCount);
+    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, availableExtensions.data());
+}
+
+
+void dumpExtensionSupport(VkPhysicalDevice physicalDevice)
+{
+    uint32_t extensionCount = 0;
+    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr);
+    std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, availableExtensions.data());
+
+    checkExtSupportness(availableExtensions, VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+    checkExtSupportness(availableExtensions, VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
+    checkExtSupportness(availableExtensions, VK_KHR_8BIT_STORAGE_EXTENSION_NAME);
+    checkExtSupportness(availableExtensions, VK_KHR_16BIT_STORAGE_EXTENSION_NAME);
+    checkExtSupportness(availableExtensions, VK_EXT_MESH_SHADER_EXTENSION_NAME);
+    checkExtSupportness(availableExtensions, VK_KHR_SPIRV_1_4_EXTENSION_NAME);
+    checkExtSupportness(availableExtensions, VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME);
 }
 
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -579,24 +588,13 @@ int main(int argc, const char** argv)
 
     VkPhysicalDeviceMemoryProperties memoryProps = {};
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProps);
-    
-    if (argc == 3)
-    {
-        char* ending;
-        modelScale = strtof(argv[2], &ending);
-        assert(ending == 0);
-    }
 
-    Mesh mesh;
-    bool rcm = loadMesh(mesh, argv[1]);
+    Geometry geometry;
+    bool rcm = loadMesh(geometry, argv[1], meshShadingSupported);
     assert(rcm);
-    if (meshShadingSupported)
-    {
-        buildMeshlets(mesh);
 
-        printf("mesh data size: %d\n", (uint32_t)mesh.meshletdata.size());
-        printf("meshlet size: %d\n", (uint32_t)mesh.meshlets.size());
-    }
+    loadMesh(geometry, "../data/venus.obj", meshShadingSupported);
+    assert(rcm);
 
     Buffer scratch = {};
     createBuffer(scratch, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
@@ -615,13 +613,13 @@ int main(int argc, const char** argv)
         createBuffer(mdb, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     }
 
-    uploadBuffer(device, cmdPool, cmdBuffer, queue, vb, scratch, mesh.vertices.data(), mesh.vertices.size() * sizeof(Vertex));
-    uploadBuffer(device, cmdPool, cmdBuffer, queue, ib, scratch, mesh.indices.data(), mesh.indices.size() * sizeof(uint32_t));
+    uploadBuffer(device, cmdPool, cmdBuffer, queue, vb, scratch, geometry.vertices.data(), geometry.vertices.size() * sizeof(Vertex));
+    uploadBuffer(device, cmdPool, cmdBuffer, queue, ib, scratch, geometry.indices.data(), geometry.indices.size() * sizeof(uint32_t));
 
     if (meshShadingSupported)
     {
-        uploadBuffer(device, cmdPool, cmdBuffer, queue, mb, scratch, mesh.meshlets.data(), mesh.meshlets.size() * sizeof(Meshlet));
-        uploadBuffer(device, cmdPool, cmdBuffer, queue, mdb, scratch, mesh.meshletdata.data(), mesh.meshletdata.size() * sizeof(uint32_t));
+        uploadBuffer(device, cmdPool, cmdBuffer, queue, mb, scratch, geometry.meshlets.data(), geometry.meshlets.size() * sizeof(Meshlet));
+        uploadBuffer(device, cmdPool, cmdBuffer, queue, mdb, scratch, geometry.meshletdata.data(), geometry.meshletdata.size() * sizeof(uint32_t));
 
     }
 
@@ -637,33 +635,40 @@ int main(int argc, const char** argv)
 
 
     uint32_t drawCount = 3000;
+    double triangleCount = 0.0;
     std::vector<MeshDraw> meshDraws(drawCount);
     std::vector<MeshDrawCommand> meshDrawCmds(drawCount);
+
     srand(42);
     for (uint32_t i = 0; i < drawCount; i++)
     {
+        Mesh& mesh = geometry.meshes[rand() % geometry.meshes.size()];//rand() % geometry.meshes.size()
+
         meshDraws[i].pos[0] = (float(rand()) / RAND_MAX) * 40 -20;
         meshDraws[i].pos[1] = (float(rand()) / RAND_MAX) * 40 -20;
         meshDraws[i].pos[2] = (float(rand()) / RAND_MAX) * 40 -20;
         meshDraws[i].scale = (float(rand()) / RAND_MAX) + 1.f;
-
         meshDraws[i].orit = glm::rotate(
             glm::quat(1, 0, 0, 0)
             , glm::radians((float(rand()) / RAND_MAX) * 90.f)
             , glm::vec3((float(rand()) / RAND_MAX) * 2 - 1, (float(rand()) / RAND_MAX) * 2 - 1, (float(rand()) / RAND_MAX) * 2 - 1));
-
+        
+        meshDraws[i].meshletOffset = mesh.meshletOffset;
+        meshDraws[i].meshletCount = mesh.meshletCount;
 
         // fill draw commands
         meshDrawCmds[i] = {};
-        meshDrawCmds[i].indirect.indexCount = (uint32_t)mesh.indices.size();
+        meshDrawCmds[i].indirect.indexCount = mesh.indexCount;
         meshDrawCmds[i].indirect.instanceCount = 1;
-        meshDrawCmds[i].indirect.firstIndex = 0;
+        meshDrawCmds[i].indirect.firstIndex = mesh.indexOffset;
         meshDrawCmds[i].indirect.firstInstance = 0;
-        meshDrawCmds[i].indirect.vertexOffset = 0;
+        meshDrawCmds[i].indirect.vertexOffset = mesh.vertexOffset;
 
-        meshDrawCmds[i].indirectMS.groupCountX = uint32_t(mesh.meshlets.size() / 32 );
+        meshDrawCmds[i].indirectMS.groupCountX = uint32_t((mesh.meshletCount + 31) / 32);
         meshDrawCmds[i].indirectMS.groupCountY = 1;
         meshDrawCmds[i].indirectMS.groupCountZ = 1;
+
+        triangleCount += double(mesh.indexCount) / 3.;
     }
 
 
@@ -679,8 +684,8 @@ int main(int argc, const char** argv)
     uploadBuffer(device, cmdPool, cmdBuffer, queue, mdcb, scratch, meshDrawCmds.data(), meshDrawCmds.size() * sizeof(MeshDrawCommand));
 
     ProfilingData pd = {};
-    pd.meshletCount = (uint32_t)mesh.meshlets.size();
-    pd.primitiveCount = (uint32_t)(mesh.indices.size() / 3);
+    pd.meshletCount = (uint32_t)geometry.meshlets.size();
+    pd.primitiveCount = (uint32_t)(geometry.indices.size() / 3);
 
     double deltaTime = 0.;
     double avrageCpuTime = 0.;
@@ -901,7 +906,6 @@ int main(int argc, const char** argv)
 
         avrageCpuTime = avrageCpuTime * 0.95 + (frameCpuEnd - frameCpuBegin) * 0.05;
         avrageGpuTime = avrageGpuTime * 0.95 + (frameGpuEnd - frameGpuBegin) * 0.05;
-        double tps = double(mesh.indices.size() * drawCount / 3) * double(1000 / avrageGpuTime );
         pd.avgCpuTime = (float)avrageCpuTime;
         deltaTime += (frameCpuEnd - frameCpuBegin);
         pd.cpuTime = float(frameCpuEnd - frameCpuBegin);
@@ -909,7 +913,7 @@ int main(int argc, const char** argv)
         pd.avgGpuTime = float(avrageGpuTime);
         pd.uiTime = float(frameUIEnd - frameUIBegin);
         pd.waitTime = float(waitTimeEnd - waitTimeBegin);
-        pd.trianglesPerSecond = float(tps * 1e-9);
+        pd.trianglesPerSecond = float(triangleCount * 1e-9 *  double(1000 / avrageGpuTime));
 	}
 
     VK_CHECK(vkDeviceWaitIdle(device));
