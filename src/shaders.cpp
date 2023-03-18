@@ -357,6 +357,26 @@ VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache
     return pipeline;
 }
 
+VkPipeline createComputePipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, const Shader& shader)
+{
+    assert(shader.stage == VK_SHADER_STAGE_COMPUTE_BIT);
+
+    VkComputePipelineCreateInfo createInfo = { VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
+
+    VkPipelineShaderStageCreateInfo stage = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
+    stage.module = shader.module;
+    stage.stage = shader.stage;
+    stage.pName = "main";
+
+    createInfo.stage = stage;
+    createInfo.layout = layout;
+
+    VkPipeline pipeline = 0;
+    VK_CHECK(vkCreateComputePipelines(device, pipelineCache, 1, &createInfo, 0, &pipeline));
+
+    return pipeline;
+}
+
 static uint32_t gatherResources(Shaders shaders, VkDescriptorType(&resourceTypes)[32])
 {
     uint32_t resourceMask = 0;
