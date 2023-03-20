@@ -15,6 +15,10 @@
 
 layout(local_size_x = TASKGP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
+layout(push_constant) uniform block 
+{
+    Globals globals;
+};
 
 layout(binding = 0) readonly buffer MeshDraws
 {
@@ -60,10 +64,12 @@ void main()
     vec3 cone_center = rotateQuat(meshlets[mi].center, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
     float cone_radians = meshlets[mi].radians;
     float cone_cutoff = int(meshlets[mi].cone_cutoff) / 127.0;
-
+    vec3 cameraPos = globals.cameraPos;
     sharedCount = 0;
+    
     barrier();
-    bool accept = !coneCull(cone_center, cone_radians, cone_axis, cone_cutoff, vec3(0, 0, 0));
+
+    bool accept = !coneCull(cone_center, cone_radians, cone_axis, cone_cutoff, cameraPos);
     accept = (accept == mLocalId < meshDraw.meshletCount);
 
     if(accept)

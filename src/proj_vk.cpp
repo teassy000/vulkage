@@ -30,6 +30,16 @@
 #include <meshoptimizer.h>
 
 
+struct Camera
+{
+    glm::vec3 dir{ 0.f, 0.f, -1.f };
+    glm::vec3 lookAt{ 0.f, 0.f, -1.f };
+    glm::vec3 up{ 0.f, 1.f, 0.f };
+    glm::vec3 pos{ 0.f, 0.f, 0.f };
+};
+
+static Camera camera = {};
+
 static bool meshShadingEnabled = true;
 
 static Input input = {};
@@ -128,7 +138,16 @@ VkQueryPool createQueryPool(VkDevice device, uint32_t queryCount)
 
 struct alignas(16) Globals
 {
-    glm::mat4 projection;
+    glm::mat4 vp;
+    
+    glm::vec3 cameraPos;
+};
+
+struct MeshDrawCull
+{
+    float znear;
+    float zfar;
+    float frustum[4];
 };
 
 struct alignas(16) MeshDraw
@@ -136,6 +155,9 @@ struct alignas(16) MeshDraw
     glm::vec3 pos;
     float scale;
     glm::quat orit;
+
+    glm::vec3 center;
+    float radius;
    
     uint32_t indexOffset;
     uint32_t indexCount;
@@ -173,6 +195,9 @@ struct alignas(16) Meshlet
 
 struct Mesh
 {
+    glm::vec3 center;
+    float   radius;
+
     uint32_t meshletOffset;
     uint32_t meshletCount;
 
@@ -294,7 +319,6 @@ bool loadMesh(Geometry& result, const char* path, bool buildMeshlets)
             meshopt_Bounds bounds = meshopt_computeMeshletBounds(&meshlet_vertices[meshlet.vertex_offset], &meshlet_triangles[meshlet.triangle_offset]
                 , meshlet.triangle_count, &vertices[0].vx, vertices.size(), sizeof(Vertex));
 
-
             m.dataOffset = uint32_t(dataOffset);
             m.triangleCount = meshlet.triangle_count;
             m.vertexCount = meshlet.vertex_count;
@@ -312,8 +336,23 @@ bool loadMesh(Geometry& result, const char* path, bool buildMeshlets)
             result.meshlets.push_back(m);
         }
     }
-    
+    glm::vec3 meshCenter = {};
+
+    for (Vertex& v : vertices) {
+        meshCenter += glm::vec3(v.vx, v.vy, v.vz);
+    }
+
+    meshCenter /= float(vertices.size());
+
+    float radius = 0.0;
+    for (Vertex& v : vertices) {
+        radius = glm::max(radius, glm::distance(meshCenter, glm::vec3(v.vx, v.vy, v.vz)));
+    }
+
+
     Mesh mesh = {};
+    mesh.center = meshCenter;
+    mesh.radius = radius;
     mesh.indexCount = indexCount;
     mesh.indexOffset = indexOffset;
     mesh.meshletCount = meshletCount;
@@ -364,6 +403,53 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
         if (key == GLFW_KEY_ESCAPE)
         {
             exit(0);
+        }
+        if (key == GLFW_KEY_W)
+        {
+            camera.pos.z += 0.5f;
+            camera.lookAt = camera.pos + camera.dir;
+        }
+        if (key == GLFW_KEY_S)
+        {
+            camera.pos.z -= 0.5f;
+            camera.lookAt = camera.pos + camera.dir;
+        }
+        if (key == GLFW_KEY_A)
+        {
+            camera.pos.x -= 0.5;
+            camera.lookAt = camera.pos + camera.dir;
+        }
+        if (key == GLFW_KEY_D)
+        {
+            camera.pos.x += 0.5;
+            camera.lookAt = camera.pos + camera.dir;
+        }
+        if (key == GLFW_KEY_R)
+        {
+            camera = Camera{};
+        }
+    }
+    if(action == GLFW_REPEAT)
+    {
+        if (key == GLFW_KEY_W)
+        {
+            camera.pos.z += 0.5f;
+            camera.lookAt = camera.pos + camera.dir;
+        }
+        if (key == GLFW_KEY_S)
+        {
+            camera.pos.z -= 0.5f;
+            camera.lookAt = camera.pos + camera.dir;
+        }
+        if (key == GLFW_KEY_A)
+        {
+            camera.pos.x -= 0.5;
+            camera.lookAt = camera.pos + camera.dir;
+        }
+        if (key == GLFW_KEY_D)
+        {
+            camera.pos.x += 0.5;
+            camera.lookAt = camera.pos + camera.dir;
         }
     }
 }
@@ -432,6 +518,11 @@ glm::mat4 persectiveProjection(float fovY, float aspectWbyH, float zNear)
         0.0f, f, 0.0f, 0.0f,
         0.0f, 0.0f, 0.0f, 1.0f,
         0.0f, 0.0f, zNear, 0.0f);
+}
+
+glm::vec4 normalizePlane(glm::vec4 p)
+{
+    return p / glm::length(p);
 }
 
 int main(int argc, const char** argv)
@@ -533,7 +624,7 @@ int main(int argc, const char** argv)
         assert(lsr);
     }
 
-    Program drawcmdProgram = createProgram(device, VK_PIPELINE_BIND_POINT_COMPUTE, { &drawcmdCS});
+    Program drawcmdProgram = createProgram(device, VK_PIPELINE_BIND_POINT_COMPUTE, { &drawcmdCS}, sizeof(MeshDrawCull));
     VkPipelineCache pipelineCache = 0;
     VkPipeline drawcmdPipeline = createComputePipeline(device, pipelineCache, drawcmdProgram.layout, drawcmdCS );
 
@@ -652,7 +743,7 @@ int main(int argc, const char** argv)
     srand(42);
     for (uint32_t i = 0; i < drawCount; i++)
     {
-        Mesh& mesh = geometry.meshes[rand() % geometry.meshes.size()];//rand() % geometry.meshes.size()
+        Mesh& mesh = geometry.meshes[rand() % geometry.meshes.size()];
 
         meshDraws[i].pos[0] = (float(rand()) / RAND_MAX) * 40 -20;
         meshDraws[i].pos[1] = (float(rand()) / RAND_MAX) * 40 -20;
@@ -662,12 +753,14 @@ int main(int argc, const char** argv)
             glm::quat(1, 0, 0, 0)
             , glm::radians((float(rand()) / RAND_MAX) * 90.f)
             , glm::vec3((float(rand()) / RAND_MAX) * 2 - 1, (float(rand()) / RAND_MAX) * 2 - 1, (float(rand()) / RAND_MAX) * 2 - 1));
-        
+       
         meshDraws[i].meshletOffset = mesh.meshletOffset;
         meshDraws[i].meshletCount = mesh.meshletCount;
         meshDraws[i].indexCount = mesh.indexCount;
         meshDraws[i].indexOffset = mesh.indexOffset;
         meshDraws[i].vertexOffset = mesh.vertexOffset;
+        meshDraws[i].center = mesh.center;
+        meshDraws[i].radius = mesh.radius;
 
         triangleCount += double(mesh.indexCount) / 3.;
     }
@@ -752,6 +845,10 @@ int main(int argc, const char** argv)
             ImGui::Text("draw/src: [%.2f]M", 1000.f / pd.avgCpuTime * drawCount * 1e-6);
             ImGui::Text("frame: [%.2f]fps", 1000.f / pd.avgCpuTime);
             ImGui::Checkbox("Mesh Shading", &meshShadingEnabled);
+            ImGui::Spacing();
+            ImGui::Text("camera: ");
+            ImGui::Text("pos: %.2f, %.2f, %.2f", camera.pos.x, camera.pos.y, camera.pos.z);
+            ImGui::Text("dir: %.2f, %.2f, %.2f", camera.lookAt.x, camera.lookAt.y, camera.lookAt.z);
 
             ImGui::End();
 
@@ -774,10 +871,27 @@ int main(int argc, const char** argv)
         vkCmdResetQueryPool(cmdBuffer, queryPool, 0, 128);
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 0);
         
+        glm::mat4 view = glm::lookAt(camera.pos, camera.lookAt, camera.up);
+        glm::mat4 projection = persectiveProjection(glm::radians(70.f), (float)swapchain.width / (float)swapchain.height, 0.5f);
+        Globals globals = {};
+        globals.vp = projection * view;
+        globals.cameraPos = camera.pos;
+
+        glm::mat4 projectionT = glm::transpose(projection);
+        glm::vec4 frustumX = normalizePlane(projectionT[3] - projectionT[0]);
+        glm::vec4 frustumY = normalizePlane(projectionT[3] - projectionT[1]);
+        MeshDrawCull drawCull = {};
+        drawCull.zfar = 200.f;
+        drawCull.znear = 0.5f;
+        drawCull.frustum[0] = frustumX.x;
+        drawCull.frustum[1] = frustumX.z;
+        drawCull.frustum[2] = frustumY.y;
+        drawCull.frustum[3] = frustumY.z;
 
         {
             vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, drawcmdPipeline);
 
+            vkCmdPushConstants(cmdBuffer, drawcmdProgram.layout, drawcmdProgram.pushConstantStages, 0, sizeof(drawCull), &drawCull);
             DescriptorInfo descInfos[2] = { mdrawb.buffer, dccb.buffer };
             vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, drawcmdProgram.updateTemplate, drawcmdProgram.layout, 0, descInfos);
             vkCmdDispatch(cmdBuffer, uint32_t((meshDraws.size() + 31) / 32), 1, 1);
@@ -786,7 +900,7 @@ int main(int argc, const char** argv)
             vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT , VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT
                 , 0, 0, 0, 1, &cmdEndBarrier, 0, 0);
 
-            vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 1);
+            vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, queryPool, 1);
         }
 
         VkImageMemoryBarrier renderBeginBarriers[] = {
@@ -819,10 +933,6 @@ int main(int argc, const char** argv)
         vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
 
         bool meshShadingOn = meshShadingEnabled && meshShadingSupported;
-    
-        glm::mat4 projection = persectiveProjection(glm::radians(70.f), (float)swapchain.width / (float)swapchain.height, 0.01f);
-        Globals globals = {};
-        globals.projection = projection;
 
         if(meshShadingOn)
         {
@@ -834,7 +944,6 @@ int main(int argc, const char** argv)
             vkCmdPushConstants(cmdBuffer, meshProgramMS.layout, meshProgramMS.pushConstantStages, 0, sizeof(globals), &globals);
            
             vkCmdDrawMeshTasksIndirectEXT(cmdBuffer, dccb.buffer, offsetof(MeshDrawCommand, indirectMS), (uint32_t)meshDraws.size(), sizeof(MeshDrawCommand));
-            
         }
         else
         {

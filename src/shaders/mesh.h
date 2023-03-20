@@ -30,6 +30,14 @@ struct TaskPayload
 struct Globals
 {
     mat4 projection;
+    vec3 cameraPos;
+};
+
+struct MeshDrawCull
+{
+    float znear;
+    float zfar;
+    float frustum[4];
 };
 
 struct MeshDraw
@@ -37,6 +45,9 @@ struct MeshDraw
     vec3 pos;
     float scale;
     vec4 orit;
+       
+    vec3 center;
+    float radius;
 
     uint indexOffset;
     uint indexCount;

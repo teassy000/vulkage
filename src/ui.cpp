@@ -151,7 +151,14 @@ void updateUI(UI& ui, const VkPhysicalDeviceMemoryProperties& memoryProps)
     VkDeviceSize vbSize = imDrawData->TotalVtxCount * sizeof(ImDrawVert);
     VkDeviceSize ibSize = imDrawData->TotalIdxCount * sizeof(ImDrawIdx);
 
+
     assert(vbSize && ibSize);
+
+    // MAGIC: hard-code to fit the atomic no coherent memory.
+    vbSize += (0x40 - (vbSize % 0x40));
+    ibSize += (0x40 - (ibSize % 0x40));
+
+    assert((vbSize % 0x40 == 0) && (ibSize % 0x40 == 0));
 
     if (vb.buffer == VK_NULL_HANDLE || ui.vtxCount != imDrawData->TotalVtxCount) {
         destroyBuffer(device, vb);

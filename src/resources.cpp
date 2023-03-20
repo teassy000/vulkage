@@ -89,7 +89,7 @@ void flushBuffer(VkDevice device, const Buffer& buffer, uint32_t offset /* = 0*/
 {
     VkMappedMemoryRange range = { VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE };
     range.memory = buffer.memory;
-    range.size = buffer.size;
+    range.size = VK_WHOLE_SIZE;
     range.offset = offset;
 
     VK_CHECK(vkFlushMappedMemoryRanges(device, 1, &range));
