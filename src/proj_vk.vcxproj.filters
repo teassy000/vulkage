@@ -246,6 +246,9 @@
     <ClInclude Include="ui.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="math.h">
+      <Filter>src</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="shaders\meshlet.mesh.glsl">

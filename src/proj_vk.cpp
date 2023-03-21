@@ -1,18 +1,12 @@
 // proj_vk.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
 #include "common.h"
+#include "math.h"
 
 #include "resources.h"
 #include "swapchain.h"
 #include "shaders.h"
 #include "device.h"
-
-// math
-#include <glm/ext/quaternion_float.hpp>
-#include <glm/ext/quaternion_transform.hpp>
-#include <glm/vec2.hpp>
-#include <glm/vec3.hpp>
-#include <glm/vec4.hpp>
 
 // for ui
 #include <imgui.h>
@@ -32,10 +26,10 @@
 
 struct Camera
 {
-    glm::vec3 dir{ 0.f, 0.f, -1.f };
-    glm::vec3 lookAt{ 0.f, 0.f, -1.f };
-    glm::vec3 up{ 0.f, 1.f, 0.f };
-    glm::vec3 pos{ 0.f, 0.f, 0.f };
+    vec3 dir{ 0.f, 0.f, -1.f };
+    vec3 lookAt{ 0.f, 0.f, -1.f };
+    vec3 up{ 0.f, 1.f, 0.f };
+    vec3 pos{ 0.f, 0.f, 0.f };
 };
 
 static Camera camera = {};
@@ -138,9 +132,9 @@ VkQueryPool createQueryPool(VkDevice device, uint32_t queryCount)
 
 struct alignas(16) Globals
 {
-    glm::mat4 vp;
+    mat4 vp;
     
-    glm::vec3 cameraPos;
+    vec3 cameraPos;
 };
 
 struct MeshDrawCull
@@ -152,11 +146,11 @@ struct MeshDrawCull
 
 struct alignas(16) MeshDraw
 {
-    glm::vec3 pos;
+    vec3 pos;
     float scale;
-    glm::quat orit;
+    quat orit;
 
-    glm::vec3 center;
+    vec3 center;
     float radius;
    
     uint32_t indexOffset;
@@ -182,7 +176,7 @@ struct Vertex
 
 struct alignas(16) Meshlet
 {
-    glm::vec3 center;
+    vec3 center;
     float radians;
     int8_t cone_axis[3];
     int8_t cone_cutoff;
@@ -195,7 +189,7 @@ struct alignas(16) Meshlet
 
 struct Mesh
 {
-    glm::vec3 center;
+    vec3 center;
     float   radius;
 
     uint32_t meshletOffset;
@@ -336,17 +330,18 @@ bool loadMesh(Geometry& result, const char* path, bool buildMeshlets)
             result.meshlets.push_back(m);
         }
     }
-    glm::vec3 meshCenter = {};
+
+    vec3 meshCenter = {};
 
     for (Vertex& v : vertices) {
-        meshCenter += glm::vec3(v.vx, v.vy, v.vz);
+        meshCenter += vec3(v.vx, v.vy, v.vz);
     }
 
     meshCenter /= float(vertices.size());
 
     float radius = 0.0;
     for (Vertex& v : vertices) {
-        radius = glm::max(radius, glm::distance(meshCenter, glm::vec3(v.vx, v.vy, v.vz)));
+        radius = glm::max(radius, glm::distance(meshCenter, vec3(v.vx, v.vy, v.vz)));
     }
 
 
@@ -509,18 +504,18 @@ struct ProfilingData
     uint32_t meshletCount;
 };
 
-glm::mat4 persectiveProjection(float fovY, float aspectWbyH, float zNear)
+mat4 persectiveProjection(float fovY, float aspectWbyH, float zNear)
 {
     float f = 1.0f / tanf(fovY/ 2.0f);
 
-    return glm::mat4(
+    return mat4(
         f / aspectWbyH, 0.0f, 0.0f, 0.0f,
         0.0f, f, 0.0f, 0.0f,
         0.0f, 0.0f, 0.0f, 1.0f,
         0.0f, 0.0f, zNear, 0.0f);
 }
 
-glm::vec4 normalizePlane(glm::vec4 p)
+vec4 normalizePlane(vec4 p)
 {
     return p / glm::length(p);
 }
@@ -737,7 +732,7 @@ int main(int argc, const char** argv)
     prepareUIResources(ui, memoryProps, cmdPool);
 
 
-    uint32_t drawCount = 3000;
+    uint32_t drawCount = 10000;
     double triangleCount = 0.0;
     std::vector<MeshDraw> meshDraws(drawCount);
     srand(42);
@@ -750,9 +745,9 @@ int main(int argc, const char** argv)
         meshDraws[i].pos[2] = (float(rand()) / RAND_MAX) * 40 -20;
         meshDraws[i].scale = (float(rand()) / RAND_MAX) + 1.f;
         meshDraws[i].orit = glm::rotate(
-            glm::quat(1, 0, 0, 0)
+            quat(1, 0, 0, 0)
             , glm::radians((float(rand()) / RAND_MAX) * 90.f)
-            , glm::vec3((float(rand()) / RAND_MAX) * 2 - 1, (float(rand()) / RAND_MAX) * 2 - 1, (float(rand()) / RAND_MAX) * 2 - 1));
+            , vec3((float(rand()) / RAND_MAX) * 2 - 1, (float(rand()) / RAND_MAX) * 2 - 1, (float(rand()) / RAND_MAX) * 2 - 1));
        
         meshDraws[i].meshletOffset = mesh.meshletOffset;
         meshDraws[i].meshletCount = mesh.meshletCount;
@@ -871,15 +866,15 @@ int main(int argc, const char** argv)
         vkCmdResetQueryPool(cmdBuffer, queryPool, 0, 128);
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 0);
         
-        glm::mat4 view = glm::lookAt(camera.pos, camera.lookAt, camera.up);
-        glm::mat4 projection = persectiveProjection(glm::radians(70.f), (float)swapchain.width / (float)swapchain.height, 0.5f);
+        mat4 view = glm::lookAt(camera.pos, camera.lookAt, camera.up);
+        mat4 projection = persectiveProjection(glm::radians(70.f), (float)swapchain.width / (float)swapchain.height, 0.5f);
         Globals globals = {};
         globals.vp = projection * view;
         globals.cameraPos = camera.pos;
 
-        glm::mat4 projectionT = glm::transpose(projection);
-        glm::vec4 frustumX = normalizePlane(projectionT[3] - projectionT[0]);
-        glm::vec4 frustumY = normalizePlane(projectionT[3] - projectionT[1]);
+        mat4 projectionT = glm::transpose(projection);
+        vec4 frustumX = normalizePlane(projectionT[3] - projectionT[0]);
+        vec4 frustumY = normalizePlane(projectionT[3] - projectionT[1]);
         MeshDrawCull drawCull = {};
         drawCull.zfar = 200.f;
         drawCull.znear = 0.5f;
