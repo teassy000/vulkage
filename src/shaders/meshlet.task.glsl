@@ -26,12 +26,17 @@ layout(binding = 0) readonly buffer DrawCommands
     MeshDrawCommand drawCmds[];
 };
 
-layout(binding = 1) readonly buffer MeshDraws
+layout(binding = 1) readonly buffer Meshes
+{
+    Mesh meshes[];
+};
+
+layout(binding = 2) readonly buffer MeshDraws
 {
     MeshDraw meshDraws[];
 };
 
-layout(binding = 2) readonly buffer Meshlets
+layout(binding = 3) readonly buffer Meshlets
 {
     Meshlet meshlets[];
 };
@@ -59,11 +64,14 @@ void main()
     //uint drawId = gl_DrawIDARB;  //TODO: the gl_DrawIDARB is alwasy 0 in mesh shader for some reason, should figure it out why
     uint drawId = drawCmds[gl_DrawIDARB].drawId;
     MeshDraw meshDraw = meshDraws[drawId];
+    Mesh mesh = meshes[meshDraw.meshIdx];
 
     uint mgi = gl_WorkGroupID.x ;
     uint ti = gl_LocalInvocationID.x;
-    uint mi = mgi * TASKGP_SIZE + ti + meshDraw.meshletOffset;
+    uint mi = mgi * TASKGP_SIZE + ti + mesh.meshletOffset;
     uint mLocalId = mgi * TASKGP_SIZE + ti;
+
+
 
 #if CULL
     vec3 axit = vec3( int(meshlets[mi].cone_axis[0]) / 127.0, int(meshlets[mi].cone_axis[1]) / 127.0, int(meshlets[mi].cone_axis[2]) / 127.0); 
@@ -77,7 +85,7 @@ void main()
     barrier();
 
     bool accept = !coneCull(cone_center, cone_radians, cone_axis, cone_cutoff, cameraPos);
-    accept = (accept == mLocalId < meshDraw.meshletCount);
+    accept = (accept == mLocalId < mesh.meshletCount);
 
     if(accept)
     {
@@ -95,7 +103,7 @@ void main()
     
 
 
-    uint emitCount = min(TASKGP_SIZE, meshDraw.meshletCount - mLocalId );
+    uint emitCount = min(TASKGP_SIZE, mesh.meshletCount - mLocalId );
     EmitMeshTasksEXT(emitCount, 1, 1);
 #endif
 

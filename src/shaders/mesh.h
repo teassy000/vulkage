@@ -40,20 +40,26 @@ struct MeshDrawCull
     float frustum[4];
 };
 
+struct Mesh
+{
+    vec3 center;
+    float radius;
+
+    uint vertexOffset;
+    uint meshletOffset;
+    uint meshletCount;
+    uint indexOffset;
+    uint indexCount;
+};
+
 struct MeshDraw
 {
     vec3 pos;
     float scale;
     vec4 orit;
-       
-    vec3 center;
-    float radius;
 
-    uint indexOffset;
-    uint indexCount;
-    uint vertexOffset;
-    uint meshletOffset;
-    uint meshletCount;
+    uint meshIdx;
+    uint vertexOffset; // same as mesh[meshIdx], for data locality
 };
 
 struct MeshDrawCommand

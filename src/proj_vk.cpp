@@ -149,15 +149,9 @@ struct alignas(16) MeshDraw
     vec3 pos;
     float scale;
     quat orit;
-
-    vec3 center;
-    float radius;
-   
-    uint32_t indexOffset;
-    uint32_t indexCount;
+    
+    uint32_t meshIdx;
     uint32_t vertexOffset;
-    uint32_t meshletOffset;
-    uint32_t meshletCount;
 };
 
 struct MeshDrawCommand
@@ -188,16 +182,14 @@ struct alignas(16) Meshlet
 };
 
 
-struct Mesh
+struct alignas(16) Mesh
 {
     vec3 center;
     float   radius;
 
+    uint32_t vertexOffset;
     uint32_t meshletOffset;
     uint32_t meshletCount;
-
-    uint32_t vertexOffset;
-
     uint32_t indexOffset;
     uint32_t indexCount;
 };
@@ -698,28 +690,32 @@ int main(int argc, const char** argv)
     Buffer scratch = {};
     createBuffer(scratch, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
+    Buffer mb = {};
+    createBuffer(mb, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
     Buffer vb = {};
     createBuffer(vb, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     Buffer ib = {};
     createBuffer(ib, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    Buffer mb = {}; // meshlet buffer
+    Buffer mlb = {}; // meshlet buffer
     Buffer mdb = {}; // meshlet data buffer
     if (meshShadingSupported)
     {
-        createBuffer(mb, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        createBuffer(mlb, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
         createBuffer(mdb, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     }
+
+    uploadBuffer(device, cmdPool, cmdBuffer, queue, mb, scratch, geometry.meshes.data(), geometry.meshes.size() * sizeof(Mesh));
 
     uploadBuffer(device, cmdPool, cmdBuffer, queue, vb, scratch, geometry.vertices.data(), geometry.vertices.size() * sizeof(Vertex));
     uploadBuffer(device, cmdPool, cmdBuffer, queue, ib, scratch, geometry.indices.data(), geometry.indices.size() * sizeof(uint32_t));
 
     if (meshShadingSupported)
     {
-        uploadBuffer(device, cmdPool, cmdBuffer, queue, mb, scratch, geometry.meshlets.data(), geometry.meshlets.size() * sizeof(Meshlet));
+        uploadBuffer(device, cmdPool, cmdBuffer, queue, mlb, scratch, geometry.meshlets.data(), geometry.meshlets.size() * sizeof(Meshlet));
         uploadBuffer(device, cmdPool, cmdBuffer, queue, mdb, scratch, geometry.meshletdata.data(), geometry.meshletdata.size() * sizeof(uint32_t));
-
     }
 
     Image colorTarget = {};
@@ -733,35 +729,31 @@ int main(int argc, const char** argv)
     prepareUIResources(ui, memoryProps, cmdPool);
 
 
-    uint32_t drawCount = 30'000;
+    uint32_t drawCount = 1000;
     double triangleCount = 0.0;
     std::vector<MeshDraw> meshDraws(drawCount);
+    
     srand(42);
     for (uint32_t i = 0; i < drawCount; i++)
     {
-        Mesh& mesh = geometry.meshes[rand() % geometry.meshes.size()];
+        uint32_t meshIdx = rand() % geometry.meshes.size();
+        Mesh& mesh = geometry.meshes[meshIdx];
 
         meshDraws[i].pos[0] = (float(rand()) / RAND_MAX) * 40 -20;
         meshDraws[i].pos[1] = (float(rand()) / RAND_MAX) * 40 -20;
         meshDraws[i].pos[2] = (float(rand()) / RAND_MAX) * 40 -20;
-        meshDraws[i].scale = (float(rand()) / RAND_MAX) + 1.f;
+        meshDraws[i].scale = (float(rand()) / RAND_MAX)+ 1.f;
         meshDraws[i].orit = glm::rotate(
             quat(1, 0, 0, 0)
             , glm::radians((float(rand()) / RAND_MAX) * 90.f)
             , vec3((float(rand()) / RAND_MAX) * 2 - 1, (float(rand()) / RAND_MAX) * 2 - 1, (float(rand()) / RAND_MAX) * 2 - 1));
        
-        meshDraws[i].meshletOffset = mesh.meshletOffset;
-        meshDraws[i].meshletCount = mesh.meshletCount;
-        meshDraws[i].indexCount = mesh.indexCount;
-        meshDraws[i].indexOffset = mesh.indexOffset;
+        meshDraws[i].meshIdx = meshIdx;
         meshDraws[i].vertexOffset = mesh.vertexOffset;
-        meshDraws[i].center = mesh.center;
-        meshDraws[i].radius = mesh.radius;
+
 
         triangleCount += double(mesh.indexCount) / 3.;
     }
-
-
 
     Buffer mdrb = {}; //mesh draw buffer
     createBuffer(mdrb, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
@@ -898,7 +890,7 @@ int main(int argc, const char** argv)
 
             vkCmdPushConstants(cmdBuffer, drawcmdProgram.layout, drawcmdProgram.pushConstantStages, 0, sizeof(drawCull), &drawCull);
             
-            DescriptorInfo descInfos[] = { mdrb.buffer, mdcb.buffer, dccb.buffer };
+            DescriptorInfo descInfos[] = {mb.buffer, mdrb.buffer, mdcb.buffer, dccb.buffer };
             vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, drawcmdProgram.updateTemplate, drawcmdProgram.layout, 0, descInfos);
 
             vkCmdDispatch(cmdBuffer, uint32_t((meshDraws.size() + 63) / 64), 1, 1);
@@ -945,7 +937,7 @@ int main(int argc, const char** argv)
         {
             vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, meshPipelineMS);
  
-            DescriptorInfo descInfos[] = { mdcb.buffer, mdrb.buffer, mb.buffer, mdb.buffer, vb.buffer};
+            DescriptorInfo descInfos[] = { mdcb.buffer, mb.buffer, mdrb.buffer, mlb.buffer, mdb.buffer, vb.buffer};
  
             vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, meshProgramMS.updateTemplate, meshProgramMS.layout, 0, descInfos);
             vkCmdPushConstants(cmdBuffer, meshProgramMS.layout, meshProgramMS.pushConstantStages, 0, sizeof(globals), &globals);
@@ -1066,9 +1058,10 @@ int main(int argc, const char** argv)
     destroyBuffer(device, scratch);
     destroyBuffer(device, ib); 
     destroyBuffer(device, vb);
+    destroyBuffer(device, mb);
     if (meshShadingSupported)
     {
-        destroyBuffer(device, mb);
+        destroyBuffer(device, mlb);
         destroyBuffer(device, mdb);
     }
 

@@ -13,17 +13,22 @@ layout(push_constant) uniform block
     MeshDrawCull cull;
 };
 
-layout(binding = 0) readonly buffer MeshDraws
+layout(binding = 0) readonly buffer Meshes
+{
+    Mesh meshes[];
+};
+
+layout(binding = 1) readonly buffer MeshDraws
 {
     MeshDraw draws[];
 };
 
-layout(binding = 1) writeonly buffer DrawCommands
+layout(binding = 2) writeonly buffer DrawCommands
 {
     MeshDrawCommand drawCmds[];
 };  
 
-layout(binding = 2) buffer DrawCommandCount
+layout(binding = 3) buffer DrawCommandCount
 {
     uint drawCmdCount;
 };
@@ -34,9 +39,11 @@ void main()
     uint gi = gl_WorkGroupID.x;
     uint di = gi * TASKGP_SIZE + ti;
 
+    Mesh mesh = meshes[draws[di].meshIdx];
+
     // TODO: update camera pos so the frustum could always updated
-    vec3 center = rotateQuat(draws[di].center, draws[di].orit) * draws[di].scale + draws[di].pos;
-    float radius = draws[di].radius * draws[di].scale;
+    vec3 center = rotateQuat(mesh.center, draws[di].orit) * draws[di].scale + draws[di].pos;
+    float radius = mesh.radius * draws[di].scale;
 
     bool visible = true;
     visible = visible && (center.z * cull.frustum[1] + abs(center.x) * cull.frustum[0] > -radius);
@@ -51,13 +58,15 @@ void main()
     {
         uint dci = atomicAdd(drawCmdCount, 1);
 
+        Mesh mesh = meshes[draws[di].meshIdx];
+
         drawCmds[dci].drawId = di;
-        drawCmds[dci].indexCount = draws[di].indexCount;
+        drawCmds[dci].indexCount = mesh.indexCount;
         drawCmds[dci].instanceCount = 1;
-        drawCmds[dci].firstIndex = draws[di].indexOffset;
-        drawCmds[dci].vertexOffset = draws[di].vertexOffset;
+        drawCmds[dci].firstIndex = mesh.indexOffset;
+        drawCmds[dci].vertexOffset = mesh.vertexOffset;
         drawCmds[dci].firstInstance = 0;
-        drawCmds[dci].local_x = (draws[di].meshletCount +63)/64; 
+        drawCmds[dci].local_x = (mesh.meshletCount +63)/64; 
         drawCmds[dci].local_y = 1;
         drawCmds[dci].local_z = 1;
     }
