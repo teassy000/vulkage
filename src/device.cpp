@@ -169,6 +169,7 @@ VkDevice createDevice(VkInstance instance, VkPhysicalDevice physicalDevice, uint
     {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
         VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
+        VK_KHR_DRAW_INDIRECT_COUNT_EXTENSION_NAME,
     };
 
     if (meshShadingSupported)

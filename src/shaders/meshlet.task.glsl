@@ -20,12 +20,18 @@ layout(push_constant) uniform block
     Globals globals;
 };
 
-layout(binding = 0) readonly buffer MeshDraws
+
+layout(binding = 0) readonly buffer DrawCommands 
+{
+    MeshDrawCommand drawCmds[];
+};
+
+layout(binding = 1) readonly buffer MeshDraws
 {
     MeshDraw meshDraws[];
 };
 
-layout(binding = 1) readonly buffer Meshlets
+layout(binding = 2) readonly buffer Meshlets
 {
     Meshlet meshlets[];
 };
@@ -50,7 +56,8 @@ bool coneCull(vec3 center, float radius, vec3 cone_axis, float cone_cutoff, vec3
 
 void main()
 {
-    uint drawId = gl_DrawIDARB;  //TODO: the gl_DrawIDARB is alwasy 0 in mesh shader for some reason, should figure it out why
+    //uint drawId = gl_DrawIDARB;  //TODO: the gl_DrawIDARB is alwasy 0 in mesh shader for some reason, should figure it out why
+    uint drawId = drawCmds[gl_DrawIDARB].drawId;
     MeshDraw meshDraw = meshDraws[drawId];
 
     uint mgi = gl_WorkGroupID.x ;

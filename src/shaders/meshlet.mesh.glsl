@@ -22,27 +22,27 @@ layout(push_constant) uniform block
     Globals globals;
 };
 
-layout(binding = 0) readonly buffer MeshDraws 
+layout(binding = 1) readonly buffer MeshDraws 
 {
     MeshDraw meshDraws[];
 };
 
-layout(binding = 1) readonly buffer Meshlets
+layout(binding = 2) readonly buffer Meshlets
 {
     Meshlet meshlets[];
 };
 
-layout(binding = 2) readonly buffer MeshletData
+layout(binding = 3) readonly buffer MeshletData
 {
     uint meshletData[];
 };
 
-layout(binding = 2) readonly buffer MeshletData8
+layout(binding = 3) readonly buffer MeshletData8
 {
     uint8_t meshletData8[];
 };
 
-layout(binding = 3) readonly buffer Vertices
+layout(binding = 4) readonly buffer Vertices
 {
     Vertex vertices[];
 };
@@ -85,7 +85,8 @@ void main()
     vec3 mcolor = vec3(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255)) / 255.0;
 #endif
 
-    for(uint i = ti; i < uint(meshlets[mi].vertexCount); i += MESHGP_SIZE)
+    // TODO: maybe remove the branch would help
+    for(uint i = ti; i < uint(meshlets[mi].vertexCount); i += MESHGP_SIZE )
     {
         uint vi = meshletData[vertexOffset + i];
     

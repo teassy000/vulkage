@@ -1,5 +1,5 @@
-#define TASKGP_SIZE 32 
-#define MESHGP_SIZE 32
+#define TASKGP_SIZE 64
+#define MESHGP_SIZE 64
 
 struct Vertex
 {
@@ -58,11 +58,13 @@ struct MeshDraw
 
 struct MeshDrawCommand
 {
+    uint    drawId;
+
     // struct VkDrawIndexedIndirectCommand
     uint    indexCount;
     uint    instanceCount;
     uint    firstIndex;
-    uint     vertexOffset;
+    uint    vertexOffset;
     uint    firstInstance;
     
     // struct VkDrawMeshTasksIndirectCommandEXT

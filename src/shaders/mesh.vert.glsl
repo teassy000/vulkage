@@ -14,13 +14,17 @@ layout(push_constant) uniform block
     Globals globals;
 };
 
-layout(binding = 0) readonly buffer MeshDraws
+layout(binding = 0) readonly buffer DrawCommands 
+{
+    MeshDrawCommand drawCmds[];
+};
+
+layout(binding = 1) readonly buffer MeshDraws
 {
     MeshDraw meshDraws[];
 };
 
-
-layout(binding = 1) readonly buffer Vertices
+layout(binding = 2) readonly buffer Vertices
 {
     Vertex vertices[];
 };
@@ -30,7 +34,10 @@ layout(location = 0) out vec4 color;
 
 void main()
 {
-    MeshDraw meshDraw = meshDraws[gl_DrawIDARB];
+    uint drawId = drawCmds[gl_DrawIDARB].drawId;
+    
+    MeshDraw meshDraw = meshDraws[drawId];
+
     vec3 pos = vec3(vertices[gl_VertexIndex].vx, vertices[gl_VertexIndex].vy, vertices[gl_VertexIndex].vz);
     vec3 norm = vec3(int(vertices[gl_VertexIndex].nx), int(vertices[gl_VertexIndex].ny), int(vertices[gl_VertexIndex].nz)) / 127.0 - 1;
     vec2 uv = vec2(vertices[gl_VertexIndex].tu, vertices[gl_VertexIndex].tv);

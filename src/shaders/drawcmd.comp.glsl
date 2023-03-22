@@ -23,6 +23,11 @@ layout(binding = 1) writeonly buffer DrawCommands
     MeshDrawCommand drawCmds[];
 };  
 
+layout(binding = 2) buffer DrawCommandCount
+{
+    uint drawCmdCount;
+};
+
 void main()
 {
     uint ti = gl_LocalInvocationID.x;
@@ -40,15 +45,21 @@ void main()
     visible = visible && (center.z + radius > cull.znear);
     visible = visible && (center.z - radius < cull.zfar);
 
+    //visible = visible && false;
 
-    drawCmds[di].indexCount = draws[di].indexCount;
-    drawCmds[di].instanceCount = visible ? 1 : 0;
-    drawCmds[di].firstIndex = draws[di].indexOffset;
-    drawCmds[di].vertexOffset = draws[di].vertexOffset;
-    drawCmds[di].firstInstance = 0;
-    
-    drawCmds[di].local_x = visible ? ((draws[di].meshletCount +31)/32): 0; 
-    drawCmds[di].local_y = 1;
-    drawCmds[di].local_z = 1;
+    if(visible)
+    {
+        uint dci = atomicAdd(drawCmdCount, 1);
+
+        drawCmds[dci].drawId = di;
+        drawCmds[dci].indexCount = draws[di].indexCount;
+        drawCmds[dci].instanceCount = 1;
+        drawCmds[dci].firstIndex = draws[di].indexOffset;
+        drawCmds[dci].vertexOffset = draws[di].vertexOffset;
+        drawCmds[dci].firstInstance = 0;
+        drawCmds[dci].local_x = (draws[di].meshletCount +63)/64; 
+        drawCmds[dci].local_y = 1;
+        drawCmds[dci].local_z = 1;
+    }
 }
 
