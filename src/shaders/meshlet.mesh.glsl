@@ -88,7 +88,7 @@ void main()
     // TODO: maybe remove the branch would help
     for(uint i = ti; i < uint(meshlets[mi].vertexCount); i += MESHGP_SIZE )
     {
-        uint vi = meshletData[vertexOffset + i];
+        uint vi = meshletData[vertexOffset + i] + meshDraw.vertexOffset;
     
         vec3 pos = vec3(vertices[vi].vx, vertices[vi].vy, vertices[vi].vz);
         vec3 norm = vec3(int(vertices[vi].nx), int(vertices[vi].ny), int(vertices[vi].nz)) / 127.0 - 1.0;

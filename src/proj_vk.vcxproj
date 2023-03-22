@@ -193,7 +193,7 @@
     <ClCompile Include="..\extern\meshoptimizer\src\vfetchoptimizer.cpp" />
     <ClCompile Include="..\extern\volk\volk.c" />
     <ClCompile Include="device.cpp" />
-    <ClCompile Include="proj_vk.cpp" />
+    <ClCompile Include="vk_ms.cpp" />
     <ClCompile Include="resources.cpp" />
     <ClCompile Include="shaders.cpp" />
     <ClCompile Include="swapchain.cpp" />

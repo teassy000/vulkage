@@ -138,7 +138,7 @@
     <ClCompile Include="..\extern\meshoptimizer\src\vfetchoptimizer.cpp">
       <Filter>meshoptimizer</Filter>
     </ClCompile>
-    <ClCompile Include="proj_vk.cpp" />
+    <ClCompile Include="vk_ms.cpp" />
     <ClCompile Include="..\extern\fast_obj\fast_obj.c">
       <Filter>fast_obj</Filter>
     </ClCompile>

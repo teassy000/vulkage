@@ -40,16 +40,25 @@ struct MeshDrawCull
     float frustum[4];
 };
 
+struct MeshLod
+{
+    uint meshletOffset;
+    uint meshletCount;
+    uint indexOffset;
+    uint indexCount;
+};
+
 struct Mesh
 {
     vec3 center;
     float radius;
 
     uint vertexOffset;
-    uint meshletOffset;
-    uint meshletCount;
-    uint indexOffset;
-    uint indexCount;
+    uint lodCount;
+    uint padding[2];
+
+    float lodDistance[8];
+    MeshLod lods[8];
 };
 
 struct MeshDraw

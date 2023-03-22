@@ -61,17 +61,15 @@ bool coneCull(vec3 center, float radius, vec3 cone_axis, float cone_cutoff, vec3
 
 void main()
 {
-    //uint drawId = gl_DrawIDARB;  //TODO: the gl_DrawIDARB is alwasy 0 in mesh shader for some reason, should figure it out why
     uint drawId = drawCmds[gl_DrawIDARB].drawId;
     MeshDraw meshDraw = meshDraws[drawId];
     Mesh mesh = meshes[meshDraw.meshIdx];
+    MeshLod lod = mesh.lods[0];
 
     uint mgi = gl_WorkGroupID.x ;
     uint ti = gl_LocalInvocationID.x;
-    uint mi = mgi * TASKGP_SIZE + ti + mesh.meshletOffset;
+    uint mi = mgi * TASKGP_SIZE + ti + lod.meshletOffset;
     uint mLocalId = mgi * TASKGP_SIZE + ti;
-
-
 
 #if CULL
     vec3 axit = vec3( int(meshlets[mi].cone_axis[0]) / 127.0, int(meshlets[mi].cone_axis[1]) / 127.0, int(meshlets[mi].cone_axis[2]) / 127.0); 
@@ -85,7 +83,7 @@ void main()
     barrier();
 
     bool accept = !coneCull(cone_center, cone_radians, cone_axis, cone_cutoff, cameraPos);
-    accept = (accept == mLocalId < mesh.meshletCount);
+    accept = (accept == mLocalId < lod.meshletCount);
 
     if(accept)
     {
@@ -102,8 +100,7 @@ void main()
     payload.drawId = drawId;
     
 
-
-    uint emitCount = min(TASKGP_SIZE, mesh.meshletCount - mLocalId );
+    uint emitCount = min(TASKGP_SIZE, lod.meshletCount - mLocalId );
     EmitMeshTasksEXT(emitCount, 1, 1);
 #endif
 

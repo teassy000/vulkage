@@ -58,15 +58,16 @@ void main()
     {
         uint dci = atomicAdd(drawCmdCount, 1);
 
-        Mesh mesh = meshes[draws[di].meshIdx];
+        uint lodIdx = 0;
+        MeshLod lod = mesh.lods[lodIdx];
 
         drawCmds[dci].drawId = di;
-        drawCmds[dci].indexCount = mesh.indexCount;
+        drawCmds[dci].indexCount = lod.indexCount;
         drawCmds[dci].instanceCount = 1;
-        drawCmds[dci].firstIndex = mesh.indexOffset;
+        drawCmds[dci].firstIndex = lod.indexOffset;
         drawCmds[dci].vertexOffset = mesh.vertexOffset;
         drawCmds[dci].firstInstance = 0;
-        drawCmds[dci].local_x = (mesh.meshletCount +63)/64; 
+        drawCmds[dci].local_x = (lod.meshletCount + 63)/64; 
         drawCmds[dci].local_y = 1;
         drawCmds[dci].local_z = 1;
     }
