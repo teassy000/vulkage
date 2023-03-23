@@ -35,6 +35,8 @@ struct Camera
 static Camera camera = {};
 
 static bool meshShadingEnabled = true;
+static bool enableCull = true;
+static bool enableLod = true;
 
 static Input input = {};
 
@@ -127,7 +129,10 @@ VkQueryPool createQueryPool(VkDevice device, uint32_t queryCount, VkQueryType qu
 
     if (queryType == VK_QUERY_TYPE_PIPELINE_STATISTICS)
     {
-        createInfo.pipelineStatistics = VK_QUERY_PIPELINE_STATISTIC_CLIPPING_INVOCATIONS_BIT
+        createInfo.pipelineStatistics = 
+            VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_VERTICES_BIT
+            | VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_PRIMITIVES_BIT
+            | VK_QUERY_PIPELINE_STATISTIC_CLIPPING_INVOCATIONS_BIT
             | VK_QUERY_PIPELINE_STATISTIC_CLIPPING_PRIMITIVES_BIT
             | VK_QUERY_PIPELINE_STATISTIC_TASK_SHADER_INVOCATIONS_BIT_EXT
             | VK_QUERY_PIPELINE_STATISTIC_MESH_SHADER_INVOCATIONS_BIT_EXT;
@@ -153,6 +158,9 @@ struct alignas(16) MeshDrawCull
     float znear;
     float zfar;
     float frustum[4];
+
+    int32_t enableCull;
+    int32_t enableLod;
 
     vec3 cameraPos;
 };
@@ -453,6 +461,14 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
         {
             camera = Camera{};
         }
+        if (key == GLFW_KEY_L)
+        {
+            enableLod = !enableLod;
+        }
+        if (key == GLFW_KEY_C)
+        {
+            enableCull = !enableCull;
+        }
     }
     if(action == GLFW_REPEAT)
     {
@@ -529,6 +545,7 @@ struct ProfilingData
     float uiTime;
     float waitTime;
     float trangleCount;
+    float triangleFeed;
     float trianglesPerSecond;
     uint32_t primitiveCount;
     uint32_t meshletCount;
@@ -679,7 +696,7 @@ int main(int argc, const char** argv)
     VkQueryPool queryPoolTimeStemp = createQueryPool(device, 128, VK_QUERY_TYPE_TIMESTAMP);
     assert(queryPoolTimeStemp);
 
-    VkQueryPool queryPoolStatistics = createQueryPool(device, 4, VK_QUERY_TYPE_PIPELINE_STATISTICS);
+    VkQueryPool queryPoolStatistics = createQueryPool(device, 6, VK_QUERY_TYPE_PIPELINE_STATISTICS);
     assert(queryPoolStatistics);
 
     VkCommandPool cmdPool = createCommandPool(device, familyIndex);
@@ -721,11 +738,13 @@ int main(int argc, const char** argv)
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProps);
 
     Geometry geometry;
-    bool rcm = loadMesh(geometry, argv[1], meshShadingSupported);
-    assert(rcm);
 
-    loadMesh(geometry, "../data/venus.obj", meshShadingSupported);
-    assert(rcm);
+    for (uint32_t i = 1; i < (uint32_t)argc; i++)
+    {
+        bool rcm = loadMesh(geometry, argv[i], meshShadingSupported);
+        assert(rcm);
+    }
+
 
     Buffer scratch = {};
     createBuffer(scratch, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
@@ -773,7 +792,7 @@ int main(int argc, const char** argv)
     std::vector<MeshDraw> meshDraws(drawCount);
 
     float randomDist = 300;
-    float drawDist = 100;
+    float drawDist = 150;
     
     srand(42);
     for (uint32_t i = 0; i < drawCount; i++)
@@ -869,11 +888,14 @@ int main(int argc, const char** argv)
             ImGui::Text("wait: [%.3f]ms", pd.waitTime);
             ImGui::Text("primitives : [%d]", pd.primitiveCount);
             ImGui::Text("meshlets: [%d]", pd.meshletCount);
+            ImGui::Text("feed: [%.2f]M", pd.triangleFeed);
             ImGui::Text("triangles: [%.2f]M", pd.trangleCount);
             ImGui::Text("tri/sec: [%.2f]B", pd.trianglesPerSecond);
-            ImGui::Text("draw/src: [%.2f]M", 1000.f / pd.avgCpuTime * drawCount * 1e-6);
+            ImGui::Text("draw/sec: [%.2f]M", 1000.f / pd.avgCpuTime * drawCount * 1e-6);
             ImGui::Text("frame: [%.2f]fps", 1000.f / pd.avgCpuTime);
             ImGui::Checkbox("Mesh Shading", &meshShadingEnabled);
+            ImGui::Checkbox("Cull", &enableCull);
+            ImGui::Checkbox("Lod", &enableLod);
             ImGui::Spacing();
             ImGui::Text("camera: ");
             ImGui::Text("pos: %.2f, %.2f, %.2f", camera.pos.x, camera.pos.y, camera.pos.z);
@@ -899,11 +921,11 @@ int main(int argc, const char** argv)
         vkCmdResetQueryPool(cmdBuffer, queryPoolTimeStemp, 0, 128);
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 0);
 
-        vkCmdResetQueryPool(cmdBuffer, queryPoolStatistics, 0, 4);
+        vkCmdResetQueryPool(cmdBuffer, queryPoolStatistics, 0, 6);
         vkCmdBeginQuery(cmdBuffer, queryPoolStatistics, 0, 0);
         
         mat4 view = glm::lookAt(camera.pos, camera.lookAt, camera.up);
-        mat4 projection = persectiveProjection(glm::radians(50.f), (float)swapchain.width / (float)swapchain.height, 0.5f);
+        mat4 projection = persectiveProjection(glm::radians(90.f), (float)swapchain.width / (float)swapchain.height, 0.5f);
 
 
         mat4 projectionT = glm::transpose(projection);
@@ -918,6 +940,9 @@ int main(int argc, const char** argv)
         drawCull.frustum[3] = frustumY.z;
         drawCull.view = view;
         drawCull.cameraPos = camera.pos;
+        drawCull.enableCull = enableCull ? 1 : 0;
+        drawCull.enableLod = enableLod ? 1 : 0;
+
 
         // culling 
         {
@@ -1068,10 +1093,11 @@ int main(int argc, const char** argv)
         uint64_t queryResults[5] = {};
         vkGetQueryPoolResults(device, queryPoolTimeStemp, 0, ARRAYSIZE(queryResults), sizeof(queryResults), queryResults, sizeof(queryResults[0]), VK_QUERY_RESULT_64_BIT);
 
-        uint32_t pipelineResults[4] = {};
+        uint32_t pipelineResults[6] = {};
         vkGetQueryPoolResults(device, queryPoolStatistics, 0, 1, sizeof(pipelineResults), pipelineResults, sizeof(pipelineResults[0]), 0);
 
-        uint32_t triangleCount = pipelineResults[1];
+        uint32_t triangleCulled = pipelineResults[2];
+        uint32_t triangleCount = pipelineResults[3];
         double frameCpuEnd = glfwGetTime() * 1000.0;
 
         double frameGpuBegin = double(queryResults[0]) * props.limits.timestampPeriod * 1e-6;
@@ -1092,6 +1118,7 @@ int main(int argc, const char** argv)
         pd.waitTime = float(waitTimeEnd - waitTimeBegin);
         pd.trianglesPerSecond = float(triangleCount * 1e-9 *  double(1000 / avrageGpuTime));
         pd.trangleCount = float(triangleCount * 1e-6);
+        pd.triangleFeed = float(triangleCulled * 1e-6);
 	}
 
     VK_CHECK(vkDeviceWaitIdle(device));
@@ -1122,6 +1149,7 @@ int main(int argc, const char** argv)
 
     destroySwapchain(device, swapchain);
 
+    vkDestroyQueryPool(device, queryPoolStatistics, 0); 
     vkDestroyQueryPool(device, queryPoolTimeStemp, 0);
 
     vkDestroyPipeline(device, drawcmdPipeline, 0);

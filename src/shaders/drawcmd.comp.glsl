@@ -52,13 +52,14 @@ void main()
     visible = visible && (center.z - radius < cull.zfar);
 
     //visible = visible && false;
+    visible = visible || (cull.enableCull == 0);
 
     if(visible)
     {
         uint dci = atomicAdd(drawCmdCount, 1);
 
         float lodDist = log2(max(1, distance(center.xyz, cull.cameraPos) - radius));
-        uint lodIdx = clamp(int(lodDist), 0, int(mesh.lodCount) - 1);
+        uint lodIdx = cull.enableLod > 0 ? clamp(int(lodDist), 0, int(mesh.lodCount) - 1) : 0;
         MeshLod lod = mesh.lods[lodIdx];
 
         drawCmds[dci].drawId = di;

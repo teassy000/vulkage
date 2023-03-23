@@ -39,6 +39,9 @@ struct MeshDrawCull
     float znear;
     float zfar;
     float frustum[4];
+
+    int enableCull;
+    int enableLod;
     vec3 cameraPos;
 };
 
