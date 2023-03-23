@@ -139,10 +139,13 @@ struct alignas(16) Globals
 
 struct MeshDrawCull
 {
+    mat4 view;
+
     float znear;
     float zfar;
     float frustum[4];
 };
+
 
 struct alignas(16) MeshDraw
 {
@@ -795,7 +798,6 @@ int main(int argc, const char** argv)
     double deltaTime = 0.;
     double avrageCpuTime = 0.;
     double avrageGpuTime = 0.;
-    bool renderUI = false;
 
     while (!glfwWindowShouldClose(window))
     {
@@ -868,7 +870,6 @@ int main(int argc, const char** argv)
             ImGui::Render();
             updateUI(ui, memoryProps);
             deltaTime = 0.0;
-            renderUI = true;
         }
         
         uint32_t imageIndex = 0;
@@ -886,9 +887,7 @@ int main(int argc, const char** argv)
         
         mat4 view = glm::lookAt(camera.pos, camera.lookAt, camera.up);
         mat4 projection = persectiveProjection(glm::radians(70.f), (float)swapchain.width / (float)swapchain.height, 0.5f);
-        Globals globals = {};
-        globals.vp = projection * view;
-        globals.cameraPos = camera.pos;
+
 
         mat4 projectionT = glm::transpose(projection);
         vec4 frustumX = normalizePlane(projectionT[3] - projectionT[0]);
@@ -900,6 +899,7 @@ int main(int argc, const char** argv)
         drawCull.frustum[1] = frustumX.z;
         drawCull.frustum[2] = frustumY.y;
         drawCull.frustum[3] = frustumY.z;
+        drawCull.view = view;
 
         // culling 
         {
@@ -952,6 +952,12 @@ int main(int argc, const char** argv)
 
         vkCmdSetViewport(cmdBuffer, 0, 1, &viewport);
         vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
+
+
+        Globals globals = {};
+        globals.vp = projection * view;
+        globals.cameraPos = camera.pos;
+        globals.cameraDir = camera.dir;
 
         bool meshShadingOn = meshShadingEnabled && meshShadingSupported;
 

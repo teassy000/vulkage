@@ -42,7 +42,10 @@ void main()
     Mesh mesh = meshes[draws[di].meshIdx];
 
     // TODO: update camera pos so the frustum could always updated
-    vec3 center = rotateQuat(mesh.center, draws[di].orit) * draws[di].scale + draws[di].pos;
+
+    
+
+    vec4 center = cull.view * vec4(rotateQuat(mesh.center, draws[di].orit) * draws[di].scale + draws[di].pos, 1.0);
     float radius = mesh.radius * draws[di].scale;
 
     bool visible = true;

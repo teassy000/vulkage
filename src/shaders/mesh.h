@@ -35,6 +35,7 @@ struct Globals
 
 struct MeshDrawCull
 {
+    mat4 view;
     float znear;
     float zfar;
     float frustum[4];
