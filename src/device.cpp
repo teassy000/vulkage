@@ -182,6 +182,7 @@ VkDevice createDevice(VkInstance instance, VkPhysicalDevice physicalDevice, uint
     VkPhysicalDeviceFeatures2 features = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
     features.features.vertexPipelineStoresAndAtomics = true;
     features.features.multiDrawIndirect = true;
+    features.features.pipelineStatisticsQuery = true;
 
     VkPhysicalDeviceVulkan11Features features11 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES };
     features11.storageBuffer16BitAccess = true;

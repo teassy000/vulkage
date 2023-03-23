@@ -91,9 +91,10 @@ void main()
         uint index = atomicAdd(sharedCount, 1);
         payload.meshletIndices[index] = mi;
     }
-
+    barrier();
     payload.drawId = drawId;
     
+    // TODO: figure out correct task count to prevent overdraw
     EmitMeshTasksEXT(sharedCount, 1, 1);
 #else
     payload.meshletIndices[ti] = mi;

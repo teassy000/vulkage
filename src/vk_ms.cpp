@@ -119,11 +119,20 @@ bool checkExtSupportness(std::vector<VkExtensionProperties>& props, const char* 
     return extSupported;
 }
 
-VkQueryPool createQueryPool(VkDevice device, uint32_t queryCount)
+VkQueryPool createQueryPool(VkDevice device, uint32_t queryCount, VkQueryType queryType)
 {
     VkQueryPoolCreateInfo createInfo = { VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO };
-    createInfo.queryType = VK_QUERY_TYPE_TIMESTAMP;
+    createInfo.queryType = queryType;
     createInfo.queryCount = queryCount;
+
+    if (queryType == VK_QUERY_TYPE_PIPELINE_STATISTICS)
+    {
+        createInfo.pipelineStatistics = VK_QUERY_PIPELINE_STATISTIC_CLIPPING_INVOCATIONS_BIT
+            | VK_QUERY_PIPELINE_STATISTIC_CLIPPING_PRIMITIVES_BIT
+            | VK_QUERY_PIPELINE_STATISTIC_TASK_SHADER_INVOCATIONS_BIT_EXT
+            | VK_QUERY_PIPELINE_STATISTIC_MESH_SHADER_INVOCATIONS_BIT_EXT;
+    }
+
 
     VkQueryPool queryPool = nullptr;
     VK_CHECK(vkCreateQueryPool(device, &createInfo, 0, &queryPool));
@@ -667,8 +676,11 @@ int main(int argc, const char** argv)
     Swapchain swapchain = {};
     createSwapchain(swapchain, physicalDevice, device, surface, &familyIndex, swapchainFormat, renderPass);
 
-    VkQueryPool queryPool = createQueryPool(device, 128);
-    assert(queryPool);
+    VkQueryPool queryPoolTimeStemp = createQueryPool(device, 128, VK_QUERY_TYPE_TIMESTAMP);
+    assert(queryPoolTimeStemp);
+
+    VkQueryPool queryPoolStatistics = createQueryPool(device, 4, VK_QUERY_TYPE_PIPELINE_STATISTICS);
+    assert(queryPoolStatistics);
 
     VkCommandPool cmdPool = createCommandPool(device, familyIndex);
     assert(cmdPool);
@@ -758,10 +770,9 @@ int main(int argc, const char** argv)
 
 
     uint32_t drawCount = 1'000'000;
-    double triangleCount = 0.0;
     std::vector<MeshDraw> meshDraws(drawCount);
 
-    float randomDist = 200;
+    float randomDist = 300;
     float drawDist = 100;
     
     srand(42);
@@ -781,8 +792,6 @@ int main(int argc, const char** argv)
        
         meshDraws[i].meshIdx = meshIdx;
         meshDraws[i].vertexOffset = mesh.vertexOffset;
-
-        triangleCount += double(mesh.lods[0].indexCount) / 3.; // TODO: fix this
     }
 
     Buffer mdrb = {}; //mesh draw buffer
@@ -887,11 +896,14 @@ int main(int argc, const char** argv)
 
         VK_CHECK(vkBeginCommandBuffer(cmdBuffer, &beginInfo));
 
-        vkCmdResetQueryPool(cmdBuffer, queryPool, 0, 128);
-        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 0);
+        vkCmdResetQueryPool(cmdBuffer, queryPoolTimeStemp, 0, 128);
+        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 0);
+
+        vkCmdResetQueryPool(cmdBuffer, queryPoolStatistics, 0, 4);
+        vkCmdBeginQuery(cmdBuffer, queryPoolStatistics, 0, 0);
         
         mat4 view = glm::lookAt(camera.pos, camera.lookAt, camera.up);
-        mat4 projection = persectiveProjection(glm::radians(70.f), (float)swapchain.width / (float)swapchain.height, 0.5f);
+        mat4 projection = persectiveProjection(glm::radians(50.f), (float)swapchain.width / (float)swapchain.height, 0.5f);
 
 
         mat4 projectionT = glm::transpose(projection);
@@ -927,7 +939,7 @@ int main(int argc, const char** argv)
             vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT , VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT
                 , 0, 0, 0, 1, &cullEndBarrier, 0, 0);
 
-            vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, queryPool, 1);
+            vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 1);
         }
 
         VkImageMemoryBarrier renderBeginBarriers[] = {
@@ -990,10 +1002,12 @@ int main(int argc, const char** argv)
             vkCmdDrawIndexedIndirectCount(cmdBuffer, mdcb.buffer, offsetof(MeshDrawCommand, indirect), dccb.buffer, 0, (uint32_t)meshDraws.size(), sizeof(MeshDrawCommand));
         }
 
-        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 2);
+        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 2);
         drawUI(ui, cmdBuffer);
-        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 3);
+        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 3);
+        
 
+        vkCmdEndQuery(cmdBuffer, queryPoolStatistics, 0);
         vkCmdEndRenderPass(cmdBuffer);
        
         VkImageMemoryBarrier copyBarriers[] = {
@@ -1018,7 +1032,7 @@ int main(int argc, const char** argv)
             , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
         vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT
             , VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &presentBarrier);
-        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 4);
+        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 4);
 
         VK_CHECK(vkEndCommandBuffer(cmdBuffer));
 
@@ -1052,8 +1066,12 @@ int main(int argc, const char** argv)
         double waitTimeEnd = glfwGetTime() * 1000.0;
         
         uint64_t queryResults[5] = {};
-        vkGetQueryPoolResults(device, queryPool, 0, ARRAYSIZE(queryResults), sizeof(queryResults), queryResults, sizeof(queryResults[0]), VK_QUERY_RESULT_64_BIT);
+        vkGetQueryPoolResults(device, queryPoolTimeStemp, 0, ARRAYSIZE(queryResults), sizeof(queryResults), queryResults, sizeof(queryResults[0]), VK_QUERY_RESULT_64_BIT);
 
+        uint32_t pipelineResults[4] = {};
+        vkGetQueryPoolResults(device, queryPoolStatistics, 0, 1, sizeof(pipelineResults), pipelineResults, sizeof(pipelineResults[0]), 0);
+
+        uint32_t triangleCount = pipelineResults[1];
         double frameCpuEnd = glfwGetTime() * 1000.0;
 
         double frameGpuBegin = double(queryResults[0]) * props.limits.timestampPeriod * 1e-6;
@@ -1104,7 +1122,7 @@ int main(int argc, const char** argv)
 
     destroySwapchain(device, swapchain);
 
-    vkDestroyQueryPool(device, queryPool, 0);
+    vkDestroyQueryPool(device, queryPoolTimeStemp, 0);
 
     vkDestroyPipeline(device, drawcmdPipeline, 0);
     destroyProgram(device, drawcmdProgram);
