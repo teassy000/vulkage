@@ -39,6 +39,7 @@ struct MeshDrawCull
     float znear;
     float zfar;
     float frustum[4];
+    vec3 cameraPos;
 };
 
 struct MeshLod
@@ -75,6 +76,7 @@ struct MeshDraw
 struct MeshDrawCommand
 {
     uint    drawId;
+    uint    lodIdx;
 
     // struct VkDrawIndexedIndirectCommand
     uint    indexCount;

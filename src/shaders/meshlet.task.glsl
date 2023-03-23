@@ -62,11 +62,12 @@ bool coneCull(vec3 center, float radius, vec3 cone_axis, float cone_cutoff, vec3
 void main()
 {
     uint drawId = drawCmds[gl_DrawIDARB].drawId;
+    uint lodIdx = drawCmds[gl_DrawIDARB].lodIdx;
     MeshDraw meshDraw = meshDraws[drawId];
     Mesh mesh = meshes[meshDraw.meshIdx];
-    MeshLod lod = mesh.lods[0];
+    MeshLod lod = mesh.lods[lodIdx];
 
-    uint mgi = gl_WorkGroupID.x ;
+    uint mgi = gl_WorkGroupID.x;
     uint ti = gl_LocalInvocationID.x;
     uint mi = mgi * TASKGP_SIZE + ti + lod.meshletOffset;
     uint mLocalId = mgi * TASKGP_SIZE + ti;

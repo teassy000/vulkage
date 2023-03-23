@@ -41,10 +41,6 @@ void main()
 
     Mesh mesh = meshes[draws[di].meshIdx];
 
-    // TODO: update camera pos so the frustum could always updated
-
-    
-
     vec4 center = cull.view * vec4(rotateQuat(mesh.center, draws[di].orit) * draws[di].scale + draws[di].pos, 1.0);
     float radius = mesh.radius * draws[di].scale;
 
@@ -61,10 +57,12 @@ void main()
     {
         uint dci = atomicAdd(drawCmdCount, 1);
 
-        uint lodIdx = 0;
+        float lodDist = log2(max(1, distance(center.xyz, cull.cameraPos) - radius));
+        uint lodIdx = clamp(int(lodDist), 0, int(mesh.lodCount) - 1);
         MeshLod lod = mesh.lods[lodIdx];
 
         drawCmds[dci].drawId = di;
+        drawCmds[dci].lodIdx = lodIdx;
         drawCmds[dci].indexCount = lod.indexCount;
         drawCmds[dci].instanceCount = 1;
         drawCmds[dci].firstIndex = lod.indexOffset;

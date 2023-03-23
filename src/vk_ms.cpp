@@ -137,13 +137,15 @@ struct alignas(16) Globals
     vec3 cameraPos;
 };
 
-struct MeshDrawCull
+struct alignas(16) MeshDrawCull
 {
     mat4 view;
 
     float znear;
     float zfar;
     float frustum[4];
+
+    vec3 cameraPos;
 };
 
 
@@ -160,6 +162,7 @@ struct alignas(16) MeshDraw
 struct MeshDrawCommand
 {
     uint32_t drawId;
+    uint32_t lodIdx;
     VkDrawIndexedIndirectCommand indirect; // 5 uint32_t
     VkDrawMeshTasksIndirectCommandEXT indirectMS; // 3 uint32_t
 };
@@ -754,9 +757,12 @@ int main(int argc, const char** argv)
     prepareUIResources(ui, memoryProps, cmdPool);
 
 
-    uint32_t drawCount = 30'000;
+    uint32_t drawCount = 1'000'000;
     double triangleCount = 0.0;
     std::vector<MeshDraw> meshDraws(drawCount);
+
+    float randomDist = 200;
+    float drawDist = 100;
     
     srand(42);
     for (uint32_t i = 0; i < drawCount; i++)
@@ -764,10 +770,10 @@ int main(int argc, const char** argv)
         uint32_t meshIdx = rand() % geometry.meshes.size();
         Mesh& mesh = geometry.meshes[meshIdx];
 
-        meshDraws[i].pos[0] = (float(rand()) / RAND_MAX) * 40 -20;
-        meshDraws[i].pos[1] = (float(rand()) / RAND_MAX) * 40 -20;
-        meshDraws[i].pos[2] = (float(rand()) / RAND_MAX) * 40 -20;
-        meshDraws[i].scale = (float(rand()) / RAND_MAX)  + 0.5f;
+        meshDraws[i].pos[0] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
+        meshDraws[i].pos[1] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
+        meshDraws[i].pos[2] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
+        meshDraws[i].scale = (float(rand()) / RAND_MAX)  + 2.f;
         meshDraws[i].orit = glm::rotate(
             quat(1, 0, 0, 0)
             , glm::radians((float(rand()) / RAND_MAX) * 90.f)
@@ -775,7 +781,6 @@ int main(int argc, const char** argv)
        
         meshDraws[i].meshIdx = meshIdx;
         meshDraws[i].vertexOffset = mesh.vertexOffset;
-
 
         triangleCount += double(mesh.lods[0].indexCount) / 3.; // TODO: fix this
     }
@@ -893,13 +898,14 @@ int main(int argc, const char** argv)
         vec4 frustumX = normalizePlane(projectionT[3] - projectionT[0]);
         vec4 frustumY = normalizePlane(projectionT[3] - projectionT[1]);
         MeshDrawCull drawCull = {};
-        drawCull.zfar = 200.f;
+        drawCull.zfar = drawDist;
         drawCull.znear = 0.5f;
         drawCull.frustum[0] = frustumX.x;
         drawCull.frustum[1] = frustumX.z;
         drawCull.frustum[2] = frustumY.y;
         drawCull.frustum[3] = frustumY.z;
         drawCull.view = view;
+        drawCull.cameraPos = camera.pos;
 
         // culling 
         {
@@ -957,7 +963,6 @@ int main(int argc, const char** argv)
         Globals globals = {};
         globals.vp = projection * view;
         globals.cameraPos = camera.pos;
-        globals.cameraDir = camera.dir;
 
         bool meshShadingOn = meshShadingEnabled && meshShadingSupported;
 
