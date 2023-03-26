@@ -128,11 +128,11 @@ void createImage(Image& result, VkDevice device, const VkPhysicalDeviceMemoryPro
     createInfo.format = format;
     createInfo.extent = { width, height, 1u };
     createInfo.mipLevels = mipLevels;
-    createInfo.arrayLayers = 1; // according to validation: arrayLayers must greater than 0;
+    createInfo.arrayLayers = 1; // validation: arrayLayers must greater than 0;
     createInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     createInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
     createInfo.usage = usage;
-    createInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	createInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
     VkImage image = 0;
     VK_CHECK(vkCreateImage(device, &createInfo, 0, &image));
@@ -261,6 +261,19 @@ VkImageMemoryBarrier imageBarrier(VkImage image, VkImageAspectFlagBits aspectMas
     result.subresourceRange.aspectMask = aspectMask;
     result.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
     result.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+
+    return result;
+}
+
+uint32_t calculateMipLevelCount(uint32_t width, uint32_t height)
+{
+    uint32_t result = 0;
+    while (width > 1 || height > 1 )
+    {
+        result++;
+        width >>= 1;
+        height >>= 1;
+    }
 
     return result;
 }

@@ -1,4 +1,4 @@
-#define TASKGP_SIZE 64
+#define TASKGP_SIZE 128 
 #define MESHGP_SIZE 64
 
 struct Vertex

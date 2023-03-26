@@ -29,4 +29,8 @@ void destroyImage(VkDevice device, const Image& image);
 VkImageView createImageView(VkDevice device, VkImage image, VkFormat format, uint32_t baseMipLevel, uint32_t levelCount);
 VkImageMemoryBarrier imageBarrier(VkImage image, VkImageAspectFlagBits aspectMask, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, VkImageLayout oldLayout, VkImageLayout newLayout);
 
+
+uint32_t calculateMipLevelCount(uint32_t width, uint32_t height);
+
+
 VkSampler createSampler(VkDevice device);

@@ -37,7 +37,7 @@ void main()
 {
     uint ti = gl_LocalInvocationID.x;
     uint gi = gl_WorkGroupID.x;
-    uint di = gi * TASKGP_SIZE + ti;
+    uint di = gl_GlobalInvocationID.x;//gi * TASKGP_SIZE + ti;
 
     Mesh mesh = meshes[draws[di].meshIdx];
 
@@ -56,8 +56,9 @@ void main()
 
     if(visible)
     {
+        barrier(); 
         uint dci = atomicAdd(drawCmdCount, 1);
-
+        barrier(); 
         float lodDist = log2(max(1, distance(center.xyz, cull.cameraPos) - radius));
         uint lodIdx = cull.enableLod > 0 ? clamp(int(lodDist), 0, int(mesh.lodCount) - 1) : 0;
         MeshLod lod = mesh.lods[lodIdx];
@@ -69,7 +70,7 @@ void main()
         drawCmds[dci].firstIndex = lod.indexOffset;
         drawCmds[dci].vertexOffset = mesh.vertexOffset;
         drawCmds[dci].firstInstance = 0;
-        drawCmds[dci].local_x = (lod.meshletCount + 63)/64; 
+        drawCmds[dci].local_x = (lod.meshletCount + TASKGP_SIZE - 1)/ TASKGP_SIZE; 
         drawCmds[dci].local_y = 1;
         drawCmds[dci].local_z = 1;
     }

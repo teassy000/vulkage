@@ -193,7 +193,6 @@ VkDevice createDevice(VkInstance instance, VkPhysicalDevice physicalDevice, uint
     features12.drawIndirectCount = true;
     features12.storageBuffer8BitAccess = true;
     features12.uniformAndStorageBuffer8BitAccess = true;
-    features12.shaderFloat16 = true;
 
     VkPhysicalDeviceMeshShaderFeaturesEXT featuresMesh = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT };
     featuresMesh.meshShader = true;

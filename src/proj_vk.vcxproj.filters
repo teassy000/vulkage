@@ -272,5 +272,8 @@
     <CustomBuild Include="shaders\drawcmd.comp.glsl">
       <Filter>shaders</Filter>
     </CustomBuild>
+    <CustomBuild Include="shaders\depthpyramid.comp.glsl">
+      <Filter>shaders</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>

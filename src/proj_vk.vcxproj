@@ -279,6 +279,13 @@
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders\%(outputpath)\%(Filename).spv --target-env spirv1.4</Command>
     </CustomBuild>
   </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="shaders\depthpyramid.comp.glsl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders\%(outputpath)\%(Filename).spv --target-env spirv1.4</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders\%(outputpath)\%(Filename).spv --target-env spirv1.4</Command>
+    </CustomBuild>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

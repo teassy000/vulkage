@@ -218,7 +218,7 @@ static void parseShader(Shader& shader, const uint32_t* code, uint32_t codeSize)
         if (localSizeIdX >= 0)
         {
             assert(ids[localSizeIdX].opcode == SpvOpConstant);
-            shader.localSizeX = ids[localSizeIdX].constant;
+            shader.localSizeX= ids[localSizeIdX].constant;
         }
 
         if (localSizeIdY >= 0)
