@@ -33,4 +33,4 @@ VkImageMemoryBarrier imageBarrier(VkImage image, VkImageAspectFlagBits aspectMas
 uint32_t calculateMipLevelCount(uint32_t width, uint32_t height);
 
 
-VkSampler createSampler(VkDevice device);
+VkSampler createSampler(VkDevice device, VkSamplerReductionMode reductionMode = VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE);

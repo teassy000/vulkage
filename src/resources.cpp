@@ -278,7 +278,7 @@ uint32_t calculateMipLevelCount(uint32_t width, uint32_t height)
     return result;
 }
 
-VkSampler createSampler(VkDevice device)
+VkSampler createSampler(VkDevice device, VkSamplerReductionMode reductionMode /*= VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE*/)
 {
     VkSamplerCreateInfo createInfo = { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 
@@ -288,6 +288,14 @@ VkSampler createSampler(VkDevice device)
     createInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     createInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     createInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+
+
+    VkSamplerReductionModeCreateInfoEXT createInfoReduction = { VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO_EXT };
+    if (reductionMode != VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE)
+    {
+        createInfoReduction.reductionMode = reductionMode;
+        createInfo.pNext = &createInfoReduction;
+    }
 
     VkSampler sampler = 0;
     VK_CHECK(vkCreateSampler(device, &createInfo, 0, &sampler));

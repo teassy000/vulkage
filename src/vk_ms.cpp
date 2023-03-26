@@ -37,7 +37,7 @@ static Camera camera = {};
 static bool meshShadingEnabled = true;
 static bool enableCull = true;
 static bool enableLod = true;
-static bool showPyramid = true;
+static bool showPyramid = false;
 static int pyramidLevel = 4;
 
 static Input input = {};
@@ -473,6 +473,18 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
         {
             enableCull = !enableCull;
         }
+        if (key == GLFW_KEY_P)
+        {
+            showPyramid = !showPyramid;
+        }
+        if (key == GLFW_KEY_UP)
+        {
+            pyramidLevel = glm::min(15, ++pyramidLevel);
+        }
+        if (key == GLFW_KEY_DOWN)
+        {
+            pyramidLevel = glm::max(--pyramidLevel, 0);
+        }
     }
     if(action == GLFW_REPEAT)
     {
@@ -799,7 +811,7 @@ int main(int argc, const char** argv)
     uint32_t depthPyramidLevels = 0;
     VkImageView depthPyramidMips[16] = {};
 
-    VkSampler pyramidSampler = createSampler(device);
+    VkSampler pyramidSampler = createSampler(device, VK_SAMPLER_REDUCTION_MODE_MIN_EXT);
 
     // imgui
     UI ui = {};
@@ -1088,15 +1100,18 @@ int main(int argc, const char** argv)
             vec2 imageSize = { levelWidth, levelHeight};
             vkCmdPushConstants(cmdBuffer, depthPyramidProgram.layout, depthPyramidProgram.pushConstantStages, 0, sizeof(imageSize), &imageSize);
 
+            DescriptorInfo srcDepth = (i == 0) 
+                ? DescriptorInfo{pyramidSampler, depthTarget.imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL}
+                : DescriptorInfo{pyramidSampler, depthPyramidMips[i - 1], VK_IMAGE_LAYOUT_GENERAL };
+
 			DescriptorInfo descInfos[] = { 
-                {pyramidSampler, depthTarget.imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL},
+                srcDepth,
                 {depthPyramidMips[i], VK_IMAGE_LAYOUT_GENERAL}, };
 			vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, depthPyramidProgram.updateTemplate, depthPyramidProgram.layout, 0, descInfos);
 
 			vkCmdDispatch(cmdBuffer, calcGroupCount(levelWidth, depthPyramidCS.localSizeX), calcGroupCount(levelHeight, depthPyramidCS.localSizeY), depthPyramidCS.localSizeZ);
 		}
         
-
         VkImageMemoryBarrier depthWriteBarriers = imageBarrier(depthTarget.image
                 , VK_IMAGE_ASPECT_DEPTH_BIT, VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
