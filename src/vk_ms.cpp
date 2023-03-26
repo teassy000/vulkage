@@ -38,6 +38,7 @@ static bool meshShadingEnabled = true;
 static bool enableCull = true;
 static bool enableLod = true;
 static bool showPyramid = true;
+static int pyramidLevel = 4;
 
 static Input input = {};
 
@@ -803,7 +804,7 @@ int main(int argc, const char** argv)
     // imgui
     UI ui = {};
     initializeUI(ui, device, queue, 1.3f);
-    prepareUIPipeline(ui, pipelineCache, renderPassLate);
+    prepareUIPipeline(ui, pipelineCache, renderPassEarly);
     prepareUIResources(ui, memoryProps, cmdPool);
 
 
@@ -1126,12 +1127,12 @@ int main(int argc, const char** argv)
 
         if (showPyramid)
         {
-            uint32_t levelWidth = glm::max(1u, (swapchain.width / 2) >> 0);
-            uint32_t levelHeight = glm::max(1u, (swapchain.height / 2) >> 0);
+            uint32_t levelWidth = glm::max(1u, (swapchain.width / 2) >> pyramidLevel);
+            uint32_t levelHeight = glm::max(1u, (swapchain.height / 2) >> pyramidLevel);
 
             VkImageBlit regions[1] = {};
             regions[0].srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            regions[0].srcSubresource.mipLevel = 0;
+            regions[0].srcSubresource.mipLevel = pyramidLevel;
             regions[0].srcSubresource.layerCount = 1;
             regions[0].dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
             regions[0].dstSubresource.layerCount = 1;
