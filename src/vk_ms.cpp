@@ -37,6 +37,7 @@ static Camera camera = {};
 static bool meshShadingEnabled = true;
 static bool enableCull = true;
 static bool enableLod = true;
+static bool showPyramid = true;
 
 static Input input = {};
 
@@ -64,12 +65,12 @@ VkCommandPool createCommandPool(VkDevice device, uint32_t familyIndex)
 }
 
 
-VkRenderPass createRenderPassEarly(VkDevice device, VkFormat colorFormat, VkFormat depthFormat)
+VkRenderPass createRenderPass(VkDevice device, VkFormat colorFormat, VkFormat depthFormat, bool late = false)
 {
     VkAttachmentDescription attachments[2] = {};
     attachments[0].format = colorFormat;
     attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
-    attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    attachments[0].loadOp = late ? VK_ATTACHMENT_LOAD_OP_DONT_CARE : VK_ATTACHMENT_LOAD_OP_CLEAR;
     attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -78,8 +79,8 @@ VkRenderPass createRenderPassEarly(VkDevice device, VkFormat colorFormat, VkForm
 
     attachments[1].format = depthFormat;
     attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
-    attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    attachments[1].loadOp = late ? VK_ATTACHMENT_LOAD_OP_DONT_CARE : VK_ATTACHMENT_LOAD_OP_CLEAR;
+    attachments[1].storeOp =  late ? VK_ATTACHMENT_STORE_OP_DONT_CARE : VK_ATTACHMENT_STORE_OP_STORE;
     attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     attachments[1].initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
@@ -105,49 +106,6 @@ VkRenderPass createRenderPassEarly(VkDevice device, VkFormat colorFormat, VkForm
 
     return renderPass;
 }
-
-VkRenderPass createRenderPassLate(VkDevice device, VkFormat colorFormat, VkFormat depthFormat)
-{
-    VkAttachmentDescription attachments[2] = {};
-    attachments[0].format = colorFormat;
-    attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
-    attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-    attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    attachments[0].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    attachments[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-    attachments[1].format = depthFormat;
-    attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
-    attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-    attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    attachments[1].initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-    attachments[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL ;
-
-    VkAttachmentReference colorAttachment = { 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
-    VkAttachmentReference depthAttachment = { 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL };
-
-    VkSubpassDescription subpass = {};
-    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = &colorAttachment;
-    subpass.pDepthStencilAttachment = &depthAttachment;
-
-    VkRenderPassCreateInfo createInfo = { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
-    createInfo.attachmentCount = ARRAYSIZE(attachments);
-    createInfo.pAttachments = attachments;
-    createInfo.subpassCount = 1;
-    createInfo.pSubpasses = &subpass;
-
-    VkRenderPass renderPass = 0;
-    VK_CHECK(vkCreateRenderPass(device, &createInfo, 0, &renderPass));
-
-    return renderPass;
-}
-
 
 bool checkExtSupportness(const std::vector<VkExtensionProperties>& props, const char* extName, bool print = true)
 {
@@ -685,10 +643,10 @@ int main(int argc, const char** argv)
     vkGetDeviceQueue(device, familyIndex, 0, &queue);
     assert(queue);
 
-    VkRenderPass renderPassEarly = createRenderPassEarly(device, swapchainFormat, depthFormat);
+    VkRenderPass renderPassEarly = createRenderPass(device, swapchainFormat, depthFormat);
     assert(renderPassEarly);
 
-    VkRenderPass renderPassLate = createRenderPassLate(device, swapchainFormat, depthFormat);
+    VkRenderPass renderPassLate = createRenderPass(device, swapchainFormat, depthFormat, true);
     assert(renderPassLate);
 
     bool lsr = false;
@@ -725,7 +683,7 @@ int main(int argc, const char** argv)
     Program drawcmdProgram = createProgram(device, VK_PIPELINE_BIND_POINT_COMPUTE, { &drawcmdCS}, sizeof(MeshDrawCull));
     VkPipeline drawcmdPipeline = createComputePipeline(device, pipelineCache, drawcmdProgram.layout, drawcmdCS );
 
-	Program depthPyramidProgram = createProgram(device, VK_PIPELINE_BIND_POINT_COMPUTE, { &depthPyramidCS}, 0);
+	Program depthPyramidProgram = createProgram(device, VK_PIPELINE_BIND_POINT_COMPUTE, { &depthPyramidCS}, sizeof(vec2));
 	VkPipeline depthPyramidPipeline = createComputePipeline(device, pipelineCache, depthPyramidProgram.layout, depthPyramidCS );
 
     Program meshProgram = createProgram(device, VK_PIPELINE_BIND_POINT_GRAPHICS, { &meshVS, &meshFS }, sizeof(Globals));
@@ -836,9 +794,11 @@ int main(int argc, const char** argv)
     
     VkFramebuffer targetFrameBuffer = 0;
     Image depthPyramid = {};
+
     uint32_t depthPyramidLevels = 0;
     VkImageView depthPyramidMips[16] = {};
 
+    VkSampler pyramidSampler = createSampler(device);
 
     // imgui
     UI ui = {};
@@ -929,7 +889,7 @@ int main(int argc, const char** argv)
             targetFrameBuffer = createFramebuffer(device, renderPassLate, colorTarget.imageView, depthTarget.imageView, swapchain.width, swapchain.height);
 
             depthPyramidLevels = calculateMipLevelCount(swapchain.width / 2, swapchain.height / 2);
-            createImage(depthPyramid, device, memoryProps, swapchain.width / 2, swapchain.height / 2, depthPyramidLevels, VK_FORMAT_R32_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT);
+            createImage(depthPyramid, device, memoryProps, swapchain.width / 2, swapchain.height / 2, depthPyramidLevels, VK_FORMAT_R32_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
             
             for (uint32_t i = 0; i < depthPyramidLevels; ++i)
             {
@@ -1100,44 +1060,39 @@ int main(int argc, const char** argv)
             vkCmdDrawIndexedIndirectCount(cmdBuffer, mdcb.buffer, offsetof(MeshDrawCommand, indirect), dccb.buffer, 0, (uint32_t)meshDraws.size(), sizeof(MeshDrawCommand));
         }
 
+        // TODO: create a individual render pass for UI
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 2);
         drawUI(ui, cmdBuffer);
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 3);
-        
 
         vkCmdEndQuery(cmdBuffer, queryPoolStatistics, 0);
         vkCmdEndRenderPass(cmdBuffer);
         
-
-        // TODO : remove this! this is just for image layout translation
-        VkImageMemoryBarrier depthPyramidBarrier = imageBarrier(depthPyramid.image
-            , VK_IMAGE_ASPECT_COLOR_BIT, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
-
-        vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
-            , VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &depthPyramidBarrier);
-
-        // Do nothing, just trnaslate the image layout
-
-        VkImageMemoryBarrier depthReadBarriers = imageBarrier(depthTarget.image
-            , VK_IMAGE_ASPECT_DEPTH_BIT, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        VkImageMemoryBarrier depthReadBarriers[] = {
+            imageBarrier(depthTarget.image, VK_IMAGE_ASPECT_DEPTH_BIT, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL),
+            imageBarrier(depthPyramid.image, VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL), // just set image layout to VK_IMAGE_LAYOUT_GENERAL
+        };
 
         vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
-            , VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &depthReadBarriers);
+            , VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, ARRAYSIZE(depthReadBarriers), depthReadBarriers);
 
-		
-		// TODO: build depth pyramid
 		for (uint32_t i = 0; i < depthPyramidLevels; ++i)
 		{
 			vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, depthPyramidPipeline);
 
-			DescriptorInfo descInfos[] = { {depthPyramidMips[i], VK_IMAGE_LAYOUT_GENERAL} };
+            uint32_t levelWidth = glm::max(1u, (swapchain.width / 2) >> i);
+            uint32_t levelHeight = glm::max(1u, (swapchain.height / 2) >> i);
+
+
+            vec2 imageSize = { levelWidth, levelHeight};
+            vkCmdPushConstants(cmdBuffer, depthPyramidProgram.layout, depthPyramidProgram.pushConstantStages, 0, sizeof(imageSize), &imageSize);
+
+			DescriptorInfo descInfos[] = { 
+                {pyramidSampler, depthTarget.imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL},
+                {depthPyramidMips[i], VK_IMAGE_LAYOUT_GENERAL}, };
 			vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, depthPyramidProgram.updateTemplate, depthPyramidProgram.layout, 0, descInfos);
-			
 
-			uint32_t levelWidth = glm::max(1u, (swapchain.width / 2) >> i);
-			uint32_t levelHeight = glm::max(1u, (swapchain.height / 2) >> i);
-			vkCmdDispatch(cmdBuffer, uint32_t((levelWidth + depthPyramidCS.localSizeX - 1) / depthPyramidCS.localSizeX), depthPyramidCS.localSizeY, depthPyramidCS.localSizeZ);
-
+			vkCmdDispatch(cmdBuffer, calcGroupCount(levelWidth, depthPyramidCS.localSizeX), calcGroupCount(levelHeight, depthPyramidCS.localSizeY), depthPyramidCS.localSizeZ);
 		}
         
 
@@ -1148,33 +1103,57 @@ int main(int argc, const char** argv)
             , VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &depthWriteBarriers);
 
 
-        // start the late render apss
+        // start the late render pass
         VkRenderPassBeginInfo passLateBeginInfo = { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
         passLateBeginInfo.renderPass = renderPassLate;
         passLateBeginInfo.framebuffer = targetFrameBuffer;
         passLateBeginInfo.renderArea.extent.width = swapchain.width;
         passLateBeginInfo.renderArea.extent.height = swapchain.height;
 
+        // TODO: what's the usage of current render pass?
         vkCmdBeginRenderPass(cmdBuffer, &passLateBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
         vkCmdEndRenderPass(cmdBuffer);
 
         VkImageMemoryBarrier copyBarriers[] = {
             imageBarrier(colorTarget.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL),
             imageBarrier(swapchain.images[imageIndex], VK_IMAGE_ASPECT_COLOR_BIT,  0, VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL),
+            imageBarrier(depthPyramid.image, VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_ACCESS_TRANSFER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL),
+
         };
         // check https://github.com/KhronosGroup/Vulkan-Docs/wiki/Synchronization-Examples#combined-graphicspresent-queue
         vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT
             , VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, ARRAYSIZE(copyBarriers), copyBarriers);
 
-        VkImageCopy copyRegion = {};
-        copyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        copyRegion.srcSubresource.layerCount = 1;
-        copyRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        copyRegion.dstSubresource.layerCount = 1;
-        copyRegion.extent = { swapchain.width, swapchain.height, 1 };
+        if (showPyramid)
+        {
+            uint32_t levelWidth = glm::max(1u, (swapchain.width / 2) >> 0);
+            uint32_t levelHeight = glm::max(1u, (swapchain.height / 2) >> 0);
 
-        vkCmdCopyImage(cmdBuffer, colorTarget.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, swapchain.images[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
-        
+            VkImageBlit regions[1] = {};
+            regions[0].srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            regions[0].srcSubresource.mipLevel = 0;
+            regions[0].srcSubresource.layerCount = 1;
+            regions[0].dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            regions[0].dstSubresource.layerCount = 1;
+
+            regions[0].srcOffsets[0] = { 0, 0, 0 };
+            regions[0].srcOffsets[1] = { int32_t(levelWidth), int32_t(levelHeight), 1};
+            regions[0].dstOffsets[0] = { 0, 0, 0 };
+            regions[0].dstOffsets[1] = { int32_t(swapchain.width), int32_t(swapchain.height), 1 };
+
+            vkCmdBlitImage(cmdBuffer, depthPyramid.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, swapchain.images[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, ARRAYSIZE(regions), regions, VK_FILTER_NEAREST);
+        }
+        else
+        {
+            VkImageCopy copyRegion = {};
+            copyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            copyRegion.srcSubresource.layerCount = 1;
+            copyRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            copyRegion.dstSubresource.layerCount = 1;
+            copyRegion.extent = { swapchain.width, swapchain.height, 1 };
+
+            vkCmdCopyImage(cmdBuffer, colorTarget.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, swapchain.images[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+        }
         
         VkImageMemoryBarrier presentBarrier = imageBarrier(swapchain.images[imageIndex], VK_IMAGE_ASPECT_COLOR_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, 0
             , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
@@ -1183,7 +1162,6 @@ int main(int argc, const char** argv)
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 4);
 
         VK_CHECK(vkEndCommandBuffer(cmdBuffer));
-
  
         VkPipelineStageFlags submitStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
 
@@ -1251,6 +1229,7 @@ int main(int argc, const char** argv)
         vkDestroyImageView(device, depthPyramidMips[i], 0);
     }
     
+    vkDestroySampler(device, pyramidSampler, 0);
     destroyImage(device, depthPyramid);
     destroyImage(device, colorTarget);
     destroyImage(device, depthTarget);

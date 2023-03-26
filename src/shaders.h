@@ -38,6 +38,10 @@ VkPipelineLayout createPipelineLayout(VkDevice device, VkDescriptorSetLayout out
 Program createProgram(VkDevice device, VkPipelineBindPoint bindingPoint, Shaders shaders, size_t pushConstantSize = 0);
 void destroyProgram(VkDevice device, const Program& program);
 
+inline uint32_t calcGroupCount(uint32_t threadCount, uint32_t localSize)
+{
+    return (threadCount + localSize - 1) / localSize;
+}
 
 struct DescriptorInfo
 {
