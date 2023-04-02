@@ -49,7 +49,7 @@ void initializeUI(UI& ui, VkDevice device, VkQueue queue, float scale = 1.f);
 void destroyUI(UI& ui);
 
 void prepareUIPipeline(UI& ui, const VkPipelineCache pipelineCache, const VkRenderPass renderPass);
-void prepareUIResources(UI& ui, const VkPhysicalDeviceMemoryProperties& memoryProps, VkCommandPool cmdPool);
+void prepareUIResources(UI& ui, const VkPhysicalDeviceMemoryProperties& memoryProps, VkCommandPool cmdPool, bool useChinese = false);
 
 void updateUI(UI& ui, const VkPhysicalDeviceMemoryProperties& memoryProps);
 void drawUI(UI& ui, const VkCommandBuffer cmdBuffer);

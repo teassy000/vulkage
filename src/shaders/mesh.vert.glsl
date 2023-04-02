@@ -8,6 +8,7 @@
 #extension GL_GOOGLE_include_directive: require
 
 #include "mesh.h"
+#include "math.h"
 
 layout(push_constant) uniform block 
 {

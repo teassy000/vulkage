@@ -10,6 +10,7 @@
 #extension GL_GOOGLE_include_directive: require
 
 #include "mesh.h"
+#include "math.h"
 
 #define CULL 1
 
@@ -52,11 +53,6 @@ shared int sharedCount;
 bool coneCullApex(vec3 cone_apex, vec3 cone_axis, float cone_cutoff, vec3 camera_position)
 {
     return dot(normalize(cone_apex - camera_position), cone_axis) >= cone_cutoff;
-}
-
-bool coneCull(vec3 center, float radius, vec3 cone_axis, float cone_cutoff, vec3 camera_position)
-{
-	return dot(center - camera_position, cone_axis) >= cone_cutoff * length(center - camera_position) + radius;
 }
 
 void main()

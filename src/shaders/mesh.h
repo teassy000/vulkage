@@ -35,15 +35,23 @@ struct Globals
 
 struct MeshDrawCull
 {
-    mat4 view;
-    float znear;
-    float zfar;
+    float P00, P11;
+    float znear, zfar;
     float frustum[4];
+    float lodBase, lodStep;
+    float pyramidWidth, pyramidHeight;
 
     int enableCull;
     int enableLod;
+    int enableOcclusion;
+};
+
+struct TransformData
+{
+    mat4 view;
     vec3 cameraPos;
 };
+
 
 struct MeshLod
 {
@@ -93,8 +101,3 @@ struct MeshDrawCommand
     uint    local_y;
     uint    local_z;
 };
-
-vec3 rotateQuat(vec3 v, vec4 q)
-{
-    return v + 2.0 * cross(q.xyz, cross(q.xyz, v) + q.w * v);
-}

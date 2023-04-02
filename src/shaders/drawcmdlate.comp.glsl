@@ -45,13 +45,11 @@ layout(binding = 5) buffer DrawVisibility
     uint drawVisibility[];
 };
 
+layout(binding = 6) uniform sampler2D depthPyramid;
+
 void main()
 {
     uint di = gl_GlobalInvocationID.x;
-
-    if(drawVisibility[di] == 0)
-        return;
-
 
     Mesh mesh = meshes[draws[di].meshIdx];
 
@@ -65,27 +63,11 @@ void main()
     visible = visible && (center.z + radius > cull.znear);
     visible = visible && (center.z - radius < cull.zfar);
 
+    // visible = visible && false;
     visible = visible || (cull.enableCull == 0);
 
-    if(visible)
-    {
-        barrier(); 
-        uint dci = atomicAdd(drawCmdCount, 1);
-        barrier(); 
-        float lodDist = log2(max(1, distance(center.xyz, transform.cameraPos) - radius));
-        uint lodIdx = cull.enableLod > 0 ? clamp(int(lodDist), 0, int(mesh.lodCount) - 1) : 0;
-        MeshLod lod = mesh.lods[lodIdx];
 
-        drawCmds[dci].drawId = di;
-        drawCmds[dci].lodIdx = lodIdx;
-        drawCmds[dci].indexCount = lod.indexCount;
-        drawCmds[dci].instanceCount = 1;
-        drawCmds[dci].firstIndex = lod.indexOffset;
-        drawCmds[dci].vertexOffset = mesh.vertexOffset;
-        drawCmds[dci].firstInstance = 0;
-        drawCmds[dci].local_x = (lod.meshletCount + TASKGP_SIZE - 1)/ TASKGP_SIZE; 
-        drawCmds[dci].local_y = 1;
-        drawCmds[dci].local_z = 1;
-    }
+
+
+    drawVisibility[di] = visible ? 1 : 0;
 }
-

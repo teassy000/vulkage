@@ -10,6 +10,7 @@
 
 
 #include "mesh.h"
+#include "math.h"
 
 #define DEBUG 0
 
