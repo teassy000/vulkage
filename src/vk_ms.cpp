@@ -689,13 +689,11 @@ int main(int argc, const char** argv)
     vkGetDeviceQueue(device, familyIndex, 0, &queue);
     assert(queue);
 
-    VkRenderPass renderPassEarly = createRenderPass(device, swapchainFormat, depthFormat);
-    assert(renderPassEarly);
+    VkRenderPass renderPass = createRenderPass(device, swapchainFormat, depthFormat);
+    assert(renderPass);
 
-    VkRenderPass renderPassLate = createRenderPass(device, swapchainFormat, depthFormat, true);
-    assert(renderPassLate);
 
-    VkRenderPass renderPassUI = createRenderPass(device, swapchainFormat, depthFormat);
+    VkRenderPass renderPassUI = createRenderPass(device, swapchainFormat, depthFormat, true);
     assert(renderPassUI);
 
     bool lsr = false;
@@ -748,18 +746,18 @@ int main(int argc, const char** argv)
         meshProgramMS = createProgram(device, VK_PIPELINE_BIND_POINT_GRAPHICS, { &meshletTS, &meshletMS, &meshFS }, sizeof(Globals));
     }
 
-    VkPipeline meshPipeline = createGraphicsPipeline(device, pipelineCache, meshProgram.layout, renderPassEarly, { &meshVS, &meshFS}, nullptr);
+    VkPipeline meshPipeline = createGraphicsPipeline(device, pipelineCache, meshProgram.layout, renderPass, { &meshVS, &meshFS}, nullptr);
     assert(meshPipeline);
 
     VkPipeline meshPipelineMS = 0;
     if (meshShadingSupported)
     {
-        meshPipelineMS = createGraphicsPipeline(device, pipelineCache, meshProgramMS.layout, renderPassEarly, { &meshletTS, &meshletMS, &meshFS }, nullptr);
+        meshPipelineMS = createGraphicsPipeline(device, pipelineCache, meshProgramMS.layout, renderPass, { &meshletTS, &meshletMS, &meshFS }, nullptr);
         assert(meshPipelineMS);
     }
 
     Swapchain swapchain = {};
-    createSwapchain(swapchain, physicalDevice, device, surface, &familyIndex, swapchainFormat, renderPassEarly);
+    createSwapchain(swapchain, physicalDevice, device, surface, &familyIndex, swapchainFormat, renderPass);
 
     VkQueryPool queryPoolTimeStemp = createQueryPool(device, 128, VK_QUERY_TYPE_TIMESTAMP);
     assert(queryPoolTimeStemp);
@@ -846,8 +844,10 @@ int main(int argc, const char** argv)
 
     Image colorTarget = {};
     Image depthTarget = {};
+    Image renderTarget = {};
     
     VkFramebuffer targetFrameBuffer = 0;
+    VkFramebuffer uiTargetFB = 0;
     Image depthPyramid = {};
 
     uint32_t depthPyramidLevels = 0;
@@ -936,7 +936,7 @@ int main(int argc, const char** argv)
         int newWindowWidth = 0, newWindowHeight = 0;
         glfwGetWindowSize(window, &newWindowWidth, &newWindowHeight);
 
-        SwapchainStatus swapchainStatus = resizeSwapchainIfNecessary(swapchain, physicalDevice, device, surface, &familyIndex, swapchainFormat, renderPassEarly);
+        SwapchainStatus swapchainStatus = resizeSwapchainIfNecessary(swapchain, physicalDevice, device, surface, &familyIndex, swapchainFormat, renderPass);
         if(swapchainStatus == NotReady)
             continue;
 
@@ -947,8 +947,12 @@ int main(int argc, const char** argv)
                 destroyImage(device, colorTarget);
             if (depthTarget.image)
                 destroyImage(device, depthTarget);
+            if (renderTarget.image)
+                destroyImage(device, renderTarget);
             if (targetFrameBuffer)
                 vkDestroyFramebuffer(device, targetFrameBuffer, 0);
+            if (uiTargetFB)
+                vkDestroyFramebuffer(device, uiTargetFB, 0);
 
             if (depthPyramid.image)
             {
@@ -959,9 +963,11 @@ int main(int argc, const char** argv)
                 destroyImage(device, depthPyramid);
             }
 
-            createImage(colorTarget, device, memoryProps, swapchain.width, swapchain.height, 1, swapchainFormat, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT );
+            createImage(colorTarget, device, memoryProps, swapchain.width, swapchain.height, 1, swapchainFormat, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
             createImage(depthTarget, device, memoryProps, swapchain.width, swapchain.height, 1, depthFormat , VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-            targetFrameBuffer = createFramebuffer(device, renderPassEarly, colorTarget.imageView, depthTarget.imageView, swapchain.width, swapchain.height);
+            createImage(renderTarget, device, memoryProps, swapchain.width, swapchain.height, 1, swapchainFormat, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+            targetFrameBuffer = createFramebuffer(device, renderPass, colorTarget.imageView, depthTarget.imageView, swapchain.width, swapchain.height);
+            uiTargetFB = createFramebuffer(device, renderPassUI, renderTarget.imageView, depthTarget.imageView, swapchain.width, swapchain.height);
 
             pyramidLevelWidth = previousPow2(swapchain.width);
             pyramidLevelHeight = previousPow2(swapchain.height);
@@ -1117,15 +1123,15 @@ int main(int argc, const char** argv)
         clearValues[0].color = { 128.f/255.f, 109.f/255.f, 158.f/255.f, 1 };
         clearValues[1].depthStencil =  { 0.f, 0 };
 
-        VkRenderPassBeginInfo passEarlyBeginInfo = { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
-        passEarlyBeginInfo.renderPass = renderPassEarly;
-        passEarlyBeginInfo.framebuffer = targetFrameBuffer;
-        passEarlyBeginInfo.renderArea.extent.width = swapchain.width;
-        passEarlyBeginInfo.renderArea.extent.height = swapchain.height;
-        passEarlyBeginInfo.clearValueCount = ARRAYSIZE(clearValues);
-		passEarlyBeginInfo.pClearValues = clearValues;
+        VkRenderPassBeginInfo passBeginInfo = { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
+        passBeginInfo.renderPass = renderPass;
+        passBeginInfo.framebuffer = targetFrameBuffer;
+        passBeginInfo.renderArea.extent.width = swapchain.width;
+        passBeginInfo.renderArea.extent.height = swapchain.height;
+        passBeginInfo.clearValueCount = ARRAYSIZE(clearValues);
+		passBeginInfo.pClearValues = clearValues;
 
-        vkCmdBeginRenderPass(cmdBuffer, &passEarlyBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+        vkCmdBeginRenderPass(cmdBuffer, &passBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
         // draw
         {
@@ -1160,10 +1166,7 @@ int main(int argc, const char** argv)
             }
         }
 
-        // TODO: create a individual render pass for UI
-        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 2);
-        drawUI(ui, cmdBuffer);
-        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 3);
+
 
         vkCmdEndQuery(cmdBuffer, queryPoolStatistics, 0);
         vkCmdEndRenderPass(cmdBuffer);
@@ -1210,13 +1213,6 @@ int main(int argc, const char** argv)
         
         // late culling
         {
-            VkRenderPassBeginInfo passLateBeginInfo = { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
-            passLateBeginInfo.renderPass = renderPassLate;
-            passLateBeginInfo.framebuffer = targetFrameBuffer;
-            passLateBeginInfo.renderArea.extent.width = swapchain.width;
-            passLateBeginInfo.renderArea.extent.height = swapchain.height;
-            vkCmdBeginRenderPass(cmdBuffer, &passLateBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-            vkCmdEndRenderPass(cmdBuffer);
 
             vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, drawcmdLatePipeline);
 
@@ -1236,8 +1232,8 @@ int main(int argc, const char** argv)
 
         VkImageMemoryBarrier copyBarriers[] = {
             imageBarrier(colorTarget.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL),
-            imageBarrier(swapchain.images[imageIndex], VK_IMAGE_ASPECT_COLOR_BIT,  0, VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL),
             imageBarrier(depthPyramid.image, VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_ACCESS_TRANSFER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL),
+            imageBarrier(renderTarget.image, VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL),
         };
         // check https://github.com/KhronosGroup/Vulkan-Docs/wiki/Synchronization-Examples#combined-graphicspresent-queue
         vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT
@@ -1260,7 +1256,7 @@ int main(int argc, const char** argv)
             regions[0].dstOffsets[0] = { 0, 0, 0 };
             regions[0].dstOffsets[1] = { int32_t(swapchain.width), int32_t(swapchain.height), 1 };
 
-            vkCmdBlitImage(cmdBuffer, depthPyramid.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, swapchain.images[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, ARRAYSIZE(regions), regions, VK_FILTER_NEAREST);
+            vkCmdBlitImage(cmdBuffer, depthPyramid.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, renderTarget.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, ARRAYSIZE(regions), regions, VK_FILTER_NEAREST);
         }
         else
         {
@@ -1271,7 +1267,48 @@ int main(int argc, const char** argv)
             copyRegion.dstSubresource.layerCount = 1;
             copyRegion.extent = { swapchain.width, swapchain.height, 1 };
 
-            vkCmdCopyImage(cmdBuffer, colorTarget.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, swapchain.images[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+            vkCmdCopyImage(cmdBuffer, colorTarget.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, renderTarget.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+        }
+
+        VkImageMemoryBarrier uiBarriers[] = {
+            imageBarrier(renderTarget.image, VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL),
+        };
+        // check https://github.com/KhronosGroup/Vulkan-Docs/wiki/Synchronization-Examples#combined-graphicspresent-queue
+        vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+            , VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, ARRAYSIZE(uiBarriers), uiBarriers);
+        {
+            VkRenderPassBeginInfo passUIBeginInfo = { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
+            passUIBeginInfo.renderPass = renderPassUI;
+            passUIBeginInfo.framebuffer = uiTargetFB;
+            passUIBeginInfo.renderArea.extent.width = swapchain.width;
+            passUIBeginInfo.renderArea.extent.height = swapchain.height;
+            vkCmdBeginRenderPass(cmdBuffer, &passUIBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+            // draw UI
+            vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 2);
+            drawUI(ui, cmdBuffer);
+            vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 3);
+
+            vkCmdEndRenderPass(cmdBuffer);
+        }
+
+        VkImageMemoryBarrier finalCopyBarriers[] = {
+            imageBarrier(renderTarget.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL),
+            imageBarrier(swapchain.images[imageIndex], VK_IMAGE_ASPECT_COLOR_BIT,  0, VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL),
+        };
+        vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT
+            , VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, ARRAYSIZE(finalCopyBarriers), finalCopyBarriers);
+
+        // copy to swapchain
+        {
+            VkImageCopy copyRegion = {};
+            copyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            copyRegion.srcSubresource.layerCount = 1;
+            copyRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            copyRegion.dstSubresource.layerCount = 1;
+            copyRegion.extent = { swapchain.width, swapchain.height, 1 };
+
+            vkCmdCopyImage(cmdBuffer, renderTarget.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, swapchain.images[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
         }
         
         VkImageMemoryBarrier presentBarrier = imageBarrier(swapchain.images[imageIndex], VK_IMAGE_ASPECT_COLOR_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, 0
@@ -1412,8 +1449,7 @@ int main(int argc, const char** argv)
     }
 
     vkDestroyRenderPass(device, renderPassUI, 0);
-    vkDestroyRenderPass(device, renderPassLate, 0);
-    vkDestroyRenderPass(device, renderPassEarly, 0);
+    vkDestroyRenderPass(device, renderPass, 0);
 
     vkDestroySemaphore(device, releaseSemaphore, 0);
     vkDestroySemaphore(device, acquirSemaphore, 0);
