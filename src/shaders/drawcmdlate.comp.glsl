@@ -57,17 +57,31 @@ void main()
     float radius = mesh.radius * draws[di].scale;
 
     bool visible = true;
+
     visible = visible && (center.z * cull.frustum[1] + abs(center.x) * cull.frustum[0] > -radius);
 	visible = visible && (center.z * cull.frustum[3] + abs(center.y) * cull.frustum[2] > -radius);
 	
     visible = visible && (center.z + radius > cull.znear);
     visible = visible && (center.z - radius < cull.zfar);
 
-    // visible = visible && false;
     visible = visible || (cull.enableCull == 0);
 
+    if(visible && cull.enableOcclusion == 1)
+    {
+        vec4 aabb;
+        if(projectSphere(center.xyz, radius, cull.znear, cull.P00, cull.P11, aabb))
+        {
+            // the size in the render target
+            float width = (aabb.z - aabb.x) * cull.pyramidWidth; 
+            float height = (aabb.w - aabb.y) * cull.pyramidHeight;
 
+            float level = floor(log2(max(width, height))); // smaller object would use lower level
 
+            float depth = textureLod(depthPyramid, (aabb.xy + aabb.zw) * 0.5, level).x; // scene depth
+            float depthSphere = cull.znear / (center.z - radius); 
+            visible = visible && (depthSphere > depth); // nearest depth on sphere should less than the depth buffer
+        }
+    }
 
     drawVisibility[di] = visible ? 1 : 0;
 }

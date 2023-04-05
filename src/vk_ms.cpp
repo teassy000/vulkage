@@ -37,6 +37,7 @@ static Camera camera = {};
 static bool meshShadingEnabled = true;
 static bool enableCull = true;
 static bool enableLod = true;
+static bool enableOcclusion = true;
 static bool showPyramid = false;
 static int debugPyramidLevel = 4;
 static int s_depthPyramidCount = 0;
@@ -483,6 +484,10 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
         {
             showPyramid = !showPyramid;
         }
+        if (key == GLFW_KEY_O)
+        {
+            enableOcclusion = !enableOcclusion;
+        }
         if (key == GLFW_KEY_UP)
         {
             debugPyramidLevel = glm::min(s_depthPyramidCount - 1, ++debugPyramidLevel);
@@ -853,9 +858,6 @@ int main(int argc, const char** argv)
     uint32_t depthPyramidLevels = 0;
     VkImageView depthPyramidMips[16] = {};
 
-    VkSampler pyramidSampler = createSampler(device, VK_SAMPLER_REDUCTION_MODE_MIN);
-    assert(pyramidSampler);
-
     VkSampler depthSampler = createSampler(device, VK_SAMPLER_REDUCTION_MODE_MIN);
     assert(depthSampler);
 
@@ -876,16 +878,23 @@ int main(int argc, const char** argv)
     {
         uint32_t meshIdx = rand() % geometry.meshes.size();
         Mesh& mesh = geometry.meshes[meshIdx];
-
+        
+        /*
+        meshDraws[i].pos[0] = 0.f;
+        meshDraws[i].pos[1] = 0.f;
+        meshDraws[i].pos[2] = i*2 + 2.f;
+        meshDraws[i].scale = 2.f;
+*/
+        
         meshDraws[i].pos[0] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
         meshDraws[i].pos[1] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
         meshDraws[i].pos[2] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
         meshDraws[i].scale = (float(rand()) / RAND_MAX)  + 2.f;
+        
         meshDraws[i].orit = glm::rotate(
             quat(1, 0, 0, 0)
             , glm::radians((float(rand()) / RAND_MAX) * 90.f)
             , vec3((float(rand()) / RAND_MAX) * 2 - 1, (float(rand()) / RAND_MAX) * 2 - 1, (float(rand()) / RAND_MAX) * 2 - 1));
-       
         meshDraws[i].meshIdx = meshIdx;
         meshDraws[i].vertexOffset = mesh.vertexOffset;
     }
@@ -980,7 +989,8 @@ int main(int argc, const char** argv)
                 depthPyramidMips[i] = createImageView(device, depthPyramid.image, VK_FORMAT_R32_SFLOAT, i, 1);
             }
         }
-
+        
+        // update UI
         if(deltaTime > 33.3333)
         {
             // set input data
@@ -1012,6 +1022,7 @@ int main(int argc, const char** argv)
             ImGui::Checkbox("Mesh Shading", &meshShadingEnabled);
             ImGui::Checkbox("Cull", &enableCull);
             ImGui::Checkbox("Lod", &enableLod);
+            ImGui::Checkbox("Occlusion", &enableOcclusion);
             ImGui::Spacing();
             ImGui::Text("camera: ");
             ImGui::Text("pos: %.2f, %.2f, %.2f", camera.pos.x, camera.pos.y, camera.pos.z);
@@ -1024,8 +1035,7 @@ int main(int argc, const char** argv)
             deltaTime = 0.0;
         }
 
-        mat4 view = glm::lookAt(camera.pos, camera.lookAt, camera.up);
-
+        // update data
         float znear = 1.f;
         mat4 projection = persectiveProjection(glm::radians(70.f), (float)swapchain.width / (float)swapchain.height, znear);
         mat4 projectionT = glm::transpose(projection);
@@ -1036,20 +1046,24 @@ int main(int argc, const char** argv)
         drawCull.P00 = projection[0][0];
         drawCull.P11 = projection[1][1];
         drawCull.zfar = drawDist;
-        drawCull.znear = 0.5f;
+        drawCull.znear = znear;
+        drawCull.pyramidWidth = (float)pyramidLevelWidth;
+        drawCull.pyramidHeight = (float)pyramidLevelHeight;
         drawCull.frustum[0] = frustumX.x;
         drawCull.frustum[1] = frustumX.z;
         drawCull.frustum[2] = frustumY.y;
         drawCull.frustum[3] = frustumY.z;
         drawCull.enableCull = enableCull ? 1 : 0;
         drawCull.enableLod = enableLod ? 1 : 0;
+        drawCull.enableOcclusion = enableOcclusion ? 1 : 0;
 
+        
+        mat4 view = glm::lookAt(camera.pos, camera.lookAt, camera.up);
         TransformData trans = {};
         trans.view = view;
         trans.cameraPos = camera.pos;
 
         uploadBuffer(device, cmdPool, cmdBuffer, queue, tb, scratch, &trans, sizeof(trans));
-
 
 
         uint32_t imageIndex = 0;
@@ -1100,9 +1114,7 @@ int main(int argc, const char** argv)
                 , 0, 0, 0, 1, &cullEndBarrier, 0, 0);
 
             vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 1);
-
         }
-
 
         VkImageMemoryBarrier renderBeginBarriers[] = {
             imageBarrier(colorTarget.image, VK_IMAGE_ASPECT_COLOR_BIT, 0, 0 , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL),
@@ -1133,7 +1145,7 @@ int main(int argc, const char** argv)
 
         vkCmdBeginRenderPass(cmdBuffer, &passBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-        // draw
+        // draw scene
         {
             Globals globals = {};
             globals.vp = projection * view;
@@ -1166,25 +1178,29 @@ int main(int argc, const char** argv)
             }
         }
 
-
-
         vkCmdEndQuery(cmdBuffer, queryPoolStatistics, 0);
         vkCmdEndRenderPass(cmdBuffer);
         
         // draw pyramid
         {
-            VkImageMemoryBarrier depthReadBarriers[] = {
+            VkImageMemoryBarrier depthBarriers[] = {
                 imageBarrier(depthTarget.image, VK_IMAGE_ASPECT_DEPTH_BIT, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL),
-                imageBarrier(depthPyramid.image, VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL), // just set image layout to VK_IMAGE_LAYOUT_GENERAL
             };
 
             vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
-                , VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, ARRAYSIZE(depthReadBarriers), depthReadBarriers);
+                , VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, ARRAYSIZE(depthBarriers), depthBarriers);
+
+            VkImageMemoryBarrier depthPyramidReadBarriers[] = {
+                imageBarrier(depthPyramid.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_SHADER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL), // just set image layout to VK_IMAGE_LAYOUT_GENERAL
+            };
+
+            vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
+                , VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, ARRAYSIZE(depthPyramidReadBarriers), depthPyramidReadBarriers);
+
+            vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, depthPyramidPipeline);
 
             for (uint32_t i = 0; i < depthPyramidLevels; ++i)
             {
-                vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, depthPyramidPipeline);
-
                 uint32_t levelWidth = glm::max(1u, pyramidLevelWidth >> i);
                 uint32_t levelHeight = glm::max(1u, pyramidLevelHeight >> i);
 
@@ -1193,8 +1209,8 @@ int main(int argc, const char** argv)
                 vkCmdPushConstants(cmdBuffer, depthPyramidProgram.layout, depthPyramidProgram.pushConstantStages, 0, sizeof(imageSize), &imageSize);
 
                 DescriptorInfo srcDepth = (i == 0) 
-                    ? DescriptorInfo{pyramidSampler, depthTarget.imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL}
-                    : DescriptorInfo{pyramidSampler, depthPyramidMips[i - 1], VK_IMAGE_LAYOUT_GENERAL };
+                    ? DescriptorInfo{ depthSampler, depthTarget.imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL}
+                    : DescriptorInfo{ depthSampler, depthPyramidMips[i - 1], VK_IMAGE_LAYOUT_GENERAL };
 
                 DescriptorInfo descInfos[] = { 
                     srcDepth,
@@ -1202,6 +1218,13 @@ int main(int argc, const char** argv)
                 vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, depthPyramidProgram.updateTemplate, depthPyramidProgram.layout, 0, descInfos);
 
                 vkCmdDispatch(cmdBuffer, calcGroupCount(levelWidth, depthPyramidCS.localSizeX), calcGroupCount(levelHeight, depthPyramidCS.localSizeY), depthPyramidCS.localSizeZ);
+
+                // add barrier for next loop
+                VkImageMemoryBarrier reduceBarrier = imageBarrier(depthPyramid.image
+                    , VK_IMAGE_ASPECT_COLOR_BIT, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL);
+                
+                vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
+                    , VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &reduceBarrier);
             }
             
             VkImageMemoryBarrier depthWriteBarriers = imageBarrier(depthTarget.image
@@ -1211,17 +1234,16 @@ int main(int argc, const char** argv)
                 , VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &depthWriteBarriers);
         }
         
+        
         // late culling
         {
-
             vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, drawcmdLatePipeline);
 
-            VkImageMemoryBarrier cullLateBeginBarrier = imageBarrier(depthPyramid.image, VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+            VkImageMemoryBarrier cullLateBeginBarrier = imageBarrier(depthPyramid.image, VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL);
 
             vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
                 , VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &cullLateBeginBarrier);
 
-            // TODO: do the late culling
             vkCmdPushConstants(cmdBuffer, drawcmdLateProgram.layout, drawcmdLateProgram.pushConstantStages, 0, sizeof(drawCull), &drawCull);
 
             DescriptorInfo descInfos[] = { mb.buffer, mdrb.buffer, tb.buffer, mdcb.buffer, dccb.buffer, mdvb.buffer, {depthSampler, depthPyramid.imageView, VK_IMAGE_LAYOUT_GENERAL}};
@@ -1239,6 +1261,7 @@ int main(int argc, const char** argv)
         vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT
             , VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, ARRAYSIZE(copyBarriers), copyBarriers);
 
+        // copy scene image to UI pass
         if (showPyramid)
         {
             uint32_t levelWidth = glm::max(1u, pyramidLevelWidth >> debugPyramidLevel);
@@ -1276,6 +1299,8 @@ int main(int argc, const char** argv)
         // check https://github.com/KhronosGroup/Vulkan-Docs/wiki/Synchronization-Examples#combined-graphicspresent-queue
         vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
             , VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, ARRAYSIZE(uiBarriers), uiBarriers);
+
+        // draw UI
         {
             VkRenderPassBeginInfo passUIBeginInfo = { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
             passUIBeginInfo.renderPass = renderPassUI;
@@ -1284,7 +1309,6 @@ int main(int argc, const char** argv)
             passUIBeginInfo.renderArea.extent.height = swapchain.height;
             vkCmdBeginRenderPass(cmdBuffer, &passUIBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-            // draw UI
             vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 2);
             drawUI(ui, cmdBuffer);
             vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 3);
@@ -1342,40 +1366,41 @@ int main(int argc, const char** argv)
         VK_CHECK(vkQueuePresentKHR(queue, &presentInfo));
 
         double waitTimeBegin = glfwGetTime() * 1000.0;
-
         VK_CHECK(vkDeviceWaitIdle(device));
-        
         double waitTimeEnd = glfwGetTime() * 1000.0;
-        
-        uint64_t queryResults[5] = {};
-        vkGetQueryPoolResults(device, queryPoolTimeStemp, 0, ARRAYSIZE(queryResults), sizeof(queryResults), queryResults, sizeof(queryResults[0]), VK_QUERY_RESULT_64_BIT);
 
-        uint32_t pipelineResults[6] = {};
-        vkGetQueryPoolResults(device, queryPoolStatistics, 0, 1, sizeof(pipelineResults), pipelineResults, sizeof(pipelineResults[0]), 0);
+        // update profile data
+        {
+            uint64_t queryResults[5] = {};
+            vkGetQueryPoolResults(device, queryPoolTimeStemp, 0, ARRAYSIZE(queryResults), sizeof(queryResults), queryResults, sizeof(queryResults[0]), VK_QUERY_RESULT_64_BIT);
 
-        uint32_t triangleCulled = pipelineResults[2];
-        uint32_t triangleCount = pipelineResults[3];
-        double frameCpuEnd = glfwGetTime() * 1000.0;
+            uint32_t pipelineResults[6] = {};
+            vkGetQueryPoolResults(device, queryPoolStatistics, 0, 1, sizeof(pipelineResults), pipelineResults, sizeof(pipelineResults[0]), 0);
 
-        double frameGpuBegin = double(queryResults[0]) * props.limits.timestampPeriod * 1e-6;
-        double frameDrawCmdEnd = double(queryResults[1]) * props.limits.timestampPeriod * 1e-6;;
-        double frameUIBegin = double(queryResults[2]) * props.limits.timestampPeriod * 1e-6;
-        double frameUIEnd = double(queryResults[3]) * props.limits.timestampPeriod * 1e-6;
-        double frameGpuEnd = double(queryResults[4]) * props.limits.timestampPeriod * 1e-6;
+            uint32_t triangleCulled = pipelineResults[2];
+            uint32_t triangleCount = pipelineResults[3];
+            double frameCpuEnd = glfwGetTime() * 1000.0;
 
-        avrageCpuTime = avrageCpuTime * 0.95 + (frameCpuEnd - frameCpuBegin) * 0.05;
-        avrageGpuTime = avrageGpuTime * 0.95 + (frameGpuEnd - frameGpuBegin) * 0.05;
-        pd.avgCpuTime = (float)avrageCpuTime;
-        deltaTime += (frameCpuEnd - frameCpuBegin);
-        pd.cpuTime = float(frameCpuEnd - frameCpuBegin);
-        pd.gpuTime = float(frameGpuEnd - frameGpuBegin);
-        pd.avgGpuTime = float(avrageGpuTime);
-        pd.assemplyCmdTime = float(frameDrawCmdEnd - frameGpuBegin);
-        pd.uiTime = float(frameUIEnd - frameUIBegin);
-        pd.waitTime = float(waitTimeEnd - waitTimeBegin);
-        pd.trianglesPerSecond = float(triangleCount * 1e-9 *  double(1000 / avrageGpuTime));
-        pd.trangleCount = float(triangleCount * 1e-6);
-        pd.triangleFeed = float(triangleCulled * 1e-6);
+            double frameGpuBegin = double(queryResults[0]) * props.limits.timestampPeriod * 1e-6;
+            double frameDrawCmdEnd = double(queryResults[1]) * props.limits.timestampPeriod * 1e-6;;
+            double frameUIBegin = double(queryResults[2]) * props.limits.timestampPeriod * 1e-6;
+            double frameUIEnd = double(queryResults[3]) * props.limits.timestampPeriod * 1e-6;
+            double frameGpuEnd = double(queryResults[4]) * props.limits.timestampPeriod * 1e-6;
+
+            avrageCpuTime = avrageCpuTime * 0.95 + (frameCpuEnd - frameCpuBegin) * 0.05;
+            avrageGpuTime = avrageGpuTime * 0.95 + (frameGpuEnd - frameGpuBegin) * 0.05;
+            pd.avgCpuTime = (float)avrageCpuTime;
+            deltaTime += (frameCpuEnd - frameCpuBegin);
+            pd.cpuTime = float(frameCpuEnd - frameCpuBegin);
+            pd.gpuTime = float(frameGpuEnd - frameGpuBegin);
+            pd.avgGpuTime = float(avrageGpuTime);
+            pd.assemplyCmdTime = float(frameDrawCmdEnd - frameGpuBegin);
+            pd.uiTime = float(frameUIEnd - frameUIBegin);
+            pd.waitTime = float(waitTimeEnd - waitTimeBegin);
+            pd.trianglesPerSecond = float(triangleCount * 1e-9 * double(1000 / avrageGpuTime));
+            pd.trangleCount = float(triangleCount * 1e-6);
+            pd.triangleFeed = float(triangleCulled * 1e-6);
+        }
 	}
 
     VK_CHECK(vkDeviceWaitIdle(device));
@@ -1385,21 +1410,22 @@ int main(int argc, const char** argv)
         vkDestroyImageView(device, depthPyramidMips[i], 0);
     }
     
+
     vkDestroySampler(device, depthSampler, 0);
-    vkDestroySampler(device, pyramidSampler, 0);
+    destroyImage(device, renderTarget);
     destroyImage(device, depthPyramid);
     destroyImage(device, colorTarget);
     destroyImage(device, depthTarget);
+    vkDestroyFramebuffer(device, uiTargetFB, 0);
     vkDestroyFramebuffer(device, targetFrameBuffer, 0);
-   
+
+    destroyUI(ui);
+
     destroyBuffer(device, mdvb);
     destroyBuffer(device, tb);
     destroyBuffer(device, dccb);
     destroyBuffer(device, mdcb);
     destroyBuffer(device, mdrb);
-
-    destroyUI(ui);
-   
     destroyBuffer(device, scratch);
     destroyBuffer(device, ib); 
     destroyBuffer(device, vb);
@@ -1430,6 +1456,7 @@ int main(int argc, const char** argv)
 
     vkDestroyPipeline(device, meshPipeline, 0);
     destroyProgram(device, meshProgram);
+    
     if (meshShadingSupported)
     {
         vkDestroyPipeline(device, meshPipelineMS, 0);

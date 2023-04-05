@@ -1,7 +1,9 @@
+
+
 // 2D Polyhedral Bounds of a Clipped, Perspective-Projected 3D Sphere. Michael Mara, Morgan McGuire. 2013
 bool projectSphere(vec3 c, float r, float znear, float P00, float P11, out vec4 aabb)
 {
-    if (c.z < r + znear)
+    if (c.z < r + znear) // (znear > c.z - r)
         return false;
 
     vec3 cr = c * r;
@@ -21,10 +23,12 @@ bool projectSphere(vec3 c, float r, float znear, float P00, float P11, out vec4 
     return true;
 }
 
+
 bool coneCull(vec3 center, float radius, vec3 cone_axis, float cone_cutoff, vec3 camera_position)
 {
     return dot(center - camera_position, cone_axis) >= cone_cutoff * length(center - camera_position) + radius;
 }
+
 
 vec3 rotateQuat(vec3 v, vec4 q)
 {
