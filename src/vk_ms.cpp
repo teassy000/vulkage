@@ -870,21 +870,14 @@ int main(int argc, const char** argv)
     uint32_t drawCount = 1'000'000;
     std::vector<MeshDraw> meshDraws(drawCount);
 
-    float randomDist = 300;
-    float drawDist = 150;
+    float randomDist = 200;
+    float drawDist = 200;
     
     srand(42);
     for (uint32_t i = 0; i < drawCount; i++)
     {
         uint32_t meshIdx = rand() % geometry.meshes.size();
         Mesh& mesh = geometry.meshes[meshIdx];
-        
-        /*
-        meshDraws[i].pos[0] = 0.f;
-        meshDraws[i].pos[1] = 0.f;
-        meshDraws[i].pos[2] = i*2 + 2.f;
-        meshDraws[i].scale = 2.f;
-*/
         
         meshDraws[i].pos[0] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
         meshDraws[i].pos[1] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
@@ -898,11 +891,6 @@ int main(int argc, const char** argv)
         meshDraws[i].meshIdx = meshIdx;
         meshDraws[i].vertexOffset = mesh.vertexOffset;
     }
-
-//    uint32_t nidx = findNearestMeshDraw(meshDraws, camera.pos);
-
-//    meshDraws[nidx].scale = 0.f;
-
 
     Buffer mdrb = {}; //mesh draw buffer
     createBuffer(mdrb, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
