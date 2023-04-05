@@ -29,7 +29,7 @@ using Shaders = std::initializer_list<const Shader*>;
 
 bool loadShader(Shader& shader, VkDevice device, const char* path);
 
-VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, VkRenderPass renderPass, Shaders shaders, VkPipelineVertexInputStateCreateInfo* vtxInputState);
+VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, VkRenderPass renderPass, Shaders shaders, VkPipelineVertexInputStateCreateInfo* vtxInputState, bool isUI = false);
 VkPipeline createComputePipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, const Shader& shader);
 
 VkDescriptorSetLayout createSetLayout(VkDevice device, Shaders shaders);

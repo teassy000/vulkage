@@ -68,7 +68,7 @@ void prepareUIPipeline(UI& ui, const VkPipelineCache pipelineCache, const VkRend
     vertexInput.vertexAttributeDescriptionCount = (uint32_t)attributes.size();
     vertexInput.pVertexAttributeDescriptions = attributes.data();
 
-    VkPipeline pipeline = createGraphicsPipeline(device, pipelineCache, program.layout, renderPass, { &ui.vs, &ui.fs }, &vertexInput);
+    VkPipeline pipeline = createGraphicsPipeline(device, pipelineCache, program.layout, renderPass, { &ui.vs, &ui.fs }, &vertexInput, true);
     assert(pipeline);
 
     ui.program = program;

@@ -273,7 +273,7 @@ bool loadShader(Shader& shader ,VkDevice device, const char* path)
     return true;
 }
 
-VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, VkRenderPass renderPass, Shaders shaders, VkPipelineVertexInputStateCreateInfo* pVertexInput)
+VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, VkRenderPass renderPass, Shaders shaders, VkPipelineVertexInputStateCreateInfo* vtxInputState, bool isUI /*= false*/)
 {
     VkGraphicsPipelineCreateInfo createInfo = { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
 
@@ -292,7 +292,7 @@ VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache
     createInfo.pStages = stages.data();
 
     VkPipelineVertexInputStateCreateInfo defaultVertexInput = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
-    createInfo.pVertexInputState = (pVertexInput != nullptr) ? pVertexInput : &defaultVertexInput;
+    createInfo.pVertexInputState = (vtxInputState != nullptr) ? vtxInputState : &defaultVertexInput;
 
     VkPipelineInputAssemblyStateCreateInfo inputAssemply = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
     inputAssemply.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
@@ -316,8 +316,7 @@ VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache
     VkPipelineDepthStencilStateCreateInfo depthStencilState = { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
     depthStencilState.depthTestEnable = true;
     depthStencilState.depthWriteEnable = true;
-    // Reversed Z
-    depthStencilState.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL; // TODO: UI simply rendered to 1.0 in the same pass, if move it to another pass then there should no 'equal' anymore.
+    depthStencilState.depthCompareOp = isUI ? VK_COMPARE_OP_ALWAYS : VK_COMPARE_OP_GREATER; // all UI element rendered to (z = 1.0);
     depthStencilState.depthBoundsTestEnable = false;
     depthStencilState.minDepthBounds = 0.f;
     depthStencilState.maxDepthBounds = 1.f;
@@ -327,7 +326,7 @@ VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache
 
     VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
     colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    colorBlendAttachment.blendEnable = VK_TRUE;
+    colorBlendAttachment.blendEnable = true;
     colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
     colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
