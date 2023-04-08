@@ -68,7 +68,6 @@ struct Mesh
 
     uint vertexOffset;
     uint lodCount;
-    uint padding[2];
 
     float lodDistance[8];
     MeshLod lods[8];

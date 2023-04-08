@@ -96,7 +96,6 @@ void main()
     payload.meshletIndices[ti] = mi;
 
     payload.drawId = drawId;
-    
 
     uint emitCount = min(TASKGP_SIZE, lod.meshletCount - mLocalId );
     EmitMeshTasksEXT(emitCount, 1, 1);
