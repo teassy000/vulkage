@@ -273,7 +273,7 @@ bool loadShader(Shader& shader ,VkDevice device, const char* path)
     return true;
 }
 
-VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, VkRenderPass renderPass, Shaders shaders, VkPipelineVertexInputStateCreateInfo* vtxInputState, bool isUI /*= false*/)
+VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, const VkPipelineRenderingCreateInfo& renderInfo, Shaders shaders, VkPipelineVertexInputStateCreateInfo* vtxInputState, bool isUI /*= false*/)
 {
     VkGraphicsPipelineCreateInfo createInfo = { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
 
@@ -347,7 +347,7 @@ VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache
     createInfo.pDynamicState = &dynamicState;
 
     createInfo.layout = layout;
-    createInfo.renderPass = renderPass;
+    createInfo.pNext = &renderInfo;
 
     VkPipeline pipeline = 0;
 

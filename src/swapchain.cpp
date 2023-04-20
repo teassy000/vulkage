@@ -103,7 +103,7 @@ VkFramebuffer createFramebuffer(VkDevice device, VkRenderPass renderPass, VkImag
 
 
 void createSwapchain(Swapchain& result, VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, uint32_t* familyIndex
-    , VkFormat format, VkRenderPass renderPass, VkSwapchainKHR oldSwapchain/* = 0*/)
+    , VkFormat format, VkSwapchainKHR oldSwapchain/* = 0*/)
 {
     VkSurfaceCapabilitiesKHR surfaceCaps;
     VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCaps));
@@ -136,7 +136,7 @@ void destroySwapchain(VkDevice device, const Swapchain& swapchain)
 
 
 SwapchainStatus resizeSwapchainIfNecessary(Swapchain& result, VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, uint32_t* familyIndex
-    , VkFormat format, VkRenderPass renderPass)
+    , VkFormat format)
 {
     VkSurfaceCapabilitiesKHR surfaceCaps;
     VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCaps));
@@ -152,7 +152,7 @@ SwapchainStatus resizeSwapchainIfNecessary(Swapchain& result, VkPhysicalDevice p
     }
 
     Swapchain old = result;
-    createSwapchain(result, physicalDevice, device, surface, familyIndex, format, renderPass, old.swapchain);
+    createSwapchain(result, physicalDevice, device, surface, familyIndex, format, old.swapchain);
 
 
     VK_CHECK(vkDeviceWaitIdle(device));

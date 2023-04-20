@@ -52,7 +52,7 @@ VkInstance createInstance()
 {
 
     VkApplicationInfo appInfo = { VK_STRUCTURE_TYPE_APPLICATION_INFO };
-    appInfo.apiVersion = VK_API_VERSION_1_2;
+    appInfo.apiVersion = VK_API_VERSION_1_3;
 
     VkInstanceCreateInfo createInfo = { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
     createInfo.pApplicationInfo = &appInfo;
@@ -63,6 +63,18 @@ VkInstance createInstance()
     };
     createInfo.ppEnabledLayerNames = debugLayers;
     createInfo.enabledLayerCount = sizeof(debugLayers) / sizeof(debugLayers[0]);
+
+    /*
+    VkValidationFeatureEnableEXT enabledValidationFeatures[] = {
+        VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT,
+    };
+
+    VkValidationFeaturesEXT validationFeatures = { VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT };
+    validationFeatures.enabledValidationFeatureCount = sizeof(enabledValidationFeatures) / sizeof(enabledValidationFeatures[0]);
+    validationFeatures.pEnabledValidationFeatures = enabledValidationFeatures;
+
+    createInfo.pNext = &validationFeatures;
+*/
 #endif
 
     const char* extensions[] = {
@@ -193,7 +205,10 @@ VkDevice createDevice(VkInstance instance, VkPhysicalDevice physicalDevice, uint
     features12.drawIndirectCount = true;
     features12.storageBuffer8BitAccess = true;
     features12.uniformAndStorageBuffer8BitAccess = true;
-    features12.samplerFilterMinmax = true; 
+    features12.samplerFilterMinmax = true;
+
+    VkPhysicalDeviceVulkan13Features features13 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };
+    features13.dynamicRendering = true;
 
     VkPhysicalDeviceMeshShaderFeaturesEXT featuresMesh = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT };
     featuresMesh.meshShader = true;
@@ -208,8 +223,9 @@ VkDevice createDevice(VkInstance instance, VkPhysicalDevice physicalDevice, uint
     createInfo.pNext = &features;
     features.pNext = &features11;
     features11.pNext = &features12;
+    features12.pNext = &features13;
     if (meshShadingSupported)
-        features12.pNext = &featuresMesh;
+        features13.pNext = &featuresMesh;
 
 
     VkDevice device = 0;

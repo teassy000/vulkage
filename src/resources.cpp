@@ -51,6 +51,7 @@ void createBuffer(Buffer& result, const VkPhysicalDeviceMemoryProperties& memory
 
 void uploadBuffer(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer cmdBuffer, VkQueue queue, const Buffer& buffer, const Buffer& scratch, const void* data, size_t size)
 {
+    assert(size > 0);
     assert(scratch.data);
     assert(scratch.size >= size);
     
