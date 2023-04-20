@@ -64,7 +64,7 @@ VkInstance createInstance()
     createInfo.ppEnabledLayerNames = debugLayers;
     createInfo.enabledLayerCount = sizeof(debugLayers) / sizeof(debugLayers[0]);
 
-    /*
+    
     VkValidationFeatureEnableEXT enabledValidationFeatures[] = {
         VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT,
     };
@@ -74,7 +74,7 @@ VkInstance createInstance()
     validationFeatures.pEnabledValidationFeatures = enabledValidationFeatures;
 
     createInfo.pNext = &validationFeatures;
-*/
+
 #endif
 
     const char* extensions[] = {
@@ -209,6 +209,7 @@ VkDevice createDevice(VkInstance instance, VkPhysicalDevice physicalDevice, uint
 
     VkPhysicalDeviceVulkan13Features features13 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };
     features13.dynamicRendering = true;
+    features13.synchronization2 = true;
 
     VkPhysicalDeviceMeshShaderFeaturesEXT featuresMesh = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT };
     featuresMesh.meshShader = true;

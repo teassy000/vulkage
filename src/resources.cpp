@@ -247,15 +247,18 @@ VkImageView createImageView(VkDevice device, VkImage image, VkFormat format, uin
     return imageView;
 }
 
-
-VkImageMemoryBarrier imageBarrier(VkImage image, VkImageAspectFlagBits aspectMask, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, VkImageLayout oldLayout, VkImageLayout newLayout)
+VkImageMemoryBarrier2 imageBarrier(VkImage image, VkImageAspectFlagBits aspectMask, 
+    VkAccessFlags2 srcAccessMask, VkImageLayout oldLayout, VkPipelineStageFlags2 srcStage,
+    VkAccessFlags2 dstAccessMask,  VkImageLayout newLayout, VkPipelineStageFlags2 dstStage)
 {
-    VkImageMemoryBarrier result = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+    VkImageMemoryBarrier2 result = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
     
     result.srcAccessMask = srcAccessMask;
     result.dstAccessMask = dstAccessMask;
     result.oldLayout = oldLayout;
     result.newLayout = newLayout;
+    result.srcStageMask = srcStage;
+    result.dstStageMask = dstStage;
     result.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     result.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     result.image = image;
@@ -264,6 +267,18 @@ VkImageMemoryBarrier imageBarrier(VkImage image, VkImageAspectFlagBits aspectMas
     result.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
 
     return result;
+}
+
+void pipelineBarrier(VkCommandBuffer cmdBuffer, VkDependencyFlags flags, size_t bufferBarrierCount, const VkBufferMemoryBarrier2* bufferBarriers, const uint32_t imageBarrierCount, const VkImageMemoryBarrier2* imageBarriers)
+{
+    VkDependencyInfo dependencyInfo = { VK_STRUCTURE_TYPE_DEPENDENCY_INFO_KHR };
+    dependencyInfo.dependencyFlags = flags;
+    dependencyInfo.bufferMemoryBarrierCount = (uint32_t)bufferBarrierCount;
+    dependencyInfo.pBufferMemoryBarriers = bufferBarriers;
+    dependencyInfo.imageMemoryBarrierCount = (uint32_t)imageBarrierCount;
+    dependencyInfo.pImageMemoryBarriers = imageBarriers;
+    
+    vkCmdPipelineBarrier2(cmdBuffer, &dependencyInfo);
 }
 
 uint32_t calculateMipLevelCount(uint32_t width, uint32_t height)
