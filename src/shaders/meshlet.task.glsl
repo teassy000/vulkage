@@ -71,23 +71,33 @@ void main()
 #if CULL
     vec3 axit = vec3( int(meshlets[mi].cone_axis[0]) / 127.0, int(meshlets[mi].cone_axis[1]) / 127.0, int(meshlets[mi].cone_axis[2]) / 127.0); 
     vec3 cone_axis = rotateQuat(axit, meshDraw.orit);
-    vec3 cone_center = rotateQuat(meshlets[mi].center, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
-    float cone_radians = meshlets[mi].radians;
+    vec3 center = rotateQuat(meshlets[mi].center, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
+    float radius = meshlets[mi].radius * meshDraw.scale;
     float cone_cutoff = int(meshlets[mi].cone_cutoff) / 127.0;
     vec3 cameraPos = globals.cameraPos;
     sharedCount = 0;
     
     barrier();
+    
+    // back face culling 
+    bool accept = !coneCull(center, radius, cone_axis, cone_cutoff, cameraPos);
+    // frustum culling: left/right/top/bottom
+    accept = accept && (center.z * globals.frustum[1] + abs(center.x) * globals.frustum[0] > -radius);
+    accept = accept && (center.z * globals.frustum[3] + abs(center.y) * globals.frustum[2] > -radius);
+    // near culling
+    // note: not going to perform far culling to keep same result with triditional pipeline
+    accept = accept && (center.z + radius > globals.znear);
 
-    bool accept = !coneCull(cone_center, cone_radians, cone_axis, cone_cutoff, cameraPos);
-    accept = (accept == mLocalId < lod.meshletCount);
+    accept = (accept && (mLocalId < lod.meshletCount));
 
     if(accept)
     {
         uint index = atomicAdd(sharedCount, 1);
         payload.meshletIndices[index] = mi;
     }
-    barrier(); 
+
+    barrier();
+
     payload.drawId = drawId;
 
     // TODO: figure out correct task count to prevent overdraw

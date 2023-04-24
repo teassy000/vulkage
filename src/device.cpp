@@ -191,6 +191,9 @@ VkDevice createDevice(VkInstance instance, VkPhysicalDevice physicalDevice, uint
         extensions.push_back(VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME);
     }
 
+
+    extensions.push_back(VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME);
+
     VkPhysicalDeviceFeatures2 features = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
     features.features.vertexPipelineStoresAndAtomics = true;
     features.features.multiDrawIndirect = true;
@@ -215,6 +218,10 @@ VkDevice createDevice(VkInstance instance, VkPhysicalDevice physicalDevice, uint
     featuresMesh.meshShader = true;
     featuresMesh.taskShader = true;
 
+    
+    VkPhysicalDeviceFragmentShadingRateFeaturesKHR featuresFSR = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADING_RATE_FEATURES_KHR };
+    featuresFSR.pipelineFragmentShadingRate = true;
+
     VkDeviceCreateInfo createInfo = { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
     createInfo.queueCreateInfoCount = 1;
     createInfo.pQueueCreateInfos = &queueInfo;
@@ -225,8 +232,10 @@ VkDevice createDevice(VkInstance instance, VkPhysicalDevice physicalDevice, uint
     features.pNext = &features11;
     features11.pNext = &features12;
     features12.pNext = &features13;
+    features13.pNext = &featuresFSR;
+
     if (meshShadingSupported)
-        features13.pNext = &featuresMesh;
+        featuresFSR.pNext = &featuresMesh;
 
 
     VkDevice device = 0;

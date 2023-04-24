@@ -112,8 +112,11 @@ VkQueryPool createQueryPool(VkDevice device, uint32_t queryCount, VkQueryType qu
 struct alignas(16) Globals
 {
     mat4 vp;
-    
     vec3 cameraPos;
+
+    float znear, zfar;
+    float frustum[4];
+    float screenWidth, screenHeight;
 };
 
 struct alignas(16) MeshDrawCull
@@ -165,7 +168,7 @@ struct Vertex
 struct alignas(16) Meshlet
 {
     vec3 center;
-    float radians;
+    float radius;
     int8_t cone_axis[3];
     int8_t cone_cutoff;
 
@@ -244,7 +247,7 @@ size_t appendMeshlets(Geometry& result, std::vector<Vertex>& vertices, std::vect
         m.center[0] = bounds.center[0];
         m.center[1] = bounds.center[1];
         m.center[2] = bounds.center[2];
-        m.radians = bounds.radius;
+        m.radius = bounds.radius;
 
         m.cone_axis[0] = bounds.cone_axis_s8[0];
         m.cone_axis[1] = bounds.cone_axis_s8[1];
@@ -364,6 +367,11 @@ bool loadMesh(Geometry& result, const char* path, bool buildMeshlets)
 
     }
 
+    while (result.meshlets.size() % 64)
+    {
+        result.meshlets.push_back(Meshlet());
+    }
+
     result.meshes.push_back(mesh);
 
     return true;
@@ -390,6 +398,8 @@ void dumpExtensionSupport(VkPhysicalDevice physicalDevice, const std::vector<VkE
     checkExtSupportness(availableExtensions, VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME);
     checkExtSupportness(availableExtensions, VK_KHR_DRAW_INDIRECT_COUNT_EXTENSION_NAME);
     checkExtSupportness(availableExtensions, VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME);
+    checkExtSupportness(availableExtensions, VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME);
+
 }
 
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -839,7 +849,7 @@ int main(int argc, const char** argv)
     std::vector<MeshDraw> meshDraws(drawCount);
 
     float randomDist = 300;
-    float drawDist = 200;
+    float drawDist = 300;
     srand(42);
 
     for (uint32_t i = 0; i < drawCount; i++)
@@ -1131,6 +1141,14 @@ int main(int argc, const char** argv)
         {
             Globals globals = {};
             globals.vp = projection * view;
+            globals.zfar = drawDist;
+            globals.znear = znear;
+            globals.frustum[0] = frustumX.x;
+            globals.frustum[1] = frustumX.z;
+            globals.frustum[2] = frustumY.y;
+            globals.frustum[3] = frustumY.z;
+            globals.screenWidth = (float)swapchain.width;
+            globals.screenHeight = (float)swapchain.height;
             globals.cameraPos = camera.pos;
 
             bool meshShadingOn = meshShadingEnabled && meshShadingSupported;

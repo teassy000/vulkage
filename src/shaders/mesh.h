@@ -11,7 +11,7 @@ struct Vertex
 struct Meshlet
 {
     vec3 center;
-    float radians;
+    float radius;
     int8_t cone_axis[3];
     int8_t cone_cutoff;
    
@@ -31,6 +31,10 @@ struct Globals
 {
     mat4 projection;
     vec3 cameraPos;
+
+    float znear, zfar;
+    float frustum[4];
+    float screenWidth, screenHeight;
 };
 
 struct MeshDrawCull

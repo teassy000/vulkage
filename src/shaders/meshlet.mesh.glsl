@@ -1,10 +1,8 @@
 #version 450
 
-#extension GL_ARB_shader_draw_parameters: require
 #extension GL_EXT_shader_16bit_storage: require
 #extension GL_EXT_shader_8bit_storage: require
 #extension GL_EXT_mesh_shader: require
-
 
 #extension GL_GOOGLE_include_directive: require
 
@@ -13,6 +11,7 @@
 #include "math.h"
 
 #define DEBUG 0
+#define CULL 1
 
 
 layout(local_size_x = MESHGP_SIZE, local_size_y = 1, local_size_z = 1) in;
@@ -48,11 +47,13 @@ layout(binding = 5) readonly buffer Vertices
     Vertex vertices[];
 };
 
-
-
 layout(location = 0) out vec4 color[];
 
 taskPayloadSharedEXT TaskPayload payload;
+
+#if CULL
+shared vec3 vertexClip[64];
+#endif
 
 uint hash(uint a)
 {
@@ -86,27 +87,37 @@ void main()
     vec3 mcolor = vec3(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255)) / 255.0;
 #endif
 
-    // TODO: maybe remove the branch would help
-    for(uint i = ti; i < uint(meshlets[mi].vertexCount); i += MESHGP_SIZE )
+    if(ti < vertexCount)
     {
+        uint i = ti;
         uint vi = meshletData[vertexOffset + i] + meshDraw.vertexOffset;
     
         vec3 pos = vec3(vertices[vi].vx, vertices[vi].vy, vertices[vi].vz);
         vec3 norm = vec3(int(vertices[vi].nx), int(vertices[vi].ny), int(vertices[vi].nz)) / 127.0 - 1.0;
         vec2 uv = vec2(vertices[vi].tu, vertices[vi].tv);
 
-        vec3 result = vec3(rotateQuat( pos, meshDraw.orit) * meshDraw.scale + meshDraw.pos);
+        vec4 result =  globals.projection * vec4(rotateQuat( pos, meshDraw.orit) * meshDraw.scale + meshDraw.pos, 1.0);
 
-        gl_MeshVerticesEXT[i].gl_Position = globals.projection * vec4(result, 1.0);
+        gl_MeshVerticesEXT[i].gl_Position = result;
 
 #if DEBUG
         color[i] = vec4(mcolor, 1.0);
 #else
         color[i] = vec4(norm * 0.5 + vec3(0.5), 1.0);
 #endif
+
+#if CULL
+        vertexClip[i] = vec3(result.xy/result.w, result.w);
+#endif
     }
 
-    for(uint i = ti; i < uint(meshlets[mi].triangleCount); i += MESHGP_SIZE )
+#if CULL
+	barrier();
+#endif
+
+    vec2 screen = vec2(globals.screenWidth, globals.screenHeight);
+
+    for(uint i = ti; i < triangleCount; i += MESHGP_SIZE )
     {
         uint offset = indexOffset * 4 + i * 3;
 
@@ -115,5 +126,27 @@ void main()
         uint idx2 = uint(meshletData8[ offset + 2]);
         
         gl_PrimitiveTriangleIndicesEXT[i] = uvec3(idx0, idx1, idx2);
+#if CULL
+        bool culled = false;
+
+        vec2 pa = vertexClip[idx0].xy;
+        vec2 pb = vertexClip[idx1].xy;
+        vec2 pc = vertexClip[idx2].xy;
+
+        vec2 eb = pb - pa;
+        vec2 ec = pc - pa;
+
+        culled = culled || (eb.x * ec.y >= eb.y * ec.x);
+
+        vec2 bmin = (min(pa, min(pb, pc)) * 0.5 + vec2(0.5)) * screen;
+        vec2 bmax = (max(pa, max(pb, pc)) * 0.5 + vec2(0.5)) * screen;
+        float sbprec = 1.0/ 256.0;
+
+        culled = culled || (round(bmin.x - sbprec) == round(bmax.x - sbprec) || round(bmin.y - sbprec) == round(bmax.y - sbprec));
+        
+        culled = culled && (vertexClip[idx0].z > 0.0 && vertexClip[idx1].z > 0.0 && vertexClip[idx2].z > 0.0);
+
+        gl_MeshPrimitivesEXT[i].gl_CullPrimitiveEXT = culled;
+#endif
     }
 }
