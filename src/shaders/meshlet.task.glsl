@@ -90,6 +90,8 @@ void main()
 
     accept = (accept && (mLocalId < lod.meshletCount));
 
+    // TODO: occlussion culling
+
     if(accept)
     {
         uint index = atomicAdd(sharedCount, 1);

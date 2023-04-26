@@ -50,7 +50,6 @@ VkDebugReportCallbackEXT registerDebugCallback(VkInstance instance)
 
 VkInstance createInstance()
 {
-
     VkApplicationInfo appInfo = { VK_STRUCTURE_TYPE_APPLICATION_INFO };
     appInfo.apiVersion = VK_API_VERSION_1_3;
 
@@ -218,7 +217,6 @@ VkDevice createDevice(VkInstance instance, VkPhysicalDevice physicalDevice, uint
     featuresMesh.meshShader = true;
     featuresMesh.taskShader = true;
 
-    
     VkPhysicalDeviceFragmentShadingRateFeaturesKHR featuresFSR = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADING_RATE_FEATURES_KHR };
     featuresFSR.pipelineFragmentShadingRate = true;
 
