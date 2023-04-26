@@ -93,7 +93,7 @@ void main()
     }
     
     // early culling pass will setup the draw commands
-    if(!LATE && visible)
+    if(visible && (!LATE || drawVisibility[di] == 0))
     {
         barrier(); 
         uint dci = atomicAdd(drawCmdCount, 1);

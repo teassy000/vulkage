@@ -23,7 +23,6 @@ layout(push_constant) uniform block
     Globals globals;
 };
 
-
 layout(binding = 0) readonly buffer DrawCommands 
 {
     MeshDrawCommand drawCmds[];
@@ -49,8 +48,9 @@ layout(binding = 6) readonly buffer Transform
     TransformData trans;
 };
 
-taskPayloadSharedEXT TaskPayload payload;
+layout(binding = 7) uniform sampler2D pyramid;
 
+taskPayloadSharedEXT TaskPayload payload;
 
 #if CULL
 shared int sharedCount;
@@ -81,10 +81,10 @@ void main()
     float radius = meshlets[mi].radius * meshDraw.scale;
     float cone_cutoff = int(meshlets[mi].cone_cutoff) / 127.0;
     vec3 cameraPos = trans.cameraPos;
+
     sharedCount = 0;
-    
     barrier();
-    
+
     // back face culling, here we culling in the view space
     bool accept = !coneCull(center, radius, cone_axis, cone_cutoff, vec3(0, 0, 0));
     // frustum culling: left/right/top/bottom
@@ -96,7 +96,25 @@ void main()
 
     accept = accept && (mLocalId < lod.meshletCount);
 
-    // TODO: occlussion culling
+    // occlussion culling
+    if(LATE && accept)
+    {
+        vec4 aabb;
+        float P00 = globals.projection[0][0];
+        float P11 = globals.projection[1][1];
+        if(projectSphere(center.xyz, radius, globals.znear, P00, P11, aabb))
+        {
+            // the size in the render targetpyramidLevelHeight
+            float width = (aabb.z - aabb.x) * globals.pyramidWidth; 
+            float height = (aabb.w - aabb.y) * globals.pyramidHeight;
+
+            float level = floor(log2(max(width, height))); // smaller object would use lower level
+
+            float depth = textureLod(pyramid, (aabb.xy + aabb.zw) * 0.5, level).x; // scene depth
+            float depthSphere = globals.znear / (center.z - radius); 
+            accept = accept && (depthSphere > depth); // nearest depth on sphere should less than the depth buffer
+        }
+    }
 
     if(accept)
     {

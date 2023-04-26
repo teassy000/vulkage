@@ -94,13 +94,7 @@ VkQueryPool createQueryPool(VkDevice device, uint32_t queryCount, VkQueryType qu
 
     if (queryType == VK_QUERY_TYPE_PIPELINE_STATISTICS)
     {
-        createInfo.pipelineStatistics = 
-            VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_VERTICES_BIT
-            | VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_PRIMITIVES_BIT
-            | VK_QUERY_PIPELINE_STATISTIC_CLIPPING_INVOCATIONS_BIT
-            | VK_QUERY_PIPELINE_STATISTIC_CLIPPING_PRIMITIVES_BIT
-            | VK_QUERY_PIPELINE_STATISTIC_TASK_SHADER_INVOCATIONS_BIT_EXT
-            | VK_QUERY_PIPELINE_STATISTIC_MESH_SHADER_INVOCATIONS_BIT_EXT;
+        createInfo.pipelineStatistics = VK_QUERY_PIPELINE_STATISTIC_CLIPPING_PRIMITIVES_BIT;
     }
 
 
@@ -111,10 +105,11 @@ VkQueryPool createQueryPool(VkDevice device, uint32_t queryCount, VkQueryType qu
 
 struct alignas(16) Globals
 {
-    mat4 PV;
+    mat4 projection;
 
     float znear, zfar;
     float frustum[4];
+    float pyramidWidth, pyramidHeight;
     float screenWidth, screenHeight;
 };
 
@@ -339,7 +334,7 @@ bool loadMesh(Geometry& result, const char* path, bool buildMeshlets)
     mesh.radius = radius;
     
     std::vector<uint32_t> lodIndices = indices;
-    while ( mesh.lodCount < ARRAYSIZE(mesh.lods))
+    while ( mesh.lodCount < COUNTOF(mesh.lods))
     {
         MeshLod& lod = mesh.lods[mesh.lodCount++];
         
@@ -351,7 +346,7 @@ bool loadMesh(Geometry& result, const char* path, bool buildMeshlets)
         lod.meshletOffset = (uint32_t)result.meshlets.size();
         lod.meshletCount = buildMeshlets ? (uint32_t)appendMeshlets(result, vertices, lodIndices) : 0u;
         
-        if(mesh.lodCount < ARRAYSIZE(mesh.lods))
+        if(mesh.lodCount < COUNTOF(mesh.lods))
         {
             size_t nextIndicesTarget = size_t(double(lodIndices.size()) * 0.75);
             size_t nextIndices = meshopt_simplify(lodIndices.data(), lodIndices.data(), lodIndices.size(), &vertices[0].vx, vertices.size(), sizeof(Vertex), nextIndicesTarget, 1e-1f);
@@ -535,12 +530,14 @@ struct ProfilingData
     float avgGpuTime;
     float cullTime;
     float drawTime;
+    float lateRender;
     float lateCullTime;
     float pyramidTime;
     float uiTime;
     float waitTime;
-    float trangleCount;
-    float triangleFeed;
+    float triangleEarly;
+    float triangleLate;
+    float triangleCount;
     float trianglesPerSecond;
     uint32_t primitiveCount;
     uint32_t meshletCount;
@@ -885,6 +882,9 @@ int main(int argc, const char** argv)
 
     Buffer mdvb = {}; // mesh draw visibility buffer
     createBuffer(mdvb, memoryProps, device, drawCount * sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    Buffer mlvb = {}; // meshlet visibility buffer
+    createBuffer(mlvb, memoryProps, device, drawCount * sizeof(char), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     
 
     ProfilingData pd = {};
@@ -978,8 +978,9 @@ int main(int argc, const char** argv)
             {
                 ImGui::Text("primitives : [%d]", pd.primitiveCount);
                 ImGui::Text("meshlets: [%d]", pd.meshletCount);
-                ImGui::Text("feed: [%.2f]M", pd.triangleFeed);
-                ImGui::Text("triangles: [%.2f]M", pd.trangleCount);
+                ImGui::Text("tri E: [%.3f]M", pd.triangleEarly);
+                ImGui::Text("tri L: [%.3f]M", pd.triangleLate);
+                ImGui::Text("triangles: [%.3f]M", pd.triangleCount);
                 ImGui::Text("tri/sec: [%.2f]B", pd.trianglesPerSecond);
                 ImGui::Text("draw/sec: [%.2f]M", 1000.f / pd.avgCpuTime * drawCount * 1e-6);
                 ImGui::Text("frame: [%.2f]fps", 1000.f / pd.avgCpuTime);
@@ -1092,7 +1093,7 @@ int main(int argc, const char** argv)
                     VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT), // just set image layout to VK_IMAGE_LAYOUT_GENERAL
             };
 
-            pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, ARRAYSIZE(cullBeginBarriers), cullBeginBarriers);
+            pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, COUNTOF(cullBeginBarriers), cullBeginBarriers);
 
             DescriptorInfo pyramidInfo = { depthSampler, depthPyramid.imageView, VK_IMAGE_LAYOUT_GENERAL };
             DescriptorInfo descInfos[] = { mb.buffer, mdrb.buffer, tb.buffer, mdcb.buffer, mdccb.buffer, mdvb.buffer, pyramidInfo };
@@ -1108,7 +1109,7 @@ int main(int argc, const char** argv)
                     VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                     VK_ACCESS_INDIRECT_COMMAND_READ_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT),
             };
-            pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, ARRAYSIZE(cullEndBarriers), cullEndBarriers, 0, 0);
+            pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, COUNTOF(cullEndBarriers), cullEndBarriers, 0, 0);
         };
 
         auto pyramid = [&]()
@@ -1122,7 +1123,7 @@ int main(int argc, const char** argv)
                     VK_ACCESS_SHADER_WRITE_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT), // just set image layout to VK_IMAGE_LAYOUT_GENERAL
             };
 
-            pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, ARRAYSIZE(pyrimidBeginBarriers), pyrimidBeginBarriers);
+            pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, COUNTOF(pyrimidBeginBarriers), pyrimidBeginBarriers);
 
             vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, depthPyramidPipeline);
 
@@ -1163,7 +1164,7 @@ int main(int argc, const char** argv)
                     VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT),
             };
 
-            pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, ARRAYSIZE(depthWriteBarriers), depthWriteBarriers);
+            pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, COUNTOF(depthWriteBarriers), depthWriteBarriers);
 
         };
 
@@ -1202,13 +1203,15 @@ int main(int argc, const char** argv)
             vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
 
             Globals globals = {};
-            globals.PV = projection * view;
+            globals.projection = projection;
             globals.zfar = drawDist;
             globals.znear = znear;
             globals.frustum[0] = frustumX.x;
             globals.frustum[1] = frustumX.z;
             globals.frustum[2] = frustumY.y;
             globals.frustum[3] = frustumY.z;
+            globals.pyramidWidth = (float)pyramidLevelWidth;
+            globals.pyramidHeight = (float)pyramidLevelHeight;
             globals.screenWidth = (float)swapchain.width;
             globals.screenHeight = (float)swapchain.height;
 
@@ -1217,8 +1220,9 @@ int main(int argc, const char** argv)
             if (meshShadingOn)
             {
                 vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, meshPipelineMS);
-
-                DescriptorInfo descInfos[] = { mdcb.buffer, mb.buffer, mdrb.buffer, mlb.buffer, mdb.buffer, vb.buffer, tb.buffer };
+                
+                DescriptorInfo pyramidInfo = { depthSampler, depthPyramid.imageView, VK_IMAGE_LAYOUT_GENERAL };
+                DescriptorInfo descInfos[] = { mdcb.buffer, mb.buffer, mdrb.buffer, mlb.buffer, mdb.buffer, vb.buffer, tb.buffer, pyramidInfo };
 
                 vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, meshProgramMS.updateTemplate, meshProgramMS.layout, 0, descInfos);
                 vkCmdPushConstants(cmdBuffer, meshProgramMS.layout, meshProgramMS.pushConstantStages, 0, sizeof(globals), &globals);
@@ -1229,7 +1233,7 @@ int main(int argc, const char** argv)
             {
                 vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, meshPipeline);
 
-                DescriptorInfo descInfos[] = { mdcb.buffer, mdrb.buffer, vb.buffer };
+                DescriptorInfo descInfos[] = { mdcb.buffer, mdrb.buffer, vb.buffer, tb.buffer };
 
                 vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, meshProgram.updateTemplate, meshProgram.layout, 0, descInfos);
                 vkCmdPushConstants(cmdBuffer, meshProgram.layout, meshProgram.pushConstantStages, 0, sizeof(globals), &globals);
@@ -1258,7 +1262,7 @@ int main(int argc, const char** argv)
             0, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT),
         };
 
-        pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, ARRAYSIZE(renderBeginBarriers), renderBeginBarriers);
+        pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, COUNTOF(renderBeginBarriers), renderBeginBarriers);
        
 
 
@@ -1293,7 +1297,7 @@ int main(int argc, const char** argv)
                 VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT),
         };
 
-        pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, ARRAYSIZE(copyBarriers), copyBarriers);
+        pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, COUNTOF(copyBarriers), copyBarriers);
 
 
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 7);
@@ -1315,7 +1319,7 @@ int main(int argc, const char** argv)
             regions[0].dstOffsets[0] = { 0, 0, 0 };
             regions[0].dstOffsets[1] = { int32_t(swapchain.width), int32_t(swapchain.height), 1 };
 
-            vkCmdBlitImage(cmdBuffer, depthPyramid.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, renderTarget.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, ARRAYSIZE(regions), regions, VK_FILTER_NEAREST);
+            vkCmdBlitImage(cmdBuffer, depthPyramid.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, renderTarget.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, COUNTOF(regions), regions, VK_FILTER_NEAREST);
         }
         else
         {
@@ -1337,7 +1341,7 @@ int main(int argc, const char** argv)
             VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT ,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT),
         };
 
-        pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, ARRAYSIZE(uiBarriers), uiBarriers);
+        pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, COUNTOF(uiBarriers), uiBarriers);
 
         // draw UI
         {
@@ -1379,7 +1383,7 @@ int main(int argc, const char** argv)
                 VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT),
         };
 
-        pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, ARRAYSIZE(finalCopyBarriers), finalCopyBarriers);
+        pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, COUNTOF(finalCopyBarriers), finalCopyBarriers);
 
         // copy to swapchain
         {
@@ -1431,13 +1435,14 @@ int main(int argc, const char** argv)
         // update profile data
         {
             uint64_t queryResults[13] = {};
-            vkGetQueryPoolResults(device, queryPoolTimeStemp, 0, ARRAYSIZE(queryResults), sizeof(queryResults), queryResults, sizeof(queryResults[0]), VK_QUERY_RESULT_64_BIT);
+            vkGetQueryPoolResults(device, queryPoolTimeStemp, 0, COUNTOF(queryResults), sizeof(queryResults), queryResults, sizeof(queryResults[0]), VK_QUERY_RESULT_64_BIT);
 
-            uint32_t pipelineResults[6] = {};
-            vkGetQueryPoolResults(device, queryPoolStatistics, 0, 1, sizeof(pipelineResults), pipelineResults, sizeof(pipelineResults[0]), 0);
+            uint64_t pipelineResults[6] = {};
+            vkGetQueryPoolResults(device, queryPoolStatistics, 0, COUNTOF(pipelineResults), sizeof(pipelineResults), pipelineResults, sizeof(pipelineResults[0]), VK_QUERY_RESULT_64_BIT);
 
-            uint32_t triangleFeeded = pipelineResults[2];
-            uint32_t triangleCount = pipelineResults[3];
+            uint64_t tcEarly = pipelineResults[0];
+            uint64_t tcLate = pipelineResults[1];
+            uint64_t triangleCount = tcEarly + tcLate;
             double frameCpuEnd = glfwGetTime() * 1000.0;
 
             double frameGpuBegin = double(queryResults[0]) * props.limits.timestampPeriod * 1e-6;
@@ -1464,12 +1469,15 @@ int main(int argc, const char** argv)
             pd.cullTime = float(frameCullEnd - frameCullBegin);
             pd.drawTime = float(frameDrawEnd - frameDrawBegin);
             pd.pyramidTime = float(framePyramidEnd - framePyramidBegin);
+            pd.lateRender = float(frameCopyBegin - frameLateCullEnd);
             pd.lateCullTime = float(frameLateCullEnd - framePyramidEnd);
             pd.uiTime = float(frameUIEnd - frameUIBegin);
             pd.waitTime = float(waitTimeEnd - waitTimeBegin);
             pd.trianglesPerSecond = float(triangleCount * 1e-9 * double(1000 / avrageGpuTime));
-            pd.trangleCount = float(triangleCount * 1e-6);
-            pd.triangleFeed = float(triangleFeeded * 1e-6);
+            pd.triangleEarly = float(tcEarly * 1e-6);
+            pd.triangleLate = float(tcLate * 1e-6);
+            pd.triangleCount = float(triangleCount * 1e-6);
+
         }
 	}
 
@@ -1489,6 +1497,7 @@ int main(int argc, const char** argv)
 
     destroyUI(ui);
 
+    destroyBuffer(device, mlvb);
     destroyBuffer(device, mdvb);
     destroyBuffer(device, tb);
     destroyBuffer(device, mdccb);

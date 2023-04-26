@@ -88,7 +88,7 @@ VkFramebuffer createFramebuffer(VkDevice device, VkRenderPass renderPass, VkImag
 
     VkFramebufferCreateInfo createInfo = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
     createInfo.renderPass = renderPass;
-    createInfo.attachmentCount = ARRAYSIZE(attachments);
+    createInfo.attachmentCount = COUNTOF(attachments);
     createInfo.pAttachments = attachments;
     createInfo.width = width;
     createInfo.height = height;

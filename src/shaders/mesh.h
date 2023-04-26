@@ -29,10 +29,11 @@ struct TaskPayload
 
 struct Globals
 {
-    mat4 PV;
+    mat4 projection;
 
     float znear, zfar;
     float frustum[4];
+    float pyramidWidth, pyramidHeight;
     float screenWidth, screenHeight;
 };
 

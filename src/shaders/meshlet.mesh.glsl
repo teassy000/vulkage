@@ -101,7 +101,7 @@ void main()
         vec3 norm = vec3(int(vertices[vi].nx), int(vertices[vi].ny), int(vertices[vi].nz)) / 127.0 - 1.0;
         vec2 uv = vec2(vertices[vi].tu, vertices[vi].tv);
 
-        vec4 result =  globals.PV * vec4(rotateQuat( pos, meshDraw.orit) * meshDraw.scale + meshDraw.pos, 1.0);
+        vec4 result =  globals.projection * trans.view * vec4(rotateQuat( pos, meshDraw.orit) * meshDraw.scale + meshDraw.pos, 1.0);
 
         gl_MeshVerticesEXT[i].gl_Position = result;
 
