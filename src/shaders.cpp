@@ -273,10 +273,28 @@ bool loadShader(Shader& shader ,VkDevice device, const char* path)
     return true;
 }
 
-VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, const VkPipelineRenderingCreateInfo& renderInfo, Shaders shaders, VkPipelineVertexInputStateCreateInfo* vtxInputState, bool isUI /*= false*/)
+static VkSpecializationInfo fillSpecializationInfo(std::vector<VkSpecializationMapEntry>& entries, const Constants& constants)
 {
-    VkGraphicsPipelineCreateInfo createInfo = { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
+    for (size_t i = 0; i < constants.size(); ++i)
+        entries.push_back({ uint32_t(i), uint32_t(i * 4), 4 });
 
+    VkSpecializationInfo result = {};
+    result.mapEntryCount = uint32_t(entries.size());
+    result.pMapEntries = entries.data();
+    result.dataSize = constants.size() * sizeof(int);
+    result.pData = constants.begin();
+
+    return result;
+}
+
+VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, const VkPipelineRenderingCreateInfo& renderInfo
+    , Shaders shaders, VkPipelineVertexInputStateCreateInfo* vtxInputState, Constants constants /*= {}*/, bool isUI /*= false*/)
+{
+    std::vector<VkSpecializationMapEntry> specializationEntries;
+    VkSpecializationInfo specializationInfo = fillSpecializationInfo(specializationEntries, constants);
+
+    VkGraphicsPipelineCreateInfo createInfo = { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
+    
     std::vector<VkPipelineShaderStageCreateInfo> stages;
     for (const Shader* shader : shaders)
     {
@@ -284,6 +302,7 @@ VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache
         stage.module = shader->module;
         stage.stage = shader->stage;
         stage.pName = "main";
+        stage.pSpecializationInfo = &specializationInfo;
 
         stages.push_back(stage);
     }
@@ -357,9 +376,12 @@ VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache
     return pipeline;
 }
 
-VkPipeline createComputePipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, const Shader& shader)
+VkPipeline createComputePipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, const Shader& shader, Constants constants/* = {}*/)
 {
     assert(shader.stage == VK_SHADER_STAGE_COMPUTE_BIT);
+
+    std::vector<VkSpecializationMapEntry> specializationEntries;
+    VkSpecializationInfo specializationInfo = fillSpecializationInfo(specializationEntries, constants);
 
     VkComputePipelineCreateInfo createInfo = { VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
 
@@ -367,6 +389,7 @@ VkPipeline createComputePipeline(VkDevice device, VkPipelineCache pipelineCache,
     stage.module = shader.module;
     stage.stage = shader.stage;
     stage.pName = "main";
+    stage.pSpecializationInfo = &specializationInfo;
 
     createInfo.stage = stage;
     createInfo.layout = layout;

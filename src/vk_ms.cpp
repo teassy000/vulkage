@@ -699,9 +699,7 @@ int main(int argc, const char** argv)
 
     Program drawcmdProgram = createProgram(device, VK_PIPELINE_BIND_POINT_COMPUTE, { &drawcmdCS}, sizeof(MeshDrawCull));
     VkPipeline drawcmdPipeline = createComputePipeline(device, pipelineCache, drawcmdProgram.layout, drawcmdCS );
-
-    Program drawcmdLateProgram = createProgram(device, VK_PIPELINE_BIND_POINT_COMPUTE, { &drawcmdLateCS }, sizeof(MeshDrawCull));
-    VkPipeline drawcmdLatePipeline = createComputePipeline(device, pipelineCache, drawcmdLateProgram.layout, drawcmdLateCS);
+    VkPipeline drawcmdLatePipeline = createComputePipeline(device, pipelineCache, drawcmdProgram.layout, drawcmdCS, {/* late = */true});
 
 	Program depthPyramidProgram = createProgram(device, VK_PIPELINE_BIND_POINT_COMPUTE, { &depthPyramidCS}, sizeof(vec2));
 	VkPipeline depthPyramidPipeline = createComputePipeline(device, pipelineCache, depthPyramidProgram.layout, depthPyramidCS );
@@ -828,14 +826,17 @@ int main(int argc, const char** argv)
     renderInfo.pColorAttachmentFormats = &swapchainFormat;
     renderInfo.depthAttachmentFormat = depthFormat;
 
-    VkPipeline meshPipeline = createGraphicsPipeline(device, pipelineCache, meshProgram.layout, renderInfo, { &meshVS, &meshFS}, nullptr);
+    VkPipeline meshPipeline = createGraphicsPipeline(device, pipelineCache, meshProgram.layout, renderInfo, { &meshVS, &meshFS }, nullptr);
     assert(meshPipeline);
 
     VkPipeline meshPipelineMS = 0;
+    VkPipeline meshLatePipelineMS = 0;
     if (meshShadingSupported)
     {
         meshPipelineMS = createGraphicsPipeline(device, pipelineCache, meshProgramMS.layout, renderInfo, { &meshletTS, &meshletMS, &meshFS }, nullptr);
         assert(meshPipelineMS);
+        meshLatePipelineMS = createGraphicsPipeline(device, pipelineCache, meshProgramMS.layout, renderInfo, { &meshletTS, &meshletMS, &meshFS }, nullptr, {/* late = */true});
+        assert(meshLatePipelineMS);
     }
 
     // imgui
@@ -1052,9 +1053,8 @@ int main(int argc, const char** argv)
         vkCmdResetQueryPool(cmdBuffer, queryPoolTimeStemp, 0, 128);
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 0);
 
+
         vkCmdResetQueryPool(cmdBuffer, queryPoolStatistics, 0, 6);
-        vkCmdBeginQuery(cmdBuffer, queryPoolStatistics, 0, 0);
-        
         // clear mdvb 
         if(!mdvbCleared)
         {
@@ -1084,16 +1084,21 @@ int main(int argc, const char** argv)
                 VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
             pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 1, &postFillBarrier, 0, 0);
             
-            Program& program = late ? drawcmdLateProgram : drawcmdProgram;
+            vkCmdPushConstants(cmdBuffer, drawcmdProgram.layout, drawcmdProgram.pushConstantStages, 0, sizeof(drawCull), &drawCull);
 
-            vkCmdPushConstants(cmdBuffer, program.layout, program.pushConstantStages, 0, sizeof(drawCull), &drawCull);
+            VkImageMemoryBarrier2 cullBeginBarriers[] = {
+                imageBarrier(depthPyramid.image, VK_IMAGE_ASPECT_COLOR_BIT,
+                    late ? VK_ACCESS_SHADER_READ_BIT : 0, late ? VK_IMAGE_LAYOUT_GENERAL: VK_IMAGE_LAYOUT_UNDEFINED, late ? VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT : 0,
+                    VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT), // just set image layout to VK_IMAGE_LAYOUT_GENERAL
+            };
+
+            pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, ARRAYSIZE(cullBeginBarriers), cullBeginBarriers);
 
             DescriptorInfo pyramidInfo = { depthSampler, depthPyramid.imageView, VK_IMAGE_LAYOUT_GENERAL };
             DescriptorInfo descInfos[] = { mb.buffer, mdrb.buffer, tb.buffer, mdcb.buffer, mdccb.buffer, mdvb.buffer, pyramidInfo };
-            vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, program.updateTemplate, program.layout, 0, descInfos);
+            vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, drawcmdProgram.updateTemplate, drawcmdProgram.layout, 0, descInfos);
             
-            Shader& shader = late ? drawcmdLateCS : drawcmdCS;
-            vkCmdDispatch(cmdBuffer, uint32_t((meshDraws.size() + shader.localSizeX - 1) / shader.localSizeX), shader.localSizeY, shader.localSizeZ);
+            vkCmdDispatch(cmdBuffer, uint32_t((meshDraws.size() + drawcmdCS.localSizeX - 1) / drawcmdCS.localSizeX), drawcmdCS.localSizeY, drawcmdCS.localSizeZ);
 
             VkBufferMemoryBarrier2 cullEndBarriers[] = {
                 bufferBarrier2(mdcb.buffer,
@@ -1113,7 +1118,7 @@ int main(int argc, const char** argv)
                     VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
                     VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT),
                 imageBarrier(depthPyramid.image, VK_IMAGE_ASPECT_COLOR_BIT,
-                    VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                    VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                     VK_ACCESS_SHADER_WRITE_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT), // just set image layout to VK_IMAGE_LAYOUT_GENERAL
             };
 
@@ -1162,18 +1167,20 @@ int main(int argc, const char** argv)
 
         };
 
-        auto render = [&](VkClearColorValue& color, VkClearDepthStencilValue& depth)
+        auto render = [&](bool late, VkClearColorValue& color, VkClearDepthStencilValue& depth, int32_t query)
         {
+            vkCmdBeginQuery(cmdBuffer, queryPoolStatistics, query, 0);
+
             VkRenderingAttachmentInfo colorAttachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
             colorAttachment.clearValue.color = color;
-            colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+            colorAttachment.loadOp = late ? VK_ATTACHMENT_LOAD_OP_DONT_CARE : VK_ATTACHMENT_LOAD_OP_CLEAR;
             colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
             colorAttachment.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
             colorAttachment.imageView = colorTarget.imageView;
 
             VkRenderingAttachmentInfo depthAttachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
             depthAttachment.clearValue.depthStencil = depth;
-            depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+            depthAttachment.loadOp = late ? VK_ATTACHMENT_LOAD_OP_DONT_CARE : VK_ATTACHMENT_LOAD_OP_CLEAR;;
             depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
             depthAttachment.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
             depthAttachment.imageView = depthTarget.imageView;
@@ -1187,6 +1194,12 @@ int main(int argc, const char** argv)
             renderingInfo.pDepthAttachment = &depthAttachment;
 
             vkCmdBeginRendering(cmdBuffer, &renderingInfo);
+
+            VkViewport viewport = { 0.f, float(swapchain.height), float(swapchain.width), -float(swapchain.height), 0.f, 1.f };
+            VkRect2D scissor = { {0, 0}, {uint32_t(swapchain.width), uint32_t(swapchain.height)} };
+
+            vkCmdSetViewport(cmdBuffer, 0, 1, &viewport);
+            vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
 
             Globals globals = {};
             globals.PV = projection * view;
@@ -1224,8 +1237,9 @@ int main(int argc, const char** argv)
                 vkCmdBindIndexBuffer(cmdBuffer, ib.buffer, 0, VK_INDEX_TYPE_UINT32);
                 vkCmdDrawIndexedIndirectCount(cmdBuffer, mdcb.buffer, offsetof(MeshDrawCommand, indirect), mdccb.buffer, 0, (uint32_t)meshDraws.size(), sizeof(MeshDrawCommand));
             }
-            vkCmdEndQuery(cmdBuffer, queryPoolStatistics, 0);
+            
             vkCmdEndRendering(cmdBuffer);
+            vkCmdEndQuery(cmdBuffer, queryPoolStatistics, query);
         };
         
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 1);
@@ -1233,6 +1247,7 @@ int main(int argc, const char** argv)
         culling(/* late = */false, drawcmdPipeline);
         
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 2);
+
 
         VkImageMemoryBarrier2 renderBeginBarriers[] = {
             imageBarrier(colorTarget.image, VK_IMAGE_ASPECT_COLOR_BIT, 
@@ -1245,18 +1260,14 @@ int main(int argc, const char** argv)
 
         pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, ARRAYSIZE(renderBeginBarriers), renderBeginBarriers);
        
-        VkViewport viewport = { 0.f, float(swapchain.height), float(swapchain.width), -float(swapchain.height), 0.f, 1.f };
-        VkRect2D scissor = { {0, 0}, {uint32_t(swapchain.width), uint32_t(swapchain.height)} };
 
-        vkCmdSetViewport(cmdBuffer, 0, 1, &viewport);
-        vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
 
         VkClearColorValue clearColor = { 128.f/255.f, 109.f/255.f, 158.f/255.f, 1 };
         VkClearDepthStencilValue clearDepth = { 0.f, 0 };
 
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 3);
 
-        render(clearColor, clearDepth);
+        render(/* late = */false, clearColor, clearDepth, 0);
        
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 4);
 
@@ -1267,6 +1278,8 @@ int main(int argc, const char** argv)
         culling(/* late = */true, drawcmdLatePipeline);
 
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 6);
+
+        render(/* late = */true, clearColor, clearDepth, 1);
         
         VkImageMemoryBarrier2 copyBarriers[] = {
             imageBarrier(colorTarget.image, VK_IMAGE_ASPECT_COLOR_BIT, 
@@ -1329,14 +1342,12 @@ int main(int argc, const char** argv)
         // draw UI
         {
             VkRenderingAttachmentInfo colorAttachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-            
             colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
             colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
             colorAttachment.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
             colorAttachment.imageView = renderTarget.imageView;
 
             VkRenderingAttachmentInfo depthAttachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-            
             depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
             depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
             depthAttachment.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
@@ -1506,8 +1517,6 @@ int main(int argc, const char** argv)
     destroyProgram(device, depthPyramidProgram);
 
     vkDestroyPipeline(device, drawcmdLatePipeline, 0);
-    destroyProgram(device, drawcmdLateProgram);
-
     vkDestroyPipeline(device, drawcmdPipeline, 0);
     destroyProgram(device, drawcmdProgram);
 
@@ -1516,6 +1525,7 @@ int main(int argc, const char** argv)
     
     if (meshShadingSupported)
     {
+        vkDestroyPipeline(device, meshLatePipelineMS, 0);
         vkDestroyPipeline(device, meshPipelineMS, 0);
         destroyProgram(device, meshProgramMS);
     }

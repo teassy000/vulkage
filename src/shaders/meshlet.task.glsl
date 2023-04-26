@@ -12,6 +12,8 @@
 #include "mesh.h"
 #include "math.h"
 
+layout(constant_id = 0) const bool LATE = false;
+
 #define CULL 1
 
 layout(local_size_x = TASKGP_SIZE, local_size_y = 1, local_size_z = 1) in;
@@ -116,5 +118,4 @@ void main()
     uint emitCount = min(TASKGP_SIZE, lod.meshletCount - mLocalId );
     EmitMeshTasksEXT(emitCount, 1, 1);
 #endif
-
 }

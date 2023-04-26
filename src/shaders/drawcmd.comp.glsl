@@ -8,7 +8,11 @@
 #include "mesh.h"
 #include "math.h"
 
+
 layout(local_size_x = TASKGP_SIZE, local_size_y = 1, local_size_z = 1) in;
+
+
+layout(constant_id = 0) const bool LATE = false;
 
 layout(push_constant) uniform block 
 {
@@ -51,9 +55,9 @@ void main()
 {
     uint di = gl_GlobalInvocationID.x;
 
-    if(drawVisibility[di] == 0)
+    // skip the first 
+    if(!LATE && drawVisibility[di] == 0)
         return;
-
 
     Mesh mesh = meshes[draws[di].meshIdx];
 
@@ -68,8 +72,28 @@ void main()
     visible = visible && (center.z - radius < cull.zfar);
 
     visible = visible || (cull.enableCull == 0);
-
-    if(visible)
+    
+    
+    // do occlusion culling in late pass
+    if(LATE && visible && cull.enableOcclusion == 1)
+    {
+        vec4 aabb;
+        if(projectSphere(center.xyz, radius, cull.znear, cull.P00, cull.P11, aabb))
+        {
+            // the size in the render target
+            float width = (aabb.z - aabb.x) * cull.pyramidWidth; 
+            float height = (aabb.w - aabb.y) * cull.pyramidHeight;
+    
+            float level = floor(log2(max(width, height))); // smaller object would use lower level
+    
+            float depth = textureLod(depthPyramid, (aabb.xy + aabb.zw) * 0.5, level).x; // scene depth
+            float depthSphere = cull.znear / (center.z - radius); 
+            visible = visible && (depthSphere > depth); // nearest depth on sphere should less than the depth buffer
+        }
+    }
+    
+    // early culling pass will setup the draw commands
+    if(!LATE && visible)
     {
         barrier(); 
         uint dci = atomicAdd(drawCmdCount, 1);
@@ -89,5 +113,9 @@ void main()
         drawCmds[dci].local_y = 1;
         drawCmds[dci].local_z = 1;
     }
+
+    // set dvb in late pass
+    if(LATE) 
+        drawVisibility[di] = visible ? 1 : 0; 
 }
 
