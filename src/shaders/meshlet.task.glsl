@@ -42,6 +42,10 @@ layout(binding = 3) readonly buffer Meshlets
     Meshlet meshlets[];
 };
 
+layout(binding = 6) readonly buffer Transform
+{
+    TransformData trans;
+};
 
 taskPayloadSharedEXT TaskPayload payload;
 
@@ -71,16 +75,16 @@ void main()
 #if CULL
     vec3 axit = vec3( int(meshlets[mi].cone_axis[0]) / 127.0, int(meshlets[mi].cone_axis[1]) / 127.0, int(meshlets[mi].cone_axis[2]) / 127.0); 
     vec3 cone_axis = rotateQuat(axit, meshDraw.orit);
-    vec3 center = rotateQuat(meshlets[mi].center, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
+    vec3 center = (trans.view * vec4(rotateQuat(meshlets[mi].center, meshDraw.orit) * meshDraw.scale + meshDraw.pos, 1.0)).xyz;
     float radius = meshlets[mi].radius * meshDraw.scale;
     float cone_cutoff = int(meshlets[mi].cone_cutoff) / 127.0;
-    vec3 cameraPos = globals.cameraPos;
+    vec3 cameraPos = trans.cameraPos;
     sharedCount = 0;
     
     barrier();
     
-    // back face culling 
-    bool accept = !coneCull(center, radius, cone_axis, cone_cutoff, cameraPos);
+    // back face culling, here we culling in the view space
+    bool accept = !coneCull(center, radius, cone_axis, cone_cutoff, vec3(0, 0, 0));
     // frustum culling: left/right/top/bottom
     accept = accept && (center.z * globals.frustum[1] + abs(center.x) * globals.frustum[0] > -radius);
     accept = accept && (center.z * globals.frustum[3] + abs(center.y) * globals.frustum[2] > -radius);
@@ -88,7 +92,7 @@ void main()
     // note: not going to perform far culling to keep same result with triditional pipeline
     accept = accept && (center.z + radius > globals.znear);
 
-    accept = (accept && (mLocalId < lod.meshletCount));
+    accept = accept && (mLocalId < lod.meshletCount);
 
     // TODO: occlussion culling
 

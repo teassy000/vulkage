@@ -29,8 +29,7 @@ struct TaskPayload
 
 struct Globals
 {
-    mat4 projection;
-    vec3 cameraPos;
+    mat4 PV;
 
     float znear, zfar;
     float frustum[4];

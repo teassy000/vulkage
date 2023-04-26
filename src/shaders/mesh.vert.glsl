@@ -45,7 +45,7 @@ void main()
 
     vec3 result = vec3(rotateQuat(pos, meshDraw.orit) * meshDraw.scale + meshDraw.pos);
 
-    gl_Position = globals.projection * vec4(result, 1.0);
+    gl_Position = globals.PV * vec4(result, 1.0);
 
     color = vec4(norm * 0.5 + vec3(0.5), 1.0);
 }

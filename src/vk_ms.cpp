@@ -111,8 +111,7 @@ VkQueryPool createQueryPool(VkDevice device, uint32_t queryCount, VkQueryType qu
 
 struct alignas(16) Globals
 {
-    mat4 vp;
-    vec3 cameraPos;
+    mat4 PV;
 
     float znear, zfar;
     float frustum[4];
@@ -877,8 +876,8 @@ int main(int argc, const char** argv)
     Buffer mdcb = {}; // mesh draw command buffer
     createBuffer(mdcb, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    Buffer dccb = {}; // draw command count buffer
-    createBuffer(dccb, memoryProps, device, 4, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    Buffer mdccb = {}; // draw command count buffer
+    createBuffer(mdccb, memoryProps, device, 4, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     Buffer tb = {}; // transform data buffer
     createBuffer(tb, memoryProps, device, sizeof(TransformData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
@@ -1068,126 +1067,46 @@ int main(int argc, const char** argv)
             mdvbCleared = true;
         }
 
-        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 1);
-        // culling 
+        auto culling = [&](bool late, VkPipeline pipeline)
         {
-            vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, drawcmdPipeline);
+            vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+
+            VkBufferMemoryBarrier2 preFillBarrier = bufferBarrier2(mdccb.buffer,
+                VK_ACCESS_INDIRECT_COMMAND_READ_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
+                VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
+                
+            pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 1, &preFillBarrier, 0, 0);
+
+            vkCmdFillBuffer(cmdBuffer, mdccb.buffer, 0, mdccb.size, 0u);
+
+            VkBufferMemoryBarrier2 postFillBarrier = bufferBarrier2(mdccb.buffer,
+                VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+            pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 1, &postFillBarrier, 0, 0);
             
-            vkCmdFillBuffer(cmdBuffer, dccb.buffer, 0, dccb.size, 0u);
-            VkBufferMemoryBarrier2 cullBeginBarrier = bufferBarrier2(dccb.buffer, 
-                VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 
-                VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
-            pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 1, &cullBeginBarrier, 0, 0);
+            Program& program = late ? drawcmdLateProgram : drawcmdProgram;
 
-            vkCmdPushConstants(cmdBuffer, drawcmdProgram.layout, drawcmdProgram.pushConstantStages, 0, sizeof(drawCull), &drawCull);
+            vkCmdPushConstants(cmdBuffer, program.layout, program.pushConstantStages, 0, sizeof(drawCull), &drawCull);
+
+            DescriptorInfo pyramidInfo = { depthSampler, depthPyramid.imageView, VK_IMAGE_LAYOUT_GENERAL };
+            DescriptorInfo descInfos[] = { mb.buffer, mdrb.buffer, tb.buffer, mdcb.buffer, mdccb.buffer, mdvb.buffer, pyramidInfo };
+            vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, program.updateTemplate, program.layout, 0, descInfos);
             
-            DescriptorInfo descInfos[] = {mb.buffer, mdrb.buffer, tb.buffer, mdcb.buffer, dccb.buffer, mdvb.buffer };
-            vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, drawcmdProgram.updateTemplate, drawcmdProgram.layout, 0, descInfos);
+            Shader& shader = late ? drawcmdLateCS : drawcmdCS;
+            vkCmdDispatch(cmdBuffer, uint32_t((meshDraws.size() + shader.localSizeX - 1) / shader.localSizeX), shader.localSizeY, shader.localSizeZ);
 
-            vkCmdDispatch(cmdBuffer, uint32_t((meshDraws.size() + drawcmdCS.localSizeX - 1) / drawcmdCS.localSizeX), drawcmdCS.localSizeY, drawcmdCS.localSizeZ);
-
-            VkBufferMemoryBarrier2 cullEndBarrier = bufferBarrier2(mdcb.buffer, 
-                VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                VK_ACCESS_INDIRECT_COMMAND_READ_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT);
-            pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 1, &cullEndBarrier, 0, 0);
-        }
-
-        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 2);
-
-        VkImageMemoryBarrier2 renderBeginBarriers[] = {
-            imageBarrier(colorTarget.image, VK_IMAGE_ASPECT_COLOR_BIT, 
-            0, VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-            0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL ,VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT),
-            imageBarrier(depthTarget.image, VK_IMAGE_ASPECT_DEPTH_BIT, 
-            0, VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
-            0, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT),
+            VkBufferMemoryBarrier2 cullEndBarriers[] = {
+                bufferBarrier2(mdcb.buffer,
+                    VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                    VK_ACCESS_INDIRECT_COMMAND_READ_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT),
+                bufferBarrier2(mdccb.buffer,
+                    VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                    VK_ACCESS_INDIRECT_COMMAND_READ_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT),
+            };
+            pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, ARRAYSIZE(cullEndBarriers), cullEndBarriers, 0, 0);
         };
 
-        pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, ARRAYSIZE(renderBeginBarriers), renderBeginBarriers);
-       
-        VkViewport viewport = { 0.f, float(swapchain.height), float(swapchain.width), -float(swapchain.height), 0.f, 1.f };
-        VkRect2D scissor = { {0, 0}, {uint32_t(swapchain.width), uint32_t(swapchain.height)} };
-
-        vkCmdSetViewport(cmdBuffer, 0, 1, &viewport);
-        vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
-
-        VkClearValue clearValues[2] = {};
-        clearValues[0].color = { 128.f/255.f, 109.f/255.f, 158.f/255.f, 1 };
-        clearValues[1].depthStencil =  { 0.f, 0 };
-        
-        VkRenderingAttachmentInfo colorAttachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-        colorAttachment.clearValue.color = clearValues[0].color;
-        colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        colorAttachment.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
-        colorAttachment.imageView = colorTarget.imageView;
-
-        VkRenderingAttachmentInfo depthAttachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-        depthAttachment.clearValue.depthStencil = clearValues[1].depthStencil;
-        depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        depthAttachment.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
-        depthAttachment.imageView = depthTarget.imageView;
-
-        VkRenderingInfo renderingInfo = { VK_STRUCTURE_TYPE_RENDERING_INFO };
-        renderingInfo.renderArea.extent.width = swapchain.width;
-        renderingInfo.renderArea.extent.height = swapchain.height;
-        renderingInfo.layerCount = 1;
-        renderingInfo.colorAttachmentCount = 1;
-        renderingInfo.pColorAttachments = &colorAttachment;
-        renderingInfo.pDepthAttachment = &depthAttachment;
-
-        vkCmdBeginRendering(cmdBuffer, &renderingInfo);
-
-        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 3);
-        // draw scene
-        {
-            Globals globals = {};
-            globals.vp = projection * view;
-            globals.zfar = drawDist;
-            globals.znear = znear;
-            globals.frustum[0] = frustumX.x;
-            globals.frustum[1] = frustumX.z;
-            globals.frustum[2] = frustumY.y;
-            globals.frustum[3] = frustumY.z;
-            globals.screenWidth = (float)swapchain.width;
-            globals.screenHeight = (float)swapchain.height;
-            globals.cameraPos = camera.pos;
-
-            bool meshShadingOn = meshShadingEnabled && meshShadingSupported;
-
-            if(meshShadingOn)
-            {
-                vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, meshPipelineMS);
-     
-                DescriptorInfo descInfos[] = { mdcb.buffer, mb.buffer, mdrb.buffer, mlb.buffer, mdb.buffer, vb.buffer};
-     
-                vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, meshProgramMS.updateTemplate, meshProgramMS.layout, 0, descInfos);
-                vkCmdPushConstants(cmdBuffer, meshProgramMS.layout, meshProgramMS.pushConstantStages, 0, sizeof(globals), &globals);
-                
-                vkCmdDrawMeshTasksIndirectCountEXT(cmdBuffer, mdcb.buffer, offsetof(MeshDrawCommand, indirectMS), dccb.buffer, 0, (uint32_t)meshDraws.size(), sizeof(MeshDrawCommand));
-            }
-            else
-            {
-                vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, meshPipeline);
-     
-                DescriptorInfo descInfos[] = { mdcb.buffer, mdrb.buffer, vb.buffer};
-     
-                vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, meshProgram.updateTemplate, meshProgram.layout, 0, descInfos);
-                vkCmdPushConstants(cmdBuffer, meshProgram.layout, meshProgram.pushConstantStages, 0, sizeof(globals), &globals);
-
-                vkCmdBindIndexBuffer(cmdBuffer, ib.buffer, 0, VK_INDEX_TYPE_UINT32);
-                vkCmdDrawIndexedIndirectCount(cmdBuffer, mdcb.buffer, offsetof(MeshDrawCommand, indirect), dccb.buffer, 0, (uint32_t)meshDraws.size(), sizeof(MeshDrawCommand));
-            }
-        }
-
-        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 4);
-        vkCmdEndQuery(cmdBuffer, queryPoolStatistics, 0);
-        vkCmdEndRendering(cmdBuffer);
-       
-
-        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 5);
-        // draw pyramid
+        auto pyramid = [&]()
         {
             VkImageMemoryBarrier2 pyrimidBeginBarriers[] = {
                 imageBarrier(depthTarget.image, VK_IMAGE_ASPECT_DEPTH_BIT,
@@ -1208,14 +1127,14 @@ int main(int argc, const char** argv)
                 uint32_t levelHeight = glm::max(1u, pyramidLevelHeight >> i);
 
 
-                vec2 imageSize = { levelWidth, levelHeight};
+                vec2 imageSize = { levelWidth, levelHeight };
                 vkCmdPushConstants(cmdBuffer, depthPyramidProgram.layout, depthPyramidProgram.pushConstantStages, 0, sizeof(imageSize), &imageSize);
 
-                DescriptorInfo srcDepth = (i == 0) 
-                    ? DescriptorInfo{ depthSampler, depthTarget.imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL}
-                    : DescriptorInfo{ depthSampler, depthPyramidMips[i - 1], VK_IMAGE_LAYOUT_GENERAL };
+                DescriptorInfo srcDepth = (i == 0)
+                    ? DescriptorInfo{ depthSampler, depthTarget.imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL }
+                : DescriptorInfo{ depthSampler, depthPyramidMips[i - 1], VK_IMAGE_LAYOUT_GENERAL };
 
-                DescriptorInfo descInfos[] = { 
+                DescriptorInfo descInfos[] = {
                     srcDepth,
                     {depthPyramidMips[i], VK_IMAGE_LAYOUT_GENERAL}, };
                 vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, depthPyramidProgram.updateTemplate, depthPyramidProgram.layout, 0, descInfos);
@@ -1226,38 +1145,129 @@ int main(int argc, const char** argv)
                 VkImageMemoryBarrier2 reduceBarrier = imageBarrier(depthPyramid.image, VK_IMAGE_ASPECT_COLOR_BIT,
                     VK_ACCESS_SHADER_WRITE_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                     VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
-                
+
                 pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 1, &reduceBarrier);
             }
-            
-            VkImageMemoryBarrier2 depthWriteBarriers = imageBarrier(depthTarget.image, VK_IMAGE_ASPECT_DEPTH_BIT,
-                VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT);
-            
-            pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 1, &depthWriteBarriers);
-        }
+
+            VkImageMemoryBarrier2 depthWriteBarriers[] = {
+                imageBarrier(depthTarget.image, VK_IMAGE_ASPECT_DEPTH_BIT,
+                    VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                    VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT),
+                imageBarrier(depthPyramid.image, VK_IMAGE_ASPECT_COLOR_BIT,
+                    VK_ACCESS_SHADER_WRITE_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                    VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT),
+            };
+
+            pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, ARRAYSIZE(depthWriteBarriers), depthWriteBarriers);
+
+        };
+
+        auto render = [&](VkClearColorValue& color, VkClearDepthStencilValue& depth)
+        {
+            VkRenderingAttachmentInfo colorAttachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+            colorAttachment.clearValue.color = color;
+            colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+            colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+            colorAttachment.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+            colorAttachment.imageView = colorTarget.imageView;
+
+            VkRenderingAttachmentInfo depthAttachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+            depthAttachment.clearValue.depthStencil = depth;
+            depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+            depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+            depthAttachment.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+            depthAttachment.imageView = depthTarget.imageView;
+
+            VkRenderingInfo renderingInfo = { VK_STRUCTURE_TYPE_RENDERING_INFO };
+            renderingInfo.renderArea.extent.width = swapchain.width;
+            renderingInfo.renderArea.extent.height = swapchain.height;
+            renderingInfo.layerCount = 1;
+            renderingInfo.colorAttachmentCount = 1;
+            renderingInfo.pColorAttachments = &colorAttachment;
+            renderingInfo.pDepthAttachment = &depthAttachment;
+
+            vkCmdBeginRendering(cmdBuffer, &renderingInfo);
+
+            Globals globals = {};
+            globals.PV = projection * view;
+            globals.zfar = drawDist;
+            globals.znear = znear;
+            globals.frustum[0] = frustumX.x;
+            globals.frustum[1] = frustumX.z;
+            globals.frustum[2] = frustumY.y;
+            globals.frustum[3] = frustumY.z;
+            globals.screenWidth = (float)swapchain.width;
+            globals.screenHeight = (float)swapchain.height;
+
+            bool meshShadingOn = meshShadingEnabled && meshShadingSupported;
+
+            if (meshShadingOn)
+            {
+                vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, meshPipelineMS);
+
+                DescriptorInfo descInfos[] = { mdcb.buffer, mb.buffer, mdrb.buffer, mlb.buffer, mdb.buffer, vb.buffer, tb.buffer };
+
+                vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, meshProgramMS.updateTemplate, meshProgramMS.layout, 0, descInfos);
+                vkCmdPushConstants(cmdBuffer, meshProgramMS.layout, meshProgramMS.pushConstantStages, 0, sizeof(globals), &globals);
+
+                vkCmdDrawMeshTasksIndirectCountEXT(cmdBuffer, mdcb.buffer, offsetof(MeshDrawCommand, indirectMS), mdccb.buffer, 0, (uint32_t)meshDraws.size(), sizeof(MeshDrawCommand));
+            }
+            else
+            {
+                vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, meshPipeline);
+
+                DescriptorInfo descInfos[] = { mdcb.buffer, mdrb.buffer, vb.buffer };
+
+                vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, meshProgram.updateTemplate, meshProgram.layout, 0, descInfos);
+                vkCmdPushConstants(cmdBuffer, meshProgram.layout, meshProgram.pushConstantStages, 0, sizeof(globals), &globals);
+
+                vkCmdBindIndexBuffer(cmdBuffer, ib.buffer, 0, VK_INDEX_TYPE_UINT32);
+                vkCmdDrawIndexedIndirectCount(cmdBuffer, mdcb.buffer, offsetof(MeshDrawCommand, indirect), mdccb.buffer, 0, (uint32_t)meshDraws.size(), sizeof(MeshDrawCommand));
+            }
+            vkCmdEndQuery(cmdBuffer, queryPoolStatistics, 0);
+            vkCmdEndRendering(cmdBuffer);
+        };
         
+        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 1);
+
+        culling(/* late = */false, drawcmdPipeline);
+        
+        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 2);
+
+        VkImageMemoryBarrier2 renderBeginBarriers[] = {
+            imageBarrier(colorTarget.image, VK_IMAGE_ASPECT_COLOR_BIT, 
+            0, VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+            0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL ,VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT),
+            imageBarrier(depthTarget.image, VK_IMAGE_ASPECT_DEPTH_BIT, 
+            0, VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+            0, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT),
+        };
+
+        pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, ARRAYSIZE(renderBeginBarriers), renderBeginBarriers);
+       
+        VkViewport viewport = { 0.f, float(swapchain.height), float(swapchain.width), -float(swapchain.height), 0.f, 1.f };
+        VkRect2D scissor = { {0, 0}, {uint32_t(swapchain.width), uint32_t(swapchain.height)} };
+
+        vkCmdSetViewport(cmdBuffer, 0, 1, &viewport);
+        vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
+
+        VkClearColorValue clearColor = { 128.f/255.f, 109.f/255.f, 158.f/255.f, 1 };
+        VkClearDepthStencilValue clearDepth = { 0.f, 0 };
+
+        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 3);
+
+        render(clearColor, clearDepth);
+       
+        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 4);
+
+        pyramid();
+        
+        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 5);
+        
+        culling(/* late = */true, drawcmdLatePipeline);
+
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 6);
         
-        // late culling
-        {
-            vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, drawcmdLatePipeline);
-
-            VkImageMemoryBarrier2 cullLateBeginBarrier = imageBarrier(depthPyramid.image, VK_IMAGE_ASPECT_COLOR_BIT,
-                VK_ACCESS_SHADER_WRITE_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
-            
-            pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 1, &cullLateBeginBarrier);
-
-            vkCmdPushConstants(cmdBuffer, drawcmdLateProgram.layout, drawcmdLateProgram.pushConstantStages, 0, sizeof(drawCull), &drawCull);
-
-            DescriptorInfo descInfos[] = { mb.buffer, mdrb.buffer, tb.buffer, mdcb.buffer, dccb.buffer, mdvb.buffer, {depthSampler, depthPyramid.imageView, VK_IMAGE_LAYOUT_GENERAL}};
-            vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, drawcmdLateProgram.updateTemplate, drawcmdLateProgram.layout, 0, descInfos);
-
-            vkCmdDispatch(cmdBuffer, uint32_t((meshDraws.size() + drawcmdLateCS.localSizeX - 1) / drawcmdLateCS.localSizeX), drawcmdLateCS.localSizeY, drawcmdLateCS.localSizeZ);
-        }
-
-        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 7);
         VkImageMemoryBarrier2 copyBarriers[] = {
             imageBarrier(colorTarget.image, VK_IMAGE_ASPECT_COLOR_BIT, 
                 VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
@@ -1273,7 +1283,7 @@ int main(int argc, const char** argv)
         pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, ARRAYSIZE(copyBarriers), copyBarriers);
 
 
-        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 8);
+        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 7);
         // copy scene image to UI pass
         if (showPyramid)
         {
@@ -1306,7 +1316,7 @@ int main(int argc, const char** argv)
             vkCmdCopyImage(cmdBuffer, colorTarget.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, renderTarget.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
         }
 
-        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 9);
+        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 8);
 
         VkImageMemoryBarrier2 uiBarriers[] = {
             imageBarrier(renderTarget.image, VK_IMAGE_ASPECT_COLOR_BIT,
@@ -1342,9 +1352,9 @@ int main(int argc, const char** argv)
 
             vkCmdBeginRendering(cmdBuffer, &renderingInfo);
 
-            vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 10);
+            vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 9);
             drawUI(ui, cmdBuffer);
-            vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 11);
+            vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 10);
 
             vkCmdEndRendering(cmdBuffer);
         }
@@ -1378,7 +1388,7 @@ int main(int argc, const char** argv)
 
         pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 1, &presentBarrier);
 
-        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 12);
+        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 11);
         VK_CHECK(vkEndCommandBuffer(cmdBuffer));
  
         VkPipelineStageFlags submitStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
@@ -1424,14 +1434,14 @@ int main(int argc, const char** argv)
             double frameCullEnd = double(queryResults[2]) * props.limits.timestampPeriod * 1e-6;
             double frameDrawBegin = double(queryResults[3]) * props.limits.timestampPeriod * 1e-6;
             double frameDrawEnd = double(queryResults[4]) * props.limits.timestampPeriod * 1e-6;
-            double framePyramidBegin = double(queryResults[5]) * props.limits.timestampPeriod * 1e-6;
-            double framePyramidEnd = double(queryResults[6]) * props.limits.timestampPeriod * 1e-6;
-            double frameLateCullEnd = double(queryResults[7]) * props.limits.timestampPeriod * 1e-6;
-            double frameCopyBegin = double(queryResults[8]) * props.limits.timestampPeriod * 1e-6;
-            double frameCopyEnd = double(queryResults[9]) * props.limits.timestampPeriod * 1e-6;;
-            double frameUIBegin = double(queryResults[10]) * props.limits.timestampPeriod * 1e-6;
-            double frameUIEnd = double(queryResults[11]) * props.limits.timestampPeriod * 1e-6;
-            double frameGpuEnd = double(queryResults[12]) * props.limits.timestampPeriod * 1e-6;
+            double framePyramidBegin = double(queryResults[4]) * props.limits.timestampPeriod * 1e-6;
+            double framePyramidEnd = double(queryResults[5]) * props.limits.timestampPeriod * 1e-6;
+            double frameLateCullEnd = double(queryResults[6]) * props.limits.timestampPeriod * 1e-6;
+            double frameCopyBegin = double(queryResults[7]) * props.limits.timestampPeriod * 1e-6;
+            double frameCopyEnd = double(queryResults[8]) * props.limits.timestampPeriod * 1e-6;;
+            double frameUIBegin = double(queryResults[9]) * props.limits.timestampPeriod * 1e-6;
+            double frameUIEnd = double(queryResults[10]) * props.limits.timestampPeriod * 1e-6;
+            double frameGpuEnd = double(queryResults[11]) * props.limits.timestampPeriod * 1e-6;
 
             avrageCpuTime = avrageCpuTime * 0.95 + (frameCpuEnd - frameCpuBegin) * 0.05;
             avrageGpuTime = avrageGpuTime * 0.95 + (frameGpuEnd - frameGpuBegin) * 0.05;
@@ -1470,7 +1480,7 @@ int main(int argc, const char** argv)
 
     destroyBuffer(device, mdvb);
     destroyBuffer(device, tb);
-    destroyBuffer(device, dccb);
+    destroyBuffer(device, mdccb);
     destroyBuffer(device, mdcb);
     destroyBuffer(device, mdrb);
     destroyBuffer(device, scratch);

@@ -45,6 +45,8 @@ layout(binding = 5) buffer DrawVisibility
     uint drawVisibility[];
 };
 
+layout(binding = 6) uniform sampler2D depthPyramid;
+
 void main()
 {
     uint di = gl_GlobalInvocationID.x;
