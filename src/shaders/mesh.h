@@ -35,6 +35,7 @@ struct Globals
     float frustum[4];
     float pyramidWidth, pyramidHeight;
     float screenWidth, screenHeight;
+    int   enableMeshletOcclusion;
 };
 
 struct MeshDrawCull
@@ -48,6 +49,7 @@ struct MeshDrawCull
     int enableCull;
     int enableLod;
     int enableOcclusion;
+    int enableMeshletOcclusion;
 };
 
 struct TransformData
@@ -77,6 +79,7 @@ struct Mesh
     MeshLod lods[8];
 };
 
+// Instances
 struct MeshDraw
 {
     vec3 pos;
@@ -85,12 +88,15 @@ struct MeshDraw
 
     uint meshIdx;
     uint vertexOffset; // same as mesh[meshIdx], for data locality
+    uint meshletVisibilityOffset;
 };
 
 struct MeshDrawCommand
 {
     uint    drawId;
     uint    lodIdx;
+
+    uint    lateDrawVisibility;
 
     // struct VkDrawIndexedIndirectCommand
     uint    indexCount;

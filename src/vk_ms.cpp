@@ -38,6 +38,7 @@ static bool meshShadingEnabled = true;
 static bool enableCull = true;
 static bool enableLod = true;
 static bool enableOcclusion = true;
+static bool enableMeshletOC = false;
 static bool showPyramid = false;
 static int debugPyramidLevel = 4;
 static int s_depthPyramidCount = 0;
@@ -111,6 +112,7 @@ struct alignas(16) Globals
     float frustum[4];
     float pyramidWidth, pyramidHeight;
     float screenWidth, screenHeight;
+    int enableMeshletOcclusion;
 };
 
 struct alignas(16) MeshDrawCull
@@ -124,6 +126,7 @@ struct alignas(16) MeshDrawCull
     int32_t enableCull;
     int32_t enableLod;
     int32_t enableOcclusion;
+    int32_t enableMeshletOcclusion;
 };
 
 struct alignas(16) TransformData
@@ -141,12 +144,14 @@ struct alignas(16) MeshDraw
     
     uint32_t meshIdx;
     uint32_t vertexOffset;
+    uint32_t meshletVisibilityOffset;
 };
 
 struct MeshDrawCommand
 {
     uint32_t drawId;
     uint32_t lodIdx;
+    uint32_t lateDrawVisibility;
     VkDrawIndexedIndirectCommand indirect; // 5 uint32_t
     VkDrawMeshTasksIndirectCommandEXT indirectMS; // 3 uint32_t
 };
@@ -848,12 +853,20 @@ int main(int argc, const char** argv)
     float randomDist = 300;
     float drawDist = 300;
     srand(42);
-
+    uint32_t meshletVisibilityCount = 0;
     for (uint32_t i = 0; i < drawCount; i++)
     {
         uint32_t meshIdx = rand() % geometry.meshes.size();
         Mesh& mesh = geometry.meshes[meshIdx];
         
+        /*
+        meshDraws[i].pos[0] = 0.0f;
+
+        meshDraws[i].pos[1] = 0.0f;
+        meshDraws[i].pos[2] = (float)i + 2.0f;
+
+        meshDraws[i].scale = 1.f / (float)i;
+*/
         meshDraws[i].pos[0] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
         meshDraws[i].pos[1] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
         meshDraws[i].pos[2] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
@@ -865,7 +878,16 @@ int main(int argc, const char** argv)
             , vec3((float(rand()) / RAND_MAX) * 2 - 1, (float(rand()) / RAND_MAX) * 2 - 1, (float(rand()) / RAND_MAX) * 2 - 1));
         meshDraws[i].meshIdx = meshIdx;
         meshDraws[i].vertexOffset = mesh.vertexOffset;
+        meshDraws[i].meshletVisibilityOffset = meshletVisibilityCount;
+
+        uint32_t meshletCount = 0;
+        for (uint32_t lod = 0; lod < mesh.lodCount; lod++)
+            meshletCount = std::max(meshletCount, mesh.lods[lod].meshletCount); // use the maximum one for current mesh
+
+        meshletVisibilityCount += meshletCount;
     }
+
+    uint32_t meshletVisibilityDataSize = (meshletVisibilityCount + 31) / 32 * sizeof(uint32_t);
 
     Buffer mdrb = {}; //mesh draw buffer
     createBuffer(mdrb, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
@@ -884,7 +906,7 @@ int main(int argc, const char** argv)
     createBuffer(mdvb, memoryProps, device, drawCount * sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     Buffer mlvb = {}; // meshlet visibility buffer
-    createBuffer(mlvb, memoryProps, device, drawCount * sizeof(char), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    createBuffer(mlvb, memoryProps, device, meshletVisibilityDataSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     
 
     ProfilingData pd = {};
@@ -898,7 +920,7 @@ int main(int argc, const char** argv)
     uint32_t pyramidLevelWidth = previousPow2(swapchain.width);
     uint32_t pyramidLevelHeight = previousPow2(swapchain.height);
 
-    bool mdvbCleared = false;
+    bool mdvbCleared = false, mlvbCleared = false;
 
     while (!glfwWindowShouldClose(window))
     {
@@ -1031,6 +1053,7 @@ int main(int argc, const char** argv)
         drawCull.enableCull = enableCull ? 1 : 0;
         drawCull.enableLod = enableLod ? 1 : 0;
         drawCull.enableOcclusion = enableOcclusion ? 1 : 0;
+        drawCull.enableMeshletOcclusion = (enableMeshletOC && meshShadingEnabled) ? 1 : 0;
 
         
         mat4 view = glm::lookAt(camera.pos, camera.lookAt, camera.up);
@@ -1059,13 +1082,24 @@ int main(int argc, const char** argv)
         // clear mdvb 
         if(!mdvbCleared)
         {
-            vkCmdFillBuffer(cmdBuffer, mdvb.buffer, 0, sizeof(uint32_t) * drawCount, 0); // clear to one 
+            vkCmdFillBuffer(cmdBuffer, mdvb.buffer, 0, sizeof(uint32_t) * drawCount, 0); 
 
             VkBufferMemoryBarrier2 barrier = bufferBarrier2(mdvb.buffer, 
                 VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 
                 VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
             pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 1, &barrier, 0, 0);
             mdvbCleared = true;
+        }
+
+        if (meshShadingEnabled && !mlvbCleared)
+        {
+            vkCmdFillBuffer(cmdBuffer, mlvb.buffer, 0, meshletVisibilityDataSize, 0); 
+
+            VkBufferMemoryBarrier2 barrier = bufferBarrier2(mlvb.buffer,
+                VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+            pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 1, &barrier, 0, 0);
+            mlvbCleared = true;
         }
 
         auto culling = [&](bool late, VkPipeline pipeline)
@@ -1168,7 +1202,7 @@ int main(int argc, const char** argv)
 
         };
 
-        auto render = [&](bool late, VkClearColorValue& color, VkClearDepthStencilValue& depth, int32_t query)
+        auto render = [&](bool late, VkClearColorValue& color, VkClearDepthStencilValue& depth, VkPipeline pipeline, int32_t query)
         {
             vkCmdBeginQuery(cmdBuffer, queryPoolStatistics, query, 0);
 
@@ -1214,15 +1248,16 @@ int main(int argc, const char** argv)
             globals.pyramidHeight = (float)pyramidLevelHeight;
             globals.screenWidth = (float)swapchain.width;
             globals.screenHeight = (float)swapchain.height;
+            globals.enableMeshletOcclusion = enableMeshletOC;
 
             bool meshShadingOn = meshShadingEnabled && meshShadingSupported;
 
             if (meshShadingOn)
             {
-                vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, meshPipelineMS);
+                vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
                 
                 DescriptorInfo pyramidInfo = { depthSampler, depthPyramid.imageView, VK_IMAGE_LAYOUT_GENERAL };
-                DescriptorInfo descInfos[] = { mdcb.buffer, mb.buffer, mdrb.buffer, mlb.buffer, mdb.buffer, vb.buffer, tb.buffer, pyramidInfo };
+                DescriptorInfo descInfos[] = { mdcb.buffer, mb.buffer, mdrb.buffer, mlb.buffer, mdb.buffer, vb.buffer, tb.buffer, mlvb.buffer, pyramidInfo };
 
                 vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, meshProgramMS.updateTemplate, meshProgramMS.layout, 0, descInfos);
                 vkCmdPushConstants(cmdBuffer, meshProgramMS.layout, meshProgramMS.pushConstantStages, 0, sizeof(globals), &globals);
@@ -1271,7 +1306,7 @@ int main(int argc, const char** argv)
 
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 3);
 
-        render(/* late = */false, clearColor, clearDepth, 0);
+        render(/* late = */false, clearColor, clearDepth, meshPipelineMS, 0);
        
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 4);
 
@@ -1283,7 +1318,7 @@ int main(int argc, const char** argv)
 
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 6);
 
-        render(/* late = */true, clearColor, clearDepth, 1);
+        render(/* late = */true, clearColor, clearDepth, meshLatePipelineMS, 1);
         
         VkImageMemoryBarrier2 copyBarriers[] = {
             imageBarrier(colorTarget.image, VK_IMAGE_ASPECT_COLOR_BIT, 

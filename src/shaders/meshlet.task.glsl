@@ -48,7 +48,12 @@ layout(binding = 6) readonly buffer Transform
     TransformData trans;
 };
 
-layout(binding = 7) uniform sampler2D pyramid;
+layout(binding = 7) buffer MeshletVisibility
+{
+    uint meshletVisibility[];
+};
+
+layout(binding = 8) uniform sampler2D pyramid;
 
 taskPayloadSharedEXT TaskPayload payload;
 
@@ -65,6 +70,7 @@ void main()
 {
     uint drawId = drawCmds[gl_DrawIDARB].drawId;
     uint lodIdx = drawCmds[gl_DrawIDARB].lodIdx;
+    uint lateDrawVisibility = drawCmds[gl_DrawIDARB].lateDrawVisibility;
     MeshDraw meshDraw = meshDraws[drawId];
     Mesh mesh = meshes[meshDraw.meshIdx];
     MeshLod lod = mesh.lods[lodIdx];
@@ -75,29 +81,50 @@ void main()
     uint mLocalId = mgi * TASKGP_SIZE + ti;
 
 #if CULL
-    vec3 axit = vec3( int(meshlets[mi].cone_axis[0]) / 127.0, int(meshlets[mi].cone_axis[1]) / 127.0, int(meshlets[mi].cone_axis[2]) / 127.0); 
-    vec3 cone_axis = rotateQuat(axit, meshDraw.orit);
+    vec3 axis = vec3( int(meshlets[mi].cone_axis[0]) / 127.0, int(meshlets[mi].cone_axis[1]) / 127.0, int(meshlets[mi].cone_axis[2]) / 127.0); 
+    vec3 cone_axis = rotateQuat(axis, meshDraw.orit);
     vec3 center = (trans.view * vec4(rotateQuat(meshlets[mi].center, meshDraw.orit) * meshDraw.scale + meshDraw.pos, 1.0)).xyz;
+
     float radius = meshlets[mi].radius * meshDraw.scale;
     float cone_cutoff = int(meshlets[mi].cone_cutoff) / 127.0;
     vec3 cameraPos = trans.cameraPos;
 
+    uint mvIdx = meshDraw.meshletVisibilityOffset + mLocalId;
+
     sharedCount = 0;
     barrier();
 
+    bool skip = false;
+    bool visible = (mLocalId < lod.meshletCount);
+
+    if(globals.enableMeshletOcclusion == 1)
+    {
+        uint mlvBit = (meshletVisibility[mvIdx >> 5] & (1u << (mvIdx & 31)));
+        if(!LATE && (mlvBit == 0)) // deny invisible object in early pass
+        {
+            visible = false;
+        }
+        
+        if( LATE && mlvBit != 0 && lateDrawVisibility == 1)
+        {
+            skip = true;
+        }
+    }
+
+    
     // back face culling, here we culling in the view space
-    bool accept = !coneCull(center, radius, cone_axis, cone_cutoff, vec3(0, 0, 0));
+    visible = visible && !coneCull(center, radius, cone_axis, cone_cutoff, vec3(0));
+    
     // frustum culling: left/right/top/bottom
-    accept = accept && (center.z * globals.frustum[1] + abs(center.x) * globals.frustum[0] > -radius);
-    accept = accept && (center.z * globals.frustum[3] + abs(center.y) * globals.frustum[2] > -radius);
+    visible = visible && (center.z * globals.frustum[1] + abs(center.x) * globals.frustum[0] > -radius);
+    visible = visible && (center.z * globals.frustum[3] + abs(center.y) * globals.frustum[2] > -radius);
     // near culling
     // note: not going to perform far culling to keep same result with triditional pipeline
-    accept = accept && (center.z + radius > globals.znear);
-
-    accept = accept && (mLocalId < lod.meshletCount);
-
+    visible = visible && (center.z + radius > globals.znear);
+    
     // occlussion culling
-    if(LATE && accept)
+    // TODO: this part some how not working either
+    if(LATE && globals.enableMeshletOcclusion == 1 && visible)
     {
         vec4 aabb;
         float P00 = globals.projection[0][0];
@@ -112,21 +139,33 @@ void main()
 
             float depth = textureLod(pyramid, (aabb.xy + aabb.zw) * 0.5, level).x; // scene depth
             float depthSphere = globals.znear / (center.z - radius); 
-            accept = accept && (depthSphere > depth); // nearest depth on sphere should less than the depth buffer
+            visible = visible && (depthSphere > depth); // nearest depth on sphere should less than the depth buffer
         }
     }
 
-    if(accept)
+    if(LATE && globals.enableMeshletOcclusion == 1) 
+    {
+        if(visible)
+        {
+            atomicOr(meshletVisibility[mvIdx >> 5], 1u << (mvIdx & 31));
+        }
+        else
+        {
+            atomicAnd(meshletVisibility[mvIdx >> 5], ~(1u << (mvIdx & 31)));
+        }
+    }
+
+
+    if( visible && !skip)
     {
         uint index = atomicAdd(sharedCount, 1);
         payload.meshletIndices[index] = mi;
     }
 
-    barrier();
-
     payload.drawId = drawId;
 
     // TODO: figure out correct task count to prevent overdraw
+    barrier();
     EmitMeshTasksEXT(sharedCount, 1, 1);
 #else
     payload.meshletIndices[ti] = mi;

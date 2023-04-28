@@ -55,7 +55,7 @@ void main()
 {
     uint di = gl_GlobalInvocationID.x;
 
-    // skip the first 
+    // the early cull only handle objects that visiable depends on last frame 
     if(!LATE && drawVisibility[di] == 0)
         return;
 
@@ -93,17 +93,18 @@ void main()
     }
     
     // early culling pass will setup the draw commands
-    if(visible && (!LATE || drawVisibility[di] == 0))
+    if(visible && (!LATE || cull.enableMeshletOcclusion == 1 ||drawVisibility[di] == 0))
     {
         barrier(); 
         uint dci = atomicAdd(drawCmdCount, 1);
         barrier(); 
-        float lodDist = log2(max(1, distance(center.xyz, transform.cameraPos) - radius));
+        float lodDist = log2(max(1, distance(center.xyz, vec3(0)) - radius));
         uint lodIdx = cull.enableLod > 0 ? clamp(int(lodDist), 0, int(mesh.lodCount) - 1) : 0;
         MeshLod lod = mesh.lods[lodIdx];
 
         drawCmds[dci].drawId = di;
         drawCmds[dci].lodIdx = lodIdx;
+        drawCmds[dci].lateDrawVisibility = drawVisibility[di];
         drawCmds[dci].indexCount = lod.indexCount;
         drawCmds[dci].instanceCount = 1;
         drawCmds[dci].firstIndex = lod.indexOffset;
