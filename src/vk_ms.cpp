@@ -38,7 +38,7 @@ static bool meshShadingEnabled = true;
 static bool enableCull = true;
 static bool enableLod = true;
 static bool enableOcclusion = true;
-static bool enableMeshletOC = false;
+static bool enableMeshletOC = true;
 static bool showPyramid = false;
 static int debugPyramidLevel = 4;
 static int s_depthPyramidCount = 0;
@@ -208,7 +208,7 @@ struct Geometry
 size_t appendMeshlets(Geometry& result, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices)
 {
     const size_t max_vertices = 64;
-    const size_t max_triangles = 84;
+    const size_t max_triangles = 64;
     const float cone_weight = 1.f;
 
     std::vector<meshopt_Meshlet> meshlets(meshopt_buildMeshletsBound(indices.size(), max_vertices, max_triangles));
@@ -637,7 +637,7 @@ int main(int argc, const char** argv)
 	VkDevice device = createDevice(instance, physicalDevice, familyIndex, meshShadingSupported);
 	assert(device);
 
-	GLFWwindow* window = glfwCreateWindow(1920, 1080, "mesh_shading_demo", 0, 0);
+	GLFWwindow* window = glfwCreateWindow(2650, 1440, "mesh_shading_demo", 0, 0);
 	assert(window);
 
     glfwSetKeyCallback(window, keyCallback);
@@ -783,21 +783,21 @@ int main(int argc, const char** argv)
     createBuffer(scratch, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
     Buffer mb = {};
-    createBuffer(mb, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    createBuffer(mb, memoryProps, device, geometry.meshes.size() * sizeof(Mesh), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     Buffer vb = {};
-    createBuffer(vb, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    createBuffer(vb, memoryProps, device, geometry.vertices.size() * sizeof(Vertex), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     Buffer ib = {};
-    createBuffer(ib, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    createBuffer(ib, memoryProps, device, geometry.indices.size() * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
 
     Buffer mlb = {}; // meshlet buffer
     Buffer mdb = {}; // meshlet data buffer
     if (meshShadingSupported)
     {
-        createBuffer(mlb, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        createBuffer(mdb, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        createBuffer(mlb, memoryProps, device, geometry.meshlets.size() * sizeof(Meshlet), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        createBuffer(mdb, memoryProps, device, geometry.meshletdata.size() * sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     }
 
     uploadBuffer(device, cmdPool, cmdBuffer, queue, mb, scratch, geometry.meshes.data(), geometry.meshes.size() * sizeof(Mesh));
@@ -851,7 +851,7 @@ int main(int argc, const char** argv)
     std::vector<MeshDraw> meshDraws(drawCount);
 
     float randomDist = 300;
-    float drawDist = 300;
+    float drawDist = 200;
     srand(42);
     uint32_t meshletVisibilityCount = 0;
     for (uint32_t i = 0; i < drawCount; i++)
@@ -859,14 +859,15 @@ int main(int argc, const char** argv)
         uint32_t meshIdx = rand() % geometry.meshes.size();
         Mesh& mesh = geometry.meshes[meshIdx];
         
-        /*
+        /* 
+        * NOTE: simplification for occlusion test
         meshDraws[i].pos[0] = 0.0f;
 
         meshDraws[i].pos[1] = 0.0f;
         meshDraws[i].pos[2] = (float)i + 2.0f;
 
         meshDraws[i].scale = 1.f / (float)i;
-*/
+        */
         meshDraws[i].pos[0] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
         meshDraws[i].pos[1] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
         meshDraws[i].pos[2] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
@@ -890,7 +891,7 @@ int main(int argc, const char** argv)
     uint32_t meshletVisibilityDataSize = (meshletVisibilityCount + 31) / 32 * sizeof(uint32_t);
 
     Buffer mdrb = {}; //mesh draw buffer
-    createBuffer(mdrb, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    createBuffer(mdrb, memoryProps, device, meshDraws.size() * sizeof(MeshDraw), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     uploadBuffer(device, cmdPool, cmdBuffer, queue, mdrb, scratch, meshDraws.data(), meshDraws.size() * sizeof(MeshDraw));
 
     Buffer mdcb = {}; // mesh draw command buffer
@@ -991,10 +992,15 @@ int main(int argc, const char** argv)
             ImGui::Text("avg gpu: [%.3f]ms", pd.avgGpuTime);
             ImGui::Text("cull: [%.3f]ms", pd.cullTime);
             ImGui::Text("draw: [%.3f]ms", pd.drawTime);
-            ImGui::Text("pyramid: [%.3f]ms", pd.pyramidTime);
-            ImGui::Text("late cull: [%.3f]ms", pd.lateCullTime);
+
             ImGui::Text("ui: [%.3f]ms", pd.uiTime);
             ImGui::Text("wait: [%.3f]ms", pd.waitTime);
+            if(enableOcclusion)
+            {
+                ImGui::Text("pyramid: [%.3f]ms", pd.pyramidTime);
+                ImGui::Text("late cull: [%.3f]ms", pd.lateCullTime);
+                ImGui::Text("render L: [%.3f]ms", pd.lateRender);
+            }
 
             if (ImGui::TreeNode("Static Data:"))
             {
@@ -1091,7 +1097,7 @@ int main(int argc, const char** argv)
             mdvbCleared = true;
         }
 
-        if (meshShadingEnabled && !mlvbCleared)
+        if (meshShadingSupported && !mlvbCleared)
         {
             vkCmdFillBuffer(cmdBuffer, mlvb.buffer, 0, meshletVisibilityDataSize, 0); 
 
@@ -1248,7 +1254,7 @@ int main(int argc, const char** argv)
             globals.pyramidHeight = (float)pyramidLevelHeight;
             globals.screenWidth = (float)swapchain.width;
             globals.screenHeight = (float)swapchain.height;
-            globals.enableMeshletOcclusion = enableMeshletOC;
+            globals.enableMeshletOcclusion = (enableMeshletOC && enableOcclusion && meshShadingSupported && meshShadingEnabled) ? 1 : 0;
 
             bool meshShadingOn = meshShadingEnabled && meshShadingSupported;
 
@@ -1309,16 +1315,21 @@ int main(int argc, const char** argv)
         render(/* late = */false, clearColor, clearDepth, meshPipelineMS, 0);
        
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 4);
-
-        pyramid();
         
-        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 5);
-        
-        culling(/* late = */true, drawcmdLatePipeline);
 
-        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 6);
+        if (enableOcclusion)
+        {
+            pyramid();
 
-        render(/* late = */true, clearColor, clearDepth, meshLatePipelineMS, 1);
+            vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 5);
+
+            culling(/* late = */true, drawcmdLatePipeline);
+
+            vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 6);
+
+            render(/* late = */true, clearColor, clearDepth, meshLatePipelineMS, 1);
+
+        }
         
         VkImageMemoryBarrier2 copyBarriers[] = {
             imageBarrier(colorTarget.image, VK_IMAGE_ASPECT_COLOR_BIT, 

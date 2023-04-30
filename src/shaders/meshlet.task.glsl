@@ -84,7 +84,6 @@ void main()
     vec3 axis = vec3( int(meshlets[mi].cone_axis[0]) / 127.0, int(meshlets[mi].cone_axis[1]) / 127.0, int(meshlets[mi].cone_axis[2]) / 127.0); 
     vec3 cone_axis = rotateQuat(axis, meshDraw.orit);
     vec3 center = (trans.view * vec4(rotateQuat(meshlets[mi].center, meshDraw.orit) * meshDraw.scale + meshDraw.pos, 1.0)).xyz;
-
     float radius = meshlets[mi].radius * meshDraw.scale;
     float cone_cutoff = int(meshlets[mi].cone_cutoff) / 127.0;
     vec3 cameraPos = trans.cameraPos;
@@ -100,12 +99,12 @@ void main()
     if(globals.enableMeshletOcclusion == 1)
     {
         uint mlvBit = (meshletVisibility[mvIdx >> 5] & (1u << (mvIdx & 31)));
-        if(!LATE && (mlvBit == 0)) // deny invisible object in early pass
+        if (!LATE && (mlvBit == 0)) // deny invisible object in early pass
         {
             visible = false;
         }
         
-        if( LATE && mlvBit != 0 && lateDrawVisibility == 1)
+        if ( LATE && mlvBit != 0 && lateDrawVisibility == 1)
         {
             skip = true;
         }
@@ -123,7 +122,6 @@ void main()
     visible = visible && (center.z + radius > globals.znear);
     
     // occlussion culling
-    // TODO: this part some how not working either
     if(LATE && globals.enableMeshletOcclusion == 1 && visible)
     {
         vec4 aabb;
@@ -143,6 +141,7 @@ void main()
         }
     }
 
+    //TODO: I wonder if bitwise operation which may behaves worse than the `unit` version(which would consume around 32 times memory size)
     if(LATE && globals.enableMeshletOcclusion == 1) 
     {
         if(visible)
@@ -164,7 +163,6 @@ void main()
 
     payload.drawId = drawId;
 
-    // TODO: figure out correct task count to prevent overdraw
     barrier();
     EmitMeshTasksEXT(sharedCount, 1, 1);
 #else

@@ -56,7 +56,7 @@ void main()
     uint di = gl_GlobalInvocationID.x;
 
     // the early cull only handle objects that visiable depends on last frame 
-    if(!LATE && drawVisibility[di] == 0)
+    if(!LATE && drawVisibility[di] == 0 && cull.enableOcclusion == 1)
         return;
 
     Mesh mesh = meshes[draws[di].meshIdx];
@@ -93,7 +93,7 @@ void main()
     }
     
     // early culling pass will setup the draw commands
-    if(visible && (!LATE || cull.enableMeshletOcclusion == 1 ||drawVisibility[di] == 0))
+    if(visible && (!LATE || cull.enableMeshletOcclusion == 1 || drawVisibility[di] == 0))
     {
         barrier(); 
         uint dci = atomicAdd(drawCmdCount, 1);
