@@ -11,8 +11,8 @@
 
 layout(local_size_x = TASKGP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
-
 layout(constant_id = 0) const bool LATE = false;
+layout(constant_id = 1) const bool TASK = false;
 
 layout(push_constant) uniform block 
 {
@@ -37,7 +37,12 @@ layout(binding = 2) readonly buffer Transform
 layout(binding = 3) writeonly buffer DrawCommands
 {
     MeshDrawCommand drawCmds[];
-};  
+};
+
+layout(binding = 3) writeonly buffer TaskCommands
+{
+    MeshTaskCommand taskCmds[];
+};
 
 layout(binding = 4) buffer DrawCommandCount
 {
@@ -92,27 +97,48 @@ void main()
         }
     }
     
+
     // early culling pass will setup the draw commands
     if(visible && (!LATE || cull.enableMeshletOcclusion == 1 || drawVisibility[di] == 0))
     {
-        barrier(); 
-        uint dci = atomicAdd(drawCmdCount, 1);
-        barrier(); 
+        
         float lodDist = log2(max(1, distance(center.xyz, vec3(0)) - radius));
         uint lodIdx = cull.enableLod > 0 ? clamp(int(lodDist), 0, int(mesh.lodCount) - 1) : 0;
         MeshLod lod = mesh.lods[lodIdx];
 
-        drawCmds[dci].drawId = di;
-        drawCmds[dci].lodIdx = lodIdx;
-        drawCmds[dci].lateDrawVisibility = drawVisibility[di];
-        drawCmds[dci].indexCount = lod.indexCount;
-        drawCmds[dci].instanceCount = 1;
-        drawCmds[dci].firstIndex = lod.indexOffset;
-        drawCmds[dci].vertexOffset = mesh.vertexOffset;
-        drawCmds[dci].firstInstance = 0;
-        drawCmds[dci].local_x = (lod.meshletCount + TASKGP_SIZE - 1)/ TASKGP_SIZE; 
-        drawCmds[dci].local_y = 1;
-        drawCmds[dci].local_z = 1;
+        if(TASK)
+        {
+            uint taskGroupCount = (lod.meshletCount + TASKGP_SIZE - 1)/ TASKGP_SIZE; // each task group handle TASKGP_SIZE meshlets
+            uint dci = atomicAdd(drawCmdCount, taskGroupCount);
+
+            uint meshletVisibilityOffset = draws[di].meshletVisibilityOffset;
+            uint lateDrawVisibility = drawVisibility[di];
+
+            for(uint i = 0; i < taskGroupCount; ++i)
+            {
+                taskCmds[dci + i].drawId = di;
+                taskCmds[dci + i].taskOffset = lod.meshletOffset + i * TASKGP_SIZE;
+                taskCmds[dci + i].taskCount = min(TASKGP_SIZE, lod.meshletCount - i * TASKGP_SIZE);
+                taskCmds[dci + i].lateDrawVisibility = lateDrawVisibility;
+                taskCmds[dci + i].meshletVisibilityOffset = meshletVisibilityOffset + i * TASKGP_SIZE;
+            }
+        }
+        else
+        {
+            uint dci = atomicAdd(drawCmdCount, 1);
+            drawCmds[dci].drawId = di;
+            drawCmds[dci].lateDrawVisibility = drawVisibility[di];
+            drawCmds[dci].taskCount = lod.meshletCount;
+            drawCmds[dci].taskOffset = lod.meshletOffset;
+            drawCmds[dci].indexCount = lod.indexCount;
+            drawCmds[dci].instanceCount = 1;
+            drawCmds[dci].firstIndex = lod.indexOffset;
+            drawCmds[dci].vertexOffset = mesh.vertexOffset;
+            drawCmds[dci].firstInstance = 0;
+            drawCmds[dci].local_x = (lod.meshletCount + TASKGP_SIZE - 1)/ TASKGP_SIZE; 
+            drawCmds[dci].local_y = 1;
+            drawCmds[dci].local_z = 1;
+        }
     }
 
     // set dvb in late pass

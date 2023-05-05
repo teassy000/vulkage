@@ -91,12 +91,21 @@ struct MeshDraw
     uint meshletVisibilityOffset;
 };
 
+struct MeshTaskCommand
+{
+    uint drawId;
+    uint taskOffset;
+    uint taskCount;
+    uint lateDrawVisibility;
+    uint meshletVisibilityOffset;
+};
+
 struct MeshDrawCommand
 {
     uint    drawId;
-    uint    lodIdx;
-
     uint    lateDrawVisibility;
+    uint    taskOffset;
+    uint    taskCount;
 
     // struct VkDrawIndexedIndirectCommand
     uint    indexCount;

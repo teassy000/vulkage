@@ -13,6 +13,7 @@
 #include "math.h"
 
 layout(constant_id = 0) const bool LATE = false;
+layout(constant_id = 1) const bool TASK = false;
 
 #define CULL 1
 
@@ -26,6 +27,11 @@ layout(push_constant) uniform block
 layout(binding = 0) readonly buffer DrawCommands 
 {
     MeshDrawCommand drawCmds[];
+};
+
+layout(binding = 0) readonly buffer TaskCommands
+{
+    MeshTaskCommand taskCmds[];
 };
 
 layout(binding = 1) readonly buffer Meshes
@@ -68,17 +74,20 @@ bool coneCullApex(vec3 cone_apex, vec3 cone_axis, float cone_cutoff, vec3 camera
 
 void main()
 {
-    uint drawId = drawCmds[gl_DrawIDARB].drawId;
-    uint lodIdx = drawCmds[gl_DrawIDARB].lodIdx;
-    uint lateDrawVisibility = drawCmds[gl_DrawIDARB].lateDrawVisibility;
+    uint drawId = TASK ? taskCmds[gl_WorkGroupID.x].drawId : drawCmds[gl_DrawIDARB].drawId;
+    uint lateDrawVisibility =  TASK ? taskCmds[gl_WorkGroupID.x].lateDrawVisibility : drawCmds[gl_DrawIDARB].lateDrawVisibility;
+    
     MeshDraw meshDraw = meshDraws[drawId];
     Mesh mesh = meshes[meshDraw.meshIdx];
-    MeshLod lod = mesh.lods[lodIdx];
 
-    uint mgi = gl_WorkGroupID.x;
-    uint ti = gl_LocalInvocationID.x;
-    uint mi = mgi * TASKGP_SIZE + ti + lod.meshletOffset;
-    uint mLocalId = mgi * TASKGP_SIZE + ti;
+    uint taskCount = TASK ? taskCmds[gl_WorkGroupID.x].taskCount : drawCmds[gl_DrawIDARB].taskCount;
+    uint taskOffset = TASK ? taskCmds[gl_WorkGroupID.x].taskOffset : drawCmds[gl_DrawIDARB].taskOffset;
+    
+    uint mLocalId = TASK ? gl_LocalInvocationID.x : gl_GlobalInvocationID.x;
+    uint mi = mLocalId + taskOffset;
+
+
+    uint mvIdx = (TASK ? taskCmds[gl_WorkGroupID.x].meshletVisibilityOffset : meshDraw.meshletVisibilityOffset) + mLocalId;
 
 #if CULL
     vec3 axis = vec3( int(meshlets[mi].cone_axis[0]) / 127.0, int(meshlets[mi].cone_axis[1]) / 127.0, int(meshlets[mi].cone_axis[2]) / 127.0); 
@@ -88,13 +97,11 @@ void main()
     float cone_cutoff = int(meshlets[mi].cone_cutoff) / 127.0;
     vec3 cameraPos = trans.cameraPos;
 
-    uint mvIdx = meshDraw.meshletVisibilityOffset + mLocalId;
-
     sharedCount = 0;
     barrier();
 
     bool skip = false;
-    bool visible = (mLocalId < lod.meshletCount);
+    bool visible = (mLocalId < taskCount);
 
     if(globals.enableMeshletOcclusion == 1)
     {
@@ -154,7 +161,6 @@ void main()
         }
     }
 
-
     if( visible && !skip)
     {
         uint index = atomicAdd(sharedCount, 1);
@@ -166,11 +172,9 @@ void main()
     barrier();
     EmitMeshTasksEXT(sharedCount, 1, 1);
 #else
-    payload.meshletIndices[ti] = mi;
+    payload.meshletIndices[gl_LocalInvocationID.x] = mi;
 
     payload.drawId = drawId;
-
-    uint emitCount = min(TASKGP_SIZE, lod.meshletCount - mLocalId );
-    EmitMeshTasksEXT(emitCount, 1, 1);
+    EmitMeshTasksEXT(taskCount, 1, 1);
 #endif
 }
