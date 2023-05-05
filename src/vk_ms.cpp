@@ -563,7 +563,7 @@ struct ProfilingData
     uint32_t meshletCount;
 };
 
-mat4 persectiveProjection(float fovY, float aspectWbyH, float zNear)
+mat4 perspectiveProjection(float fovY, float aspectWbyH, float zNear)
 {
     float f = 1.0f / tanf(fovY/ 2.0f);
 
@@ -896,7 +896,8 @@ int main(int argc, const char** argv)
         meshDraws[i].pos[0] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
         meshDraws[i].pos[1] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
         meshDraws[i].pos[2] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
-        meshDraws[i].scale = (float(rand()) / RAND_MAX)  + 2.f;
+        meshDraws[i].scale = (float(rand()) / RAND_MAX)  + 1.f;
+        meshDraws[i].scale *= 2.f;
         
         meshDraws[i].orit = glm::rotate(
             quat(1, 0, 0, 0)
@@ -923,7 +924,7 @@ int main(int argc, const char** argv)
     createBuffer(mdcb, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     Buffer mdccb = {}; // draw command count buffer
-    createBuffer(mdccb, memoryProps, device, 12, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+    createBuffer(mdccb, memoryProps, device, 16, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     Buffer tb = {}; // transform data buffer
     createBuffer(tb, memoryProps, device, sizeof(TransformData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
@@ -1065,8 +1066,8 @@ int main(int argc, const char** argv)
         }
 
         // update data
-        float znear = 1.f;
-        mat4 projection = persectiveProjection(glm::radians(50.f), (float)swapchain.width / (float)swapchain.height, znear);
+        float znear = .5f;
+        mat4 projection = perspectiveProjection(glm::radians(70.f), (float)swapchain.width / (float)swapchain.height, znear);
         mat4 projectionT = glm::transpose(projection);
         vec4 frustumX = normalizePlane(projectionT[3] - projectionT[0]);
         vec4 frustumY = normalizePlane(projectionT[3] - projectionT[1]);
