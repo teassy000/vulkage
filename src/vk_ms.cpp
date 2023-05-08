@@ -589,24 +589,6 @@ uint32_t previousPow2(uint32_t v)
     return r;
 }
 
-uint32_t findNearestMeshDraw(const std::vector<MeshDraw>& meshDraws, vec3 point)
-{
-    uint32_t result = 0;
-
-    float nearest = 10000.f;    
-    for (uint32_t i = 0; i < meshDraws.size(); ++i)
-    {
-        const MeshDraw& md = meshDraws[i];
-        float old_dist = nearest;
-        nearest = glm::min(old_dist, glm::distance(md.pos, point));
-
-        if (old_dist != nearest)
-            result = i;
-    }
-
-    return result;
-}
-
 int main(int argc, const char** argv)
 {
     if (argc < 2) {
@@ -693,8 +675,8 @@ int main(int argc, const char** argv)
     lsr = loadShader(drawcmdCS, device, "shaders/drawcmd.comp.spv");
     assert(lsr);
 
-    Shader drawcmdLateCS = {};
-    lsr = loadShader(drawcmdLateCS, device, "shaders/drawcmdlate.comp.spv");
+    Shader taskModifiyCS = {};
+    lsr = loadShader(taskModifiyCS, device, "shaders/taskModify.comp.spv");
     assert(lsr);
 
 	Shader depthPyramidCS = {};
@@ -720,6 +702,9 @@ int main(int argc, const char** argv)
 
     VkPipeline taskCullPipeline = createComputePipeline(device, pipelineCache, drawcmdProgram.layout, drawcmdCS, {/* late = */true, /*task = */ true});
     VkPipeline taskCullLatePipeline = createComputePipeline(device, pipelineCache, drawcmdProgram.layout, drawcmdCS, {/* late = */true, /*task = */ true});
+
+    Program taskModifyProgram = createProgram(device, VK_PIPELINE_BIND_POINT_COMPUTE, { &taskModifiyCS});
+    VkPipeline taskModifyPipeline = createComputePipeline(device, pipelineCache, taskModifyProgram.layout, taskModifiyCS );
 
 	Program depthPyramidProgram = createProgram(device, VK_PIPELINE_BIND_POINT_COMPUTE, { &depthPyramidCS}, sizeof(vec2));
 	VkPipeline depthPyramidPipeline = createComputePipeline(device, pipelineCache, depthPyramidProgram.layout, depthPyramidCS );
@@ -874,7 +859,7 @@ int main(int argc, const char** argv)
     uint32_t drawCount = 1'000'000;
     std::vector<MeshDraw> meshDraws(drawCount);
 
-    float randomDist = 300;
+    float randomDist = 200;
     float drawDist = 200; // TODO: changing draw distance near the random dist would cause objects invisible in *TASK mode*, probably due to the infinite far plane cliping, Or first frame status change. 
     srand(42);
     uint32_t meshletVisibilityCount = 0;
@@ -897,7 +882,6 @@ int main(int argc, const char** argv)
         meshDraws[i].pos[1] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
         meshDraws[i].pos[2] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
         meshDraws[i].scale = (float(rand()) / RAND_MAX)  + 1.f;
-        meshDraws[i].scale *= 2.f;
         
         meshDraws[i].orit = glm::rotate(
             quat(1, 0, 0, 0)
@@ -1139,7 +1123,7 @@ int main(int argc, const char** argv)
 
         auto culling = [&](bool late, VkPipeline pipeline)
         {
-            vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+
 
             VkBufferMemoryBarrier2 preFillBarrier = bufferBarrier2(mdccb.buffer,
                 VK_ACCESS_INDIRECT_COMMAND_READ_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
@@ -1148,7 +1132,6 @@ int main(int argc, const char** argv)
             pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 1, &preFillBarrier, 0, 0);
 
             vkCmdFillBuffer(cmdBuffer, mdccb.buffer, 0, 4, 0u); // fill draw command count or taskSizeX
-            vkCmdFillBuffer(cmdBuffer, mdccb.buffer, 4, 8, 1u); // fill taskSizeY and taskSizeZ
 
             VkBufferMemoryBarrier2 postFillBarrier = bufferBarrier2(mdccb.buffer,
                 VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -1164,12 +1147,35 @@ int main(int argc, const char** argv)
             };
 
             pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, COUNTOF(cullBeginBarriers), cullBeginBarriers);
+            {
+                vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+                DescriptorInfo pyramidInfo = { depthSampler, depthPyramid.imageView, VK_IMAGE_LAYOUT_GENERAL };
+                DescriptorInfo descInfos[] = { mb.buffer, mdrb.buffer, tb.buffer, mdcb.buffer, mdccb.buffer, mdvb.buffer, pyramidInfo };
+                vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, drawcmdProgram.updateTemplate, drawcmdProgram.layout, 0, descInfos);
 
-            DescriptorInfo pyramidInfo = { depthSampler, depthPyramid.imageView, VK_IMAGE_LAYOUT_GENERAL };
-            DescriptorInfo descInfos[] = { mb.buffer, mdrb.buffer, tb.buffer, mdcb.buffer, mdccb.buffer, mdvb.buffer, pyramidInfo };
-            vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, drawcmdProgram.updateTemplate, drawcmdProgram.layout, 0, descInfos);
-            
-            vkCmdDispatch(cmdBuffer, uint32_t((meshDraws.size() + drawcmdCS.localSizeX - 1) / drawcmdCS.localSizeX), drawcmdCS.localSizeY, drawcmdCS.localSizeZ);
+                vkCmdDispatch(cmdBuffer, uint32_t((meshDraws.size() + drawcmdCS.localSizeX - 1) / drawcmdCS.localSizeX), drawcmdCS.localSizeY, drawcmdCS.localSizeZ);
+            }
+
+
+            if (taskSubmitOn)
+            {
+                VkBufferMemoryBarrier2 modifyBarrier[] = {
+                    bufferBarrier2(mdccb.buffer,
+                        VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                        VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT),
+                    bufferBarrier2(mdcb.buffer,
+                        VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                        VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT),
+                };
+                pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, COUNTOF(modifyBarrier), modifyBarrier, 0, 0);
+
+                vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, taskModifyPipeline);
+
+                DescriptorInfo descInfos[] = { mdccb.buffer, mdcb.buffer};
+                vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, taskModifyProgram.updateTemplate, taskModifyProgram.layout, 0, descInfos);
+
+                vkCmdDispatch(cmdBuffer, 1, 1, 1);
+            }
 
             VkBufferMemoryBarrier2 cullEndBarriers[] = {
                 bufferBarrier2(mdcb.buffer,
@@ -1299,7 +1305,7 @@ int main(int argc, const char** argv)
                 vkCmdPushConstants(cmdBuffer, meshProgramMS.layout, meshProgramMS.pushConstantStages, 0, sizeof(globals), &globals);
                 
                 if (taskSubmit)
-                    vkCmdDrawMeshTasksIndirectEXT(cmdBuffer, mdccb.buffer, 0, 1, 0);
+                    vkCmdDrawMeshTasksIndirectEXT(cmdBuffer, mdccb.buffer, 4, 1, 0);
                 else
                     vkCmdDrawMeshTasksIndirectCountEXT(cmdBuffer, mdcb.buffer, offsetof(MeshDrawCommand, indirectMS), mdccb.buffer, 0, (uint32_t)meshDraws.size(), sizeof(MeshDrawCommand));
             }
@@ -1348,7 +1354,6 @@ int main(int argc, const char** argv)
         render(/* late = */false, /*taskSubmit = */ taskSubmitOn, clearColor, clearDepth, taskSubmitOn ? taskPipelineMS : meshPipelineMS, 0);
        
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 4);
-        
 
         if (enableOcclusion)
         {
@@ -1361,7 +1366,6 @@ int main(int argc, const char** argv)
             vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 6);
 
             render(/* late = */true, /*taskSubmit = */ taskSubmitOn, clearColor, clearDepth, taskSubmitOn ? taskLatePipelineMS : meshLatePipelineMS, 1);
-
         }
         
         VkImageMemoryBarrier2 copyBarriers[] = {
@@ -1604,6 +1608,9 @@ int main(int argc, const char** argv)
     vkDestroyPipeline(device, depthPyramidPipeline, 0);
     destroyProgram(device, depthPyramidProgram);
 
+    vkDestroyPipeline(device, taskModifyPipeline, 0);
+    destroyProgram(device, taskModifyProgram);
+
     vkDestroyPipeline(device, taskCullLatePipeline, 0);
     vkDestroyPipeline(device, taskCullPipeline, 0);
     vkDestroyPipeline(device, drawcmdLatePipeline, 0);
@@ -1623,7 +1630,7 @@ int main(int argc, const char** argv)
     }
 
     vkDestroyShaderModule(device, depthPyramidCS.module, 0);
-    vkDestroyShaderModule(device, drawcmdLateCS.module, 0);
+    vkDestroyShaderModule(device, taskModifiyCS.module, 0);
     vkDestroyShaderModule(device, drawcmdCS.module, 0);
     vkDestroyShaderModule(device, meshFS.module, 0);
     vkDestroyShaderModule(device, meshVS.module, 0);

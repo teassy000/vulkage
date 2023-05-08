@@ -103,12 +103,12 @@ void main()
     {
         
         float lodDist = log2(max(1, distance(center.xyz, vec3(0)) - radius));
-        uint lodIdx = cull.enableLod > 0 ? clamp(int(lodDist), 0, int(mesh.lodCount) - 1) : 0;
+        uint lodIdx = cull.enableLod == 1 ? clamp(int(lodDist), 0, int(mesh.lodCount) - 1) : 0;
         MeshLod lod = mesh.lods[lodIdx];
 
         if(TASK)
         {
-            uint taskGroupCount = (lod.meshletCount + TASKGP_SIZE - 1)/ TASKGP_SIZE; // each task group handle TASKGP_SIZE meshlets
+            uint taskGroupCount = (lod.meshletCount + TASKGP_SIZE - 1) / TASKGP_SIZE; // each task group handle TASKGP_SIZE meshlets
             uint dci = atomicAdd(drawCmdCount, taskGroupCount);
 
             uint meshletVisibilityOffset = draws[di].meshletVisibilityOffset;

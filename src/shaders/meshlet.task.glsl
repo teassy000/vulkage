@@ -74,20 +74,26 @@ bool coneCullApex(vec3 cone_apex, vec3 cone_axis, float cone_cutoff, vec3 camera
 
 void main()
 {
-    uint drawId = TASK ? taskCmds[gl_WorkGroupID.x].drawId : drawCmds[gl_DrawIDARB].drawId;
-    uint lateDrawVisibility =  TASK ? taskCmds[gl_WorkGroupID.x].lateDrawVisibility : drawCmds[gl_DrawIDARB].lateDrawVisibility;
+    uint taskId = 0;
+    if(TASK)
+    {
+        taskId = 64 * gl_WorkGroupID.x + gl_WorkGroupID.y;
+    }
+
+    uint drawId = TASK ? taskCmds[taskId].drawId : drawCmds[gl_DrawIDARB].drawId;
+    uint lateDrawVisibility =  TASK ? taskCmds[taskId].lateDrawVisibility : drawCmds[gl_DrawIDARB].lateDrawVisibility;
     
     MeshDraw meshDraw = meshDraws[drawId];
     Mesh mesh = meshes[meshDraw.meshIdx];
 
-    uint taskCount = TASK ? taskCmds[gl_WorkGroupID.x].taskCount : drawCmds[gl_DrawIDARB].taskCount;
-    uint taskOffset = TASK ? taskCmds[gl_WorkGroupID.x].taskOffset : drawCmds[gl_DrawIDARB].taskOffset;
+    uint taskCount = TASK ? taskCmds[taskId].taskCount : drawCmds[gl_DrawIDARB].taskCount;
+    uint taskOffset = TASK ? taskCmds[taskId].taskOffset : drawCmds[gl_DrawIDARB].taskOffset;
     
     uint mLocalId = TASK ? gl_LocalInvocationID.x : gl_GlobalInvocationID.x;
     uint mi = mLocalId + taskOffset;
 
 
-    uint mvIdx = (TASK ? taskCmds[gl_WorkGroupID.x].meshletVisibilityOffset : meshDraw.meshletVisibilityOffset) + mLocalId;
+    uint mvIdx = (TASK ? taskCmds[taskId].meshletVisibilityOffset : meshDraw.meshletVisibilityOffset) + mLocalId;
 
 #if CULL
     vec3 axis = vec3( int(meshlets[mi].cone_axis[0]) / 127.0, int(meshlets[mi].cone_axis[1]) / 127.0, int(meshlets[mi].cone_axis[2]) / 127.0); 

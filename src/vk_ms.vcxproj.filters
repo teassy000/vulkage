@@ -252,6 +252,9 @@
     <CustomBuild Include="shaders\ui.frag.glsl">
       <Filter>shaders</Filter>
     </CustomBuild>
+    <CustomBuild Include="shaders\taskmodify.comp.glsl">
+      <Filter>shaders</Filter>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="dear_imgui">
