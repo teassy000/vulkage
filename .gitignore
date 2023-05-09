@@ -6,4 +6,6 @@ src/*.db
 src/shaders/*.spv
 src/imgui.ini
 data/*
-extern/*
+externs/*
+*.vs/*
+out/*

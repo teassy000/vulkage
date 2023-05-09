@@ -1,0 +1,20 @@
+[submodule "externs/fast_obj"]
+	path = externs/fast_obj
+	url = https://github.com/thisistherk/fast_obj.git
+[submodule "externs/glfw"]
+	path = externs/glfw
+	url = https://github.com/glfw/glfw.git
+[submodule "externs/imgui"]
+	path = externs/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule "externs/volk"]
+	path = externs/volk
+	url = https://github.com/zeux/volk.git
+	branch = sdk-1.3.243
+[submodule "externs/meshoptimizer"]
+	path = externs/meshoptimizer
+	url = https://github.com/zeux/meshoptimizer
+[submodule "externs/glm"]
+	path = externs/glm
+	url = https://github.com/g-truc/glm.git
+	branch = stable

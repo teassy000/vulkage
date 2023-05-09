@@ -2,124 +2,106 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="vk_ms.cpp" />
-    <ClCompile Include="..\extern\dear-imgui\imgui.cpp">
-      <Filter>dear_imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\extern\dear-imgui\imgui_demo.cpp">
-      <Filter>dear_imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\extern\dear-imgui\imgui_draw.cpp">
-      <Filter>dear_imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\extern\dear-imgui\imgui_tables.cpp">
-      <Filter>dear_imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\extern\dear-imgui\imgui_widgets.cpp">
-      <Filter>dear_imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\extern\fast_obj\fast_obj.c">
+    <ClCompile Include="..\externs\fast_obj\fast_obj.c">
       <Filter>fast_obj</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\glfw\src\wgl_context.c">
+    <ClCompile Include="..\externs\glfw\src\wgl_context.c">
       <Filter>glfw</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\glfw\src\win32_init.c">
+    <ClCompile Include="..\externs\glfw\src\win32_init.c">
       <Filter>glfw</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\glfw\src\win32_joystick.c">
+    <ClCompile Include="..\externs\glfw\src\win32_joystick.c">
       <Filter>glfw</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\glfw\src\win32_module.c">
+    <ClCompile Include="..\externs\glfw\src\win32_monitor.c">
       <Filter>glfw</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\glfw\src\win32_monitor.c">
+    <ClCompile Include="..\externs\glfw\src\win32_thread.c">
       <Filter>glfw</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\glfw\src\win32_thread.c">
+    <ClCompile Include="..\externs\glfw\src\win32_time.c">
       <Filter>glfw</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\glfw\src\win32_time.c">
+    <ClCompile Include="..\externs\glfw\src\win32_window.c">
       <Filter>glfw</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\glfw\src\win32_window.c">
+    <ClCompile Include="..\externs\glfw\src\window.c">
       <Filter>glfw</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\glfw\src\window.c">
-      <Filter>glfw</Filter>
-    </ClCompile>
-    <ClCompile Include="..\extern\meshoptimizer\src\allocator.cpp">
+    <ClCompile Include="..\externs\meshoptimizer\src\allocator.cpp">
       <Filter>meshoptimizer</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\meshoptimizer\src\clusterizer.cpp">
+    <ClCompile Include="..\externs\meshoptimizer\src\clusterizer.cpp">
       <Filter>meshoptimizer</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\glfw\src\context.c">
+    <ClCompile Include="..\externs\glfw\src\context.c">
       <Filter>glfw</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\glfw\src\egl_context.c">
+    <ClCompile Include="..\externs\glfw\src\egl_context.c">
       <Filter>glfw</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\meshoptimizer\src\indexcodec.cpp">
+    <ClCompile Include="..\externs\meshoptimizer\src\indexcodec.cpp">
       <Filter>meshoptimizer</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\meshoptimizer\src\indexgenerator.cpp">
+    <ClCompile Include="..\externs\meshoptimizer\src\indexgenerator.cpp">
       <Filter>meshoptimizer</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\glfw\src\init.c">
+    <ClCompile Include="..\externs\glfw\src\init.c">
       <Filter>glfw</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\glfw\src\input.c">
+    <ClCompile Include="..\externs\glfw\src\input.c">
       <Filter>glfw</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\glfw\src\null_init.c">
+    <ClCompile Include="..\externs\glfw\src\null_init.c">
       <Filter>glfw</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\glfw\src\null_joystick.c">
+    <ClCompile Include="..\externs\glfw\src\null_joystick.c">
       <Filter>glfw</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\glfw\src\null_monitor.c">
+    <ClCompile Include="..\externs\glfw\src\null_monitor.c">
       <Filter>glfw</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\glfw\src\null_window.c">
+    <ClCompile Include="..\externs\glfw\src\null_window.c">
       <Filter>glfw</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\glfw\src\monitor.c">
+    <ClCompile Include="..\externs\glfw\src\monitor.c">
       <Filter>glfw</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\meshoptimizer\src\overdrawanalyzer.cpp">
+    <ClCompile Include="..\externs\meshoptimizer\src\overdrawanalyzer.cpp">
       <Filter>meshoptimizer</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\meshoptimizer\src\overdrawoptimizer.cpp">
+    <ClCompile Include="..\externs\meshoptimizer\src\overdrawoptimizer.cpp">
       <Filter>meshoptimizer</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\glfw\src\osmesa_context.c">
+    <ClCompile Include="..\externs\glfw\src\osmesa_context.c">
       <Filter>meshoptimizer</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\meshoptimizer\src\stripifier.cpp">
+    <ClCompile Include="..\externs\meshoptimizer\src\stripifier.cpp">
       <Filter>meshoptimizer</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\meshoptimizer\src\simplifier.cpp">
+    <ClCompile Include="..\externs\meshoptimizer\src\simplifier.cpp">
       <Filter>meshoptimizer</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\meshoptimizer\src\spatialorder.cpp">
+    <ClCompile Include="..\externs\meshoptimizer\src\spatialorder.cpp">
       <Filter>meshoptimizer</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\meshoptimizer\src\vfetchoptimizer.cpp">
+    <ClCompile Include="..\externs\meshoptimizer\src\vfetchoptimizer.cpp">
       <Filter>meshoptimizer</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\meshoptimizer\src\vcacheanalyzer.cpp">
+    <ClCompile Include="..\externs\meshoptimizer\src\vcacheanalyzer.cpp">
       <Filter>meshoptimizer</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\meshoptimizer\src\vcacheoptimizer.cpp">
+    <ClCompile Include="..\externs\meshoptimizer\src\vcacheoptimizer.cpp">
       <Filter>meshoptimizer</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\meshoptimizer\src\vertexcodec.cpp">
+    <ClCompile Include="..\externs\meshoptimizer\src\vertexcodec.cpp">
       <Filter>meshoptimizer</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\meshoptimizer\src\vertexfilter.cpp">
+    <ClCompile Include="..\externs\meshoptimizer\src\vertexfilter.cpp">
       <Filter>meshoptimizer</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\meshoptimizer\src\vfetchanalyzer.cpp">
+    <ClCompile Include="..\externs\meshoptimizer\src\vfetchanalyzer.cpp">
       <Filter>meshoptimizer</Filter>
     </ClCompile>
     <ClCompile Include="resources.cpp">
@@ -134,42 +116,39 @@
     <ClCompile Include="ui.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\glfw\src\vulkan.c">
+    <ClCompile Include="..\externs\glfw\src\vulkan.c">
       <Filter>glfw</Filter>
     </ClCompile>
-    <ClCompile Include="..\extern\volk\volk.c">
+    <ClCompile Include="..\externs\volk\volk.c">
       <Filter>volk</Filter>
-    </ClCompile>
-    <ClCompile Include="..\extern\glfw\src\platform.c">
-      <Filter>glfw</Filter>
     </ClCompile>
     <ClCompile Include="device.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\externs\imgui\imgui.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\externs\imgui\imgui_demo.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\externs\imgui\imgui_draw.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\externs\imgui\imgui_tables.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\externs\imgui\imgui_widgets.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\externs\glfw\src\platform.c">
+      <Filter>glfw</Filter>
+    </ClCompile>
+    <ClCompile Include="..\externs\glfw\src\win32_module.c">
+      <Filter>glfw</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\extern\dear-imgui\imconfig.h">
-      <Filter>dear_imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\extern\dear-imgui\imgui.h">
-      <Filter>dear_imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\extern\dear-imgui\imgui_internal.h">
-      <Filter>dear_imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\extern\ligitProfiler\ImGuiProfilerRenderer.h">
-      <Filter>dear_imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\extern\dear-imgui\imstb_rectpack.h">
-      <Filter>dear_imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\extern\dear-imgui\imstb_textedit.h">
-      <Filter>dear_imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\extern\dear-imgui\imstb_truetype.h">
-      <Filter>dear_imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\extern\fast_obj\fast_obj.h">
+    <ClInclude Include="..\externs\fast_obj\fast_obj.h">
       <Filter>fast_obj</Filter>
     </ClInclude>
     <ClInclude Include="shaders\math.h">
@@ -178,25 +157,19 @@
     <ClInclude Include="shaders\mesh.h">
       <Filter>shaders</Filter>
     </ClInclude>
-    <ClInclude Include="..\extern\glfw\src\win32_joystick.h">
+    <ClInclude Include="..\externs\glfw\src\win32_joystick.h">
       <Filter>glfw</Filter>
     </ClInclude>
-    <ClInclude Include="..\extern\glfw\src\win32_platform.h">
+    <ClInclude Include="..\externs\glfw\src\win32_platform.h">
       <Filter>glfw</Filter>
     </ClInclude>
-    <ClInclude Include="..\extern\glfw\src\win32_thread.h">
-      <Filter>glfw</Filter>
-    </ClInclude>
-    <ClInclude Include="..\extern\glfw\src\win32_time.h">
-      <Filter>glfw</Filter>
-    </ClInclude>
-    <ClInclude Include="..\extern\meshoptimizer\src\meshoptimizer.h">
+    <ClInclude Include="..\externs\meshoptimizer\src\meshoptimizer.h">
       <Filter>meshoptimizer</Filter>
     </ClInclude>
-    <ClInclude Include="..\extern\glfw\src\null_joystick.h">
+    <ClInclude Include="..\externs\glfw\src\null_joystick.h">
       <Filter>glfw</Filter>
     </ClInclude>
-    <ClInclude Include="..\extern\glfw\src\null_platform.h">
+    <ClInclude Include="..\externs\glfw\src\null_platform.h">
       <Filter>glfw</Filter>
     </ClInclude>
     <ClInclude Include="ui.h">
@@ -211,10 +184,10 @@
     <ClInclude Include="swapchain.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="..\extern\ligitProfiler\ProfilerTask.h">
+    <ClInclude Include="..\externs\ligitProfiler\ProfilerTask.h">
       <Filter>ligitProfiler</Filter>
     </ClInclude>
-    <ClInclude Include="..\extern\volk\volk.h">
+    <ClInclude Include="..\externs\volk\volk.h">
       <Filter>volk</Filter>
     </ClInclude>
     <ClInclude Include="math.h">
@@ -225,6 +198,27 @@
     </ClInclude>
     <ClInclude Include="device.h">
       <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\externs\imgui\imconfig.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\externs\imgui\imgui.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\externs\imgui\imgui_internal.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\externs\imgui\imstb_rectpack.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\externs\imgui\imstb_textedit.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\externs\imgui\imstb_truetype.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\externs\glfw\src\platform.h">
+      <Filter>glfw</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -257,9 +251,6 @@
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="dear_imgui">
-      <UniqueIdentifier>{4e29730c-2515-4722-bb93-3cc3c631b9f4}</UniqueIdentifier>
-    </Filter>
     <Filter Include="fast_obj">
       <UniqueIdentifier>{4082c08a-38a6-4273-89a1-9d59a2eae7d3}</UniqueIdentifier>
     </Filter>
@@ -277,6 +268,9 @@
     </Filter>
     <Filter Include="ligitProfiler">
       <UniqueIdentifier>{25cc3ca3-07f6-48d0-bc1e-c0c1b96c024d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="imgui">
+      <UniqueIdentifier>{4e29730c-2515-4722-bb93-3cc3c631b9f4}</UniqueIdentifier>
     </Filter>
     <Filter Include="volk">
       <UniqueIdentifier>{441dea57-7170-4f9d-8798-f7affa107243}</UniqueIdentifier>

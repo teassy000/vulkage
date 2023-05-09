@@ -23,7 +23,7 @@
     <Keyword>Win32Proj</Keyword>
     <ProjectGuid>{9cdb5543-e6a1-40fd-b28f-d3f8700f0f02}</ProjectGuid>
     <RootNamespace>projvk</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.20348.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
     <ProjectName>vk_ms</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -71,6 +71,9 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -105,10 +108,10 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>GLM_FORCE_XYZW_ONLY;GLFW_EXPOSE_NATIVE_WIN32;VK_USE_PLATFORM_WIN32_KHR;NOMINMAX;_GLFW_WIN32;_CRT_SECURE_NO_WARNINGS;_DEBUG;</PreprocessorDefinitions>
+      <PreprocessorDefinitions>GLM_FORCE_XYZW_ONLY;GLFW_EXPOSE_NATIVE_WIN32;WIN32_LEAN_AND_MEAN;VK_USE_PLATFORM_WIN32_KHR;NOMINMAX;_GLFW_WIN32;_CRT_SECURE_NO_WARNINGS;_DEBUG</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile />
-      <AdditionalIncludeDirectories>../extern/glfw/include;../extern/volk;../extern/meshoptimizer/src;../extern/ligitProfiler;../extern/dear-imgui;../extern/fast_obj;../data;$(VULKAN_SDK)/Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../externs/glfw/include;../externs/volk;../externs/meshoptimizer/src;../externs/ligitProfiler;../externs/imgui;../externs/fast_obj;$(VULKAN_SDK)\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -128,10 +131,10 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>GLM_FORCE_XYZW_ONLY;GLFW_EXPOSE_NATIVE_WIN32;VK_USE_PLATFORM_WIN32_KHR;NOMINMAX;_GLFW_WIN32;_CRT_SECURE_NO_WARNINGS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>GLM_FORCE_XYZW_ONLY;GLFW_EXPOSE_NATIVE_WIN32;WIN32_LEAN_AND_MEAN;VK_USE_PLATFORM_WIN32_KHR;NOMINMAX;_GLFW_WIN32;_CRT_SECURE_NO_WARNINGS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile />
-      <AdditionalIncludeDirectories>../extern/glfw/include;../extern/volk;../extern/meshoptimizer/src;../extern/ligitProfiler;../extern/dear-imgui;../extern/fast_obj;../data;$(VULKAN_SDK)/Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../externs/glfw/include;../externs/volk;../externs/meshoptimizer/src;../externs/ligitProfiler;../externs/imgui;../externs/fast_obj;../data;$(VULKAN_SDK)\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Full</Optimization>
     </ClCompile>
     <Link>
@@ -149,49 +152,49 @@
     </CustomBuild>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\extern\dear-imgui\imgui.cpp" />
-    <ClCompile Include="..\extern\dear-imgui\imgui_demo.cpp" />
-    <ClCompile Include="..\extern\dear-imgui\imgui_draw.cpp" />
-    <ClCompile Include="..\extern\dear-imgui\imgui_tables.cpp" />
-    <ClCompile Include="..\extern\dear-imgui\imgui_widgets.cpp" />
-    <ClCompile Include="..\extern\fast_obj\fast_obj.c" />
-    <ClCompile Include="..\extern\glfw\src\context.c" />
-    <ClCompile Include="..\extern\glfw\src\egl_context.c" />
-    <ClCompile Include="..\extern\glfw\src\init.c" />
-    <ClCompile Include="..\extern\glfw\src\input.c" />
-    <ClCompile Include="..\extern\glfw\src\monitor.c" />
-    <ClCompile Include="..\extern\glfw\src\null_init.c" />
-    <ClCompile Include="..\extern\glfw\src\null_joystick.c" />
-    <ClCompile Include="..\extern\glfw\src\null_monitor.c" />
-    <ClCompile Include="..\extern\glfw\src\null_window.c" />
-    <ClCompile Include="..\extern\glfw\src\osmesa_context.c" />
-    <ClCompile Include="..\extern\glfw\src\platform.c" />
-    <ClCompile Include="..\extern\glfw\src\vulkan.c" />
-    <ClCompile Include="..\extern\glfw\src\wgl_context.c" />
-    <ClCompile Include="..\extern\glfw\src\win32_init.c" />
-    <ClCompile Include="..\extern\glfw\src\win32_joystick.c" />
-    <ClCompile Include="..\extern\glfw\src\win32_module.c" />
-    <ClCompile Include="..\extern\glfw\src\win32_monitor.c" />
-    <ClCompile Include="..\extern\glfw\src\win32_thread.c" />
-    <ClCompile Include="..\extern\glfw\src\win32_time.c" />
-    <ClCompile Include="..\extern\glfw\src\win32_window.c" />
-    <ClCompile Include="..\extern\glfw\src\window.c" />
-    <ClCompile Include="..\extern\meshoptimizer\src\allocator.cpp" />
-    <ClCompile Include="..\extern\meshoptimizer\src\clusterizer.cpp" />
-    <ClCompile Include="..\extern\meshoptimizer\src\indexcodec.cpp" />
-    <ClCompile Include="..\extern\meshoptimizer\src\indexgenerator.cpp" />
-    <ClCompile Include="..\extern\meshoptimizer\src\overdrawanalyzer.cpp" />
-    <ClCompile Include="..\extern\meshoptimizer\src\overdrawoptimizer.cpp" />
-    <ClCompile Include="..\extern\meshoptimizer\src\simplifier.cpp" />
-    <ClCompile Include="..\extern\meshoptimizer\src\spatialorder.cpp" />
-    <ClCompile Include="..\extern\meshoptimizer\src\stripifier.cpp" />
-    <ClCompile Include="..\extern\meshoptimizer\src\vcacheanalyzer.cpp" />
-    <ClCompile Include="..\extern\meshoptimizer\src\vcacheoptimizer.cpp" />
-    <ClCompile Include="..\extern\meshoptimizer\src\vertexcodec.cpp" />
-    <ClCompile Include="..\extern\meshoptimizer\src\vertexfilter.cpp" />
-    <ClCompile Include="..\extern\meshoptimizer\src\vfetchanalyzer.cpp" />
-    <ClCompile Include="..\extern\meshoptimizer\src\vfetchoptimizer.cpp" />
-    <ClCompile Include="..\extern\volk\volk.c" />
+    <ClCompile Include="..\externs\fast_obj\fast_obj.c" />
+    <ClCompile Include="..\externs\glfw\src\context.c" />
+    <ClCompile Include="..\externs\glfw\src\egl_context.c" />
+    <ClCompile Include="..\externs\glfw\src\init.c" />
+    <ClCompile Include="..\externs\glfw\src\input.c" />
+    <ClCompile Include="..\externs\glfw\src\monitor.c" />
+    <ClCompile Include="..\externs\glfw\src\null_init.c" />
+    <ClCompile Include="..\externs\glfw\src\null_joystick.c" />
+    <ClCompile Include="..\externs\glfw\src\null_monitor.c" />
+    <ClCompile Include="..\externs\glfw\src\null_window.c" />
+    <ClCompile Include="..\externs\glfw\src\osmesa_context.c" />
+    <ClCompile Include="..\externs\glfw\src\platform.c" />
+    <ClCompile Include="..\externs\glfw\src\vulkan.c" />
+    <ClCompile Include="..\externs\glfw\src\wgl_context.c" />
+    <ClCompile Include="..\externs\glfw\src\win32_init.c" />
+    <ClCompile Include="..\externs\glfw\src\win32_joystick.c" />
+    <ClCompile Include="..\externs\glfw\src\win32_module.c" />
+    <ClCompile Include="..\externs\glfw\src\win32_monitor.c" />
+    <ClCompile Include="..\externs\glfw\src\win32_thread.c" />
+    <ClCompile Include="..\externs\glfw\src\win32_time.c" />
+    <ClCompile Include="..\externs\glfw\src\win32_window.c" />
+    <ClCompile Include="..\externs\glfw\src\window.c" />
+    <ClCompile Include="..\externs\imgui\imgui.cpp" />
+    <ClCompile Include="..\externs\imgui\imgui_demo.cpp" />
+    <ClCompile Include="..\externs\imgui\imgui_draw.cpp" />
+    <ClCompile Include="..\externs\imgui\imgui_tables.cpp" />
+    <ClCompile Include="..\externs\imgui\imgui_widgets.cpp" />
+    <ClCompile Include="..\externs\meshoptimizer\src\allocator.cpp" />
+    <ClCompile Include="..\externs\meshoptimizer\src\clusterizer.cpp" />
+    <ClCompile Include="..\externs\meshoptimizer\src\indexcodec.cpp" />
+    <ClCompile Include="..\externs\meshoptimizer\src\indexgenerator.cpp" />
+    <ClCompile Include="..\externs\meshoptimizer\src\overdrawanalyzer.cpp" />
+    <ClCompile Include="..\externs\meshoptimizer\src\overdrawoptimizer.cpp" />
+    <ClCompile Include="..\externs\meshoptimizer\src\simplifier.cpp" />
+    <ClCompile Include="..\externs\meshoptimizer\src\spatialorder.cpp" />
+    <ClCompile Include="..\externs\meshoptimizer\src\stripifier.cpp" />
+    <ClCompile Include="..\externs\meshoptimizer\src\vcacheanalyzer.cpp" />
+    <ClCompile Include="..\externs\meshoptimizer\src\vcacheoptimizer.cpp" />
+    <ClCompile Include="..\externs\meshoptimizer\src\vertexcodec.cpp" />
+    <ClCompile Include="..\externs\meshoptimizer\src\vertexfilter.cpp" />
+    <ClCompile Include="..\externs\meshoptimizer\src\vfetchanalyzer.cpp" />
+    <ClCompile Include="..\externs\meshoptimizer\src\vfetchoptimizer.cpp" />
+    <ClCompile Include="..\externs\volk\volk.c" />
     <ClCompile Include="device.cpp" />
     <ClCompile Include="vk_ms.cpp" />
     <ClCompile Include="resources.cpp" />
@@ -200,23 +203,21 @@
     <ClCompile Include="ui.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\extern\dear-imgui\imconfig.h" />
-    <ClInclude Include="..\extern\dear-imgui\imgui.h" />
-    <ClInclude Include="..\extern\dear-imgui\imgui_internal.h" />
-    <ClInclude Include="..\extern\dear-imgui\imstb_rectpack.h" />
-    <ClInclude Include="..\extern\dear-imgui\imstb_textedit.h" />
-    <ClInclude Include="..\extern\dear-imgui\imstb_truetype.h" />
-    <ClInclude Include="..\extern\fast_obj\fast_obj.h" />
-    <ClInclude Include="..\extern\glfw\src\null_joystick.h" />
-    <ClInclude Include="..\extern\glfw\src\null_platform.h" />
-    <ClInclude Include="..\extern\glfw\src\win32_joystick.h" />
-    <ClInclude Include="..\extern\glfw\src\win32_platform.h" />
-    <ClInclude Include="..\extern\glfw\src\win32_thread.h" />
-    <ClInclude Include="..\extern\glfw\src\win32_time.h" />
-    <ClInclude Include="..\extern\ligitProfiler\ImGuiProfilerRenderer.h" />
-    <ClInclude Include="..\extern\ligitProfiler\ProfilerTask.h" />
-    <ClInclude Include="..\extern\meshoptimizer\src\meshoptimizer.h" />
-    <ClInclude Include="..\extern\volk\volk.h" />
+    <ClInclude Include="..\externs\fast_obj\fast_obj.h" />
+    <ClInclude Include="..\externs\glfw\src\null_joystick.h" />
+    <ClInclude Include="..\externs\glfw\src\null_platform.h" />
+    <ClInclude Include="..\externs\glfw\src\platform.h" />
+    <ClInclude Include="..\externs\glfw\src\win32_joystick.h" />
+    <ClInclude Include="..\externs\glfw\src\win32_platform.h" />
+    <ClInclude Include="..\externs\imgui\imconfig.h" />
+    <ClInclude Include="..\externs\imgui\imgui.h" />
+    <ClInclude Include="..\externs\imgui\imgui_internal.h" />
+    <ClInclude Include="..\externs\imgui\imstb_rectpack.h" />
+    <ClInclude Include="..\externs\imgui\imstb_textedit.h" />
+    <ClInclude Include="..\externs\imgui\imstb_truetype.h" />
+    <ClInclude Include="..\externs\ligitProfiler\ProfilerTask.h" />
+    <ClInclude Include="..\externs\meshoptimizer\src\meshoptimizer.h" />
+    <ClInclude Include="..\externs\volk\volk.h" />
     <ClInclude Include="common.h" />
     <ClInclude Include="device.h" />
     <ClInclude Include="math.h" />
