@@ -601,16 +601,20 @@ int main(int argc, const char** argv)
 
     VK_CHECK(volkInitialize());
 
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+
 	VkInstance instance = createInstance();
 	assert(instance);
 
-    volkLoadInstance(instance);
+    volkLoadInstanceOnly(instance);
 
+#if _DEBUG
     VkDebugReportCallbackEXT debugCallback = registerDebugCallback(instance);
+#endif
 
 	VkPhysicalDevice physicalDevices[16];
 	uint32_t deviceCount = sizeof(physicalDevices) / sizeof(physicalDevices[0]);
-	VK_CHECK( vkEnumeratePhysicalDevices(instance, &deviceCount, physicalDevices));
+	VK_CHECK(vkEnumeratePhysicalDevices(instance, &deviceCount, physicalDevices));
 
 
 	VkPhysicalDevice physicalDevice = pickPhysicalDevice(physicalDevices, deviceCount);
@@ -634,7 +638,9 @@ int main(int argc, const char** argv)
 	VkDevice device = createDevice(instance, physicalDevice, familyIndex, meshShadingSupported);
 	assert(device);
 
-	GLFWwindow* window = glfwCreateWindow(2650, 1440, "mesh_shading_demo", 0, 0);
+    volkLoadDevice(device);
+
+	GLFWwindow* window = glfwCreateWindow(2560, 1440, "mesh_shading_demo", 0, 0);
 	assert(window);
 
     glfwSetKeyCallback(window, keyCallback);
@@ -647,15 +653,18 @@ int main(int argc, const char** argv)
     VkBool32 presentSupported = 0;
     VK_CHECK(vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, familyIndex, surface, &presentSupported));
     assert(presentSupported);
-
-    VkFormat swapchainFormat = getSwapchainFormat(physicalDevice, surface);
-    VkFormat depthFormat = VK_FORMAT_D32_SFLOAT;
     
     VkSemaphore acquirSemaphore = createSemaphore(device);
     assert(acquirSemaphore);
 
     VkSemaphore releaseSemaphore = createSemaphore(device);
     assert(releaseSemaphore);
+
+    VkFormat imageFormat = getSwapchainFormat(physicalDevice, surface);
+    VkFormat depthFormat = VK_FORMAT_D32_SFLOAT;
+
+    Swapchain swapchain = {};
+    createSwapchain(swapchain, physicalDevice, device, surface, familyIndex, imageFormat);
 
     VkQueue queue = 0;
     vkGetDeviceQueue(device, familyIndex, 0, &queue);
@@ -716,10 +725,6 @@ int main(int argc, const char** argv)
     {
         meshProgramMS = createProgram(device, VK_PIPELINE_BIND_POINT_GRAPHICS, { &meshletTS, &meshletMS, &meshFS }, sizeof(Globals));
     }
-
-
-    Swapchain swapchain = {};
-    createSwapchain(swapchain, physicalDevice, device, surface, &familyIndex, swapchainFormat);
 
     VkQueryPool queryPoolTimeStemp = createQueryPool(device, 128, VK_QUERY_TYPE_TIMESTAMP);
     assert(queryPoolTimeStemp);
@@ -828,7 +833,7 @@ int main(int argc, const char** argv)
 
     VkPipelineRenderingCreateInfo renderInfo = { VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
     renderInfo.colorAttachmentCount = 1;
-    renderInfo.pColorAttachmentFormats = &swapchainFormat;
+    renderInfo.pColorAttachmentFormats = &imageFormat;
     renderInfo.depthAttachmentFormat = depthFormat;
 
     VkPipeline meshPipeline = createGraphicsPipeline(device, pipelineCache, meshProgram.layout, renderInfo, { &meshVS, &meshFS }, nullptr);
@@ -881,7 +886,7 @@ int main(int argc, const char** argv)
         meshDraws[i].pos[0] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
         meshDraws[i].pos[1] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
         meshDraws[i].pos[2] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
-        meshDraws[i].scale = (float(rand()) / RAND_MAX)  + 1.f;
+        meshDraws[i].scale = (float(rand()) / RAND_MAX)  + 2.f;
         
         meshDraws[i].orit = glm::rotate(
             quat(1, 0, 0, 0)
@@ -943,7 +948,7 @@ int main(int argc, const char** argv)
         int newWindowWidth = 0, newWindowHeight = 0;
         glfwGetWindowSize(window, &newWindowWidth, &newWindowHeight);
 
-        SwapchainStatus swapchainStatus = resizeSwapchainIfNecessary(swapchain, physicalDevice, device, surface, &familyIndex, swapchainFormat);
+        SwapchainStatus swapchainStatus = resizeSwapchainIfNecessary(swapchain, physicalDevice, device, surface, familyIndex, imageFormat);
         if(swapchainStatus == NotReady)
             continue;
 
@@ -965,9 +970,9 @@ int main(int argc, const char** argv)
                 destroyImage(device, depthPyramid);
             }
 
-            createImage(colorTarget, device, memoryProps, swapchain.width, swapchain.height, 1, swapchainFormat, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+            createImage(colorTarget, device, memoryProps, swapchain.width, swapchain.height, 1, imageFormat, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
             createImage(depthTarget, device, memoryProps, swapchain.width, swapchain.height, 1, depthFormat , VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-            createImage(renderTarget, device, memoryProps, swapchain.width, swapchain.height, 1, swapchainFormat, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+            createImage(renderTarget, device, memoryProps, swapchain.width, swapchain.height, 1, imageFormat, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
             pyramidLevelWidth = previousPow2(swapchain.width);
             pyramidLevelHeight = previousPow2(swapchain.height);
@@ -1650,8 +1655,9 @@ int main(int argc, const char** argv)
     vkDestroyDevice(device, 0);
 
     PFN_vkDestroyDebugReportCallbackEXT vkDestroyDebugReportCallbackEXT = (PFN_vkDestroyDebugReportCallbackEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugReportCallbackEXT");
+#if _DEBUG
     vkDestroyDebugReportCallbackEXT(instance, debugCallback, 0);
-
+#endif
 
     vkDestroyInstance(instance, 0);
 }

@@ -50,6 +50,8 @@ VkDebugReportCallbackEXT registerDebugCallback(VkInstance instance)
 
 VkInstance createInstance()
 {
+    assert(volkGetInstanceVersion() >= VK_API_VERSION_1_3);
+
     VkApplicationInfo appInfo = { VK_STRUCTURE_TYPE_APPLICATION_INFO };
     appInfo.apiVersion = VK_API_VERSION_1_3;
 
@@ -58,13 +60,14 @@ VkInstance createInstance()
 
 #ifdef _DEBUG
     const char* debugLayers[] = {
-        "VK_LAYER_KHRONOS_validation"
+        "VK_LAYER_KHRONOS_validation",
     };
     createInfo.ppEnabledLayerNames = debugLayers;
     createInfo.enabledLayerCount = sizeof(debugLayers) / sizeof(debugLayers[0]);
 
     
     VkValidationFeatureEnableEXT enabledValidationFeatures[] = {
+        VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT,
         VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT,
     };
 
@@ -98,8 +101,9 @@ VkInstance createInstance()
 
 uint32_t getGraphicsFamilyIndex(VkPhysicalDevice physicalDevice)
 {
-    std::vector<VkQueueFamilyProperties> queueFamilyProperties(64);
-    uint32_t propertyCount = 64;
+    uint32_t propertyCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &propertyCount, nullptr);
+    std::vector<VkQueueFamilyProperties> queueFamilyProperties(propertyCount);
     vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &propertyCount, queueFamilyProperties.data());
 
     for (uint32_t i = 0; i < propertyCount; ++i)
@@ -128,10 +132,10 @@ VkPhysicalDevice pickPhysicalDevice(VkPhysicalDevice* physicalDevices, uint32_t 
 
     for (uint32_t i = 0; i < physicalDevicesCount; ++i)
     {
-        VkPhysicalDeviceProperties2 props = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
-        vkGetPhysicalDeviceProperties2(physicalDevices[i], &props);
+        VkPhysicalDeviceProperties props;
+        vkGetPhysicalDeviceProperties(physicalDevices[i], &props);
 
-        printf("GPU%d: %s\n", i, props.properties.deviceName);
+        printf("GPU%d: %s\n", i, props.deviceName);
 
         uint32_t familyIndex = getGraphicsFamilyIndex(physicalDevices[i]);
 
@@ -141,7 +145,7 @@ VkPhysicalDevice pickPhysicalDevice(VkPhysicalDevice* physicalDevices, uint32_t 
         if (!supportPresentation(physicalDevices[i], familyIndex))
             continue;
 
-        if (!discrete && props.properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
+        if (!discrete && props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
             discrete = physicalDevices[i];
         }
 
@@ -180,16 +184,12 @@ VkDevice createDevice(VkInstance instance, VkPhysicalDevice physicalDevice, uint
     {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
         VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
-        VK_KHR_DRAW_INDIRECT_COUNT_EXTENSION_NAME,
     };
 
     if (meshShadingSupported)
     {
         extensions.push_back(VK_EXT_MESH_SHADER_EXTENSION_NAME);
-        extensions.push_back(VK_KHR_SPIRV_1_4_EXTENSION_NAME);
-        extensions.push_back(VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME);
     }
-
 
     extensions.push_back(VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME);
 
@@ -197,6 +197,8 @@ VkDevice createDevice(VkInstance instance, VkPhysicalDevice physicalDevice, uint
     features.features.vertexPipelineStoresAndAtomics = true;
     features.features.multiDrawIndirect = true;
     features.features.pipelineStatisticsQuery = true;
+    features.features.shaderInt16 = true;
+    features.features.shaderInt64 = true;
 
     VkPhysicalDeviceVulkan11Features features11 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES };
     features11.storageBuffer16BitAccess = true;
@@ -208,6 +210,8 @@ VkDevice createDevice(VkInstance instance, VkPhysicalDevice physicalDevice, uint
     features12.storageBuffer8BitAccess = true;
     features12.uniformAndStorageBuffer8BitAccess = true;
     features12.samplerFilterMinmax = true;
+    features12.shaderFloat16 = true;
+    features12.shaderInt8 = true;
 
     VkPhysicalDeviceVulkan13Features features13 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };
     features13.dynamicRendering = true;
