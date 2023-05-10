@@ -5,7 +5,7 @@ struct PushConstBlock {
     glm::vec2 translate;
 };
 
-struct UI
+struct UIRendering
 {
     VkDevice device;
     VkQueue queue;
@@ -45,14 +45,13 @@ struct Input
     float width, height;
 };
 
-void initializeUI(UI& ui, VkDevice device, VkQueue queue, float scale = 1.f);
-void destroyUI(UI& ui);
+void initializeUIRendering(UIRendering& ui, VkDevice device, VkQueue queue, float scale = 1.f);
+void destroyUIRendering(UIRendering& ui);
 
-void prepareUIPipeline(UI& ui, const VkPipelineCache pipelineCache, const VkPipelineRenderingCreateInfo& renderInfo);
-void prepareUIResources(UI& ui, const VkPhysicalDeviceMemoryProperties& memoryProps, VkCommandPool cmdPool, bool useChinese = false);
+void prepareUIPipeline(UIRendering& ui, const VkPipelineCache pipelineCache, const VkPipelineRenderingCreateInfo& renderInfo);
+void prepareUIResources(UIRendering& ui, const VkPhysicalDeviceMemoryProperties& memoryProps, VkCommandPool cmdPool, bool useChinese = false);
 
-void updateUI(UI& ui, const VkPhysicalDeviceMemoryProperties& memoryProps);
-void drawUI(UI& ui, const VkCommandBuffer cmdBuffer);
+void updateUIRendering(UIRendering& ui, const VkPhysicalDeviceMemoryProperties& memoryProps);
+void drawUI(UIRendering& ui, const VkCommandBuffer cmdBuffer);
 
-
-void updateImguiIO(const Input& input);
+void updateImGui(const Input& input, RenderOptionsData& rd, const ProfilingData& pd, const LogicData& ld);

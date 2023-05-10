@@ -8,8 +8,9 @@
 #include "shaders.h"
 #include "device.h"
 
-// for ui
+// ui
 #include <imgui.h>
+#include "uidata.h"
 #include "ui.h"
 
 #include <glfw/glfw3.h>
@@ -33,17 +34,17 @@ struct Camera
 };
 
 static Camera camera = {};
-
-static bool meshShadingEnabled = true;
-static bool enableCull = true;
-static bool enableLod = true;
-static bool enableOcclusion = true;
-static bool enableMeshletOC = true;
-static bool enableTaskSubmit = true;
-static bool showPyramid = false;
-static int debugPyramidLevel = 4;
+static RenderOptionsData rod = {
+    /* bool enableMeshShading = */  true,
+    /* bool enableCull = */         true,
+    /* bool enableLod = */          true,
+    /* bool enableOcclusion = */    true,
+    /* bool enableMeshletOC = */    true,
+    /* bool enableTaskSubmit =*/    true,
+    /* bool showPyramid = */        false,
+    /* int  debugPyramidLevel = */  0,
+};
 static int s_depthPyramidCount = 0;
-
 static Input input = {};
 
 VkSemaphore createSemaphore(VkDevice device)
@@ -73,7 +74,8 @@ bool checkExtSupportness(const std::vector<VkExtensionProperties>& props, const 
 {
     bool extSupported = false;
     for (const auto& extension : props) {
-        if (std::string(extension.extensionName) == extName) {
+        if(strcmp(extension.extensionName, extName)){
+        //if (std::string(extension.extensionName) == extName) {
             extSupported = true;
             break;
         }
@@ -418,7 +420,7 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
     {
         if (key == GLFW_KEY_M)
         {
-            meshShadingEnabled = !meshShadingEnabled;
+            rod.meshShadingEnabled = !rod.meshShadingEnabled;
         }
         if (key == GLFW_KEY_ESCAPE)
         {
@@ -450,31 +452,31 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
         }
         if (key == GLFW_KEY_L)
         {
-            enableLod = !enableLod;
+            rod.lodEnabled = !rod.lodEnabled;
         }
         if (key == GLFW_KEY_C)
         {
-            enableCull = !enableCull;
+            rod.objCullEnabled = !rod.objCullEnabled;
         }
         if (key == GLFW_KEY_T)
         {
-            enableTaskSubmit = !enableTaskSubmit;
+            rod.taskSubmitEnabled = !rod.taskSubmitEnabled;
         }
         if (key == GLFW_KEY_P)
         {
-            showPyramid = !showPyramid;
+            rod.showPyramid = !rod.showPyramid;
         }
         if (key == GLFW_KEY_O)
         {
-            enableOcclusion = !enableOcclusion;
+            rod.ocEnabled = !rod.ocEnabled;
         }
         if (key == GLFW_KEY_UP)
         {
-            debugPyramidLevel = glm::min(s_depthPyramidCount - 1, ++debugPyramidLevel);
+            rod.debugPyramidLevel = glm::min(s_depthPyramidCount - 1, ++rod.debugPyramidLevel);
         }
         if (key == GLFW_KEY_DOWN)
         {
-            debugPyramidLevel = glm::max(--debugPyramidLevel, 0);
+            rod.debugPyramidLevel = glm::max(--rod.debugPyramidLevel, 0);
         }
     }
     if(action == GLFW_REPEAT)
@@ -541,27 +543,6 @@ void mouseMoveCallback(GLFWwindow* window, double xpos, double ypos)
     input.mousePosx = (float)xpos;
     input.mousePosy = (float)ypos;
 }
-
-struct ProfilingData
-{
-    float cpuTime;
-    float avgCpuTime;
-    float gpuTime;
-    float avgGpuTime;
-    float cullTime;
-    float drawTime;
-    float lateRender;
-    float lateCullTime;
-    float pyramidTime;
-    float uiTime;
-    float waitTime;
-    float triangleEarly;
-    float triangleLate;
-    float triangleCount;
-    float trianglesPerSecond;
-    uint32_t primitiveCount;
-    uint32_t meshletCount;
-};
 
 mat4 perspectiveProjection(float fovY, float aspectWbyH, float zNear)
 {
@@ -856,8 +837,8 @@ int main(int argc, const char** argv)
     }
 
     // imgui
-    UI ui = {};
-    initializeUI(ui, device, queue, 1.3f);
+    UIRendering ui = {};
+    initializeUIRendering(ui, device, queue, 1.3f);
     prepareUIPipeline(ui, pipelineCache, renderInfo);
     prepareUIResources(ui, memoryProps, cmdPool);
 
@@ -986,74 +967,6 @@ int main(int argc, const char** argv)
             }
         }
         
-        // update UI
-        if(deltaTime > 33.3333)
-        {
-            // set input data
-            input.width = (float)newWindowWidth;
-            input.height = (float)newWindowHeight;
-            updateImguiIO(input);
-
-            ImGuiIO& io = ImGui::GetIO();
-
-            io.DisplaySize = ImVec2((float)newWindowWidth, (float)newWindowHeight);
-            ImGui::NewFrame();
-            ImGui::SetNextWindowSize({400, 450}, ImGuiCond_Once);
-            ImGui::Begin("info:");
-           
-            ImGui::Text("cpu: [%.3f]ms", pd.cpuTime);
-            ImGui::Text("avg cpu: [%.3f]ms", pd.avgCpuTime);
-            ImGui::Text("gpu: [%.3f]ms", pd.gpuTime);
-            ImGui::Text("avg gpu: [%.3f]ms", pd.avgGpuTime);
-            ImGui::Text("cull: [%.3f]ms", pd.cullTime);
-            ImGui::Text("draw: [%.3f]ms", pd.drawTime);
-
-            ImGui::Text("ui: [%.3f]ms", pd.uiTime);
-            ImGui::Text("wait: [%.3f]ms", pd.waitTime);
-            if(enableOcclusion)
-            {
-                ImGui::Text("pyramid: [%.3f]ms", pd.pyramidTime);
-                ImGui::Text("late cull: [%.3f]ms", pd.lateCullTime);
-                ImGui::Text("render L: [%.3f]ms", pd.lateRender);
-            }
-
-            if (ImGui::TreeNode("Static Data:"))
-            {
-                ImGui::Text("primitives : [%d]", pd.primitiveCount);
-                ImGui::Text("meshlets: [%d]", pd.meshletCount);
-                ImGui::Text("tri E: [%.3f]M", pd.triangleEarly);
-                ImGui::Text("tri L: [%.3f]M", pd.triangleLate);
-                ImGui::Text("triangles: [%.3f]M", pd.triangleCount);
-                ImGui::Text("tri/sec: [%.2f]B", pd.trianglesPerSecond);
-                ImGui::Text("draw/sec: [%.2f]M", 1000.f / pd.avgCpuTime * drawCount * 1e-6);
-                ImGui::Text("frame: [%.2f]fps", 1000.f / pd.avgCpuTime);
-                ImGui::TreePop();
-            }
-
-            if (ImGui::TreeNode("Options"))
-            {
-                ImGui::Checkbox("Mesh Shading", &meshShadingEnabled);
-                ImGui::Checkbox("Cull", &enableCull);
-                ImGui::Checkbox("Lod", &enableLod);
-                ImGui::Checkbox("Occlusion", &enableOcclusion);
-                ImGui::Checkbox("Task Submit", &enableTaskSubmit);
-                ImGui::TreePop();
-            }
-            
-            if(ImGui::TreeNode("camera:"))
-            {
-                ImGui::Text("pos: %.2f, %.2f, %.2f", camera.pos.x, camera.pos.y, camera.pos.z);
-                ImGui::Text("dir: %.2f, %.2f, %.2f", camera.lookAt.x, camera.lookAt.y, camera.lookAt.z);
-                ImGui::TreePop();
-            }
-
-            ImGui::End();
-
-            ImGui::Render();
-            updateUI(ui, memoryProps);
-            deltaTime = 0.0;
-        }
-
         // update data
         float znear = .5f;
         mat4 projection = perspectiveProjection(glm::radians(70.f), (float)swapchain.width / (float)swapchain.height, znear);
@@ -1072,10 +985,10 @@ int main(int argc, const char** argv)
         drawCull.frustum[1] = frustumX.z;
         drawCull.frustum[2] = frustumY.y;
         drawCull.frustum[3] = frustumY.z;
-        drawCull.enableCull = enableCull ? 1 : 0;
-        drawCull.enableLod = enableLod ? 1 : 0;
-        drawCull.enableOcclusion = enableOcclusion ? 1 : 0;
-        drawCull.enableMeshletOcclusion = (enableMeshletOC && meshShadingEnabled) ? 1 : 0;
+        drawCull.enableCull = rod.objCullEnabled ? 1 : 0;
+        drawCull.enableLod = rod.lodEnabled ? 1 : 0;
+        drawCull.enableOcclusion = rod.ocEnabled ? 1 : 0;
+        drawCull.enableMeshletOcclusion = (rod.meshletOcEnabled && rod.meshShadingEnabled) ? 1 : 0;
 
         
         mat4 view = glm::lookAt(camera.pos, camera.lookAt, camera.up);
@@ -1124,7 +1037,7 @@ int main(int argc, const char** argv)
             mlvbCleared = true;
         }
 
-        bool taskSubmitOn = enableTaskSubmit && meshShadingEnabled && meshShadingSupported;
+        bool taskSubmitOn = rod.taskSubmitEnabled && rod.meshShadingEnabled && meshShadingSupported;
 
         auto culling = [&](bool late, VkPipeline pipeline)
         {
@@ -1295,9 +1208,9 @@ int main(int argc, const char** argv)
             globals.pyramidHeight = (float)pyramidLevelHeight;
             globals.screenWidth = (float)swapchain.width;
             globals.screenHeight = (float)swapchain.height;
-            globals.enableMeshletOcclusion = (enableMeshletOC && enableOcclusion && meshShadingSupported && meshShadingEnabled) ? 1 : 0;
+            globals.enableMeshletOcclusion = (rod.meshletOcEnabled && rod.ocEnabled && meshShadingSupported && rod.meshShadingEnabled) ? 1 : 0;
 
-            bool meshShadingOn = meshShadingEnabled && meshShadingSupported;
+            bool meshShadingOn = rod.meshShadingEnabled && meshShadingSupported;
 
             if (meshShadingOn)
             {
@@ -1349,8 +1262,6 @@ int main(int argc, const char** argv)
 
         pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, COUNTOF(renderBeginBarriers), renderBeginBarriers);
        
-
-
         VkClearColorValue clearColor = { 128.f/255.f, 109.f/255.f, 158.f/255.f, 1 };
         VkClearDepthStencilValue clearDepth = { 0.f, 0 };
 
@@ -1360,18 +1271,17 @@ int main(int argc, const char** argv)
        
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 4);
 
-        if (enableOcclusion)
-        {
-            pyramid();
 
-            vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 5);
+        pyramid();
 
-            culling(/* late = */true, taskSubmitOn ? taskCullLatePipeline : drawcmdLatePipeline);
+        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 5);
 
-            vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 6);
+        culling(/* late = */true, taskSubmitOn ? taskCullLatePipeline : drawcmdLatePipeline);
 
-            render(/* late = */true, /*taskSubmit = */ taskSubmitOn, clearColor, clearDepth, taskSubmitOn ? taskLatePipelineMS : meshLatePipelineMS, 1);
-        }
+        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 6);
+
+        render(/* late = */true, /*taskSubmit = */ taskSubmitOn, clearColor, clearDepth, taskSubmitOn ? taskLatePipelineMS : meshLatePipelineMS, 1);
+
         
         VkImageMemoryBarrier2 copyBarriers[] = {
             imageBarrier(colorTarget.image, VK_IMAGE_ASPECT_COLOR_BIT, 
@@ -1390,14 +1300,14 @@ int main(int argc, const char** argv)
 
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 7);
         // copy scene image to UI pass
-        if (showPyramid)
+        if (rod.showPyramid)
         {
-            uint32_t levelWidth = glm::max(1u, pyramidLevelWidth >> debugPyramidLevel);
-            uint32_t levelHeight = glm::max(1u, pyramidLevelHeight >> debugPyramidLevel);
+            uint32_t levelWidth = glm::max(1u, pyramidLevelWidth >> rod.debugPyramidLevel);
+            uint32_t levelHeight = glm::max(1u, pyramidLevelHeight >> rod.debugPyramidLevel);
 
             VkImageBlit regions[1] = {};
             regions[0].srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            regions[0].srcSubresource.mipLevel = debugPyramidLevel;
+            regions[0].srcSubresource.mipLevel = rod.debugPyramidLevel;
             regions[0].srcSubresource.layerCount = 1;
             regions[0].dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
             regions[0].dstSubresource.layerCount = 1;
@@ -1431,7 +1341,8 @@ int main(int argc, const char** argv)
 
         pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, COUNTOF(uiBarriers), uiBarriers);
 
-        // draw UI
+        // draw UI: 
+        // actual data from last frame(need the ui rendering time too).
         {
             VkRenderingAttachmentInfo colorAttachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
             colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -1550,7 +1461,6 @@ int main(int argc, const char** argv)
             avrageCpuTime = avrageCpuTime * 0.95 + (frameCpuEnd - frameCpuBegin) * 0.05;
             avrageGpuTime = avrageGpuTime * 0.95 + (frameGpuEnd - frameGpuBegin) * 0.05;
             pd.avgCpuTime = (float)avrageCpuTime;
-            deltaTime += (frameCpuEnd - frameCpuBegin);
             pd.cpuTime = float(frameCpuEnd - frameCpuBegin);
             pd.gpuTime = float(frameGpuEnd - frameGpuBegin);
             pd.avgGpuTime = float(avrageGpuTime);
@@ -1561,11 +1471,28 @@ int main(int argc, const char** argv)
             pd.lateCullTime = float(frameLateCullEnd - framePyramidEnd);
             pd.uiTime = float(frameUIEnd - frameUIBegin);
             pd.waitTime = float(waitTimeEnd - waitTimeBegin);
-            pd.trianglesPerSecond = float(triangleCount * 1e-9 * double(1000 / avrageGpuTime));
-            pd.triangleEarly = float(tcEarly * 1e-6);
-            pd.triangleLate = float(tcLate * 1e-6);
+            pd.trianglesPerSec = float(triangleCount * 1e-9 * double(1000 / avrageGpuTime));
+            pd.triangleEarlyCount = float(tcEarly * 1e-6);
+            pd.triangleLateCount = float(tcLate * 1e-6);
             pd.triangleCount = float(triangleCount * 1e-6);
 
+            deltaTime += (frameCpuEnd - frameCpuBegin);
+        }
+
+        // update UI
+        if (deltaTime > 33.3333)
+        {
+            // set input data
+            input.width = (float)newWindowWidth;
+            input.height = (float)newWindowHeight;
+
+            LogicData ld = {};
+            ld.cameraPos = camera.pos;
+            ld.cameraLookAt = camera.lookAt;
+            updateImGui(input, rod, pd, ld);
+
+            updateUIRendering(ui, memoryProps);
+            deltaTime = 0.0;
         }
 	}
 
@@ -1583,7 +1510,7 @@ int main(int argc, const char** argv)
     destroyImage(device, colorTarget);
     destroyImage(device, depthTarget);
 
-    destroyUI(ui);
+    destroyUIRendering(ui);
 
     destroyBuffer(device, mlvb);
     destroyBuffer(device, mdvb);

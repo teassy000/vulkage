@@ -4,9 +4,10 @@
 #include "shaders.h"
 #include "glm/glm.hpp"
 
+#include "uidata.h"
 #include "ui.h"
 
-void initializeUI(UI& ui, VkDevice device, VkQueue queue, float scale /* = 1.f*/)
+void initializeUIRendering(UIRendering& ui, VkDevice device, VkQueue queue, float scale /* = 1.f*/)
 {
     ui.device = device;
     ui.queue = queue;
@@ -16,7 +17,7 @@ void initializeUI(UI& ui, VkDevice device, VkQueue queue, float scale /* = 1.f*/
     io.FontGlobalScale = scale;
 }
 
-void destroyUI(UI& ui)
+void destroyUIRendering(UIRendering& ui)
 {
     if (ImGui::GetCurrentContext()) {
         ImGui::DestroyContext();
@@ -36,7 +37,7 @@ void destroyUI(UI& ui)
 
 }
 
-void prepareUIPipeline(UI& ui, const VkPipelineCache pipelineCache, const VkPipelineRenderingCreateInfo& renderInfo)
+void prepareUIPipeline(UIRendering& ui, const VkPipelineCache pipelineCache, const VkPipelineRenderingCreateInfo& renderInfo)
 {
     VkDevice device = ui.device;
 
@@ -75,7 +76,7 @@ void prepareUIPipeline(UI& ui, const VkPipelineCache pipelineCache, const VkPipe
     ui.pipeline = pipeline;
 }
 
-void prepareUIResources(UI& ui, const VkPhysicalDeviceMemoryProperties& memoryProps, VkCommandPool cmdPool, bool useChinese /*= false*/)
+void prepareUIResources(UIRendering& ui, const VkPhysicalDeviceMemoryProperties& memoryProps, VkCommandPool cmdPool, bool useChinese /*= false*/)
 {
     VkDevice device = ui.device;
     VkQueue queue = ui.queue;
@@ -129,7 +130,7 @@ void prepareUIResources(UI& ui, const VkPhysicalDeviceMemoryProperties& memoryPr
     ui.sampler = sampler;
 }
 
-void updateImguiIO(const Input& input)
+void updateImGuiIO(const Input& input)
 {
     ImGuiIO& io = ImGui::GetIO();
 
@@ -141,7 +142,7 @@ void updateImguiIO(const Input& input)
     io.MouseDown[2] = input.mouseButtons.middle;
 }
 
-void updateUI(UI& ui, const VkPhysicalDeviceMemoryProperties& memoryProps)
+void updateUIRendering(UIRendering& ui, const VkPhysicalDeviceMemoryProperties& memoryProps)
 {
     Buffer& vb = ui.vb;
     Buffer& ib = ui.ib;
@@ -155,8 +156,8 @@ void updateUI(UI& ui, const VkPhysicalDeviceMemoryProperties& memoryProps)
     VkDeviceSize vbSize = imDrawData->TotalVtxCount * sizeof(ImDrawVert);
     VkDeviceSize ibSize = imDrawData->TotalIdxCount * sizeof(ImDrawIdx);
 
-
-    assert(vbSize && ibSize);
+    if (vbSize == 0 || ibSize == 0)
+        return;
 
     // MAGIC: hard-code to fit the atomic no coherent memory.
     vbSize += (0x40 - (vbSize % 0x40));
@@ -191,7 +192,73 @@ void updateUI(UI& ui, const VkPhysicalDeviceMemoryProperties& memoryProps)
     flushBuffer(device, ib);
 }
 
-void drawUI(UI& ui, const VkCommandBuffer cmdBuffer)
+void updateImGuiContent(RenderOptionsData& cd, const ProfilingData& pd, const LogicData& lmd)
+{
+    ImGui::NewFrame();
+    ImGui::SetNextWindowSize({ 400, 450 }, ImGuiCond_FirstUseEver);
+    ImGui::Begin("info:");
+
+    ImGui::Text("cpu: [%.3f]ms", pd.cpuTime);
+    ImGui::Text("avg cpu: [%.3f]ms", pd.avgCpuTime);
+    ImGui::Text("gpu: [%.3f]ms", pd.gpuTime);
+    ImGui::Text("avg gpu: [%.3f]ms", pd.avgGpuTime);
+    ImGui::Text("cull: [%.3f]ms", pd.cullTime);
+    ImGui::Text("draw: [%.3f]ms", pd.drawTime);
+
+    ImGui::Text("ui: [%.3f]ms", pd.uiTime);
+    ImGui::Text("wait: [%.3f]ms", pd.waitTime);
+    
+    if (cd.ocEnabled)
+    {
+        ImGui::Text("pyramid: [%.3f]ms", pd.pyramidTime);
+        ImGui::Text("late cull: [%.3f]ms", pd.lateCullTime);
+        ImGui::Text("render L: [%.3f]ms", pd.lateRender);
+    }
+
+    if (ImGui::TreeNode("Static Data:"))
+    {
+        ImGui::Text("primitives : [%d]", pd.primitiveCount);
+        ImGui::Text("meshlets: [%d]", pd.meshletCount);
+        ImGui::Text("tri E: [%.3f]M", pd.triangleEarlyCount);
+        ImGui::Text("tri L: [%.3f]M", pd.triangleLateCount);
+        ImGui::Text("triangles: [%.3f]M", pd.triangleCount);
+        ImGui::Text("tri/sec: [%.2f]B", pd.trianglesPerSec);
+        ImGui::Text("draw/sec: [%.2f]M", 1000.f / pd.avgCpuTime * pd.objCount * 1e-6);
+        ImGui::Text("frame: [%.2f]fps", 1000.f / pd.avgCpuTime);
+        ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNode("Options"))
+    {
+        ImGui::Checkbox("Mesh Shading", &cd.meshShadingEnabled);
+        ImGui::Checkbox("Cull", &cd.objCullEnabled);
+        ImGui::Checkbox("Lod", &cd.lodEnabled);
+        ImGui::Checkbox("Occlusion", &cd.ocEnabled);
+        ImGui::Checkbox("Task Submit", &cd.taskSubmitEnabled);
+        ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNode("camera:"))
+    {
+        ImGui::Text("pos: %.2f, %.2f, %.2f", lmd.cameraPos.x, lmd.cameraPos.y, lmd.cameraPos.z);
+        ImGui::Text("dir: %.2f, %.2f, %.2f", lmd.cameraLookAt.x, lmd.cameraLookAt.y, lmd.cameraLookAt.z);
+        ImGui::TreePop();
+    }
+
+    ImGui::End();
+
+}
+
+void updateImGui(const Input& input, RenderOptionsData& rd, const ProfilingData& pd, const LogicData& ld)
+{
+    updateImGuiIO(input);
+
+    updateImGuiContent(rd, pd, ld);
+
+    ImGui::Render();
+}
+
+void drawUI(UIRendering& ui, const VkCommandBuffer cmdBuffer)
 {
     ImDrawData* imDrawData = ImGui::GetDrawData();
     int32_t vtxOffset = 0;
