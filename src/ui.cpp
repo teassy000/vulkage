@@ -241,7 +241,7 @@ void updateImGuiContent(RenderOptionsData& cd, const ProfilingData& pd, const Lo
     if (ImGui::TreeNode("camera:"))
     {
         ImGui::Text("pos: %.2f, %.2f, %.2f", lmd.cameraPos.x, lmd.cameraPos.y, lmd.cameraPos.z);
-        ImGui::Text("dir: %.2f, %.2f, %.2f", lmd.cameraLookAt.x, lmd.cameraLookAt.y, lmd.cameraLookAt.z);
+        ImGui::Text("dir: %.2f, %.2f, %.2f", lmd.cameraFront.x, lmd.cameraFront.y, lmd.cameraFront.z);
         ImGui::TreePop();
     }
 

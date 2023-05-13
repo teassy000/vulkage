@@ -146,6 +146,9 @@
     <ClCompile Include="..\externs\glfw\src\win32_module.c">
       <Filter>glfw</Filter>
     </ClCompile>
+    <ClCompile Include="camera.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\externs\fast_obj\fast_obj.h">
@@ -221,6 +224,9 @@
       <Filter>glfw</Filter>
     </ClInclude>
     <ClInclude Include="uidata.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="camera.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>

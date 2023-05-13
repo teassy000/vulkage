@@ -40,5 +40,5 @@ struct RenderOptionsData
 struct LogicData
 {
     glm::vec3 cameraPos;
-    glm::vec3 cameraLookAt;
+    glm::vec3 cameraFront;
 };

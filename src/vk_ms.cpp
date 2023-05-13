@@ -13,6 +13,9 @@
 #include "uidata.h"
 #include "ui.h"
 
+// camera
+#include "camera.h"
+
 #include <glfw/glfw3.h>
 #include <glfw/glfw3native.h>
 
@@ -34,6 +37,10 @@ struct Camera
 };
 
 static Camera camera = {};
+
+static float deltaFrameTime = 0.f;
+static FreeCamera freeCamera = {};
+
 static RenderOptionsData rod = {
     /* bool enableMeshShading = */  true,
     /* bool enableCull = */         true,
@@ -418,6 +425,8 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 {
     if (action == GLFW_PRESS) 
     {
+        freeCameraProcessKeyboard(freeCamera, key, deltaFrameTime);
+
         if (key == GLFW_KEY_M)
         {
             rod.meshShadingEnabled = !rod.meshShadingEnabled;
@@ -425,30 +434,6 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
         if (key == GLFW_KEY_ESCAPE)
         {
             exit(0);
-        }
-        if (key == GLFW_KEY_W)
-        {
-            camera.pos.z += 0.5f;
-            camera.lookAt = camera.pos + camera.dir;
-        }
-        if (key == GLFW_KEY_S)
-        {
-            camera.pos.z -= 0.5f;
-            camera.lookAt = camera.pos + camera.dir;
-        }
-        if (key == GLFW_KEY_A)
-        {
-            camera.pos.x -= 0.5;
-            camera.lookAt = camera.pos + camera.dir;
-        }
-        if (key == GLFW_KEY_D)
-        {
-            camera.pos.x += 0.5;
-            camera.lookAt = camera.pos + camera.dir;
-        }
-        if (key == GLFW_KEY_R)
-        {
-            camera = Camera{};
         }
         if (key == GLFW_KEY_L)
         {
@@ -479,33 +464,17 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
             rod.debugPyramidLevel = glm::max(--rod.debugPyramidLevel, 0);
         }
     }
+    
     if(action == GLFW_REPEAT)
     {
-        if (key == GLFW_KEY_W)
-        {
-            camera.pos.z += 0.5f;
-            camera.lookAt = camera.pos + camera.dir;
-        }
-        if (key == GLFW_KEY_S)
-        {
-            camera.pos.z -= 0.5f;
-            camera.lookAt = camera.pos + camera.dir;
-        }
-        if (key == GLFW_KEY_A)
-        {
-            camera.pos.x -= 0.5;
-            camera.lookAt = camera.pos + camera.dir;
-        }
-        if (key == GLFW_KEY_D)
-        {
-            camera.pos.x += 0.5;
-            camera.lookAt = camera.pos + camera.dir;
-        }
+        freeCameraProcessKeyboard(freeCamera, key, deltaFrameTime);
     }
 }
 
 void mousekeyCallback(GLFWwindow* window, int key, int action, int mods)
 {
+    freeCameraProcessMouseKey(freeCamera, key, action, mods);
+
     if (action == GLFW_PRESS)
     {
         if (key == GLFW_MOUSE_BUTTON_LEFT)
@@ -542,8 +511,11 @@ void mouseMoveCallback(GLFWwindow* window, double xpos, double ypos)
 {
     input.mousePosx = (float)xpos;
     input.mousePosy = (float)ypos;
+
+    freeCameraProcessMouseMovement(freeCamera, (float)xpos, (float)ypos);
 }
 
+// left handed?
 mat4 perspectiveProjection(float fovY, float aspectWbyH, float zNear)
 {
     float f = 1.0f / tanf(fovY/ 2.0f);
@@ -836,17 +808,19 @@ int main(int argc, const char** argv)
         assert(taskLatePipelineMS);
     }
 
+    freeCameraInit(freeCamera, { 0.f, 0.f, 0.f }, { 0.f, 1.f, 0.f }, 90.f, 0.f); 
+
     // imgui
     UIRendering ui = {};
     initializeUIRendering(ui, device, queue, 1.3f);
     prepareUIPipeline(ui, pipelineCache, renderInfo);
     prepareUIResources(ui, memoryProps, cmdPool);
 
-    uint32_t drawCount = 1'000'000;
+    uint32_t drawCount = 1000000;
     std::vector<MeshDraw> meshDraws(drawCount);
 
     float randomDist = 200;
-    float drawDist = 200; // TODO: changing draw distance near the random dist would cause objects invisible in *TASK mode*, probably due to the infinite far plane cliping, Or first frame status change. 
+    float drawDist = 200;
     srand(42);
     uint32_t meshletVisibilityCount = 0;
     for (uint32_t i = 0; i < drawCount; i++)
@@ -855,7 +829,7 @@ int main(int argc, const char** argv)
         Mesh& mesh = geometry.meshes[meshIdx];
         
         /* 
-        * NOTE: simplification for occlusion test
+        * NOTE: simplification for occlusion test 
         meshDraws[i].pos[0] = 0.0f;
 
         meshDraws[i].pos[1] = 0.0f;
@@ -863,7 +837,7 @@ int main(int argc, const char** argv)
 
         meshDraws[i].scale = 1.f / (float)i;
         */
-        
+
         meshDraws[i].pos[0] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
         meshDraws[i].pos[1] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
         meshDraws[i].pos[2] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
@@ -990,11 +964,10 @@ int main(int argc, const char** argv)
         drawCull.enableOcclusion = rod.ocEnabled ? 1 : 0;
         drawCull.enableMeshletOcclusion = (rod.meshletOcEnabled && rod.meshShadingEnabled) ? 1 : 0;
 
-        
-        mat4 view = glm::lookAt(camera.pos, camera.lookAt, camera.up);
+        mat4 view = freeCameraGetViewMatrix(freeCamera);
         TransformData trans = {};
         trans.view = view;
-        trans.cameraPos = camera.pos;
+        trans.cameraPos = freeCamera.pos;
 
         uploadBuffer(device, cmdPool, cmdBuffer, queue, tb, scratch, &trans, sizeof(trans));
 
@@ -1297,8 +1270,8 @@ int main(int argc, const char** argv)
 
         pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, COUNTOF(copyBarriers), copyBarriers);
 
-
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 7);
+        
         // copy scene image to UI pass
         if (rod.showPyramid)
         {
@@ -1476,7 +1449,8 @@ int main(int argc, const char** argv)
             pd.triangleLateCount = float(tcLate * 1e-6);
             pd.triangleCount = float(triangleCount * 1e-6);
 
-            deltaTime += (frameCpuEnd - frameCpuBegin);
+            deltaFrameTime = float(frameCpuEnd - frameCpuBegin);
+            deltaTime += deltaFrameTime;
         }
 
         // update UI
@@ -1487,8 +1461,8 @@ int main(int argc, const char** argv)
             input.height = (float)newWindowHeight;
 
             LogicData ld = {};
-            ld.cameraPos = camera.pos;
-            ld.cameraLookAt = camera.lookAt;
+            ld.cameraPos = freeCamera.pos;
+            ld.cameraFront = freeCamera.front;
             updateImGui(input, rod, pd, ld);
 
             updateUIRendering(ui, memoryProps);

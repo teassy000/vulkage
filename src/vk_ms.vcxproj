@@ -195,6 +195,7 @@
     <ClCompile Include="..\externs\meshoptimizer\src\vfetchanalyzer.cpp" />
     <ClCompile Include="..\externs\meshoptimizer\src\vfetchoptimizer.cpp" />
     <ClCompile Include="..\externs\volk\volk.c" />
+    <ClCompile Include="camera.cpp" />
     <ClCompile Include="device.cpp" />
     <ClCompile Include="vk_ms.cpp" />
     <ClCompile Include="resources.cpp" />
@@ -218,6 +219,7 @@
     <ClInclude Include="..\externs\ligitProfiler\ProfilerTask.h" />
     <ClInclude Include="..\externs\meshoptimizer\src\meshoptimizer.h" />
     <ClInclude Include="..\externs\volk\volk.h" />
+    <ClInclude Include="camera.h" />
     <ClInclude Include="common.h" />
     <ClInclude Include="device.h" />
     <ClInclude Include="math.h" />
