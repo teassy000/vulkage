@@ -47,7 +47,6 @@ void freeCameraProcessMouseKey(FreeCamera& camera, int key, int action, int mods
 
 static float xpos{ 0.f }, ypos{0.f};
 
-
 void freeCameraProcessMouseMovement(FreeCamera& camera, float xposIn, float yposIn, bool constrainPitch /* = true*/)
 {
     float xoffset = xposIn - xpos;

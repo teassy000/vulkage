@@ -103,9 +103,9 @@ struct MeshTaskCommand
 struct MeshDrawCommand
 {
     uint    drawId;
-    uint    lateDrawVisibility;
     uint    taskOffset;
     uint    taskCount;
+    uint    lateDrawVisibility;
 
     // struct VkDrawIndexedIndirectCommand
     uint    indexCount;

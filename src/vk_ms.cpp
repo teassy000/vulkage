@@ -16,6 +16,9 @@
 // camera
 #include "camera.h"
 
+#include "mesh.h"
+#include "scene.h"
+
 #include <glfw/glfw3.h>
 #include <glfw/glfw3native.h>
 
@@ -23,20 +26,6 @@
 #include <vector>
 #include <algorithm>
 #include <string>
-
-#include <fast_obj.h>
-#include <meshoptimizer.h>
-
-
-struct Camera
-{
-    vec3 dir{ 0.f, 0.f, -1.f };
-    vec3 lookAt{ 0.f, 0.f, -1.f };
-    vec3 up{ 0.f, 1.f, 0.f };
-    vec3 pos{ 0.f, 0.f, 0.f };
-};
-
-static Camera camera = {};
 
 static float deltaFrameTime = 0.f;
 static FreeCamera freeCamera = {};
@@ -145,18 +134,6 @@ struct alignas(16) TransformData
     vec3 cameraPos;
 };
 
-
-struct alignas(16) MeshDraw
-{
-    vec3 pos;
-    float scale;
-    quat orit;
-    
-    uint32_t meshIdx;
-    uint32_t vertexOffset;
-    uint32_t meshletVisibilityOffset;
-};
-
 struct MeshTaskCommand
 {
     uint32_t drawId;
@@ -169,232 +146,12 @@ struct MeshTaskCommand
 struct MeshDrawCommand
 {
     uint32_t drawId;
-    uint32_t lateDrawVisibility;
     uint32_t taskOffset;
     uint32_t taskCount;
+    uint32_t lateDrawVisibility;
     VkDrawIndexedIndirectCommand indirect; // 5 uint32_t
     VkDrawMeshTasksIndirectCommandEXT indirectMS; // 3 uint32_t
 };
-
-
-struct Vertex
-{
-    float       vx, vy, vz;
-    uint8_t     nx, ny, nz, nw;
-    uint16_t    tu, tv;
-};
-
-struct alignas(16) Meshlet
-{
-    vec3 center;
-    float radius;
-    int8_t cone_axis[3];
-    int8_t cone_cutoff;
-
-    uint32_t dataOffset;
-    uint8_t triangleCount;
-    uint8_t vertexCount;
-};
-
-struct MeshLod
-{
-    uint32_t meshletOffset;
-    uint32_t meshletCount;
-    uint32_t indexOffset;
-    uint32_t indexCount;
-};
-
-struct alignas(16) Mesh
-{
-    vec3 center;
-    float   radius;
-
-    uint32_t vertexOffset;
-    uint32_t lodCount;
-    
-    float lodDistance[8];
-    MeshLod lods[8];
-};
-
-struct Geometry
-{
-    std::vector<Vertex>     vertices;
-    std::vector<uint32_t>   indices;
-    std::vector<Meshlet>    meshlets;
-    std::vector<uint32_t>   meshletdata;
-    std::vector<Mesh>       meshes;
-};
-
-size_t appendMeshlets(Geometry& result, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices)
-{
-    const size_t max_vertices = 64;
-    const size_t max_triangles = 64;
-    const float cone_weight = 1.f;
-
-    std::vector<meshopt_Meshlet> meshlets(meshopt_buildMeshletsBound(indices.size(), max_vertices, max_triangles));
-    std::vector<unsigned int> meshlet_vertices(meshlets.size() * max_vertices);
-    std::vector<unsigned char> meshlet_triangles(meshlets.size() * max_triangles * 3);
-
-    meshopt_buildMeshlets(meshlets.data(), meshlet_vertices.data(), meshlet_triangles.data(), indices.data(), indices.size()
-        , &vertices[0].vx, vertices.size(), sizeof(Vertex), max_vertices, max_triangles, cone_weight);
-
-    for (const meshopt_Meshlet meshlet : meshlets)
-    {
-        Meshlet m = {};
-        size_t dataOffset = result.meshletdata.size();
-
-        for (uint32_t i = 0; i < meshlet.vertex_count; ++i)
-        {
-            result.meshletdata.push_back(meshlet_vertices[meshlet.vertex_offset + i]);
-        }
-
-        const uint32_t* idxGroup = reinterpret_cast<const unsigned int*>(&meshlet_triangles[0] + meshlet.triangle_offset);
-        uint32_t idxGroupCount = (meshlet.triangle_count * 3 + 3) / 4;
-
-        for (uint32_t i = 0; i < idxGroupCount; ++i)
-        {
-            result.meshletdata.push_back(idxGroup[i]);
-        }
-
-        meshopt_Bounds bounds = meshopt_computeMeshletBounds(&meshlet_vertices[meshlet.vertex_offset], &meshlet_triangles[meshlet.triangle_offset]
-            , meshlet.triangle_count, &vertices[0].vx, vertices.size(), sizeof(Vertex));
-
-        m.dataOffset = uint32_t(dataOffset);
-        m.triangleCount = meshlet.triangle_count;
-        m.vertexCount = meshlet.vertex_count;
-
-        m.center[0] = bounds.center[0];
-        m.center[1] = bounds.center[1];
-        m.center[2] = bounds.center[2];
-        m.radius = bounds.radius;
-
-        m.cone_axis[0] = bounds.cone_axis_s8[0];
-        m.cone_axis[1] = bounds.cone_axis_s8[1];
-        m.cone_axis[2] = bounds.cone_axis_s8[2];
-        m.cone_cutoff = bounds.cone_cutoff_s8;
-
-        result.meshlets.push_back(m);
-    }
-
-    return meshlets.size();
-}
-
-bool loadMesh(Geometry& result, const char* path, bool buildMeshlets)
-{
-    fastObjMesh* obj =  fast_obj_read(path);
-    if (!obj)
-        return false;
-
-    size_t index_count = obj->index_count;
-
-    std::vector<Vertex> triangle_vertices;
-    triangle_vertices.resize(index_count);
-
-    size_t vertex_offset = 0, index_offset = 0;
-
-    size_t texcoord_count = obj->texcoord_count;
-
-    for (uint32_t i = 0; i < obj->face_count; ++i)
-    {
-        for (uint32_t j = 0; j < obj->face_vertices[i]; ++j)
-        {
-            fastObjIndex gi = obj->indices[index_offset + j];
-
-            assert(j < 3);
-
-            Vertex& v = triangle_vertices[vertex_offset++];
-
-            v.vx = (obj->positions[gi.p * 3 + 0]);
-            v.vy = (obj->positions[gi.p * 3 + 1]);
-            v.vz = (obj->positions[gi.p * 3 + 2]);
-
-            v.nx = uint8_t(obj->normals[gi.n * 3 + 0] * 127.f + 127.5f);
-            v.ny = uint8_t(obj->normals[gi.n * 3 + 1] * 127.f + 127.5f);
-            v.nz = uint8_t(obj->normals[gi.n * 3 + 2] * 127.f + 127.5f);
-            v.nw = uint8_t(0);
-
-            v.tu = meshopt_quantizeHalf(obj->texcoords[gi.t * 2 + 0]);
-            v.tv = meshopt_quantizeHalf(obj->texcoords[gi.t * 2 + 1]);
-        }
-
-        index_offset += obj->face_vertices[i];
-    }
-
-    assert(vertex_offset == index_count);
-
-    fast_obj_destroy(obj);
-
-    std::vector<uint32_t> remap(index_count);
-    size_t vertex_count = meshopt_generateVertexRemap(remap.data(), 0, index_count, triangle_vertices.data(), index_count, sizeof(Vertex));
-
-    std::vector<Vertex> vertices(vertex_count);
-    std::vector<uint32_t> indices(index_count);
-
-    meshopt_remapVertexBuffer(vertices.data(), triangle_vertices.data(), index_count, sizeof(Vertex), remap.data());
-    meshopt_remapIndexBuffer(indices.data(), 0, index_count, remap.data());
-
-    meshopt_optimizeVertexCache(indices.data(), indices.data(), index_count, vertex_count);
-    meshopt_optimizeVertexFetch(vertices.data(), indices.data(), index_count, vertices.data(), vertex_count, sizeof(Vertex));
-
-
-    Mesh mesh = {};
-
-    mesh.vertexOffset = uint32_t(result.vertices.size());
-    result.vertices.insert(result.vertices.end(), vertices.begin(), vertices.end());
-
-    vec3 meshCenter = vec3(0.f);
-
-    for (Vertex& v : vertices) {
-        meshCenter += vec3(v.vx, v.vy, v.vz);
-    }
-
-    meshCenter /= float(vertices.size());
-
-    float radius = 0.0;
-    for (Vertex& v : vertices) {
-        radius = glm::max(radius, glm::distance(meshCenter, vec3(v.vx, v.vy, v.vz)));
-    }
-
-    mesh.center = meshCenter;
-    mesh.radius = radius;
-    
-    std::vector<uint32_t> lodIndices = indices;
-    while ( mesh.lodCount < COUNTOF(mesh.lods))
-    {
-        MeshLod& lod = mesh.lods[mesh.lodCount++];
-        
-        lod.indexOffset = uint32_t(result.indices.size());
-        result.indices.insert(result.indices.end(), lodIndices.begin(), lodIndices.end());
-
-        lod.indexCount = uint32_t(lodIndices.size());
-        
-        lod.meshletOffset = (uint32_t)result.meshlets.size();
-        lod.meshletCount = buildMeshlets ? (uint32_t)appendMeshlets(result, vertices, lodIndices) : 0u;
-        
-        if(mesh.lodCount < COUNTOF(mesh.lods))
-        {
-            size_t nextIndicesTarget = size_t(double(lodIndices.size()) * 0.75);
-            size_t nextIndices = meshopt_simplify(lodIndices.data(), lodIndices.data(), lodIndices.size(), &vertices[0].vx, vertices.size(), sizeof(Vertex), nextIndicesTarget, 1e-1f);
-            assert(nextIndices <= lodIndices.size());
-
-            if(nextIndices == lodIndices.size())
-                break;
-
-            lodIndices.resize(nextIndices);
-            meshopt_optimizeVertexCache(lodIndices.data(), lodIndices.data(), lodIndices.size(), vertex_count);
-        }
-
-    }
-
-    while (result.meshlets.size() % 64)
-    {
-        result.meshlets.push_back(Meshlet());
-    }
-
-    result.meshes.push_back(mesh);
-
-    return true;
-}
 
 void enumrateDeviceExtPorps(VkPhysicalDevice physicalDevice, std::vector<VkExtensionProperties>& availableExtensions)
 {
@@ -721,55 +478,39 @@ int main(int argc, const char** argv)
     VkPhysicalDeviceMemoryProperties memoryProps = {};
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProps);
 
-    Geometry geometry;
-
-    for (uint32_t i = 1; i < (uint32_t)argc; i++)
-    {
-        bool rcm = loadMesh(geometry, argv[i], meshShadingSupported);
-        if (!rcm) {
-            printf("[Error]: Failed to load mesh %s", argv[i]);
-        }
-
-        assert(rcm);
-    }
-
-    if (geometry.meshes.empty())
-    {
-        printf("[Error]: No mesh was loaded!");
-        return 1;
-    }
-
+    Scene scene = {};
+    loadScene(scene, &argv[1], argc - 1, meshShadingSupported);
 
     Buffer scratch = {};
     createBuffer(scratch, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
     Buffer mb = {};
-    createBuffer(mb, memoryProps, device, geometry.meshes.size() * sizeof(Mesh), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    createBuffer(mb, memoryProps, device, scene.geometry.meshes.size() * sizeof(Mesh), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     Buffer vb = {};
-    createBuffer(vb, memoryProps, device, geometry.vertices.size() * sizeof(Vertex), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    createBuffer(vb, memoryProps, device, scene.geometry.vertices.size() * sizeof(Vertex), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     Buffer ib = {};
-    createBuffer(ib, memoryProps, device, geometry.indices.size() * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    createBuffer(ib, memoryProps, device, scene.geometry.indices.size() * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
 
     Buffer mlb = {}; // meshlet buffer
     Buffer mdb = {}; // meshlet data buffer
     if (meshShadingSupported)
     {
-        createBuffer(mlb, memoryProps, device, geometry.meshlets.size() * sizeof(Meshlet), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        createBuffer(mdb, memoryProps, device, geometry.meshletdata.size() * sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        createBuffer(mlb, memoryProps, device, scene.geometry.meshlets.size() * sizeof(Meshlet), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        createBuffer(mdb, memoryProps, device, scene.geometry.meshletdata.size() * sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     }
 
-    uploadBuffer(device, cmdPool, cmdBuffer, queue, mb, scratch, geometry.meshes.data(), geometry.meshes.size() * sizeof(Mesh));
+    uploadBuffer(device, cmdPool, cmdBuffer, queue, mb, scratch, scene.geometry.meshes.data(), scene.geometry.meshes.size() * sizeof(Mesh));
 
-    uploadBuffer(device, cmdPool, cmdBuffer, queue, vb, scratch, geometry.vertices.data(), geometry.vertices.size() * sizeof(Vertex));
-    uploadBuffer(device, cmdPool, cmdBuffer, queue, ib, scratch, geometry.indices.data(), geometry.indices.size() * sizeof(uint32_t));
+    uploadBuffer(device, cmdPool, cmdBuffer, queue, vb, scratch, scene.geometry.vertices.data(), scene.geometry.vertices.size() * sizeof(Vertex));
+    uploadBuffer(device, cmdPool, cmdBuffer, queue, ib, scratch, scene.geometry.indices.data(), scene.geometry.indices.size() * sizeof(uint32_t));
 
     if (meshShadingSupported)
     {
-        uploadBuffer(device, cmdPool, cmdBuffer, queue, mlb, scratch, geometry.meshlets.data(), geometry.meshlets.size() * sizeof(Meshlet));
-        uploadBuffer(device, cmdPool, cmdBuffer, queue, mdb, scratch, geometry.meshletdata.data(), geometry.meshletdata.size() * sizeof(uint32_t));
+        uploadBuffer(device, cmdPool, cmdBuffer, queue, mlb, scratch, scene.geometry.meshlets.data(), scene.geometry.meshlets.size() * sizeof(Meshlet));
+        uploadBuffer(device, cmdPool, cmdBuffer, queue, mdb, scratch, scene.geometry.meshletdata.data(), scene.geometry.meshletdata.size() * sizeof(uint32_t));
     }
 
     Image colorTarget = {};
@@ -808,61 +549,9 @@ int main(int argc, const char** argv)
         assert(taskLatePipelineMS);
     }
 
-    freeCameraInit(freeCamera, { 0.f, 0.f, 0.f }, { 0.f, 1.f, 0.f }, 90.f, 0.f); 
-
-    // imgui
-    UIRendering ui = {};
-    initializeUIRendering(ui, device, queue, 1.3f);
-    prepareUIPipeline(ui, pipelineCache, renderInfo);
-    prepareUIResources(ui, memoryProps, cmdPool);
-
-    uint32_t drawCount = 1000000;
-    std::vector<MeshDraw> meshDraws(drawCount);
-
-    float randomDist = 200;
-    float drawDist = 200;
-    srand(42);
-    uint32_t meshletVisibilityCount = 0;
-    for (uint32_t i = 0; i < drawCount; i++)
-    {
-        uint32_t meshIdx = rand() % geometry.meshes.size();
-        Mesh& mesh = geometry.meshes[meshIdx];
-        
-        /* 
-        * NOTE: simplification for occlusion test 
-        meshDraws[i].pos[0] = 0.0f;
-
-        meshDraws[i].pos[1] = 0.0f;
-        meshDraws[i].pos[2] = (float)i + 2.0f;
-
-        meshDraws[i].scale = 1.f / (float)i;
-        */
-
-        meshDraws[i].pos[0] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
-        meshDraws[i].pos[1] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
-        meshDraws[i].pos[2] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
-        meshDraws[i].scale = (float(rand()) / RAND_MAX) + 2.f; // 1.f ~ 2.f
-
-        meshDraws[i].orit = glm::rotate(
-            quat(1, 0, 0, 0)
-            , glm::radians((float(rand()) / RAND_MAX) * 90.f)
-            , vec3((float(rand()) / RAND_MAX) * 2 - 1, (float(rand()) / RAND_MAX) * 2 - 1, (float(rand()) / RAND_MAX) * 2 - 1));
-        meshDraws[i].meshIdx = meshIdx;
-        meshDraws[i].vertexOffset = mesh.vertexOffset;
-        meshDraws[i].meshletVisibilityOffset = meshletVisibilityCount;
-
-        uint32_t meshletCount = 0;
-        for (uint32_t lod = 0; lod < mesh.lodCount; lod++)
-            meshletCount = std::max(meshletCount, mesh.lods[lod].meshletCount); // use the maximum one for current mesh
-
-        meshletVisibilityCount += meshletCount;
-    }
-
-    uint32_t meshletVisibilityDataSize = (meshletVisibilityCount + 31) / 32 * sizeof(uint32_t);
-
     Buffer mdrb = {}; //mesh draw buffer
-    createBuffer(mdrb, memoryProps, device, meshDraws.size() * sizeof(MeshDraw), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    uploadBuffer(device, cmdPool, cmdBuffer, queue, mdrb, scratch, meshDraws.data(), meshDraws.size() * sizeof(MeshDraw));
+    createBuffer(mdrb, memoryProps, device, scene.meshDraws.size() * sizeof(MeshDraw), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    uploadBuffer(device, cmdPool, cmdBuffer, queue, mdrb, scratch, scene.meshDraws.data(), scene.meshDraws.size() * sizeof(MeshDraw));
 
     Buffer mdcb = {}; // mesh draw command buffer
     createBuffer(mdcb, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
@@ -874,15 +563,24 @@ int main(int argc, const char** argv)
     createBuffer(tb, memoryProps, device, sizeof(TransformData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     Buffer mdvb = {}; // mesh draw visibility buffer
-    createBuffer(mdvb, memoryProps, device, drawCount * sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    createBuffer(mdvb, memoryProps, device, scene.drawCount * sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
+    uint32_t meshletVisibilityDataSize = (scene.meshletVisibilityCount + 31) / 32 * sizeof(uint32_t);
     Buffer mlvb = {}; // meshlet visibility buffer
     createBuffer(mlvb, memoryProps, device, meshletVisibilityDataSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     
+    // camera
+    freeCameraInit(freeCamera, { 0.f, 0.f, 0.f }, { 0.f, 1.f, 0.f }, 90.f, 0.f);
+
+    // imgui
+    UIRendering ui = {};
+    initializeUIRendering(ui, device, queue, 1.3f);
+    prepareUIPipeline(ui, pipelineCache, renderInfo);
+    prepareUIResources(ui, memoryProps, cmdPool);
 
     ProfilingData pd = {};
-    pd.meshletCount = (uint32_t)geometry.meshlets.size();
-    pd.primitiveCount = (uint32_t)(geometry.indices.size() / 3);
+    pd.meshletCount = (uint32_t)scene.geometry.meshlets.size();
+    pd.primitiveCount = (uint32_t)(scene.geometry.indices.size() / 3);
 
     double deltaTime = 0.;
     double avrageCpuTime = 0.;
@@ -951,7 +649,7 @@ int main(int argc, const char** argv)
         MeshDrawCull drawCull = {};
         drawCull.P00 = projection[0][0];
         drawCull.P11 = projection[1][1];
-        drawCull.zfar = drawDist;
+        drawCull.zfar = scene.drawDistance;
         drawCull.znear = znear;
         drawCull.pyramidWidth = (float)pyramidLevelWidth;
         drawCull.pyramidHeight = (float)pyramidLevelHeight;
@@ -987,10 +685,11 @@ int main(int argc, const char** argv)
 
 
         vkCmdResetQueryPool(cmdBuffer, queryPoolStatistics, 0, 6);
+        
         // clear mdvb 
         if(!mdvbCleared)
         {
-            vkCmdFillBuffer(cmdBuffer, mdvb.buffer, 0, sizeof(uint32_t) * drawCount, 0); 
+            vkCmdFillBuffer(cmdBuffer, mdvb.buffer, 0, sizeof(uint32_t) * scene.drawCount, 0);
 
             VkBufferMemoryBarrier2 barrier = bufferBarrier2(mdvb.buffer, 
                 VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 
@@ -1014,8 +713,6 @@ int main(int argc, const char** argv)
 
         auto culling = [&](bool late, VkPipeline pipeline)
         {
-
-
             VkBufferMemoryBarrier2 preFillBarrier = bufferBarrier2(mdccb.buffer,
                 VK_ACCESS_INDIRECT_COMMAND_READ_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
                 VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
@@ -1044,7 +741,7 @@ int main(int argc, const char** argv)
                 DescriptorInfo descInfos[] = { mb.buffer, mdrb.buffer, tb.buffer, mdcb.buffer, mdccb.buffer, mdvb.buffer, pyramidInfo };
                 vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, drawcmdProgram.updateTemplate, drawcmdProgram.layout, 0, descInfos);
 
-                vkCmdDispatch(cmdBuffer, uint32_t((meshDraws.size() + drawcmdCS.localSizeX - 1) / drawcmdCS.localSizeX), drawcmdCS.localSizeY, drawcmdCS.localSizeZ);
+                vkCmdDispatch(cmdBuffer, uint32_t((scene.meshDraws.size() + drawcmdCS.localSizeX - 1) / drawcmdCS.localSizeX), drawcmdCS.localSizeY, drawcmdCS.localSizeZ);
             }
 
 
@@ -1171,7 +868,7 @@ int main(int argc, const char** argv)
 
             Globals globals = {};
             globals.projection = projection;
-            globals.zfar = drawDist;
+            globals.zfar = scene.drawDistance;
             globals.znear = znear;
             globals.frustum[0] = frustumX.x;
             globals.frustum[1] = frustumX.z;
@@ -1198,7 +895,7 @@ int main(int argc, const char** argv)
                 if (taskSubmit)
                     vkCmdDrawMeshTasksIndirectEXT(cmdBuffer, mdccb.buffer, 4, 1, 0);
                 else
-                    vkCmdDrawMeshTasksIndirectCountEXT(cmdBuffer, mdcb.buffer, offsetof(MeshDrawCommand, indirectMS), mdccb.buffer, 0, (uint32_t)meshDraws.size(), sizeof(MeshDrawCommand));
+                    vkCmdDrawMeshTasksIndirectCountEXT(cmdBuffer, mdcb.buffer, offsetof(MeshDrawCommand, indirectMS), mdccb.buffer, 0, (uint32_t)scene.meshDraws.size(), sizeof(MeshDrawCommand));
             }
             else
             {
@@ -1210,7 +907,7 @@ int main(int argc, const char** argv)
                 vkCmdPushConstants(cmdBuffer, meshProgram.layout, meshProgram.pushConstantStages, 0, sizeof(globals), &globals);
 
                 vkCmdBindIndexBuffer(cmdBuffer, ib.buffer, 0, VK_INDEX_TYPE_UINT32);
-                vkCmdDrawIndexedIndirectCount(cmdBuffer, mdcb.buffer, offsetof(MeshDrawCommand, indirect), mdccb.buffer, 0, (uint32_t)meshDraws.size(), sizeof(MeshDrawCommand));
+                vkCmdDrawIndexedIndirectCount(cmdBuffer, mdcb.buffer, offsetof(MeshDrawCommand, indirect), mdccb.buffer, 0, (uint32_t)scene.meshDraws.size(), sizeof(MeshDrawCommand));
             }
             
             vkCmdEndRendering(cmdBuffer);
