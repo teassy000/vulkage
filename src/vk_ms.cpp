@@ -479,7 +479,10 @@ int main(int argc, const char** argv)
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProps);
 
     Scene scene = {};
-    assert(loadScene(scene, &argv[1], argc - 1, meshShadingSupported));
+    {
+        bool lsr = loadScene(scene, &argv[1], argc - 1, meshShadingSupported);
+        assert(lsr);
+    }
 
     Buffer scratch = {};
     createBuffer(scratch, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
@@ -574,7 +577,7 @@ int main(int argc, const char** argv)
 
     // imgui
     UIRendering ui = {};
-    initializeUIRendering(ui, device, queue, 1.3f);
+    initializeUIRendering(ui, device, queue, /* scale = */ 1.3f);
     prepareUIPipeline(ui, pipelineCache, renderInfo);
     prepareUIResources(ui, memoryProps, cmdPool);
 
