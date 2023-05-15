@@ -53,8 +53,6 @@ void freeCameraProcessMouseMovement(FreeCamera& camera, float xposIn, float ypos
     float xoffset = xposIn - xpos;
     float yoffset = yposIn - ypos; 
 
-    yoffset = -yoffset;// inversed y
-
     xpos = xposIn;
     ypos = yposIn;
 
@@ -93,6 +91,8 @@ void freeCameraUpdateVectors(FreeCamera& camera)
     front.y = sin(glm::radians(camera.pitch));
     front.z = sin(glm::radians(camera.yaw)) * cos(glm::radians(camera.pitch));
     camera.front = glm::normalize(front);
-    camera.right = glm::normalize(glm::cross(camera.front, camera.worldUp));
-    camera.up = glm::normalize(glm::cross(camera.right, camera.front));
+
+    // using left handed coordinate system
+    camera.right = glm::normalize(glm::cross(camera.worldUp, camera.front));
+    camera.up = glm::normalize(glm::cross(camera.front, camera.right));
 }

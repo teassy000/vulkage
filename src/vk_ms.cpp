@@ -841,8 +841,8 @@ int main(int argc, const char** argv)
         meshDraws[i].pos[0] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
         meshDraws[i].pos[1] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
         meshDraws[i].pos[2] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
-        meshDraws[i].scale = (float(rand()) / RAND_MAX)  + 2.f;
-        
+        meshDraws[i].scale = (float(rand()) / RAND_MAX) + 2.f; // 1.f ~ 2.f
+
         meshDraws[i].orit = glm::rotate(
             quat(1, 0, 0, 0)
             , glm::radians((float(rand()) / RAND_MAX) * 90.f)
