@@ -220,6 +220,14 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
         {
             rod.debugPyramidLevel = glm::max(--rod.debugPyramidLevel, 0);
         }
+        if (key == GLFW_KEY_F)
+        {
+            int mod = glfwGetInputMode(window, GLFW_CURSOR);
+            if (mod == GLFW_CURSOR_NORMAL)
+                glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            if (mod == GLFW_CURSOR_DISABLED)
+                glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        }
     }
     
     if(action == GLFW_REPEAT)

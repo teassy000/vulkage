@@ -10,8 +10,8 @@ void freeCameraInit(FreeCamera& camera, vec3 pos, vec3 up, float yaw, float pitc
     camera.yaw = yaw;
     camera.pitch = pitch;
     camera.front = vec3(0.f, 0.f, 1.f);
-    camera.moveSpeed = .2f;
-    camera.mouseSensitivity = .1f;
+    camera.moveSpeed = .4f;
+    camera.mouseSensitivity = .2f;
     freeCameraUpdateVectors(camera);
 }
 
@@ -35,34 +35,38 @@ void freeCameraProcessKeyboard(FreeCamera& camera, int key, float deltaTime)
         camera.pos += camera.right * velocity;
     if (key == GLFW_KEY_R)
         freeCameraInit(camera, { 0.f, 0.f, 0.f }, { 0.f, 1.f, 0.f }, 90.f, 0.f);
+    if (key == GLFW_KEY_F)
+        recordingMouse = !recordingMouse;
 }
 
 void freeCameraProcessMouseKey(FreeCamera& camera, int key, int action, int mods)
 {
-    if (key == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) 
-        recordingMouse = true;
-    if (key == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE)
-        recordingMouse = false;
+
 }
 
-static float xpos{ 0.f }, ypos{0.f};
+
 
 void freeCameraProcessMouseMovement(FreeCamera& camera, float xposIn, float yposIn, bool constrainPitch /* = true*/)
 {
+    static float xpos{ 0.f }, ypos{ 0.f };
+    
     float xoffset = xposIn - xpos;
-    float yoffset = yposIn - ypos; 
+    float yoffset = yposIn - ypos;
 
     xpos = xposIn;
     ypos = yposIn;
 
-    if (!recordingMouse) return;
-
+    if (!recordingMouse)
+        return;
 
     xoffset *= camera.mouseSensitivity;
     yoffset *= camera.mouseSensitivity;
 
-    camera.yaw += xoffset;
-    camera.pitch += yoffset;
+    camera.yaw -= xoffset;
+    camera.pitch -= yoffset;
+
+
+
     if (constrainPitch)
     {
         if (camera.pitch > 89.f)
