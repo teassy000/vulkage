@@ -68,10 +68,10 @@ void uploadBuffer(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer cmdBuf
     VkBufferCopy region = { 0, 0, VkDeviceSize(size) };
     vkCmdCopyBuffer(cmdBuffer, scratch.buffer, buffer.buffer, 1, &region);
 
-    VkBufferMemoryBarrier copyBarrier = bufferBarrier(buffer.buffer, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT);
-
-    vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT
-        , VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 1, &copyBarrier, 0, 0);
+    VkBufferMemoryBarrier2 copyBarrier = bufferBarrier2(buffer.buffer,
+        VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VK_ACCESS_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+    pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 1, &copyBarrier, 0, 0);
 
     VK_CHECK(vkEndCommandBuffer(cmdBuffer));
 
@@ -104,22 +104,6 @@ void destroyBuffer(VkDevice device, const Buffer& buffer)
     vkFreeMemory(device, buffer.memory, 0);
     vkDestroyBuffer(device, buffer.buffer, 0);
 }
-
-
-VkBufferMemoryBarrier bufferBarrier(VkBuffer buffer, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask)
-{
-    VkBufferMemoryBarrier result = { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
-    result.srcAccessMask = srcAccessMask;
-    result.dstAccessMask = dstAccessMask;
-    result.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    result.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    result.buffer = buffer;
-    result.offset = 0;
-    result.size = VK_WHOLE_SIZE;
-
-    return result;
-}
-
 
 VkBufferMemoryBarrier2 bufferBarrier2(VkBuffer buffer, VkAccessFlags2 srcAccessMask, VkPipelineStageFlags2 srcStage, VkAccessFlags2 dstAccessMask, VkPipelineStageFlags2 dstStage)
 {

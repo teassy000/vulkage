@@ -21,7 +21,6 @@ void createBuffer(Buffer& result, const VkPhysicalDeviceMemoryProperties& memory
 void uploadBuffer(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer cmdBuffer, VkQueue queue, const Buffer& buffer, const Buffer& scratch, const void* data, size_t size);
 void flushBuffer(VkDevice device, const Buffer& buffer, uint32_t offset = 0);
 void destroyBuffer(VkDevice device, const Buffer& buffer);
-VkBufferMemoryBarrier bufferBarrier(VkBuffer buffer, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask);
 
 VkBufferMemoryBarrier2 bufferBarrier2(VkBuffer buffer, VkAccessFlags2 srcAccessMask, VkPipelineStageFlags2 srcStage, VkAccessFlags2 dstAccessMask, VkPipelineStageFlags2 dstStage);
 
