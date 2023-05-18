@@ -35,7 +35,9 @@ layout(binding = 3) readonly buffer Transform
     TransformData trans;
 };
 
-layout(location = 0) out vec4 color;
+layout(location = 0) out vec4 outColor;
+layout(location = 1) out vec3 outWorldPos;
+layout(location = 2) out vec3 outNormal;
 
 void main()
 {
@@ -51,5 +53,7 @@ void main()
 
     gl_Position = globals.projection * trans.view * vec4(result, 1.0);
 
-    color = vec4(norm * 0.5 + vec3(0.5), 1.0);
+    outColor = vec4(norm * 0.5 + vec3(0.5), 1.0);
+    outWorldPos = result;
+    outNormal = norm;
 }

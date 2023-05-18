@@ -11,6 +11,7 @@
 #include "math.h"
 
 #define DEBUG 0
+#define LIGHT 1
 #define CULL 1
 
 
@@ -53,6 +54,8 @@ layout(binding = 6) readonly buffer Transform
 };
 
 layout(location = 0) out vec4 color[];
+layout (location = 1) out vec3 outWorldPos[];
+layout (location = 2) out vec3 outNormal[];
 
 taskPayloadSharedEXT TaskPayload payload;
 
@@ -105,8 +108,17 @@ void main()
 
         gl_MeshVerticesEXT[i].gl_Position = result;
 
+        outNormal[i] = norm;
+        outWorldPos[i] = rotateQuat( pos, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
+
 #if DEBUG
         color[i] = vec4(mcolor, 1.0);
+#elif LIGHT
+        vec3 worldNormal = normalize( vec4(rotateQuat( norm, meshDraw.orit), 1.0).xyz);
+        float lightDensity = clamp(-dot(worldNormal, normalize(vec3(0.0, 1.0, -1.0))), 0.0, 1.0);
+        color[i] = vec4(norm*0.3 + lightDensity*0.3 + 0.4, 1.0);
+        
+        color[i] = vec4(uv * 2.0, 0.0, 1.0);
 #else
         color[i] = vec4(norm * 0.5 + vec3(0.5), 1.0);
 #endif

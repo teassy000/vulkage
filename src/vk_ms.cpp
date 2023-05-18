@@ -412,12 +412,16 @@ int main(int argc, const char** argv)
 
     Shader meshletMS = {};
     Shader meshletTS = {};
+    Shader meshletFS = {};
     if (meshShadingSupported)
     {
         lsr = loadShader(meshletMS, device, "shaders/meshlet.mesh.spv");
         assert(lsr);
 
         lsr = loadShader(meshletTS, device, "shaders/meshlet.task.spv");
+        assert(lsr);
+
+        lsr = loadShader(meshletFS, device, "shaders/meshlet.frag.spv");
         assert(lsr);
     }
 
@@ -441,7 +445,7 @@ int main(int argc, const char** argv)
     Program meshProgramMS = {};
     if (meshShadingSupported)
     {
-        meshProgramMS = createProgram(device, VK_PIPELINE_BIND_POINT_GRAPHICS, { &meshletTS, &meshletMS, &meshFS }, sizeof(Globals));
+        meshProgramMS = createProgram(device, VK_PIPELINE_BIND_POINT_GRAPHICS, { &meshletTS, &meshletMS, &meshletFS }, sizeof(Globals));
     }
 
     VkQueryPool queryPoolTimeStemp = createQueryPool(device, 128, VK_QUERY_TYPE_TIMESTAMP);
@@ -550,13 +554,13 @@ int main(int argc, const char** argv)
     VkPipeline taskLatePipelineMS = 0;
     if (meshShadingSupported)
     {
-        meshPipelineMS = createGraphicsPipeline(device, pipelineCache, meshProgramMS.layout, renderInfo, { &meshletTS, &meshletMS, &meshFS }, nullptr);
+        meshPipelineMS = createGraphicsPipeline(device, pipelineCache, meshProgramMS.layout, renderInfo, { &meshletTS, &meshletMS, &meshletFS }, nullptr);
         assert(meshPipelineMS);
-        meshLatePipelineMS = createGraphicsPipeline(device, pipelineCache, meshProgramMS.layout, renderInfo, { &meshletTS, &meshletMS, &meshFS }, nullptr, {/* late = */true});
+        meshLatePipelineMS = createGraphicsPipeline(device, pipelineCache, meshProgramMS.layout, renderInfo, { &meshletTS, &meshletMS, &meshletFS }, nullptr, {/* late = */true});
         assert(meshLatePipelineMS);
-        taskPipelineMS = createGraphicsPipeline(device, pipelineCache, meshProgramMS.layout, renderInfo, { &meshletTS, &meshletMS, &meshFS }, nullptr, {/* late = */false, /*task = */ true});
+        taskPipelineMS = createGraphicsPipeline(device, pipelineCache, meshProgramMS.layout, renderInfo, { &meshletTS, &meshletMS, &meshletFS }, nullptr, {/* late = */false, /*task = */ true});
         assert(taskPipelineMS);
-        taskLatePipelineMS = createGraphicsPipeline(device, pipelineCache, meshProgramMS.layout, renderInfo, { &meshletTS, &meshletMS, &meshFS }, nullptr, {/* late = */true, /*task = */ true});
+        taskLatePipelineMS = createGraphicsPipeline(device, pipelineCache, meshProgramMS.layout, renderInfo, { &meshletTS, &meshletMS, &meshletFS }, nullptr, {/* late = */true, /*task = */ true});
         assert(taskLatePipelineMS);
     }
 
@@ -660,7 +664,7 @@ int main(int argc, const char** argv)
         MeshDrawCull drawCull = {};
         drawCull.P00 = projection[0][0];
         drawCull.P11 = projection[1][1];
-        drawCull.zfar = scene.drawDistance;
+        drawCull.zfar = 10000.f;//scene.drawDistance;
         drawCull.znear = znear;
         drawCull.pyramidWidth = (float)pyramidLevelWidth;
         drawCull.pyramidHeight = (float)pyramidLevelHeight;

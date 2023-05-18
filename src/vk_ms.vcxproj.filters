@@ -241,6 +241,9 @@
     <ClInclude Include="mesh.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="material.h">
+      <Filter>src</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="shaders\mesh.frag.glsl">
@@ -268,6 +271,9 @@
       <Filter>shaders</Filter>
     </CustomBuild>
     <CustomBuild Include="shaders\taskmodify.comp.glsl">
+      <Filter>shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="shaders\meshlet.frag.glsl">
       <Filter>shaders</Filter>
     </CustomBuild>
   </ItemGroup>
