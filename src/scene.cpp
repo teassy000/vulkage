@@ -66,14 +66,14 @@ void CreateRandomScene(Scene& scene)
 
 void CreateMatrixScene(Scene& scene)
 {
-    uint32_t drawCount = 10000; // 100*100
+    uint32_t drawCount = 250'000; // 500*500
     std::vector<MeshDraw> meshDraws(drawCount);
 
     float randomDist = 200;
     float drawDist = 200;
     srand(42);
     uint32_t meshletVisibilityCount = 0;
-    float basePos = -50.f;
+    float basePos = -250.f;
     for (uint32_t i = 0; i < drawCount; ++i)
     {
         uint32_t meshIdx = rand() % scene.geometry.meshes.size();
@@ -81,10 +81,10 @@ void CreateMatrixScene(Scene& scene)
 
 
         //-- NOTE: simplification for occlusion test
-        meshDraws[i].pos[0] = float(i % 100) + basePos + 2.f;
+        meshDraws[i].pos[0] = float(i % 500) + basePos + 2.f;
 
         meshDraws[i].pos[1] = -2.f;
-        meshDraws[i].pos[2] = float(i / 100) + basePos + 2.f;
+        meshDraws[i].pos[2] = float(i / 500) + basePos + 2.f;
 
         meshDraws[i].scale = 1.f;
 
@@ -111,6 +111,7 @@ bool loadScene(Scene& scene, const char** pathes, const uint32_t pathCount ,bool
     assert(pathCount);
     assert(pathes);
 
+    //TODO: make a scene file that describe models and other things in the scene 
     for (uint32_t i = 0; i < pathCount; ++i)
     {
         bool rcm = false;
