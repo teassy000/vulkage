@@ -6,13 +6,13 @@
 #include "mesh_gpu.h"
 #include "math.h"
 
-layout(location = 0) in vec4 inColor;
+layout (location = 0) in vec4 inColor;
 layout (location = 1) in vec3 inWorldPos;
 layout (location = 2) in vec3 inNormal;
 
-layout(location = 0) out vec4 outputColor;
+layout (location = 0) out vec4 outputColor;
 
-layout(binding = 3) readonly buffer Transform 
+layout (binding = 3) readonly buffer Transform 
 {
     TransformData trans;
 };

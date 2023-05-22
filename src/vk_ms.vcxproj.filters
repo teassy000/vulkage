@@ -276,6 +276,12 @@
     <CustomBuild Include="shaders\meshlet.frag.glsl">
       <Filter>shaders</Filter>
     </CustomBuild>
+    <CustomBuild Include="shaders\skybox.frag.glsl">
+      <Filter>shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="shaders\skybox.vert.glsl">
+      <Filter>shaders</Filter>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="fast_obj">

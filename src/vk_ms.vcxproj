@@ -111,12 +111,12 @@
       <PreprocessorDefinitions>GLM_FORCE_XYZW_ONLY;GLFW_EXPOSE_NATIVE_WIN32;WIN32_LEAN_AND_MEAN;VK_USE_PLATFORM_WIN32_KHR;NOMINMAX;_GLFW_WIN32;_CRT_SECURE_NO_WARNINGS;_DEBUG</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile />
-      <AdditionalIncludeDirectories>../externs/glfw/include;../externs/volk;../externs/meshoptimizer/src;../externs/ligitProfiler;../externs/imgui;../externs/fast_obj;$(VULKAN_SDK)\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../externs/glfw/include;../externs/volk;../externs/meshoptimizer/src;../externs/ligitProfiler;../externs/imgui;../externs/fast_obj;$(VULKAN_SDK)\Include;$(KTX_SDK)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(VULKAN_SDK)\Lib\vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(VULKAN_SDK)\Lib\vulkan-1.lib;$(KTX_SDK)\lib\ktx.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CustomBuild>
       <Command>$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o %(outputpath)\%(Filename).spv</Command>
@@ -134,7 +134,7 @@
       <PreprocessorDefinitions>GLM_FORCE_XYZW_ONLY;GLFW_EXPOSE_NATIVE_WIN32;WIN32_LEAN_AND_MEAN;VK_USE_PLATFORM_WIN32_KHR;NOMINMAX;_GLFW_WIN32;_CRT_SECURE_NO_WARNINGS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile />
-      <AdditionalIncludeDirectories>../externs/glfw/include;../externs/volk;../externs/meshoptimizer/src;../externs/ligitProfiler;../externs/imgui;../externs/fast_obj;../data;$(VULKAN_SDK)\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../externs/glfw/include;../externs/volk;../externs/meshoptimizer/src;../externs/ligitProfiler;../externs/imgui;../externs/fast_obj;$(VULKAN_SDK)\Include;$(KTX_SDK)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Full</Optimization>
     </ClCompile>
     <Link>
@@ -142,7 +142,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>false</GenerateDebugInformation>
-      <AdditionalDependencies>$(VULKAN_SDK)\Lib\vulkan-1.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(VULKAN_SDK)\Lib\vulkan-1.lib;$(KTX_SDK)\lib\ktx.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CustomBuild>
       <Command>$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o %(outputpath)\%(Filename).spv</Command>
@@ -313,6 +313,23 @@
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders\%(outputpath)\%(Filename).spv</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders\%(outputpath)\%(Filename).spv</Command>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">shaders\mesh_gpu.h;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">shaders\mesh_gpu.h;%(AdditionalInputs)</AdditionalInputs>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="shaders\skybox.frag.glsl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders\%(outputpath)\%(Filename).spv</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">shaders\mesh_gpu.h;%(AdditionalInputs)</AdditionalInputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders\%(outputpath)\%(Filename).spv</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">shaders\mesh_gpu.h;%(AdditionalInputs)</AdditionalInputs>
+    </CustomBuild>
+    <CustomBuild Include="shaders\skybox.vert.glsl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders\%(outputpath)\%(Filename).spv</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">shaders\%(outputpath)\%(Filename).spv</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">shaders\mesh_gpu.h;%(AdditionalInputs)</AdditionalInputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders\%(outputpath)\%(Filename).spv</Command>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">shaders\mesh_gpu.h;%(AdditionalInputs)</AdditionalInputs>
     </CustomBuild>
   </ItemGroup>

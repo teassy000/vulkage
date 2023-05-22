@@ -74,7 +74,7 @@ void main()
 	visible = visible && (center.z * cull.frustum[3] + abs(center.y) * cull.frustum[2] > -radius);
 	
     visible = visible && (center.z + radius > cull.znear);
-    visible = visible && (center.z - radius < cull.zfar);
+    //visible = visible && (center.z - radius < cull.zfar);
 
     visible = visible || (cull.enableCull == 0);
     

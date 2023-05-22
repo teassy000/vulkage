@@ -69,7 +69,7 @@ void prepareUIPipeline(UIRendering& ui, const VkPipelineCache pipelineCache, con
     vertexInput.vertexAttributeDescriptionCount = (uint32_t)attributes.size();
     vertexInput.pVertexAttributeDescriptions = attributes.data();
 
-    VkPipeline pipeline = createGraphicsPipeline(device, pipelineCache, program.layout, renderInfo, { &ui.vs, &ui.fs }, &vertexInput, {}, true);
+    VkPipeline pipeline = createGraphicsPipeline(device, pipelineCache, program.layout, renderInfo, { &ui.vs, &ui.fs }, &vertexInput, {}, {true, true, VK_COMPARE_OP_ALWAYS });
     assert(pipeline);
 
     ui.program = program;
@@ -96,9 +96,14 @@ void prepareUIResources(UIRendering& ui, const VkPhysicalDeviceMemoryProperties&
     size_t uploadSize = width * height * 4 * sizeof(char);
 
     const VkFormat imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
-    const uint32_t mipLevels = 1;
+    ImgInitProps createInfo = {};
+    createInfo.width = width;
+    createInfo.height = height;
+    createInfo.mipLevels = 1;
+    createInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+
     Image image = {};
-    createImage(image, device, memoryProps, width, height, mipLevels, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+    createImage(image, device, memoryProps, imageFormat, createInfo);
 
     // buffer use to upload image
     Buffer scratch = {};
@@ -113,8 +118,8 @@ void prepareUIResources(UIRendering& ui, const VkPhysicalDeviceMemoryProperties&
     VK_CHECK(vkAllocateCommandBuffers(device, &allocateInfo, &uploadCmd));
     assert(uploadCmd);
 
-    uploadImage(device, cmdPool, uploadCmd, queue, image, scratch, fontData, uploadSize);
-    
+    uploadImage(device, cmdPool, uploadCmd, queue, image, scratch, fontData, uploadSize, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
     destroyBuffer(device, scratch);
 
     VkSampler sampler = createSampler(device);
@@ -159,7 +164,7 @@ void updateUIRendering(UIRendering& ui, const VkPhysicalDeviceMemoryProperties& 
     if (vbSize == 0 || ibSize == 0)
         return;
 
-    // MAGIC: hard-code to fit the atomic no coherent memory.
+    // TODO: fix the hard-code to fit the atomic no coherent memory.
     vbSize += (0x40 - (vbSize % 0x40));
     ibSize += (0x40 - (ibSize % 0x40));
 

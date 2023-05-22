@@ -131,6 +131,7 @@ struct alignas(16) MeshDrawCull
 struct alignas(16) TransformData
 {
     mat4 view;
+    mat4 proj;
     vec3 cameraPos;
 };
 
@@ -175,7 +176,6 @@ void dumpExtensionSupport(VkPhysicalDevice physicalDevice, const std::vector<VkE
     checkExtSupportness(availableExtensions, VK_KHR_DRAW_INDIRECT_COUNT_EXTENSION_NAME);
     checkExtSupportness(availableExtensions, VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME);
     checkExtSupportness(availableExtensions, VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME);
-
 }
 
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -582,8 +582,57 @@ int main(int argc, const char** argv)
 
     uint32_t meshletVisibilityDataSize = (scene.meshletVisibilityCount + 31) / 32 * sizeof(uint32_t);
     Buffer mlvb = {}; // meshlet visibility buffer
-    createBuffer(mlvb, memoryProps, device, meshletVisibilityDataSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    if(meshShadingSupported)
+        createBuffer(mlvb, memoryProps, device, meshletVisibilityDataSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    // skybox
+    Image skyboxImage{};
+    loadTextureCubeFromFile(skyboxImage, "../data/textures/cubemap_vulkan.ktx", device, cmdPool, queue, memoryProps, imageFormat, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_GENERAL);
+    //skyboxImage.imageView = createImageView(device, skyboxImage.image, imageFormat, 0, skyboxImage.mipLevels, VK_IMAGE_VIEW_TYPE_CUBE);
+
+    VkSampler skyboxSampler = createSampler(device);
     
+    Shader skyboxVS = {};
+    lsr = loadShader(skyboxVS, device, "shaders/skybox.vert.spv");
+    assert(lsr);
+    Shader skyboxFS = {};
+    lsr = loadShader(skyboxFS, device, "shaders/skybox.frag.spv");
+    assert(lsr);
+
+    Geometry skyboxGeometry = {};
+    loadMesh(skyboxGeometry, "../data/cube_skybox.obj", false);
+
+    Buffer skyboxVB = {};
+    createBuffer(skyboxVB, memoryProps, device, skyboxGeometry.vertices.size() * sizeof(Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    uploadBuffer(device, cmdPool, cmdBuffer, queue, skyboxVB, scratch, skyboxGeometry.vertices.data(), skyboxGeometry.vertices.size() * sizeof(Vertex));
+
+    Buffer skyboxIB = {};
+    createBuffer(skyboxIB, memoryProps, device, skyboxGeometry.indices.size() * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    uploadBuffer(device, cmdPool, cmdBuffer, queue, skyboxIB, scratch, skyboxGeometry.indices.data(), skyboxGeometry.indices.size() * sizeof(uint32_t));
+
+    Program skyboxProgram = createProgram(device, VK_PIPELINE_BIND_POINT_GRAPHICS, { &skyboxVS, &skyboxFS });
+    VkPipeline skyboxPipeline = 0;
+    {
+        std::vector<VkVertexInputBindingDescription> bindings =
+        {
+            {0, sizeof(Vertex), VK_VERTEX_INPUT_RATE_VERTEX},
+        };
+
+        std::vector<VkVertexInputAttributeDescription> attributes =
+        {
+            {0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, vx)},
+        };
+
+        VkPipelineVertexInputStateCreateInfo vertexInput = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+        vertexInput.vertexBindingDescriptionCount = (uint32_t)bindings.size();
+        vertexInput.pVertexBindingDescriptions = bindings.data();
+        vertexInput.vertexAttributeDescriptionCount = (uint32_t)attributes.size();
+        vertexInput.pVertexAttributeDescriptions = attributes.data();
+        skyboxPipeline = createGraphicsPipeline(device, pipelineCache, skyboxProgram.layout, renderInfo, { &skyboxVS, &skyboxFS }, &vertexInput, {}, {false, false, VK_COMPARE_OP_GREATER });
+        assert(skyboxPipeline);
+    }
+
+
     // camera
     freeCameraInit(freeCamera, { 0.f, 0.f, 0.f }, { 0.f, 1.f, 0.f }, 90.f, 0.f);
 
@@ -638,15 +687,51 @@ int main(int argc, const char** argv)
                 destroyImage(device, depthPyramid);
             }
 
-            createImage(colorTarget, device, memoryProps, swapchain.width, swapchain.height, 1, imageFormat, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-            createImage(depthTarget, device, memoryProps, swapchain.width, swapchain.height, 1, depthFormat , VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-            createImage(renderTarget, device, memoryProps, swapchain.width, swapchain.height, 1, imageFormat, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+            {
+                ImgInitProps createInfo = {};
+                createInfo.width = swapchain.width;
+                createInfo.height = swapchain.height;
+                createInfo.mipLevels = 1;
+                createInfo.type = VK_IMAGE_TYPE_2D;
+                createInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+
+                createImage(colorTarget, device, memoryProps, imageFormat, createInfo);
+            }
+            {
+                ImgInitProps createInfo = {};
+                createInfo.width = swapchain.width;
+                createInfo.height = swapchain.height;
+                createInfo.mipLevels = 1;
+                createInfo.type = VK_IMAGE_TYPE_2D;
+                createInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+
+                createImage(depthTarget, device, memoryProps, depthFormat, createInfo);
+            }
+            {
+                ImgInitProps createInfo = {};
+                createInfo.width = swapchain.width;
+                createInfo.height = swapchain.height;
+                createInfo.mipLevels = 1;
+                createInfo.type = VK_IMAGE_TYPE_2D;
+                createInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+
+                createImage(renderTarget, device, memoryProps, imageFormat, createInfo);
+            }
 
             pyramidLevelWidth = previousPow2(swapchain.width);
             pyramidLevelHeight = previousPow2(swapchain.height);
             depthPyramidLevels = calculateMipLevelCount(pyramidLevelWidth, pyramidLevelHeight);
             s_depthPyramidCount = depthPyramidLevels;
-            createImage(depthPyramid, device, memoryProps, pyramidLevelWidth, pyramidLevelHeight, depthPyramidLevels, VK_FORMAT_R32_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+            {
+                ImgInitProps createInfo = {};
+                createInfo.width = pyramidLevelWidth;
+                createInfo.height = pyramidLevelHeight;
+                createInfo.mipLevels = depthPyramidLevels;
+                createInfo.type = VK_IMAGE_TYPE_2D;
+                createInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+                createImage(depthPyramid, device, memoryProps, VK_FORMAT_R32_SFLOAT, createInfo);
+            }
+
             
             for (uint32_t i = 0; i < depthPyramidLevels; ++i)
             {
@@ -655,7 +740,7 @@ int main(int argc, const char** argv)
         }
         
         // update data
-        float znear = .5f;
+        float znear = .1f;
         mat4 projection = perspectiveProjection(glm::radians(70.f), (float)swapchain.width / (float)swapchain.height, znear);
         mat4 projectionT = glm::transpose(projection);
         vec4 frustumX = normalizePlane(projectionT[3] - projectionT[0]);
@@ -680,6 +765,7 @@ int main(int argc, const char** argv)
         mat4 view = freeCameraGetViewMatrix(freeCamera);
         TransformData trans = {};
         trans.view = view;
+        trans.proj = projection;
         trans.cameraPos = freeCamera.pos;
 
         uploadBuffer(device, cmdPool, cmdBuffer, queue, tb, scratch, &trans, sizeof(trans));
@@ -706,7 +792,7 @@ int main(int argc, const char** argv)
         {
             vkCmdFillBuffer(cmdBuffer, mdvb.buffer, 0, sizeof(uint32_t) * scene.drawCount, 0);
 
-            VkBufferMemoryBarrier2 barrier = bufferBarrier2(mdvb.buffer, 
+            VkBufferMemoryBarrier2 barrier = bufferBarrier(mdvb.buffer, 
                 VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 
                 VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
             pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 1, &barrier, 0, 0);
@@ -717,7 +803,7 @@ int main(int argc, const char** argv)
         {
             vkCmdFillBuffer(cmdBuffer, mlvb.buffer, 0, meshletVisibilityDataSize, 0); 
 
-            VkBufferMemoryBarrier2 barrier = bufferBarrier2(mlvb.buffer,
+            VkBufferMemoryBarrier2 barrier = bufferBarrier(mlvb.buffer,
                 VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
                 VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
             pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 1, &barrier, 0, 0);
@@ -726,9 +812,67 @@ int main(int argc, const char** argv)
 
         bool taskSubmitOn = rod.taskSubmitEnabled && rod.meshShadingEnabled && meshShadingSupported;
 
+        auto skybox = [&](VkClearColorValue& color, VkClearDepthStencilValue& depth)
+        {
+            VkImageMemoryBarrier2 skyboxBarriers[] =
+            {
+                imageBarrier(skyboxImage.image, VK_IMAGE_ASPECT_COLOR_BIT,
+                 0, VK_IMAGE_LAYOUT_UNDEFINED, 0,
+                 VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL ,VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT),
+            };
+
+            pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, COUNTOF(skyboxBarriers), skyboxBarriers);
+
+            VkRenderingAttachmentInfo colorAttachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+            colorAttachment.clearValue.color = color;
+            colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+            colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+            colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            colorAttachment.imageView = colorTarget.imageView;
+
+            VkRenderingAttachmentInfo depthAttachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+            depthAttachment.clearValue.depthStencil = depth;
+            depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+            depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_NONE;
+            depthAttachment.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+            depthAttachment.imageView = depthTarget.imageView;
+
+            VkRenderingInfo renderingInfo = { VK_STRUCTURE_TYPE_RENDERING_INFO };
+            renderingInfo.renderArea.extent.width = swapchain.width;
+            renderingInfo.renderArea.extent.height = swapchain.height;
+            renderingInfo.layerCount = 1;
+            renderingInfo.colorAttachmentCount = 1;
+            renderingInfo.pColorAttachments = &colorAttachment;
+            //renderingInfo.pDepthAttachment = &depthAttachment;
+
+            vkCmdBeginRendering(cmdBuffer, &renderingInfo);
+
+            vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, skyboxPipeline);
+
+            VkViewport viewport = { 0.f, float(swapchain.height), float(swapchain.width), -float(swapchain.height), 0.f, 1.f };
+            VkRect2D scissor = { {0, 0}, {uint32_t(swapchain.width), uint32_t(swapchain.height)} };
+
+            vkCmdSetViewport(cmdBuffer, 0, 1, &viewport);
+            vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
+
+            DescriptorInfo skyboxDesc = { skyboxSampler, skyboxImage.imageView, VK_IMAGE_LAYOUT_GENERAL };
+            DescriptorInfo descInfos[] = { tb.buffer, skyboxDesc };
+            vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, skyboxProgram.updateTemplate, skyboxProgram.layout, 0, descInfos);
+
+            VkDeviceSize offsets[1] = { 0 };
+            vkCmdBindVertexBuffers(cmdBuffer, 0, 1, &skyboxVB.buffer, offsets);
+            vkCmdBindIndexBuffer(cmdBuffer, skyboxIB.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+            vkCmdDrawIndexed(cmdBuffer, (uint32_t)skyboxGeometry.indices.size(), 1, 0, 0, 0);
+
+            vkCmdEndRendering(cmdBuffer);
+
+            VK_CHECK(vkDeviceWaitIdle(device));
+        };
+
         auto culling = [&](bool late, VkPipeline pipeline)
         {
-            VkBufferMemoryBarrier2 preFillBarrier = bufferBarrier2(mdccb.buffer,
+            VkBufferMemoryBarrier2 preFillBarrier = bufferBarrier(mdccb.buffer,
                 VK_ACCESS_INDIRECT_COMMAND_READ_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
                 VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
                 
@@ -736,7 +880,7 @@ int main(int argc, const char** argv)
 
             vkCmdFillBuffer(cmdBuffer, mdccb.buffer, 0, 4, 0u); // fill draw command count or taskSizeX
 
-            VkBufferMemoryBarrier2 postFillBarrier = bufferBarrier2(mdccb.buffer,
+            VkBufferMemoryBarrier2 postFillBarrier = bufferBarrier(mdccb.buffer,
                 VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
                 VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
             pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 1, &postFillBarrier, 0, 0);
@@ -763,10 +907,10 @@ int main(int argc, const char** argv)
             if (taskSubmitOn)
             {
                 VkBufferMemoryBarrier2 modifyBarrier[] = {
-                    bufferBarrier2(mdccb.buffer,
+                    bufferBarrier(mdccb.buffer,
                         VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                         VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT),
-                    bufferBarrier2(mdcb.buffer,
+                    bufferBarrier(mdcb.buffer,
                         VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                         VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT),
                 };
@@ -781,10 +925,10 @@ int main(int argc, const char** argv)
             }
 
             VkBufferMemoryBarrier2 cullEndBarriers[] = {
-                bufferBarrier2(mdcb.buffer,
+                bufferBarrier(mdcb.buffer,
                     VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                     VK_ACCESS_INDIRECT_COMMAND_READ_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT),
-                bufferBarrier2(mdccb.buffer,
+                bufferBarrier(mdccb.buffer,
                     VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                     VK_ACCESS_INDIRECT_COMMAND_READ_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT),
             };
@@ -881,6 +1025,7 @@ int main(int argc, const char** argv)
             vkCmdSetViewport(cmdBuffer, 0, 1, &viewport);
             vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
 
+            
             Globals globals = {};
             globals.projection = projection;
             globals.zfar = scene.drawDistance;
@@ -929,6 +1074,11 @@ int main(int argc, const char** argv)
             vkCmdEndQuery(cmdBuffer, queryPoolStatistics, query);
         };
         
+        VkClearColorValue clearColor = { 128.f / 255.f, 109.f / 255.f, 158.f / 255.f, 1 };
+        VkClearDepthStencilValue clearDepth = { 0.f, 0 };
+
+        skybox(clearColor, clearDepth);
+
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 1);
 
         culling(/* late = */false, taskSubmitOn ? taskCullPipeline : drawcmdPipeline);
@@ -947,15 +1097,11 @@ int main(int argc, const char** argv)
 
         pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, COUNTOF(renderBeginBarriers), renderBeginBarriers);
        
-        VkClearColorValue clearColor = { 128.f/255.f, 109.f/255.f, 158.f/255.f, 1 };
-        VkClearDepthStencilValue clearDepth = { 0.f, 0 };
-
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 3);
 
         render(/* late = */false, /*taskSubmit = */ taskSubmitOn, clearColor, clearDepth, taskSubmitOn ? taskPipelineMS : meshPipelineMS, 0);
        
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 4);
-
 
         pyramid();
 
@@ -1188,9 +1334,11 @@ int main(int argc, const char** argv)
     {
         vkDestroyImageView(device, depthPyramidMips[i], 0);
     }
-    
 
+    vkDestroySampler(device, skyboxSampler, 0);
     vkDestroySampler(device, depthSampler, 0);
+    
+    destroyImage(device, skyboxImage);
     destroyImage(device, renderTarget);
     destroyImage(device, depthPyramid);
     destroyImage(device, colorTarget);
@@ -1198,6 +1346,8 @@ int main(int argc, const char** argv)
 
     destroyUIRendering(ui);
 
+    destroyBuffer(device, skyboxVB);
+    destroyBuffer(device, skyboxIB);
     destroyBuffer(device, mlvb);
     destroyBuffer(device, mdvb);
     destroyBuffer(device, tb);
@@ -1223,6 +1373,9 @@ int main(int argc, const char** argv)
     vkDestroyQueryPool(device, queryPoolStatistics, 0); 
     vkDestroyQueryPool(device, queryPoolTimeStemp, 0);
 
+    vkDestroyPipeline(device, skyboxPipeline, 0);
+    destroyProgram(device, skyboxProgram);
+
     vkDestroyPipeline(device, depthPyramidPipeline, 0);
     destroyProgram(device, depthPyramidProgram);
 
@@ -1247,6 +1400,9 @@ int main(int argc, const char** argv)
         destroyProgram(device, meshProgramMS);
     }
 
+    vkDestroyShaderModule(device, skyboxFS.module, 0);
+    vkDestroyShaderModule(device, skyboxVS.module, 0);
+
     vkDestroyShaderModule(device, depthPyramidCS.module, 0);
     vkDestroyShaderModule(device, taskModifiyCS.module, 0);
     vkDestroyShaderModule(device, drawcmdCS.module, 0);
@@ -1255,6 +1411,7 @@ int main(int argc, const char** argv)
 
     if (meshShadingSupported)
     {
+        vkDestroyShaderModule(device, meshletFS.module, 0);
         vkDestroyShaderModule(device, meshletMS.module, 0);
         vkDestroyShaderModule(device, meshletTS.module, 0);
     }

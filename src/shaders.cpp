@@ -288,7 +288,7 @@ static VkSpecializationInfo fillSpecializationInfo(std::vector<VkSpecializationM
 }
 
 VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, const VkPipelineRenderingCreateInfo& renderInfo
-    , Shaders shaders, VkPipelineVertexInputStateCreateInfo* vtxInputState, Constants constants /*= {}*/, bool isUI /*= false*/)
+    , Shaders shaders, VkPipelineVertexInputStateCreateInfo* vtxInputState, Constants constants /*= {}*/, const PipelineConfigs& pipeConfigs /* = {}*/)
 {
     std::vector<VkSpecializationMapEntry> specializationEntries;
     VkSpecializationInfo specializationInfo = fillSpecializationInfo(specializationEntries, constants);
@@ -333,9 +333,9 @@ VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache
     createInfo.pMultisampleState = &multisampleState;
 
     VkPipelineDepthStencilStateCreateInfo depthStencilState = { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
-    depthStencilState.depthTestEnable = true;
-    depthStencilState.depthWriteEnable = true;
-    depthStencilState.depthCompareOp = isUI ? VK_COMPARE_OP_ALWAYS : VK_COMPARE_OP_GREATER; // all UI element rendered to (z = 1.0);
+    depthStencilState.depthTestEnable = pipeConfigs.enableDepthTest;
+    depthStencilState.depthWriteEnable = pipeConfigs.enableDepthWrite;
+    depthStencilState.depthCompareOp = pipeConfigs.depthCompOp; // all UI element rendered to (z = 1.0);
     depthStencilState.depthBoundsTestEnable = false;
     depthStencilState.minDepthBounds = 0.f;
     depthStencilState.maxDepthBounds = 1.f;

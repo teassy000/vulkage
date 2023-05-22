@@ -55,6 +55,7 @@ struct MeshDrawCull
 struct TransformData
 {
     mat4 view;
+    mat4 proj;
     vec3 cameraPos;
 };
 

@@ -1,6 +1,9 @@
 #include "common.h"
 #include "resources.h"
 
+#include<ktx.h>
+#include<ktxvulkan.h>
+
 uint32_t selectMemoryType(const VkPhysicalDeviceMemoryProperties& memoryProps, uint32_t memoryTypeBits, VkMemoryPropertyFlags flags)
 {
     for (uint32_t i = 0; i < memoryProps.memoryTypeCount; ++i) {
@@ -68,7 +71,7 @@ void uploadBuffer(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer cmdBuf
     VkBufferCopy region = { 0, 0, VkDeviceSize(size) };
     vkCmdCopyBuffer(cmdBuffer, scratch.buffer, buffer.buffer, 1, &region);
 
-    VkBufferMemoryBarrier2 copyBarrier = bufferBarrier2(buffer.buffer,
+    VkBufferMemoryBarrier2 copyBarrier = bufferBarrier(buffer.buffer,
         VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
         VK_ACCESS_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
     pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 1, &copyBarrier, 0, 0);
@@ -105,7 +108,7 @@ void destroyBuffer(VkDevice device, const Buffer& buffer)
     vkDestroyBuffer(device, buffer.buffer, 0);
 }
 
-VkBufferMemoryBarrier2 bufferBarrier2(VkBuffer buffer, VkAccessFlags2 srcAccessMask, VkPipelineStageFlags2 srcStage, VkAccessFlags2 dstAccessMask, VkPipelineStageFlags2 dstStage)
+VkBufferMemoryBarrier2 bufferBarrier(VkBuffer buffer, VkAccessFlags2 srcAccessMask, VkPipelineStageFlags2 srcStage, VkAccessFlags2 dstAccessMask, VkPipelineStageFlags2 dstStage)
 {
     VkBufferMemoryBarrier2 result = { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2 };
     result.srcAccessMask = srcAccessMask;
@@ -121,19 +124,24 @@ VkBufferMemoryBarrier2 bufferBarrier2(VkBuffer buffer, VkAccessFlags2 srcAccessM
     return result;
 }
 
-void createImage(Image& result, VkDevice device, const VkPhysicalDeviceMemoryProperties& memoryProperties, uint32_t width, uint32_t height, uint32_t mipLevels, VkFormat format, VkImageUsageFlags usage)
+void createImage(Image& result, VkDevice device, const VkPhysicalDeviceMemoryProperties& memoryProps, const VkFormat format, const ImgInitProps imgProps)
 {
     VkImageCreateInfo createInfo = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
 
-    createInfo.imageType = VK_IMAGE_TYPE_2D;
+    createInfo.imageType = imgProps.type;
     createInfo.format = format;
-    createInfo.extent = { width, height, 1u };
-    createInfo.mipLevels = mipLevels;
-    createInfo.arrayLayers = 1; // validation: arrayLayers must greater than 0;
+    createInfo.extent = { imgProps.width, imgProps.height, 1u };
+    createInfo.mipLevels = imgProps.mipLevels;
+    createInfo.arrayLayers = (imgProps.viewType == VK_IMAGE_VIEW_TYPE_CUBE) ? 6 : 1;
     createInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     createInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    createInfo.usage = usage;
+    createInfo.usage = imgProps.usage;
 	createInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    if (imgProps.viewType == VK_IMAGE_VIEW_TYPE_CUBE)
+    {
+        createInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+    }
 
     VkImage image = 0;
     VK_CHECK(vkCreateImage(device, &createInfo, 0, &image));
@@ -141,7 +149,7 @@ void createImage(Image& result, VkDevice device, const VkPhysicalDeviceMemoryPro
     VkMemoryRequirements memoryReqs;
     vkGetImageMemoryRequirements(device, image, &memoryReqs);
 
-    uint32_t memoryTypeIdx = selectMemoryType(memoryProperties, memoryReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    uint32_t memoryTypeIdx = selectMemoryType(memoryProps, memoryReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     VkMemoryAllocateInfo allocInfo = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
     allocInfo.allocationSize = memoryReqs.size;
@@ -153,13 +161,199 @@ void createImage(Image& result, VkDevice device, const VkPhysicalDeviceMemoryPro
     VK_CHECK(vkBindImageMemory(device, image, memory, 0));
 
     result.image = image;
-    result.imageView = createImageView(device, image, format, 0, mipLevels);
+    result.imageView = createImageView(device, image, format, 0, imgProps.mipLevels, imgProps.viewType);
     result.memory = memory;
-    result.width = width;
-    result.height = height;
+
+    result.width = imgProps.width;
+    result.height = imgProps.height;
+    result.mipLevels = imgProps.mipLevels;
 }
 
-void uploadImage(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer cmdBuffer, VkQueue queue, const Image& image, const Buffer& scratch, const void* data, size_t size)
+
+void loadKtxFromFile(ktxTexture** texture, const char* path)
+{
+    assert(path);
+
+    ktxResult result = KTX_SUCCESS;
+    result = ktxTexture_CreateFromNamedFile(path, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, texture);
+    assert(result == KTX_SUCCESS);
+}
+
+void loadTexture2DFromFile(Image& tex2d, const char* path, VkDevice device, VkCommandPool cmdPool, VkQueue queue, const VkPhysicalDeviceMemoryProperties& memoryProps, VkFormat format, VkImageUsageFlags usage, VkImageLayout layout)
+{
+    ktxTexture* ktxTex{ nullptr };
+    loadKtxFromFile(&ktxTex, path);
+    assert(ktxTex);
+
+    uint32_t width = ktxTex->baseWidth;
+    uint32_t height = ktxTex->baseHeight;
+    uint32_t mipLevels = ktxTex->numLevels;
+
+    ImgInitProps imgProps = {};
+    imgProps.width = width;
+    imgProps.height = height;
+    imgProps.mipLevels = mipLevels;
+    imgProps.type = VK_IMAGE_TYPE_2D;
+    imgProps.usage = usage;
+    imgProps.layout = layout;
+    imgProps.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
+
+    Image texture = {};
+    createImage(texture, device, memoryProps, format, imgProps);
+
+    ktx_uint8_t* ktxTexData = ktxTexture_GetData(ktxTex);
+    ktx_size_t ktxTexDataSize = ktxTexture_GetDataSize(ktxTex);
+
+    Buffer scratch = {};
+    createBuffer(scratch, memoryProps, device, ktxTexDataSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+    VkCommandBufferAllocateInfo allocateInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
+    allocateInfo.commandPool = cmdPool;
+    allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocateInfo.commandBufferCount = 1;
+
+    VkCommandBuffer uploadCmd = 0;
+    VK_CHECK(vkAllocateCommandBuffers(device, &allocateInfo, &uploadCmd));
+    assert(uploadCmd);
+    uploadImage(device, cmdPool, uploadCmd, queue, texture, scratch, ktxTexData, ktxTexDataSize, layout);
+
+    ktxTexture_Destroy(ktxTex);
+    destroyBuffer(device, scratch);
+
+    VkSampler sampler = createSampler(device);
+    assert(sampler);
+
+    tex2d.width = width;
+    tex2d.height = height;
+    tex2d.mipLevels = mipLevels;
+    
+    tex2d.image = texture.image;
+    tex2d.imageView = texture.imageView;
+}
+
+
+void loadTextureCubeFromFile(Image& texCube, const char* path, VkDevice device, VkCommandPool cmdPool, VkQueue queue, const VkPhysicalDeviceMemoryProperties& memoryProps, VkFormat format, VkImageUsageFlags usage, VkImageLayout layout)
+{
+    ktxTexture* ktxTex{ nullptr };
+    loadKtxFromFile(&ktxTex, path);
+    assert(ktxTex && ktxTex->isCubemap);
+
+    uint32_t width = ktxTex->baseWidth;
+    uint32_t height = ktxTex->baseHeight;
+    uint32_t mipLevels = ktxTex->numLevels;
+
+    ImgInitProps imgProps = {};
+    imgProps.width = width;
+    imgProps.height = height;
+    imgProps.mipLevels = mipLevels;
+    imgProps.usage = usage;
+    imgProps.layout = layout;
+    imgProps.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
+
+    Image texture = {};
+    createImage(texture, device, memoryProps, format, imgProps);
+
+    ktx_uint8_t* ktxTexData = ktxTexture_GetData(ktxTex);
+    ktx_size_t ktxTexDataSize = ktxTexture_GetDataSize(ktxTex);
+
+    Buffer scratch = {};
+    createBuffer(scratch, memoryProps, device, ktxTexDataSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+    VkCommandBufferAllocateInfo allocateInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
+    allocateInfo.commandPool = cmdPool;
+    allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocateInfo.commandBufferCount = 1;
+
+    VkCommandBuffer uploadCmd = 0;
+    VK_CHECK(vkAllocateCommandBuffers(device, &allocateInfo, &uploadCmd));
+    assert(uploadCmd);
+
+    memcpy(scratch.data, ktxTexData, ktxTexDataSize);
+
+    std::vector<VkBufferImageCopy> regions;
+    for (uint32_t face = 0; face < 6; ++face)
+    {
+        for (uint32_t level = 0; level < mipLevels; ++level)
+        {
+            ktx_size_t offset = 0;
+            KTX_error_code result = ktxTexture_GetImageOffset(ktxTex, level, 0, face, &offset);
+            assert(result == KTX_SUCCESS);
+
+            VkBufferImageCopy region = {};
+            region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            region.imageSubresource.layerCount = 1;
+            region.imageSubresource.baseArrayLayer = face;
+            region.imageSubresource.mipLevel = level;
+            region.imageExtent.width = texture.width >> level;
+            region.imageExtent.height = texture.height >> level;
+            region.imageExtent.depth = 1;
+            region.bufferOffset = offset;
+
+            regions.push_back(region);
+        }
+    }
+
+    VK_CHECK(vkResetCommandPool(device, cmdPool, 0));
+
+    VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    VK_CHECK(vkBeginCommandBuffer(uploadCmd, &beginInfo));
+
+    VkImageMemoryBarrier copyBarrier[1] = {};
+    copyBarrier[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    copyBarrier[0].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    copyBarrier[0].oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    copyBarrier[0].newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    copyBarrier[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    copyBarrier[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    copyBarrier[0].image = texture.image;
+    copyBarrier[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    copyBarrier[0].subresourceRange.levelCount = mipLevels;
+    copyBarrier[0].subresourceRange.layerCount = 6;
+
+    vkCmdPipelineBarrier(uploadCmd, VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, copyBarrier);
+
+    vkCmdCopyBufferToImage(uploadCmd, scratch.buffer, texture.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, (uint32_t)regions.size(), regions.data());
+
+    VkImageMemoryBarrier useBarrier[1] = {};
+    useBarrier[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    useBarrier[0].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    useBarrier[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    useBarrier[0].oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    useBarrier[0].newLayout = layout;
+    useBarrier[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    useBarrier[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    useBarrier[0].image = texture.image;
+    useBarrier[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    useBarrier[0].subresourceRange.levelCount = mipLevels;
+    useBarrier[0].subresourceRange.layerCount = 6;
+    vkCmdPipelineBarrier(uploadCmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, useBarrier);
+
+    VK_CHECK(vkEndCommandBuffer(uploadCmd));
+
+    VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &uploadCmd;
+
+    VK_CHECK(vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE));
+
+    VK_CHECK(vkDeviceWaitIdle(device));
+
+    ktxTexture_Destroy(ktxTex);
+    destroyBuffer(device, scratch);
+
+    texCube.width = width;
+    texCube.height = height;
+    texCube.mipLevels = 1;
+
+    texCube.image = texture.image;
+    texCube.imageView = texture.imageView;
+    texCube.memory = texture.memory;
+}
+
+void uploadImage(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer cmdBuffer, VkQueue queue, const Image& image, const Buffer& scratch, const void* data, size_t size, VkImageLayout layout, const uint32_t regionCount /*= 1*/, uint32_t mipLevels /*= 1*/)
 {
     assert(scratch.data);
     assert(scratch.size >= size);
@@ -187,6 +381,16 @@ void uploadImage(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer cmdBuff
 
     vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, copyBarrier);
 
+
+    std::vector<VkBufferImageCopy> regions;
+    for (uint32_t face = 0; face < regionCount; ++face)
+    {
+        for (uint32_t level = 0; level < mipLevels; ++level)
+        {
+
+        }
+    }
+
     VkBufferImageCopy region = {};
     region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     region.imageSubresource.layerCount = 1;
@@ -200,13 +404,13 @@ void uploadImage(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer cmdBuff
     useBarrier[0].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     useBarrier[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
     useBarrier[0].oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    useBarrier[0].newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    useBarrier[0].newLayout = layout;
     useBarrier[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     useBarrier[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     useBarrier[0].image = image.image;
     useBarrier[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     useBarrier[0].subresourceRange.levelCount = 1;
-    useBarrier[0].subresourceRange.layerCount = 1;
+    useBarrier[0].subresourceRange.layerCount = regionCount;
     vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, useBarrier);
 
     VK_CHECK(vkEndCommandBuffer(cmdBuffer));
@@ -229,18 +433,18 @@ void destroyImage(VkDevice device, const Image& image)
 }
 
 
-VkImageView createImageView(VkDevice device, VkImage image, VkFormat format, uint32_t baseMipLevel, uint32_t levelCount)
+VkImageView createImageView(VkDevice device, VkImage image, VkFormat format, uint32_t baseMipLevel, uint32_t levelCount, VkImageViewType viewType /*= VK_IMAGE_VIEW_TYPE_2D*/)
 {
     VkImageAspectFlags aspectMask = (format == VK_FORMAT_D32_SFLOAT) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
 
     VkImageViewCreateInfo createInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
     createInfo.image = image;
-    createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    createInfo.viewType = viewType;
     createInfo.format = format;
     createInfo.subresourceRange.aspectMask = aspectMask;
     createInfo.subresourceRange.baseMipLevel = baseMipLevel;
     createInfo.subresourceRange.levelCount = levelCount;
-    createInfo.subresourceRange.layerCount = 1;
+    createInfo.subresourceRange.layerCount = ((viewType == VK_IMAGE_VIEW_TYPE_CUBE) ? 6 : 1);
 
     VkImageView imageView = 0;
     VK_CHECK(vkCreateImageView(device, &createInfo, 0, &imageView));

@@ -25,12 +25,19 @@ struct Program
     VkShaderStageFlags pushConstantStages;
 };
 
+struct PipelineConfigs
+{
+    bool enableDepthTest{ true };
+    bool enableDepthWrite{true};
+    VkCompareOp depthCompOp{ VK_COMPARE_OP_GREATER };
+};
+
 using Shaders = std::initializer_list<const Shader*>;
 using Constants = std::initializer_list<int>;
 
 bool loadShader(Shader& shader, VkDevice device, const char* path);
 
-VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, const VkPipelineRenderingCreateInfo& renderInfo, Shaders shaders, VkPipelineVertexInputStateCreateInfo* vtxInputState, Constants constants = {}, bool isUI = false);
+VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, const VkPipelineRenderingCreateInfo& renderInfo, Shaders shaders, VkPipelineVertexInputStateCreateInfo* vtxInputState, Constants constants = {}, const PipelineConfigs& pipeConfigs = {});
 VkPipeline createComputePipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, const Shader& shader, Constants constants = {});
 
 VkDescriptorSetLayout createSetLayout(VkDevice device, Shaders shaders);
