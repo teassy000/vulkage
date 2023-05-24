@@ -108,7 +108,7 @@ void main()
     vec3 color = gold * 0.02;
     color += lightOutput;
 
-    // Gamma correct
+    // Gamma correction
     color = pow(color, vec3(0.4545));
 
     outputColor = vec4(color, 1.0);

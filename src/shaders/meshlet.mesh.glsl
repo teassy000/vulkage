@@ -106,8 +106,9 @@ void main()
 
         vec4 result =  globals.projection * trans.view * vec4(rotateQuat( pos, meshDraw.orit) * meshDraw.scale + meshDraw.pos, 1.0);
 
-        gl_MeshVerticesEXT[i].gl_Position = result;
+        norm = rotateQuat(norm, meshDraw.orit);
 
+        gl_MeshVerticesEXT[i].gl_Position = result;
         outNormal[i] = norm;
         outWorldPos[i] = rotateQuat( pos, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
 

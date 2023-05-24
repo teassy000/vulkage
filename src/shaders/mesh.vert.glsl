@@ -49,6 +49,7 @@ void main()
     vec3 norm = vec3(int(vertices[gl_VertexIndex].nx), int(vertices[gl_VertexIndex].ny), int(vertices[gl_VertexIndex].nz)) / 127.0 - 1;
     vec2 uv = vec2(vertices[gl_VertexIndex].tu, vertices[gl_VertexIndex].tv);
 
+    norm = rotateQuat(norm, meshDraw.orit);
     vec3 result = vec3(rotateQuat(pos, meshDraw.orit) * meshDraw.scale + meshDraw.pos);
 
     gl_Position = globals.projection * trans.view * vec4(result, 1.0);
