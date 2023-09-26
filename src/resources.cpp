@@ -1,8 +1,31 @@
 #include "common.h"
 #include "resources.h"
 
-#include<ktx.h>
-#include<ktxvulkan.h>
+
+#include <ktx.h>
+#include <ktxvulkan.h>
+
+#include <functional> // for hash
+#include <string>
+
+// Image first bit is 0
+// Buffer first bit is 1
+#define IMAGE_HASH_MASK 0x7FFFFFFF
+#define BUFFER_HASH_MASK 0xFFFFFFFF
+
+uint32_t hash32(VkImage image)
+{
+    uint32_t hash = std::hash<VkImage>{}(image) & IMAGE_HASH_MASK;
+
+    return hash;
+}
+
+uint32_t hash32(VkBuffer buffer)
+{
+    uint32_t hash = std::hash<VkBuffer>{}(buffer) & BUFFER_HASH_MASK;
+
+    return hash;
+}
 
 uint32_t selectMemoryType(const VkPhysicalDeviceMemoryProperties& memoryProps, uint32_t memoryTypeBits, VkMemoryPropertyFlags flags)
 {
@@ -16,7 +39,7 @@ uint32_t selectMemoryType(const VkPhysicalDeviceMemoryProperties& memoryProps, u
     return ~0u;
 }
 
-void createBuffer(Buffer& result, const VkPhysicalDeviceMemoryProperties& memoryProps, VkDevice device, size_t sz, VkBufferUsageFlags usage, VkMemoryPropertyFlags memFlags)
+void createBuffer(Buffer& result, const VkPhysicalDeviceMemoryProperties& memoryProps, VkDevice device, size_t sz, VkBufferUsageFlags usage, VkMemoryPropertyFlags memFlags, BufferAliases alisings)
 {
     VkBufferCreateInfo createInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
     createInfo.size = sz;
@@ -24,6 +47,11 @@ void createBuffer(Buffer& result, const VkPhysicalDeviceMemoryProperties& memory
 
     VkBuffer buffer = 0;
     VK_CHECK(vkCreateBuffer(device, &createInfo, 0, &buffer));
+
+    for (Buffer* const buf : alisings)
+    {
+        VK_CHECK(vkCreateBuffer(device, &createInfo, 0, &buf->buffer));
+    }
 
     VkMemoryRequirements memoryReqs;
     vkGetBufferMemoryRequirements(device, buffer, &memoryReqs);
@@ -44,12 +72,36 @@ void createBuffer(Buffer& result, const VkPhysicalDeviceMemoryProperties& memory
     if (memFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
     {
         VK_CHECK(vkMapMemory(device, memory, 0, sz, 0, &data));
+        
+        for (Buffer* const buf : alisings)
+        {
+            VK_CHECK(vkMapMemory(device, memory, 0, sz, 0, &buf->data));
+        }
     }
+
+    for (Buffer* const buf : alisings)
+    {
+        VK_CHECK(vkBindBufferMemory(device, buf->buffer, memory, 0));
+        buf->memory = memory;
+        buf->size = sz;
+    }
+
+    // calculate ID for render graph
+    result.ID = hash32(buffer);
 
     result.buffer = buffer;
     result.memory = memory;
     result.data = data;
     result.size = sz;
+
+    // setting for aliases
+    for (Buffer* const buf : alisings)
+    {
+        buf->ID = hash32(buf->buffer);
+        buf->memory = memory;
+        buf->data = data;
+        buf->size = sz;
+    }
 }
 
 void uploadBuffer(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer cmdBuffer, VkQueue queue, const Buffer& buffer, const Buffer& scratch, const void* data, size_t size)
@@ -99,14 +151,21 @@ void flushBuffer(VkDevice device, const Buffer& buffer, uint32_t offset /* = 0*/
     VK_CHECK(vkFlushMappedMemoryRanges(device, 1, &range));
 }
 
-void destroyBuffer(VkDevice device, const Buffer& buffer)
+void destroyBuffer(VkDevice device, const Buffer& buffer, BufferAliases aliasings /* = {} */)
 {
     // depends on the doc:
     //    If a memory object is mapped at the time it is freed, it is implicitly unmapped.
     // https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/vkFreeMemory.html
     vkFreeMemory(device, buffer.memory, 0);
     vkDestroyBuffer(device, buffer.buffer, 0);
+
+    for (Buffer* const buf : aliasings)
+    {
+        // no need to free memory, because it is shared with the original one
+        vkDestroyBuffer(device, buf->buffer, 0);
+    }
 }
+
 
 VkBufferMemoryBarrier2 bufferBarrier(VkBuffer buffer, VkAccessFlags2 srcAccessMask, VkPipelineStageFlags2 srcStage, VkAccessFlags2 dstAccessMask, VkPipelineStageFlags2 dstStage)
 {
@@ -124,7 +183,9 @@ VkBufferMemoryBarrier2 bufferBarrier(VkBuffer buffer, VkAccessFlags2 srcAccessMa
     return result;
 }
 
-void createImage(Image& result, VkDevice device, const VkPhysicalDeviceMemoryProperties& memoryProps, const VkFormat format, const ImgInitProps imgProps)
+
+
+void createImage(Image& result, VkDevice device, const VkPhysicalDeviceMemoryProperties& memoryProps, const VkFormat format, const ImgInitProps imgProps, ImageAliases aliases /*= {}*/)
 {
     VkImageCreateInfo createInfo = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
 
@@ -146,6 +207,12 @@ void createImage(Image& result, VkDevice device, const VkPhysicalDeviceMemoryPro
     VkImage image = 0;
     VK_CHECK(vkCreateImage(device, &createInfo, 0, &image));
 
+    // create for aliases
+    for (Image* const img : aliases)
+    {
+        VK_CHECK(vkCreateImage(device, &createInfo, 0, &img->image));
+    }
+
     VkMemoryRequirements memoryReqs;
     vkGetImageMemoryRequirements(device, image, &memoryReqs);
 
@@ -158,8 +225,15 @@ void createImage(Image& result, VkDevice device, const VkPhysicalDeviceMemoryPro
     VkDeviceMemory memory = 0;
     VK_CHECK(vkAllocateMemory(device, &allocInfo, 0, &memory));
 
-    VK_CHECK(vkBindImageMemory(device, image, memory, 0));
 
+    VK_CHECK(vkBindImageMemory(device, image, memory, 0));
+    for (Image* const img : aliases) // bind memory for alias
+    {
+        VK_CHECK(vkBindImageMemory(device, img->image, memory, 0));
+    }
+
+    // calculate ID for render graph
+    result.ID = hash32(image);
     result.image = image;
     result.imageView = createImageView(device, image, format, 0, imgProps.mipLevels, imgProps.viewType);
     result.memory = memory;
@@ -167,6 +241,18 @@ void createImage(Image& result, VkDevice device, const VkPhysicalDeviceMemoryPro
     result.width = imgProps.width;
     result.height = imgProps.height;
     result.mipLevels = imgProps.mipLevels;
+
+    // setting for aliases
+    for (Image* const img : aliases)
+    {
+        img->ID = hash32(img->image);
+        img->imageView = createImageView(device, img->image, format, 0, imgProps.mipLevels, imgProps.viewType); // ImageView bind to the image handle it self, should create a new one for alias
+        img->memory = memory;
+
+        img->width = imgProps.width;
+        img->height = imgProps.height;
+        img->mipLevels = imgProps.mipLevels;
+    }
 }
 
 
@@ -524,4 +610,121 @@ VkSampler createSampler(VkDevice device, VkSamplerReductionMode reductionMode /*
     VK_CHECK(vkCreateSampler(device, &createInfo, 0, &sampler));
 
     return sampler;
+}
+
+
+
+void getResourceAliases(ResourceAlias& output, ResourceID id, const ResTable& table)
+{
+    ResourceAlias result = {};
+    uint32_t resIdx = -1;
+    const std::vector<ResourceID>& reses = table.baseReses;
+    for (uint32_t idx = 0; idx != reses.size(); ++idx)
+    {
+        if (reses[idx] == id)
+        {
+            resIdx = idx;
+            break;
+        }
+    }
+
+    if (resIdx == -1)
+    {
+        assert("!no resource found!");
+        return;
+    }
+
+    const std::vector<ResourceAlias>&  aliases= table.aliases;
+    const ResourceAlias& alias = aliases[resIdx];
+    
+
+    result.aliasesID.assign(alias.aliasesID.begin(), alias.aliasesID.end());
+}
+
+void getResource(Image& image, Buffer& buffer, ResourceMap resMap, const ResourceID id)
+{
+    if (id & 0x80000000) {
+        buffer = resMap.buffers[id];
+    }
+    else {
+        image = resMap.images[id];
+    }
+}
+
+void resetActiveAlias(ResTable& table)
+{
+    const std::vector<ResourceID>& reses = table.activeAlias;
+    for (uint32_t idx = 0; idx != reses.size(); ++idx)
+    {
+        table.activeAlias[idx] = table.baseReses[idx];
+        table.activeAliasesIdx[idx] = -1;
+    }
+}
+
+ResourceID getActiveAlias(const ResTable& table, const ResourceID baseResourceID)
+{
+    ResourceID result = baseResourceID;
+
+    uint32_t resIdx = -1;
+
+    const std::vector<ResourceID>& bases = table.baseReses;
+    for (uint32_t idx = 0; idx != bases.size(); ++idx)
+    {
+        if (bases[idx] == baseResourceID)
+        {
+            resIdx = idx;
+            result = table.activeAlias[idx];
+            break;
+        }
+    }
+
+    if (resIdx == -1)
+    {
+        assert("!no resource found!");
+    }
+
+    return result;
+
+}
+
+ResourceID nextAlias(ResTable& table, const ResourceID baseResourceID)
+{
+    ResourceID result = baseResourceID;
+
+    uint32_t resIdx = -1;
+    const std::vector<ResourceID>& bases = table.baseReses;
+    for (uint32_t idx = 0; idx != bases.size(); ++idx)
+    {
+        if (bases[idx] == baseResourceID)
+        {
+            resIdx = idx;
+            break;
+        }
+    }
+
+    if (resIdx == -1)
+    {
+        assert("!no base resource found!");
+        return result;
+    }
+
+    // update active alias and idx
+    const std::vector<ResourceID>& aliases = table.aliases[resIdx].aliasesID;
+    if ((table.activeAliasesIdx[resIdx] + 1) < aliases.size())
+    {
+        table.activeAliasesIdx[resIdx]++;
+        ResourceID nextAliasID = aliases[table.activeAliasesIdx[resIdx]];
+        table.activeAlias[resIdx] = aliases[nextAliasID];
+    }
+    else
+    {
+        assert("!no more alias!");
+        table.activeAliasesIdx[resIdx] = -1;
+        table.activeAlias[resIdx] = baseResourceID;
+    }
+
+    result = table.activeAlias[resIdx];
+
+
+    return result;
 }

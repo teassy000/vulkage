@@ -24,6 +24,7 @@ layout(push_constant) uniform block
     Globals globals;
 };
 
+// read
 layout(binding = 0) readonly buffer DrawCommands 
 {
     MeshDrawCommand drawCmds[];
@@ -54,11 +55,13 @@ layout(binding = 6) readonly buffer Transform
     TransformData trans;
 };
 
+// read/write
 layout(binding = 7) buffer MeshletVisibility
 {
     uint meshletVisibility[];
 };
 
+// read
 layout(binding = 8) uniform sampler2D pyramid;
 
 taskPayloadSharedEXT TaskPayload payload;

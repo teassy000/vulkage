@@ -19,6 +19,7 @@ layout(push_constant) uniform block
     MeshDrawCull cull;
 };
 
+// readonly
 layout(binding = 0) readonly buffer Meshes
 {
     Mesh meshes[];
@@ -34,6 +35,7 @@ layout(binding = 2) readonly buffer Transform
     TransformData transform;
 };
 
+// writeonly
 layout(binding = 3) writeonly buffer DrawCommands
 {
     MeshDrawCommand drawCmds[];
@@ -44,6 +46,7 @@ layout(binding = 3) writeonly buffer TaskCommands
     MeshTaskCommand taskCmds[];
 };
 
+// read/write 
 layout(binding = 4) buffer DrawCommandCount
 {
     uint drawCmdCount;

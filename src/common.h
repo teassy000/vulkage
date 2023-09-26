@@ -4,6 +4,7 @@
 #include <volk.h>
 
 #include <vector>
+#include <unordered_map>
 
 #define VK_CHECK(call) \
 	do{ \

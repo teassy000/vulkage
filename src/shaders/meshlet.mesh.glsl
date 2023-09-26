@@ -10,8 +10,8 @@
 #include "mesh_gpu.h"
 #include "math.h"
 
-#define DEBUG 0
-#define LIGHT 1
+
+#define LIGHT 0
 #define CULL 1
 
 
@@ -22,7 +22,7 @@ layout(push_constant) uniform block
 {
     Globals globals;
 };
-
+// readonly
 layout(binding = 2) readonly buffer MeshDraws 
 {
     MeshDraw meshDraws[];
@@ -90,7 +90,7 @@ void main()
     uint vertexOffset = dataOffset;
     uint indexOffset = dataOffset + vertexCount;
 
-#if DEBUG
+#if DEBUG_MESHLET
     uint mhash = hash(mi);
     vec3 mcolor = vec3(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255)) / 255.0;
 #endif
@@ -112,7 +112,7 @@ void main()
         outNormal[i] = norm;
         outWorldPos[i] = rotateQuat( pos, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
 
-#if DEBUG
+#if DEBUG_MESHLET
         color[i] = vec4(mcolor, 1.0);
 #elif LIGHT
         vec3 worldNormal = normalize( vec4(rotateQuat( norm, meshDraw.orit), 1.0).xyz);

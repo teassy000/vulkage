@@ -1,24 +1,30 @@
 #pragma once
 
+typedef unsigned int ResourceID;
+
 struct Buffer
 {
+    ResourceID ID;
+
     VkBuffer buffer;
     VkDeviceMemory memory;
     void* data;
     size_t size;
 };
 
+using BufferAliases = std::initializer_list<Buffer * const>;
 
-void createBuffer(Buffer& result, const VkPhysicalDeviceMemoryProperties& memoryProps, VkDevice device, size_t sz, VkBufferUsageFlags usage, VkMemoryPropertyFlags memFlags);
+void createBuffer(Buffer& result, const VkPhysicalDeviceMemoryProperties& memoryProps, VkDevice device, size_t sz, VkBufferUsageFlags usage, VkMemoryPropertyFlags memFlags, BufferAliases = {});
 void uploadBuffer(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer cmdBuffer, VkQueue queue, const Buffer& buffer, const Buffer& scratch, const void* data, size_t size);
 void flushBuffer(VkDevice device, const Buffer& buffer, uint32_t offset = 0);
-void destroyBuffer(VkDevice device, const Buffer& buffer);
+void destroyBuffer(VkDevice device, const Buffer& buffer, BufferAliases = {});
 
 VkBufferMemoryBarrier2 bufferBarrier(VkBuffer buffer, VkAccessFlags2 srcAccessMask, VkPipelineStageFlags2 srcStage, VkAccessFlags2 dstAccessMask, VkPipelineStageFlags2 dstStage);
 
-
 struct Image
 {
+    ResourceID ID;
+
     VkImage image;
     VkImageView imageView;
     VkDeviceMemory memory;
@@ -38,7 +44,9 @@ struct ImgInitProps
     VkImageViewType   viewType{ VK_IMAGE_VIEW_TYPE_2D };
 };
 
-void createImage(Image& result, VkDevice device, const VkPhysicalDeviceMemoryProperties& memoryProps, const VkFormat format, const ImgInitProps createInfo);
+using ImageAliases = std::initializer_list<Image* const>;
+
+void createImage(Image& result, VkDevice device, const VkPhysicalDeviceMemoryProperties& memoryProps, const VkFormat format, const ImgInitProps createInfo, ImageAliases = {});
 void loadTexture2DFromFile(Image& tex2d, const char* path, VkDevice device, VkCommandPool cmdPool, VkQueue queue, const VkPhysicalDeviceMemoryProperties& memoryProps, VkFormat format, VkImageUsageFlags usage, VkImageLayout layout);
 void loadTexture2DArrayFromFile(Image& tex2dArray, const char* path, VkDevice device, VkCommandPool cmdPool, VkQueue queue, const VkPhysicalDeviceMemoryProperties& memoryProps, VkFormat format, VkImageUsageFlags usage);
 void loadTextureCubeFromFile(Image& texCube, const char* path, VkDevice device, VkCommandPool cmdPool, VkQueue queue, const VkPhysicalDeviceMemoryProperties& memoryProps, VkFormat format, VkImageUsageFlags usage, VkImageLayout layout);
@@ -52,3 +60,36 @@ void pipelineBarrier(VkCommandBuffer cmdBuffer, VkDependencyFlags flags, size_t 
 uint32_t calculateMipLevelCount(uint32_t width, uint32_t height);
 
 VkSampler createSampler(VkDevice device, VkSamplerReductionMode reductionMode = VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE);
+
+
+struct ResourceAlias
+{
+    std::vector<ResourceID> aliasesID;
+};
+
+struct ResTable
+{
+    std::vector<ResourceID> baseReses;
+    std::vector<ResourceAlias> aliases;
+    std::vector<ResourceID> activeAlias;
+    std::vector<uint32_t> activeAliasesIdx;
+};
+
+struct ResourceMap
+{
+    // store all resources, no matter it is a alias or not
+    std::unordered_map<ResourceID, Buffer> buffers;
+    std::unordered_map<ResourceID, Image> images;
+};
+
+struct ResMgr
+{
+    ResTable resTable;
+    ResourceMap resMap;
+};
+
+void getResourceAliases(ResourceAlias& output, ResourceID id, const ResTable& table);
+void getResource(Image& image, Buffer& buffer, ResourceMap resMap, const ResourceID id);
+void resetActiveAlias(ResTable& table); // call at the end of every frame
+ResourceID getActiveAlias(const ResTable& table, const ResourceID baseResourceID);
+ResourceID nextAlias(ResTable& table, const ResourceID id); // call after a pass wrote to a resource

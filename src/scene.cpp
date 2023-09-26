@@ -11,11 +11,11 @@ enum class Scene_Enum
     CornellBox,
 };
 
-static Scene_Enum se = Scene_Enum::MatrixScene;
+static Scene_Enum se = Scene_Enum::RamdomScene;
 
 void CreateRandomScene(Scene& scene)
 {
-    uint32_t drawCount = 1000000;
+    uint32_t drawCount = 1'000'000;
     std::vector<MeshDraw> meshDraws(drawCount);
 
     float randomDist = 200;

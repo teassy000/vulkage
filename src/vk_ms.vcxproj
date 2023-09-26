@@ -197,6 +197,7 @@
     <ClCompile Include="..\externs\volk\volk.c" />
     <ClCompile Include="camera.cpp" />
     <ClCompile Include="device.cpp" />
+    <ClCompile Include="framegraph.cpp" />
     <ClCompile Include="mesh.cpp" />
     <ClCompile Include="scene.cpp" />
     <ClCompile Include="vk_ms.cpp" />
@@ -227,6 +228,8 @@
     <ClInclude Include="material.h" />
     <ClInclude Include="math.h" />
     <ClInclude Include="mesh.h" />
+    <ClInclude Include="framegraph.h" />
+    <ClInclude Include="renderpass.h" />
     <ClInclude Include="scene.h" />
     <ClInclude Include="uidata.h" />
     <ClInclude Include="resources.h" />

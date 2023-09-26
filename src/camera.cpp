@@ -10,8 +10,8 @@ void freeCameraInit(FreeCamera& camera, vec3 pos, vec3 up, float yaw, float pitc
     camera.yaw = yaw;
     camera.pitch = pitch;
     camera.front = vec3(0.f, 0.f, 1.f);
-    camera.moveSpeed = .2f;
-    camera.mouseSensitivity = .2f;
+    camera.moveSpeed = .1f;
+    camera.mouseSensitivity = .1f;
     freeCameraUpdateVectors(camera);
 }
 

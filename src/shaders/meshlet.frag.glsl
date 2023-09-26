@@ -115,6 +115,10 @@ vec3 BSDF(vec3 L, vec3 V, vec3 N, float metallic, float roughness)
 
 void main()
 {
+
+#if DEBUG_MESHLET
+    outputColor = inColor;
+#else
     const float p = 150.0;
     vec3 lights[4] = 
     {
@@ -144,4 +148,5 @@ void main()
     color = pow(color, vec3(0.4545));
 
     outputColor = vec4(color, 1.0);
+#endif
 }
