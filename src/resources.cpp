@@ -39,7 +39,8 @@ uint32_t selectMemoryType(const VkPhysicalDeviceMemoryProperties& memoryProps, u
     return ~0u;
 }
 
-void createBuffer(Buffer& result, const VkPhysicalDeviceMemoryProperties& memoryProps, VkDevice device, size_t sz, VkBufferUsageFlags usage, VkMemoryPropertyFlags memFlags, BufferAliases alisings)
+void createBuffer(Buffer& result, const VkPhysicalDeviceMemoryProperties& memoryProps, VkDevice device, size_t sz
+    , VkBufferUsageFlags usage, VkMemoryPropertyFlags memFlags, BufferAliases alisings /* = {}*/, const uint32_t aliasCount /*= 0*/)
 {
     VkBufferCreateInfo createInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
     createInfo.size = sz;
@@ -151,15 +152,15 @@ void flushBuffer(VkDevice device, const Buffer& buffer, uint32_t offset /* = 0*/
     VK_CHECK(vkFlushMappedMemoryRanges(device, 1, &range));
 }
 
-void destroyBuffer(VkDevice device, const Buffer& buffer, BufferAliases aliasings /* = {} */)
+void destroyBuffer(VkDevice device, const Buffer& buffer, BufferAliases aliases /* = {} */)
 {
-    // depends on the doc:
+    // depends on this doc:
     //    If a memory object is mapped at the time it is freed, it is implicitly unmapped.
     // https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/vkFreeMemory.html
     vkFreeMemory(device, buffer.memory, 0);
     vkDestroyBuffer(device, buffer.buffer, 0);
 
-    for (Buffer* const buf : aliasings)
+    for (Buffer* const buf : aliases)
     {
         // no need to free memory, because it is shared with the original one
         vkDestroyBuffer(device, buf->buffer, 0);
@@ -185,7 +186,8 @@ VkBufferMemoryBarrier2 bufferBarrier(VkBuffer buffer, VkAccessFlags2 srcAccessMa
 
 
 
-void createImage(Image& result, VkDevice device, const VkPhysicalDeviceMemoryProperties& memoryProps, const VkFormat format, const ImgInitProps imgProps, ImageAliases aliases /*= {}*/)
+void createImage(Image& result, VkDevice device, const VkPhysicalDeviceMemoryProperties& memoryProps
+    , const VkFormat format, const ImgInitProps imgProps, ImageAliases aliases /*= {}*/, const uint32_t aliasCount /* = 0*/)
 {
     VkImageCreateInfo createInfo = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
 
@@ -511,11 +513,18 @@ void uploadImage(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer cmdBuff
     VK_CHECK(vkDeviceWaitIdle(device));
 }
 
-void destroyImage(VkDevice device, const Image& image)
+void destroyImage(VkDevice device, const Image& image, ImageAliases aliases /*= {}*/)
 {
     vkFreeMemory(device, image.memory, 0);
     vkDestroyImageView(device, image.imageView, 0);
     vkDestroyImage(device, image.image, 0);
+
+    for (Image* const img : aliases)
+    {
+        // no need to free memory, because it is shared with the original one
+        vkDestroyImageView(device, img->imageView, 0);
+        vkDestroyImage(device, img->image, 0);
+    }
 }
 
 
