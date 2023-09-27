@@ -499,52 +499,52 @@ int main(int argc, const char** argv)
         assert(lsr);
     }
 
-    Buffer scratch = {};
-    createBuffer(scratch, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+    Buffer buf_tmp = {}; // use this to transfer buffer to device local buffer
+    createBuffer(buf_tmp, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
-    Buffer mb = {};
-    createBuffer(mb, memoryProps, device, scene.geometry.meshes.size() * sizeof(Mesh), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    Buffer buf_mesh = {};
+    createBuffer(buf_mesh, memoryProps, device, scene.geometry.meshes.size() * sizeof(Mesh), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    Buffer vb = {};
-    createBuffer(vb, memoryProps, device, scene.geometry.vertices.size() * sizeof(Vertex), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    Buffer buf_vtx = {};
+    createBuffer(buf_vtx, memoryProps, device, scene.geometry.vertices.size() * sizeof(Vertex), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    Buffer ib = {};
-    createBuffer(ib, memoryProps, device, scene.geometry.indices.size() * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    Buffer buf_idx = {};
+    createBuffer(buf_idx, memoryProps, device, scene.geometry.indices.size() * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
 
-    Buffer mlb = {}; // meshlet buffer
-    Buffer mdb = {}; // meshlet data buffer
+    Buffer buf_meshlet = {}; // meshlet buffer
+    Buffer buf_mltData = {}; // meshlet data buffer
     if (meshShadingSupported)
     {
-        createBuffer(mlb, memoryProps, device, scene.geometry.meshlets.size() * sizeof(Meshlet), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        createBuffer(mdb, memoryProps, device, scene.geometry.meshletdata.size() * sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        createBuffer(buf_meshlet, memoryProps, device, scene.geometry.meshlets.size() * sizeof(Meshlet), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        createBuffer(buf_mltData, memoryProps, device, scene.geometry.meshletdata.size() * sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     }
 
-    uploadBuffer(device, cmdPool, cmdBuffer, queue, mb, scratch, scene.geometry.meshes.data(), scene.geometry.meshes.size() * sizeof(Mesh));
+    uploadBuffer(device, cmdPool, cmdBuffer, queue, buf_mesh, buf_tmp, scene.geometry.meshes.data(), scene.geometry.meshes.size() * sizeof(Mesh));
 
-    uploadBuffer(device, cmdPool, cmdBuffer, queue, vb, scratch, scene.geometry.vertices.data(), scene.geometry.vertices.size() * sizeof(Vertex));
-    uploadBuffer(device, cmdPool, cmdBuffer, queue, ib, scratch, scene.geometry.indices.data(), scene.geometry.indices.size() * sizeof(uint32_t));
+    uploadBuffer(device, cmdPool, cmdBuffer, queue, buf_vtx, buf_tmp, scene.geometry.vertices.data(), scene.geometry.vertices.size() * sizeof(Vertex));
+    uploadBuffer(device, cmdPool, cmdBuffer, queue, buf_idx, buf_tmp, scene.geometry.indices.data(), scene.geometry.indices.size() * sizeof(uint32_t));
 
     if (meshShadingSupported)
     {
-        uploadBuffer(device, cmdPool, cmdBuffer, queue, mlb, scratch, scene.geometry.meshlets.data(), scene.geometry.meshlets.size() * sizeof(Meshlet));
-        uploadBuffer(device, cmdPool, cmdBuffer, queue, mdb, scratch, scene.geometry.meshletdata.data(), scene.geometry.meshletdata.size() * sizeof(uint32_t));
+        uploadBuffer(device, cmdPool, cmdBuffer, queue, buf_meshlet, buf_tmp, scene.geometry.meshlets.data(), scene.geometry.meshlets.size() * sizeof(Meshlet));
+        uploadBuffer(device, cmdPool, cmdBuffer, queue, buf_mltData, buf_tmp, scene.geometry.meshletdata.data(), scene.geometry.meshletdata.size() * sizeof(uint32_t));
     }
 
-    Image colorTarget = {};
-    Image colorTarget_alias0 = {}, colorTarget_alias1 = {}; // aliasing, to avoid cycle in DAG
+    Image img_col = {}; // color buffer for render pass
+    Image img_col_alia0 = {}, img_col_alia1 = {}; // aliasing, to avoid cycle in DAG
 
-    Image depthTarget = {};
-    Image depthTarget_alias0 = {}, depthTarget_alias1 = {}; // aliasing, to avoid cycle in DAG
+    Image img_dpt = {}; // depth buffer for render pass
+    Image img_dpt_alia0 = {}, img_dpt_alia1 = {}; // aliasing, to avoid cycle in DAG
     
-    Image renderTarget = {};
-    Image renderTarget_alias0 = {}, renderTarget_alias1 = {}; // aliasing, to avoid cycle in DAG
+    Image img_rt = {}; // final render target
+    Image img_rt_alia0 = {}, img_rt_alia1 = {}; // aliasing, to avoid cycle in DAG
 
-    Image depthPyramid = {};
-    Image depthPyramid_alias0 = {}; // aliasing, to avoid cycle in DAG
+    Image img_dPyr = {}; // depth pyramid
+    Image img_dPyr_alia0 = {}; // aliasing, to avoid cycle in DAG
 
-    uint32_t depthPyramidLevels = 0;
-    VkImageView depthPyramidMips[16] = {};
+    uint32_t dPyrLevels = 0;
+    VkImageView dPyrMips[16] = {};
 
     VkSampler depthSampler = createSampler(device, VK_SAMPLER_REDUCTION_MODE_MIN);
     assert(depthSampler);
@@ -573,37 +573,37 @@ int main(int argc, const char** argv)
         assert(taskLatePipelineMS);
     }
 
-    Buffer mdrb = {}; //mesh draw buffer
-    createBuffer(mdrb, memoryProps, device, scene.meshDraws.size() * sizeof(MeshDraw), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    uploadBuffer(device, cmdPool, cmdBuffer, queue, mdrb, scratch, scene.meshDraws.data(), scene.meshDraws.size() * sizeof(MeshDraw));
+    Buffer buf_md = {}; //mesh draw buffer
+    createBuffer(buf_md, memoryProps, device, scene.meshDraws.size() * sizeof(MeshDraw), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    uploadBuffer(device, cmdPool, cmdBuffer, queue, buf_md, buf_tmp, scene.meshDraws.data(), scene.meshDraws.size() * sizeof(MeshDraw));
 
-    Buffer mdcb = {}; // mesh draw command buffer
-    Buffer mdcb_alias0 = {}, mdcb_alias1 = {}; // aliasing, to avoid cycle in DAG, every read/write operation must have a pair of aliasing.
-    createBuffer(mdcb, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, { &mdcb_alias0, &mdcb_alias1});
+    Buffer buf_mdCmd = {}; // mesh draw command buffer
+    Buffer buf_mdCmd_alia0 = {}, buf_mdCmd_alia1 = {}; // aliasing, to avoid cycle in DAG, every read/write operation must have a pair of aliasing.
+    createBuffer(buf_mdCmd, memoryProps, device, 128 * 1024 * 1024, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, { &buf_mdCmd_alia0, &buf_mdCmd_alia1});
 
-    Buffer mdccb = {}; // mesh draw command count buffer
-    Buffer mdccb_alias0 = {}, mdccb_alias1 = {}; // aliasing, to avoid cycle in DAG
-    createBuffer(mdccb, memoryProps, device, 16, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, {&mdccb_alias0, &mdccb_alias1 });
+    Buffer buf_mdcCnt = {}; // mesh draw command count buffer
+    Buffer buf_mdcCnt_alia0 = {}, buf_mdcCnt_alia1 = {}; // aliasing, to avoid cycle in DAG
+    createBuffer(buf_mdcCnt, memoryProps, device, 16, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, {&buf_mdcCnt_alia0, &buf_mdcCnt_alia1 });
 
-    Buffer tb = {}; // transform data buffer
-    createBuffer(tb, memoryProps, device, sizeof(TransformData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    Buffer buf_tf = {}; // transform data buffer
+    createBuffer(buf_tf, memoryProps, device, sizeof(TransformData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    Buffer mdvb = {}; // mesh draw visibility buffer
-    Buffer mdvb_alias0 = {}, mdvb_alias1 = {}; // aliasing, to avoid cycle in DAG
-    createBuffer(mdvb, memoryProps, device, scene.drawCount * sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, {&mdvb_alias0, &mdvb_alias1});
+    Buffer buf_mdVis = {}; // mesh draw visibility buffer
+    Buffer buf_mdVis_alia0 = {}, buf_mdVis_alia1 = {}; // aliasing, to avoid cycle in DAG
+    createBuffer(buf_mdVis, memoryProps, device, scene.drawCount * sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, {&buf_mdVis_alia0, &buf_mdVis_alia1});
 
     uint32_t meshletVisibilityDataSize = (scene.meshletVisibilityCount + 31) / 32 * sizeof(uint32_t);
-    Buffer mlvb = {}; // meshlet visibility buffer
-    Buffer mlvb_alias0 = {}, mlvb_alias1 = {}; // aliasing, to avoid cycle in DAG
+    Buffer buf_mltVis = {}; // meshlet visibility buffer
+    Buffer buf_mltVis_alia0 = {}, buf_mltVis_alia1 = {}; // aliasing, to avoid cycle in DAG
     if(meshShadingSupported)
-        createBuffer(mlvb, memoryProps, device, meshletVisibilityDataSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, {&mlvb_alias0, &mlvb_alias1});
+        createBuffer(buf_mltVis, memoryProps, device, meshletVisibilityDataSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, {&buf_mltVis_alia0, &buf_mltVis_alia1});
 
     // skybox
-    Image skyboxImage{};
-    loadTextureCubeFromFile(skyboxImage, "../data/textures/cubemap_vulkan.ktx", device, cmdPool, queue, memoryProps, imageFormat, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_GENERAL);
+    Image img_skybox{};
+    loadTextureCubeFromFile(img_skybox, "../data/textures/cubemap_vulkan.ktx", device, cmdPool, queue, memoryProps, imageFormat, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_GENERAL);
     //skyboxImage.imageView = createImageView(device, skyboxImage.image, imageFormat, 0, skyboxImage.mipLevels, VK_IMAGE_VIEW_TYPE_CUBE);
 
-    VkSampler skyboxSampler = createSampler(device);
+    VkSampler spl_skybox = createSampler(device);
     
     Shader skyboxVS = {};
     lsr = loadShader(skyboxVS, device, "shaders/skybox.vert.spv");
@@ -615,13 +615,13 @@ int main(int argc, const char** argv)
     Geometry skyboxGeometry = {};
     loadMesh(skyboxGeometry, "../data/cube_skybox.obj", false);
 
-    Buffer skyboxVB = {};
-    createBuffer(skyboxVB, memoryProps, device, skyboxGeometry.vertices.size() * sizeof(Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    uploadBuffer(device, cmdPool, cmdBuffer, queue, skyboxVB, scratch, skyboxGeometry.vertices.data(), skyboxGeometry.vertices.size() * sizeof(Vertex));
+    Buffer buf_vtx_skybox = {};
+    createBuffer(buf_vtx_skybox, memoryProps, device, skyboxGeometry.vertices.size() * sizeof(Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    uploadBuffer(device, cmdPool, cmdBuffer, queue, buf_vtx_skybox, buf_tmp, skyboxGeometry.vertices.data(), skyboxGeometry.vertices.size() * sizeof(Vertex));
 
-    Buffer skyboxIB = {};
-    createBuffer(skyboxIB, memoryProps, device, skyboxGeometry.indices.size() * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    uploadBuffer(device, cmdPool, cmdBuffer, queue, skyboxIB, scratch, skyboxGeometry.indices.data(), skyboxGeometry.indices.size() * sizeof(uint32_t));
+    Buffer buf_idx_skybox = {};
+    createBuffer(buf_idx_skybox, memoryProps, device, skyboxGeometry.indices.size() * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    uploadBuffer(device, cmdPool, cmdBuffer, queue, buf_idx_skybox, buf_tmp, skyboxGeometry.indices.data(), skyboxGeometry.indices.size() * sizeof(uint32_t));
 
     Program skyboxProgram = createProgram(device, VK_PIPELINE_BIND_POINT_GRAPHICS, { &skyboxVS, &skyboxFS });
     VkPipeline skyboxPipeline = 0;
@@ -678,29 +678,29 @@ int main(int argc, const char** argv)
     FrameGraph fg{};
     RenderPass earlyCullPass{};
     //mb.buffer, mdrb.buffer, tb.buffer, mdcb.buffer, mdccb.buffer, buf.buffer,
-    earlyCullPass.inputResID.push_back(mb.ID);
-    earlyCullPass.inputResID.push_back(mdrb.ID);
-    earlyCullPass.inputResID.push_back(tb.ID);
-    earlyCullPass.inputResID.push_back(mdcb.ID);
-    earlyCullPass.inputResID.push_back(mdccb.ID);
-    earlyCullPass.inputResID.push_back(mdvb_alias0.ID);
+    earlyCullPass.inputResID.push_back(buf_mesh.ID);
+    earlyCullPass.inputResID.push_back(buf_md.ID);
+    earlyCullPass.inputResID.push_back(buf_tf.ID);
+    earlyCullPass.inputResID.push_back(buf_mdCmd.ID);
+    earlyCullPass.inputResID.push_back(buf_mdcCnt.ID);
+    earlyCullPass.inputResID.push_back(buf_mdVis_alia0.ID);
 
-    earlyCullPass.outputResID.push_back(mdcb_alias0.ID);
-    earlyCullPass.outputResID.push_back(mdccb_alias0.ID);
+    earlyCullPass.outputResID.push_back(buf_mdCmd_alia0.ID);
+    earlyCullPass.outputResID.push_back(buf_mdcCnt_alia0.ID);
 
     RenderPass earlyDrawPass{};
     RenderPass pyrimidPass{};
     
     RenderPass lateCullPass{};
-    earlyCullPass.inputResID.push_back(mb.ID);
-    earlyCullPass.inputResID.push_back(mdrb.ID);
-    earlyCullPass.inputResID.push_back(tb.ID);
-    earlyCullPass.inputResID.push_back(mdcb_alias0.ID);
-    earlyCullPass.inputResID.push_back(mdccb_alias0.ID);
-    earlyCullPass.inputResID.push_back(mdvb_alias1.ID);
+    earlyCullPass.inputResID.push_back(buf_mesh.ID);
+    earlyCullPass.inputResID.push_back(buf_md.ID);
+    earlyCullPass.inputResID.push_back(buf_tf.ID);
+    earlyCullPass.inputResID.push_back(buf_mdCmd_alia0.ID);
+    earlyCullPass.inputResID.push_back(buf_mdcCnt_alia0.ID);
+    earlyCullPass.inputResID.push_back(buf_mdVis_alia1.ID);
 
-    earlyCullPass.outputResID.push_back(mdcb_alias1.ID);
-    earlyCullPass.outputResID.push_back(mdccb_alias1.ID);
+    earlyCullPass.outputResID.push_back(buf_mdCmd_alia1.ID);
+    earlyCullPass.outputResID.push_back(buf_mdcCnt_alia1.ID);
 
     RenderPass lateDrawPass{};
     
@@ -722,21 +722,21 @@ int main(int argc, const char** argv)
             continue;
 
         // update/resize render targets
-        if (swapchainStatus == Resized || !colorTarget.image)
+        if (swapchainStatus == Resized || !img_col.image)
         {
-            if (colorTarget.image)
-                destroyImage(device, colorTarget, { &colorTarget_alias0, &colorTarget_alias1 });
-            if (depthTarget.image)
-                destroyImage(device, depthTarget, { &depthTarget_alias0, &depthTarget_alias1 });
-            if (renderTarget.image)
-                destroyImage(device, renderTarget, { &renderTarget_alias0, &renderTarget_alias1 });
-            if (depthPyramid.image)
+            if (img_col.image)
+                destroyImage(device, img_col, { &img_col_alia0, &img_col_alia1 });
+            if (img_dpt.image)
+                destroyImage(device, img_dpt, { &img_dpt_alia0, &img_dpt_alia1 });
+            if (img_rt.image)
+                destroyImage(device, img_rt, { &img_rt_alia0, &img_rt_alia1 });
+            if (img_dPyr.image)
             {
-                for (uint32_t i = 0; i < depthPyramidLevels; ++i)
+                for (uint32_t i = 0; i < dPyrLevels; ++i)
                 {
-                    vkDestroyImageView(device, depthPyramidMips[i], 0); //TODO: should I create a image view for aliasing?
+                    vkDestroyImageView(device, dPyrMips[i], 0); //TODO: should I create a image view for aliasing?
                 }
-                destroyImage(device, depthPyramid, { &depthPyramid_alias0 });
+                destroyImage(device, img_dPyr, { &img_dPyr_alia0 });
             }
 
             {
@@ -747,7 +747,7 @@ int main(int argc, const char** argv)
                 createInfo.type = VK_IMAGE_TYPE_2D;
                 createInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
-                createImage(colorTarget, device, memoryProps, imageFormat, createInfo, { &colorTarget_alias0, &colorTarget_alias1 });
+                createImage(img_col, device, memoryProps, imageFormat, createInfo, { &img_col_alia0, &img_col_alia1 });
             }
             {
                 ImgInitProps createInfo = {};
@@ -757,7 +757,7 @@ int main(int argc, const char** argv)
                 createInfo.type = VK_IMAGE_TYPE_2D;
                 createInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
-                createImage(depthTarget, device, memoryProps, depthFormat, createInfo, { &depthTarget_alias0, &depthTarget_alias1 });
+                createImage(img_dpt, device, memoryProps, depthFormat, createInfo, { &img_dpt_alia0, &img_dpt_alia1 });
             }
             {
                 ImgInitProps createInfo = {};
@@ -767,27 +767,27 @@ int main(int argc, const char** argv)
                 createInfo.type = VK_IMAGE_TYPE_2D;
                 createInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
-                createImage(renderTarget, device, memoryProps, imageFormat, createInfo, { &renderTarget_alias0, &renderTarget_alias1 });
+                createImage(img_rt, device, memoryProps, imageFormat, createInfo, { &img_rt_alia0, &img_rt_alia1 });
             }
 
             pyramidLevelWidth = previousPow2(swapchain.width);
             pyramidLevelHeight = previousPow2(swapchain.height);
-            depthPyramidLevels = calculateMipLevelCount(pyramidLevelWidth, pyramidLevelHeight);
-            s_depthPyramidCount = depthPyramidLevels;
+            dPyrLevels = calculateMipLevelCount(pyramidLevelWidth, pyramidLevelHeight);
+            s_depthPyramidCount = dPyrLevels;
             {
                 ImgInitProps createInfo = {};
                 createInfo.width = pyramidLevelWidth;
                 createInfo.height = pyramidLevelHeight;
-                createInfo.mipLevels = depthPyramidLevels;
+                createInfo.mipLevels = dPyrLevels;
                 createInfo.type = VK_IMAGE_TYPE_2D;
                 createInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-                createImage(depthPyramid, device, memoryProps, VK_FORMAT_R32_SFLOAT, createInfo, { &depthPyramid_alias0 });
+                createImage(img_dPyr, device, memoryProps, VK_FORMAT_R32_SFLOAT, createInfo, { &img_dPyr_alia0 });
             }
 
             
-            for (uint32_t i = 0; i < depthPyramidLevels; ++i)
+            for (uint32_t i = 0; i < dPyrLevels; ++i)
             {
-                depthPyramidMips[i] = createImageView(device, depthPyramid.image, VK_FORMAT_R32_SFLOAT, i, 1);
+                dPyrMips[i] = createImageView(device, img_dPyr.image, VK_FORMAT_R32_SFLOAT, i, 1);
             }
         }
         
@@ -820,7 +820,7 @@ int main(int argc, const char** argv)
         trans.proj = projection;
         trans.cameraPos = freeCamera.pos;
 
-        uploadBuffer(device, cmdPool, cmdBuffer, queue, tb, scratch, &trans, sizeof(trans));
+        uploadBuffer(device, cmdPool, cmdBuffer, queue, buf_tf, buf_tmp, &trans, sizeof(trans));
 
 
         uint32_t imageIndex = 0;
@@ -842,16 +842,16 @@ int main(int argc, const char** argv)
         // clear mdvb 
         if(!mdvbCleared)
         {
-            vkCmdFillBuffer(cmdBuffer, mdvb.buffer, 0, sizeof(uint32_t) * scene.drawCount, 0);
+            vkCmdFillBuffer(cmdBuffer, buf_mdVis.buffer, 0, sizeof(uint32_t) * scene.drawCount, 0);
 
             VkBufferMemoryBarrier2 barriers[] = {
-                bufferBarrier(mdvb.buffer,
+                bufferBarrier(buf_mdVis.buffer,
                     VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
                     VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT),
-                bufferBarrier(mdvb_alias0.buffer,
+                bufferBarrier(buf_mdVis_alia0.buffer,
                     VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
                     VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT),
-                bufferBarrier(mdvb_alias1.buffer,
+                bufferBarrier(buf_mdVis_alia1.buffer,
                     VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
                     VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT),
             };
@@ -861,9 +861,9 @@ int main(int argc, const char** argv)
 
         if (meshShadingSupported && !mlvbCleared)
         {
-            vkCmdFillBuffer(cmdBuffer, mlvb.buffer, 0, meshletVisibilityDataSize, 0); 
+            vkCmdFillBuffer(cmdBuffer, buf_mltVis.buffer, 0, meshletVisibilityDataSize, 0); 
 
-            VkBufferMemoryBarrier2 barrier = bufferBarrier(mlvb.buffer,
+            VkBufferMemoryBarrier2 barrier = bufferBarrier(buf_mltVis.buffer,
                 VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
                 VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
             pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 1, &barrier, 0, 0);
@@ -876,15 +876,15 @@ int main(int argc, const char** argv)
         {
             VkImageMemoryBarrier2 skyboxBarriers[] =
             {
-                imageBarrier(skyboxImage.image, 
+                imageBarrier(img_skybox.image, 
                 VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_IMAGE_LAYOUT_UNDEFINED, 0,
                  VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL ,VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT),
             };
 
             pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, COUNTOF(skyboxBarriers), skyboxBarriers);
 
-            Image& colorTarget_local = colorTarget;
-            Image& depthTarget_local = depthTarget;
+            Image& colorTarget_local = img_col;
+            Image& depthTarget_local = img_dpt;
 
             VkRenderingAttachmentInfo colorAttachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
             colorAttachment.clearValue.color = color;
@@ -918,13 +918,13 @@ int main(int argc, const char** argv)
             vkCmdSetViewport(cmdBuffer, 0, 1, &viewport);
             vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
 
-            DescriptorInfo skyboxDesc = { skyboxSampler, skyboxImage.imageView, VK_IMAGE_LAYOUT_GENERAL };
-            DescriptorInfo descInfos[] = { tb.buffer, skyboxDesc };
+            DescriptorInfo skyboxDesc = { spl_skybox, img_skybox.imageView, VK_IMAGE_LAYOUT_GENERAL };
+            DescriptorInfo descInfos[] = { buf_tf.buffer, skyboxDesc };
             vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, skyboxProgram.updateTemplate, skyboxProgram.layout, 0, descInfos);
 
             VkDeviceSize offsets[1] = { 0 };
-            vkCmdBindVertexBuffers(cmdBuffer, 0, 1, &skyboxVB.buffer, offsets);
-            vkCmdBindIndexBuffer(cmdBuffer, skyboxIB.buffer, 0, VK_INDEX_TYPE_UINT32);
+            vkCmdBindVertexBuffers(cmdBuffer, 0, 1, &buf_vtx_skybox.buffer, offsets);
+            vkCmdBindIndexBuffer(cmdBuffer, buf_idx_skybox.buffer, 0, VK_INDEX_TYPE_UINT32);
 
             vkCmdDrawIndexed(cmdBuffer, (uint32_t)skyboxGeometry.indices.size(), 1, 0, 0, 0);
 
@@ -935,12 +935,12 @@ int main(int argc, const char** argv)
 
         auto culling = [&](bool late, VkPipeline pipeline)
         {
-            Buffer& mdcb_local = late ? mdcb_alias0 : mdcb;
-            Buffer& mdccb_local = late ? mdccb_alias0 : mdccb; // both of them are accessing read & write
+            Buffer& mdcb_local = late ? buf_mdCmd_alia0 : buf_mdCmd;
+            Buffer& mdccb_local = late ? buf_mdcCnt_alia0 : buf_mdcCnt; // both of them are accessing read & write
 
-            Buffer& mdvb_local = late ? mdvb_alias0 : mdvb;
+            Buffer& mdvb_local = late ? buf_mdVis_alia0 : buf_mdVis;
 
-            Image& depthPyramid_local = late ? depthPyramid_alias0 : depthPyramid;
+            Image& depthPyramid_local = late ? img_dPyr_alia0 : img_dPyr;
 
             VkBufferMemoryBarrier2 preFillBarrier = bufferBarrier(mdccb_local.buffer,
                 VK_ACCESS_INDIRECT_COMMAND_READ_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
@@ -974,7 +974,7 @@ int main(int argc, const char** argv)
             {
                 vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
                 DescriptorInfo pyramidInfo = { depthSampler, depthPyramid_local.imageView, VK_IMAGE_LAYOUT_GENERAL };
-                DescriptorInfo descInfos[] = { mb.buffer, mdrb.buffer, tb.buffer, mdcb_local.buffer, mdccb_local.buffer, mdvb_local.buffer, pyramidInfo };
+                DescriptorInfo descInfos[] = { buf_mesh.buffer, buf_md.buffer, buf_tf.buffer, mdcb_local.buffer, mdccb_local.buffer, mdvb_local.buffer, pyramidInfo };
                 vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, drawcmdProgram.updateTemplate, drawcmdProgram.layout, 0, descInfos);
 
                 vkCmdDispatch(cmdBuffer, uint32_t((scene.meshDraws.size() + drawcmdCS.localSizeX - 1) / drawcmdCS.localSizeX), drawcmdCS.localSizeY, drawcmdCS.localSizeZ);
@@ -1016,13 +1016,13 @@ int main(int argc, const char** argv)
 
         auto pyramid = [&]()
         {
-            Image& depthTarget_local = depthTarget_alias0; // pyramid pass should call after early render pass, thus already one wrote.
+            Image& depthTarget_local = img_dpt_alia0; // pyramid pass should call after early render pass, thus already one wrote.
 
             VkImageMemoryBarrier2 pyrimidBeginBarriers[] = {
                 imageBarrier(depthTarget_local.image, VK_IMAGE_ASPECT_DEPTH_BIT,
                     VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
                     VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT),
-                imageBarrier(depthPyramid.image, VK_IMAGE_ASPECT_COLOR_BIT,
+                imageBarrier(img_dPyr.image, VK_IMAGE_ASPECT_COLOR_BIT,
                     VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                     VK_ACCESS_SHADER_WRITE_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT),
             };
@@ -1031,7 +1031,7 @@ int main(int argc, const char** argv)
 
             vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, depthPyramidPipeline);
 
-            for (uint32_t i = 0; i < depthPyramidLevels; ++i)
+            for (uint32_t i = 0; i < dPyrLevels; ++i)
             {
                 uint32_t levelWidth = glm::max(1u, pyramidLevelWidth >> i);
                 uint32_t levelHeight = glm::max(1u, pyramidLevelHeight >> i);
@@ -1042,17 +1042,17 @@ int main(int argc, const char** argv)
 
                 DescriptorInfo srcDepth = (i == 0)
                     ? DescriptorInfo{ depthSampler, depthTarget_local.imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL }
-                : DescriptorInfo{ depthSampler, depthPyramidMips[i - 1], VK_IMAGE_LAYOUT_GENERAL };
+                : DescriptorInfo{ depthSampler, dPyrMips[i - 1], VK_IMAGE_LAYOUT_GENERAL };
 
                 DescriptorInfo descInfos[] = {
                     srcDepth,
-                    {depthPyramidMips[i], VK_IMAGE_LAYOUT_GENERAL}, };
+                    {dPyrMips[i], VK_IMAGE_LAYOUT_GENERAL}, };
                 vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, depthPyramidProgram.updateTemplate, depthPyramidProgram.layout, 0, descInfos);
 
                 vkCmdDispatch(cmdBuffer, calcGroupCount(levelWidth, depthPyramidCS.localSizeX), calcGroupCount(levelHeight, depthPyramidCS.localSizeY), depthPyramidCS.localSizeZ);
 
                 // add barrier for next loop
-                VkImageMemoryBarrier2 reduceBarrier = imageBarrier(depthPyramid.image, VK_IMAGE_ASPECT_COLOR_BIT,
+                VkImageMemoryBarrier2 reduceBarrier = imageBarrier(img_dPyr.image, VK_IMAGE_ASPECT_COLOR_BIT,
                     VK_ACCESS_SHADER_WRITE_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                     VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
 
@@ -1063,10 +1063,10 @@ int main(int argc, const char** argv)
                 imageBarrier(depthTarget_local.image, VK_IMAGE_ASPECT_DEPTH_BIT,
                     VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                     VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT),
-                imageBarrier(depthPyramid.image, VK_IMAGE_ASPECT_COLOR_BIT,
+                imageBarrier(img_dPyr.image, VK_IMAGE_ASPECT_COLOR_BIT,
                     VK_ACCESS_SHADER_WRITE_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                     VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT),
-                imageBarrier(depthPyramid_alias0.image, VK_IMAGE_ASPECT_COLOR_BIT,
+                imageBarrier(img_dPyr_alia0.image, VK_IMAGE_ASPECT_COLOR_BIT,
                     VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                     VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT),
             };
@@ -1077,13 +1077,13 @@ int main(int argc, const char** argv)
 
         auto render = [&](bool late, bool taskSubmit, VkClearColorValue& color, VkClearDepthStencilValue& depth, VkPipeline pipeline, int32_t query)
         {
-            Buffer& mdcb_local = late ? mdcb_alias1 : mdcb_alias0;
-            Buffer& mdccb_local = late ? mdccb_alias1 : mdccb_alias0;
-            Buffer& mlvb_local = late ? mlvb_alias0 : mlvb; // mlvb will do the write in render pass, so it's later flip than mdcb and mdccb.
+            Buffer& mdcb_local = late ? buf_mdCmd_alia1 : buf_mdCmd_alia0;
+            Buffer& mdccb_local = late ? buf_mdcCnt_alia1 : buf_mdcCnt_alia0;
+            Buffer& mlvb_local = late ? buf_mltVis_alia0 : buf_mltVis; // mlvb will do the write in render pass, so it's later flip than mdcb and mdccb.
 
-            Image& colorTarget_local = late ? colorTarget_alias0 : colorTarget;
-            Image& depthTarget_local = late ? depthTarget_alias0 : depthTarget;
-            Image& pyramid_local = late ? depthPyramid_alias0 : depthPyramid; // late render pass called after pyramid pass, one wrote flipped.
+            Image& colorTarget_local = late ? img_col_alia0 : img_col;
+            Image& depthTarget_local = late ? img_dpt_alia0 : img_dpt;
+            Image& pyramid_local = late ? img_dPyr_alia0 : img_dPyr; // late render pass called after pyramid pass, one wrote flipped.
 
 
             VkImageMemoryBarrier2 beginRenderBarriers[] = {
@@ -1152,7 +1152,7 @@ int main(int argc, const char** argv)
                 vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
                 
                 DescriptorInfo pyramidInfo = { depthSampler, pyramid_local.imageView, VK_IMAGE_LAYOUT_GENERAL };
-                DescriptorInfo descInfos[] = { mdcb_local.buffer, mb.buffer, mdrb.buffer, mlb.buffer, mdb.buffer, vb.buffer, tb.buffer, mlvb_local.buffer, pyramidInfo };
+                DescriptorInfo descInfos[] = { mdcb_local.buffer, buf_mesh.buffer, buf_md.buffer, buf_meshlet.buffer, buf_mltData.buffer, buf_vtx.buffer, buf_tf.buffer, mlvb_local.buffer, pyramidInfo };
 
                 vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, meshProgramMS.updateTemplate, meshProgramMS.layout, 0, descInfos);
                 vkCmdPushConstants(cmdBuffer, meshProgramMS.layout, meshProgramMS.pushConstantStages, 0, sizeof(globals), &globals);
@@ -1166,12 +1166,12 @@ int main(int argc, const char** argv)
             {
                 vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, meshPipeline);
 
-                DescriptorInfo descInfos[] = { mdcb_local.buffer, mdrb.buffer, vb.buffer, tb.buffer };
+                DescriptorInfo descInfos[] = { mdcb_local.buffer, buf_md.buffer, buf_vtx.buffer, buf_tf.buffer };
 
                 vkCmdPushDescriptorSetWithTemplateKHR(cmdBuffer, meshProgram.updateTemplate, meshProgram.layout, 0, descInfos);
                 vkCmdPushConstants(cmdBuffer, meshProgram.layout, meshProgram.pushConstantStages, 0, sizeof(globals), &globals);
 
-                vkCmdBindIndexBuffer(cmdBuffer, ib.buffer, 0, VK_INDEX_TYPE_UINT32);
+                vkCmdBindIndexBuffer(cmdBuffer, buf_idx.buffer, 0, VK_INDEX_TYPE_UINT32);
                 vkCmdDrawIndexedIndirectCount(cmdBuffer, mdcb_local.buffer, offsetof(MeshDrawCommand, indirect), mdccb_local.buffer, 0, (uint32_t)scene.meshDraws.size(), sizeof(MeshDrawCommand));
             }
             
@@ -1219,13 +1219,13 @@ int main(int argc, const char** argv)
 
         
         VkImageMemoryBarrier2 copyBarriers[] = {
-            imageBarrier(colorTarget_alias1.image, VK_IMAGE_ASPECT_COLOR_BIT, 
+            imageBarrier(img_col_alia1.image, VK_IMAGE_ASPECT_COLOR_BIT, 
                 VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                 VK_ACCESS_TRANSFER_READ_BIT , VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT),
-            imageBarrier(depthPyramid_alias0.image, VK_IMAGE_ASPECT_COLOR_BIT, 
+            imageBarrier(img_dPyr_alia0.image, VK_IMAGE_ASPECT_COLOR_BIT, 
                 VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                 VK_ACCESS_TRANSFER_READ_BIT, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT),
-            imageBarrier(renderTarget.image, VK_IMAGE_ASPECT_COLOR_BIT,
+            imageBarrier(img_rt.image, VK_IMAGE_ASPECT_COLOR_BIT,
                 0, VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                 VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT),
         };
@@ -1237,7 +1237,7 @@ int main(int argc, const char** argv)
         // copy scene image to UI pass
         if (rod.showPyramid)
         {
-            Image& pyramid_local = depthPyramid_alias0;
+            Image& pyramid_local = img_dPyr_alia0;
 
             uint32_t levelWidth = glm::max(1u, pyramidLevelWidth >> rod.debugPyramidLevel);
             uint32_t levelHeight = glm::max(1u, pyramidLevelHeight >> rod.debugPyramidLevel);
@@ -1254,11 +1254,11 @@ int main(int argc, const char** argv)
             regions[0].dstOffsets[0] = { 0, 0, 0 };
             regions[0].dstOffsets[1] = { int32_t(swapchain.width), int32_t(swapchain.height), 1 };
 
-            vkCmdBlitImage(cmdBuffer, pyramid_local.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, renderTarget.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, COUNTOF(regions), regions, VK_FILTER_NEAREST);
+            vkCmdBlitImage(cmdBuffer, pyramid_local.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, img_rt.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, COUNTOF(regions), regions, VK_FILTER_NEAREST);
         }
         else
         {
-            Image& colorTarget_local = colorTarget_alias1;
+            Image& colorTarget_local = img_col_alia1;
             VkImageCopy copyRegion = {};
             copyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
             copyRegion.srcSubresource.layerCount = 1;
@@ -1266,14 +1266,14 @@ int main(int argc, const char** argv)
             copyRegion.dstSubresource.layerCount = 1;
             copyRegion.extent = { swapchain.width, swapchain.height, 1 };
 
-            vkCmdCopyImage(cmdBuffer, colorTarget_local.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, renderTarget.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+            vkCmdCopyImage(cmdBuffer, colorTarget_local.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, img_rt.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
         }
 
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 8);
 
         
         VkImageMemoryBarrier2 endCopyBarriers[] = {
-            imageBarrier(renderTarget.image, VK_IMAGE_ASPECT_COLOR_BIT,
+            imageBarrier(img_rt.image, VK_IMAGE_ASPECT_COLOR_BIT,
             VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT,
             VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT ,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT),
         };
@@ -1284,8 +1284,8 @@ int main(int argc, const char** argv)
         // draw UI: 
         // actual data from last frame(need the ui rendering time too).
         {
-            Image& renderTarget_local = renderTarget_alias0;
-            Image& depthTarget_local = depthTarget_alias1;
+            Image& renderTarget_local = img_rt_alia0;
+            Image& depthTarget_local = img_dpt_alia1;
 
             VkImageMemoryBarrier2 beginUIBarriers[] = {
                 imageBarrier(renderTarget_local.image, VK_IMAGE_ASPECT_COLOR_BIT,
@@ -1334,7 +1334,7 @@ int main(int argc, const char** argv)
 
         // copy to swapchain
         {
-            Image& renderTarget_local = renderTarget_alias1;
+            Image& renderTarget_local = img_rt_alia1;
             VkImageMemoryBarrier2 finalCopyBarriers[] = {
                 imageBarrier(renderTarget_local.image, VK_IMAGE_ASPECT_COLOR_BIT,
                     VK_ACCESS_TRANSFER_READ_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -1461,36 +1461,36 @@ int main(int argc, const char** argv)
 
     destroyUIRendering(ui);
 
-    for (uint32_t i = 0; i < depthPyramidLevels; ++i)
+    for (uint32_t i = 0; i < dPyrLevels; ++i)
     {
-        vkDestroyImageView(device, depthPyramidMips[i], 0);
+        vkDestroyImageView(device, dPyrMips[i], 0);
     }
 
-    vkDestroySampler(device, skyboxSampler, 0);
+    vkDestroySampler(device, spl_skybox, 0);
     vkDestroySampler(device, depthSampler, 0);
     
-    destroyImage(device, skyboxImage);
-    destroyImage(device, renderTarget, { &renderTarget_alias0, &renderTarget_alias1});
-    destroyImage(device, depthPyramid, { &depthPyramid_alias0 });
-    destroyImage(device, colorTarget, { &colorTarget_alias0, &colorTarget_alias1});
-    destroyImage(device, depthTarget, { &depthTarget_alias0, &depthTarget_alias1});
+    destroyImage(device, img_skybox);
+    destroyImage(device, img_rt, { &img_rt_alia0, &img_rt_alia1});
+    destroyImage(device, img_dPyr, { &img_dPyr_alia0 });
+    destroyImage(device, img_col, { &img_col_alia0, &img_col_alia1});
+    destroyImage(device, img_dpt, { &img_dpt_alia0, &img_dpt_alia1});
 
-    destroyBuffer(device, skyboxVB);
-    destroyBuffer(device, skyboxIB);
-    destroyBuffer(device, mdvb, {&mdvb_alias0, &mdvb_alias1});
-    destroyBuffer(device, tb);
-    destroyBuffer(device, mdccb, {&mdccb_alias0, &mdccb_alias1});
-    destroyBuffer(device, mdcb, {&mdcb_alias0, &mdcb_alias1});
-    destroyBuffer(device, mdrb);
-    destroyBuffer(device, scratch);
-    destroyBuffer(device, ib); 
-    destroyBuffer(device, vb);
-    destroyBuffer(device, mb);
+    destroyBuffer(device, buf_vtx_skybox);
+    destroyBuffer(device, buf_idx_skybox);
+    destroyBuffer(device, buf_mdVis, {&buf_mdVis_alia0, &buf_mdVis_alia1});
+    destroyBuffer(device, buf_tf);
+    destroyBuffer(device, buf_mdcCnt, {&buf_mdcCnt_alia0, &buf_mdcCnt_alia1});
+    destroyBuffer(device, buf_mdCmd, {&buf_mdCmd_alia0, &buf_mdCmd_alia1});
+    destroyBuffer(device, buf_md);
+    destroyBuffer(device, buf_tmp);
+    destroyBuffer(device, buf_idx); 
+    destroyBuffer(device, buf_vtx);
+    destroyBuffer(device, buf_mesh);
     if (meshShadingSupported)
     {
-        destroyBuffer(device, mlvb, {&mlvb_alias0, &mlvb_alias1});
-        destroyBuffer(device, mlb);
-        destroyBuffer(device, mdb);
+        destroyBuffer(device, buf_mltVis, {&buf_mltVis_alia0, &buf_mltVis_alia1});
+        destroyBuffer(device, buf_meshlet);
+        destroyBuffer(device, buf_mltData);
     }
 
     vkDestroyCommandPool(device, cmdPool, 0);
