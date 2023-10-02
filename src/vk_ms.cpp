@@ -675,33 +675,8 @@ int main(int argc, const char** argv)
     Graph g;
     buildGraph(g);
 
-    FrameGraph fg{};
-    RenderPass earlyCullPass{};
-    //mb.buffer, mdrb.buffer, tb.buffer, mdcb.buffer, mdccb.buffer, buf.buffer,
-    earlyCullPass.inputResID.push_back(buf_mesh.ID);
-    earlyCullPass.inputResID.push_back(buf_md.ID);
-    earlyCullPass.inputResID.push_back(buf_tf.ID);
-    earlyCullPass.inputResID.push_back(buf_mdcCnt.ID);
-    earlyCullPass.inputResID.push_back(buf_mdVis_alia0.ID);
-
-    earlyCullPass.outputResID.push_back(buf_mdCmd_alia0.ID);
-    earlyCullPass.outputResID.push_back(buf_mdcCnt_alia0.ID);
-
-    RenderPass earlyDrawPass{};
-    RenderPass pyrimidPass{};
-    
-    RenderPass lateCullPass{};
-    earlyCullPass.inputResID.push_back(buf_mesh.ID);
-    earlyCullPass.inputResID.push_back(buf_md.ID);
-    earlyCullPass.inputResID.push_back(buf_tf.ID);
-    earlyCullPass.inputResID.push_back(buf_mdcCnt_alia0.ID);
-    earlyCullPass.inputResID.push_back(buf_mdVis_alia1.ID);
-
-    earlyCullPass.outputResID.push_back(buf_mdCmd_alia1.ID);
-    earlyCullPass.outputResID.push_back(buf_mdcCnt_alia1.ID);
-
-    RenderPass lateDrawPass{};
-    
+    FrameGraph fg;
+    buildGraph2(fg);
 
     ////////////////////////////////////////////////////////////////////////////
 

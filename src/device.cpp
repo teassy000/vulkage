@@ -109,7 +109,9 @@ uint32_t getGraphicsFamilyIndex(VkPhysicalDevice physicalDevice)
     for (uint32_t i = 0; i < propertyCount; ++i)
     {
         if (queueFamilyProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+        {
             return i;
+        }
     }
 
     return VK_QUEUE_FAMILY_IGNORED;

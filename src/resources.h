@@ -61,35 +61,3 @@ uint32_t calculateMipLevelCount(uint32_t width, uint32_t height);
 
 VkSampler createSampler(VkDevice device, VkSamplerReductionMode reductionMode = VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE);
 
-
-struct ResourceAlias
-{
-    std::vector<ResourceID> aliasesID;
-};
-
-struct ResTable
-{
-    std::vector<ResourceID> baseReses;
-    std::vector<ResourceAlias> aliases;
-    std::vector<ResourceID> activeAlias;
-    std::vector<uint32_t> activeAliasesIdx;
-};
-
-struct ResourceMap
-{
-    // store all resources, no matter it is a alias or not
-    std::unordered_map<ResourceID, Buffer> buffers;
-    std::unordered_map<ResourceID, Image> images;
-};
-
-struct ResMgr
-{
-    ResTable resTable;
-    ResourceMap resMap;
-};
-
-void getResourceAliases(ResourceAlias& output, ResourceID id, const ResTable& table);
-void getResource(Image& image, Buffer& buffer, ResourceMap resMap, const ResourceID id);
-void resetActiveAlias(ResTable& table); // call at the end of every frame
-ResourceID getActiveAlias(const ResTable& table, const ResourceID baseResourceID);
-ResourceID nextAlias(ResTable& table, const ResourceID id); // call after a pass wrote to a resource
