@@ -681,7 +681,6 @@ int main(int argc, const char** argv)
     earlyCullPass.inputResID.push_back(buf_mesh.ID);
     earlyCullPass.inputResID.push_back(buf_md.ID);
     earlyCullPass.inputResID.push_back(buf_tf.ID);
-    earlyCullPass.inputResID.push_back(buf_mdCmd.ID);
     earlyCullPass.inputResID.push_back(buf_mdcCnt.ID);
     earlyCullPass.inputResID.push_back(buf_mdVis_alia0.ID);
 
@@ -695,7 +694,6 @@ int main(int argc, const char** argv)
     earlyCullPass.inputResID.push_back(buf_mesh.ID);
     earlyCullPass.inputResID.push_back(buf_md.ID);
     earlyCullPass.inputResID.push_back(buf_tf.ID);
-    earlyCullPass.inputResID.push_back(buf_mdCmd_alia0.ID);
     earlyCullPass.inputResID.push_back(buf_mdcCnt_alia0.ID);
     earlyCullPass.inputResID.push_back(buf_mdVis_alia1.ID);
 
@@ -847,13 +845,13 @@ int main(int argc, const char** argv)
             VkBufferMemoryBarrier2 barriers[] = {
                 bufferBarrier(buf_mdVis.buffer,
                     VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                    VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT),
+                    VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT),
                 bufferBarrier(buf_mdVis_alia0.buffer,
                     VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                    VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT),
+                    VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT),
                 bufferBarrier(buf_mdVis_alia1.buffer,
                     VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                    VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT),
+                    VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT),
             };
             pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 1, barriers, 0, 0);
             mdvbCleared = true;
@@ -865,7 +863,7 @@ int main(int argc, const char** argv)
 
             VkBufferMemoryBarrier2 barrier = bufferBarrier(buf_mltVis.buffer,
                 VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+                VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
             pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 1, &barrier, 0, 0);
             mlvbCleared = true;
         }
@@ -930,7 +928,7 @@ int main(int argc, const char** argv)
 
             vkCmdEndRendering(cmdBuffer);
 
-            VK_CHECK(vkDeviceWaitIdle(device)); //TODO: use fence instead, wait for convenient
+            VK_CHECK(vkDeviceWaitIdle(device)); 
         };
 
         auto culling = [&](bool late, VkPipeline pipeline)
@@ -959,8 +957,8 @@ int main(int argc, const char** argv)
 
 
             VkBufferMemoryBarrier2 visbarrier = bufferBarrier(mdvb_local.buffer,
-                VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                VK_ACCESS_MEMORY_READ_BIT , VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+                VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
             pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 1, &visbarrier, 0, 0);
 
             VkImageMemoryBarrier2 cullBeginBarriers[] = {
@@ -1195,25 +1193,25 @@ int main(int argc, const char** argv)
 
         skybox(clearColor, clearDepth);
 
-        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 1);
+        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, queryPoolTimeStemp, 1);
 
         culling(/* late = */false, taskSubmitOn ? taskCullPipeline : drawcmdPipeline);
         
-        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 2);
+        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, queryPoolTimeStemp, 2);
        
-        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 3);
+        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, queryPoolTimeStemp, 3);
 
         render(/* late = */false, /*taskSubmit = */ taskSubmitOn, clearColor, clearDepth, taskSubmitOn ? taskPipelineMS : meshPipelineMS, 0);
        
-        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 4);
+        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, queryPoolTimeStemp, 4);
 
         pyramid();
 
-        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 5);
+        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, queryPoolTimeStemp, 5);
 
         culling(/* late = */true, taskSubmitOn ? taskCullLatePipeline : drawcmdLatePipeline);
 
-        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 6);
+        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, queryPoolTimeStemp, 6);
 
         render(/* late = */true, /*taskSubmit = */ taskSubmitOn, clearColor, clearDepth, taskSubmitOn ? taskLatePipelineMS : meshLatePipelineMS, 1);
 
@@ -1232,7 +1230,7 @@ int main(int argc, const char** argv)
 
         pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, COUNTOF(copyBarriers), copyBarriers);
 
-        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPoolTimeStemp, 7);
+        vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, queryPoolTimeStemp, 7);
         
         // copy scene image to UI pass
         if (rod.showPyramid)
@@ -1388,7 +1386,7 @@ int main(int argc, const char** argv)
         VK_CHECK(vkQueuePresentKHR(queue, &presentInfo));
 
         double waitTimeBegin = glfwGetTime() * 1000.0;
-        VK_CHECK(vkDeviceWaitIdle(device));
+        VK_CHECK(vkDeviceWaitIdle(device)); // TODO: a fence here?
         double waitTimeEnd = glfwGetTime() * 1000.0;
 
         // update profile data
