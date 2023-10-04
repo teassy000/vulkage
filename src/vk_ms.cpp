@@ -82,7 +82,7 @@ bool checkExtSupportness(const std::vector<VkExtensionProperties>& props, const 
 
     if (print)
     {
-        printf("%s : %s\n", extName, extSupported ? "true" : "false");
+        vkz::message(vkz::info, "%s : %s\n", extName, extSupported ? "true" : "false");
     }
 
 
@@ -313,7 +313,7 @@ uint32_t previousPow2(uint32_t v)
 int main(int argc, const char** argv)
 {
     if (argc < 2) {
-        printf("Usage: %s [mesh]\n", argv[0]);
+        vkz::message(vkz::info, "Usage: %s [mesh]\n", argv[0]);
         return 1;
     }
 
@@ -671,12 +671,8 @@ int main(int argc, const char** argv)
 
 
     ////////////////////////////////////////////////////////////////////////////
-
-    Graph g;
-    buildGraph(g);
-
     FrameGraph fg;
-    buildGraph2(fg);
+    buildGraph(fg);
 
     ////////////////////////////////////////////////////////////////////////////
 

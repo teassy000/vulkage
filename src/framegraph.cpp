@@ -6,207 +6,7 @@
 #include <string>
 #include <map>
 
-void addNode(Graph& graph, Node& node)
-{
-    graph.nodes.push_back(node);
-    graph.inputResources.insert(graph.inputResources.end(), node.readResHandles.begin(), node.readResHandles.end());
-    graph.outputResources.insert(graph.outputResources.end(), node.writenResHandles.begin(), node.writenResHandles.end());
-}
-
-void DFSVisit(Graph& graph, uint32_t currentNodeIdx, std::vector<bool>& visited, std::vector<bool>& onStack, std::vector<uint32_t>& sortedNodeIdxes)
-{
-    visited[currentNodeIdx] = true;
-    onStack[currentNodeIdx] = true;
-    for (uint32_t adjNodeIdx : graph.nodes[currentNodeIdx].childNodeIdxes)
-    {
-        if (!visited[adjNodeIdx])
-        {
-            DFSVisit(graph, adjNodeIdx, visited, onStack, sortedNodeIdxes);
-        }
-        else if (onStack[adjNodeIdx])
-        {
-            // cycle detected
-            assert(false);
-        }
-    }
-    sortedNodeIdxes.push_back(currentNodeIdx);
-    onStack[currentNodeIdx] = false;
-}
-
-void DFS(Graph& graph, std::vector<uint32_t>& sortedNodeIdxes)
-{
-    uint32_t nodeCount = (uint32_t)graph.nodes.size();
-    std::vector<bool> visited(nodeCount, false);
-    std::vector<bool> onStack(nodeCount, false);
-    uint32_t currentNodeIdx = 0;
-
-    while (currentNodeIdx < nodeCount)
-    {
-        if (!visited[currentNodeIdx])
-        {
-            DFSVisit(graph, currentNodeIdx, visited, onStack, sortedNodeIdxes);
-        }
-        currentNodeIdx++;
-    }
-}
-
-void reverseDFSVisit(Graph& graph, uint32_t currentNodeIdx, std::vector<bool>& visited, std::vector<bool>& onStack, std::vector<uint32_t>& sortedNodeIdxes)
-{
-    visited[currentNodeIdx] = true;
-    onStack[currentNodeIdx] = true;
-    for (uint32_t incomeNodeIdx : graph.nodes[currentNodeIdx].imcomeNodeIdxes)
-    {
-        if (!visited[incomeNodeIdx])
-        {
-            reverseDFSVisit(graph, incomeNodeIdx, visited, onStack, sortedNodeIdxes);
-        }
-        else if (onStack[incomeNodeIdx])
-        {
-            // cycle detected
-            assert(false);
-        }
-    }
-    sortedNodeIdxes.push_back(currentNodeIdx);
-    onStack[currentNodeIdx] = false;
-}
-
-// reverse traversal deep first search
-void reverseTraversalDFS(Graph& graph, uint32_t startNodeIdx, std::vector<uint32_t>& visitNodeIdxes)
-{
-    // node not exist
-    assert(startNodeIdx <= graph.nodes.size() );
-    
-
-    uint32_t nodeCount = (uint32_t)graph.nodes.size();
-    std::vector<bool> visited(nodeCount, false);
-    std::vector<bool> onStack(nodeCount, false);
-
-    uint32_t currentNodeIdx = startNodeIdx;
-
-
-    if (!visited[currentNodeIdx])
-    {
-        reverseDFSVisit(graph, currentNodeIdx, visited, onStack, visitNodeIdxes);
-    }
-
-}
-
-void TopologicalSort(Graph& graph, std::vector<uint32_t>& sortedNodeIdxes)
-{
-    DFS(graph, sortedNodeIdxes);
-
-    std::reverse(sortedNodeIdxes.begin(), sortedNodeIdxes.end());
-}
-
-void buildGraphWithRes(Graph& graph)
-{
-    uint32_t resCount = 16;
-    for (uint32_t i = 0; i < resCount; ++i)
-    {
-        Res res;
-        res.resVar = i;
-        graph.reses.push_back(res);
-    }
-
-    // ping / pong buffers
-    // 0 / 7 next frame would be 7 / 0  pyramid
-    // 4 / 6 render target
-    // (1 / 8) / 9  : 9 is from last frame, 1 / 8 is from current frame
-
-    Node node0;
-    node0.readResHandles = { 0, 9, 2, 3 };
-    node0.writenResHandles = { 1 };
-
-    Node node1;
-    node1.readResHandles = { 0, 1, 2, 3 };
-    node1.writenResHandles = { 4, 5 };
-
-    Node node2;
-    node2.readResHandles = { 7, 1, 2, 3 };
-    node2.writenResHandles = { 8 };
-
-    Node node3;
-    node3.readResHandles = { 7, 8, 2, 3 };
-    node3.writenResHandles = { 6 };
-
-    Node node4;
-    node4.readResHandles = { 6 };
-    node4.writenResHandles = { 10 };
-
-    Node node5;
-    node5.readResHandles = { 5 };
-    node5.writenResHandles = { 7 };
-
-    Node node6;
-    node6.readResHandles = { 7 };
-    node6.writenResHandles = { 13 };
-
-
-    std::vector<Node> nodes;
-    nodes.push_back(node0);
-    nodes.push_back(node1);
-    nodes.push_back(node2);
-    nodes.push_back(node3);
-    nodes.push_back(node4);
-    nodes.push_back(node5);
-    nodes.push_back(node6);
-
-    // collect all resources that 
-    std::vector<uint32_t> readResIdx;
-    std::vector<uint32_t> outResIdx;
-    std::vector<uint32_t> outResNodeIdx;
-    for (uint32_t i = 0; i < nodes.size(); ++i)
-    {
-        readResIdx.insert(readResIdx.end(), nodes[i].readResHandles.begin(), nodes[i].readResHandles.end());
-        outResIdx.insert(outResIdx.end(), nodes[i].writenResHandles.begin(), nodes[i].writenResHandles.end());
-        std::vector<uint32_t> tmp(nodes[i].writenResHandles.size(), i);
-        outResNodeIdx.insert(outResNodeIdx.end(), tmp.begin(), tmp.end());
-
-        assert(outResIdx.size() == outResNodeIdx.size());
-    }
-
-    // build graph based on resource dependency
-    for (uint32_t i = 0; i < nodes.size(); ++i)
-    {
-        // for each node, traverse all readResHandles then match the parentNode
-        for (uint32_t j = 0; j < nodes[i].readResHandles.size(); ++j)
-        {
-            uint32_t resIdx = nodes[i].readResHandles[j];
-            std::vector<uint32_t>::iterator it = std::find(outResIdx.begin(), outResIdx.end(), resIdx);
-            if (it == outResIdx.end())
-                continue;
-
-            uint32_t parentNodeIdx = (uint32_t)(it - outResIdx.begin());
-            uint32_t outNodeIdx = outResNodeIdx[parentNodeIdx];
-            Node& outNode = nodes[outNodeIdx];
-            outNode.childNodeIdxes.push_back(i); // current node is the child node of outNode
-            nodes[i].imcomeNodeIdxes.push_back(outNodeIdx);
-        }
-    }
-
-    addNode(graph, nodes[0]);
-    addNode(graph, nodes[1]);
-    addNode(graph, nodes[2]);
-    addNode(graph, nodes[3]);
-    addNode(graph, nodes[4]);
-    addNode(graph, nodes[5]);
-    addNode(graph, nodes[6]);
-
-
-    std::vector<uint32_t> sortedNodeIdxes;
-    TopologicalSort(graph, sortedNodeIdxes);
-
-    // a reverse traversal DFS can be used all visited nodes
-    std::vector<uint32_t> visitedNodeIdxes;
-    reverseTraversalDFS(graph, 4, visitedNodeIdxes);
-}
-
-void buildGraph(Graph& graph)
-{
-    buildGraphWithRes(graph);
-}
-
-void getResourceAliases(ResourceAlias& output, ResourceID id, const ResTable& table)
+void getResourceAliases(ResourceAlias& output, ResourceID id, const ResourceTable& table)
 {
     ResourceAlias result = {};
     uint32_t resIdx = -1;
@@ -222,7 +22,7 @@ void getResourceAliases(ResourceAlias& output, ResourceID id, const ResTable& ta
 
     if (resIdx == -1)
     {
-        assert("!no resource found!");
+        vkz::message(vkz::error, "!no resource found!");
         return;
     }
 
@@ -243,7 +43,7 @@ void getResource(Image& image, Buffer& buffer, ResourceMap resMap, const Resourc
     }
 }
 
-void resetActiveAlias(ResTable& table)
+void resetActiveAlias(ResourceTable& table)
 {
     const std::vector<ResourceID>& reses = table.activeAlias;
     for (uint32_t idx = 0; idx != reses.size(); ++idx)
@@ -253,7 +53,7 @@ void resetActiveAlias(ResTable& table)
     }
 }
 
-ResourceID getActiveAlias(const ResTable& table, const ResourceID baseResourceID)
+ResourceID getActiveAlias(const ResourceTable& table, const ResourceID baseResourceID)
 {
     ResourceID result = baseResourceID;
 
@@ -272,14 +72,14 @@ ResourceID getActiveAlias(const ResTable& table, const ResourceID baseResourceID
 
     if (resIdx == -1)
     {
-        assert("!no resource found!");
+        vkz::message(vkz::error, "!no resource found!");
     }
 
     return result;
 
 }
 
-ResourceID nextAlias(ResTable& table, const ResourceID baseResourceID)
+ResourceID nextAlias(ResourceTable& table, const ResourceID baseResourceID)
 {
     ResourceID result = baseResourceID;
 
@@ -296,7 +96,7 @@ ResourceID nextAlias(ResTable& table, const ResourceID baseResourceID)
 
     if (resIdx == -1)
     {
-        assert("!no base resource found!");
+        vkz::message(vkz::error, "!no base resource found!");
         return result;
     }
 
@@ -310,7 +110,7 @@ ResourceID nextAlias(ResTable& table, const ResourceID baseResourceID)
     }
     else
     {
-        assert("!no more alias!");
+        vkz::message(vkz::error, "!no more alias!");
         table.activeAliasesIdx[resIdx] = -1;
         table.activeAlias[resIdx] = baseResourceID;
     }
@@ -463,8 +263,7 @@ void DFSVisit(FrameData& fd, uint32_t currentPassID, std::unordered_map<PassID, 
         }
         else if (onStack[adjPassID])
         {
-            // cycle detected
-            assert(false);
+            vkz::message(vkz::error, "cycle detected!");
         }
     }
     sortedPasses.push_back(currentPassID);
@@ -508,8 +307,7 @@ void reverseDFSVisit(FrameData& fd, uint32_t currentPassID, std::unordered_map<P
         }
         else if (onStack[parentPassID])
         {
-            // cycle detected
-            assert(false);
+            vkz::message(vkz::error, "cycle detected!");
         }
     }
     sortedPassIDs.push_back(currentPassID);
@@ -519,7 +317,7 @@ void reverseDFSVisit(FrameData& fd, uint32_t currentPassID, std::unordered_map<P
 // reverse traversal deep first search
 void reverseTraversalDFS(FrameGraph& graph, FrameData& fd, uint32_t startPass, std::vector<uint32_t>& sortedPassIDs)
 {
-    // node not exist
+    // pass not exist
     assert(std::find(graph.passes.begin(), graph.passes.end(), startPass) != graph.passes.end());
 
     uint32_t passCount = (uint32_t)graph.passes.size();
@@ -563,9 +361,9 @@ void TopologicalSort(FrameGraph& graph, FrameData& fd, std::vector<PassID>& sort
 // c. a topology sort is used for get the execute order of passes
 // d. a reverse traversal DFS is used for get passes that contribute the final output resource
 
-void buildGraph2(FrameGraph& frameGraph)
+void buildGraph(FrameGraph& frameGraph)
 {
-    FrameGraph fg{};
+    FrameGraph& fg = frameGraph;
     FrameData fd{};
     setupResources(fd, fg);
 
@@ -606,10 +404,10 @@ void buildGraph2(FrameGraph& frameGraph)
     TopologicalSort(fg, fd, sortedPasses);
 
     {
-        printf("topology sorted: \n");
+        vkz::message(vkz::info, "topology sorted: \n");
         for (PassID passID : sortedPasses)
         {
-            printf("\t pass: %s\n", fd.passes[passID].name.c_str());
+            vkz::message(vkz::info, "\t pass: %s\n", fd.passes[passID].name.c_str());
         }
     }
 
@@ -619,10 +417,10 @@ void buildGraph2(FrameGraph& frameGraph)
     reverseTraversalDFS(fg, fd, 0x2007, visitedPasses);
 
     {
-        printf("visited pass: \n");
+        vkz::message(vkz::info, "visited pass: \n");
         for (PassID passID : visitedPasses)
         {
-            printf("\t pass: %s\n", fd.passes[passID].name.c_str());
+            vkz::message(vkz::info, "\t pass: %s\n", fd.passes[passID].name.c_str());
         }
     }
 
@@ -637,13 +435,17 @@ void buildGraph2(FrameGraph& frameGraph)
                 std::vector<PassID>& passIDs = lifecycleTable[resID];
                 passIDs.push_back(passID);
              }
-             /*
+             // TODO:
+             // aliasing happens right after the write pass finished
+             // consider it starts from the next pass start?
+             
              for (ResourceID resID : rp.outputResIDs)
              {
                 std::vector<PassID>& passIDs = lifecycleTable[resID];
                 passIDs.push_back(passID);
              }
-             */
+             
+
         }
 
         // process lifecycle:
@@ -657,15 +459,19 @@ void buildGraph2(FrameGraph& frameGraph)
                 right = std::max(right, it);
                 left = std::min(left, it);
             }
+            passIDs.clear();
 
-            for (auto it = left; it < right; ++it)
+
+
+            for (auto it = left; it < (right + 1); ++it)
             {
                 passIDs.push_back(*it);
             }
+            
         }
 
         // print lifecycle table
-        printf("resource lifecycle: \n");
+        printf("resource lifetime: \n");
         printf("|      |");
         for (PassID id : sortedPasses)
         {
@@ -689,7 +495,6 @@ void buildGraph2(FrameGraph& frameGraph)
             }
             printf("\n");
         }
-
     }
 }
 

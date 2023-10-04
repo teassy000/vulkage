@@ -19,7 +19,7 @@ static VkBool32 debugReportCallback(VkDebugReportFlagsEXT flags, VkDebugReportOb
     char message[4096];
     snprintf(message, COUNTOF(message), "%s: %s\n", type, pMessage);
 
-    printf("%s\n", message);
+    vkz::message(vkz::info , "%s\n", message);
 
 #ifdef _WIN32
     OutputDebugStringA(message);
@@ -137,7 +137,7 @@ VkPhysicalDevice pickPhysicalDevice(VkPhysicalDevice* physicalDevices, uint32_t 
         VkPhysicalDeviceProperties props;
         vkGetPhysicalDeviceProperties(physicalDevices[i], &props);
 
-        printf("GPU%d: %s\n", i, props.deviceName);
+        vkz::message(vkz::info, "GPU%d: %s\n", i, props.deviceName);
 
         uint32_t familyIndex = getGraphicsFamilyIndex(physicalDevices[i]);
 
@@ -162,10 +162,10 @@ VkPhysicalDevice pickPhysicalDevice(VkPhysicalDevice* physicalDevices, uint32_t 
         VkPhysicalDeviceProperties props;
         vkGetPhysicalDeviceProperties(result, &props);
 
-        printf("Selected GPU %s\n", props.deviceName);
+        vkz::message(vkz::info, "Selected GPU %s\n", props.deviceName);
     }
     else {
-        printf("ERROR: No GPU Found!\n");
+        vkz::message(vkz::info, "ERROR: No GPU Found!\n");
     }
 
 

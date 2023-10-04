@@ -19,3 +19,4 @@ char(*countof_helper(T(&_Array)[Size]))[Size];
 
 #define COUNTOF(array) (sizeof(*countof_helper(array)) + 0)
 
+#include "debug.h"

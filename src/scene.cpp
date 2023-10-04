@@ -117,7 +117,7 @@ bool loadScene(Scene& scene, const char** pathes, const uint32_t pathCount ,bool
         bool rcm = false;
         rcm = loadMesh(scene.geometry, pathes[i], buildMeshlets);
         if (!rcm) {
-            printf("[Error]: Failed to load mesh %s", pathes[i]);
+            vkz::message(vkz::error, "Failed to load mesh %s", pathes[i]);
             return false;
         }
 
@@ -126,7 +126,7 @@ bool loadScene(Scene& scene, const char** pathes, const uint32_t pathCount ,bool
 
     if (scene.geometry.meshes.empty())
     {
-        printf("[Error]: No mesh was loaded!");
+        vkz::message(vkz::error, "No mesh was loaded!");
         return false;
     }
 
