@@ -176,12 +176,12 @@ SwapchainStatus resizeSwapchainIfNecessary(Swapchain& result, VkPhysicalDevice p
 
     if (result.width == surfaceCaps.currentExtent.width && result.height == surfaceCaps.currentExtent.height)
     {
-        return Ready;
+        return SwapchainStatus::ready;
     }
 
     if (surfaceCaps.currentExtent.width == 0 || surfaceCaps.currentExtent.height == 0)
     {
-        return NotReady;
+        return SwapchainStatus::not_ready;
     }
 
     Swapchain old = result;
@@ -191,5 +191,5 @@ SwapchainStatus resizeSwapchainIfNecessary(Swapchain& result, VkPhysicalDevice p
     VK_CHECK(vkDeviceWaitIdle(device));
     destroySwapchain(device, old);
 
-    return Resized;
+    return SwapchainStatus::resize;
 }

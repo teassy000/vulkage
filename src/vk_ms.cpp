@@ -671,8 +671,8 @@ int main(int argc, const char** argv)
 
 
     ////////////////////////////////////////////////////////////////////////////
-    FrameGraph fg;
-    buildGraph(fg);
+    vkz::FrameGraph fg;
+    vkz::buildGraph(fg);
 
     ////////////////////////////////////////////////////////////////////////////
 
@@ -687,11 +687,11 @@ int main(int argc, const char** argv)
         glfwGetWindowSize(window, &newWindowWidth, &newWindowHeight);
 
         SwapchainStatus swapchainStatus = resizeSwapchainIfNecessary(swapchain, physicalDevice, device, surface, familyIndex, imageFormat);
-        if(swapchainStatus == NotReady)
+        if(swapchainStatus == SwapchainStatus::not_ready)
             continue;
 
         // update/resize render targets
-        if (swapchainStatus == Resized || !img_col.image)
+        if (swapchainStatus == SwapchainStatus::resize || !img_col.image)
         {
             if (img_col.image)
                 destroyImage(device, img_col, { &img_col_alia0, &img_col_alia1 });

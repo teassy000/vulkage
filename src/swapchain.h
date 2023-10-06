@@ -11,11 +11,11 @@ struct Swapchain
     uint32_t imageCount;
 };
 
-enum SwapchainStatus
+enum class SwapchainStatus : uint32_t
 {
-    Ready,
-    NotReady,
-    Resized,
+    ready = 0u,
+    not_ready = 1u,
+    resize = 2u,
 };
 
 typedef struct GLFWwindow GLFWwindow;

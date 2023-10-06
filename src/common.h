@@ -4,8 +4,10 @@
 #include <volk.h>
 
 #include <vector>
-#include <string>
 #include <unordered_map>
+#include <set>
+
+#include <string>
 
 #define VK_CHECK(call) \
 	do{ \

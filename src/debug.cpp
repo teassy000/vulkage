@@ -34,5 +34,5 @@ void vkz::message(DebugMessageType type, const char* format, ...)
     OutputDebugStringA(out);
 #endif
 
-    assert(type < error);
+    assert(type < DebugMessageType::error);
 }

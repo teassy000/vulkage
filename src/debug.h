@@ -4,9 +4,9 @@ namespace vkz
 {
     enum DebugMessageType
     {
-        info,
-        warning,
-        error,
+        info = 0u,
+        warning = 1u,
+        error = 2u,
     };
 
     void message(DebugMessageType type, const char* format, ...);

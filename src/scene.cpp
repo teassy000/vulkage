@@ -4,11 +4,11 @@
 #include "mesh.h"
 #include "scene.h"
 
-enum class Scene_Enum
+enum class Scene_Enum : uint64_t
 {
-    RamdomScene,
-    MatrixScene,
-    CornellBox,
+    RamdomScene = 0,
+    MatrixScene = 1,
+    CornellBox = 2,
 };
 
 static Scene_Enum se = Scene_Enum::RamdomScene;
