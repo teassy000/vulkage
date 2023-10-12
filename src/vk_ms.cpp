@@ -353,10 +353,10 @@ int main(int argc, const char** argv)
     vkGetPhysicalDeviceProperties(physicalDevice, &props);
     assert(props.limits.timestampPeriod);
 
-    uint32_t familyIndex = getGraphicsFamilyIndex(physicalDevice);
-    assert(familyIndex != VK_QUEUE_FAMILY_IGNORED);
+    uint32_t gfxFamilyIdx = getGraphicsFamilyIndex(physicalDevice);
+    assert(gfxFamilyIdx != VK_QUEUE_FAMILY_IGNORED);
 
-	VkDevice device = createDevice(instance, physicalDevice, familyIndex, meshShadingSupported);
+	VkDevice device = createDevice(instance, physicalDevice, gfxFamilyIdx, meshShadingSupported);
 	assert(device);
 
     volkLoadDevice(device);
@@ -372,7 +372,7 @@ int main(int argc, const char** argv)
 	assert(surface);
 
     VkBool32 presentSupported = 0;
-    VK_CHECK(vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, familyIndex, surface, &presentSupported));
+    VK_CHECK(vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, gfxFamilyIdx, surface, &presentSupported));
     assert(presentSupported);
     
     VkSemaphore acquirSemaphore = createSemaphore(device);
@@ -385,11 +385,15 @@ int main(int argc, const char** argv)
     VkFormat depthFormat = VK_FORMAT_D32_SFLOAT;
 
     Swapchain swapchain = {};
-    createSwapchain(swapchain, physicalDevice, device, surface, familyIndex, imageFormat);
+    createSwapchain(swapchain, physicalDevice, device, surface, gfxFamilyIdx, imageFormat);
 
-    VkQueue queue = 0;
-    vkGetDeviceQueue(device, familyIndex, 0, &queue);
-    assert(queue);
+    VkQueue gfxQueue = 0;
+    vkGetDeviceQueue(device, gfxFamilyIdx, 0, &gfxQueue);
+    assert(gfxQueue);
+
+    VkQueue cmpQueue = 0;
+    vkGetDeviceQueue(device, gfxFamilyIdx, 0, &cmpQueue);
+    assert(cmpQueue);
 
     bool lsr = false;
 
@@ -457,7 +461,7 @@ int main(int argc, const char** argv)
     VkQueryPool queryPoolStatistics = createQueryPool(device, 6, VK_QUERY_TYPE_PIPELINE_STATISTICS);
     assert(queryPoolStatistics);
 
-    VkCommandPool cmdPool = createCommandPool(device, familyIndex);
+    VkCommandPool cmdPool = createCommandPool(device, gfxFamilyIdx);
     assert(cmdPool);
 
     VkCommandBufferAllocateInfo allocateInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
@@ -520,15 +524,15 @@ int main(int argc, const char** argv)
         createBuffer(buf_mltData, memoryProps, device, scene.geometry.meshletdata.size() * sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     }
 
-    uploadBuffer(device, cmdPool, cmdBuffer, queue, buf_mesh, buf_tmp, scene.geometry.meshes.data(), scene.geometry.meshes.size() * sizeof(Mesh));
+    uploadBuffer(device, cmdPool, cmdBuffer, gfxQueue, buf_mesh, buf_tmp, scene.geometry.meshes.data(), scene.geometry.meshes.size() * sizeof(Mesh));
 
-    uploadBuffer(device, cmdPool, cmdBuffer, queue, buf_vtx, buf_tmp, scene.geometry.vertices.data(), scene.geometry.vertices.size() * sizeof(Vertex));
-    uploadBuffer(device, cmdPool, cmdBuffer, queue, buf_idx, buf_tmp, scene.geometry.indices.data(), scene.geometry.indices.size() * sizeof(uint32_t));
+    uploadBuffer(device, cmdPool, cmdBuffer, gfxQueue, buf_vtx, buf_tmp, scene.geometry.vertices.data(), scene.geometry.vertices.size() * sizeof(Vertex));
+    uploadBuffer(device, cmdPool, cmdBuffer, gfxQueue, buf_idx, buf_tmp, scene.geometry.indices.data(), scene.geometry.indices.size() * sizeof(uint32_t));
 
     if (meshShadingSupported)
     {
-        uploadBuffer(device, cmdPool, cmdBuffer, queue, buf_meshlet, buf_tmp, scene.geometry.meshlets.data(), scene.geometry.meshlets.size() * sizeof(Meshlet));
-        uploadBuffer(device, cmdPool, cmdBuffer, queue, buf_mltData, buf_tmp, scene.geometry.meshletdata.data(), scene.geometry.meshletdata.size() * sizeof(uint32_t));
+        uploadBuffer(device, cmdPool, cmdBuffer, gfxQueue, buf_meshlet, buf_tmp, scene.geometry.meshlets.data(), scene.geometry.meshlets.size() * sizeof(Meshlet));
+        uploadBuffer(device, cmdPool, cmdBuffer, gfxQueue, buf_mltData, buf_tmp, scene.geometry.meshletdata.data(), scene.geometry.meshletdata.size() * sizeof(uint32_t));
     }
 
     Image img_col = {}; // color buffer for render pass
@@ -575,7 +579,7 @@ int main(int argc, const char** argv)
 
     Buffer buf_md = {}; //mesh draw buffer
     createBuffer(buf_md, memoryProps, device, scene.meshDraws.size() * sizeof(MeshDraw), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    uploadBuffer(device, cmdPool, cmdBuffer, queue, buf_md, buf_tmp, scene.meshDraws.data(), scene.meshDraws.size() * sizeof(MeshDraw));
+    uploadBuffer(device, cmdPool, cmdBuffer, gfxQueue, buf_md, buf_tmp, scene.meshDraws.data(), scene.meshDraws.size() * sizeof(MeshDraw));
 
     Buffer buf_mdCmd = {}; // mesh draw command buffer
     Buffer buf_mdCmd_alia0 = {}, buf_mdCmd_alia1 = {}; // aliasing, to avoid cycle in DAG, every read/write operation must have a pair of aliasing.
@@ -600,7 +604,7 @@ int main(int argc, const char** argv)
 
     // skybox
     Image img_skybox{};
-    loadTextureCubeFromFile(img_skybox, "../data/textures/cubemap_vulkan.ktx", device, cmdPool, queue, memoryProps, imageFormat, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_GENERAL);
+    loadTextureCubeFromFile(img_skybox, "../data/textures/cubemap_vulkan.ktx", device, cmdPool, gfxQueue, memoryProps, imageFormat, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_GENERAL);
     //skyboxImage.imageView = createImageView(device, skyboxImage.image, imageFormat, 0, skyboxImage.mipLevels, VK_IMAGE_VIEW_TYPE_CUBE);
 
     VkSampler spl_skybox = createSampler(device);
@@ -617,11 +621,11 @@ int main(int argc, const char** argv)
 
     Buffer buf_vtx_skybox = {};
     createBuffer(buf_vtx_skybox, memoryProps, device, skyboxGeometry.vertices.size() * sizeof(Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    uploadBuffer(device, cmdPool, cmdBuffer, queue, buf_vtx_skybox, buf_tmp, skyboxGeometry.vertices.data(), skyboxGeometry.vertices.size() * sizeof(Vertex));
+    uploadBuffer(device, cmdPool, cmdBuffer, gfxQueue, buf_vtx_skybox, buf_tmp, skyboxGeometry.vertices.data(), skyboxGeometry.vertices.size() * sizeof(Vertex));
 
     Buffer buf_idx_skybox = {};
     createBuffer(buf_idx_skybox, memoryProps, device, skyboxGeometry.indices.size() * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    uploadBuffer(device, cmdPool, cmdBuffer, queue, buf_idx_skybox, buf_tmp, skyboxGeometry.indices.data(), skyboxGeometry.indices.size() * sizeof(uint32_t));
+    uploadBuffer(device, cmdPool, cmdBuffer, gfxQueue, buf_idx_skybox, buf_tmp, skyboxGeometry.indices.data(), skyboxGeometry.indices.size() * sizeof(uint32_t));
 
     Program skyboxProgram = createProgram(device, VK_PIPELINE_BIND_POINT_GRAPHICS, { &skyboxVS, &skyboxFS });
     VkPipeline skyboxPipeline = 0;
@@ -651,7 +655,7 @@ int main(int argc, const char** argv)
 
     // imgui
     UIRendering ui = {};
-    initializeUIRendering(ui, device, queue, /* scale = */ 1.3f);
+    initializeUIRendering(ui, device, gfxQueue, /* scale = */ 1.3f);
     prepareUIPipeline(ui, pipelineCache, renderInfo);
     prepareUIResources(ui, memoryProps, cmdPool);
 
@@ -686,7 +690,7 @@ int main(int argc, const char** argv)
         int newWindowWidth = 0, newWindowHeight = 0;
         glfwGetWindowSize(window, &newWindowWidth, &newWindowHeight);
 
-        SwapchainStatus swapchainStatus = resizeSwapchainIfNecessary(swapchain, physicalDevice, device, surface, familyIndex, imageFormat);
+        SwapchainStatus swapchainStatus = resizeSwapchainIfNecessary(swapchain, physicalDevice, device, surface, gfxFamilyIdx, imageFormat);
         if(swapchainStatus == SwapchainStatus::not_ready)
             continue;
 
@@ -789,7 +793,7 @@ int main(int argc, const char** argv)
         trans.proj = projection;
         trans.cameraPos = freeCamera.pos;
 
-        uploadBuffer(device, cmdPool, cmdBuffer, queue, buf_tf, buf_tmp, &trans, sizeof(trans));
+        uploadBuffer(device, cmdPool, cmdBuffer, gfxQueue, buf_tf, buf_tmp, &trans, sizeof(trans));
 
 
         uint32_t imageIndex = 0;
@@ -1345,7 +1349,7 @@ int main(int argc, const char** argv)
         submitInfo.signalSemaphoreCount = 1;
         submitInfo.pSignalSemaphores = &releaseSemaphore;
 
-        VK_CHECK(vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE));
+        VK_CHECK(vkQueueSubmit(gfxQueue, 1, &submitInfo, VK_NULL_HANDLE));
 
         VkPresentInfoKHR presentInfo = { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
         presentInfo.swapchainCount = 1;
@@ -1354,7 +1358,7 @@ int main(int argc, const char** argv)
         presentInfo.pWaitSemaphores = &releaseSemaphore;
         presentInfo.waitSemaphoreCount = 1;
 
-        VK_CHECK(vkQueuePresentKHR(queue, &presentInfo));
+        VK_CHECK(vkQueuePresentKHR(gfxQueue, &presentInfo));
 
         double waitTimeBegin = glfwGetTime() * 1000.0;
         VK_CHECK(vkDeviceWaitIdle(device)); // TODO: a fence here?

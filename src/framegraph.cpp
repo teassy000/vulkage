@@ -7,6 +7,7 @@
 #include <map>
 #include <set>
 #include <type_traits>
+#include <functional>
 
 void vkz::getResourceAliases(ResourceAlias& output, ResourceID id, const ResourceTable& table)
 {
@@ -123,6 +124,20 @@ ResourceID vkz::nextAlias(ResourceTable& table, const ResourceID baseResourceID)
     return result;
 }
 
+bool isBuffer(ResourceID res)
+{
+    uint32_t mask = res >> 12;
+
+    return mask == 0x0;
+}
+
+bool isImage(ResourceID res)
+{
+    uint32_t mask = res >> 12;
+
+    return mask == 0x1;
+}
+
 void setupResources(vkz::FrameGraphData& fd, vkz::FrameGraph& fg)
 {
     using namespace vkz;
@@ -195,6 +210,7 @@ void setupResources(vkz::FrameGraphData& fd, vkz::FrameGraph& fg)
     RenderPass earlycullPass{};
     earlycullPass._ID = 0x2001;
     earlycullPass._name = "early cull pass";
+    earlycullPass._queue = RenderPassExeQueue::asyncCompute0;
     earlycullPass.inputResIDs = { buf_mesh, buf_transData, buf_mDr, buf_mDrCC, buf_mDrVis , img_dpy};
     earlycullPass.outputResIDs = { buf_mDrCmd, buf_mDrCC_a1, buf_mDrVis_a1 };
 
@@ -207,12 +223,14 @@ void setupResources(vkz::FrameGraphData& fd, vkz::FrameGraph& fg)
     RenderPass pyramidPass{};
     pyramidPass._ID = 0x2003;
     pyramidPass._name = "pyramid pass";
+    pyramidPass._queue = RenderPassExeQueue::asyncCompute0;
     pyramidPass.inputResIDs = { img_dt };
     pyramidPass.outputResIDs = { img_dpy_a1 };
 
     RenderPass latecullPass{};
     latecullPass._ID = 0x2004;
     latecullPass._name = "late cull pass";
+    latecullPass._queue = RenderPassExeQueue::asyncCompute0;
     latecullPass.inputResIDs = { buf_mesh, buf_transData, buf_mDr, buf_mDrCC_a1, buf_mDrVis_a1, img_dpy_a1 };
     latecullPass.outputResIDs = { buf_mDrCmd_a1, buf_mDrCC_a2, buf_mDrVis_a2 };
 
@@ -235,23 +253,30 @@ void setupResources(vkz::FrameGraphData& fd, vkz::FrameGraph& fg)
     UIPass.outputResIDs = { img_rt_a1 };
 
 
-    fg.passes.push_back(earlycullPass._ID);
-    fg.passes.push_back(earlydrawPass._ID);
-    fg.passes.push_back(pyramidPass._ID);
-    fg.passes.push_back(latecullPass._ID);
-    fg.passes.push_back(latedrawPass._ID);
-    fg.passes.push_back(copyPass._ID);
-    fg.passes.push_back(UIPass._ID);
+    fg._passes.push_back(earlycullPass._ID);
+    fg._passes.push_back(earlydrawPass._ID);
+    fg._passes.push_back(pyramidPass._ID);
+    fg._passes.push_back(latecullPass._ID);
+    fg._passes.push_back(latedrawPass._ID);
+    fg._passes.push_back(copyPass._ID);
+    fg._passes.push_back(UIPass._ID);
 
-    fd.passes.insert({ earlycullPass._ID, earlycullPass });
-    fd.passes.insert({ earlydrawPass._ID, earlydrawPass });
-    fd.passes.insert({ pyramidPass._ID, pyramidPass });
-    fd.passes.insert({ latecullPass._ID, latecullPass });
-    fd.passes.insert({ latedrawPass._ID, latedrawPass });
-    fd.passes.insert({ copyPass._ID, copyPass });
-    fd.passes.insert({ UIPass._ID, UIPass });
+    fd._passes.insert({ earlycullPass._ID, earlycullPass });
+    fd._passes.insert({ earlydrawPass._ID, earlydrawPass });
+    fd._passes.insert({ pyramidPass._ID, pyramidPass });
+    fd._passes.insert({ latecullPass._ID, latecullPass });
+    fd._passes.insert({ latedrawPass._ID, latedrawPass });
+    fd._passes.insert({ copyPass._ID, copyPass });
+    fd._passes.insert({ UIPass._ID, UIPass });
+
+    fg._outputPass = UIPass._ID;
 }
 
+// p1 <-- p2 <-- p3 <-- p7
+//   ____________|  ____|
+//  /       /      /
+// p4 <-- p5 <-- p6
+//
 void setupResources_test_a(vkz::FrameGraphData& fd, vkz::FrameGraph& fg)
 {
     using namespace vkz;
@@ -318,25 +343,31 @@ void setupResources_test_a(vkz::FrameGraphData& fd, vkz::FrameGraph& fg)
     p7.inputResIDs = { r3, r6 };
     p7.outputResIDs = { r7 };
 
-    fg.passes.push_back(p1._ID);
-    fg.passes.push_back(p2._ID);
-    fg.passes.push_back(p3._ID);
-    fg.passes.push_back(p4._ID);
-    fg.passes.push_back(p5._ID);
-    fg.passes.push_back(p6._ID);
-    fg.passes.push_back(p7._ID);
+    fg._passes.push_back(p1._ID);
+    fg._passes.push_back(p2._ID);
+    fg._passes.push_back(p3._ID);
+    fg._passes.push_back(p4._ID);
+    fg._passes.push_back(p5._ID);
+    fg._passes.push_back(p6._ID);
+    fg._passes.push_back(p7._ID);
 
-    fd.passes.insert({ p1._ID, p1 });
-    fd.passes.insert({ p2._ID, p2 });
-    fd.passes.insert({ p3._ID, p3 });
-    fd.passes.insert({ p4._ID, p4 });
-    fd.passes.insert({ p5._ID, p5 });
-    fd.passes.insert({ p6._ID, p6 });
-    fd.passes.insert({ p7._ID, p7 });
+    fd._passes.insert({ p1._ID, p1 });
+    fd._passes.insert({ p2._ID, p2 });
+    fd._passes.insert({ p3._ID, p3 });
+    fd._passes.insert({ p4._ID, p4 });
+    fd._passes.insert({ p5._ID, p5 });
+    fd._passes.insert({ p6._ID, p6 });
+    fd._passes.insert({ p7._ID, p7 });
 
     fg._outputPass = p7._ID;
 }
 
+
+// p1 <-- p2 <-- p3 <-- p7
+//  \____________  _____|
+//         |     |/
+// p4 <-- p5 <-- p6
+//
 void setupResources_test_b(vkz::FrameGraphData& fd, vkz::FrameGraph& fg)
 {
     using namespace vkz;
@@ -406,25 +437,38 @@ void setupResources_test_b(vkz::FrameGraphData& fd, vkz::FrameGraph& fg)
     p7.inputResIDs = { r3, r6 };
     p7.outputResIDs = { r7 };
 
-    fg.passes.push_back(p1._ID);
-    fg.passes.push_back(p2._ID);
-    fg.passes.push_back(p3._ID);
-    fg.passes.push_back(p4._ID);
-    fg.passes.push_back(p5._ID);
-    fg.passes.push_back(p6._ID);
-    fg.passes.push_back(p7._ID);
+    fg._passes.push_back(p1._ID);
+    fg._passes.push_back(p2._ID);
+    fg._passes.push_back(p3._ID);
+    fg._passes.push_back(p4._ID);
+    fg._passes.push_back(p5._ID);
+    fg._passes.push_back(p6._ID);
+    fg._passes.push_back(p7._ID);
 
-    fd.passes.insert({ p1._ID, p1 });
-    fd.passes.insert({ p2._ID, p2 });
-    fd.passes.insert({ p3._ID, p3 });
-    fd.passes.insert({ p4._ID, p4 });
-    fd.passes.insert({ p5._ID, p5 });
-    fd.passes.insert({ p6._ID, p6 });
-    fd.passes.insert({ p7._ID, p7 });
+    fd._passes.insert({ p1._ID, p1 });
+    fd._passes.insert({ p2._ID, p2 });
+    fd._passes.insert({ p3._ID, p3 });
+    fd._passes.insert({ p4._ID, p4 });
+    fd._passes.insert({ p5._ID, p5 });
+    fd._passes.insert({ p6._ID, p6 });
+    fd._passes.insert({ p7._ID, p7 });
 
     fg._outputPass = p7._ID;
 }
 
+
+// Q1 p1
+//     \______________             
+//            |       | 
+//            |       |
+// Q2 p2 <-- p3       |
+//            \______ |
+//                   ||
+// Q3 p4 <-- p5      ||
+//            \_____ ||
+//                  |||
+// Q4                p6 <--- p7
+//
 void setupResources_test_c(vkz::FrameGraphData& fd, vkz::FrameGraph& fg)
 {
     using namespace vkz;
@@ -493,23 +537,128 @@ void setupResources_test_c(vkz::FrameGraphData& fd, vkz::FrameGraph& fg)
     p7.inputResIDs = { r6 };
     p7.outputResIDs = { r7 };
 
-    fg.passes.push_back(p1._ID);
-    fg.passes.push_back(p2._ID);
-    fg.passes.push_back(p3._ID);
-    fg.passes.push_back(p4._ID);
-    fg.passes.push_back(p5._ID);
-    fg.passes.push_back(p6._ID);
-    fg.passes.push_back(p7._ID);
+    fg._passes.push_back(p1._ID);
+    fg._passes.push_back(p2._ID);
+    fg._passes.push_back(p3._ID);
+    fg._passes.push_back(p4._ID);
+    fg._passes.push_back(p5._ID);
+    fg._passes.push_back(p6._ID);
+    fg._passes.push_back(p7._ID);
 
-    fd.passes.insert({ p1._ID, p1 });
-    fd.passes.insert({ p2._ID, p2 });
-    fd.passes.insert({ p3._ID, p3 });
-    fd.passes.insert({ p4._ID, p4 });
-    fd.passes.insert({ p5._ID, p5 });
-    fd.passes.insert({ p6._ID, p6 });
-    fd.passes.insert({ p7._ID, p7 });
+    fd._passes.insert({ p1._ID, p1 });
+    fd._passes.insert({ p2._ID, p2 });
+    fd._passes.insert({ p3._ID, p3 });
+    fd._passes.insert({ p4._ID, p4 });
+    fd._passes.insert({ p5._ID, p5 });
+    fd._passes.insert({ p6._ID, p6 });
+    fd._passes.insert({ p7._ID, p7 });
 
     fg._outputPass = p7._ID;
+
+}
+
+// same dependency as test_c, 
+// but some resources are exist from the beginning
+// and some resources are marked as permanently(multi-frame data)
+
+void setupResources_test_d(vkz::FrameGraphData& fd, vkz::FrameGraph& fg)
+{
+    using namespace vkz;
+
+    ResourceID r1 = 0x0001;
+    ResourceID r2 = 0x0002;
+    ResourceID r3 = 0x0003;
+    ResourceID r4 = 0x0004;
+    ResourceID r5 = 0x0005;
+    ResourceID r6 = 0x0006;
+    ResourceID r7 = 0x0007;
+
+    ResourceID r11 = 0x0011;
+    ResourceID r22 = 0x0022;
+    ResourceID r33 = 0x0033;
+    ResourceID r44 = 0x0044;
+
+
+    ResourceMap& resMap = fd.resmap;
+    resMap.bufferNames.insert({ r1, "r1" });
+    resMap.bufferNames.insert({ r2, "r2" });
+    resMap.bufferNames.insert({ r3, "r3" });
+    resMap.bufferNames.insert({ r4, "r4" });
+    resMap.bufferNames.insert({ r5, "r5" });
+    resMap.bufferNames.insert({ r6, "r6" });
+    resMap.bufferNames.insert({ r7, "r7" });
+
+    resMap.bufferNames.insert({ r11, "r11" });
+    resMap.bufferNames.insert({ r22, "r22" });
+    resMap.bufferNames.insert({ r33, "r33" });
+    resMap.bufferNames.insert({ r44, "r44" });
+
+    RenderPass p1{};
+    p1._ID = 0x2001;
+    p1._name = "p1";
+    p1.inputResIDs = { r11 };
+    p1.outputResIDs = { r1 };
+
+    RenderPass p2{};
+    p2._ID = 0x2002;
+    p2._name = "p2";
+    p2._queue = RenderPassExeQueue::asyncCompute0;
+    p2.inputResIDs = { r22, r33};
+    p2.outputResIDs = { r2 };
+
+    RenderPass p3{};
+    p3._ID = 0x2003;
+    p3._name = "p3";
+    p3._queue = RenderPassExeQueue::asyncCompute0;
+    p3.inputResIDs = { r1, r2 };
+    p3.outputResIDs = { r3 };
+
+    RenderPass p4{};
+    p4._ID = 0x2004;
+    p4._name = "p4";
+    p4._queue = RenderPassExeQueue::asyncCompute1;
+    p4.inputResIDs = {};
+    p4.outputResIDs = { r4 };
+
+    RenderPass p5{};
+    p5._ID = 0x2005;
+    p5._name = "p5";
+    p5._queue = RenderPassExeQueue::asyncCompute1;
+    p5.inputResIDs = { r4 };
+    p5.outputResIDs = { r5 };
+
+    RenderPass p6{};
+    p6._ID = 0x2006;
+    p6._name = "p6";
+    p6._queue = RenderPassExeQueue::asyncCompute2;
+    p6.inputResIDs = { r1, r3, r5 };
+    p6.outputResIDs = { r6 , r44};
+
+    RenderPass p7{};
+    p7._ID = 0x2007;
+    p7._name = "p7";
+    p7.inputResIDs = { r6 };
+    p7.outputResIDs = { r7 };
+
+    fg._passes.push_back(p1._ID);
+    fg._passes.push_back(p2._ID);
+    fg._passes.push_back(p3._ID);
+    fg._passes.push_back(p4._ID);
+    fg._passes.push_back(p5._ID);
+    fg._passes.push_back(p6._ID);
+    fg._passes.push_back(p7._ID);
+
+    fd._passes.insert({ p1._ID, p1 });
+    fd._passes.insert({ p2._ID, p2 });
+    fd._passes.insert({ p3._ID, p3 });
+    fd._passes.insert({ p4._ID, p4 });
+    fd._passes.insert({ p5._ID, p5 });
+    fd._passes.insert({ p6._ID, p6 });
+    fd._passes.insert({ p7._ID, p7 });
+
+    fg._outputPass = p7._ID;
+
+    fg._multiFrameReses.push_back(r44);
 }
 
 void vkz::DFSVisit(FrameGraphData& fd, uint32_t currentPassID, std::unordered_map<PassID, bool>& visited, std::unordered_map<PassID, bool>& onStack, std::vector<PassID>& sortedPasses)
@@ -517,7 +666,7 @@ void vkz::DFSVisit(FrameGraphData& fd, uint32_t currentPassID, std::unordered_ma
     visited[currentPassID] = true;
     onStack[currentPassID] = true;
 
-    RenderPass& rp = fd.passes[currentPassID];
+    RenderPass& rp = fd._passes[currentPassID];
 
     for (uint32_t adjPassID : rp.childPassIDs)
     {
@@ -536,18 +685,18 @@ void vkz::DFSVisit(FrameGraphData& fd, uint32_t currentPassID, std::unordered_ma
 
 void vkz::DFS(FrameGraph& graph, FrameGraphData& fd, std::vector<PassID>& sortedPasses)
 {
-    uint32_t passCount = (uint32_t)graph.passes.size();
+    uint32_t passCount = (uint32_t)graph._passes.size();
     std::unordered_map<PassID, bool> visited{};
     std::unordered_map<PassID, bool> onStack{};
 
     for (uint32_t i =0; i < passCount; ++i)
     {
-        PassID id = graph.passes[i];
+        PassID id = graph._passes[i];
         visited.insert({ id, false });
         onStack.insert({ id, false });
     }
 
-    for (PassID id : graph.passes)
+    for (PassID id : graph._passes)
     {
         if (!visited[id])
         {
@@ -561,7 +710,7 @@ void vkz::reverseDFSVisit(FrameGraphData& fd, uint32_t currentPassID, std::unord
     visited[currentPassID] = true;
     onStack[currentPassID] = true;
 
-    RenderPass& rp = fd.passes[currentPassID];
+    RenderPass& rp = fd._passes[currentPassID];
 
     for (uint32_t parentPassID : rp.parentPassIDs)
     {
@@ -582,15 +731,15 @@ void vkz::reverseDFSVisit(FrameGraphData& fd, uint32_t currentPassID, std::unord
 void vkz::reverseTraversalDFS(FrameGraph& graph, FrameGraphData& fd, const PassID startPass, std::vector<uint32_t>& sortedPassIDs)
 {
     // pass not exist
-    assert(std::find(graph.passes.begin(), graph.passes.end(), startPass) != graph.passes.end());
+    assert(std::find(graph._passes.begin(), graph._passes.end(), startPass) != graph._passes.end());
 
-    uint32_t passCount = (uint32_t)graph.passes.size();
+    uint32_t passCount = (uint32_t)graph._passes.size();
     std::unordered_map<PassID, bool> visited{};
     std::unordered_map<PassID, bool> onStack{};
 
     for (uint32_t i = 0; i < passCount; ++i)
     {
-        PassID id = graph.passes[i];
+        PassID id = graph._passes[i];
         visited.insert({ id, false });
         onStack.insert({ id, false });
     }
@@ -602,7 +751,6 @@ void vkz::reverseTraversalDFS(FrameGraph& graph, FrameGraphData& fd, const PassI
     {
         reverseDFSVisit(fd, currentPass, visited, onStack, sortedPassIDs);
     }
-
 }
 
 void vkz::TopologicalSort(FrameGraph& graph, FrameGraphData& fd, std::vector<PassID>& sortedPasses)
@@ -618,15 +766,19 @@ void formatDependencyLevels(vkz::FrameGraph& fg, vkz::FrameGraphData& fd, std::u
 {
     using namespace vkz;
     const uint32_t level = longestDists[currentPass];
-    const RenderPass& rp = fd.passes[currentPass];
+    const RenderPass& rp = fd._passes[currentPass];
 
     for (PassID id : rp.parentPassIDs)
     {
         if (level - 1 == longestDists[id])
         {
-            RenderPass& rpi = fd.passes[id];
+            RenderPass& rpi = fd._passes[id];
 
-            levelPasses[baseLevel - level].push_back(id);
+            // if not exist in current level
+            if (std::find(levelPasses[baseLevel - level].begin(), levelPasses[baseLevel - level].end(), id) == levelPasses[baseLevel - level].end())
+            {
+                levelPasses[baseLevel - level].push_back(id);
+            }
         }
     }
 
@@ -656,7 +808,7 @@ void buildDenpendencyLevel(vkz::FrameGraph& fg, vkz::FrameGraphData& fd)
 
     for (PassID pass : visitedPasses)
     {
-        const RenderPass& rp = fd.passes[pass];
+        const RenderPass& rp = fd._passes[pass];
         uint32_t longestDist = 0u;
         for (PassID parentPass : rp.parentPassIDs)
         {
@@ -678,7 +830,7 @@ void buildDenpendencyLevel(vkz::FrameGraph& fg, vkz::FrameGraphData& fd)
 
     for (PassID pass : visitedPasses)
     {
-        RenderPass& rp = fd.passes[pass];
+        RenderPass& rp = fd._passes[pass];
         // initialize nearest sync pass
         uint32_t nQueues = std::underlying_type_t<RenderPassExeQueue>(RenderPassExeQueue::NUM_OF_QUEUES);
         for (uint32_t i = 0; i < nQueues; ++i)
@@ -690,18 +842,18 @@ void buildDenpendencyLevel(vkz::FrameGraph& fg, vkz::FrameGraphData& fd)
     // find nearest sync pass in each queue for each pass
     for (PassID pass : visitedPasses)
     {
-        const std::unordered_map<DependLevel, std::vector<PassID>>& levelPasses = fg._dependedLevelsPerPass[pass]._dependPasses;
-        RenderPass& rp = fd.passes[pass];
+        const std::unordered_map<DependLevel, std::vector<PassID>>& dependPasses = fg._dependedLevelsPerPass[pass]._dependPasses;
+        RenderPass& rp = fd._passes[pass];
         
         std::unordered_map<RenderPassExeQueue, bool> foundSyncPass{};
 
         // if current pass depends on specific pass
-        for (auto& it : levelPasses)
+        for (const auto& it : dependPasses)
         {
             uint32_t level = it.first;
-            const std::vector<PassID>& dependPasses = it.second;
+            const std::vector<PassID>& currLeveldependPasses = it.second;
 
-            for (PassID dp : dependPasses)
+            for (PassID dp : currLeveldependPasses)
             {
                 for (auto& piq : fg._passesInQueue)
                 {
@@ -715,19 +867,84 @@ void buildDenpendencyLevel(vkz::FrameGraph& fg, vkz::FrameGraphData& fd)
                 }
             }
         }
+    }
+
+    // fill optimal sync passes
+    for (auto vpIt = visitedPasses.rbegin(); vpIt != visitedPasses.rend(); ++vpIt)
+    {
+        PassID pass = *vpIt;
+        const std::unordered_map<DependLevel, std::vector<PassID>>& dependPasses = fg._dependedLevelsPerPass[pass]._dependPasses;
+        RenderPass& rp = fd._passes[pass];
+
+        uint32_t syncQueueCount = 1u;
+        std::vector<PassID> plainNearstSyncPasses{};
+        for (const auto& p : rp._nearestSyncPasses)
+        {
+            if (p.second != invalidPassID)
+            {
+                plainNearstSyncPasses.push_back(p.second);
+
+                syncQueueCount += fd._passes[p.second]._queue == rp._queue ? 0u : 1u;
+            }
+        }
+
+        // if current pass depends on specific pass
+        for (const auto& it : dependPasses)
+        {
+            uint32_t level = it.first;
+            const std::vector<PassID>& currLeveldependPasses = it.second;
+
+            if(level == 0)
+                rp._passToSync.insert(rp._passToSync.end(), currLeveldependPasses.begin(), currLeveldependPasses.end());
+
+            for (const auto np : plainNearstSyncPasses)
+            {
+                auto ptsIt =  std::find(rp._passToSync.begin(), rp._passToSync.end(), np);
+                   
+                if (ptsIt == rp._passToSync.end())
+                    vkz::message(vkz::info, "cut sync [from:] %s [to:] %s\n", rp._name.c_str(), fd._passes[np]._name.c_str());
+            }
+            
+        }
+    }
+
+    // calc fence node
+    for (auto vpIt = visitedPasses.rbegin(); vpIt != visitedPasses.rend(); ++vpIt)
+    {
+        PassID pass = *vpIt;
+        const std::unordered_map<DependLevel, std::vector<PassID>>& dependPasses = fg._dependedLevelsPerPass[pass]._dependPasses;
+        RenderPass& rp = fd._passes[pass];
+
+        uint32_t syncQueueCount = 1u;
+        std::vector<PassID> plainNearstSyncPasses{};
         
+        char msg[256];
+        snprintf(msg, COUNTOF(msg), " ");
+        
+        for (const auto& p : rp._passToSync)
+        {
+            bool sameQueue = fd._passes[p]._queue == rp._queue;
+
+            syncQueueCount += sameQueue ? 0u : 1u;
+
+            if (!sameQueue)
+                snprintf(msg, COUNTOF(msg), "%sQ%d ", msg, std::underlying_type_t<RenderPassExeQueue>(fd._passes[p]._queue));
+        }
+        
+        if(syncQueueCount > 1u) // only different queue need fence
+            vkz::message(vkz::info, "pass %s make fence: Q%d  ---> (%s)\n", rp._name.c_str(),
+                std::underlying_type_t<RenderPassExeQueue>(rp._queue), msg);
     }
 
     // print level pass data
     for (PassID pass : visitedPasses)
     {
-
         const std::unordered_map<DependLevel, std::vector<PassID>>& levelPasses = fg._dependedLevelsPerPass[pass]._dependPasses;
 
         if(levelPasses.empty())
             continue;
 
-        vkz::message(vkz::info, "\tpass: %s\n", fd.passes[pass]._name.c_str());
+        vkz::message(vkz::info, "\tpass: %s\n", fd._passes[pass]._name.c_str());
         for (auto& it : levelPasses)
         {
             uint32_t level = it.first;
@@ -735,18 +952,23 @@ void buildDenpendencyLevel(vkz::FrameGraph& fg, vkz::FrameGraphData& fd)
 
             for (PassID passID : passes)
             {
-                vkz::message(vkz::info, "\t\t%d: %s\n", level, fd.passes[passID]._name.c_str());
+                vkz::message(vkz::info, "\t\t%d: %s\n", level, fd._passes[passID]._name.c_str());
             }
         }
 
-        const RenderPass& rp = fd.passes[pass];
+        const RenderPass& rp = fd._passes[pass];
+        
+        if(false)
+            for (const auto& nsp : rp._nearestSyncPasses)
+            {
+                vkz::message(vkz::info, "\t\t\tnearest sync pass in queue %d: %s\n", nsp.first, fd._passes[nsp.second]._name.c_str());
+            }
 
-        for (const auto& nsp: rp._nearestSyncPasses)
+        for (const auto& pts : rp._passToSync)
         {
-            vkz::message(vkz::info, "\t\t\tnearest sync pass in queue %d: %s\n", nsp.first, fd.passes[nsp.second]._name.c_str());
+            vkz::message(vkz::info, "\t\t\toptimal sync with: %s\n", fd._passes[pts]._name.c_str());
         }
     }
-
 }
 
 
@@ -761,20 +983,20 @@ void buildDenpendencyLevel(vkz::FrameGraph& fg, vkz::FrameGraphData& fd)
 // a. in/out resources are required before build the frame graph, should be set manually
 // b. connections are computed by the frame graph builder, depends on the resource dependency
 // c. a topology sort is used for get the execute order of passes
-// d. a reverse traversal DFS is used for get passes that contribute the final output resource
+// d. a reverse traversal DFS is used for get passes that contribute the final output resource, the execution order is guaranteed too
 void vkz::buildGraph(FrameGraph& frameGraph)
 {
     FrameGraph& fg = frameGraph;
     FrameGraphData fd{};
     //setupResources(fd, fg);
-    setupResources_test_a(fd, fg);
+    setupResources_test_d(fd, fg);
 
     // make a plain table that can find producer of a resource easily.
     std::vector<ResourceID> all_outResID;
     std::vector<PassID> all_parentPassID;
-    for (PassID passID : fg.passes)
+    for (PassID passID : fg._passes)
     {
-        RenderPass& rp = fd.passes[passID];
+        RenderPass& rp = fd._passes[passID];
 
         all_outResID.insert(all_outResID.end(), rp.outputResIDs.begin(), rp.outputResIDs.end());
         std::vector<uint32_t> tmp(rp.outputResIDs.size(), passID);
@@ -784,9 +1006,9 @@ void vkz::buildGraph(FrameGraph& frameGraph)
     }
 
     // build graph based on resource dependency
-    for (PassID passID : fg.passes)
+    for (PassID passID : fg._passes)
     {
-        RenderPass& rp = fd.passes[passID];
+        RenderPass& rp = fd._passes[passID];
 
         for (uint32_t j = 0; j < rp.inputResIDs.size(); ++j)
         {
@@ -797,13 +1019,9 @@ void vkz::buildGraph(FrameGraph& frameGraph)
 
             PassID parentPassID = all_parentPassID[it - all_outResID.begin()];
             rp.parentPassIDs.push_back(parentPassID); // set parent pass for current pass
-            fd.passes[parentPassID].childPassIDs.push_back(passID); // set child pass back
+            fd._passes[parentPassID].childPassIDs.push_back(passID); // set child pass back
         }
     }
-
-    // topology sort
-    std::vector<PassID> sortedPasses{};
-    TopologicalSort(fg, fd, sortedPasses);
 
     // reverse traversal DFS to cut unnecessary passes
     std::vector<PassID>& visitedPasses = fg._linearVisitedPasses;
@@ -813,34 +1031,28 @@ void vkz::buildGraph(FrameGraph& frameGraph)
     // build dependency levels
     buildDenpendencyLevel(fg, fd);
 
-    // print topology sort
-    {
-        vkz::message(vkz::info, "topology sorted: \n");
-        for (PassID passID : sortedPasses)
-        {
-            vkz::message(vkz::info, "\t pass: %s\n", fd.passes[passID]._name.c_str());
-        }
-    }
-
     // print reverse traversal DFS
     {
         vkz::message(vkz::info, "visited pass: \n");
         for (PassID passID : visitedPasses)
         {
-            vkz::message(vkz::info, "\t pass: %s\n", fd.passes[passID]._name.c_str());
+            vkz::message(vkz::info, "\t pass: %s\n", fd._passes[passID]._name.c_str());
         }
     }
 
-    // build lifecycle table
+    // build lifetime table
     {
-        std::map<ResourceID, std::vector<PassID>> lifecycleTable;
-        for (PassID passID : fg.passes)
+        std::map<ResourceID, std::vector<PassID>> lifetimeTable;
+        std::set<ResourceID> readReses;
+        std::set<ResourceID> wroteReses;
+        for (PassID passID : fg._passes)
         {
-             RenderPass& rp = fd.passes[passID];
+             RenderPass& rp = fd._passes[passID];
              for (ResourceID resID : rp.inputResIDs)
              {
-                std::vector<PassID>& passIDs = lifecycleTable[resID];
+                std::vector<PassID>& passIDs = lifetimeTable[resID];
                 passIDs.push_back(passID);
+                readReses.insert(resID);
              }
 
              // TODO:
@@ -848,57 +1060,131 @@ void vkz::buildGraph(FrameGraph& frameGraph)
              // consider it starts from the next pass start?
              for (ResourceID resID : rp.outputResIDs)
              {
-                std::vector<PassID>& passIDs = lifecycleTable[resID];
+                std::vector<PassID>& passIDs = lifetimeTable[resID];
                 passIDs.push_back(passID);
+                wroteReses.insert(resID);
              }
         }
 
-        // process lifecycle:
-        for (auto& it : lifecycleTable)
+        std::vector<ResourceID> readonlyReses;
+
+        for (ResourceID res : readReses)
         {
-            std::vector<PassID>& passIDs = it.second;
-            std::vector<PassID>::iterator right = sortedPasses.begin(), left = sortedPasses.end();
+            if (std::find(wroteReses.begin(), wroteReses.end(), res) == wroteReses.end())
+            {
+                readonlyReses.push_back(res);
+            }
+        }
+
+        // set readonly resources
+        fg._readonlyReses = readonlyReses;
+
+
+        // now add two pass into the visitedPass, they are fake pass to represent frame start and frame end
+        PassID frameStart = 0x0000;
+        PassID frameEnd = 0x1111;
+        std::vector<PassID> visitedPassesWithFrameStartEnd = visitedPasses;
+        visitedPassesWithFrameStartEnd.insert(visitedPassesWithFrameStartEnd.begin(), { frameStart });
+        visitedPassesWithFrameStartEnd.push_back(frameEnd);
+
+        for (auto& resPair : lifetimeTable)
+        {
+            std::vector<PassID>& passIDs = resPair.second;
+            if (std::find(readonlyReses.begin(), readonlyReses.end(), resPair.first) != readonlyReses.end())
+            {
+                passIDs.insert(passIDs.begin(), frameStart);
+            }
+            if (std::find(fg._multiFrameReses.begin(), fg._multiFrameReses.end(), resPair.first) != fg._multiFrameReses.end())
+            {
+                passIDs.push_back(frameEnd);
+            }
+        }
+        
+
+        std::unordered_map<PassID, int32_t> activedPassCount{};
+
+        // initialize activedPassCount
+        for (PassID passID : visitedPassesWithFrameStartEnd)
+        {
+            activedPassCount.insert({ passID, 0 });
+        }
+
+        // process lifetime:
+        for (auto& resPair : lifetimeTable)
+        {
+            std::vector<PassID>& passIDs = resPair.second;
+            std::vector<PassID>::iterator right = visitedPassesWithFrameStartEnd.begin(), left = visitedPassesWithFrameStartEnd.end();
+
             for (PassID id : passIDs)
             {
-                auto it = std::find(sortedPasses.begin(), sortedPasses.end(), id);
+                auto it = std::find(visitedPassesWithFrameStartEnd.begin(), visitedPassesWithFrameStartEnd.end(), id);
                 right = std::max(right, it);
                 left = std::min(left, it);
             }
             passIDs.clear();
 
+            if (isBuffer(resPair.first)) {
+                fd.resmap.bufferLifetime.insert({ resPair.first, {*left, *right} });
+            }
 
+            if (isImage(resPair.first)) {
+                fd.resmap.imageLifetime.insert({ resPair.first, {*left, *right} });
+            }
+            
+            for (PassID passID : visitedPassesWithFrameStartEnd)
+            {
+                if(passID == *left)
+                    activedPassCount[passID]++;
+                if (passID == *right)
+                    activedPassCount[passID]--;
+            }
 
             for (auto it = left; it < (right + 1); ++it)
             {
                 passIDs.push_back(*it);
             }
-            
         }
 
-        // print lifecycle table
-        printf("resource lifetime: \n");
-        printf("|      |");
-        for (PassID id : sortedPasses)
+        uint32_t currPC = 0;
+        for (PassID passID : visitedPassesWithFrameStartEnd)
         {
-            printf(" %4x |", id);
+            currPC += activedPassCount[passID];
+            activedPassCount[passID] = currPC;
         }
-        printf("\n");
-        for (auto& it : lifecycleTable)
+
+        char msg[4096];
+
+        // print lifetime table
+        snprintf(msg, COUNTOF(msg), "resource lifetime: \n");
+        snprintf(msg, COUNTOF(msg), "%s|      |", msg);
+        for (PassID id : visitedPassesWithFrameStartEnd)
         {
-            printf("| %4x |", it.first);
-            for (PassID passID : sortedPasses)
+            snprintf(msg, COUNTOF(msg), "%s %4x |", msg, id);
+        }
+        snprintf(msg, COUNTOF(msg), "%s\n", msg);
+        for (auto& it : lifetimeTable)
+        {
+            snprintf(msg, COUNTOF(msg), "%s| %4x |", msg, it.first);
+            for (PassID passID : visitedPassesWithFrameStartEnd)
             {
                 std::vector<PassID>& passIDs = it.second;
                 if (std::find(passIDs.begin(), passIDs.end(), passID) != passIDs.end())
                 {
-                    printf(" ==== |");
+                    snprintf(msg, COUNTOF(msg), "%s ==== |", msg);
                 }
                 else
                 {
-                    printf("      |");
+                    snprintf(msg, COUNTOF(msg), "%s      |", msg);
                 }
             }
-            printf("\n");
+            snprintf(msg, COUNTOF(msg), "%s\n", msg);
+        }
+
+        vkz::message(vkz::info, msg);
+
+        for (auto& resPair : activedPassCount)
+        {
+            vkz::message(vkz::info, "[0x%4x]:[%d]\n", resPair.first, resPair.second);
         }
     }
 }

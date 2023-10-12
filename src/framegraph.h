@@ -7,6 +7,7 @@ namespace vkz
     typedef uint32_t PassID;
     typedef uint32_t DependLevel;
     const PassID invalidPassID = ~0u;
+    const ResourceID invalidResourceID = ~0u;
 
 
     enum class RenderPassExeQueue : uint32_t
@@ -34,6 +35,10 @@ namespace vkz
 
         std::unordered_map<RenderPassExeQueue, PassID> _nearestSyncPasses;
 
+        std::vector<PassID> _plainNearestSyncPasses; // all nearest sync passes, including redundant sync
+
+        std::vector<PassID> _passToSync; // optimal pass to sync with, no redundant sync
+
         std::vector<PassID> parentPassIDs;
         std::vector<PassID> childPassIDs;
 
@@ -54,6 +59,16 @@ namespace vkz
         std::vector<uint32_t> activeAliasesIdx;
     };
 
+    struct FGBuffer
+    {
+        ResourceID _id{ invalidResourceID };
+        std::string _name;
+
+        size_t _size{ 0u };
+    };
+
+    
+
     struct ResourceMap
     {
         // store all resources, no matter it is a alias or not
@@ -63,11 +78,17 @@ namespace vkz
         // store all resources, no matter it is a alias or not
         std::unordered_map<ResourceID, std::string> bufferNames;
         std::unordered_map<ResourceID, std::string> imageNames;
+
+        std::unordered_map<ResourceID, size_t> bufferSize;
+        std::unordered_map<ResourceID, size_t> imageSize;
+
+        std::unordered_map<ResourceID, std::pair<PassID, PassID>> bufferLifetime;
+        std::unordered_map<ResourceID, std::pair<PassID, PassID>> imageLifetime;
     };
 
     struct FrameGraphData
     {
-        std::unordered_map<PassID, RenderPass> passes;
+        std::unordered_map<PassID, RenderPass> _passes;
         ResourceMap resmap;
     };
 
@@ -80,9 +101,10 @@ namespace vkz
         std::vector<PassID> _linearVisitedPasses;
 
         std::unordered_map<RenderPassExeQueue, std::vector<PassID>> _passesInQueue;
-        std::vector<PassID> passes;
-        std::vector<ResourceID> readResources;
-        std::vector<ResourceID> writenResources;
+        std::vector<PassID> _passes;
+
+        std::vector<ResourceID> _readonlyReses;
+        std::vector<ResourceID> _multiFrameReses;
     };
 
     

@@ -106,9 +106,11 @@ uint32_t getGraphicsFamilyIndex(VkPhysicalDevice physicalDevice)
     std::vector<VkQueueFamilyProperties> queueFamilyProperties(propertyCount);
     vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &propertyCount, queueFamilyProperties.data());
 
+    VkQueueFlags requiredFlags = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT;
+
     for (uint32_t i = 0; i < propertyCount; ++i)
     {
-        if (queueFamilyProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+        if (queueFamilyProperties[i].queueFlags & requiredFlags)
         {
             return i;
         }

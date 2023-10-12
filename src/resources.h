@@ -14,6 +14,7 @@ struct Buffer
 
 using BufferAliases = std::initializer_list<Buffer * const>;
 
+void registerBuffer(const Buffer& buffer, size_t sz, const char* name);
 void createBuffer(Buffer& result, const VkPhysicalDeviceMemoryProperties& memoryProps, VkDevice device, size_t sz, VkBufferUsageFlags usage, VkMemoryPropertyFlags memFlags, BufferAliases = {}, const uint32_t aliasCount = 0);
 void uploadBuffer(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer cmdBuffer, VkQueue queue, const Buffer& buffer, const Buffer& scratch, const void* data, size_t size);
 void flushBuffer(VkDevice device, const Buffer& buffer, uint32_t offset = 0);
@@ -46,6 +47,7 @@ struct ImgInitProps
 
 using ImageAliases = std::initializer_list<Image* const>;
 
+void registerImage(const Image& buffer, size_t sz, const char* name);
 void createImage(Image& result, VkDevice device, const VkPhysicalDeviceMemoryProperties& memoryProps, const VkFormat format, const ImgInitProps createInfo, ImageAliases = {}, const uint32_t aliasCount = 0 );
 void loadTexture2DFromFile(Image& tex2d, const char* path, VkDevice device, VkCommandPool cmdPool, VkQueue queue, const VkPhysicalDeviceMemoryProperties& memoryProps, VkFormat format, VkImageUsageFlags usage, VkImageLayout layout);
 void loadTexture2DArrayFromFile(Image& tex2dArray, const char* path, VkDevice device, VkCommandPool cmdPool, VkQueue queue, const VkPhysicalDeviceMemoryProperties& memoryProps, VkFormat format, VkImageUsageFlags usage);
