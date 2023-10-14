@@ -59,37 +59,55 @@ namespace vkz
         std::vector<uint32_t> activeAliasesIdx;
     };
 
-    struct FGBuffer
+    struct BufferInitData
     {
         ResourceID _id{ invalidResourceID };
         std::string _name;
-
         size_t _size{ 0u };
     };
 
-    
+
+    struct ManagedBuffer
+    {
+        ResourceID _id{ invalidResourceID };
+        std::string _name;
+        size_t _size{ 0u };
+
+        uint32_t _bucketIdx{ 0u };
+
+        uint64_t _memory{ 0u };
+        size_t _offset{ 0u };
+    };
+
+    struct Bucket
+    {
+        uint32_t _idx;
+        size_t _size;
+        std::vector<ResourceID> _reses;
+        std::vector<size_t> _offset;
+    };
 
     struct ResourceMap
     {
         // store all resources, no matter it is a alias or not
-        std::unordered_map<ResourceID, Buffer> buffers;
-        std::unordered_map<ResourceID, Image> images;
+        std::unordered_map<ResourceID, Buffer> _buffers;
+        std::unordered_map<ResourceID, Image> _images;
+
+        std::unordered_map<ResourceID, ManagedBuffer> _managedBuffers;
 
         // store all resources, no matter it is a alias or not
         std::unordered_map<ResourceID, std::string> bufferNames;
         std::unordered_map<ResourceID, std::string> imageNames;
 
-        std::unordered_map<ResourceID, size_t> bufferSize;
-        std::unordered_map<ResourceID, size_t> imageSize;
-
         std::unordered_map<ResourceID, std::pair<PassID, PassID>> bufferLifetime;
+        std::unordered_map<ResourceID, std::pair<uint32_t, uint32_t>> bufferLifetimeIdx;
         std::unordered_map<ResourceID, std::pair<PassID, PassID>> imageLifetime;
     };
 
     struct FrameGraphData
     {
         std::unordered_map<PassID, RenderPass> _passes;
-        ResourceMap resmap;
+        ResourceMap _resmap;
     };
 
     struct FrameGraph
@@ -120,4 +138,9 @@ namespace vkz
     void resetActiveAlias(ResourceTable& table); // call at the end of every frame
     ResourceID getActiveAlias(const ResourceTable& table, const ResourceID baseResourceID);
     ResourceID nextAlias(ResourceTable& table, const ResourceID id); // call after a pass wrote to a resource
+
+    typedef std::initializer_list<ResourceID> InputResources;
+    typedef std::initializer_list<ResourceID> OutputResources;
+    ResourceID registerBuffer(FrameGraphData& fd, const std::string& name, const size_t size);
+    PassID registerPass(FrameGraphData& fd, FrameGraph& fg, const std::string name, InputResources read, OutputResources write, RenderPassExeQueue queue = RenderPassExeQueue::graphics);
 };
