@@ -9,6 +9,7 @@
 #include <type_traits>
 #include <functional>
 #include <algorithm>
+#include <iterator>
 
 namespace vkz
 {
@@ -130,10 +131,21 @@ ResourceID nextAlias(ResourceTable& table, const ResourceID baseResourceID)
 
 ResourceID registerBuffer(FrameGraphData& fd, const std::string& name, const size_t size)
 {
-    
     static ResourceID id = 0x0001;
 
     fd._resmap._managedBuffers.insert({ id, {id, name, size, 0u, 0u} });
+    
+    return id++;
+}
+
+ResourceID registerImage(FrameGraphData& fd, const ImageProps& props)
+{
+    static ResourceID id = 0x1001;
+
+    ManagedImage img = { id, props.name, props.x, props.y, props.z, props.mipLevels, 0u };
+
+    fd._resmap._managedImages.insert({ id, img });
+
     return id++;
 }
 
@@ -170,8 +182,6 @@ bool isImage(ResourceID res)
 
 void setupResources(FrameGraphData& fd, FrameGraph& fg)
 {
-    
-
     ResourceID buf_vtx = 0x0001;
     ResourceID buf_idx = 0x0002;
     ResourceID buf_mesh = 0x0003;
@@ -302,6 +312,168 @@ void setupResources(FrameGraphData& fd, FrameGraph& fg)
     fg._outputPass = UIPass._ID;
 }
 
+typedef std::initializer_list<ResourceID> Resources;
+
+void addForceAliasBuffers(FrameGraph& fg, FrameGraphData& fd, const Resources reses)
+{
+    std::vector<ResourceID> resourceList{reses};
+
+    assert(!resourceList.empty());
+
+    // check if all resources have the same size
+    size_t baseSize = fd._resmap._managedBuffers[resourceList[0]]._size;
+    for (const ResourceID curr : reses)
+    {
+        assert(isBuffer(curr));
+
+        size_t currSize = fd._resmap._managedBuffers[curr]._size;
+        assert(currSize == baseSize);
+    }
+
+    fg._forceAliasBuffers.push_back(resourceList);
+
+    for (const ResourceID curr : reses)
+    {
+        std::vector<ResourceID> result{};
+        std::copy_if(resourceList.begin(), resourceList.end(), std::back_inserter(result),
+            [curr](ResourceID id) { return id != curr; }
+        );
+
+        std::vector<ResourceID>& currForceAliased = fd._resmap._managedBuffers[curr]._forceAlias;
+        currForceAliased.insert(currForceAliased.end(), result.begin(), result.end());
+    }
+}
+
+void addForceAliasImages(FrameGraph& fg, FrameGraphData& fd, const Resources reses)
+{
+    std::vector<ResourceID> resourceList{reses};
+
+    assert(!resourceList.empty());
+    // check if all resources have the same size
+    size_t baseX = fd._resmap._managedImages[resourceList[0]]._x;
+    size_t baseY = fd._resmap._managedImages[resourceList[0]]._y;
+    size_t baseZ = fd._resmap._managedImages[resourceList[0]]._z;
+    uint32_t mipLevels = fd._resmap._managedImages[resourceList[0]]._mipLevels;
+
+    for (const ResourceID curr : reses)
+    {
+        assert(isImage(curr));
+
+        size_t currX = fd._resmap._managedImages[curr]._x;
+        size_t currY = fd._resmap._managedImages[curr]._y;
+        size_t currZ = fd._resmap._managedImages[curr]._z;
+        uint32_t currMipLevels = fd._resmap._managedImages[curr]._mipLevels;
+        
+        assert(currX == baseX);
+        assert(currY == baseY);
+        assert(currZ == baseZ);
+        assert(currMipLevels == mipLevels);
+    }
+
+    fg._forceAliasImages.push_back(resourceList);
+
+    for (const ResourceID curr : reses)
+    {
+        std::vector<ResourceID> result{};
+        std::copy_if(resourceList.begin(), resourceList.end(), std::back_inserter(result),
+            [curr](ResourceID id) { return id != curr; }
+        );
+
+        std::vector<ResourceID>& currForceAliased = fd._resmap._managedImages[curr]._forceAlias;
+        currForceAliased.insert(currForceAliased.end(), result.begin(), result.end());
+    }
+}
+
+void setupResources_managed(FrameGraphData& fd, FrameGraph& fg)
+{
+    ResourceID buf_vtx = registerBuffer(fd, "vertex buffer", 192 * 1024 * 1024);
+    ResourceID buf_idx = registerBuffer(fd, "index buffer", 20 * 1024 * 1024);
+    ResourceID buf_mesh = registerBuffer(fd, "mesh buffer",  4 * 1024 * 1024);
+    ResourceID buf_mlt = registerBuffer(fd, "meshlet buffer", 32 * 1024 * 1024);
+    ResourceID buf_mltData = registerBuffer(fd, "meshlet Data buffer", 4 * 1024 * 1024);
+    ResourceID buf_transData = registerBuffer(fd, "transform buffer", 8 * 1024);
+    ResourceID buf_mDr = registerBuffer(fd, "mesh draw buffer", 48 * 1024 * 1024);
+    ResourceID buf_mDrCmd = registerBuffer(fd, "mesh draw command buffer", 128 * 1024 * 1024);
+    ResourceID buf_mDrCmd_a1 = registerBuffer(fd, "A1: mesh draw command buffer",128 * 1024 * 1024);
+    ResourceID buf_mDrCmd_a2 = registerBuffer(fd, "A2: mesh draw command buffer", 128 * 1024 * 1024);
+    ResourceID buf_mDrCC = registerBuffer(fd, "mesh draw command count buffer", 64);
+    ResourceID buf_mDrCC_a1 = registerBuffer(fd, "A1: mesh draw command count buffer", 64);
+    ResourceID buf_mDrCC_a2 = registerBuffer(fd, "A2: mesh draw command count buffer", 64);
+    ResourceID buf_mDrVis = registerBuffer(fd, "mesh draw visibility buffer", 32 * 1024 * 1024);
+    ResourceID buf_mDrVis_a1 = registerBuffer(fd, "A1: mesh draw visibility buffer", 32 * 1024 * 1024);
+    ResourceID buf_mDrVis_a2 = registerBuffer(fd, "A2: mesh draw visibility buffer", 32 * 1024 * 1024);
+    ResourceID buf_mltVis = registerBuffer(fd, "meshlet visibility buffer", 256 * 1024 * 1024);
+    ResourceID buf_mltVis_a1 = registerBuffer(fd, "A1: meshlet visibility buffer", 256 * 1024 * 1024);
+    ResourceID buf_mltVis_a2 = registerBuffer(fd, "A2: meshlet visibility buffer", 256 * 1024 * 1024);
+
+    uint32_t sc_x = 1920u;
+    uint32_t sc_y = 1080u;
+
+    ImageProps img_ct_props = { "color target" };
+    img_ct_props.x = sc_x;
+    img_ct_props.y = sc_y;
+    ResourceID img_ct = registerImage(fd, img_ct_props);
+
+    ImageProps img_ct_a1_props = { "A1: color target" };
+    img_ct_a1_props.x = sc_x;
+    img_ct_a1_props.y = sc_y;
+    ResourceID img_ct_a1 = registerImage(fd, img_ct_a1_props);
+
+    ImageProps img_dt_props = { "depth target" };
+    img_dt_props.x = sc_x;
+    img_dt_props.y = sc_y;
+    ResourceID img_dt = registerImage(fd, img_dt_props);
+
+    ImageProps img_dt_a1_props = { "A1: depth target" };
+    img_dt_a1_props.x = sc_x;
+    img_dt_a1_props.y = sc_y;
+    ResourceID img_dt_a1 = registerImage(fd, img_dt_a1_props);
+
+    ImageProps img_rt_props = { "render target" };
+    img_rt_props.x = sc_x;
+    img_rt_props.y = sc_y;
+    ResourceID img_rt = registerImage(fd, img_rt_props);
+
+    ImageProps img_rt_a1_props = { "A1: render target" };
+    img_rt_a1_props.x = sc_x;
+    img_rt_a1_props.y = sc_y;
+    ResourceID img_rt_a1 = registerImage(fd, img_rt_a1_props);
+
+    ImageProps img_dpy_props = { "depth pyramid" };
+    img_dpy_props.x = sc_x;
+    img_dpy_props.y = sc_y;
+    img_dpy_props.z = 16u;
+    ResourceID img_dpy = registerImage(fd, img_dpy_props);
+
+    ImageProps img_dpy_a1_props = { "A1: depth pyramid" };
+    img_dpy_a1_props.x = sc_x;
+    img_dpy_a1_props.y = sc_y;
+    img_dpy_a1_props.z = 16u;
+    ResourceID img_dpy_a1 = registerImage(fd, img_dpy_a1_props);
+
+    PassID p1 = registerPass(fd, fg, "early cull pass", { buf_mesh, buf_transData, buf_mDr, buf_mDrCC, buf_mDrVis , img_dpy }, { buf_mDrCmd, buf_mDrCC_a1, buf_mDrVis_a1 }, RenderPassExeQueue::asyncCompute0);
+    PassID p2 = registerPass(fd, fg, "early draw pass", { buf_vtx, buf_idx, buf_mesh, buf_mltData, buf_transData, buf_mDr, buf_mDrCmd, buf_mltVis , img_dpy }, { buf_mltVis_a1, img_ct, img_dt });
+    PassID p3 = registerPass(fd, fg, "pyramid pass", { img_dt }, { img_dpy_a1 }, RenderPassExeQueue::asyncCompute0);
+    PassID p4 = registerPass(fd, fg, "late cull pass", { buf_mesh, buf_transData, buf_mDr, buf_mDrCC_a1, buf_mDrVis_a1, img_dpy_a1 }, { buf_mDrCmd_a1, buf_mDrCC_a2, buf_mDrVis_a2 }, RenderPassExeQueue::asyncCompute0);
+    PassID p5 = registerPass(fd, fg, "late draw pass", { buf_vtx, buf_idx, buf_mesh, buf_mltData, buf_transData, buf_mDr, buf_mDrCmd_a1, buf_mltVis_a1, img_dpy_a1 }, { buf_mltVis_a2, img_ct_a1, img_dt_a1 });
+    PassID p6 = registerPass(fd, fg, "copy pass", { img_ct_a1 }, { img_rt });
+    PassID p7 = registerPass(fd, fg, "UI pass", { img_rt }, { img_rt_a1 });
+
+    fg._outputPass = p7;
+
+    fg._multiFrameReses.insert(fg._multiFrameReses.end(), { img_dpy_a1, });
+
+    addForceAliasBuffers(fg, fd, { buf_mDrCmd , buf_mDrCmd_a1, buf_mDrCmd_a2 });
+    addForceAliasBuffers(fg, fd, { buf_mDrCC , buf_mDrCC_a1, buf_mDrCC_a2 });
+    addForceAliasBuffers(fg, fd, { buf_mDrVis , buf_mDrVis_a1, buf_mDrVis_a2 });
+    addForceAliasBuffers(fg, fd, { buf_mltVis , buf_mltVis_a1, buf_mltVis_a2 });
+
+    addForceAliasImages(fg, fd, { img_ct , img_ct_a1 });
+    addForceAliasImages(fg, fd, { img_dt , img_dt_a1 });
+    addForceAliasImages(fg, fd, { img_rt , img_rt_a1 });
+    addForceAliasImages(fg, fd, { img_dpy, img_dpy_a1 });
+}
+
 // p1 <-- p2 <-- p3 <-- p7
 //   ____________|  ____|
 //  /       /      /
@@ -309,8 +481,6 @@ void setupResources(FrameGraphData& fd, FrameGraph& fg)
 //
 void setupResources_test_a(FrameGraphData& fd, FrameGraph& fg)
 {
-    
-
     ResourceID r1 = 0x0001;
     ResourceID r2 = 0x0002;
     ResourceID r3 = 0x0003;
@@ -529,8 +699,6 @@ void setupResources_test_b(FrameGraphData& fd, FrameGraph& fg)
 //
 void setupResources_test_c(FrameGraphData& fd, FrameGraph& fg)
 {
-    
-
     ResourceID r1 = 0x0001;
     ResourceID r2 = 0x0002;
     ResourceID r3 = 0x0003;
@@ -618,7 +786,6 @@ void setupResources_test_c(FrameGraphData& fd, FrameGraph& fg)
 // same dependency as test_c, 
 // but some resources are exist from the beginning
 // and some resources are marked as permanently(multi-frame data)
-
 void setupResources_test_d(FrameGraphData& fd, FrameGraph& fg)
 {
     ResourceID r1 = 0x0001;
@@ -844,12 +1011,11 @@ void formatDependencyLevels(FrameGraph& fg, FrameGraphData& fd, std::unordered_m
         formatDependencyLevels(fg, fd, longestDists, levelPasses, id, baseLevel);
     }
 
-};
+}
+
 
 void buildDenpendencyLevel(FrameGraph& fg, FrameGraphData& fd)
 {
-    
-
     const std::vector<PassID>& visitedPasses = fg._linearVisitedPasses;
 
     message(info, "dependency level: \n");
@@ -1029,104 +1195,74 @@ void buildDenpendencyLevel(FrameGraph& fg, FrameGraphData& fd)
 }
 
 
-void fillInBuckets(FrameGraph& fg, FrameGraphData& fd, std::vector<ResourceID>& sortedResbySize
-    , std::vector<ResourceID> aliasedReses, std::vector<std::vector<ResourceID>>& resInLevel, const std::vector<ResourceID>& resStack
-    , std::vector<Bucket>& buckets)
+bool isBufferAliasable(FrameGraphData& fd, const ResourceID res, const BufferBucket& bucket, const std::vector<ResourceID>& currLevelReses)
 {
-    std::vector<ResourceID>& restRes = sortedResbySize;
-    std::vector<ResourceID> stack = resStack;
+    assert(isBuffer(res));
 
-    if (restRes.empty())
-        return;
-    
-    // if level is 0, then it's a new bucket
-    // pop the biggest one as the base resource
-    if (resInLevel.empty())
+    const ManagedBuffer& mb = fd._resmap._managedBuffers[res];
+
+    // size checking
+    size_t remaingSize = bucket._size;
+    for (ResourceID clres : currLevelReses)
     {
-        assert(stack.empty());
-
-        ResourceID baseRes = *restRes.begin();
-
-        std::vector<ResourceID> currlevelReses{};
-        currlevelReses.push_back(baseRes);
-
-        // store the level resource
-        resInLevel.push_back({ baseRes });
-
-        // new bucket
-        Bucket bucket{};
-        bucket._reses.push_back(baseRes);
-        bucket._size = fd._resmap._managedBuffers[baseRes]._size;
-        bucket._idx = (uint32_t)buckets.size();
-
-        buckets.push_back(bucket);
-
-        stack.push_back(baseRes);
-
-        aliasedReses.push_back(baseRes);
-
-
-        // remove current one from rest resource
-        restRes.erase(restRes.begin());
+        remaingSize -= fd._resmap._managedBuffers[clres]._size;
     }
 
-    // a new level
+    bool sizeMatch = mb._size <= remaingSize;
+
+
+    // lifetime checking, should not overlap with any resource in current bucket
+    // TODO: maybe use a stack only check pass overlap with current resource:
+    // e.g. the memory aliasing as follow
+    //     [r0---------------------]
+    //     [r1--------][r2---------]
+    //     [r3---][r4-]
+    // current method: 
+    //      every resource is not overlap with each other in lifetime range
+    // maybe a better method: 
+    //      only need to check if current resource is overlap with the top resource in stack, like r3 vs r2, r4 vs r2
+    bool stackMatch = true;
+    const std::pair<uint32_t, uint32_t> currResLifetime = fd._resmap.bufferLifetimeIdx[res];
+    for (ResourceID renInBucket : bucket._reses)
+    {
+        std::pair<uint32_t, uint32_t> stackLifetime = fd._resmap.bufferLifetimeIdx[renInBucket];
+
+        // if lifetime overlap with any resource in current bucket, then it's not aliasable
+        stackMatch &= (stackLifetime.first > currResLifetime.second || stackLifetime.second < currResLifetime.first);
+    }
+
+    return sizeMatch && stackMatch;
+}
+
+
+void fillBufferBucket(FrameGraph& fg, FrameGraphData& fd, const std::vector<ResourceID>& sortedResbySize
+    , std::vector<std::vector<ResourceID>>& resInLevel, BufferBucket& bucket)
+{
+    std::vector<ResourceID> restRes = sortedResbySize;
     resInLevel.push_back({});
 
-    Bucket& currBucket = buckets.back();
-
-    // find the first aliasable resource
-    for (ResourceID res: restRes)
+    // find force aliasable resource
+    for (ResourceID res : restRes)
     {
-        // lamda that check if a resource is aliasable or not
-        auto aliasiable = [&](ResourceID resource)
-        {
-            const ManagedBuffer mb = fd._resmap._managedBuffers[resource];
-            const std::vector<ResourceID>& currLevelReses = resInLevel.back();
+        const std::vector<ResourceID>& currLevelReses = resInLevel.back();
+    }
 
-            // size checking
-            size_t remaingSize = currBucket._size;
-            for (ResourceID clres : currLevelReses)
-            {
-                remaingSize -= fd._resmap._managedBuffers[clres]._size;
-            }
-
-            bool sizeMatch = mb._size <= remaingSize;
-
-            bool stackMatch = true;
-            const std::pair<uint32_t, uint32_t> currResLifetime = fd._resmap.bufferLifetimeIdx[resource];
-            // lifetime checking, should not overlap with any resource in current stack
-            for (ResourceID csres : stack)
-            {
-                std::pair<uint32_t, uint32_t> stackLifetime = fd._resmap.bufferLifetimeIdx[csres];
-
-                // if lifetime overlap with any resource in current stack, then it's not aliasable
-                stackMatch &= (stackLifetime.first > currResLifetime.second || stackLifetime.second < currResLifetime.first);
-            }
-
-            return sizeMatch && stackMatch;
-        };
-
+    // find normal aliasable resource
+    for (ResourceID res : restRes)
+    {
+        const std::vector<ResourceID>& currLevelReses = resInLevel.back();
         // if current resource is aliasable
-        if (aliasiable(res))
+        if (isBufferAliasable(fd, res, bucket, currLevelReses))
         {
             // add current resource into current level
             resInLevel.back().push_back(res);
 
             // add current resource into current bucket
-            currBucket._reses.push_back(res);
-
-            aliasedReses.push_back(res);
+            bucket._reses.push_back(res);
         }
     }
 
-    // if current level is empty, then it's done for current bucket
-    if (resInLevel.back().empty())
-    {
-        resInLevel.clear();
-        fillInBuckets(fg, fd, restRes, aliasedReses, resInLevel, {}, buckets);
-    }
-    else
+    if (!resInLevel.back().empty())
     {
         // remove resources that already in current level from rest resource
         for (ResourceID res : resInLevel.back())
@@ -1134,11 +1270,279 @@ void fillInBuckets(FrameGraph& fg, FrameGraphData& fd, std::vector<ResourceID>& 
             restRes.erase(std::find(restRes.begin(), restRes.end(), res));
         }
 
-        for (ResourceID res : resInLevel.back())
+        fillBufferBucket(fg, fd, restRes, resInLevel, bucket);
+    }
+}
+
+void createBufferBucket(std::vector<BufferBucket>& buckets
+    , const size_t sz, const std::vector<ResourceID>& reses, const std::vector<ResourceID>& forceAlias)
+{
+    BufferBucket bkt = {};
+    bkt._size = sz;
+    bkt._reses = reses;
+    bkt._forceAliasedReses = forceAlias;
+    bkt._idx = (uint32_t)buckets.size() + 1u;
+
+    buckets.push_back(bkt);
+}
+
+void aliseBuffers(FrameGraph& fg, FrameGraphData& fd, const std::vector<ResourceID>& sortedResbySize
+    , std::vector<BufferBucket>& buckets)
+{
+    std::vector<ResourceID> restRes = sortedResbySize;
+
+    std::vector<std::vector<ResourceID>> resInLevel{{}};
+
+    if (restRes.empty()) {
+        return;
+    }
+
+    // process force alias resources first
+    for (const std::vector<ResourceID> aliasBufs : fg._forceAliasBuffers)
+    {
+        assert(!aliasBufs.empty());
+        
+        std::vector<ResourceID> bktReses {};
+        for (ResourceID albuf : aliasBufs)
         {
-            stack.push_back(res);
-            fillInBuckets(fg, fd, restRes, aliasedReses, resInLevel, stack, buckets);
-            stack.pop_back();
+            auto it = std::find(restRes.begin(), restRes.end(), albuf);
+
+            if (it != restRes.end())
+            {
+                bktReses.push_back(albuf);
+                restRes.erase(it);
+            }
+        }
+
+        if (bktReses.empty())
+            continue;
+
+        // new bucket
+        ResourceID baseRes = *bktReses.begin();
+        createBufferBucket(buckets
+            , fd._resmap._managedBuffers[baseRes]._size
+            , bktReses, bktReses);
+    }
+
+    // now process normal alias resources
+    while (!restRes.empty())
+    {
+        ResourceID baseRes = *restRes.begin();
+
+        // check if current resource can alias into any existing bucket
+        bool aliased = false;
+        for (BufferBucket& bkt : buckets)
+        {
+            if (!isBufferAliasable(fd, baseRes, bkt, resInLevel.back()))
+                continue;
+            
+            // aliasable, add current resource into current bucket
+            bkt._reses.push_back(baseRes);
+
+            resInLevel.back().push_back(baseRes);
+
+            for (ResourceID res : bkt._reses)
+            {
+                auto it = std::find(restRes.begin(), restRes.end(), res);
+                if (it != restRes.end())
+                    restRes.erase(it);
+            }
+            aliased = true;
+            break;
+        }
+
+
+        if (aliased)
+        {
+            continue;
+        }
+
+        // no suitable bucket found, create a new one
+        createBufferBucket(buckets
+            , fd._resmap._managedBuffers[baseRes]._size
+            , { baseRes }, { baseRes });
+
+        restRes.erase(restRes.begin());
+
+        resInLevel.clear();
+        resInLevel.push_back({});
+    }
+
+}
+
+
+bool isImageAliasable(FrameGraphData& fd, const ResourceID res, const ImageBucket& bucket)
+{
+    assert(isImage(res));
+
+    const ManagedImage& mi = fd._resmap._managedImages[res];
+
+    bool aliasable = true;
+    const std::pair<uint32_t, uint32_t> currResLifetime = fd._resmap.imageLifetimeIdx[res];
+    for (ResourceID renInBucket : bucket._reses)
+    {
+        // if lifetime overlap with any resource in current bucket, then it's not aliasable
+        std::pair<uint32_t, uint32_t> stackLifetime = fd._resmap.imageLifetimeIdx[renInBucket];
+        aliasable &= (stackLifetime.first > currResLifetime.second || stackLifetime.second < currResLifetime.first);
+
+        // check size
+        aliasable &= (fd._resmap._managedImages[renInBucket]._x = mi._x
+            && fd._resmap._managedImages[renInBucket]._y == mi._y
+            && fd._resmap._managedImages[renInBucket]._z == mi._z);
+
+        // check mips
+        aliasable &= (fd._resmap._managedImages[renInBucket]._mipLevels == mi._mipLevels);
+
+        // TODO: check usage
+        // TODO
+        // TODO!!!!!
+    }
+
+    return aliasable;
+}
+
+
+void fillImageBucket(FrameGraph& fg, FrameGraphData& fd, const std::vector<ResourceID>& sortedResbySize, ImageBucket& bucket)
+{
+    std::vector<ResourceID> restRes = sortedResbySize;
+
+    if (restRes.empty())
+        return;
+
+    // find the first aliasable resource
+    for (ResourceID res : restRes)
+    {
+        // if current resource is aliasable
+        if (isImageAliasable(fd, res, bucket))
+        {
+            // add current resource into current bucket
+            bucket._reses.push_back(res);
+        }
+    }
+}
+
+void createImageBucket(std::vector<ImageBucket>& buckets
+    , const uint32_t x, const uint32_t y, const uint32_t z, const std::vector<ResourceID>& reses, const std::vector<ResourceID>& forceAlias)
+{
+    ImageBucket bkt = {};
+    bkt._x = x;
+    bkt._y = y;
+    bkt._z = z;
+    bkt._reses = reses;
+    bkt._forceAliasedReses = forceAlias;
+    bkt._idx = (uint32_t)buckets.size() + 1u;
+
+    buckets.push_back(bkt);
+}
+
+void aliaseImages(FrameGraph& fg, FrameGraphData& fd, const std::vector<ResourceID>& sortedResbySize
+    , std::vector<ImageBucket>& buckets)
+{
+    std::vector<ResourceID> restRes = sortedResbySize;
+
+    // process force alias resources first
+    for (const std::vector<ResourceID> aliasBufs : fg._forceAliasImages)
+    {
+        assert(!aliasBufs.empty());
+
+        std::vector<ResourceID> bktReses {};
+        for (ResourceID albuf : aliasBufs)
+        {
+            auto it = std::find(restRes.begin(), restRes.end(), albuf);
+
+            if (it != restRes.end())
+            {
+                bktReses.push_back(albuf);
+                restRes.erase(it);
+            }
+        }
+
+        if (bktReses.empty())
+            continue;
+
+        ResourceID baseRes = *bktReses.begin();
+        // new bucket
+        createImageBucket(buckets
+            , fd._resmap._managedImages[baseRes]._x
+            , fd._resmap._managedImages[baseRes]._y
+            , fd._resmap._managedImages[baseRes]._z
+            , bktReses, bktReses);
+    }
+
+    while (!restRes.empty())
+    {
+        ResourceID baseRes = *restRes.begin();
+
+        // check if current resource can alias into any existing bucket
+        bool aliased = false;
+        for (ImageBucket& bkt : buckets)
+        {
+            if (!isImageAliasable(fd, baseRes, bkt))
+                continue;
+
+            // aliasable, add current resource into current bucket
+            bkt._reses.push_back(baseRes);
+
+            for (ResourceID res : bkt._reses)
+            {
+                auto it = std::find(restRes.begin(), restRes.end(), res);
+                if (it != restRes.end())
+                    restRes.erase(it);
+            }
+            aliased = true;
+            break;
+        }
+
+
+        if (aliased)
+        {
+            continue;
+        }
+
+        // if not aliasiable, create a new bucket
+        createImageBucket(buckets
+            , fd._resmap._managedImages[baseRes]._x
+            , fd._resmap._managedImages[baseRes]._y
+            , fd._resmap._managedImages[baseRes]._z
+            , { baseRes }, { baseRes });
+
+        // remove current one from rest resource
+        restRes.erase(restRes.begin());
+    }
+}
+
+void aliaseImages2(FrameGraph& fg, FrameGraphData& fd, const std::vector<ResourceID>& sortedResbySize
+    , std::vector<ImageBucket>& buckets)
+{
+    std::vector<ResourceID> restRes = sortedResbySize;
+
+    while (!restRes.empty())
+    {
+        ResourceID baseRes = *restRes.begin();
+
+        // new bucket
+        ImageBucket bucket{};
+        bucket._x = fd._resmap._managedImages[baseRes]._x;
+        bucket._y = fd._resmap._managedImages[baseRes]._y;
+        bucket._z = fd._resmap._managedImages[baseRes]._z;
+        bucket._reses.push_back(baseRes);
+        bucket._idx = (uint32_t)buckets.size();
+
+        buckets.push_back(bucket);
+
+        // remove current one from rest resource
+        restRes.erase(restRes.begin());
+
+
+        fillImageBucket(fg, fd, restRes, buckets.back());
+
+        // once fillImageBucket returns, which means one bucket finished
+        // remove resources in current bucket from restRes list
+        for (ResourceID res : buckets.back()._reses)
+        {
+            auto it = std::find(restRes.begin(), restRes.end(), res);
+            if (it != restRes.end())
+                restRes.erase(it);
         }
     }
 }
@@ -1159,8 +1563,8 @@ void buildGraph(FrameGraph& frameGraph)
 {
     FrameGraph& fg = frameGraph;
     FrameGraphData fd{};
-    //setupResources(fd, fg);
-    setupResources_test_a_managed(fd, fg);
+    setupResources_managed(fd, fg);
+    //setupResources_test_a_managed(fd, fg);
 
     // make a plain table that can find producer of a resource easily.
     std::vector<ResourceID> all_outResID;
@@ -1299,6 +1703,7 @@ void buildGraph(FrameGraph& frameGraph)
 
             if (isImage(resPair.first)) {
                 fd._resmap.imageLifetime.insert({ resPair.first, {*left, *right} });
+                fd._resmap.imageLifetimeIdx.insert({ resPair.first, {uint32_t(left - visitedPassesWithFrameStartEnd.begin()), uint32_t(right - visitedPassesWithFrameStartEnd.begin())} });
             }
             
             for (PassID passID : visitedPassesWithFrameStartEnd)
@@ -1324,33 +1729,35 @@ void buildGraph(FrameGraph& frameGraph)
 
 
         // print lifetime table
-        char msg[4096];
-        snprintf(msg, COUNTOF(msg), "resource lifetime: \n");
-        snprintf(msg, COUNTOF(msg), "%s|      |", msg);
-        for (PassID id : visitedPassesWithFrameStartEnd)
         {
-            snprintf(msg, COUNTOF(msg), "%s %4x |", msg, id);
-        }
-        snprintf(msg, COUNTOF(msg), "%s\n", msg);
-        for (auto& it : lifetimeTable)
-        {
-            snprintf(msg, COUNTOF(msg), "%s| %4x |", msg, it.first);
-            for (PassID passID : visitedPassesWithFrameStartEnd)
+            char msg[4096];
+            snprintf(msg, COUNTOF(msg), "resource lifetime: \n");
+            snprintf(msg, COUNTOF(msg), "%s|      |", msg);
+            for (PassID id : visitedPassesWithFrameStartEnd)
             {
-                std::vector<PassID>& passIDs = it.second;
-                if (std::find(passIDs.begin(), passIDs.end(), passID) != passIDs.end())
-                {
-                    snprintf(msg, COUNTOF(msg), "%s ==== |", msg);
-                }
-                else
-                {
-                    snprintf(msg, COUNTOF(msg), "%s      |", msg);
-                }
+                snprintf(msg, COUNTOF(msg), "%s %4x |", msg, id);
             }
             snprintf(msg, COUNTOF(msg), "%s\n", msg);
-        }
+            for (auto& it : lifetimeTable)
+            {
+                snprintf(msg, COUNTOF(msg), "%s| %4x |", msg, it.first);
+                for (PassID passID : visitedPassesWithFrameStartEnd)
+                {
+                    std::vector<PassID>& passIDs = it.second;
+                    if (std::find(passIDs.begin(), passIDs.end(), passID) != passIDs.end())
+                    {
+                        snprintf(msg, COUNTOF(msg), "%s ==== |", msg);
+                    }
+                    else
+                    {
+                        snprintf(msg, COUNTOF(msg), "%s      |", msg);
+                    }
+                }
+                snprintf(msg, COUNTOF(msg), "%s\n", msg);
+            }
 
-        message(info, msg);
+            message(info, msg);
+        }
 
         for (auto& resPair : activedResourceCount)
         {
@@ -1358,11 +1765,14 @@ void buildGraph(FrameGraph& frameGraph)
         }
 
         // TODO: sort resources by size
-        std::vector<ResourceID> sortedReses_size{};
+        std::vector<ResourceID> sortedBufs_size{};
         {
             std::vector<ResourceID> sortedReses{};
             for (auto& resPair : lifetimeTable)
             {
+                if (!isBuffer(resPair.first))
+                    continue;
+
                 sortedReses.push_back(resPair.first);
             }
 
@@ -1370,14 +1780,72 @@ void buildGraph(FrameGraph& frameGraph)
                 return fd._resmap._managedBuffers[a]._size > fd._resmap._managedBuffers[b]._size;
             });
 
-            sortedReses_size = sortedReses;
+            sortedBufs_size = sortedReses;
         }
 
-        std::vector<Bucket> buckets{};
-        std::vector<std::vector<ResourceID>> resInLevel{};
-        uint32_t levelIdx = 0;
+        std::vector<ResourceID> sortedImgs_size{};
+        {
+            std::vector<ResourceID> sortedReses{};
+            for (auto& resPair : lifetimeTable)
+            {
+                if (!isImage(resPair.first))
+                    continue;
+
+                sortedReses.push_back(resPair.first);
+            }
+
+            std::sort(sortedReses.begin(), sortedReses.end(), [&](ResourceID a, ResourceID b) {
+                size_t sz_a = fd._resmap._managedImages[a]._x * fd._resmap._managedImages[a]._y * fd._resmap._managedImages[a]._z * fd._resmap._managedImages[a]._mipLevels;
+                size_t sz_b = fd._resmap._managedImages[b]._x * fd._resmap._managedImages[b]._y * fd._resmap._managedImages[b]._z * fd._resmap._managedImages[b]._mipLevels;
+
+                return sz_a > sz_b;
+                });
+
+            sortedImgs_size = sortedReses;
+        }
+
+        std::vector<BufferBucket> bufferBuckets{};
         std::vector<ResourceID> aliasedReses{};
-        fillInBuckets(fg, fd, sortedReses_size, aliasedReses, resInLevel, {}, buckets);
+        aliseBuffers(fg, fd, sortedBufs_size, bufferBuckets);
+
+
+        {
+            char msg[4096];
+            size_t totalSize = 0;
+            snprintf(msg, COUNTOF(msg), "\taliased resource: \n");
+            for (const BufferBucket& bkt : bufferBuckets)
+            {
+                snprintf(msg, COUNTOF(msg), "%s\n", msg);
+                for (ResourceID res : bkt._reses)
+                {
+                    snprintf(msg, COUNTOF(msg), "%s\t\t0x%4x\t%s\n", msg, res, fd._resmap._managedBuffers[res]._name.c_str());
+                }
+                totalSize += bkt._size;
+            }
+            message(info, "%s", msg);
+            message(info, "total size: %d\n", totalSize);
+        }
+
+        std::vector<ImageBucket> imageBuckets{};
+        aliaseImages(fg, fd, sortedImgs_size, imageBuckets);
+
+        {
+            char msg[4096];
+            size_t totalSize = 0;
+            snprintf(msg, COUNTOF(msg), "\taliased image: \n");
+            for (const ImageBucket& bkt : imageBuckets)
+            {
+                snprintf(msg, COUNTOF(msg), "%s\n", msg);
+                for (ResourceID res : bkt._reses)
+                {
+                    snprintf(msg, COUNTOF(msg), "%s\t\t0x%4x\t%s\n", msg, res, fd._resmap._managedImages[res]._name.c_str());
+                }
+                totalSize += (bkt._x * bkt._y * bkt._z);
+            }
+            message(info, "%s", msg);
+
+            message(info, "total size: %d\n", totalSize);
+        }
     }
 }
 

@@ -59,14 +59,6 @@ namespace vkz
         std::vector<uint32_t> activeAliasesIdx;
     };
 
-    struct BufferInitData
-    {
-        ResourceID _id{ invalidResourceID };
-        std::string _name;
-        size_t _size{ 0u };
-    };
-
-
     struct ManagedBuffer
     {
         ResourceID _id{ invalidResourceID };
@@ -77,14 +69,60 @@ namespace vkz
 
         uint64_t _memory{ 0u };
         size_t _offset{ 0u };
+
+        std::vector<ResourceID> _forceAlias;
     };
 
-    struct Bucket
+
+    // since this is not for virtual texture, so only same size image can be aliased
+    struct ImageProps
+    {
+        std::string name;
+
+        uint32_t x{ 0u }, y{ 0u }, z{ 1u };
+        uint16_t mipLevels{ 1u };
+
+        VkImageUsageFlags usage;
+        VkImageType       type{ VK_IMAGE_TYPE_2D };
+        VkImageLayout     layout{ VK_IMAGE_LAYOUT_GENERAL };
+        VkImageViewType   viewType{ VK_IMAGE_VIEW_TYPE_2D };
+    };
+
+
+    struct ManagedImage
+    {
+        ResourceID _id{ invalidResourceID };
+        std::string _name;
+        uint32_t _x{ 0u };
+        uint32_t _y{ 0u };
+        uint32_t _z{ 1u };
+
+        uint16_t _mipLevels{ 1u };
+        uint16_t _padding{ 0u };
+        uint32_t _bucketIdx{ 0u };
+
+        std::vector<ResourceID> _forceAlias;
+    };
+
+
+    struct BufferBucket
     {
         uint32_t _idx;
         size_t _size;
         std::vector<ResourceID> _reses;
-        std::vector<size_t> _offset;
+        std::vector<ResourceID> _forceAliasedReses;
+    };
+
+    struct ImageBucket
+    {
+        uint32_t _idx;
+
+        uint32_t _x{ 0u };
+        uint32_t _y{ 0u };
+        uint32_t _z{ 1u };
+        
+        std::vector<ResourceID> _reses;
+        std::vector<ResourceID> _forceAliasedReses;
     };
 
     struct ResourceMap
@@ -94,6 +132,7 @@ namespace vkz
         std::unordered_map<ResourceID, Image> _images;
 
         std::unordered_map<ResourceID, ManagedBuffer> _managedBuffers;
+        std::unordered_map<ResourceID, ManagedImage> _managedImages;
 
         // store all resources, no matter it is a alias or not
         std::unordered_map<ResourceID, std::string> bufferNames;
@@ -102,6 +141,7 @@ namespace vkz
         std::unordered_map<ResourceID, std::pair<PassID, PassID>> bufferLifetime;
         std::unordered_map<ResourceID, std::pair<uint32_t, uint32_t>> bufferLifetimeIdx;
         std::unordered_map<ResourceID, std::pair<PassID, PassID>> imageLifetime;
+        std::unordered_map<ResourceID, std::pair<uint32_t, uint32_t>> imageLifetimeIdx;
     };
 
     struct FrameGraphData
@@ -123,6 +163,9 @@ namespace vkz
 
         std::vector<ResourceID> _readonlyReses;
         std::vector<ResourceID> _multiFrameReses;
+
+        std::vector<std::vector<ResourceID>> _forceAliasBuffers;
+        std::vector<std::vector<ResourceID>> _forceAliasImages;
     };
 
     
@@ -142,5 +185,7 @@ namespace vkz
     typedef std::initializer_list<ResourceID> InputResources;
     typedef std::initializer_list<ResourceID> OutputResources;
     ResourceID registerBuffer(FrameGraphData& fd, const std::string& name, const size_t size);
+
+    ResourceID registerImage(FrameGraphData& fd, const ImageProps& props);
     PassID registerPass(FrameGraphData& fd, FrameGraph& fg, const std::string name, InputResources read, OutputResources write, RenderPassExeQueue queue = RenderPassExeQueue::graphics);
 };
