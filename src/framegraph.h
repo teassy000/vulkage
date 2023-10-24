@@ -19,44 +19,29 @@ namespace vkz
         NUM_OF_QUEUES = 4u,
     };
 
-    struct DependedLevels
+    struct ResourceState
     {
-        PassID _basedPass{invalidPassID};
-        DependLevel _currLevel = ~0u;
-
-        std::unordered_map<DependLevel, std::vector<PassID>> _dependPasses;
+        VkAccessFlags2 _vkaccess{ 0u };
+        VkPipelineStageFlags2 _vkstage{ 0u };
     };
 
-    struct RenderPass
+    struct BufferState : public ResourceState
     {
-        PassID _ID{ invalidPassID };
-        RenderPassExeQueue _queue{ RenderPassExeQueue::graphics };
-        std::string _name;
-
-        std::unordered_map<RenderPassExeQueue, PassID> _nearestSyncPasses;
-
-        std::vector<PassID> _plainNearestSyncPasses; // all nearest sync passes, including redundant sync
-
-        std::vector<PassID> _passToSync; // optimal pass to sync with, no redundant sync
-
-        std::vector<PassID> parentPassIDs;
-        std::vector<PassID> childPassIDs;
-
-        std::vector<ResourceID> inputResIDs;
-        std::vector<ResourceID> outputResIDs;
     };
 
-    struct ResourceAlias
+    struct ImageState : public ResourceState
     {
-        std::vector<ResourceID> aliasesID;
+        // image layout 
+        VkImageLayout _vklayout{ VK_IMAGE_LAYOUT_UNDEFINED };
     };
 
-    struct ResourceTable
+    struct BufferProps
     {
-        std::vector<ResourceID> baseReses;
-        std::vector<ResourceAlias> aliases;
-        std::vector<ResourceID> activeAlias;
-        std::vector<uint32_t> activeAliasesIdx;
+        std::string name{"invalid"};
+        size_t size{ 0 };
+
+
+        VkBufferUsageFlags usage;
     };
 
     struct ManagedBuffer
@@ -74,7 +59,7 @@ namespace vkz
     };
 
 
-    // since this is not for virtual texture, so only same size image can be aliased
+    // only same size image can be aliased
     struct ImageProps
     {
         std::string name;
@@ -125,6 +110,28 @@ namespace vkz
         std::vector<ResourceID> _forceAliasedReses;
     };
 
+
+
+
+    struct RenderPass
+    {
+        PassID _ID{ invalidPassID };
+        RenderPassExeQueue _queue{ RenderPassExeQueue::graphics };
+        std::string _name;
+
+        std::unordered_map<RenderPassExeQueue, PassID> _nearestSyncPasses;
+        std::vector<PassID> _passToSync; // optimal pass to sync with, no redundant sync
+
+        std::vector<PassID> parentPassIDs;
+        std::vector<PassID> childPassIDs;
+
+        std::vector<ResourceID> inputResIDs;
+        std::vector<ResourceID> outputResIDs;
+
+        std::unordered_map<ResourceID, BufferState> _requiredBufferState;
+        std::unordered_map<ResourceID, ImageState> _requiredImageState;
+    };
+
     struct ResourceMap
     {
         // store all resources, no matter it is a alias or not
@@ -133,6 +140,10 @@ namespace vkz
 
         std::unordered_map<ResourceID, ManagedBuffer> _managedBuffers;
         std::unordered_map<ResourceID, ManagedImage> _managedImages;
+
+        // each resource has it's own barrier state, it will change during graph processing
+        std::unordered_map<ResourceID, BufferState> _bufferStates;
+        std::unordered_map<ResourceID, ImageState> _imageStates;
 
         // store all resources, no matter it is a alias or not
         std::unordered_map<ResourceID, std::string> bufferNames;
@@ -148,6 +159,15 @@ namespace vkz
     {
         std::unordered_map<PassID, RenderPass> _passes;
         ResourceMap _resmap;
+    };
+
+
+    struct DependedLevels
+    {
+        PassID _basedPass{ invalidPassID };
+        DependLevel _currLevel = ~0u;
+
+        std::unordered_map<DependLevel, std::vector<PassID>> _dependPasses;
     };
 
     struct FrameGraph
@@ -176,16 +196,12 @@ namespace vkz
     void TopologicalSort(FrameGraph& graph, FrameGraphData& fd, std::vector<PassID>& sortedPasses);
 
     void buildGraph(FrameGraph& graph);
-    void getResourceAliases(ResourceAlias& output, ResourceID id, const ResourceTable& table);
-    void getResource(Image& image, Buffer& buffer, ResourceMap resMap, const ResourceID id);
-    void resetActiveAlias(ResourceTable& table); // call at the end of every frame
-    ResourceID getActiveAlias(const ResourceTable& table, const ResourceID baseResourceID);
-    ResourceID nextAlias(ResourceTable& table, const ResourceID id); // call after a pass wrote to a resource
 
     typedef std::initializer_list<ResourceID> InputResources;
     typedef std::initializer_list<ResourceID> OutputResources;
+    ResourceID registerBuffer(FrameGraphData& fd, const BufferProps& props);
     ResourceID registerBuffer(FrameGraphData& fd, const std::string& name, const size_t size);
-
     ResourceID registerImage(FrameGraphData& fd, const ImageProps& props);
+    
     PassID registerPass(FrameGraphData& fd, FrameGraph& fg, const std::string name, InputResources read, OutputResources write, RenderPassExeQueue queue = RenderPassExeQueue::graphics);
 };

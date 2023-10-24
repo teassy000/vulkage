@@ -849,9 +849,9 @@ int main(int argc, const char** argv)
         {
             VkImageMemoryBarrier2 skyboxBarriers[] =
             {
-                imageBarrier(img_skybox.image, 
-                VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_IMAGE_LAYOUT_UNDEFINED, 0,
-                 VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL ,VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT),
+                imageBarrier(img_skybox.image, VK_IMAGE_ASPECT_COLOR_BIT,
+                    0, VK_IMAGE_LAYOUT_UNDEFINED, 0,
+                    VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL ,VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT),
             };
 
             pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, COUNTOF(skyboxBarriers), skyboxBarriers);

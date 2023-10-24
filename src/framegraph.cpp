@@ -14,127 +14,21 @@
 namespace vkz
 {
 
-void getResourceAliases(ResourceAlias& output, ResourceID id, const ResourceTable& table)
-{
-    ResourceAlias result = {};
-    uint32_t resIdx = -1;
-    const std::vector<ResourceID>& reses = table.baseReses;
-    for (uint32_t idx = 0; idx != reses.size(); ++idx)
-    {
-        if (reses[idx] == id)
-        {
-            resIdx = idx;
-            break;
-        }
-    }
-
-    if (resIdx == -1)
-    {
-        message(error, "!no resource found!");
-        return;
-    }
-
-    const std::vector<ResourceAlias>& aliases = table.aliases;
-    const ResourceAlias& alias = aliases[resIdx];
-
-
-    result.aliasesID.assign(alias.aliasesID.begin(), alias.aliasesID.end());
-}
-
-void getResource(Image& image, Buffer& buffer, ResourceMap resMap, const ResourceID id)
-{
-    if (id & 0x80000000) {
-        buffer = resMap._buffers[id];
-    }
-    else {
-        image = resMap._images[id];
-    }
-}
-
-void resetActiveAlias(ResourceTable& table)
-{
-    const std::vector<ResourceID>& reses = table.activeAlias;
-    for (uint32_t idx = 0; idx != reses.size(); ++idx)
-    {
-        table.activeAlias[idx] = table.baseReses[idx];
-        table.activeAliasesIdx[idx] = -1;
-    }
-}
-
-ResourceID getActiveAlias(const ResourceTable& table, const ResourceID baseResourceID)
-{
-    ResourceID result = baseResourceID;
-
-    uint32_t resIdx = -1;
-
-    const std::vector<ResourceID>& bases = table.baseReses;
-    for (uint32_t idx = 0; idx != bases.size(); ++idx)
-    {
-        if (bases[idx] == baseResourceID)
-        {
-            resIdx = idx;
-            result = table.activeAlias[idx];
-            break;
-        }
-    }
-
-    if (resIdx == -1)
-    {
-        message(error, "!no resource found!");
-    }
-
-    return result;
-
-}
-
-ResourceID nextAlias(ResourceTable& table, const ResourceID baseResourceID)
-{
-    ResourceID result = baseResourceID;
-
-    uint32_t resIdx = -1;
-    const std::vector<ResourceID>& bases = table.baseReses;
-    for (uint32_t idx = 0; idx != bases.size(); ++idx)
-    {
-        if (bases[idx] == baseResourceID)
-        {
-            resIdx = idx;
-            break;
-        }
-    }
-
-    if (resIdx == -1)
-    {
-        message(error, "!no base resource found!");
-        return result;
-    }
-
-    // update active alias and idx
-    const std::vector<ResourceID>& aliases = table.aliases[resIdx].aliasesID;
-    if ((table.activeAliasesIdx[resIdx] + 1) < aliases.size())
-    {
-        table.activeAliasesIdx[resIdx]++;
-        ResourceID nextAliasID = aliases[table.activeAliasesIdx[resIdx]];
-        table.activeAlias[resIdx] = aliases[nextAliasID];
-    }
-    else
-    {
-        message(error, "!no more alias!");
-        table.activeAliasesIdx[resIdx] = -1;
-        table.activeAlias[resIdx] = baseResourceID;
-    }
-
-    result = table.activeAlias[resIdx];
-
-
-    return result;
-}
-
 ResourceID registerBuffer(FrameGraphData& fd, const std::string& name, const size_t size)
 {
     static ResourceID id = 0x0001;
 
     fd._resmap._managedBuffers.insert({ id, {id, name, size, 0u, 0u} });
     
+    return id++;
+}
+
+ResourceID registerBuffer(FrameGraphData& fd, const BufferProps& props)
+{
+    static ResourceID id = 0x0001;
+
+    fd._resmap._managedBuffers.insert({ id, {id, props.name, props.size, 0u, 0u} });
+
     return id++;
 }
 
@@ -1812,6 +1706,7 @@ void buildGraph(FrameGraph& frameGraph)
         {
             char msg[4096];
             size_t totalSize = 0;
+            size_t none_aliased_size = 0;
             snprintf(msg, COUNTOF(msg), "\taliased resource: \n");
             for (const BufferBucket& bkt : bufferBuckets)
             {
@@ -1819,11 +1714,12 @@ void buildGraph(FrameGraph& frameGraph)
                 for (ResourceID res : bkt._reses)
                 {
                     snprintf(msg, COUNTOF(msg), "%s\t\t0x%4x\t%s\n", msg, res, fd._resmap._managedBuffers[res]._name.c_str());
+                    none_aliased_size += fd._resmap._managedBuffers[res]._size;
                 }
                 totalSize += bkt._size;
             }
             message(info, "%s", msg);
-            message(info, "total size: %d\n", totalSize);
+            message(info, "total size: %dMB/%dMB\n", totalSize / 1'000'000u, none_aliased_size/ 1'000'000u);
         }
 
         std::vector<ImageBucket> imageBuckets{};
