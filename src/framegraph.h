@@ -1,7 +1,5 @@
 #pragma once
 
-
-
 namespace vkz
 {
     typedef uint32_t PassID;
@@ -40,7 +38,7 @@ namespace vkz
         std::string name{"invalid"};
         size_t size{ 0 };
 
-
+        BufferState initState;
         VkBufferUsageFlags usage;
     };
 
@@ -67,10 +65,10 @@ namespace vkz
         uint32_t x{ 0u }, y{ 0u }, z{ 1u };
         uint16_t mipLevels{ 1u };
 
-        VkImageUsageFlags usage;
-        VkImageType       type{ VK_IMAGE_TYPE_2D };
-        VkImageLayout     layout{ VK_IMAGE_LAYOUT_GENERAL };
-        VkImageViewType   viewType{ VK_IMAGE_VIEW_TYPE_2D };
+        ImageState          state;
+        VkImageUsageFlags   usage;
+        VkImageType         type{ VK_IMAGE_TYPE_2D };
+        VkImageViewType     viewType{ VK_IMAGE_VIEW_TYPE_2D };
     };
 
 
@@ -110,9 +108,6 @@ namespace vkz
         std::vector<ResourceID> _forceAliasedReses;
     };
 
-
-
-
     struct RenderPass
     {
         PassID _ID{ invalidPassID };
@@ -127,23 +122,13 @@ namespace vkz
 
         std::vector<ResourceID> inputResIDs;
         std::vector<ResourceID> outputResIDs;
-
-        std::unordered_map<ResourceID, BufferState> _requiredBufferState;
-        std::unordered_map<ResourceID, ImageState> _requiredImageState;
     };
 
     struct ResourceMap
     {
         // store all resources, no matter it is a alias or not
-        std::unordered_map<ResourceID, Buffer> _buffers;
-        std::unordered_map<ResourceID, Image> _images;
-
         std::unordered_map<ResourceID, ManagedBuffer> _managedBuffers;
         std::unordered_map<ResourceID, ManagedImage> _managedImages;
-
-        // each resource has it's own barrier state, it will change during graph processing
-        std::unordered_map<ResourceID, BufferState> _bufferStates;
-        std::unordered_map<ResourceID, ImageState> _imageStates;
 
         // store all resources, no matter it is a alias or not
         std::unordered_map<ResourceID, std::string> bufferNames;
@@ -161,7 +146,6 @@ namespace vkz
         ResourceMap _resmap;
     };
 
-
     struct DependedLevels
     {
         PassID _basedPass{ invalidPassID };
@@ -176,12 +160,13 @@ namespace vkz
         uint64_t _detectedQueueCount{ 1 };
         std::unordered_map<PassID, DependedLevels> _dependedLevelsPerPass;
 
+        // used for generate dependency level
         std::vector<PassID> _linearVisitedPasses;
-
-        std::unordered_map<RenderPassExeQueue, std::vector<PassID>> _passesInQueue;
+        std::unordered_map<RenderPassExeQueue, std::vector<PassID>> _passesInQueue; // transition passID to queue
+        
+        // all passes in the graph
         std::vector<PassID> _passes;
 
-        std::vector<ResourceID> _readonlyReses;
         std::vector<ResourceID> _multiFrameReses;
 
         std::vector<std::vector<ResourceID>> _forceAliasBuffers;
@@ -197,11 +182,9 @@ namespace vkz
 
     void buildGraph(FrameGraph& graph);
 
-    typedef std::initializer_list<ResourceID> InputResources;
-    typedef std::initializer_list<ResourceID> OutputResources;
     ResourceID registerBuffer(FrameGraphData& fd, const BufferProps& props);
     ResourceID registerBuffer(FrameGraphData& fd, const std::string& name, const size_t size);
     ResourceID registerImage(FrameGraphData& fd, const ImageProps& props);
     
-    PassID registerPass(FrameGraphData& fd, FrameGraph& fg, const std::string name, InputResources read, OutputResources write, RenderPassExeQueue queue = RenderPassExeQueue::graphics);
-};
+    PassID registerPass(FrameGraphData& fd, FrameGraph& fg, const std::string name, ResourceIDs read, ResourceIDs write, RenderPassExeQueue queue = RenderPassExeQueue::graphics);
+}

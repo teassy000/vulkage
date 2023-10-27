@@ -161,6 +161,12 @@
     <ClCompile Include="debug.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="framegraph_2.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="resource_manager.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\externs\fast_obj\fast_obj.h">
@@ -253,10 +259,13 @@
     <ClInclude Include="framegraph.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="renderpass.h">
+    <ClInclude Include="debug.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="debug.h">
+    <ClInclude Include="framegraph_2.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="resource_manager.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>
