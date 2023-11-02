@@ -167,6 +167,9 @@
     <ClCompile Include="resource_manager.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="vkz.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\externs\fast_obj\fast_obj.h">
@@ -253,9 +256,6 @@
     <ClInclude Include="mesh.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="material.h">
-      <Filter>src</Filter>
-    </ClInclude>
     <ClInclude Include="framegraph.h">
       <Filter>src</Filter>
     </ClInclude>
@@ -266,6 +266,12 @@
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="resource_manager.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="handle.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="vkz.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>

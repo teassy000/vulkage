@@ -1,6 +1,6 @@
+#include "common.h"
 #include "debug.h"
 
-#include "common.h"
 #include <stdio.h>
 
 
@@ -8,31 +8,33 @@
 #include <windows.h>
 #endif
 
-void vkz::message(DebugMessageType type, const char* format, ...)
-{
-    // parsing args
+namespace vkz {
+    void message(DebugMessageType type, const char* format, ...)
+    {
+        // parsing args
+        va_list args;
+        va_start(args, format);
+        char str[4096];
+        vsprintf(str, format, args);
+        va_end(args);
 
-    va_list args;
-    va_start(args, format);
-    char str[4096];
-    vsprintf(str, format, args);
-    va_end(args);
+        const char* ts =
+            type == DebugMessageType::info
+            ? "info"
+            : type == DebugMessageType::warning
+            ? "warning"
+            : "error";
 
-    const char* ts =
-        type == DebugMessageType::info
-        ? "info"
-        : type == DebugMessageType::warning
-        ? "warning"
-        : "error";
+        char out[4096];
+        snprintf(out, COUNTOF(out), "[vkz::%s]: %s", ts, str);
 
-    char out[4096];
-    snprintf(out, COUNTOF(out), "[vkz::%s]: %s", ts, str);
-
-    printf("%s", out);
+        printf("%s", out);
 
 #ifdef _WIN32
-    OutputDebugStringA(out);
+        OutputDebugStringA(out);
 #endif
 
-    assert(type < DebugMessageType::error);
+        assert(type < DebugMessageType::error);
+    }
 }
+

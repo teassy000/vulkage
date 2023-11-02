@@ -203,6 +203,7 @@
     <ClCompile Include="resource_manager.cpp" />
     <ClCompile Include="scene.cpp" />
     <ClCompile Include="debug.cpp" />
+    <ClCompile Include="vkz.cpp" />
     <ClCompile Include="vk_ms.cpp" />
     <ClCompile Include="resources.cpp" />
     <ClCompile Include="shaders.cpp" />
@@ -230,7 +231,7 @@
     <ClInclude Include="debug.h" />
     <ClInclude Include="device.h" />
     <ClInclude Include="framegraph_2.h" />
-    <ClInclude Include="material.h" />
+    <ClInclude Include="handle.h" />
     <ClInclude Include="math.h" />
     <ClInclude Include="mesh.h" />
     <ClInclude Include="framegraph.h" />
@@ -243,6 +244,7 @@
     <ClInclude Include="shaders\mesh_gpu.h" />
     <ClInclude Include="swapchain.h" />
     <ClInclude Include="ui.h" />
+    <ClInclude Include="vkz.h" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="shaders\meshlet.mesh.glsl">

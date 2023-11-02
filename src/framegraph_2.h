@@ -6,7 +6,7 @@ namespace vkz
     typedef uint32_t DependLevel;
 
 
-    enum class RenderPassExeQueue : uint32_t
+    enum RenderPassExeQueue
     {
         graphics = 0u,
         asyncCompute0 = 1u,
@@ -26,7 +26,7 @@ namespace vkz
     struct FGResInitInfo
     {
         std::string         name;
-        ResourceID          id;
+        uint32_t            id;
         FGResourceState     state;
     };
 
@@ -51,7 +51,7 @@ namespace vkz
     struct PassInitInfo
     {
         RenderPassExeQueue queue;
-        VkPipeline program;
+        VkPipeline pipeline;
     };
 
     class IFramegraph;
@@ -59,7 +59,7 @@ namespace vkz
     class IPass
     {
     public:
-        PassID pass(const std::string& name, const PassInitInfo& pii);
+        uint32_t pass(const std::string& name, const PassInitInfo& pii);
         
         void readRenderTarget(const std::string& name);
         void readDepthStencil(const std::string& name);
@@ -83,25 +83,25 @@ namespace vkz
     struct PassRenderData
     {
         std::string     _name;
-        PassID          _id;
+        uint32_t        _id;
         VkPipeline      _pipeline;
         RenderPassExeQueue _queue{ RenderPassExeQueue::graphics };
-        std::vector<ResourceID> _resources;
+        std::vector<uint32_t> _resources;
         
         // constants
 
         // resource state in current pass
-        std::unordered_map<ResourceID, FGResourceState>     _resourceState;
+        std::unordered_map<uint32_t, FGResourceState>     _resourceState;
 
-        std::unordered_map<RenderPassExeQueue, PassID>      _nearestSyncPasses;
+        std::unordered_map<RenderPassExeQueue, uint32_t>      _nearestSyncPasses;
         // optimal pass to sync with, no redundant sync
-        std::vector<PassID>                                 _passToSync; 
+        std::vector<uint32_t>                                 _passToSync; 
 
-        std::vector<PassID>         _parentPassIDs;
-        std::vector<PassID>         _childPassIDs;
+        std::vector<uint32_t>         _parentPassIDs;
+        std::vector<uint32_t>         _childPassIDs;
 
-        std::vector<ResourceID>     _inputResIDs;
-        std::vector<ResourceID>     _outputResIDs;
+        std::vector<uint32_t>     _inputResIDs;
+        std::vector<uint32_t>     _outputResIDs;
     };
 
     struct BufBucket
@@ -110,8 +110,8 @@ namespace vkz
         
         size_t          size;
 
-        std::vector<ResourceID> _reses;
-        std::vector<ResourceID> _forceAliasedReses;
+        std::vector<uint32_t> _reses;
+        std::vector<uint32_t> _forceAliasedReses;
     };
 
     struct ImgBucket
@@ -123,41 +123,30 @@ namespace vkz
         uint32_t        z{ 1u };
         uint16_t        mips{ 1u };
 
-        std::vector<ResourceID> _reses;
-        std::vector<ResourceID> _forceAliasedReses;
+        std::vector<uint32_t> _reses;
+        std::vector<uint32_t> _forceAliasedReses;
     };
 
     struct FramegraphData
     {
         // all passes
-        std::unordered_map<const std::string, PassID>       _nameToPass;
-        std::unordered_map<const PassID, uint32_t>          _passIdx;
+        //std::unordered_map<const std::string, uint32_t>       _nameToPass;
+        //std::unordered_map<const uint32_t, uint32_t>          _passIdx;
 
         std::vector<PassRenderData>                         _passData;
 
         // sorted and cut passes
-        std::vector<PassID> _sortedPass;
-
-        // resources
-        std::unordered_map<const std::string, ResourceID>   _nameToResource;
-        
-        // actual physical resources, can be alias
-        std::unordered_map<ResourceID, Image>               _imageData;
-        std::unordered_map<ResourceID, Buffer>              _bufferData;
+        std::vector<uint32_t> _sortedPass;
 
         // each resource has a initial state, for barrier usage
-        std::unordered_map<ResourceID, FGResourceState>     _initialState;
-
-        // for resource dependency
-        std::unordered_map<ResourceID, std::pair<uint32_t, uint32_t>>   _bufferLifetimeIdx;
-        std::unordered_map<ResourceID, std::pair<uint32_t, uint32_t>>   _imageLifetimeIdx;
+        std::unordered_map<uint32_t, FGResourceState>     _initialState;
     };
 
     class IFramegraph
     {
     public:
-        PassID addPass(PassID pass);
-        PassID findPass(const std::string& name);
+        uint32_t addPass(uint32_t pass);
+        uint32_t findPass(const std::string& name);
 
         void aliasBuffer(const std::string& name);
         void aliasRenderTarget(const std::string& name);
@@ -177,7 +166,7 @@ namespace vkz
         void optimize(); // alias and sync 
         void pre_execute(); // allocate resource and prepare passes, maybe merge passes, detect transist resources
 
-        void reverseDFSVisit(const PassID currPass, std::vector<PassID>& sortedPasses);
+        void reverseDFSVisit(const uint32_t currPass, std::vector<uint32_t>& sortedPasses);
         void reverseTraversalDFS();
         void buildDenpendencyLevel();
         void buildResourceLifetime();
@@ -188,12 +177,12 @@ namespace vkz
         void allocate_resources();
 
     public:
-        void inline setFinalPass(PassID p)
+        void inline setFinalPass(uint32_t p)
         {
             _finalPass = p;
         }
 
-        PassRenderData& getPassData(PassID p)
+        PassRenderData& getPassData(uint32_t p)
         {
             return _data._passData[p];
         }
@@ -202,7 +191,7 @@ namespace vkz
         FramegraphData  _data;
         
         // graph properties
-        PassID          _finalPass;
+        uint32_t          _finalPass;
     };
 
 

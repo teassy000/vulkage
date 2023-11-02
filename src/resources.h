@@ -1,10 +1,10 @@
 #pragma once
 
-typedef unsigned int ResourceID;
+//typedef unsigned int uint32_t;
 
 struct Buffer
 {
-    ResourceID ID;
+    uint32_t ID;
 
     VkBuffer buffer;
     VkDeviceMemory memory;
@@ -23,7 +23,7 @@ VkBufferMemoryBarrier2 bufferBarrier(VkBuffer buffer, VkAccessFlags2 srcAccessMa
 
 struct Image
 {
-    ResourceID ID;
+    uint32_t ID;
 
     VkImage image;
     VkImageView imageView;

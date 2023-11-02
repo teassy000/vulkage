@@ -7,8 +7,9 @@
 #include <unordered_map>
 #include <set>
 #include <utility>
-
 #include <string>
+
+#include <stdint.h>
 
 #define VK_CHECK(call) \
 	do{ \
@@ -22,11 +23,9 @@ char(*countof_helper(T(&_Array)[Size]))[Size];
 
 #define COUNTOF(array) (sizeof(*countof_helper(array)) + 0)
 
-typedef uint32_t ResourceID;
-typedef uint32_t PassID;
-const PassID invalidPassID = ~0u;
-const ResourceID invalidResourceID = ~0u;
-
-typedef std::initializer_list<ResourceID> ResourceIDs;
 
 #include "debug.h"
+
+const uint32_t invalidID = UINT32_MAX;
+
+typedef std::initializer_list<uint32_t> ResourceIDs;

@@ -2,10 +2,10 @@
 
 namespace vkz
 {
-    typedef uint32_t PassID;
+    typedef uint32_t uint32_t;
     typedef uint32_t DependLevel;
-    const PassID invalidPassID = ~0u;
-    const ResourceID invalidResourceID = ~0u;
+    const uint32_t invalidPassID = ~0u;
+    const uint32_t invalidID = ~0u;
 
 
     enum class RenderPassExeQueue : uint32_t
@@ -44,7 +44,7 @@ namespace vkz
 
     struct ManagedBuffer
     {
-        ResourceID _id{ invalidResourceID };
+        uint32_t _id{ invalidID };
         std::string _name;
         size_t _size{ 0u };
 
@@ -53,7 +53,7 @@ namespace vkz
         uint64_t _memory{ 0u };
         size_t _offset{ 0u };
 
-        std::vector<ResourceID> _forceAlias;
+        std::vector<uint32_t> _forceAlias;
     };
 
 
@@ -74,7 +74,7 @@ namespace vkz
 
     struct ManagedImage
     {
-        ResourceID _id{ invalidResourceID };
+        uint32_t _id{ invalidID };
         std::string _name;
         uint32_t _x{ 0u };
         uint32_t _y{ 0u };
@@ -84,7 +84,7 @@ namespace vkz
         uint16_t _padding{ 0u };
         uint32_t _bucketIdx{ 0u };
 
-        std::vector<ResourceID> _forceAlias;
+        std::vector<uint32_t> _forceAlias;
     };
 
 
@@ -92,8 +92,8 @@ namespace vkz
     {
         uint32_t _idx;
         size_t _size;
-        std::vector<ResourceID> _reses;
-        std::vector<ResourceID> _forceAliasedReses;
+        std::vector<uint32_t> _reses;
+        std::vector<uint32_t> _forceAliasedReses;
     };
 
     struct ImageBucket
@@ -104,87 +104,87 @@ namespace vkz
         uint32_t _y{ 0u };
         uint32_t _z{ 1u };
         
-        std::vector<ResourceID> _reses;
-        std::vector<ResourceID> _forceAliasedReses;
+        std::vector<uint32_t> _reses;
+        std::vector<uint32_t> _forceAliasedReses;
     };
 
     struct RenderPass
     {
-        PassID _ID{ invalidPassID };
+        uint32_t _ID{ invalidPassID };
         RenderPassExeQueue _queue{ RenderPassExeQueue::graphics };
         std::string _name;
 
-        std::unordered_map<RenderPassExeQueue, PassID> _nearestSyncPasses;
-        std::vector<PassID> _passToSync; // optimal pass to sync with, no redundant sync
+        std::unordered_map<RenderPassExeQueue, uint32_t> _nearestSyncPasses;
+        std::vector<uint32_t> _passToSync; // optimal pass to sync with, no redundant sync
 
-        std::vector<PassID> parentPassIDs;
-        std::vector<PassID> childPassIDs;
+        std::vector<uint32_t> parentPassIDs;
+        std::vector<uint32_t> childPassIDs;
 
-        std::vector<ResourceID> inputResIDs;
-        std::vector<ResourceID> outputResIDs;
+        std::vector<uint32_t> inputResIDs;
+        std::vector<uint32_t> outputResIDs;
     };
 
     struct ResourceMap
     {
         // store all resources, no matter it is a alias or not
-        std::unordered_map<ResourceID, ManagedBuffer> _managedBuffers;
-        std::unordered_map<ResourceID, ManagedImage> _managedImages;
+        std::unordered_map<uint32_t, ManagedBuffer> _managedBuffers;
+        std::unordered_map<uint32_t, ManagedImage> _managedImages;
 
         // store all resources, no matter it is a alias or not
-        std::unordered_map<ResourceID, std::string> bufferNames;
-        std::unordered_map<ResourceID, std::string> imageNames;
+        std::unordered_map<uint32_t, std::string> bufferNames;
+        std::unordered_map<uint32_t, std::string> imageNames;
 
-        std::unordered_map<ResourceID, std::pair<PassID, PassID>> bufferLifetime;
-        std::unordered_map<ResourceID, std::pair<uint32_t, uint32_t>> bufferLifetimeIdx;
-        std::unordered_map<ResourceID, std::pair<PassID, PassID>> imageLifetime;
-        std::unordered_map<ResourceID, std::pair<uint32_t, uint32_t>> imageLifetimeIdx;
+        std::unordered_map<uint32_t, std::pair<uint32_t, uint32_t>> bufferLifetime;
+        std::unordered_map<uint32_t, std::pair<uint32_t, uint32_t>> bufferLifetimeIdx;
+        std::unordered_map<uint32_t, std::pair<uint32_t, uint32_t>> imageLifetime;
+        std::unordered_map<uint32_t, std::pair<uint32_t, uint32_t>> imageLifetimeIdx;
     };
 
     struct FrameGraphData
     {
-        std::unordered_map<PassID, RenderPass> _passes;
+        std::unordered_map<uint32_t, RenderPass> _passes;
         ResourceMap _resmap;
     };
 
     struct DependedLevels
     {
-        PassID _basedPass{ invalidPassID };
+        uint32_t _basedPass{ invalidPassID };
         DependLevel _currLevel = ~0u;
 
-        std::unordered_map<DependLevel, std::vector<PassID>> _dependPasses;
+        std::unordered_map<DependLevel, std::vector<uint32_t>> _dependPasses;
     };
 
     struct FrameGraph
     {
-        PassID _outputPass{ invalidPassID };
+        uint32_t _outputPass{ invalidPassID };
         uint64_t _detectedQueueCount{ 1 };
-        std::unordered_map<PassID, DependedLevels> _dependedLevelsPerPass;
+        std::unordered_map<uint32_t, DependedLevels> _dependedLevelsPerPass;
 
         // used for generate dependency level
-        std::vector<PassID> _linearVisitedPasses;
-        std::unordered_map<RenderPassExeQueue, std::vector<PassID>> _passesInQueue; // transition passID to queue
+        std::vector<uint32_t> _linearVisitedPasses;
+        std::unordered_map<RenderPassExeQueue, std::vector<uint32_t>> _passesInQueue; // transition passID to queue
         
         // all passes in the graph
-        std::vector<PassID> _passes;
+        std::vector<uint32_t> _passes;
 
-        std::vector<ResourceID> _multiFrameReses;
+        std::vector<uint32_t> _multiFrameReses;
 
-        std::vector<std::vector<ResourceID>> _forceAliasBuffers;
-        std::vector<std::vector<ResourceID>> _forceAliasImages;
+        std::vector<std::vector<uint32_t>> _forceAliasBuffers;
+        std::vector<std::vector<uint32_t>> _forceAliasImages;
     };
 
     
-    void DFSVisit(FrameGraphData& fd, uint32_t currentPassID, std::unordered_map<PassID, bool>& visited, std::unordered_map<PassID, bool>& onStack, std::vector<PassID>& sortedPasses);
-    void DFS(FrameGraph& graph, FrameGraphData& fd, std::vector<PassID>& sortedPasses);
-    void reverseDFSVisit(FrameGraphData& fd, uint32_t currentPassID, std::unordered_map<PassID, bool >& visited, std::unordered_map<PassID, bool>& onStack, std::vector<uint32_t>& sortedPassIDs);
-    void reverseTraversalDFS(FrameGraph& graph, FrameGraphData& fd, const PassID startPass, std::vector<uint32_t>& sortedPassIDs);
-    void TopologicalSort(FrameGraph& graph, FrameGraphData& fd, std::vector<PassID>& sortedPasses);
+    void DFSVisit(FrameGraphData& fd, uint32_t currentPassID, std::unordered_map<uint32_t, bool>& visited, std::unordered_map<uint32_t, bool>& onStack, std::vector<uint32_t>& sortedPasses);
+    void DFS(FrameGraph& graph, FrameGraphData& fd, std::vector<uint32_t>& sortedPasses);
+    void reverseDFSVisit(FrameGraphData& fd, uint32_t currentPassID, std::unordered_map<uint32_t, bool >& visited, std::unordered_map<uint32_t, bool>& onStack, std::vector<uint32_t>& sortedPassIDs);
+    void reverseTraversalDFS(FrameGraph& graph, FrameGraphData& fd, const uint32_t startPass, std::vector<uint32_t>& sortedPassIDs);
+    void TopologicalSort(FrameGraph& graph, FrameGraphData& fd, std::vector<uint32_t>& sortedPasses);
 
     void buildGraph(FrameGraph& graph);
 
-    ResourceID registerBuffer(FrameGraphData& fd, const BufferProps& props);
-    ResourceID registerBuffer(FrameGraphData& fd, const std::string& name, const size_t size);
-    ResourceID registerImage(FrameGraphData& fd, const ImageProps& props);
+    uint32_t registerBuffer(FrameGraphData& fd, const BufferProps& props);
+    uint32_t registerBuffer(FrameGraphData& fd, const std::string& name, const size_t size);
+    uint32_t registerImage(FrameGraphData& fd, const ImageProps& props);
     
-    PassID registerPass(FrameGraphData& fd, FrameGraph& fg, const std::string name, ResourceIDs read, ResourceIDs write, RenderPassExeQueue queue = RenderPassExeQueue::graphics);
+    uint32_t registerPass(FrameGraphData& fd, FrameGraph& fg, const std::string name, ResourceIDs read, ResourceIDs write, RenderPassExeQueue queue = RenderPassExeQueue::graphics);
 }

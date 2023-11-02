@@ -1,13 +1,14 @@
 #include "common.h"
 #include "resources.h"
 
+#include "vkz.h"
 #include "framegraph_2.h"
 
 namespace vkz
 {
-    PassID IPass::pass(const std::string& name, const PassInitInfo& pii)
+    uint32_t IPass::pass(const std::string& name, const PassInitInfo& pii)
     {
-        return invalidPassID;
+        return invalidID;
     }
 
     void IPass::aliasWriteRenderTarget(const std::string& name)
