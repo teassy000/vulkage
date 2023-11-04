@@ -1,10 +1,9 @@
 #include "common.h"
+
 #include "resources.h"
 #include "framegraph_2.h"
-#include "vkz.h"
 #include "resource_manager.h"
-
-
+#include "vkz.h"
 
 namespace vkz
 {
@@ -63,20 +62,7 @@ namespace vkz
         std::string alias_name{};
         generateAliasName(srcName, alias_name);
 
-
-
         return kInvalidHandle;
-    }
-
-    // create actual physical resource
-    Buffer ResMgr::createBuffer(const FGBufInitInfo& props)
-    {
-        return Buffer{};
-    }
-
-    Image ResMgr::createImage(const FGImgInitInfo& props)
-    {
-        return Image{};
     }
 
     void ResMgr::generateAliasName(const std::string& src, std::string& alias)

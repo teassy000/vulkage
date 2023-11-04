@@ -274,6 +274,10 @@
     <ClInclude Include="vkz.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="name.h" />
+    <ClInclude Include="config.h">
+      <Filter>src</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="shaders\mesh.frag.glsl">

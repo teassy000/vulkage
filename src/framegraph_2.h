@@ -54,7 +54,7 @@ namespace vkz
         VkPipeline pipeline;
     };
 
-    class IFramegraph;
+    class Framegraph2;
 
     class IPass
     {
@@ -77,7 +77,7 @@ namespace vkz
         void aliasWriteBuffer(const std::string& name);
     
     private:
-        IFramegraph& _fg;
+        Framegraph2& _fg;
     };
 
     struct PassRenderData
@@ -142,7 +142,7 @@ namespace vkz
         std::unordered_map<uint32_t, FGResourceState>     _initialState;
     };
 
-    class IFramegraph
+    class Framegraph2
     {
     public:
         uint32_t addPass(uint32_t pass);

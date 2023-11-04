@@ -8,6 +8,7 @@
 #include <set>
 #include <utility>
 #include <string>
+#include <array>
 
 #include <stdint.h>
 

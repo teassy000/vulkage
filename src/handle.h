@@ -24,10 +24,11 @@ namespace vkz
         void reset();
 
     private:
+        HandleContainer();
+
         uint16_t* getDensePtr() const;
         uint16_t* getSparsePtr() const;
 
-        HandleContainer() = delete;
         uint16_t m_numHandles;
         uint16_t m_maxHandles;
     };
@@ -131,15 +132,16 @@ namespace vkz
     };
 
     template <uint16_t maxHandlesT>
-    vkz::HandleArrayT<maxHandlesT>::~HandleArrayT()
+    HandleArrayT<maxHandlesT>::~HandleArrayT()
     {
 
     }
 
     template <uint16_t maxHandlesT>
-    vkz::HandleArrayT<maxHandlesT>::HandleArrayT()
+    HandleArrayT<maxHandlesT>::HandleArrayT()
+        : HandleContainer(maxHandlesT)
     {
-
+        reset();
     }
 
 }

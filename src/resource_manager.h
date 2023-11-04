@@ -11,7 +11,7 @@ namespace vkz
         NUM_OF_RESOURCE_TYPES,
     };
 
-    struct ManagedBuffer
+    struct ManagedBuffer2
     {
         uint32_t _id{ invalidID };
         std::string _name;
@@ -25,7 +25,7 @@ namespace vkz
         std::vector<uint32_t> _forceAlias;
     };
 
-    struct ManagedImage
+    struct ManagedImage2
     {
         uint32_t _id{ invalidID };
         std::string _name;
@@ -71,16 +71,16 @@ namespace vkz
         std::unordered_map< uint32_t, uint32_t> _aliasedCount;
 
         // lifetime
-        std::unordered_map<const uint32_t, std::pair<const uint32_t, const uint32_t>> _rt_lifetimeIdx;
-        std::unordered_map<const uint32_t, std::pair<const uint32_t, const uint32_t>> _dp_lifetimeIdx;
-        std::unordered_map<const uint32_t, std::pair<const uint32_t, const uint32_t>> _tex_lifetimeIdx;
-        std::unordered_map<const uint32_t, std::pair<const uint32_t, const uint32_t>> _buf_lifetimeIdx;
+        std::vector<std::pair<const uint32_t, const uint32_t>> _rt_lifetimeIdx;
+        std::vector<std::pair<const uint32_t, const uint32_t>> _dp_lifetimeIdx;
+        std::vector<std::pair<const uint32_t, const uint32_t>> _tex_lifetimeIdx;
+        std::vector<std::pair<const uint32_t, const uint32_t>> _buf_lifetimeIdx;
 
         // physical resources
-        std::vector<ManagedImage> _rt_phys;
-        std::vector<ManagedImage> _dp_phys;
-        std::vector<ManagedImage> _tex_phys;
-        std::vector<ManagedBuffer> _buf_phys;
+        std::vector<ManagedImage2> _rt_phys;
+        std::vector<ManagedImage2> _dp_phys;
+        std::vector<ManagedImage2> _tex_phys;
+        std::vector<ManagedBuffer2> _buf_phys;
     };
 
     class ResMgr
@@ -96,13 +96,9 @@ namespace vkz
         uint32_t registerAliasRenderTarget(const std::string& src, std::string& alias);
         uint32_t registerAliasDepthStencil(const std::string& src, std::string& alias);
         uint32_t registerAliasTexture(const std::string& src, std::string& alias);
-        uint32_t registerAliasBuffer(const std::string& src, std::string& alias);    
+        uint32_t registerAliasBuffer(const std::string& src, std::string& alias);
     private:
         uint32_t registerAliasResrouce(std::string& alias, std::vector<uint32_t>& aliasBases, std::vector<std::vector<uint32_t>>& aliases, const std::string& srcName, const ResourceType type);
-
-        // phys resources
-        Buffer createBuffer(const FGBufInitInfo& props);
-        Image createImage(const FGImgInitInfo& props);
 
         void generateAliasName(const std::string& src, std::string& alias);
         ResourceType getResourceType(const uint32_t id);

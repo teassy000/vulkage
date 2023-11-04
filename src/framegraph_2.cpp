@@ -16,7 +16,7 @@ namespace vkz
         _fg.aliasRenderTarget(name); 
     }
 
-    void IFramegraph::aliasRenderTarget(const std::string& name)
+    void Framegraph2::aliasRenderTarget(const std::string& name)
     {
 
     }

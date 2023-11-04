@@ -75,6 +75,8 @@ namespace vkz
     
     using BufferHandle = Handle<struct BufferHandleTag>;
     using TextureHandle = Handle<struct TextureHandleTag>;
+    using RenderTargetHandle = Handle<struct RenderTargetHandleTag>;
+    using DepthStencilHandle = Handle<struct DepthStencilHandleTag>;
 
     struct BufferDesc {
         uint32_t size;
@@ -98,9 +100,12 @@ namespace vkz
     };
 
     using ShaderHandleList = std::initializer_list<const ShaderHandle>;
+    using PassHandleList = std::initializer_list<const PassHandle>;
     using BufferHandleList = std::initializer_list<const BufferHandle>;
     using TextureHandleList = std::initializer_list<const TextureHandle>;
-    using PassHandleList = std::initializer_list<const PassHandle>;
+    using RenderTargetHandleList = std::initializer_list<const RenderTargetHandle>;
+    using DepthStencilHandleList = std::initializer_list<const DepthStencilHandle>;
+
     
     // resource management functions
     ShaderHandle registShader(const char* _name, const char* code);
@@ -109,18 +114,29 @@ namespace vkz
 
     BufferHandle registBuffer(const char* _name, BufferDesc _desc);
     TextureHandle registTexture(const char* _name, ImageDesc _desc);
+    RenderTargetHandle registRenderTarget(const char* _name, ImageDesc _desc);
+    DepthStencilHandle registDepthStencil(const char* _name, ImageDesc _desc);
 
     PassHandle registPass(const char* _name, PassDesc _desc);
 
     // must set alias write by order manually when multiple passes write to the same buffer
     void aliasWriteBufferByOrder(BufferHandle _buf, BufferHandleList _passes);
     void aliasWriteTextureByOrder(TextureHandle _img, TextureHandleList _passes);
+    void aliasWriteRenderTargetByOrder(RenderTargetHandle _img, RenderTargetHandleList _passes);
+    void aliasWriteDepthStencilByOrder(DepthStencilHandle _img, DepthStencilHandleList _passes);
     
     void writeBuffersByPass(PassHandle _pass, BufferHandleList _bufs);
     void readBuffersByPass(PassHandle _pass, BufferHandleList _bufs);
 
-    void readTextureByPass(PassHandle _pass, TextureHandle _texes);
     void writeTextureByPass(PassHandle _pass, TextureHandle _texes);
+    void readTextureByPass(PassHandle _pass, TextureHandle _texes);
+
+    void writeRenderTargetByPass(PassHandle _pass, RenderTargetHandle _texes);
+    void readRenderTargetByPass(PassHandle _pass, RenderTargetHandle _texes);
+
+    void writeDepthStencilByPass(PassHandle _pass, DepthStencilHandle _texes);
+    void readDepthStencilByPass(PassHandle _pass, DepthStencilHandle _texes);
+
 
     // engine basic functions
     bool init();
