@@ -45,7 +45,12 @@ namespace vkz
 
     ShaderHandle Context::registShader(const char* _name, const char* _code)
     {
-        return ShaderHandle{ kInvalidHandle };
+        uint16_t idx = m_shaderHandles.alloc();
+
+        // TODO: backup resources info
+        // maybe in resource manager, setup those data first, and try to allocate resources after frame graph processed
+
+        return ShaderHandle{ idx };
     }
 
     ProgramHandle Context::registProgram(const char* _name, ShaderHandleList _shaders)

@@ -6,12 +6,12 @@
 
 namespace vkz
 {
-    uint32_t IPass::pass(const std::string& name, const PassInitInfo& pii)
+    uint32_t Pass2::pass(const std::string& name, const PassInitInfo& pii)
     {
         return invalidID;
     }
 
-    void IPass::aliasWriteRenderTarget(const std::string& name)
+    void Pass2::aliasWriteRenderTarget(const std::string& name)
     {
         _fg.aliasRenderTarget(name); 
     }

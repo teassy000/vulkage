@@ -56,7 +56,7 @@ namespace vkz
 
     class Framegraph2;
 
-    class IPass
+    class Pass2
     {
     public:
         uint32_t pass(const std::string& name, const PassInitInfo& pii);
