@@ -310,11 +310,20 @@ uint32_t previousPow2(uint32_t v)
     return r;
 }
 
+#include "demo.h"
+
 int main(int argc, const char** argv)
 {
     if (argc < 2) {
         vkz::message(vkz::info, "Usage: %s [mesh]\n", argv[0]);
         return 1;
+    }
+
+    static const bool useDemo = true;
+    if (useDemo)
+    {
+        DemoMain();
+        return 0;
     }
 
 	int rc = glfwInit();

@@ -195,7 +195,9 @@
     <ClCompile Include="..\externs\meshoptimizer\src\vfetchanalyzer.cpp" />
     <ClCompile Include="..\externs\meshoptimizer\src\vfetchoptimizer.cpp" />
     <ClCompile Include="..\externs\volk\volk.c" />
+    <ClCompile Include="alloc.cpp" />
     <ClCompile Include="camera.cpp" />
+    <ClCompile Include="demo.cpp" />
     <ClCompile Include="device.cpp" />
     <ClCompile Include="framegraph.cpp" />
     <ClCompile Include="framegraph_2.cpp" />
@@ -226,14 +228,17 @@
     <ClInclude Include="..\externs\ligitProfiler\ProfilerTask.h" />
     <ClInclude Include="..\externs\meshoptimizer\src\meshoptimizer.h" />
     <ClInclude Include="..\externs\volk\volk.h" />
+    <ClInclude Include="alloc.h" />
     <ClInclude Include="camera.h" />
     <ClInclude Include="common.h" />
     <ClInclude Include="config.h" />
     <ClInclude Include="debug.h" />
+    <ClInclude Include="demo.h" />
     <ClInclude Include="device.h" />
     <ClInclude Include="framegraph_2.h" />
     <ClInclude Include="handle.h" />
     <ClInclude Include="math.h" />
+    <ClInclude Include="memory_operation.h" />
     <ClInclude Include="mesh.h" />
     <ClInclude Include="framegraph.h" />
     <ClInclude Include="name.h" />
@@ -344,6 +349,9 @@
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders\%(outputpath)\%(Filename).spv</Command>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">shaders\mesh_gpu.h;%(AdditionalInputs)</AdditionalInputs>
     </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="memory_operation.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

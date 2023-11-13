@@ -12,3 +12,5 @@ constexpr unsigned int kMaxNumOfTextureHandle = 1024;
 constexpr unsigned int kMaxNumOfBufferHandle = 1024;
 
 constexpr unsigned int kMaxNumOfSamplerHandle = 1024;
+
+constexpr unsigned int kInitialFrameGraphMemSize = 1 * 1024 * 1024; // 1M

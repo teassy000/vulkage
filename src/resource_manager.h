@@ -86,11 +86,6 @@ namespace vkz
     class ResMgr
     {
     public:
-        uint32_t registerRenderTarget(const std::string& name, const FGImgInitInfo& props);
-        uint32_t registerDepthStencil(const std::string& name, const FGImgInitInfo& props);
-        uint32_t registerTexture(const std::string& name, const FGImgInitInfo& props);
-        uint32_t registerBuffer(const std::string& name, const FGBufInitInfo& props);
-
         // use when a resource needs to write multiple times in several passes in a same graph 
         // returns the aliased resource id
         uint32_t registerAliasRenderTarget(const std::string& src, std::string& alias);

@@ -1,9 +1,12 @@
 #include "common.h"
 
 #include "resources.h"
+
+#include "config.h"
+#include "vkz.h"
 #include "framegraph_2.h"
 #include "resource_manager.h"
-#include "vkz.h"
+
 
 namespace vkz
 {
@@ -14,27 +17,6 @@ namespace vkz
         uint32_t hash = std::hash<std::string>{}(name + std::to_string(type_i)) & TYPE_MASK;
 
         return hash;
-    }
-
-    // just create a manager level resource, which contains meta data
-    uint32_t ResMgr::registerRenderTarget(const std::string& name, const FGImgInitInfo& props)
-    {
-        return invalidID;
-    }
-
-    uint32_t ResMgr::registerDepthStencil(const std::string& name, const FGImgInitInfo& props)
-    {
-        return invalidID;
-    }
-
-    uint32_t ResMgr::registerTexture(const std::string& name, const FGImgInitInfo& props)
-    {
-        return invalidID;
-    }
-
-    uint32_t ResMgr::registerBuffer(const std::string& name, const FGBufInitInfo& props)
-    {
-        return invalidID;
     }
 
     uint32_t ResMgr::registerAliasRenderTarget(const std::string& srcName, std::string& alias)

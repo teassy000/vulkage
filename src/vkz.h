@@ -1,11 +1,14 @@
 #pragma once
 
+#include <stdint.h> // uint32_t
+#include <initializer_list>
+
 namespace vkz
 {
     static const uint16_t kInvalidHandle = UINT16_MAX;
 
     template <class HandleType>
-    struct Handle {
+    struct __declspec(novtable) Handle {
         uint16_t idx;
     };
 
@@ -14,58 +17,62 @@ namespace vkz
         return kInvalidHandle != handle.idx;
     }
 
-    typedef enum DeviceQueueType
+    enum class PassExeQueue : uint8_t
     {
-        DeviceQueue_Graphics,
-        DeviceQueue_AsyncCompute0,
-        DeviceQueue_AsyncCompute1,
-        DeviceQueue_AsyncCompute2,
+        Graphics,
+        AsyncCompute0,
+        AsyncCompute1,
+        AsyncCompute2,
+        
+        Count,
+    };
 
-        DeviceQueue_Count,
-    } DeviceQueueType;
-
-    typedef enum AccessType
+    enum class TextureFormat : uint16_t
     {
-        Access_Read,
-        Access_Write,
-        Access_ReadWrite,
+        Unknown, // plain color formats below
 
-        Access_Count,
-    } AccessType;
+        A8,
+        R8,
+        R8I,
+        R8S,
+        R8U,
+        R16,
+        R16I,
+        R16U,
+        R16F,
+        R16S,
+        R32,
+        R32I,
+        R32U,
+        R32F,
+        R32S,
+        BGRA8,
+        BGRA8I,
+        BGRA8U,
+        BGRA8F,
+        BGRA8S,
+        RGBA8,
+        RGBA8I,
+        RGBA8U,
+        RGBA8F,
+        RGBA8S,
 
-    typedef enum TextureFormatType
+        UnknownDepth, // Depth formats below.
+
+        D16,
+        D32,
+        D16F,
+        D32F,
+
+        Count,
+    };
+
+    enum class ResourceUsage : uint8_t
     {
-        TextureFormat_Unknown, // plain color formats below
-
-        TextureFormat_A8,
-        TextureFormat_R8,
-        TextureFormat_R8I,
-        TextureFormat_R8S,
-        TextureFormat_R8U,
-        TextureFormat_R16I,
-        TextureFormat_R16U,
-        TextureFormat_R16F,
-        TextureFormat_R16S,
-        TextureFormat_BGRA8,
-        TextureFormat_BGRA8I,
-        TextureFormat_BGRA8U,
-        TextureFormat_BGRA8F,
-        TextureFormat_BGRA8S,
-        TextureFormat_RGBA8,
-        TextureFormat_RGBA8I,
-        TextureFormat_RGBA8U,
-        TextureFormat_RGBA8F,
-        TextureFormat_RGBA8S,
-
-        TextureFormat_UnknownDepth, // Depth formats below.
-
-        TextureFormat_D16,
-        TextureFormat_D32,
-        TextureFormat_D16F,
-        TextureFormat_D32F,
-
-        TextureFormat_Count,
-    } TextureFormatType;
+        SingleFrame,
+        MultiFrame,
+        Count,
+    };
 
 
     using ShaderHandle = Handle<struct ShaderHandleTag>;
@@ -81,22 +88,33 @@ namespace vkz
     struct BufferDesc {
         uint32_t size;
         uint32_t memPropFlags;
+        ResourceUsage usage{ ResourceUsage::SingleFrame };
     };
 
     struct ImageDesc {
-        uint32_t x, y, z;
+        TextureFormat format;
+        
+        uint16_t x, y, z;
+        uint16_t layers;
         uint16_t mips;
-
-        uint16_t layout;
-        uint8_t type;
-        uint8_t viewType;
+        ResourceUsage usage{ ResourceUsage::SingleFrame };
     };
 
     struct PassDesc
     {
         PipelineHandle pipeline;
         ProgramHandle program;
-        DeviceQueueType queue;
+        PassExeQueue queue;
+    };
+
+    typedef void (*ReleaseFn)(void* _ptr, void* _userData);
+
+    struct Memory
+    {
+        Memory() = delete;
+
+        uint8_t* data;
+        uint32_t size;
     };
 
     using ShaderHandleList = std::initializer_list<const ShaderHandle>;
@@ -106,39 +124,49 @@ namespace vkz
     using RenderTargetHandleList = std::initializer_list<const RenderTargetHandle>;
     using DepthStencilHandleList = std::initializer_list<const DepthStencilHandle>;
 
-    
     // resource management functions
-    ShaderHandle registShader(const char* _name, const char* code);
+    ShaderHandle registShader(const char* _name, const Memory* code);
     ProgramHandle registProgram(const char* _name, ShaderHandleList _shaders);
     PipelineHandle registPipeline(const char* _name, ProgramHandle _program);
 
-    BufferHandle registBuffer(const char* _name, BufferDesc _desc);
-    TextureHandle registTexture(const char* _name, ImageDesc _desc);
-    RenderTargetHandle registRenderTarget(const char* _name, ImageDesc _desc);
-    DepthStencilHandle registDepthStencil(const char* _name, ImageDesc _desc);
+    BufferHandle registBuffer(const char* _name, const BufferDesc& _desc);
+    TextureHandle registTexture(const char* _name, ImageDesc& _desc, const Memory* _mem = nullptr);
+    RenderTargetHandle registRenderTarget(const char* _name, ImageDesc& _desc);
+    DepthStencilHandle registDepthStencil(const char* _name, ImageDesc& _desc);
 
     PassHandle registPass(const char* _name, PassDesc _desc);
 
-    // must set alias write by order manually when multiple passes write to the same buffer
-    void aliasWriteBufferByOrder(BufferHandle _buf, BufferHandleList _passes);
-    void aliasWriteTextureByOrder(TextureHandle _img, TextureHandleList _passes);
-    void aliasWriteRenderTargetByOrder(RenderTargetHandle _img, RenderTargetHandleList _passes);
-    void aliasWriteDepthStencilByOrder(DepthStencilHandle _img, DepthStencilHandleList _passes);
-    
-    void writeBuffersByPass(PassHandle _pass, BufferHandleList _bufs);
-    void readBuffersByPass(PassHandle _pass, BufferHandleList _bufs);
+    void aliasBuffer(BufferHandle* _aliases, const uint16_t _aliasCount, const BufferHandle _buf);
+    void aliasTexture(TextureHandle* _aliases, const uint16_t _aliasCount, const TextureHandle _tex);
+    void aliasRenderTarget(RenderTargetHandle* _aliases, const uint16_t _aliasCount, const RenderTargetHandle _rt);
+    void aliasDepthStencil(DepthStencilHandle* _aliases, const uint16_t _aliasCount, const DepthStencilHandle _ds);
 
-    void writeTextureByPass(PassHandle _pass, TextureHandle _texes);
-    void readTextureByPass(PassHandle _pass, TextureHandle _texes);
+    BufferHandle aliasBuffer(const BufferHandle _buf);
+    TextureHandle aliasTexture(const TextureHandle _tex);
+    RenderTargetHandle aliasRenderTarget(const RenderTargetHandle _rt);
+    DepthStencilHandle aliasDepthStencil(const DepthStencilHandle _ds);
 
-    void writeRenderTargetByPass(PassHandle _pass, RenderTargetHandle _texes);
-    void readRenderTargetByPass(PassHandle _pass, RenderTargetHandle _texes);
+    void writeBuffers(PassHandle _pass, BufferHandleList _bufList);
+    void readBuffers(PassHandle _pass, BufferHandleList _bufList);
 
-    void writeDepthStencilByPass(PassHandle _pass, DepthStencilHandle _texes);
-    void readDepthStencilByPass(PassHandle _pass, DepthStencilHandle _texes);
+    void writeTextures(PassHandle _pass, TextureHandleList _texList);
+    void readTextures(PassHandle _pass, TextureHandleList _texesList);
+
+    void writeRenderTargets(PassHandle _pass, RenderTargetHandleList _rtList);
+    void readRenderTargets(PassHandle _pass, RenderTargetHandleList _rtList);
+
+    void writeDepthStencils(PassHandle _pass, DepthStencilHandleList _dsList);
+    void readDepthStencils(PassHandle _pass, DepthStencilHandleList _dsList);
+
+    // meomory related
+    const Memory* alloc(uint32_t _sz);
+    const Memory* copy(const void* _data, uint32_t _sz);
+    const Memory* copy(const Memory* _mem);
+    const Memory* makeRef(const void* _data, uint32_t _sz, ReleaseFn _releaseFn = nullptr, void* _userData = nullptr);
 
 
     // engine basic functions
     bool init();
+    void update();
     void shutdown();
 }

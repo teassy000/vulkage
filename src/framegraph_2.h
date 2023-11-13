@@ -1,101 +1,118 @@
 #pragma once
 
+#include "memory_operation.h"
 
 namespace vkz
 {
     typedef uint32_t DependLevel;
 
-
-    enum RenderPassExeQueue
+    enum class MagicTag : uint32_t
     {
-        graphics = 0u,
-        asyncCompute0 = 1u,
-        asyncCompute1 = 2u,
-        asyncCompute2 = 3u,
-        NUM_OF_QUEUES = 4u,
+        InvalidMagic = 0x00000000,
+
+        RegisterPass = 0x00000001,
+        RegisterBuffer = 0x00000002,
+        RegisterTexture = 0x00000003,
+        RegisterRenderTarget = 0x00000004,
+        RegisterDepthStencil = 0x00000005,
+
+        PassReadBuffer = 0x00000006,
+        PassWriteBuffer = 0x00000007,
+        PassReadTexture = 0x00000008,
+        PassWriteTexture = 0x00000009,
+        PassReadRenderTarget = 0x0000000A,
+        PassWriteRenderTarget = 0x0000000B,
+        PassReadDepthStencil = 0x0000000C,
+        PassWriteDepthStencil = 0x0000000D,
+
+        AliasBuffer = 0x0000000E,
+        AliasTexture = 0x0000000F,
+        AliasRenderTarget = 0x00000010,
+        AliasDepthStencil = 0x00000011,
+
+        End = 0x00000012,
     };
 
-    // for barrier 
-    struct FGResourceState
+    enum class RessourceType : uint16_t
     {
-        VkImageLayout           layout;
-        VkAccessFlags2          access;
-        VkPipelineStageFlags2   stage;
+        Buffer          = 1 << 0,
+        Texture         = 1 << 1,
+        RenderTarget    = 1 << 2,
+        DepthStencil    = 1 << 3,
     };
 
-    struct FGResInitInfo
+    // Register Info
+    struct PassRegisterInfo
     {
-        std::string         name;
-        uint32_t            id;
-        FGResourceState     state;
+        uint16_t     idx;
+        PassExeQueue queue;
     };
 
-    struct FGBufInitInfo : FGResInitInfo
+    struct FGBarrierState
     {
-        size_t             size;
+        uint32_t    layout;
+        uint32_t    stage;
+        uint32_t    access;
     };
 
-    struct FGImgInitInfo : FGResInitInfo
+    struct BufRegisterInfo : public FGBarrierState
     {
-        uint32_t        x{ 0u };
-        uint32_t        y{ 0u };
-        uint32_t        z{ 1u };
-        uint16_t        mips{ 1u };
-
-        VkFormat            format;
-        VkImageUsageFlags   usage;
-        VkImageType         type{ VK_IMAGE_TYPE_2D };
-        VkImageViewType     viewType{ VK_IMAGE_VIEW_TYPE_2D };
-    };
-
-    struct PassInitInfo
-    {
-        RenderPassExeQueue queue;
-        VkPipeline pipeline;
-    };
-
-    class Framegraph2;
-
-    class Pass2
-    {
-    public:
-        uint32_t pass(const std::string& name, const PassInitInfo& pii);
+        uint16_t    idx;
+        uint16_t    padding;
         
-        void readRenderTarget(const std::string& name);
-        void readDepthStencil(const std::string& name);
-        void readTexture(const std::string& name);
-        void readBuffer(const std::string& name);
+        uint32_t    size;
+    };
 
-        void writeRenderTarget(const std::string& name);
-        void writeDepthStencil(const std::string& name);
-        void writeTexture(const std::string& name);
-        void writeBuffer(const std::string& name);
+    struct ImgRegisterInfo : public FGBarrierState
+    {
+        uint16_t    idx;
 
-        void aliasWriteRenderTarget(const std::string& name);
-        void aliasWriteDepthStencil(const std::string& name);
-        void aliasWriteTexture(const std::string& name);
-        void aliasWriteBuffer(const std::string& name);
-    
-    private:
-        Framegraph2& _fg;
+        uint16_t    mips{ 1u };
+
+        uint32_t    x{ 0u };
+        uint32_t    y{ 0u };
+        uint32_t    z{ 1u };
+
+        uint32_t    format;
+        uint32_t    usage;
+        uint32_t    type{ VK_IMAGE_TYPE_2D };
+        uint32_t    viewType{ VK_IMAGE_VIEW_TYPE_2D };
+    };
+
+    // Read/Write Info
+    struct PassRWInfo
+    {
+        uint16_t    pass;
+        uint16_t    resNum;
+    };
+
+    // Alias Info
+    struct ResAliasInfo
+    {
+        uint16_t    resBase;
+        uint16_t    aliasNum;
+    };
+
+    // for sort
+    struct PassRWResource
+    {
+        uint16_t passIdx;
+        std::vector<uint32_t> readPlainRes;
+        std::vector<uint32_t> writePlainRes;
     };
 
     struct PassRenderData
     {
-        std::string     _name;
-        uint32_t        _id;
-        VkPipeline      _pipeline;
-        RenderPassExeQueue _queue{ RenderPassExeQueue::graphics };
+        uint16_t        _idx;
+        PassExeQueue _queue{ PassExeQueue::Graphics };
         std::vector<uint32_t> _resources;
         
         // constants
 
         // resource state in current pass
-        std::unordered_map<uint32_t, FGResourceState>     _resourceState;
-
-        std::unordered_map<RenderPassExeQueue, uint32_t>      _nearestSyncPasses;
+        std::unordered_map<uint32_t, FGBarrierState>     _resourceState;
         // optimal pass to sync with, no redundant sync
-        std::vector<uint32_t>                                 _passToSync; 
+        std::vector<uint32_t>                            _passToSync; 
 
         std::vector<uint32_t>         _parentPassIDs;
         std::vector<uint32_t>         _childPassIDs;
@@ -127,38 +144,29 @@ namespace vkz
         std::vector<uint32_t> _forceAliasedReses;
     };
 
-    struct FramegraphData
-    {
-        // all passes
-        //std::unordered_map<const std::string, uint32_t>       _nameToPass;
-        //std::unordered_map<const uint32_t, uint32_t>          _passIdx;
-
-        std::vector<PassRenderData>                         _passData;
-
-        // sorted and cut passes
-        std::vector<uint32_t> _sortedPass;
-
-        // each resource has a initial state, for barrier usage
-        std::unordered_map<uint32_t, FGResourceState>     _initialState;
-    };
-
     class Framegraph2
     {
     public:
-        uint32_t addPass(uint32_t pass);
-        uint32_t findPass(const std::string& name);
-
-        void aliasBuffer(const std::string& name);
-        void aliasRenderTarget(const std::string& name);
-        void aliasDepthStencil(const std::string& name);
-        void aliasTexture(const std::string& name);
-
-        void forceAlias(ResourceIDs); // affect after 
-
-
-    public:
         void build();
         void execute(); // execute passes
+
+
+    private:
+        void parseOperations();
+
+        void registerPass(MemoryReader& _reader);
+        void registerBuffer(MemoryReader& _reader);
+        void registerTexture(MemoryReader& _reader);
+        void registerRenderTarget(MemoryReader& _reader);
+        void registerDepthStencil(MemoryReader& _reader);
+
+        void passReadRes(MemoryReader& _reader, RessourceType _type);
+        void passWriteRes(MemoryReader& _reader, RessourceType _type);
+
+        void aliasBuffer(MemoryReader& _reader);
+        void aliasImage(MemoryReader& _reader);
+        void aliasRenderTargets(MemoryReader& _reader);
+        void aliasDepthStencil(MemoryReader& _reader);
 
 
     private:
@@ -166,7 +174,7 @@ namespace vkz
         void optimize(); // alias and sync 
         void pre_execute(); // allocate resource and prepare passes, maybe merge passes, detect transist resources
 
-        void reverseDFSVisit(const uint32_t currPass, std::vector<uint32_t>& sortedPasses);
+        void reverseDFSVisit(const uint16_t currPass, std::vector<uint16_t>& sortedPasses);
         void reverseTraversalDFS();
         void buildDenpendencyLevel();
         void buildResourceLifetime();
@@ -177,21 +185,46 @@ namespace vkz
         void allocate_resources();
 
     public:
-        void inline setFinalPass(uint32_t p)
+        inline void setFinalPass(uint32_t p)
         {
-            _finalPass = p;
+            m_finalPass = p;
         }
 
-        PassRenderData& getPassData(uint32_t p)
+        inline PassRenderData& getPassData(uint32_t p)
         {
-            return _data._passData[p];
+            return m_passData[p];
+        }
+
+        inline void setMemoryBlock(MemoryBlockI* _memBlock)
+        {
+            m_pMemBlock = _memBlock;
         }
 
     private:
-        FramegraphData  _data;
-        
-        // graph properties
-        uint32_t          _finalPass;
+        std::vector<uint16_t> m_pass_idx;
+        std::vector<uint16_t> m_buf_idx;
+        std::vector<uint16_t> m_img_idx;
+        std::vector<uint16_t> m_rt_idx;
+        std::vector<uint16_t> m_ds_idx;
+
+        std::vector<PassRWResource> m_pass_rw_res;
+
+        std::vector<uint32_t> m_plain_resource_idx;
+
+        PassRegisterInfo  m_pass_info[kMaxNumOfBufferHandle];
+        BufRegisterInfo   m_buf_info[kMaxNumOfTextureHandle];
+        ImgRegisterInfo   m_img_info[kMaxNumOfRenderTargetHandle];
+        ImgRegisterInfo   m_rt_info[kMaxNumOfDepthStencilHandle];
+        ImgRegisterInfo   m_ds_info[kMaxNumOfPassHandle];
+
+        std::vector<PassRenderData> m_passData;
+
+        // sorted and cut passes
+        std::vector<uint32_t> m_sortedPass;
+
+        uint32_t            m_finalPass;
+
+        MemoryBlockI*        m_pMemBlock;
     };
 
 

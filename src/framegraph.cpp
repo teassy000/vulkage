@@ -282,7 +282,7 @@ void setupResources_managed(FrameGraphData& fd, FrameGraph& fg)
 {
     uint32_t buf_vtx = registerBuffer(fd, "vertex buffer", 192 * 1024 * 1024);
     uint32_t buf_idx = registerBuffer(fd, "index buffer", 20 * 1024 * 1024);
-    uint32_t buf_mesh = registerBuffer(fd, "mesh buffer",  4 * 1024 * 1024);
+    uint32_t buf_mesh = registerBuffer(fd, "mesh buffer",  4 * 1024 * 1024); 
     uint32_t buf_mlt = registerBuffer(fd, "meshlet buffer", 32 * 1024 * 1024);
     uint32_t buf_mltData = registerBuffer(fd, "meshlet Data buffer", 4 * 1024 * 1024);
     uint32_t buf_transData = registerBuffer(fd, "transform buffer", 8 * 1024);
@@ -367,131 +367,6 @@ void setupResources_managed(FrameGraphData& fd, FrameGraph& fg)
     addForceAliasImages(fg, fd, { img_rt , img_rt_a1 });
     addForceAliasImages(fg, fd, { img_dpy, img_dpy_a1 });
 }
-
-/*
-void setupResources_brr(FrameGraphData& fd, FrameGraph& fg)
-{
-    uint32_t buf_vtx = registerBuffer(fd, "vertex buffer", 192 * 1024 * 1024);
-    uint32_t buf_idx = registerBuffer(fd, "index buffer", 20 * 1024 * 1024);
-    uint32_t buf_mesh = registerBuffer(fd, "mesh buffer", 4 * 1024 * 1024);
-    uint32_t buf_mlt = registerBuffer(fd, "meshlet buffer", 32 * 1024 * 1024);
-    uint32_t buf_mltData = registerBuffer(fd, "meshlet Data buffer", 4 * 1024 * 1024);
-    uint32_t buf_transData = registerBuffer(fd, "transform buffer", 8 * 1024);
-    uint32_t buf_mDr = registerBuffer(fd, "mesh draw buffer", 48 * 1024 * 1024);
-    uint32_t buf_mDrCmd = registerBuffer(fd, "mesh draw command buffer", 128 * 1024 * 1024);
-    uint32_t buf_mDrCmd_a1 = registerBuffer(fd, "A1: mesh draw command buffer", 128 * 1024 * 1024);
-    uint32_t buf_mDrCmd_a2 = registerBuffer(fd, "A2: mesh draw command buffer", 128 * 1024 * 1024);
-    uint32_t buf_mDrCC = registerBuffer(fd, "mesh draw command count buffer", 64);
-    uint32_t buf_mDrCC_a1 = registerBuffer(fd, "A1: mesh draw command count buffer", 64);
-    uint32_t buf_mDrCC_a2 = registerBuffer(fd, "A2: mesh draw command count buffer", 64);
-    uint32_t buf_mDrVis = registerBuffer(fd, "mesh draw visibility buffer", 32 * 1024 * 1024);
-    uint32_t buf_mDrVis_a1 = registerBuffer(fd, "A1: mesh draw visibility buffer", 32 * 1024 * 1024);
-    uint32_t buf_mDrVis_a2 = registerBuffer(fd, "A2: mesh draw visibility buffer", 32 * 1024 * 1024);
-    uint32_t buf_mltVis = registerBuffer(fd, "meshlet visibility buffer", 256 * 1024 * 1024);
-    uint32_t buf_mltVis_a1 = registerBuffer(fd, "A1: meshlet visibility buffer", 256 * 1024 * 1024);
-    uint32_t buf_mltVis_a2 = registerBuffer(fd, "A2: meshlet visibility buffer", 256 * 1024 * 1024);
-
-    BufferProps buf_vtx_props = { "vertex buffer"};
-    buf_vtx_props.size = 192 * 1024 * 1024;
-    buf_vtx_props.initState._vkstage = VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
-    buf_vtx_props.initState._vkaccess = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
-    buf_vtx_props.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-    uint32_t buf_vtx = registerBuffer(fd, buf_vtx_props);
-
-    BufferProps buf_idx_props = { "index buffer" };
-    buf_idx_props.size = 20 * 1024 * 1024;
-    buf_idx_props.initState._vkstage = VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
-    buf_idx_props.initState._vkaccess = VK_ACCESS_INDEX_READ_BIT;
-    buf_idx_props.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-    uint32_t buf_idx = registerBuffer(fd, buf_idx_props);
-
-    BufferProps buf_mesh_props = { "mesh buffer" };
-    buf_mesh_props.size = 4 * 1024 * 1024;
-    buf_mesh_props.initState._vkaccess = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
-    buf_mesh_props.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-    uint32_t buf_mesh = registerBuffer(fd, buf_mesh_props);
-
-    BufferProps buf_mlt_props = { "meshlet buffer" };
-    buf_mlt_props.size = 32 * 1024 * 1024;
-    buf_mlt_props.initState._vkaccess = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
-    buf_mlt_props.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-    uint32_t buf_mlt = registerBuffer(fd, buf_mlt_props);
-
-BufferProps buf_mltData_props = { "meshlet Data buffer" };
-    buf_mltData_props.size = 4 * 1024 * 1024;
-buf_mltData_props.initState._vkaccess = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
-    buf_mltData_props.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-uint32_t buf_mltData = registerBuffer(fd, buf_mltData_props);
-
-
-    uint32_t sc_x = 1920u;
-    uint32_t sc_y = 1080u;
-
-    ImageProps img_ct_props = { "color target" };
-    img_ct_props.x = sc_x;
-    img_ct_props.y = sc_y;
-    uint32_t img_ct = registerImage(fd, img_ct_props);
-
-    ImageProps img_ct_a1_props = { "A1: color target" };
-    img_ct_a1_props.x = sc_x;
-    img_ct_a1_props.y = sc_y;
-    uint32_t img_ct_a1 = registerImage(fd, img_ct_a1_props);
-
-    ImageProps img_dt_props = { "depth target" };
-    img_dt_props.x = sc_x;
-    img_dt_props.y = sc_y;
-    uint32_t img_dt = registerImage(fd, img_dt_props);
-
-    ImageProps img_dt_a1_props = { "A1: depth target" };
-    img_dt_a1_props.x = sc_x;
-    img_dt_a1_props.y = sc_y;
-    uint32_t img_dt_a1 = registerImage(fd, img_dt_a1_props);
-
-    ImageProps img_rt_props = { "render target" };
-    img_rt_props.x = sc_x;
-    img_rt_props.y = sc_y;
-    uint32_t img_rt = registerImage(fd, img_rt_props);
-
-    ImageProps img_rt_a1_props = { "A1: render target" };
-    img_rt_a1_props.x = sc_x;
-    img_rt_a1_props.y = sc_y;
-    uint32_t img_rt_a1 = registerImage(fd, img_rt_a1_props);
-
-    ImageProps img_dpy_props = { "depth pyramid" };
-    img_dpy_props.x = sc_x;
-    img_dpy_props.y = sc_y;
-    img_dpy_props.z = 16u;
-    uint32_t img_dpy = registerImage(fd, img_dpy_props);
-
-    ImageProps img_dpy_a1_props = { "A1: depth pyramid" };
-    img_dpy_a1_props.x = sc_x;
-    img_dpy_a1_props.y = sc_y;
-    img_dpy_a1_props.z = 16u;
-    uint32_t img_dpy_a1 = registerImage(fd, img_dpy_a1_props);
-
-    uint32_t p1 = registerPass(fd, fg, "early cull pass", { buf_mesh, buf_transData, buf_mDr, buf_mDrCC, buf_mDrVis , img_dpy }, { buf_mDrCmd, buf_mDrCC_a1, buf_mDrVis_a1 }, RenderPassExeQueue::asyncCompute0);
-    uint32_t p2 = registerPass(fd, fg, "early draw pass", { buf_vtx, buf_idx, buf_mesh, buf_mltData, buf_transData, buf_mDr, buf_mDrCmd, buf_mltVis , img_dpy }, { buf_mltVis_a1, img_ct, img_dt });
-    uint32_t p3 = registerPass(fd, fg, "pyramid pass", { img_dt }, { img_dpy_a1 }, RenderPassExeQueue::asyncCompute0);
-    uint32_t p4 = registerPass(fd, fg, "late cull pass", { buf_mesh, buf_transData, buf_mDr, buf_mDrCC_a1, buf_mDrVis_a1, img_dpy_a1 }, { buf_mDrCmd_a1, buf_mDrCC_a2, buf_mDrVis_a2 }, RenderPassExeQueue::asyncCompute0);
-    uint32_t p5 = registerPass(fd, fg, "late draw pass", { buf_vtx, buf_idx, buf_mesh, buf_mltData, buf_transData, buf_mDr, buf_mDrCmd_a1, buf_mltVis_a1, img_dpy_a1 }, { buf_mltVis_a2, img_ct_a1, img_dt_a1 });
-    uint32_t p6 = registerPass(fd, fg, "copy pass", { img_ct_a1 }, { img_rt });
-    uint32_t p7 = registerPass(fd, fg, "UI pass", { img_rt }, { img_rt_a1 });
-
-    fg._outputPass = p7;
-
-    fg._multiFrameReses.insert(fg._multiFrameReses.end(), { img_dpy_a1, });
-
-    addForceAliasBuffers(fg, fd, { buf_mDrCmd , buf_mDrCmd_a1, buf_mDrCmd_a2 });
-    addForceAliasBuffers(fg, fd, { buf_mDrCC , buf_mDrCC_a1, buf_mDrCC_a2 });
-    addForceAliasBuffers(fg, fd, { buf_mDrVis , buf_mDrVis_a1, buf_mDrVis_a2 });
-    addForceAliasBuffers(fg, fd, { buf_mltVis , buf_mltVis_a1, buf_mltVis_a2 });
-
-    addForceAliasImages(fg, fd, { img_ct , img_ct_a1 });
-    addForceAliasImages(fg, fd, { img_dt , img_dt_a1 });
-    addForceAliasImages(fg, fd, { img_rt , img_rt_a1 });
-    addForceAliasImages(fg, fd, { img_dpy, img_dpy_a1 });
-}
-*/
 
 
 // p1 <-- p2 <-- p3 <-- p7

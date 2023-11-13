@@ -170,6 +170,10 @@
     <ClCompile Include="vkz.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="alloc.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="demo.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\externs\fast_obj\fast_obj.h">
@@ -274,8 +278,17 @@
     <ClInclude Include="vkz.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="name.h" />
     <ClInclude Include="config.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="alloc.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="name.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="demo.h" />
+    <ClInclude Include="memory_operation.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>
@@ -342,5 +355,8 @@
     <Filter Include="volk">
       <UniqueIdentifier>{441dea57-7170-4f9d-8798-f7affa107243}</UniqueIdentifier>
     </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="memory_operation.inl" />
   </ItemGroup>
 </Project>
