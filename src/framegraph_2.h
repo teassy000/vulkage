@@ -1,6 +1,7 @@
 #pragma once
 
 #include "memory_operation.h"
+#include <unordered_set>
 
 namespace vkz
 {
@@ -30,7 +31,9 @@ namespace vkz
         AliasRenderTarget = 0x00000010,
         AliasDepthStencil = 0x00000011,
 
-        End = 0x00000012,
+        SetResultRenderTarget = 0x00000012,
+
+        End = 0x00000013,
     };
 
     enum class RessourceType : uint16_t
@@ -96,9 +99,14 @@ namespace vkz
     // for sort
     struct PassRWResource
     {
-        uint16_t passIdx;
         std::vector<uint32_t> readPlainRes;
         std::vector<uint32_t> writePlainRes;
+    };
+
+    struct PassDependency
+    {
+        std::vector<uint16_t> inPass;
+        std::vector<uint16_t> outPass;
     };
 
     struct PassRenderData
@@ -163,18 +171,18 @@ namespace vkz
         void passReadRes(MemoryReader& _reader, RessourceType _type);
         void passWriteRes(MemoryReader& _reader, RessourceType _type);
 
-        void aliasBuffer(MemoryReader& _reader);
-        void aliasImage(MemoryReader& _reader);
-        void aliasRenderTargets(MemoryReader& _reader);
-        void aliasDepthStencil(MemoryReader& _reader);
+        void aliasRes(MemoryReader& _reader, RessourceType _type);
 
+        void setResultRT(MemoryReader& _reader);
 
     private:
         void sort(); // reverse dfs
         void optimize(); // alias and sync 
         void pre_execute(); // allocate resource and prepare passes, maybe merge passes, detect transist resources
 
-        void reverseDFSVisit(const uint16_t currPass, std::vector<uint16_t>& sortedPasses);
+
+        void buildDependency();
+        void reverseDFSVisit(const uint16_t _currPass, std::vector<uint16_t>& _sortedPasses);
         void reverseTraversalDFS();
         void buildDenpendencyLevel();
         void buildResourceLifetime();
@@ -185,10 +193,6 @@ namespace vkz
         void allocate_resources();
 
     public:
-        inline void setFinalPass(uint32_t p)
-        {
-            m_finalPass = p;
-        }
 
         inline PassRenderData& getPassData(uint32_t p)
         {
@@ -201,30 +205,33 @@ namespace vkz
         }
 
     private:
+        MemoryBlockI* m_pMemBlock;
+
+        uint16_t            m_resultRT;
+
         std::vector<uint16_t> m_pass_idx;
         std::vector<uint16_t> m_buf_idx;
         std::vector<uint16_t> m_img_idx;
         std::vector<uint16_t> m_rt_idx;
         std::vector<uint16_t> m_ds_idx;
 
-        std::vector<PassRWResource> m_pass_rw_res;
-
         std::vector<uint32_t> m_plain_resource_idx;
 
         PassRegisterInfo  m_pass_info[kMaxNumOfBufferHandle];
         BufRegisterInfo   m_buf_info[kMaxNumOfTextureHandle];
-        ImgRegisterInfo   m_img_info[kMaxNumOfRenderTargetHandle];
+        ImgRegisterInfo   m_tex_info[kMaxNumOfRenderTargetHandle];
         ImgRegisterInfo   m_rt_info[kMaxNumOfDepthStencilHandle];
         ImgRegisterInfo   m_ds_info[kMaxNumOfPassHandle];
+
+        std::vector<PassRWResource>                 m_pass_rw_res;
+        std::vector<PassDependency>                 m_pass_dependency;
+        std::vector<uint32_t>                       m_plain_force_alias_base;
+        std::vector<std::unordered_set<uint16_t>>   m_plain_force_alias;
 
         std::vector<PassRenderData> m_passData;
 
         // sorted and cut passes
-        std::vector<uint32_t> m_sortedPass;
-
-        uint32_t            m_finalPass;
-
-        MemoryBlockI*        m_pMemBlock;
+        std::vector<uint16_t> m_sortedPass;
     };
 
 

@@ -32,6 +32,8 @@ namespace vkz
 
         void readwriteResource(const uint16_t _pass, const uint16_t* _res, const uint16_t _resCount, MagicTag _tag);
 
+        void setResultRenderTarget(RenderTargetHandle _rt);
+
         void update();
 
         HandleArrayT<kMaxNumOfShaderHandle> m_shaderHandles;
@@ -43,6 +45,8 @@ namespace vkz
         HandleArrayT<kMaxNumOfTextureHandle> m_textureHandles;
         HandleArrayT<kMaxNumOfBufferHandle> m_bufferHandles;
 
+        RenderTargetHandle m_resultRenderTarget{kInvalidHandle};
+
         // resource Info
         BufferDesc m_bufferDescs[kMaxNumOfBufferHandle];
         ImageDesc m_textureDescs[kMaxNumOfTextureHandle];
@@ -50,9 +54,11 @@ namespace vkz
         ImageDesc m_depthStencilDescs[kMaxNumOfDepthStencilHandle];
         PassDesc m_passDescs[kMaxNumOfPassHandle];
 
+
         // frame graph
         MemoryBlock* m_fgMemBlock;
         MemoryWriter* m_fgMemWriter;
+        
         Framegraph2* m_frameGraph;
 
         // store actual resource data, after frame graph processed
@@ -308,8 +314,24 @@ namespace vkz
         write(m_fgMemWriter, _reses, sizeof(uint16_t) * _resCount);
     }
 
+    void Context::setResultRenderTarget(RenderTargetHandle _rt)
+    {
+        uint32_t magic = static_cast<uint32_t>(MagicTag::SetResultRenderTarget);
+        write(m_fgMemWriter, magic);
+        
+        write(m_fgMemWriter, _rt.idx);
+        
+        m_resultRenderTarget = _rt;
+    }
+
     void Context::update()
     {
+        if (kInvalidHandle == m_resultRenderTarget.idx)
+        {
+            message(error, "result render target is not set!");
+            return;
+        }
+
         // write the finish tag
         uint32_t magic = static_cast<uint32_t>(MagicTag::End);
         write(m_fgMemWriter, magic);
@@ -607,6 +629,11 @@ namespace vkz
 
         delete[] reses;
         reses = nullptr;
+    }
+
+    void setResultRenderTarget(RenderTargetHandle _rt)
+    {
+        s_ctx->setResultRenderTarget(_rt);
     }
 
     const Memory* alloc(uint32_t _sz)

@@ -32,6 +32,7 @@ void right()
     outputDesc.layers = 1;
     outputDesc.mips = 1;
     vkz::RenderTargetHandle output = vkz::registRenderTarget("output", outputDesc);
+    vkz::setResultRenderTarget(output);
 
     vkz::ImageDesc pyramidDesc;
     pyramidDesc.format = vkz::TextureFormat::R32;

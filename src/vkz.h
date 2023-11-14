@@ -158,6 +158,8 @@ namespace vkz
     void writeDepthStencils(PassHandle _pass, DepthStencilHandleList _dsList);
     void readDepthStencils(PassHandle _pass, DepthStencilHandleList _dsList);
 
+    void setResultRenderTarget(RenderTargetHandle _rt);
+
     // meomory related
     const Memory* alloc(uint32_t _sz);
     const Memory* copy(const void* _data, uint32_t _sz);
