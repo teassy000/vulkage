@@ -58,53 +58,53 @@ namespace vkz
             }
             // Alias
             case MagicTag::AliasBuffer: {
-                aliasRes(reader, RessourceType::Buffer);
+                aliasRes(reader, ResourceType::Buffer);
                 break;
             }
             case MagicTag::AliasTexture: {
-                aliasRes(reader, RessourceType::Texture);
+                aliasRes(reader, ResourceType::Texture);
                 break;
             }
             case MagicTag::AliasRenderTarget: {
-                aliasRes(reader, RessourceType::RenderTarget);
+                aliasRes(reader, ResourceType::RenderTarget);
                 break;
             }
             case MagicTag::AliasDepthStencil: {
-                aliasRes(reader, RessourceType::DepthStencil);
+                aliasRes(reader, ResourceType::DepthStencil);
                 break;
             }
             // Read
             case MagicTag::PassReadBuffer: {
-                passReadRes(reader, RessourceType::Buffer);
+                passReadRes(reader, ResourceType::Buffer);
                 break;
             }
             case MagicTag::PassReadTexture: {
-                passReadRes(reader, RessourceType::Texture);
+                passReadRes(reader, ResourceType::Texture);
                 break;
             }
             case MagicTag::PassReadRenderTarget: {
-                passReadRes(reader, RessourceType::RenderTarget);
+                passReadRes(reader, ResourceType::RenderTarget);
                 break;
             }
             case MagicTag::PassReadDepthStencil: {
-                passReadRes(reader, RessourceType::DepthStencil);
+                passReadRes(reader, ResourceType::DepthStencil);
                 break;
             }
             // Write
             case MagicTag::PassWriteBuffer: {
-                passWriteRes(reader, RessourceType::Buffer);
+                passWriteRes(reader, ResourceType::Buffer);
                 break;
             }
             case MagicTag::PassWriteTexture: {
-                passWriteRes(reader, RessourceType::Texture);
+                passWriteRes(reader, ResourceType::Texture);
                 break;
             }
             case MagicTag::PassWriteRenderTarget: {
-                passWriteRes(reader, RessourceType::RenderTarget);
+                passWriteRes(reader, ResourceType::RenderTarget);
                 break;
             }
             case MagicTag::PassWriteDepthStencil: {
-                passWriteRes(reader, RessourceType::DepthStencil);
+                passWriteRes(reader, ResourceType::DepthStencil);
                 break;
             }
             case MagicTag::SetResultRenderTarget: {
@@ -145,7 +145,7 @@ namespace vkz
         read(&_reader, info);
 
         m_hPass.push_back({ info.idx });
-        m2_pass_info.push_back(info);
+        m_pass_info.push_back(info);
 
         m_pass_rw_res.push_back({});
         m_pass_dependency.push_back({});
@@ -157,9 +157,9 @@ namespace vkz
         read(&_reader, info);
 
         m_hBuf.push_back({ info.idx });
-        m2_buf_info.push_back(info);
+        m_buf_info.push_back(info);
 
-        CombinedResID plainResIdx = getPlainResourceID(info.idx, RessourceType::Buffer);
+        CombinedResID plainResIdx = getPlainResourceID(info.idx, ResourceType::Buffer);
         m_plain_resource_idx.push_back(plainResIdx);
     }
 
@@ -169,9 +169,9 @@ namespace vkz
         read(&_reader, info);
 
         m_hTex.push_back({ info.idx });
-        m2_tex_info.push_back(info);
+        m_tex_info.push_back(info);
 
-        CombinedResID plainResIdx = getPlainResourceID(info.idx, RessourceType::Texture);
+        CombinedResID plainResIdx = getPlainResourceID(info.idx, ResourceType::Texture);
         m_plain_resource_idx.push_back(plainResIdx);
     }
 
@@ -181,9 +181,9 @@ namespace vkz
         read(&_reader, info);
 
         m_hRT.push_back({ info.idx });
-        m2_rt_info.push_back(info);
+        m_rt_info.push_back(info);
 
-        CombinedResID plainResIdx = getPlainResourceID(info.idx, RessourceType::RenderTarget);
+        CombinedResID plainResIdx = getPlainResourceID(info.idx, ResourceType::RenderTarget);
         m_plain_resource_idx.push_back(plainResIdx);
     }
 
@@ -193,13 +193,13 @@ namespace vkz
         read(&_reader, info);
 
         m_hDS.push_back({ info.idx });
-        m2_ds_info.push_back(info);
+        m_ds_info.push_back(info);
 
-        CombinedResID plainResIdx = getPlainResourceID(info.idx, RessourceType::DepthStencil);
+        CombinedResID plainResIdx = getPlainResourceID(info.idx, ResourceType::DepthStencil);
         m_plain_resource_idx.push_back(plainResIdx);
     }
 
-    void Framegraph2::passReadRes(MemoryReader& _reader, RessourceType _type)
+    void Framegraph2::passReadRes(MemoryReader& _reader, ResourceType _type)
     {
         PassRWInfo info;
         read(&_reader, info);
@@ -222,7 +222,7 @@ namespace vkz
         resArr = nullptr;
     }
 
-    void Framegraph2::passWriteRes(MemoryReader& _reader, RessourceType _type)
+    void Framegraph2::passWriteRes(MemoryReader& _reader, ResourceType _type)
     {
         PassRWInfo info;
         read(&_reader, info);
@@ -244,7 +244,7 @@ namespace vkz
         resArr = nullptr;
     }
 
-    void Framegraph2::aliasRes(MemoryReader& _reader, RessourceType _type)
+    void Framegraph2::aliasRes(MemoryReader& _reader, ResourceType _type)
     {
         ResAliasInfo info;
         read(&_reader, info);
@@ -287,7 +287,7 @@ namespace vkz
             return;
         }
 
-        m_resultRT = RenderTargetHandle{ rt };
+        m_resultRT = getPlainResourceID(rt, ResourceType::RenderTarget);
     }
 
 
@@ -302,10 +302,15 @@ namespace vkz
             PassHandle currPass = m_hPass[ii];
             PassRWResource rwRes = m_pass_rw_res[ii];
 
-            for (CombinedResID CombindRes : rwRes.writeCombinedRes)
+            for (const CombinedResID CombindRes : rwRes.writeCombinedRes)
             {
                 linear_outResCID.push_back(CombindRes);
                 linear_outPassIdx.push_back(ii); // write by current pass
+
+                if (CombindRes == m_resultRT)
+                {
+                    m_finalPass = currPass;
+                }
             }
         }
 
@@ -320,21 +325,13 @@ namespace vkz
                     continue;
                 }
 
-
                 int16_t currPassIdx = ii;
-                
                 uint16_t writePassIdx = linear_outPassIdx[idx];
 
                 m_pass_dependency[currPassIdx].inPassIdx.push_back(writePassIdx);
                 m_pass_dependency[writePassIdx].outPassIdx.push_back(currPassIdx);
             }
         }
-    }
-
-    void Framegraph2::reverseDFSVisit(const PassHandle _currPass, std::vector<PassHandle>& _sortedPasses)
-    {
-
-        
     }
 
     void Framegraph2::reverseTraversalDFS()
@@ -344,17 +341,55 @@ namespace vkz
         std::vector<bool> visited(passNum, false);
         std::vector<bool> onStack(passNum, false);
 
+        uint16_t finalPassIdx = (uint16_t)getIndex(m_hPass, m_finalPass);
 
+        std::vector<uint16_t> sortedPassIdx;
+        std::stack<uint16_t> passIdxStack;
 
-        std::vector<PassHandle> sortedPass;
+        // start with the final pass
+        passIdxStack.push(finalPassIdx);
 
+        while (!passIdxStack.empty())
+        {
+            uint32_t currPassIdx = passIdxStack.top();
 
-        std::stack<uint16_t> passStack;
-       
+            onStack[currPassIdx] = true;
+            visited[currPassIdx] = true;
 
+            PassDependency passDep = m_pass_dependency[currPassIdx];
+
+            bool inPassAllVisited = true;
+
+            for (uint16_t parentPassIdx : passDep.inPassIdx)
+            {
+                if (!visited[parentPassIdx])
+                {
+                    passIdxStack.push(parentPassIdx);
+                    inPassAllVisited = false;
+                }
+                else if (onStack[parentPassIdx])
+                {
+                    message(error, "cycle detected!");
+                    return;
+                }
+            }
+
+            if (inPassAllVisited)
+            {
+                sortedPassIdx.push_back(currPassIdx);
+                
+                passIdxStack.pop();
+                onStack[currPassIdx] = false;
+            }
+        }
+        
+        for (uint16_t idx : sortedPassIdx)
+        {
+            m_sortedPass.push_back(m_hPass[idx]);
+        }
     }
 
-    Framegraph2::CombinedResID Framegraph2::getPlainResourceID(const uint16_t _resIdx, const RessourceType _resType)
+    Framegraph2::CombinedResID Framegraph2::getPlainResourceID(const uint16_t _resIdx, const ResourceType _resType)
     {
         CombinedResID handle;
         handle.idx = _resIdx;

@@ -36,7 +36,7 @@ namespace vkz
         End = 0x00000013,
     };
 
-    enum class RessourceType : uint16_t
+    enum class ResourceType : uint16_t
     {
         Buffer          = 1 << 0,
         Texture         = 1 << 1,
@@ -157,10 +157,10 @@ namespace vkz
         void registerRenderTarget(MemoryReader& _reader);
         void registerDepthStencil(MemoryReader& _reader);
 
-        void passReadRes(MemoryReader& _reader, RessourceType _type);
-        void passWriteRes(MemoryReader& _reader, RessourceType _type);
+        void passReadRes(MemoryReader& _reader, ResourceType _type);
+        void passWriteRes(MemoryReader& _reader, ResourceType _type);
 
-        void aliasRes(MemoryReader& _reader, RessourceType _type);
+        void aliasRes(MemoryReader& _reader, ResourceType _type);
 
         void setResultRT(MemoryReader& _reader);
 
@@ -171,7 +171,6 @@ namespace vkz
 
 
         void buildDependency();
-        void reverseDFSVisit(const PassHandle _currPass, std::vector<PassHandle>& _sortedPasses);
         void reverseTraversalDFS();
         void buildDenpendencyLevel();
         void buildResourceLifetime();
@@ -200,7 +199,7 @@ namespace vkz
         {
             struct { 
                 uint16_t      idx;
-                RessourceType type;
+                ResourceType type;
             };
 
             uint32_t combined;
@@ -223,11 +222,12 @@ namespace vkz
             std::vector<uint16_t> outPassIdx;
         };
 
-        CombinedResID getPlainResourceID(const uint16_t _resIdx, const RessourceType _resType);
+        CombinedResID getPlainResourceID(const uint16_t _resIdx, const ResourceType _resType);
 
         MemoryBlockI* m_pMemBlock;
 
-        RenderTargetHandle  m_resultRT;
+        CombinedResID  m_resultRT;
+        PassHandle     m_finalPass;
 
         std::vector< PassHandle         >   m_hPass;
         std::vector< BufferHandle       >   m_hBuf;
@@ -235,11 +235,11 @@ namespace vkz
         std::vector< RenderTargetHandle >   m_hRT;
         std::vector< DepthStencilHandle >   m_hDS;
 
-        std::vector< PassRegisterInfo>   m2_pass_info;
-        std::vector< BufRegisterInfo >   m2_buf_info;
-        std::vector< ImgRegisterInfo >   m2_tex_info;
-        std::vector< ImgRegisterInfo >   m2_rt_info;
-        std::vector< ImgRegisterInfo >   m2_ds_info;
+        std::vector< PassRegisterInfo>   m_pass_info;
+        std::vector< BufRegisterInfo >   m_buf_info;
+        std::vector< ImgRegisterInfo >   m_tex_info;
+        std::vector< ImgRegisterInfo >   m_rt_info;
+        std::vector< ImgRegisterInfo >   m_ds_info;
                      
         std::vector< CombinedResID>  m_plain_resource_idx;
                      
