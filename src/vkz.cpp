@@ -28,7 +28,8 @@ namespace vkz
         RenderTargetHandle registRenderTarget(const char* _name, ImageDesc _desc);
         DepthStencilHandle registDepthStencil(const char* _name, ImageDesc _desc);
 
-        void aliasResrouce(uint16_t* _aliases, const uint16_t _aliasCount, const uint16_t _baseRes, MagicTag _tag);
+        uint16_t aliasAlloc(MagicTag _tag);
+        void aliasResrouce(uint16_t** _aliases, const uint16_t _aliasCount, const uint16_t _baseRes, MagicTag _tag);
 
         void readwriteResource(const uint16_t _pass, const uint16_t* _res, const uint16_t _resCount, MagicTag _tag);
 
@@ -239,7 +240,7 @@ namespace vkz
 
     DepthStencilHandle Context::registDepthStencil(const char* _name, ImageDesc _desc)
     {
-        uint16_t idx = m_renderTargetHandles.alloc();
+        uint16_t idx = m_depthStencilHandles.alloc();
 
         DepthStencilHandle handle = DepthStencilHandle{ idx };
 
@@ -278,16 +279,35 @@ namespace vkz
         return handle;
     }
 
-    void Context::aliasResrouce(uint16_t* _aliases, const uint16_t _aliasCount, const uint16_t _baseRes, MagicTag _tag)
+    uint16_t Context::aliasAlloc(MagicTag _tag)
+    {
+        if (MagicTag::AliasBuffer == _tag) {
+            return m_bufferHandles.alloc();
+        }
+        if (MagicTag::AliasTexture == _tag) {
+            return m_textureHandles.alloc();
+        }
+        if (MagicTag::AliasRenderTarget == _tag) {
+            return m_renderTargetHandles.alloc();
+        }
+        if (MagicTag::AliasDepthStencil == _tag) {
+            return m_depthStencilHandles.alloc();
+        }
+
+        message(error, "invalid alias tag!");
+        return kInvalidHandle;
+    }
+
+    void Context::aliasResrouce(uint16_t** _aliases, const uint16_t _aliasCount, const uint16_t _baseRes, MagicTag _tag)
     {
         assert(_aliasCount > 0 && _aliasCount < kMaxNumOfBufferHandle);
 
         for (uint16_t ii = 0; ii < _aliasCount; ++ii)
         {
-            uint16_t idx = m_bufferHandles.alloc();
+            uint16_t idx = aliasAlloc(_tag);
 
             assert(idx != kInvalidHandle);
-            _aliases[ii] = idx;
+            *_aliases[ii] = idx;
         }
 
         uint32_t magic = static_cast<uint32_t>(_tag);
@@ -398,57 +418,57 @@ namespace vkz
         return s_ctx->registPass(_name, _desc);
     }
 
-    void aliasBuffer(BufferHandle* _aliases, const uint16_t _aliasCount, const BufferHandle _buf)
+    void aliasBuffer(BufferHandle** _aliases, const uint16_t _aliasCount, const BufferHandle _buf)
     {
         uint16_t* aliases = new uint16_t[_aliasCount];
 
-        s_ctx->aliasResrouce(aliases, _aliasCount, _buf.idx, MagicTag::AliasBuffer);
+        s_ctx->aliasResrouce(&aliases, _aliasCount, _buf.idx, MagicTag::AliasBuffer);
         
         for (uint16_t ii = 0; ii < _aliasCount; ++ii)
         {
-            _aliases[ii].idx = aliases[ii];
+            (*_aliases[ii]).idx = aliases[ii];
         }
 
         delete[] aliases;
     }
 
-    void aliasTexture(TextureHandle* _aliases, const uint16_t _aliasCount, const TextureHandle _tex)
+    void aliasTexture(TextureHandle** _aliases, const uint16_t _aliasCount, const TextureHandle _tex)
     {
         uint16_t* aliases = new uint16_t[_aliasCount];
 
-        s_ctx->aliasResrouce(aliases, _aliasCount, _tex.idx, MagicTag::AliasTexture);
+        s_ctx->aliasResrouce(&aliases, _aliasCount, _tex.idx, MagicTag::AliasTexture);
 
         for (uint16_t ii = 0; ii < _aliasCount; ++ii)
         {
-            _aliases[ii].idx = aliases[ii];
+            (*_aliases[ii]).idx = aliases[ii];
         }
 
         delete[] aliases;
     }
 
-    void aliasRenderTarget(RenderTargetHandle* _aliases, const uint16_t _aliasCount, const RenderTargetHandle _rt)
+    void aliasRenderTarget(RenderTargetHandle** _aliases, const uint16_t _aliasCount, const RenderTargetHandle _rt)
     {
         uint16_t* aliases = new uint16_t[_aliasCount];
 
-        s_ctx->aliasResrouce(aliases, _aliasCount, _rt.idx, MagicTag::AliasRenderTarget);
+        s_ctx->aliasResrouce(&aliases, _aliasCount, _rt.idx, MagicTag::AliasRenderTarget);
 
         for (uint16_t ii = 0; ii < _aliasCount; ++ii)
         {
-            _aliases[ii].idx = aliases[ii];
+            (*_aliases[ii]).idx = aliases[ii];
         }
 
         delete[] aliases;
     }
 
-    void aliasDepthStencil(DepthStencilHandle* _aliases, const uint16_t _aliasCount, const DepthStencilHandle _ds)
+    void aliasDepthStencil(DepthStencilHandle** _aliases, const uint16_t _aliasCount, const DepthStencilHandle _ds)
     {
         uint16_t* aliases = new uint16_t[_aliasCount];
 
-        s_ctx->aliasResrouce(aliases, _aliasCount, _ds.idx, MagicTag::AliasDepthStencil);
+        s_ctx->aliasResrouce(&aliases, _aliasCount, _ds.idx, MagicTag::AliasDepthStencil);
 
         for (uint16_t ii = 0; ii < _aliasCount; ++ii)
         {
-            _aliases[ii].idx = aliases[ii];
+            (*_aliases[ii]).idx = aliases[ii];
         }
 
         delete[] aliases;
@@ -457,8 +477,9 @@ namespace vkz
     BufferHandle aliasBuffer(const BufferHandle _handle)
     {
         BufferHandle alias[1];
+        BufferHandle* ptr = alias;
 
-        aliasBuffer(alias, (uint16_t)1, _handle);
+        aliasBuffer(&ptr, (uint16_t)1, _handle);
 
         BufferHandle ret = alias[0];
 
@@ -468,7 +489,8 @@ namespace vkz
     TextureHandle aliasTexture(const TextureHandle _handle)
     {
         TextureHandle alias[1];
-        aliasTexture(alias, (uint16_t)1, _handle);
+        TextureHandle* ptr = alias;
+        aliasTexture(&ptr, (uint16_t)1, _handle);
 
         TextureHandle ret = alias[0];
 
@@ -478,7 +500,9 @@ namespace vkz
     RenderTargetHandle aliasRenderTarget(const RenderTargetHandle _handle)
     {
         RenderTargetHandle alias[1];
-        aliasRenderTarget(alias, (uint16_t)1, _handle);
+        RenderTargetHandle* ptr = alias;
+
+        aliasRenderTarget(&ptr, (uint16_t)1, _handle);
 
         RenderTargetHandle ret = alias[0];
 
@@ -488,7 +512,9 @@ namespace vkz
     DepthStencilHandle aliasDepthStencil(const DepthStencilHandle _handle)
     {
         DepthStencilHandle alias[1];
-        aliasDepthStencil(alias, (uint16_t)1, _handle);
+        DepthStencilHandle* ptr = alias;
+        
+        aliasDepthStencil(&ptr, (uint16_t)1, _handle);
 
         DepthStencilHandle ret = alias[0];
 

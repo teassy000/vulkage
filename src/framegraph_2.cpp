@@ -6,6 +6,7 @@
 #include "handle.h"
 #include "vkz.h"
 #include "framegraph_2.h"
+#include <stack>
 
 
 
@@ -143,16 +144,11 @@ namespace vkz
         PassRegisterInfo info;
         read(&_reader, info);
 
-        m_pass_idx.push_back(info.idx);
+        m_hPass.push_back({ info.idx });
+        m2_pass_info.push_back(info);
+
         m_pass_rw_res.push_back({});
         m_pass_dependency.push_back({});
-        m_pass_info[info.idx].queue = info.queue;
-    }
-
-    uint32_t getPlainResourceID(const uint16_t _resIdx, const RessourceType _resType)
-    {
-        uint32_t low = static_cast<uint32_t>(_resIdx);
-        return (low | (static_cast<uint16_t>(_resType) << 16));
     }
 
     void Framegraph2::registerBuffer(MemoryReader& _reader)
@@ -160,10 +156,10 @@ namespace vkz
         BufRegisterInfo info;
         read(&_reader, info);
 
-        m_buf_idx.push_back(info.idx);
-        m_buf_info[info.idx] = info;
+        m_hBuf.push_back({ info.idx });
+        m2_buf_info.push_back(info);
 
-        uint32_t plainResIdx = getPlainResourceID(info.idx, RessourceType::Buffer);
+        CombinedResID plainResIdx = getPlainResourceID(info.idx, RessourceType::Buffer);
         m_plain_resource_idx.push_back(plainResIdx);
     }
 
@@ -172,10 +168,10 @@ namespace vkz
         ImgRegisterInfo info;
         read(&_reader, info);
 
-        m_img_idx.push_back(info.idx);
-        m_tex_info[info.idx] = info;
+        m_hTex.push_back({ info.idx });
+        m2_tex_info.push_back(info);
 
-        uint32_t plainResIdx = getPlainResourceID(info.idx, RessourceType::Texture);
+        CombinedResID plainResIdx = getPlainResourceID(info.idx, RessourceType::Texture);
         m_plain_resource_idx.push_back(plainResIdx);
     }
 
@@ -184,10 +180,10 @@ namespace vkz
         ImgRegisterInfo info;
         read(&_reader, info);
 
-        m_rt_idx.push_back(info.idx);
-        m_rt_info[info.idx] = info;
+        m_hRT.push_back({ info.idx });
+        m2_rt_info.push_back(info);
 
-        uint32_t plainResIdx = getPlainResourceID(info.idx, RessourceType::RenderTarget);
+        CombinedResID plainResIdx = getPlainResourceID(info.idx, RessourceType::RenderTarget);
         m_plain_resource_idx.push_back(plainResIdx);
     }
 
@@ -196,10 +192,10 @@ namespace vkz
         ImgRegisterInfo info;
         read(&_reader, info);
 
-        m_ds_idx.push_back(info.idx);
-        m_ds_info[info.idx] = info;
+        m_hDS.push_back({ info.idx });
+        m2_ds_info.push_back(info);
 
-        uint32_t plainResIdx = getPlainResourceID(info.idx, RessourceType::DepthStencil);
+        CombinedResID plainResIdx = getPlainResourceID(info.idx, RessourceType::DepthStencil);
         m_plain_resource_idx.push_back(plainResIdx);
     }
 
@@ -207,19 +203,19 @@ namespace vkz
     {
         PassRWInfo info;
         read(&_reader, info);
-         alloc(sizeof(uint16_t) * info.resNum);
+        alloc(sizeof(uint16_t) * info.resNum);
         
         uint16_t* resArr = new uint16_t[info.resNum];
         read(&_reader, resArr, sizeof(uint16_t) * info.resNum);
 
         for (int16_t ii = 0; ii < info.resNum; ++ii)
         {
-            int32_t idx = getIndex(m_pass_idx, info.pass);
+            int32_t idx = getIndex(m_hPass, { info.pass });
             assert(idx != kInvalidIndex);
             
             uint16_t resIdx = resArr[ii];
-            uint32_t plainIdx = getPlainResourceID(resIdx, _type);
-            m_pass_rw_res[idx].readPlainRes.push_back(plainIdx);
+            CombinedResID plainIdx = getPlainResourceID(resIdx, _type);
+            m_pass_rw_res[idx].readCombinedRes.push_back(plainIdx);
         }
 
         delete[] resArr;
@@ -236,12 +232,12 @@ namespace vkz
 
         for (int16_t ii = 0; ii < info.resNum; ++ii)
         {
-            int32_t idx = getIndex(m_pass_idx, info.pass);
+            int32_t idx = getIndex(m_hPass, { info.pass });
             assert(idx != kInvalidIndex);
             
             uint16_t resIdx = resArr[ii];
-            uint32_t plainIdx = getPlainResourceID(resIdx, _type);
-            m_pass_rw_res[idx].writePlainRes.push_back(plainIdx);
+            CombinedResID plainIdx = getPlainResourceID(resIdx, _type);
+            m_pass_rw_res[idx].writeCombinedRes.push_back(plainIdx);
         }
 
         delete[] resArr;
@@ -256,7 +252,7 @@ namespace vkz
         uint16_t* resArr = new uint16_t[info.aliasNum];
         read(&_reader, resArr, sizeof(uint16_t) * info.aliasNum);
 
-        uint32_t plainBaseIdx = getPlainResourceID(info.resBase, _type);
+        CombinedResID plainBaseIdx = getPlainResourceID(info.resBase, _type);
         int32_t idx = getIndex(m_plain_force_alias_base, plainBaseIdx);
         if (kInvalidIndex == idx)
         {
@@ -284,76 +280,87 @@ namespace vkz
         read(&_reader, rt);
 
         // check if rt is ready resisted
-        int32_t idx = getIndex(m_rt_idx, rt);
+        int32_t idx = getIndex(m_hRT, { rt });
         if (kInvalidIndex == idx)
         {
             message(DebugMessageType::error, "result rt is not registered!");
             return;
         }
 
-        m_resultRT = rt;
+        m_resultRT = RenderTargetHandle{ rt };
     }
 
 
     void Framegraph2::buildDependency()
     {
         // make a plain table that can find producer of a resource easily.
-        std::vector<uint32_t> linear_outResID;
-        std::vector<uint16_t> linear_outPassID;
+        std::vector<CombinedResID> linear_outResCID;
+        std::vector<uint16_t> linear_outPassIdx;
 
-        for (uint16_t currPass : m_pass_idx)
+        for (uint16_t ii = 0; ii < m_hPass.size(); ++ii)
         {
-            PassRWResource rwRes = m_pass_rw_res[currPass];
+            PassHandle currPass = m_hPass[ii];
+            PassRWResource rwRes = m_pass_rw_res[ii];
 
-            for (uint32_t plainRes : rwRes.writePlainRes)
+            for (CombinedResID CombindRes : rwRes.writeCombinedRes)
             {
-                linear_outResID.push_back(plainRes);
-                linear_outPassID.push_back(currPass); // write by current pass
+                linear_outResCID.push_back(CombindRes);
+                linear_outPassIdx.push_back(ii); // write by current pass
             }
         }
 
-        for (uint16_t currPass : m_pass_idx)
+        for (uint16_t ii = 0; ii < m_hPass.size(); ++ii)
         {
-            PassRWResource rwRes = m_pass_rw_res[currPass];
+            PassRWResource rwRes = m_pass_rw_res[ii];
 
-            for (uint32_t plainRes : rwRes.readPlainRes)
+            for (CombinedResID plainRes : rwRes.readCombinedRes)
             {
-                int32_t idx = getIndex(linear_outResID, plainRes);
+                int32_t idx = getIndex(linear_outResCID, plainRes);
                 if (kInvalidIndex == idx) {
                     continue;
                 }
 
-                uint16_t writePass = linear_outPassID[idx];
 
-                m_pass_dependency[currPass].inPass.push_back(writePass);
-                m_pass_dependency[writePass].outPass.push_back(currPass);
+                int16_t currPassIdx = ii;
+                
+                uint16_t writePassIdx = linear_outPassIdx[idx];
+
+                m_pass_dependency[currPassIdx].inPassIdx.push_back(writePassIdx);
+                m_pass_dependency[writePassIdx].outPassIdx.push_back(currPassIdx);
             }
         }
     }
 
-    void Framegraph2::reverseDFSVisit(const uint16_t _currPass, std::vector<uint16_t>& _sortedPasses)
+    void Framegraph2::reverseDFSVisit(const PassHandle _currPass, std::vector<PassHandle>& _sortedPasses)
     {
 
+        
     }
 
     void Framegraph2::reverseTraversalDFS()
     {
-        uint16_t passNum = (uint16_t)m_pass_idx.size();
+        uint16_t passNum = (uint16_t)m_hPass.size();
 
         std::vector<bool> visited(passNum, false);
         std::vector<bool> onStack(passNum, false);
 
-        uint16_t currPass = m_resultRT;
 
-        std::vector<uint16_t> sortedPass;
 
-        if (!visited[currPass])
-        {
-            reverseDFSVisit(currPass, sortedPass);
-        }
+        std::vector<PassHandle> sortedPass;
 
-        m_sortedPass.insert(m_sortedPass.end(), sortedPass.begin(), sortedPass.end());
 
+        std::stack<uint16_t> passStack;
+       
+
+    }
+
+    Framegraph2::CombinedResID Framegraph2::getPlainResourceID(const uint16_t _resIdx, const RessourceType _resType)
+    {
+        CombinedResID handle;
+        handle.idx = _resIdx;
+        handle.type = _resType;
+
+        return handle;
     }
 
 } // namespace vkz

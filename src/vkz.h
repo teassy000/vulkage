@@ -10,6 +10,10 @@ namespace vkz
     template <class HandleType>
     struct __declspec(novtable) Handle {
         uint16_t idx;
+
+        bool operator == (const Handle<HandleType>& rhs) const {
+            return idx == rhs.idx;
+        }
     };
 
     template <class HandleType>
@@ -136,10 +140,10 @@ namespace vkz
 
     PassHandle registPass(const char* _name, PassDesc _desc);
 
-    void aliasBuffer(BufferHandle* _aliases, const uint16_t _aliasCount, const BufferHandle _buf);
-    void aliasTexture(TextureHandle* _aliases, const uint16_t _aliasCount, const TextureHandle _tex);
-    void aliasRenderTarget(RenderTargetHandle* _aliases, const uint16_t _aliasCount, const RenderTargetHandle _rt);
-    void aliasDepthStencil(DepthStencilHandle* _aliases, const uint16_t _aliasCount, const DepthStencilHandle _ds);
+    void aliasBuffer(BufferHandle** _aliases, const uint16_t _aliasCount, const BufferHandle _buf);
+    void aliasTexture(TextureHandle** _aliases, const uint16_t _aliasCount, const TextureHandle _tex);
+    void aliasRenderTarget(RenderTargetHandle** _aliases, const uint16_t _aliasCount, const RenderTargetHandle _rt);
+    void aliasDepthStencil(DepthStencilHandle** _aliases, const uint16_t _aliasCount, const DepthStencilHandle _ds);
 
     BufferHandle aliasBuffer(const BufferHandle _buf);
     TextureHandle aliasTexture(const TextureHandle _tex);

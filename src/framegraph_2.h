@@ -96,18 +96,7 @@ namespace vkz
         uint16_t    aliasNum;
     };
 
-    // for sort
-    struct PassRWResource
-    {
-        std::vector<uint32_t> readPlainRes;
-        std::vector<uint32_t> writePlainRes;
-    };
 
-    struct PassDependency
-    {
-        std::vector<uint16_t> inPass;
-        std::vector<uint16_t> outPass;
-    };
 
     struct PassRenderData
     {
@@ -182,7 +171,7 @@ namespace vkz
 
 
         void buildDependency();
-        void reverseDFSVisit(const uint16_t _currPass, std::vector<uint16_t>& _sortedPasses);
+        void reverseDFSVisit(const PassHandle _currPass, std::vector<PassHandle>& _sortedPasses);
         void reverseTraversalDFS();
         void buildDenpendencyLevel();
         void buildResourceLifetime();
@@ -205,33 +194,64 @@ namespace vkz
         }
 
     private:
+
+
+        union CombinedResID
+        {
+            struct { 
+                uint16_t      idx;
+                RessourceType type;
+            };
+
+            uint32_t combined;
+
+            bool operator == (const CombinedResID& rhs) const {
+                return combined == rhs.combined;
+            }
+        };
+
+        // for sort
+        struct PassRWResource
+        {
+            std::vector<CombinedResID> readCombinedRes;
+            std::vector<CombinedResID> writeCombinedRes;
+        };
+
+        struct PassDependency
+        {
+            std::vector<uint16_t> inPassIdx;
+            std::vector<uint16_t> outPassIdx;
+        };
+
+        CombinedResID getPlainResourceID(const uint16_t _resIdx, const RessourceType _resType);
+
         MemoryBlockI* m_pMemBlock;
 
-        uint16_t            m_resultRT;
+        RenderTargetHandle  m_resultRT;
 
-        std::vector<uint16_t> m_pass_idx;
-        std::vector<uint16_t> m_buf_idx;
-        std::vector<uint16_t> m_img_idx;
-        std::vector<uint16_t> m_rt_idx;
-        std::vector<uint16_t> m_ds_idx;
+        std::vector< PassHandle         >   m_hPass;
+        std::vector< BufferHandle       >   m_hBuf;
+        std::vector< TextureHandle      >   m_hTex;
+        std::vector< RenderTargetHandle >   m_hRT;
+        std::vector< DepthStencilHandle >   m_hDS;
 
-        std::vector<uint32_t> m_plain_resource_idx;
+        std::vector< PassRegisterInfo>   m2_pass_info;
+        std::vector< BufRegisterInfo >   m2_buf_info;
+        std::vector< ImgRegisterInfo >   m2_tex_info;
+        std::vector< ImgRegisterInfo >   m2_rt_info;
+        std::vector< ImgRegisterInfo >   m2_ds_info;
+                     
+        std::vector< CombinedResID>  m_plain_resource_idx;
+                     
+        std::vector< PassRWResource>                 m_pass_rw_res;
+        std::vector< PassDependency>                 m_pass_dependency;
+        std::vector< CombinedResID>                     m_plain_force_alias_base;
+        std::vector< std::unordered_set<uint16_t>>   m_plain_force_alias;
 
-        PassRegisterInfo  m_pass_info[kMaxNumOfBufferHandle];
-        BufRegisterInfo   m_buf_info[kMaxNumOfTextureHandle];
-        ImgRegisterInfo   m_tex_info[kMaxNumOfRenderTargetHandle];
-        ImgRegisterInfo   m_rt_info[kMaxNumOfDepthStencilHandle];
-        ImgRegisterInfo   m_ds_info[kMaxNumOfPassHandle];
-
-        std::vector<PassRWResource>                 m_pass_rw_res;
-        std::vector<PassDependency>                 m_pass_dependency;
-        std::vector<uint32_t>                       m_plain_force_alias_base;
-        std::vector<std::unordered_set<uint16_t>>   m_plain_force_alias;
-
-        std::vector<PassRenderData> m_passData;
+        std::vector< PassRenderData> m_passData;
 
         // sorted and cut passes
-        std::vector<uint16_t> m_sortedPass;
+        std::vector< PassHandle> m_sortedPass;
     };
 
 

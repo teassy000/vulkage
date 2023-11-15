@@ -80,6 +80,10 @@ void right()
     draw_a_desc.queue = vkz::PassExeQueue::Graphics;
     vkz::PassHandle draw_a = vkz::registPass("draw_a", draw_a_desc);
 
+    vkz::PassDesc py_desc;
+    py_desc.queue = vkz::PassExeQueue::AsyncCompute0;
+    vkz::PassHandle py_pass = vkz::registPass("py_pass", py_desc);
+
     vkz::PassDesc cull_b_desc;
     cull_b_desc.queue = vkz::PassExeQueue::AsyncCompute0;
     vkz::PassHandle cull_b = vkz::registPass("cull_b", cull_b_desc);
@@ -87,10 +91,6 @@ void right()
     vkz::PassDesc draw_b_desc;
     draw_b_desc.queue = vkz::PassExeQueue::Graphics;
     vkz::PassHandle draw_b = vkz::registPass("draw_b", draw_b_desc);
-
-    vkz::PassDesc py_desc;
-    py_desc.queue = vkz::PassExeQueue::AsyncCompute0;
-    vkz::PassHandle py_pass = vkz::registPass("py_pass", py_desc);
 
     vkz::PassDesc output_desc;
     output_desc.queue = vkz::PassExeQueue::Graphics;
@@ -100,10 +100,11 @@ void right()
     // cull_a
     vkz::readTextures(cull_a, { pyramid_lastFrame });
     vkz::readBuffers(cull_a, { mltBuf, mvisLastFrame });
-    vkz::writeBuffers(cull_a, { cmdBuf });
+    vkz::writeBuffers(cull_a, { cmdBuf , mvisBuf });
 
     // draw_a
-    vkz::readBuffers(draw_a, { cmdBuf, idxBuf, vtxBuf });
+    vkz::readBuffers(draw_a, { cmdBuf });
+    vkz::readTextures(draw_a, { pyramid_lastFrame });
     vkz::writeRenderTargets(draw_a, { color });
     vkz::writeDepthStencils(draw_a, { depth });
 
@@ -113,11 +114,12 @@ void right()
 
     // cull_b
     vkz::readTextures(cull_b, { pyramid });
-    vkz::readBuffers(cull_b, { mltBuf });
-    vkz::writeBuffers(cull_b, { cmdBuf_late });
+    vkz::readBuffers(cull_b, { mltBuf, mvisBuf });
+    vkz::writeBuffers(cull_b, { cmdBuf_late , mvisLate});
 
     // draw_b
-    vkz::readBuffers(draw_b, { cmdBuf_late, idxBuf, vtxBuf });
+    vkz::readBuffers(draw_b, { cmdBuf_late });
+    vkz::readTextures(draw_b, { pyramid });
     vkz::writeRenderTargets(draw_b, { color_late });
     vkz::writeDepthStencils(draw_b, { depth_late });
 
@@ -242,6 +244,7 @@ void wrong()
 
     // draw_b
     vkz::readBuffers(draw_b, { cmdBuf, idxBuf, vtxBuf });
+    vkz::readTextures(draw_b, { pyramid });
     vkz::writeRenderTargets(draw_b, { color });
     vkz::writeDepthStencils(draw_b, { depth });
 
