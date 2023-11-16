@@ -21,14 +21,14 @@ namespace vkz
         return kInvalidHandle != handle.idx;
     }
 
-    enum class PassExeQueue : uint8_t
+    enum class PassExeQueue : uint16_t
     {
-        Graphics,
-        AsyncCompute0,
-        AsyncCompute1,
-        AsyncCompute2,
+        Graphics = 0,
+        AsyncCompute0 = 1,
+        AsyncCompute1 = 2,
+        AsyncCompute2 = 3,
         
-        Count,
+        Count = 4,
     };
 
     enum class TextureFormat : uint16_t

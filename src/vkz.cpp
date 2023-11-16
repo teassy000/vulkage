@@ -357,7 +357,7 @@ namespace vkz
         write(m_fgMemWriter, magic);
 
         m_frameGraph->setMemoryBlock(m_fgMemBlock);
-        m_frameGraph->build();
+        m_frameGraph->bake();
     }
 
     static Context* s_ctx = nullptr;

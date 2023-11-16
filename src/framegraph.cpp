@@ -883,16 +883,14 @@ void TopologicalSort(FrameGraph& graph, FrameGraphData& fd, std::vector<uint32_t
 void formatDependencyLevels(FrameGraph& fg, FrameGraphData& fd, std::unordered_map<uint32_t, uint32_t> longestDists
     , std::unordered_map<uint32_t, std::vector<uint32_t>>& levelPasses, const uint32_t currentPass, const uint32_t baseLevel)
 {
-    
     const uint32_t level = longestDists[currentPass];
+
     const RenderPass& rp = fd._passes[currentPass];
 
     for (uint32_t id : rp.parentPassIDs)
     {
         if (level - 1 == longestDists[id])
         {
-            RenderPass& rpi = fd._passes[id];
-
             // if not exist in current level
             if (std::find(levelPasses[baseLevel - level].begin(), levelPasses[baseLevel - level].end(), id) == levelPasses[baseLevel - level].end())
             {
@@ -946,6 +944,7 @@ void buildDenpendencyLevel(FrameGraph& fg, FrameGraphData& fd)
         formatDependencyLevels(fg, fd, longestDists, levelPasses, pass, longestDists[pass]);
     }
 
+    // initialize nearest sync pass
     for (uint32_t pass : visitedPasses)
     {
         RenderPass& rp = fd._passes[pass];
@@ -962,8 +961,6 @@ void buildDenpendencyLevel(FrameGraph& fg, FrameGraphData& fd)
     {
         const std::unordered_map<DependLevel, std::vector<uint32_t>>& dependPasses = fg._dependedLevelsPerPass[pass]._dependPasses;
         RenderPass& rp = fd._passes[pass];
-        
-        std::unordered_map<RenderPassExeQueue, bool> foundSyncPass{};
 
         // if current pass depends on specific pass
         for (const auto& it : dependPasses)

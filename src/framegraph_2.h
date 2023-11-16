@@ -144,41 +144,8 @@ namespace vkz
     class Framegraph2
     {
     public:
-        void build();
+        void bake();
         void execute(); // execute passes
-
-
-    private:
-        void parseOperations();
-
-        void registerPass(MemoryReader& _reader);
-        void registerBuffer(MemoryReader& _reader);
-        void registerTexture(MemoryReader& _reader);
-        void registerRenderTarget(MemoryReader& _reader);
-        void registerDepthStencil(MemoryReader& _reader);
-
-        void passReadRes(MemoryReader& _reader, ResourceType _type);
-        void passWriteRes(MemoryReader& _reader, ResourceType _type);
-
-        void aliasRes(MemoryReader& _reader, ResourceType _type);
-
-        void setResultRT(MemoryReader& _reader);
-
-    private:
-        void sort(); // reverse dfs
-        void optimize(); // alias and sync 
-        void pre_execute(); // allocate resource and prepare passes, maybe merge passes, detect transist resources
-
-
-        void buildDependency();
-        void reverseTraversalDFS();
-        void buildDenpendencyLevel();
-        void buildResourceLifetime();
-        void buildResourceBuckets();
-
-        void optimize_sync();
-        void optimize_alias();
-        void allocate_resources();
 
     public:
 
@@ -193,11 +160,44 @@ namespace vkz
         }
 
     private:
+        
+        void parseOp();
+
+        // ==============================
+        // process operations 
+        void registerPass(MemoryReader& _reader);
+        void registerBuffer(MemoryReader& _reader);
+        void registerTexture(MemoryReader& _reader);
+        void registerRenderTarget(MemoryReader& _reader);
+        void registerDepthStencil(MemoryReader& _reader);
+
+        void passReadRes(MemoryReader& _reader, ResourceType _type);
+        void passWriteRes(MemoryReader& _reader, ResourceType _type);
+
+        void aliasRes(MemoryReader& _reader, ResourceType _type);
+
+        void setResultRT(MemoryReader& _reader);
+
+        // ==============================
+        void buildGraph();
+        void reverseTraversalDFS();
+        void buildMaxLevelList(std::vector<uint16_t>& _maxLvLst);
+        void formatDependency(const std::vector<uint16_t>& _maxLvLst);
+        void fillNearestSyncPass();
+        void buildDenpendencyLevel();
+        void buildResourceLifetime();
+        void buildResourceBuckets();
+
+        void optimize_sync();
+        void optimize_alias();
+        void allocate_resources();
 
 
+
+    private:
         union CombinedResID
         {
-            struct { 
+            struct {
                 uint16_t      idx;
                 ResourceType type;
             };
@@ -209,6 +209,15 @@ namespace vkz
             }
         };
 
+        inline CombinedResID getPlainResourceID(const uint16_t _resIdx, const ResourceType _resType)
+        {
+            CombinedResID handle;
+            handle.idx = _resIdx;
+            handle.type = _resType;
+
+            return handle;
+        }
+
         // for sort
         struct PassRWResource
         {
@@ -218,12 +227,17 @@ namespace vkz
 
         struct PassDependency
         {
-            std::vector<uint16_t> inPassIdx;
-            std::vector<uint16_t> outPassIdx;
+            std::vector<uint16_t> inPassIdxLst;
+            std::vector<uint16_t> outPassIdxLst;
         };
 
-        CombinedResID getPlainResourceID(const uint16_t _resIdx, const ResourceType _resType);
+        // for optimize
+        struct PassInDependLevel
+        {
+            std::vector<std::vector<uint16_t>> passInLv;
+        };
 
+    private:
         MemoryBlockI* m_pMemBlock;
 
         CombinedResID  m_resultRT;
@@ -245,13 +259,26 @@ namespace vkz
                      
         std::vector< PassRWResource>                 m_pass_rw_res;
         std::vector< PassDependency>                 m_pass_dependency;
-        std::vector< CombinedResID>                     m_plain_force_alias_base;
+        std::vector< CombinedResID>                  m_plain_force_alias_base;
         std::vector< std::unordered_set<uint16_t>>   m_plain_force_alias;
 
         std::vector< PassRenderData> m_passData;
 
         // sorted and cut passes
-        std::vector< PassHandle> m_sortedPass;
+        std::vector< PassHandle>    m_sortedPass;
+        std::vector< uint16_t>      m_sortedPassIdx;
+
+        std::vector<PassInDependLevel>          m_passIdxInDpLevels;
+
+        // =====================
+        // lv0: each queue
+        // lv1: passes in queue
+        std::array< std::vector<uint16_t>, (uint16_t)PassExeQueue::Count >    m_passIdxInQueue; 
+
+        // =====================
+        // lv0 index: each pass would use
+        // lv1 index: one pass in each queue
+        std::vector< std::array<uint16_t, (uint16_t)PassExeQueue::Count> >    m_nearestSyncPassIdx;
     };
 
 

@@ -12,15 +12,20 @@
 
 namespace vkz
 {
-    void Framegraph2::build()
+    void Framegraph2::bake()
     {
-        parseOperations();
+        // prepare
+        parseOp();
+        buildGraph();
 
-        buildDependency();
+        // sort and cut
         reverseTraversalDFS();
+
+        // optimize
+        buildDenpendencyLevel();
     }
 
-    void Framegraph2::parseOperations()
+    void Framegraph2::parseOp()
     {
         assert(m_pMemBlock != nullptr);
         MemoryReader reader(m_pMemBlock->expand(0), m_pMemBlock->size());
@@ -30,11 +35,9 @@ namespace vkz
             MagicTag magic = MagicTag::InvalidMagic;
             read(&reader, magic);
 
-            bool finish = false;
+            bool finished = false;
             switch (magic)
             {
-            // check
-            
             // Register
             case MagicTag::RegisterPass: {
                 registerPass(reader);
@@ -115,20 +118,20 @@ namespace vkz
                 message(DebugMessageType::warning, "invalid magic tag, data incorrect!");
             case MagicTag::End:
             default:
-                finish = true;
+                finished = true;
                 break;
             }
             
-            if (finish)
+            if (finished)
             {
                 break;
             }
         }
     }
 
-    constexpr int32_t kInvalidIndex = 0xFFFFFFFF;
+    constexpr uint16_t kInvalidIndex = 0xffff;
     template<typename T>
-    int32_t getIndex(const std::vector<T>& _vec, T _data)
+    const uint16_t getIndex(const std::vector<T>& _vec, T _data)
     {
         auto it = std::find(begin(_vec), end(_vec), _data);
         if (it == end(_vec))
@@ -136,7 +139,7 @@ namespace vkz
             return kInvalidIndex;
         }
 
-        return (int32_t)std::distance(begin(_vec), it);
+        return (uint16_t)std::distance(begin(_vec), it);
     }
 
     void Framegraph2::registerPass(MemoryReader& _reader)
@@ -144,6 +147,11 @@ namespace vkz
         PassRegisterInfo info;
         read(&_reader, info);
 
+        // fill pass idx in queue
+        uint16_t qIdx = (uint16_t)info.queue;
+        m_passIdxInQueue[qIdx].push_back((uint16_t)m_hPass.size());
+
+        // fill pass info
         m_hPass.push_back({ info.idx });
         m_pass_info.push_back(info);
 
@@ -208,9 +216,9 @@ namespace vkz
         uint16_t* resArr = new uint16_t[info.resNum];
         read(&_reader, resArr, sizeof(uint16_t) * info.resNum);
 
-        for (int16_t ii = 0; ii < info.resNum; ++ii)
+        for (uint16_t ii = 0; ii < info.resNum; ++ii)
         {
-            int32_t idx = getIndex(m_hPass, { info.pass });
+            uint16_t idx = getIndex(m_hPass, { info.pass });
             assert(idx != kInvalidIndex);
             
             uint16_t resIdx = resArr[ii];
@@ -230,9 +238,9 @@ namespace vkz
         uint16_t* resArr = new uint16_t[info.resNum];
         read(&_reader, resArr, sizeof(uint16_t) * info.resNum);
 
-        for (int16_t ii = 0; ii < info.resNum; ++ii)
+        for (uint16_t ii = 0; ii < info.resNum; ++ii)
         {
-            int32_t idx = getIndex(m_hPass, { info.pass });
+            uint16_t idx = getIndex(m_hPass, { info.pass });
             assert(idx != kInvalidIndex);
             
             uint16_t resIdx = resArr[ii];
@@ -253,7 +261,7 @@ namespace vkz
         read(&_reader, resArr, sizeof(uint16_t) * info.aliasNum);
 
         CombinedResID plainBaseIdx = getPlainResourceID(info.resBase, _type);
-        int32_t idx = getIndex(m_plain_force_alias_base, plainBaseIdx);
+        uint16_t idx = getIndex(m_plain_force_alias_base, plainBaseIdx);
         if (kInvalidIndex == idx)
         {
             m_plain_force_alias_base.push_back(plainBaseIdx);
@@ -262,7 +270,7 @@ namespace vkz
         }
         else // found the base
         {
-            for (int16_t ii = 0; ii < info.aliasNum; ++ii)
+            for (uint16_t ii = 0; ii < info.aliasNum; ++ii)
             {
                 uint16_t resIdx = resArr[ii];
                 m_plain_force_alias[idx].insert(resIdx);
@@ -280,7 +288,7 @@ namespace vkz
         read(&_reader, rt);
 
         // check if rt is ready resisted
-        int32_t idx = getIndex(m_hRT, { rt });
+        uint16_t idx = getIndex(m_hRT, { rt });
         if (kInvalidIndex == idx)
         {
             message(DebugMessageType::error, "result rt is not registered!");
@@ -291,7 +299,7 @@ namespace vkz
     }
 
 
-    void Framegraph2::buildDependency()
+    void Framegraph2::buildGraph()
     {
         // make a plain table that can find producer of a resource easily.
         std::vector<CombinedResID> linear_outResCID;
@@ -320,16 +328,16 @@ namespace vkz
 
             for (CombinedResID plainRes : rwRes.readCombinedRes)
             {
-                int32_t idx = getIndex(linear_outResCID, plainRes);
+                uint16_t idx = getIndex(linear_outResCID, plainRes);
                 if (kInvalidIndex == idx) {
                     continue;
                 }
 
-                int16_t currPassIdx = ii;
+                uint16_t currPassIdx = ii;
                 uint16_t writePassIdx = linear_outPassIdx[idx];
 
-                m_pass_dependency[currPassIdx].inPassIdx.push_back(writePassIdx);
-                m_pass_dependency[writePassIdx].outPassIdx.push_back(currPassIdx);
+                m_pass_dependency[currPassIdx].inPassIdxLst.push_back(writePassIdx);
+                m_pass_dependency[writePassIdx].outPassIdxLst.push_back(currPassIdx);
             }
         }
     }
@@ -360,7 +368,7 @@ namespace vkz
 
             bool inPassAllVisited = true;
 
-            for (uint16_t parentPassIdx : passDep.inPassIdx)
+            for (uint16_t parentPassIdx : passDep.inPassIdxLst)
             {
                 if (!visited[parentPassIdx])
                 {
@@ -383,19 +391,129 @@ namespace vkz
             }
         }
         
+        // fill the sorted and clipped pass
         for (uint16_t idx : sortedPassIdx)
         {
             m_sortedPass.push_back(m_hPass[idx]);
         }
+        m_sortedPassIdx = sortedPassIdx;
+
     }
 
-    Framegraph2::CombinedResID Framegraph2::getPlainResourceID(const uint16_t _resIdx, const ResourceType _resType)
+
+    void Framegraph2::buildMaxLevelList(std::vector<uint16_t>& _maxLvLst)
     {
-        CombinedResID handle;
-        handle.idx = _resIdx;
-        handle.type = _resType;
+        for (uint16_t passIdx : m_sortedPassIdx)
+        {
+            uint16_t maxLv = 0;
 
-        return handle;
+            for (uint16_t inPassIdx : m_pass_dependency[passIdx].inPassIdxLst)
+            {
+                uint16_t dd = _maxLvLst[inPassIdx] + 1;
+                maxLv = std::max(maxLv, dd);
+            }
+
+            _maxLvLst[passIdx] = maxLv;
+        }
     }
+
+    void Framegraph2::formatDependency(const std::vector<uint16_t>& _maxLvLst)
+    {
+        // initialize the dependency level
+        uint16_t maxLv = *std::max_element(begin(_maxLvLst), end(_maxLvLst));
+        m_passIdxInDpLevels = std::vector<PassInDependLevel>(m_sortedPassIdx.size(), PassInDependLevel{});
+        for (uint16_t passIdx : m_sortedPassIdx)
+        {
+            m_passIdxInDpLevels[passIdx].passInLv = std::vector<std::vector<uint16_t>>(maxLv, std::vector<uint16_t>());
+        }
+
+
+        for (uint16_t passIdx : m_sortedPassIdx)
+        {
+            std::stack<uint16_t> passStack;
+            passStack.push(passIdx);
+
+
+            uint16_t baseLv = _maxLvLst[passIdx];
+
+            while (!passStack.empty())
+            {
+                uint16_t currPassIdx = passStack.top();
+                passStack.pop();
+
+                const uint16_t currLv = _maxLvLst[currPassIdx];
+
+                for (const uint16_t inPassIdx : m_pass_dependency[currPassIdx].inPassIdxLst)
+                {
+                    uint16_t idx = getIndex(m_passIdxInDpLevels[passIdx].passInLv[baseLv - currLv], inPassIdx);
+                    if (currLv - 1 != _maxLvLst[inPassIdx] || kInvalidIndex != idx)
+                    {
+                        continue;
+                    }
+
+                    m_passIdxInDpLevels[passIdx].passInLv[baseLv - currLv].push_back(inPassIdx);
+                }
+
+                for (const uint16_t inPassIdx : m_pass_dependency[currPassIdx].inPassIdxLst)
+                {
+                    passStack.push(inPassIdx);
+                }
+            }
+        }
+    }
+
+
+    void Framegraph2::fillNearestSyncPass()
+    {
+        // init nearest sync pass
+        m_nearestSyncPassIdx.resize(m_sortedPass.size());
+        for (auto& arr : m_nearestSyncPassIdx)
+        {
+            arr.fill(kInvalidIndex);
+        }
+
+        for (const uint16_t passIdx : m_sortedPassIdx)
+        {
+            const PassInDependLevel& passDep = m_passIdxInDpLevels[passIdx];
+
+            // iterate each level
+            for (uint16_t ii = 0; ii < passDep.passInLv.size(); ++ii)
+            {
+                // iterate each pass in current level
+                for (uint16_t jj = 0; jj < passDep.passInLv[ii].size(); ++jj)
+                {
+                    const uint16_t inPassInCurrLevel = passDep.passInLv[ii][jj];
+
+                    // check if pass in m_passIdxInDLevels can match with m_passIdxInQueue
+                    for (uint16_t qIdx = 0; qIdx < m_passIdxInQueue.size(); ++qIdx)
+                    {
+                        const uint16_t idx = getIndex(m_passIdxInQueue[qIdx], inPassInCurrLevel);
+
+                        bool isMatch = (kInvalidIndex == m_nearestSyncPassIdx[passIdx][qIdx]) && (kInvalidIndex != idx);
+                        if ( isMatch) {
+                            m_nearestSyncPassIdx[passIdx][qIdx] = inPassInCurrLevel;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        // cool nesting :)
+    }
+
+    void Framegraph2::buildDenpendencyLevel()
+    {
+        // calc max level list
+        std::vector<uint16_t> maxLvLst(m_sortedPassIdx.size(), 0);
+        buildMaxLevelList(maxLvLst);
+
+        // build dependency level
+        formatDependency(maxLvLst);
+
+        // init the nearest sync pass
+        fillNearestSyncPass();
+
+    }
+
 
 } // namespace vkz
