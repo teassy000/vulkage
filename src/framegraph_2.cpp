@@ -522,7 +522,7 @@ namespace vkz
         }
     }
 
-    void Framegraph2::buildDenpendencyLevel()
+    void Framegraph2::optimizeSync()
     {
         // calc max level list
         std::vector<uint16_t> maxLvLst(m_sortedPassIdx.size(), 0);
