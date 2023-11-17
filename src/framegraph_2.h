@@ -184,15 +184,14 @@ namespace vkz
         void buildMaxLevelList(std::vector<uint16_t>& _maxLvLst);
         void formatDependency(const std::vector<uint16_t>& _maxLvLst);
         void fillNearestSyncPass();
-        void buildDenpendencyLevel();
+        void optimizeSyncPass();
+
         void buildResourceLifetime();
         void buildResourceBuckets();
 
-        void optimize_sync();
-        void optimize_alias();
+        void optimizeSync();
+        void optimizeAlias();
         void allocate_resources();
-
-
 
     private:
         union CombinedResID
@@ -237,6 +236,11 @@ namespace vkz
             std::vector<std::vector<uint16_t>> passInLv;
         };
 
+        struct PassToSync
+        {
+            std::vector<uint16_t> passToSync;
+        };
+
     private:
         MemoryBlockI* m_pMemBlock;
 
@@ -269,6 +273,8 @@ namespace vkz
         std::vector< uint16_t>      m_sortedPassIdx;
 
         std::vector<PassInDependLevel>          m_passIdxInDpLevels;
+
+        std::vector<std::vector<uint16_t>>      m_passIdxToSync;
 
         // =====================
         // lv0: each queue

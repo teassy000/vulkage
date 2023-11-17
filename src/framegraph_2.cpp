@@ -22,7 +22,7 @@ namespace vkz
         reverseTraversalDFS();
 
         // optimize
-        buildDenpendencyLevel();
+
     }
 
     void Framegraph2::parseOp()
@@ -157,6 +157,7 @@ namespace vkz
 
         m_pass_rw_res.push_back({});
         m_pass_dependency.push_back({});
+        m_passIdxToSync.push_back({});
     }
 
     void Framegraph2::registerBuffer(MemoryReader& _reader)
@@ -489,7 +490,11 @@ namespace vkz
                     {
                         const uint16_t idx = getIndex(m_passIdxInQueue[qIdx], inPassInCurrLevel);
 
-                        bool isMatch = (kInvalidIndex == m_nearestSyncPassIdx[passIdx][qIdx]) && (kInvalidIndex != idx);
+                        bool isMatch = 
+                               (kInvalidIndex == m_nearestSyncPassIdx[passIdx][qIdx]) // not set yet
+                            && (kInvalidIndex != idx); // found
+
+                        // only first met would set the value
                         if ( isMatch) {
                             m_nearestSyncPassIdx[passIdx][qIdx] = inPassInCurrLevel;
                             break;
@@ -499,6 +504,22 @@ namespace vkz
             }
         }
         // cool nesting :)
+    }
+
+    void Framegraph2::optimizeSyncPass()
+    {
+        for (uint16_t passIdx = 0; passIdx != m_sortedPassIdx.size(); ++passIdx)
+        {
+            const uint16_t pIdx = passIdx - 1;
+            const PassInDependLevel& dpLv = m_passIdxInDpLevels[pIdx];
+            
+            
+            if (dpLv.passInLv.empty() || dpLv.passInLv[0].empty())
+                continue;
+
+            // only level 0 would be sync
+            m_passIdxToSync[passIdx].insert(m_passIdxToSync[passIdx].end(), dpLv.passInLv[0].begin(), dpLv.passInLv[0].end());
+        }
     }
 
     void Framegraph2::buildDenpendencyLevel()
@@ -513,6 +534,8 @@ namespace vkz
         // init the nearest sync pass
         fillNearestSyncPass();
 
+        // optimize sync pass
+        optimizeSyncPass();
     }
 
 
