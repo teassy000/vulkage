@@ -162,6 +162,11 @@ namespace vkz
     void writeDepthStencils(PassHandle _pass, DepthStencilHandleList _dsList);
     void readDepthStencils(PassHandle _pass, DepthStencilHandleList _dsList);
 
+    void setMultiFrameBuffer(BufferHandleList _bufList);
+    void setMultiFrameTexture(TextureHandleList _texList);
+    void setMultiFrameRenderTarget(RenderTargetHandleList _rtList);
+    void setMultiFrameDepthStencil(DepthStencilHandleList _dsList);
+
     void setResultRenderTarget(RenderTargetHandle _rt);
 
     // meomory related

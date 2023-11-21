@@ -96,6 +96,10 @@ void right()
     output_desc.queue = vkz::PassExeQueue::Graphics;
     vkz::PassHandle out_pass = vkz::registPass("output", output_desc);
 
+    // set multi-frame resource
+    vkz::setMultiFrameBuffer({ mvisBuf });
+    vkz::setMultiFrameTexture({ pyramid });
+
     // set resource for passes
     // cull_a
     vkz::readTextures(cull_a, { pyramid_lastFrame });

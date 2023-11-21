@@ -11,37 +11,42 @@ namespace vkz
     {
         InvalidMagic = 0x00000000,
 
-        RegisterPass = 0x00000001,
-        RegisterBuffer = 0x00000002,
-        RegisterTexture = 0x00000003,
-        RegisterRenderTarget = 0x00000004,
-        RegisterDepthStencil = 0x00000005,
+        RegisterPass,
+        RegisterBuffer,
+        RegisterTexture,
+        RegisterRenderTarget,
+        RegisterDepthStencil,
 
-        PassReadBuffer = 0x00000006,
-        PassWriteBuffer = 0x00000007,
-        PassReadTexture = 0x00000008,
-        PassWriteTexture = 0x00000009,
-        PassReadRenderTarget = 0x0000000A,
-        PassWriteRenderTarget = 0x0000000B,
-        PassReadDepthStencil = 0x0000000C,
-        PassWriteDepthStencil = 0x0000000D,
+        PassReadBuffer,
+        PassWriteBuffer,
+        PassReadTexture,
+        PassWriteTexture,
+        PassReadRenderTarget,
+        PassWriteRenderTarget,
+        PassReadDepthStencil,
+        PassWriteDepthStencil,
 
-        AliasBuffer = 0x0000000E,
-        AliasTexture = 0x0000000F,
-        AliasRenderTarget = 0x00000010,
-        AliasDepthStencil = 0x00000011,
+        AliasBuffer,
+        AliasTexture,
+        AliasRenderTarget,
+        AliasDepthStencil,
 
-        SetResultRenderTarget = 0x00000012,
+        SetMuitiFrameBuffer,
+        SetMuitiFrameTexture,
+        SetMultiFrameRenderTarget,
+        SetMultiFrameDepthStencil,
 
-        End = 0x00000013,
+        SetResultRenderTarget,
+
+        End,
     };
 
     enum class ResourceType : uint16_t
     {
-        Buffer          = 1 << 0,
-        Texture         = 1 << 1,
-        RenderTarget    = 1 << 2,
-        DepthStencil    = 1 << 3,
+        Buffer          = 1,
+        Texture,
+        RenderTarget,
+        DepthStencil,
     };
 
     // Register Info
@@ -95,8 +100,6 @@ namespace vkz
         uint16_t    resBase;
         uint16_t    aliasNum;
     };
-
-
 
     struct PassRenderData
     {
@@ -174,7 +177,9 @@ namespace vkz
         void passReadRes(MemoryReader& _reader, ResourceType _type);
         void passWriteRes(MemoryReader& _reader, ResourceType _type);
 
-        void aliasRes(MemoryReader& _reader, ResourceType _type);
+        void aliasResForce(MemoryReader& _reader, ResourceType _type);
+
+        void setMultiFrameRes(MemoryReader& _reader, ResourceType _type);
 
         void setResultRT(MemoryReader& _reader);
 
@@ -186,8 +191,10 @@ namespace vkz
         void fillNearestSyncPass();
         void optimizeSyncPass();
 
-        void buildResourceLifetime();
-        void buildResourceBuckets();
+        void processMultiFrameRes();
+        void buildResLifetime();
+
+        void fillResourceBuckets();
 
         void optimizeSync();
         void optimizeAlias();
@@ -208,7 +215,7 @@ namespace vkz
             }
         };
 
-        inline CombinedResID getPlainResourceID(const uint16_t _resIdx, const ResourceType _resType)
+        inline CombinedResID getCombinedResID(const uint16_t _resIdx, const ResourceType _resType) const
         {
             CombinedResID handle;
             handle.idx = _resIdx;
@@ -216,6 +223,13 @@ namespace vkz
 
             return handle;
         }
+
+        inline bool isBufferAliasable(uint16_t _idx0, uint16_t _idx1) const;
+
+        inline bool isTextureAliasable(uint16_t _idx0, uint16_t _idx1) const;
+
+        bool isAlisable(const CombinedResID& _r0, const CombinedResID& _r1);
+
 
         // for sort
         struct PassRWResource
@@ -241,6 +255,12 @@ namespace vkz
             std::vector<uint16_t> passToSync;
         };
 
+        struct ResLifetime
+        {
+            uint16_t    startIdx; // the index in m_sortedPassIdx
+            uint16_t    lasting;  // how many passes it would last
+        };
+
     private:
         MemoryBlockI* m_pMemBlock;
 
@@ -253,13 +273,13 @@ namespace vkz
         std::vector< RenderTargetHandle >   m_hRT;
         std::vector< DepthStencilHandle >   m_hDS;
 
-        std::vector< PassRegisterInfo>   m_pass_info;
-        std::vector< BufRegisterInfo >   m_buf_info;
-        std::vector< ImgRegisterInfo >   m_tex_info;
-        std::vector< ImgRegisterInfo >   m_rt_info;
-        std::vector< ImgRegisterInfo >   m_ds_info;
+        std::vector< PassRegisterInfo>  m_pass_info;
+        std::vector< BufRegisterInfo >  m_buf_info;
+        std::vector< ImgRegisterInfo >  m_tex_info;
+        std::vector< ImgRegisterInfo >  m_rt_info;
+        std::vector< ImgRegisterInfo >  m_ds_info;
                      
-        std::vector< CombinedResID>  m_plain_resource_idx;
+        std::vector< CombinedResID>     m_plain_resource_id;
                      
         std::vector< PassRWResource>                 m_pass_rw_res;
         std::vector< PassDependency>                 m_pass_dependency;
@@ -285,6 +305,13 @@ namespace vkz
         // lv0 index: each pass would use
         // lv1 index: one pass in each queue
         std::vector< std::array<uint16_t, (uint16_t)PassExeQueue::Count> >    m_nearestSyncPassIdx;
+
+        std::vector< CombinedResID>     m_multiFrame_res;
+                     
+        std::vector< CombinedResID>     m_usedResUniList;
+        std::vector< CombinedResID>     m_readResUniList;
+        std::vector< CombinedResID>     m_writeResUniList;
+        std::vector< ResLifetime>       m_resLifeTime;
     };
 
 

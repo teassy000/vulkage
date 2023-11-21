@@ -1027,7 +1027,6 @@ void buildDenpendencyLevel(FrameGraph& fg, FrameGraphData& fd)
     for (auto vpIt = visitedPasses.rbegin(); vpIt != visitedPasses.rend(); ++vpIt)
     {
         uint32_t pass = *vpIt;
-        const std::unordered_map<DependLevel, std::vector<uint32_t>>& dependPasses = fg._dependedLevelsPerPass[pass]._dependPasses;
         RenderPass& rp = fd._passes[pass];
 
         uint32_t syncQueueCount = 1u;

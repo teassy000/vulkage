@@ -30,9 +30,9 @@ namespace vkz
 
         uint16_t aliasAlloc(MagicTag _tag);
         void aliasResrouce(uint16_t** _aliases, const uint16_t _aliasCount, const uint16_t _baseRes, MagicTag _tag);
+        void readwriteResource(const uint16_t _pass, const uint16_t* _reses, const uint16_t _resCount, MagicTag _tag);
 
-        void readwriteResource(const uint16_t _pass, const uint16_t* _res, const uint16_t _resCount, MagicTag _tag);
-
+        void setMutiFrameResource(const uint16_t* _reses, const uint16_t _resCount, MagicTag _tag); // do not alias atomically
         void setResultRenderTarget(RenderTargetHandle _rt);
 
         void update();
@@ -330,6 +330,16 @@ namespace vkz
         info.pass = _pass;
         info.resNum = _resCount;
         write(m_fgMemWriter, info);
+
+        write(m_fgMemWriter, _reses, sizeof(uint16_t) * _resCount);
+    }
+
+    void Context::setMutiFrameResource(const uint16_t* _reses, const uint16_t _resCount, MagicTag _tag)
+    {
+        uint32_t magic = static_cast<uint32_t>(_tag);
+        write(m_fgMemWriter, magic);
+
+        write(m_fgMemWriter, _resCount);
 
         write(m_fgMemWriter, _reses, sizeof(uint16_t) * _resCount);
     }
@@ -655,6 +665,62 @@ namespace vkz
 
         delete[] reses;
         reses = nullptr;
+    }
+
+    void setMultiFrameBuffer(BufferHandleList _resList)
+    {
+        const uint16_t size = static_cast<const uint16_t>(_resList.size());
+        uint16_t* reses = new uint16_t[size];
+
+        for (uint16_t ii = 0; ii < size; ++ii)
+        {
+            const BufferHandle& handle = begin(_resList)[ii];
+            reses[ii] = handle.idx;
+        }
+
+        s_ctx->setMutiFrameResource(reses, size, MagicTag::SetMuitiFrameBuffer);
+    }
+
+    void setMultiFrameTexture(TextureHandleList _resList)
+    {
+        const uint16_t size = static_cast<const uint16_t>(_resList.size());
+        uint16_t* reses = new uint16_t[size];
+
+        for (uint16_t ii = 0; ii < size; ++ii)
+        {
+            const TextureHandle& handle = begin(_resList)[ii];
+            reses[ii] = handle.idx;
+        }
+
+        s_ctx->setMutiFrameResource(reses, size, MagicTag::SetMuitiFrameTexture);
+    }
+
+    void setMultiFrameRenderTarget(RenderTargetHandleList _resList)
+    {
+        const uint16_t size = static_cast<const uint16_t>(_resList.size());
+        uint16_t* reses = new uint16_t[size];
+
+        for (uint16_t ii = 0; ii < size; ++ii)
+        {
+            const RenderTargetHandle& handle = begin(_resList)[ii];
+            reses[ii] = handle.idx;
+        }
+
+        s_ctx->setMutiFrameResource(reses, size, MagicTag::SetMultiFrameRenderTarget);
+    }
+
+    void setMultiFrameDepthStencil(DepthStencilHandleList _resList)
+    {
+        const uint16_t size = static_cast<const uint16_t>(_resList.size());
+        uint16_t* reses = new uint16_t[size];
+
+        for (uint16_t ii = 0; ii < size; ++ii)
+        {
+            const DepthStencilHandle& handle = begin(_resList)[ii];
+            reses[ii] = handle.idx;
+        }
+
+        s_ctx->setMutiFrameResource(reses, size, MagicTag::SetMultiFrameDepthStencil);
     }
 
     void setResultRenderTarget(RenderTargetHandle _rt)

@@ -16,12 +16,14 @@ namespace vkz
     {
         // prepare
         parseOp();
+
         buildGraph();
 
         // sort and cut
         reverseTraversalDFS();
 
         // optimize
+        optimizeSync();
 
     }
 
@@ -61,19 +63,19 @@ namespace vkz
             }
             // Alias
             case MagicTag::AliasBuffer: {
-                aliasRes(reader, ResourceType::Buffer);
+                aliasResForce(reader, ResourceType::Buffer);
                 break;
             }
             case MagicTag::AliasTexture: {
-                aliasRes(reader, ResourceType::Texture);
+                aliasResForce(reader, ResourceType::Texture);
                 break;
             }
             case MagicTag::AliasRenderTarget: {
-                aliasRes(reader, ResourceType::RenderTarget);
+                aliasResForce(reader, ResourceType::RenderTarget);
                 break;
             }
             case MagicTag::AliasDepthStencil: {
-                aliasRes(reader, ResourceType::DepthStencil);
+                aliasResForce(reader, ResourceType::DepthStencil);
                 break;
             }
             // Read
@@ -114,6 +116,24 @@ namespace vkz
                 setResultRT(reader);
                 break;
             }
+            // MultiFrame
+            case MagicTag::SetMuitiFrameBuffer: {
+                setMultiFrameRes(reader, ResourceType::Buffer);
+                break;
+            }
+            case MagicTag::SetMuitiFrameTexture: {
+                setMultiFrameRes(reader, ResourceType::Texture);
+                break;
+            }
+            case MagicTag::SetMultiFrameRenderTarget: {
+                setMultiFrameRes(reader, ResourceType::RenderTarget);
+                break;
+            }
+            case MagicTag::SetMultiFrameDepthStencil: {
+                setMultiFrameRes(reader, ResourceType::DepthStencil);
+                break;
+            }
+            // End
             case MagicTag::InvalidMagic:
                 message(DebugMessageType::warning, "invalid magic tag, data incorrect!");
             case MagicTag::End:
@@ -131,7 +151,7 @@ namespace vkz
 
     constexpr uint16_t kInvalidIndex = 0xffff;
     template<typename T>
-    const uint16_t getIndex(const std::vector<T>& _vec, T _data)
+    const uint16_t getIndex(const std::vector<T>& _vec, const T _data)
     {
         auto it = std::find(begin(_vec), end(_vec), _data);
         if (it == end(_vec))
@@ -140,6 +160,20 @@ namespace vkz
         }
 
         return (uint16_t)std::distance(begin(_vec), it);
+    }
+
+    template<typename T>
+    const uint16_t push_back_unique(std::vector<T>& _vec, const T _data)
+    {
+        uint16_t idx = getIndex(_vec, _data);
+
+        if (kInvalidIndex == idx)
+        {
+            idx = (uint16_t)_vec.size();
+            _vec.push_back(_data);
+        }
+
+        return idx;
     }
 
     void Framegraph2::registerPass(MemoryReader& _reader)
@@ -168,8 +202,8 @@ namespace vkz
         m_hBuf.push_back({ info.idx });
         m_buf_info.push_back(info);
 
-        CombinedResID plainResIdx = getPlainResourceID(info.idx, ResourceType::Buffer);
-        m_plain_resource_idx.push_back(plainResIdx);
+        CombinedResID plainResID = getCombinedResID(info.idx, ResourceType::Buffer);
+        m_plain_resource_id.push_back(plainResID);
     }
 
     void Framegraph2::registerTexture(MemoryReader& _reader)
@@ -180,8 +214,8 @@ namespace vkz
         m_hTex.push_back({ info.idx });
         m_tex_info.push_back(info);
 
-        CombinedResID plainResIdx = getPlainResourceID(info.idx, ResourceType::Texture);
-        m_plain_resource_idx.push_back(plainResIdx);
+        CombinedResID plainResIdx = getCombinedResID(info.idx, ResourceType::Texture);
+        m_plain_resource_id.push_back(plainResIdx);
     }
 
     void Framegraph2::registerRenderTarget(MemoryReader& _reader)
@@ -192,8 +226,8 @@ namespace vkz
         m_hRT.push_back({ info.idx });
         m_rt_info.push_back(info);
 
-        CombinedResID plainResIdx = getPlainResourceID(info.idx, ResourceType::RenderTarget);
-        m_plain_resource_idx.push_back(plainResIdx);
+        CombinedResID plainResIdx = getCombinedResID(info.idx, ResourceType::RenderTarget);
+        m_plain_resource_id.push_back(plainResIdx);
     }
 
     void Framegraph2::registerDepthStencil(MemoryReader& _reader)
@@ -204,8 +238,8 @@ namespace vkz
         m_hDS.push_back({ info.idx });
         m_ds_info.push_back(info);
 
-        CombinedResID plainResIdx = getPlainResourceID(info.idx, ResourceType::DepthStencil);
-        m_plain_resource_idx.push_back(plainResIdx);
+        CombinedResID plainResIdx = getCombinedResID(info.idx, ResourceType::DepthStencil);
+        m_plain_resource_id.push_back(plainResIdx);
     }
 
     void Framegraph2::passReadRes(MemoryReader& _reader, ResourceType _type)
@@ -223,7 +257,7 @@ namespace vkz
             assert(idx != kInvalidIndex);
             
             uint16_t resIdx = resArr[ii];
-            CombinedResID plainIdx = getPlainResourceID(resIdx, _type);
+            CombinedResID plainIdx = getCombinedResID(resIdx, _type);
             m_pass_rw_res[idx].readCombinedRes.push_back(plainIdx);
         }
 
@@ -245,7 +279,7 @@ namespace vkz
             assert(idx != kInvalidIndex);
             
             uint16_t resIdx = resArr[ii];
-            CombinedResID plainIdx = getPlainResourceID(resIdx, _type);
+            CombinedResID plainIdx = getCombinedResID(resIdx, _type);
             m_pass_rw_res[idx].writeCombinedRes.push_back(plainIdx);
         }
 
@@ -253,7 +287,7 @@ namespace vkz
         resArr = nullptr;
     }
 
-    void Framegraph2::aliasRes(MemoryReader& _reader, ResourceType _type)
+    void Framegraph2::aliasResForce(MemoryReader& _reader, ResourceType _type)
     {
         ResAliasInfo info;
         read(&_reader, info);
@@ -261,7 +295,7 @@ namespace vkz
         uint16_t* resArr = new uint16_t[info.aliasNum];
         read(&_reader, resArr, sizeof(uint16_t) * info.aliasNum);
 
-        CombinedResID plainBaseIdx = getPlainResourceID(info.resBase, _type);
+        CombinedResID plainBaseIdx = getCombinedResID(info.resBase, _type);
         uint16_t idx = getIndex(m_plain_force_alias_base, plainBaseIdx);
         if (kInvalidIndex == idx)
         {
@@ -283,6 +317,22 @@ namespace vkz
     }
 
 
+    void Framegraph2::setMultiFrameRes(MemoryReader& _reader, ResourceType _type)
+    {
+        uint16_t resNum = 0;
+        read(&_reader, resNum);
+
+        uint16_t* resArr = new uint16_t[resNum];
+        read(&_reader, resArr, sizeof(uint16_t) * resNum);
+
+        for (uint16_t ii = 0; ii < resNum; ++ii)
+        {
+            uint16_t resIdx = resArr[ii];
+            CombinedResID plainIdx = getCombinedResID(resIdx, _type);
+            m_multiFrame_res.push_back(plainIdx);
+        }
+    }
+
     void Framegraph2::setResultRT(MemoryReader& _reader)
     {
         uint16_t rt;
@@ -296,7 +346,7 @@ namespace vkz
             return;
         }
 
-        m_resultRT = getPlainResourceID(rt, ResourceType::RenderTarget);
+        m_resultRT = getCombinedResID(rt, ResourceType::RenderTarget);
     }
 
 
@@ -401,7 +451,6 @@ namespace vkz
 
     }
 
-
     void Framegraph2::buildMaxLevelList(std::vector<uint16_t>& _maxLvLst)
     {
         for (uint16_t passIdx : m_sortedPassIdx)
@@ -463,7 +512,6 @@ namespace vkz
         }
     }
 
-
     void Framegraph2::fillNearestSyncPass()
     {
         // init nearest sync pass
@@ -508,9 +556,8 @@ namespace vkz
 
     void Framegraph2::optimizeSyncPass()
     {
-        for (uint16_t passIdx = 0; passIdx != m_sortedPassIdx.size(); ++passIdx)
+        for (uint16_t pIdx : m_sortedPassIdx)
         {
-            const uint16_t pIdx = passIdx - 1;
             const PassInDependLevel& dpLv = m_passIdxInDpLevels[pIdx];
             
             
@@ -518,8 +565,160 @@ namespace vkz
                 continue;
 
             // only level 0 would be sync
-            m_passIdxToSync[passIdx].insert(m_passIdxToSync[passIdx].end(), dpLv.passInLv[0].begin(), dpLv.passInLv[0].end());
+            m_passIdxToSync[pIdx].insert(m_passIdxToSync[pIdx].end(), dpLv.passInLv[0].begin(), dpLv.passInLv[0].end());
         }
+
+        // TODO: 
+        //      if m_passIdxToSync for one pass needs to sync with multiple queue
+        // =========================
+        //      **Fence** required
+    }
+
+    void Framegraph2::processMultiFrameRes()
+    {
+        std::vector<CombinedResID> plainAliasRes;
+        std::vector<uint16_t> aliasResIdx;
+        for (uint16_t ii = 0; ii < m_plain_force_alias_base.size(); ++ii)
+        {
+            CombinedResID base = m_plain_force_alias_base[ii];
+            plainAliasRes.push_back(base);
+
+            const std::unordered_set<uint16_t>& aliasSet = m_plain_force_alias[ii];
+
+            for (uint16_t alias : aliasSet)
+            {
+                CombinedResID plainAlias = getCombinedResID(alias, base.type);
+                plainAliasRes.push_back(plainAlias);
+            }
+
+            aliasResIdx.insert(end(aliasResIdx), aliasSet.size() + 1, ii);
+        }
+
+        std::vector<CombinedResID> fullMultiFrameRes = m_multiFrame_res;
+        for (const CombinedResID cid : m_multiFrame_res)
+        {
+            const uint16_t idx = getIndex(plainAliasRes, cid);
+            if (kInvalidHandle == idx)
+            {
+                continue;
+            }
+
+            const uint16_t alisIdx = aliasResIdx[idx];
+            CombinedResID base = m_plain_force_alias_base[alisIdx];
+
+            push_back_unique(fullMultiFrameRes, base);
+            const std::unordered_set<uint16_t>& aliasSet = m_plain_force_alias[alisIdx];
+            for (uint16_t alias : aliasSet)
+            {
+                CombinedResID plainAlias = getCombinedResID(alias, base.type);
+                push_back_unique(fullMultiFrameRes, plainAlias);
+            }
+        }
+
+        m_multiFrame_res = fullMultiFrameRes;
+    }
+
+    void Framegraph2::buildResLifetime()
+    {
+        std::vector<CombinedResID> usedResUniList;
+        std::vector<CombinedResID> readResUniList;
+        std::vector<CombinedResID> writeResUniList;
+        
+        for (const uint16_t pIdx : m_sortedPassIdx)
+        {
+            PassRWResource rwRes = m_pass_rw_res[pIdx];
+
+            for (const CombinedResID combRes : rwRes.writeCombinedRes)
+            {
+                push_back_unique(writeResUniList, combRes);
+                push_back_unique(usedResUniList, combRes);
+            }
+
+            for (const CombinedResID combRes : rwRes.readCombinedRes)
+            {
+                push_back_unique(readResUniList, combRes);
+                push_back_unique(usedResUniList, combRes);
+            }
+        }
+
+        std::vector<std::vector<uint16_t>> usedResPassIdxByOrder; // share the same idx with usedResUniList
+        usedResPassIdxByOrder.assign(usedResUniList.size(), std::vector<uint16_t>());
+        for(uint16_t ii = 0; ii < m_sortedPassIdx.size(); ++ii)
+        {
+            const uint16_t pIdx = m_sortedPassIdx[ii];
+            PassRWResource rwRes = m_pass_rw_res[pIdx];
+
+            for (const CombinedResID combRes : rwRes.writeCombinedRes)
+            {
+                uint16_t usedIdx = getIndex(usedResUniList, combRes);
+                usedResPassIdxByOrder[usedIdx].push_back(ii); // store the idx in ordered pass
+            }
+
+            for (const CombinedResID combRes : rwRes.readCombinedRes)
+            {
+                uint16_t usedIdx = getIndex(usedResUniList, combRes);
+                usedResPassIdxByOrder[usedIdx].push_back(ii); // store the idx in ordered pass
+            }
+        }
+
+        std::vector<CombinedResID> readonlyResUniList;
+        for (const CombinedResID readRes : readResUniList)
+        {
+            if (kInvalidIndex == getIndex(writeResUniList, readRes)) {
+                continue;
+            }
+            readonlyResUniList.push_back(readRes);
+        }
+
+        // remove read-only resource from usedResUniList
+        for (const CombinedResID readonlyRes : readonlyResUniList)
+        {
+            uint16_t idx = getIndex(usedResUniList, readonlyRes);
+            if (kInvalidIndex == idx) {
+                continue;
+            }
+            usedResUniList.erase(usedResUniList.begin() + idx);
+        }
+        
+        // remove multi-frame resource from usedResUniList
+        const std::vector<CombinedResID> multiFrameResUniList = m_multiFrame_res;
+        for (const CombinedResID multiFrameRes : multiFrameResUniList)
+        {
+            uint16_t idx = getIndex(usedResUniList, multiFrameRes);
+            if (kInvalidIndex == idx) {
+                continue;
+            }
+            usedResUniList.erase(usedResUniList.begin() + idx);
+        }
+
+        assert(usedResPassIdxByOrder.size() == usedResUniList.size());
+
+        std::vector < ResLifetime > resLifeTime;
+        // only transient resource would be in the lifetime list
+        for (uint16_t ii = 0; ii < usedResPassIdxByOrder.size(); ++ii)
+        {
+            const std::vector<uint16_t>& passIdxByOrder = usedResPassIdxByOrder[ii];
+
+            assert(!passIdxByOrder.empty());
+
+            uint16_t maxIdx = *std::max_element(begin(passIdxByOrder), end(passIdxByOrder));
+            uint16_t minIdx = *std::min_element(begin(passIdxByOrder), end(passIdxByOrder));
+
+            uint16_t lasting = maxIdx - minIdx;
+            resLifeTime.push_back({ minIdx, lasting });
+        }
+
+        // set the value
+        m_usedResUniList = usedResUniList;
+        m_readResUniList = readResUniList;
+        m_writeResUniList = writeResUniList;
+
+        m_resLifeTime = resLifeTime;
+    }
+
+    void Framegraph2::fillResourceBuckets()
+    {
+
     }
 
     void Framegraph2::optimizeSync()
@@ -532,11 +731,56 @@ namespace vkz
         formatDependency(maxLvLst);
 
         // init the nearest sync pass
-        fillNearestSyncPass();
+        fillNearestSyncPass(); // TODO: remove this
 
         // optimize sync pass
         optimizeSyncPass();
     }
 
+    void Framegraph2::optimizeAlias()
+    {
+
+    }
+
+    bool Framegraph2::isBufferAliasable(uint16_t _idx0, uint16_t _idx1) const
+    {
+        //
+
+        return false;
+    }
+
+    bool Framegraph2::isTextureAliasable(uint16_t _idx0, uint16_t _idx1) const
+    {
+        return false;
+    }
+
+    bool Framegraph2::isAlisable(const CombinedResID& _r0, const CombinedResID& _r1)
+    {
+        if (_r0.type != _r1.type)
+        {
+            return false;
+        }
+
+        if (_r0.type == ResourceType::Buffer)
+        {
+            return isBufferAliasable(_r0.idx, _r1.idx);
+        }
+        if (_r0.type == ResourceType::Texture)
+        {
+            return isTextureAliasable(_r0.idx, _r1.idx);
+        }
+        /*
+        if (_r0.type == ResourceType::RenderTarget)
+        {
+            return false;
+        }
+        if (_r0.type == ResourceType::DepthStencil)
+        {
+            return false;
+        }
+        */
+
+        return false;
+    }
 
 } // namespace vkz
