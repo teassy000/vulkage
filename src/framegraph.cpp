@@ -1125,46 +1125,6 @@ bool isBufferAliasable(FrameGraphData& fd, const uint32_t res, const BufferBucke
     return sizeMatch && stackMatch;
 }
 
-
-void fillBufferBucket(FrameGraph& fg, FrameGraphData& fd, const std::vector<uint32_t>& sortedResbySize
-    , std::vector<std::vector<uint32_t>>& resInLevel, BufferBucket& bucket)
-{
-    std::vector<uint32_t> restRes = sortedResbySize;
-    resInLevel.push_back({});
-
-    // find force aliasable resource
-    for (uint32_t res : restRes)
-    {
-        const std::vector<uint32_t>& currLevelReses = resInLevel.back();
-    }
-
-    // find normal aliasable resource
-    for (uint32_t res : restRes)
-    {
-        const std::vector<uint32_t>& currLevelReses = resInLevel.back();
-        // if current resource is aliasable
-        if (isBufferAliasable(fd, res, bucket, currLevelReses))
-        {
-            // add current resource into current level
-            resInLevel.back().push_back(res);
-
-            // add current resource into current bucket
-            bucket._reses.push_back(res);
-        }
-    }
-
-    if (!resInLevel.back().empty())
-    {
-        // remove resources that already in current level from rest resource
-        for (uint32_t res : resInLevel.back())
-        {
-            restRes.erase(std::find(restRes.begin(), restRes.end(), res));
-        }
-
-        fillBufferBucket(fg, fd, restRes, resInLevel, bucket);
-    }
-}
-
 void createBufferBucket(std::vector<BufferBucket>& buckets
     , const size_t sz, const std::vector<uint32_t>& reses, const std::vector<uint32_t>& forceAlias)
 {
@@ -1292,26 +1252,6 @@ bool isImageAliasable(FrameGraphData& fd, const uint32_t res, const ImageBucket&
     return aliasable;
 }
 
-
-void fillImageBucket(FrameGraph& fg, FrameGraphData& fd, const std::vector<uint32_t>& sortedResbySize, ImageBucket& bucket)
-{
-    std::vector<uint32_t> restRes = sortedResbySize;
-
-    if (restRes.empty())
-        return;
-
-    // find the first aliasable resource
-    for (uint32_t res : restRes)
-    {
-        // if current resource is aliasable
-        if (isImageAliasable(fd, res, bucket))
-        {
-            // add current resource into current bucket
-            bucket._reses.push_back(res);
-        }
-    }
-}
-
 void createImageBucket(std::vector<ImageBucket>& buckets
     , const uint32_t x, const uint32_t y, const uint32_t z, const std::vector<uint32_t>& reses, const std::vector<uint32_t>& forceAlias)
 {
@@ -1399,42 +1339,6 @@ void aliaseImages(FrameGraph& fg, FrameGraphData& fd, const std::vector<uint32_t
 
         // remove current one from rest resource
         restRes.erase(restRes.begin());
-    }
-}
-
-void aliaseImages2(FrameGraph& fg, FrameGraphData& fd, const std::vector<uint32_t>& sortedResbySize
-    , std::vector<ImageBucket>& buckets)
-{
-    std::vector<uint32_t> restRes = sortedResbySize;
-
-    while (!restRes.empty())
-    {
-        uint32_t baseRes = *restRes.begin();
-
-        // new bucket
-        ImageBucket bucket{};
-        bucket._x = fd._resmap._managedImages[baseRes]._x;
-        bucket._y = fd._resmap._managedImages[baseRes]._y;
-        bucket._z = fd._resmap._managedImages[baseRes]._z;
-        bucket._reses.push_back(baseRes);
-        bucket._idx = (uint32_t)buckets.size();
-
-        buckets.push_back(bucket);
-
-        // remove current one from rest resource
-        restRes.erase(restRes.begin());
-
-
-        fillImageBucket(fg, fd, restRes, buckets.back());
-
-        // once fillImageBucket returns, which means one bucket finished
-        // remove resources in current bucket from restRes list
-        for (uint32_t res : buckets.back()._reses)
-        {
-            auto it = std::find(restRes.begin(), restRes.end(), res);
-            if (it != restRes.end())
-                restRes.erase(it);
-        }
     }
 }
 
@@ -1693,7 +1597,6 @@ void buildGraph(FrameGraph& frameGraph)
         }
 
         std::vector<BufferBucket> bufferBuckets{};
-        std::vector<uint32_t> aliasedReses{};
         aliseBuffers(fg, fd, sortedBufs_size, bufferBuckets);
 
 
