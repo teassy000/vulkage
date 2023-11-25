@@ -1149,7 +1149,7 @@ void aliseBuffers(FrameGraph& fg, FrameGraphData& fd, const std::vector<uint32_t
     }
 
     // process force alias resources first
-    for (const std::vector<uint32_t> aliasBufs : fg._forceAliasBuffers)
+    for (const std::vector<uint32_t>& aliasBufs : fg._forceAliasBuffers)
     {
         assert(!aliasBufs.empty());
         

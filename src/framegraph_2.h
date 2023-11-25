@@ -148,7 +148,7 @@ namespace vkz
 
         bool        forceAliased{ false };
         
-        std::vector<uint16_t> _reses;
+        std::vector<uint16_t> reses;
     };
 
     class Framegraph2
@@ -206,24 +206,19 @@ namespace vkz
 
         // =======================================
         void fillBucketForceAlias();
+
         void createBufBkt(BufBucket& _bkt, const BufRegisterInfo& _info, const std::vector<uint16_t>& _res, const bool _forceAliased = false);
+        void createImgBkt(ImgBucket& _bkt, const ImgRegisterInfo& _info, const std::vector<uint16_t>& _res, const bool _forceAliased = false);
 
-        struct ImgBucketInfo
-        {
-            uint16_t    mips{ 1u };
-
-            uint32_t    x{ 0u };
-            uint32_t    y{ 0u };
-            uint32_t    z{ 1u };
-
-            uint32_t    format;
-            uint32_t    usage;
-            uint32_t    type{ VK_IMAGE_TYPE_2D };
-        };
-        void createTexBkt(ImgBucket& _bkt, const ImgRegisterInfo& _info, const std::vector<uint16_t>& _res, const bool _forceAliased = false);
         void aliasBuffers(const std::vector<uint16_t>& _sortedBufList);
+        void aliasImages(std::vector<ImgBucket>& _buckets, const std::vector< ImgRegisterInfo >& _infos, const std::vector<uint16_t>& _sortedTexList, const ResourceType _type);
+        
         void fillBufferBuckets();
+        void fillTextureBuckets();
+        void fillRenderTargetBuckets();
+        void fillDepthStencilBuckets();
 
+        // =======================================
         void optimizeSync();
         void optimizeAlias();
         void allocate_resources();
@@ -252,11 +247,13 @@ namespace vkz
             return handle;
         }
 
-        bool isBufInfoAliasbale(uint16_t _idx, const BufBucket& _bucket, const std::vector<uint16_t> _resInCurrStack) const;
-        bool isTexInfoAliasable(uint16_t _idx, const ImgBucket& _bucket, const std::vector<uint16_t> _resInCurrStack) const;
+        bool isBufInfoAliasable(uint16_t _idx, const BufBucket& _bucket, const std::vector<uint16_t> _resInCurrStack) const;
+        bool isImgInfoAliasable(uint16_t _idx, const ImgBucket& _bucket, const std::vector<uint16_t> _resInCurrStack) const;
 
-        template<typename Ty>
-        bool isAlisable(const CombinedResID& _res, const Ty& _bucket, const std::vector<uint16_t> _resInCurrStack);
+        bool isStackAliasable(const CombinedResID& _res, const std::vector<uint16_t>& _reses) const;
+
+        bool isAliasable(const CombinedResID& _res, const BufBucket& _bucket, const std::vector<uint16_t>& _reses) const;
+        bool isAliasable(const CombinedResID& _res, const ImgBucket& _bucket, const std::vector<uint16_t>& _reses) const;
 
 
         // for sort
@@ -320,9 +317,9 @@ namespace vkz
         std::vector< PassHandle>    m_sortedPass;
         std::vector< uint16_t>      m_sortedPassIdx;
 
-        std::vector<PassInDependLevel>          m_passIdxInDpLevels;
+        std::vector< PassInDependLevel>          m_passIdxInDpLevels;
 
-        std::vector<std::vector<uint16_t>>      m_passIdxToSync;
+        std::vector< std::vector<uint16_t>>      m_passIdxToSync;
 
         // =====================
         // lv0: each queue
@@ -342,11 +339,14 @@ namespace vkz
         std::vector< CombinedResID>     m_writeResUniList;
         std::vector< ResLifetime>       m_resLifeTime;
 
-        std::vector<CombinedResID>      m_plainAliasRes;
-        std::vector<uint16_t>           m_aliasResIdx;
+        std::vector< CombinedResID>      m_plainAliasRes;
+        std::vector< uint16_t>           m_plainAliasResIdx;
 
-        std::vector<BufBucket>          m_bufBuckets;
-        std::vector<ImgBucket>          m_texBuckets;
+        std::vector< BufBucket>          m_bufBuckets;
+        std::vector< ImgBucket>          m_texBuckets;
+        std::vector< ImgBucket>          m_rtBuckets;
+        std::vector< ImgBucket>          m_dsBuckets;
     };
+
 
 }; // namespace vkz
