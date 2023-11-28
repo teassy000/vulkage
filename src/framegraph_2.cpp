@@ -192,11 +192,17 @@ namespace vkz
 
         // fill pass info
         m_hPass.push_back({ info.idx });
-        m_pass_info.push_back(info);
 
-        m_pass_rw_res.push_back({});
-        m_pass_dependency.push_back({});
-        m_passIdxToSync.push_back({});
+        if (info.idx > m_pass_info.size())
+        {
+            m_pass_info.resize((size_t)(info.idx * 2u));
+        }
+
+        m_pass_info[info.idx] = info;
+
+        m_pass_rw_res.emplace_back();
+        m_pass_dependency.emplace_back();
+        m_passIdxToSync.emplace_back();
     }
 
     void Framegraph2::registerBuffer(MemoryReader& _reader)
@@ -205,7 +211,13 @@ namespace vkz
         read(&_reader, info);
 
         m_hBuf.push_back({ info.idx });
-        m_buf_info.push_back(info);
+
+        if (info.idx > m_buf_info.size())
+        {
+            m_buf_info.resize((size_t)(info.idx * 2u));
+        }
+
+        m_buf_info[info.idx] = info;
 
         CombinedResID plainResID = getCombinedResID(info.idx, ResourceType::Buffer);
         m_combinedResId.push_back(plainResID);
@@ -217,7 +229,13 @@ namespace vkz
         read(&_reader, info);
 
         m_hTex.push_back({ info.idx });
-        m_tex_info.push_back(info);
+       
+        if (info.idx > m_img_info.size())
+        {
+            m_img_info.resize((size_t)(info.idx * 2u));
+        }
+
+        m_img_info[info.idx] = info;
 
         CombinedResID plainResIdx = getCombinedResID(info.idx, ResourceType::Texture);
         m_combinedResId.push_back(plainResIdx);
@@ -228,8 +246,13 @@ namespace vkz
         ImgRegisterInfo info;
         read(&_reader, info);
 
-        m_hRT.push_back({ info.idx });
-        m_rt_info.push_back(info);
+        m_hTex.push_back({ info.idx });
+        if (info.idx > m_img_info.size())
+        {
+            m_img_info.resize((size_t)(info.idx * 2u));
+        }
+
+        m_img_info[info.idx] = info;
 
         CombinedResID plainResIdx = getCombinedResID(info.idx, ResourceType::RenderTarget);
         m_combinedResId.push_back(plainResIdx);
@@ -240,8 +263,13 @@ namespace vkz
         ImgRegisterInfo info;
         read(&_reader, info);
 
-        m_hDS.push_back({ info.idx });
-        m_ds_info.push_back(info);
+        m_hTex.push_back({ info.idx });
+        if (info.idx > m_img_info.size())
+        {
+            m_img_info.resize((size_t)(info.idx * 2u));
+        }
+
+        m_img_info[info.idx] = info;
 
         CombinedResID plainResIdx = getCombinedResID(info.idx, ResourceType::DepthStencil);
         m_combinedResId.push_back(plainResIdx);
@@ -643,7 +671,7 @@ namespace vkz
             }
         }
 
-        std::vector<std::vector<uint16_t>> resToOptmPassIdxByOrder; // share the same idx with usedResUniList
+        std::vector<std::vector<uint16_t>> resToOptmPassIdxByOrder; // share the same idx with resToOptmUniList
         resToOptmPassIdxByOrder.assign(resToOptmUniList.size(), std::vector<uint16_t>());
         for(uint16_t ii = 0; ii < m_sortedPassIdx.size(); ++ii)
         {
@@ -733,7 +761,7 @@ namespace vkz
     void Framegraph2::fillBucketForceAlias()
     {
         std::vector<CombinedResID> actualAliasBase;
-        std::vector<std::vector<uint16_t>> actualAlias;
+        std::vector<std::vector<CombinedResID>> actualAlias;
         for (const CombinedResID combRes : m_uesdResUniList)
         {
             const uint16_t idx = getIndex(m_plainAliasRes, combRes);
@@ -751,7 +779,7 @@ namespace vkz
             {
                 actualAlias.emplace_back();
             }
-            actualAlias[usedBaseIdx].push_back(combRes.id);
+            actualAlias[usedBaseIdx].push_back(combRes);
         }
 
         // process force alias buffers
@@ -759,7 +787,7 @@ namespace vkz
         for (uint16_t ii = 0; ii < actualAliasBase.size(); ++ii)
         {
             const CombinedResID base = actualAliasBase[ii];
-            const std::vector<uint16_t>& aliasVec = actualAlias[ii];
+            const std::vector<CombinedResID>& aliasVec = actualAlias[ii];
 
             // buffers
             if (base.type == ResourceType::Buffer) 
@@ -774,43 +802,43 @@ namespace vkz
             // textures
             if (base.type == ResourceType::Texture)
             {
-                const ImgRegisterInfo info = m_tex_info[base.id];
+                const ImgRegisterInfo info = m_img_info[base.id];
 
                 ImgBucket bucket;
                 createImgBkt(bucket, info, aliasVec, true);
-                m_texBuckets.push_back(bucket);
+                m_imgBuckets.push_back(bucket);
             }
 
             // render target
             if (base.type == ResourceType::RenderTarget)
             {
-                const ImgRegisterInfo info = m_tex_info[base.id];
+                const ImgRegisterInfo info = m_img_info[base.id];
 
                 ImgBucket bucket;
                 createImgBkt(bucket, info, aliasVec, true);
-                m_rtBuckets.push_back(bucket);
+                m_imgBuckets.push_back(bucket);
             }
 
             // depth stencil
             if (base.type == ResourceType::DepthStencil)
             {
-                const ImgRegisterInfo info = m_tex_info[base.id];
+                const ImgRegisterInfo info = m_img_info[base.id];
 
                 ImgBucket bucket;
                 createImgBkt(bucket, info, aliasVec, true);
-                m_dsBuckets.push_back(bucket);
+                m_imgBuckets.push_back(bucket);
             }
         }
     }
 
-    void Framegraph2::createBufBkt(BufBucket& _bkt, const BufRegisterInfo& _info, const std::vector<uint16_t>& _reses, const bool _forceAliased /*= false*/)
+    void Framegraph2::createBufBkt(BufBucket& _bkt, const BufRegisterInfo& _info, const std::vector<CombinedResID>& _reses, const bool _forceAliased /*= false*/)
     {
         _bkt.size = _info.size;
         _bkt.reses = _reses;
         _bkt.forceAliased = _forceAliased;
     }
 
-    void Framegraph2::createImgBkt(ImgBucket& _bkt, const ImgRegisterInfo& _info, const std::vector<uint16_t>& _reses, const bool _forceAliased /*= false*/)
+    void Framegraph2::createImgBkt(ImgBucket& _bkt, const ImgRegisterInfo& _info, const std::vector<CombinedResID>& _reses, const bool _forceAliased /*= false*/)
     {
         _bkt.mips = _info.mips;
         _bkt.x = _info.x;
@@ -828,7 +856,7 @@ namespace vkz
     {
         std::vector<uint16_t> restRes = _sortedBufList;
 
-        std::vector<std::vector<uint16_t>> resInLevel{{}};
+        std::vector<std::vector<CombinedResID>> resInLevel{{}};
 
         if (restRes.empty()) {
             return;
@@ -839,25 +867,25 @@ namespace vkz
         while (!restRes.empty())
         {
             uint16_t baseRes = *restRes.begin();
-            const CombinedResID cid = getCombinedResID(baseRes, ResourceType::Buffer);
+            const CombinedResID baseCid = getCombinedResID(baseRes, ResourceType::Buffer);
 
             // check if current resource can alias into any existing bucket
             bool aliased = false;
             for (BufBucket& bkt : buckets)
             {
-                if (!isAliasable(cid, bkt, resInLevel.back()))
+                if (!isAliasable(baseCid, bkt, resInLevel.back()))
                 {
                     continue;
                 }
 
                 // alias-able, add current resource into current bucket
-                bkt.reses.push_back(baseRes);
+                bkt.reses.push_back(baseCid);
 
-                resInLevel.back().push_back(baseRes);
+                resInLevel.back().push_back(baseCid);
 
-                for (uint16_t res : bkt.reses)
+                for (CombinedResID res : bkt.reses)
                 {
-                    uint16_t idx = getIndex(restRes, res);
+                    uint16_t idx = getIndex(restRes, res.id);
                     if(kInvalidIndex == idx)
                         continue;
 
@@ -877,7 +905,7 @@ namespace vkz
             // no suitable bucket found, create a new one
             BufBucket bucket;
             const BufRegisterInfo& info = m_buf_info[baseRes];
-            createBufBkt(bucket, info, { baseRes });
+            createBufBkt(bucket, info, { baseCid });
             buckets.push_back(bucket);
 
             restRes.erase(begin(restRes));
@@ -893,7 +921,7 @@ namespace vkz
     {
         std::vector<uint16_t> restRes = _sortedTexList;
 
-        std::vector<std::vector<uint16_t>> resInLevel{{}};
+        std::vector<std::vector<CombinedResID>> resInLevel{{}};
 
         if (restRes.empty()) {
             return;
@@ -904,13 +932,13 @@ namespace vkz
         while (!restRes.empty())
         {
             uint16_t baseRes = *restRes.begin();
-            const CombinedResID cid = getCombinedResID(baseRes, _type);
+            const CombinedResID baseCid = getCombinedResID(baseRes, _type);
 
             // check if current resource can alias into any existing bucket
             bool aliased = false;
             for (ImgBucket& bkt : buckets)
             {
-                if (!isAliasable(cid, bkt, resInLevel.back()))
+                if (!isAliasable(baseCid, bkt, resInLevel.back()))
                 {
                     continue;
                 }
@@ -918,13 +946,13 @@ namespace vkz
                 aliased = true;
 
                 // alias-able, add current resource into current bucket
-                bkt.reses.push_back(baseRes);
+                bkt.reses.push_back(baseCid);
 
-                resInLevel.back().push_back(baseRes);
+                resInLevel.back().push_back(baseCid);
 
-                for (uint16_t res : bkt.reses)
+                for (CombinedResID res : bkt.reses)
                 {
-                    uint16_t idx = getIndex(restRes, res);
+                    uint16_t idx = getIndex(restRes, res.id);
                     if (kInvalidIndex == idx)
                         continue;
 
@@ -942,7 +970,7 @@ namespace vkz
             // no suitable bucket found, create a new one
             ImgBucket bucket;
             const ImgRegisterInfo& info = _infos[baseRes];
-            createImgBkt(bucket, info, { baseRes });
+            createImgBkt(bucket, info, { baseCid });
             buckets.push_back(bucket);
 
             restRes.erase(begin(restRes));
@@ -973,39 +1001,32 @@ namespace vkz
         aliasBuffers(sortedBufIdx);
     }
 
-    void Framegraph2::fillTextureBuckets()
+    void Framegraph2::fillImageBuckets()
     {
         const ResourceType type = ResourceType::Texture;
 
         std::vector<uint16_t> sortedTexIdx;
         for (const CombinedResID& crid : m_resToOptmUniList)
         {
-            if (crid.type != type) {
+            if (crid.type != ResourceType::Texture 
+                && crid.type != ResourceType::RenderTarget
+                && crid.type != ResourceType::DepthStencil) {
                 continue;
             }
             sortedTexIdx.push_back(crid.id);
         }
 
         std::sort(begin(sortedTexIdx), end(sortedTexIdx), [&](uint16_t _l, uint16_t _r) {
-            ImgRegisterInfo info_l = m_tex_info[_l];
-            ImgRegisterInfo info_r = m_tex_info[_r];
+            ImgRegisterInfo info_l = m_img_info[_l];
+            ImgRegisterInfo info_r = m_img_info[_r];
 
+            size_t size_l = info_l.x * info_l.y * info_l.z * info_l.mips * info_l.bpp;
+            size_t size_r = info_r.x * info_r.y * info_r.z * info_r.mips * info_r.bpp;
 
-
-            return m_tex_info[_l].x > m_tex_info[_r].x;
+            return size_l > size_r;
         });
 
-        aliasImages(m_texBuckets, m_tex_info, sortedTexIdx, type);
-    }
-
-    void Framegraph2::fillRenderTargetBuckets()
-    {
-
-    }
-
-    void Framegraph2::fillDepthStencilBuckets()
-    {
-
+        aliasImages(m_imgBuckets, m_img_info, sortedTexIdx, type);
     }
 
     void Framegraph2::optimizeSync()
@@ -1036,19 +1057,19 @@ namespace vkz
         fillBufferBuckets();
 
         // for textures
-        fillTextureBuckets();
+        fillImageBuckets();
     }
 
-    bool Framegraph2::isBufInfoAliasable(uint16_t _idx, const BufBucket& _bucket, const std::vector<uint16_t> _resInCurrStack) const
+    bool Framegraph2::isBufInfoAliasable(uint16_t _idx, const BufBucket& _bucket, const std::vector<CombinedResID> _resInCurrStack) const
     {
         bool bSzMatch = true;
 
         // size check in current stack
         const BufRegisterInfo& info = m_buf_info[_idx];
         size_t remaingSize = _bucket.size;
-        for (const uint16_t res : _resInCurrStack)
+        for (const CombinedResID res : _resInCurrStack)
         {
-            remaingSize -= m_buf_info[res].size;
+            remaingSize -= m_buf_info[res.id].size;
         }
 
         bSzMatch = info.size <= remaingSize;
@@ -1056,20 +1077,19 @@ namespace vkz
         return bSzMatch;
     }
 
-    bool Framegraph2::isImgInfoAliasable(uint16_t _idx, const ImgBucket& _bucket, const std::vector<uint16_t> _resInCurrStack) const
+    bool Framegraph2::isImgInfoAliasable(uint16_t _idx, const ImgBucket& _bucket, const std::vector<CombinedResID> _resInCurrStack) const
     {
-
         bool bCondMatch = true;
 
         // condition check
-        const ImgRegisterInfo& info = m_tex_info[_idx];
-        for (const uint16_t res : _resInCurrStack)
+        const ImgRegisterInfo& info = m_img_info[_idx];
+        for (const CombinedResID res : _resInCurrStack)
         {
-            const ImgRegisterInfo& stackInfo = m_tex_info[res];
+            const ImgRegisterInfo& stackInfo = m_img_info[res.id];
 
             bCondMatch &= (info.x == stackInfo.x && info.y == stackInfo.y && info.z == stackInfo.z);
-            bCondMatch &= (info.format == stackInfo.format);
             bCondMatch &= (info.mips == stackInfo.mips);
+            bCondMatch &= (info.format == stackInfo.format);
             bCondMatch &= (info.usage == stackInfo.usage);
             bCondMatch &= (info.type == stackInfo.type);
         }
@@ -1077,17 +1097,17 @@ namespace vkz
         return bCondMatch;
     }
 
-    bool Framegraph2::isStackAliasable(const CombinedResID& _res, const std::vector<uint16_t>& _reses) const
+    bool Framegraph2::isStackAliasable(const CombinedResID& _res, const std::vector<CombinedResID>& _reses) const
     {
         bool bStackMatch = true;
         
         // life time check in entire bucket
-        const uint16_t idx = _res.id;
+        const uint16_t idx = getIndex(m_resToOptmUniList, _res);
         const ResLifetime& resLifetime = m_resLifeTime[idx];
-        for (uint16_t res : _reses)
+        for (const CombinedResID res : _reses)
         {
-
-            const ResLifetime& stackLifetime = m_resLifeTime[idx];
+            const uint16_t resIdx = getIndex(m_resToOptmUniList, res);
+            const ResLifetime& stackLifetime = m_resLifeTime[resIdx];
 
             // if lifetime overlap with any resource in current bucket, then it's not alias-able
             bStackMatch &= (stackLifetime.startIdx > resLifetime.endIdx || stackLifetime.endIdx < resLifetime.startIdx);
@@ -1096,7 +1116,7 @@ namespace vkz
         return bStackMatch;
     }
 
-    bool Framegraph2::isAliasable(const CombinedResID& _res, const BufBucket& _bucket, const std::vector<uint16_t>& _resInCurrStack) const
+    bool Framegraph2::isAliasable(const CombinedResID& _res, const BufBucket& _bucket, const std::vector<CombinedResID>& _resInCurrStack) const
     {
         bool bInfoMatch = isBufInfoAliasable(_res.id, _bucket, _resInCurrStack);
         bool bStackMatch = isStackAliasable(_res, _bucket.reses);
@@ -1104,7 +1124,7 @@ namespace vkz
         return bInfoMatch && bStackMatch;
     }
 
-    bool Framegraph2::isAliasable(const CombinedResID& _res, const ImgBucket& _bucket, const std::vector<uint16_t>& _resInCurrStack) const
+    bool Framegraph2::isAliasable(const CombinedResID& _res, const ImgBucket& _bucket, const std::vector<CombinedResID>& _resInCurrStack) const
     {
         bool bInfoMatch = isImgInfoAliasable(_res.id, _bucket, _resInCurrStack);
         bool bStackMatch = isStackAliasable(_res, _bucket.reses);

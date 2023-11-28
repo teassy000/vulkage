@@ -43,7 +43,7 @@ namespace vkz
 
     enum class ResourceType : uint16_t
     {
-        Buffer          = 1,
+        Buffer = 0,
         Texture,
         RenderTarget,
         DepthStencil,
@@ -76,6 +76,7 @@ namespace vkz
         uint16_t    idx;
 
         uint16_t    mips{ 1u };
+        uint16_t    bpp{ 4u };
 
         uint32_t    x{ 0u };
         uint32_t    y{ 0u };
@@ -119,36 +120,6 @@ namespace vkz
 
         std::vector<uint32_t>     _inputResIDs;
         std::vector<uint32_t>     _outputResIDs;
-    };
-
-    struct BufBucket
-    {
-        uint32_t        idx;
-        
-        size_t          size;
-
-        bool            forceAliased{ false };
-
-        std::vector<uint16_t> reses;
-    };
-
-    struct ImgBucket
-    {
-        uint32_t        idx;
-
-        uint16_t    mips{ 1u };
-
-        uint32_t    x{ 0u };
-        uint32_t    y{ 0u };
-        uint32_t    z{ 1u };
-
-        uint32_t    format;
-        uint32_t    usage;
-        uint32_t    type{ VK_IMAGE_TYPE_2D };
-
-        bool        forceAliased{ false };
-        
-        std::vector<uint16_t> reses;
     };
 
     class Framegraph2
@@ -205,20 +176,6 @@ namespace vkz
         void buildResLifetime();
 
         // =======================================
-        void fillBucketForceAlias();
-
-        void createBufBkt(BufBucket& _bkt, const BufRegisterInfo& _info, const std::vector<uint16_t>& _res, const bool _forceAliased = false);
-        void createImgBkt(ImgBucket& _bkt, const ImgRegisterInfo& _info, const std::vector<uint16_t>& _res, const bool _forceAliased = false);
-
-        void aliasBuffers(const std::vector<uint16_t>& _sortedBufList);
-        void aliasImages(std::vector<ImgBucket>& _buckets, const std::vector< ImgRegisterInfo >& _infos, const std::vector<uint16_t>& _sortedTexList, const ResourceType _type);
-        
-        void fillBufferBuckets();
-        void fillTextureBuckets();
-        void fillRenderTargetBuckets();
-        void fillDepthStencilBuckets();
-
-        // =======================================
         void optimizeSync();
         void optimizeAlias();
         void allocate_resources();
@@ -238,6 +195,36 @@ namespace vkz
             }
         };
 
+        struct BufBucket
+        {
+            uint32_t        idx;
+
+            size_t          size;
+
+            bool            forceAliased{ false };
+
+            std::vector<CombinedResID> reses;
+        };
+
+        struct ImgBucket
+        {
+            uint32_t        idx;
+
+            uint16_t    mips{ 1u };
+
+            uint32_t    x{ 0u };
+            uint32_t    y{ 0u };
+            uint32_t    z{ 1u };
+
+            uint32_t    format;
+            uint32_t    usage;
+            uint32_t    type{ VK_IMAGE_TYPE_2D };
+
+            bool        forceAliased{ false };
+
+            std::vector<CombinedResID> reses;
+        };
+
         inline CombinedResID getCombinedResID(const uint16_t _resIdx, const ResourceType _resType) const
         {
             CombinedResID handle;
@@ -247,13 +234,24 @@ namespace vkz
             return handle;
         }
 
-        bool isBufInfoAliasable(uint16_t _idx, const BufBucket& _bucket, const std::vector<uint16_t> _resInCurrStack) const;
-        bool isImgInfoAliasable(uint16_t _idx, const ImgBucket& _bucket, const std::vector<uint16_t> _resInCurrStack) const;
+        bool isBufInfoAliasable(uint16_t _idx, const BufBucket& _bucket, const std::vector<CombinedResID> _resInCurrStack) const;
+        bool isImgInfoAliasable(uint16_t _idx, const ImgBucket& _bucket, const std::vector<CombinedResID> _resInCurrStack) const;
 
-        bool isStackAliasable(const CombinedResID& _res, const std::vector<uint16_t>& _reses) const;
+        bool isStackAliasable(const CombinedResID& _res, const std::vector<CombinedResID>& _reses) const;
 
-        bool isAliasable(const CombinedResID& _res, const BufBucket& _bucket, const std::vector<uint16_t>& _reses) const;
-        bool isAliasable(const CombinedResID& _res, const ImgBucket& _bucket, const std::vector<uint16_t>& _reses) const;
+        bool isAliasable(const CombinedResID& _res, const BufBucket& _bucket, const std::vector<CombinedResID>& _reses) const;
+        bool isAliasable(const CombinedResID& _res, const ImgBucket& _bucket, const std::vector<CombinedResID>& _reses) const;
+
+        void fillBucketForceAlias();
+
+        void createBufBkt(BufBucket& _bkt, const BufRegisterInfo& _info, const std::vector<CombinedResID>& _res, const bool _forceAliased = false);
+        void createImgBkt(ImgBucket& _bkt, const ImgRegisterInfo& _info, const std::vector<CombinedResID>& _res, const bool _forceAliased = false);
+
+        void aliasBuffers(const std::vector<uint16_t>& _sortedBufList);
+        void aliasImages(std::vector<ImgBucket>& _buckets, const std::vector< ImgRegisterInfo >& _infos, const std::vector<uint16_t>& _sortedTexList, const ResourceType _type);
+
+        void fillBufferBuckets();
+        void fillImageBuckets();
 
 
         // for sort
@@ -300,16 +298,16 @@ namespace vkz
 
         std::vector< PassRegisterInfo>  m_pass_info;
         std::vector< BufRegisterInfo >  m_buf_info;
-        std::vector< ImgRegisterInfo >  m_tex_info;
+        std::vector< ImgRegisterInfo >  m_img_info;
         std::vector< ImgRegisterInfo >  m_rt_info;
         std::vector< ImgRegisterInfo >  m_ds_info;
                      
         std::vector< CombinedResID>     m_combinedResId;
-                     
+
         std::vector< PassRWResource>                m_pass_rw_res;
         std::vector< PassDependency>                m_pass_dependency;
         std::vector< CombinedResID>                 m_combinedForceAlias_base;
-        std::vector< std::vector<CombinedResID>>         m_combinedForceAlias;
+        std::vector< std::vector<CombinedResID>>    m_combinedForceAlias;
 
         std::vector< PassRenderData> m_passData;
 
@@ -343,9 +341,7 @@ namespace vkz
         std::vector< uint16_t>           m_plainAliasResIdx;
 
         std::vector< BufBucket>          m_bufBuckets;
-        std::vector< ImgBucket>          m_texBuckets;
-        std::vector< ImgBucket>          m_rtBuckets;
-        std::vector< ImgBucket>          m_dsBuckets;
+        std::vector< ImgBucket>          m_imgBuckets;
     };
 
 

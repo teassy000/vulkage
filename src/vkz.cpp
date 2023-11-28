@@ -12,9 +12,79 @@
 #include <array>
 
 
-
 namespace vkz
 {
+    uint16_t getBytesPerPixel(TextureFormat format)
+    {
+        switch (format)
+        {
+        case TextureFormat::Unknown:
+            return 0;
+        case TextureFormat::A8:
+            return 1;
+        case TextureFormat::R8:
+            return 1;
+        case TextureFormat::R8I:
+            return 1;
+        case TextureFormat::R8S:
+            return 1;
+        case TextureFormat::R8U:
+            return 1;
+        case TextureFormat::R16:
+            return 2;
+        case TextureFormat::R16I:
+            return 2;
+        case TextureFormat::R16U:
+            return 2;
+        case TextureFormat::R16F:
+            return 2;
+        case TextureFormat::R16S:
+            return 2;
+        case TextureFormat::R32:
+            return 4;
+        case TextureFormat::R32I:
+            return 4;
+        case TextureFormat::R32U:
+            return 4;
+        case TextureFormat::R32F:
+            return 4;
+        case TextureFormat::R32S:
+            return 4;
+        case TextureFormat::BGRA8:
+            return 4;
+        case TextureFormat::BGRA8I:
+            return 4;
+        case TextureFormat::BGRA8U:
+            return 4;
+        case TextureFormat::BGRA8F:
+            return 4;
+        case TextureFormat::BGRA8S:
+            return 4;
+        case TextureFormat::RGBA8:
+            return 4;
+        case TextureFormat::RGBA8I:
+            return 4;
+        case TextureFormat::RGBA8U:
+            return 4;
+        case TextureFormat::RGBA8F:
+            return 4;
+        case TextureFormat::RGBA8S:
+            return 4;
+        case TextureFormat::UnknownDepth:
+            return 0;
+        case TextureFormat::D16:
+            return 2;
+        case TextureFormat::D32:
+            return 4;
+        case TextureFormat::D16F:
+            return 2;
+        case TextureFormat::D32F:
+            return 4;
+        default:
+            return 0;
+        }
+    }
+
     struct Context
     {
         // Context API
@@ -41,8 +111,6 @@ namespace vkz
         HandleArrayT<kMaxNumOfProgramHandle> m_programHandles;
         HandleArrayT<kMaxNumOfPipelineHandle> m_pipelineHandles;
         HandleArrayT<kMaxNumOfPassHandle> m_passHandles;
-        HandleArrayT<kMaxNumOfRenderTargetHandle> m_renderTargetHandles;
-        HandleArrayT<kMaxNumOfDepthStencilHandle> m_depthStencilHandles;
         HandleArrayT<kMaxNumOfTextureHandle> m_textureHandles;
         HandleArrayT<kMaxNumOfBufferHandle> m_bufferHandles;
 
@@ -184,6 +252,7 @@ namespace vkz
         info.mips = _desc.mips;
         info.format = static_cast<uint16_t>(_desc.format);
         info.usage = static_cast<uint16_t>(_desc.usage);
+        info.bpp = getBytesPerPixel(_desc.format);
         
         // TODO: image type
         // TODO: image view type
@@ -199,14 +268,14 @@ namespace vkz
 
     RenderTargetHandle Context::registRenderTarget(const char* _name, ImageDesc _desc)
     {
-        uint16_t idx = m_renderTargetHandles.alloc();
+        uint16_t idx = m_textureHandles.alloc();
 
         RenderTargetHandle handle = RenderTargetHandle{ idx };
 
         // check if pass is valid
         if (!isValid(handle))
         {
-            message(error, "create BufferHandle failed!");
+            message(error, "create RenderTargetHandle failed!");
             return RenderTargetHandle{ kInvalidHandle };
         }
 
@@ -225,6 +294,7 @@ namespace vkz
         info.mips = _desc.mips;
         info.format = static_cast<uint16_t>(_desc.format);
         info.usage = static_cast<uint16_t>(_desc.usage);
+        info.bpp = getBytesPerPixel(_desc.format);
 
         // TODO: image type
         // TODO: image view type
@@ -240,14 +310,14 @@ namespace vkz
 
     DepthStencilHandle Context::registDepthStencil(const char* _name, ImageDesc _desc)
     {
-        uint16_t idx = m_depthStencilHandles.alloc();
+        uint16_t idx = m_textureHandles.alloc();
 
         DepthStencilHandle handle = DepthStencilHandle{ idx };
 
         // check if pass is valid
         if (!isValid(handle))
         {
-            message(error, "create BufferHandle failed!");
+            message(error, "create DepthStencilHandle failed!");
             return DepthStencilHandle{ kInvalidHandle };
         }
 
@@ -266,6 +336,7 @@ namespace vkz
         info.mips = _desc.mips;
         info.format = static_cast<uint16_t>(_desc.format);
         info.usage = static_cast<uint16_t>(_desc.usage);
+        info.bpp = getBytesPerPixel(_desc.format);
 
         // TODO: image type
         // TODO: image view type
@@ -288,10 +359,10 @@ namespace vkz
             return m_textureHandles.alloc();
         }
         if (MagicTag::AliasRenderTarget == _tag) {
-            return m_renderTargetHandles.alloc();
+            return m_textureHandles.alloc();
         }
         if (MagicTag::AliasDepthStencil == _tag) {
-            return m_depthStencilHandles.alloc();
+            return m_textureHandles.alloc();
         }
 
         message(error, "invalid alias tag!");
