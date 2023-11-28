@@ -28,8 +28,6 @@ namespace vkz
         // optimize
         optimizeSync();
         optimizeAlias();
-        
-
     }
 
     void Framegraph2::parseOp()
@@ -45,6 +43,11 @@ namespace vkz
             bool finished = false;
             switch (magic)
             {
+            // Brief
+            case MagicTag::SetBrief: {
+                setBrief(reader);
+                break;
+            }
             // Register
             case MagicTag::RegisterPass: {
                 registerPass(reader);
@@ -181,6 +184,18 @@ namespace vkz
         return idx;
     }
 
+
+    void Framegraph2::setBrief(MemoryReader& _reader)
+    {
+        FrameGraphBrief brief;
+        read(&_reader, brief);
+
+        m_pass_info.resize(brief.passNum);
+        m_buf_info.resize(brief.bufNum);
+        m_img_info.resize(brief.imgNum);
+    }
+
+
     void Framegraph2::registerPass(MemoryReader& _reader)
     {
         PassRegisterInfo info;
@@ -192,12 +207,6 @@ namespace vkz
 
         // fill pass info
         m_hPass.push_back({ info.idx });
-
-        if (info.idx > m_pass_info.size())
-        {
-            m_pass_info.resize((size_t)(info.idx * 2u));
-        }
-
         m_pass_info[info.idx] = info;
 
         m_pass_rw_res.emplace_back();
@@ -211,12 +220,6 @@ namespace vkz
         read(&_reader, info);
 
         m_hBuf.push_back({ info.idx });
-
-        if (info.idx > m_buf_info.size())
-        {
-            m_buf_info.resize((size_t)(info.idx * 2u));
-        }
-
         m_buf_info[info.idx] = info;
 
         CombinedResID plainResID = getCombinedResID(info.idx, ResourceType::Buffer);
@@ -229,12 +232,6 @@ namespace vkz
         read(&_reader, info);
 
         m_hTex.push_back({ info.idx });
-       
-        if (info.idx > m_img_info.size())
-        {
-            m_img_info.resize((size_t)(info.idx * 2u));
-        }
-
         m_img_info[info.idx] = info;
 
         CombinedResID plainResIdx = getCombinedResID(info.idx, ResourceType::Texture);
@@ -247,11 +244,6 @@ namespace vkz
         read(&_reader, info);
 
         m_hTex.push_back({ info.idx });
-        if (info.idx > m_img_info.size())
-        {
-            m_img_info.resize((size_t)(info.idx * 2u));
-        }
-
         m_img_info[info.idx] = info;
 
         CombinedResID plainResIdx = getCombinedResID(info.idx, ResourceType::RenderTarget);
@@ -264,11 +256,6 @@ namespace vkz
         read(&_reader, info);
 
         m_hTex.push_back({ info.idx });
-        if (info.idx > m_img_info.size())
-        {
-            m_img_info.resize((size_t)(info.idx * 2u));
-        }
-
         m_img_info[info.idx] = info;
 
         CombinedResID plainResIdx = getCombinedResID(info.idx, ResourceType::DepthStencil);
@@ -336,6 +323,7 @@ namespace vkz
             std::vector<CombinedResID> aliasVec({ combinedBaseIdx }); // store base resource!
 
             m_combinedForceAlias.push_back(aliasVec);
+            idx = (uint16_t)m_combinedForceAlias.size() - 1;
         }
 
         for (uint16_t ii = 0; ii < info.aliasNum; ++ii)
@@ -362,7 +350,7 @@ namespace vkz
         {
             uint16_t resIdx = resArr[ii];
             CombinedResID plainIdx = getCombinedResID(resIdx, _type);
-            m_multiFrame_res.push_back(plainIdx);
+            m_multiFrame_resList.push_back(plainIdx);
         }
     }
 
@@ -372,7 +360,7 @@ namespace vkz
         read(&_reader, rt);
 
         // check if rt is ready resisted
-        uint16_t idx = getIndex(m_hRT, { rt });
+        uint16_t idx = getIndex(m_hTex, { rt });
         if (kInvalidIndex == idx)
         {
             message(DebugMessageType::error, "result rt is not registered!");
@@ -621,8 +609,8 @@ namespace vkz
             plainAliasResIdx.insert(end(plainAliasResIdx), aliasVec.size(), ii);
         }
 
-        std::vector<CombinedResID> fullMultiFrameRes = m_multiFrame_res;
-        for (const CombinedResID cid : m_multiFrame_res)
+        std::vector<CombinedResID> fullMultiFrameRes = m_multiFrame_resList;
+        for (const CombinedResID cid : m_multiFrame_resList)
         {
             const uint16_t idx = getIndex(plainAliasRes, cid);
             if (kInvalidHandle == idx)
@@ -642,12 +630,12 @@ namespace vkz
 
         m_plainAliasRes = plainAliasRes;
         m_plainAliasResIdx = plainAliasResIdx;
-        m_multiFrame_res = fullMultiFrameRes;
+        m_multiFrame_resList = fullMultiFrameRes;
     }
 
     void Framegraph2::buildResLifetime()
     {
-        std::vector<CombinedResID> usedResUniList;
+        std::vector<CombinedResID> resInUseUniList;
         std::vector<CombinedResID> resToOptmUniList; // all used resources except: force alias, multi-frame, read-only
         std::vector<CombinedResID> readResUniList;
         std::vector<CombinedResID> writeResUniList;
@@ -660,14 +648,14 @@ namespace vkz
             {
                 push_back_unique(writeResUniList, combRes);
                 push_back_unique(resToOptmUniList, combRes);
-                push_back_unique(usedResUniList, combRes);
+                push_back_unique(resInUseUniList, combRes);
             }
 
             for (const CombinedResID combRes : rwRes.readCombinedRes)
             {
                 push_back_unique(readResUniList, combRes);
                 push_back_unique(resToOptmUniList, combRes);
-                push_back_unique(usedResUniList, combRes);
+                push_back_unique(resInUseUniList, combRes);
             }
         }
 
@@ -724,7 +712,7 @@ namespace vkz
         }
 
         // remove multi-frame resource from resToOptmUniList
-        const std::vector<CombinedResID> multiFrameResUniList = m_multiFrame_res;
+        const std::vector<CombinedResID> multiFrameResUniList = m_multiFrame_resList;
         for (const CombinedResID multiFrameRes : multiFrameResUniList)
         {
             uint16_t idx = getIndex(resToOptmUniList, multiFrameRes);
@@ -750,8 +738,9 @@ namespace vkz
         }
 
         // set the value
-        m_uesdResUniList = usedResUniList;
+        m_resInUseUniList = resInUseUniList;
         m_resToOptmUniList = resToOptmUniList;
+        m_readonly_resList = readonlyResUniList;
         m_readResUniList = readResUniList;
         m_writeResUniList = writeResUniList;
 
@@ -762,7 +751,7 @@ namespace vkz
     {
         std::vector<CombinedResID> actualAliasBase;
         std::vector<std::vector<CombinedResID>> actualAlias;
-        for (const CombinedResID combRes : m_uesdResUniList)
+        for (const CombinedResID combRes : m_resInUseUniList)
         {
             const uint16_t idx = getIndex(m_plainAliasRes, combRes);
             if (kInvalidIndex == idx)
@@ -773,17 +762,16 @@ namespace vkz
             const uint16_t alisIdx = m_plainAliasResIdx[idx];
             CombinedResID base = m_combinedForceAlias_base[alisIdx];
 
-            const std::vector<CombinedResID>& aliasVec = m_combinedForceAlias[alisIdx];
             uint16_t usedBaseIdx = push_back_unique(actualAliasBase, base);
-            if (actualAliasBase.size() == usedBaseIdx + 1) // if it's new one
+            if (actualAlias.size() == usedBaseIdx) // if it's new one
             {
                 actualAlias.emplace_back();
             }
-            actualAlias[usedBaseIdx].push_back(combRes);
+
+            push_back_unique(actualAlias[usedBaseIdx], combRes);
         }
 
-        // process force alias buffers
-        std::vector<std::vector<uint16_t>> forceAlias;
+        // process force alias
         for (uint16_t ii = 0; ii < actualAliasBase.size(); ++ii)
         {
             const CombinedResID base = actualAliasBase[ii];
@@ -800,7 +788,9 @@ namespace vkz
             }
 
             // textures
-            if (base.type == ResourceType::Texture)
+            if (base.type == ResourceType::Texture 
+                || base.type == ResourceType::RenderTarget
+                || base.type == ResourceType::DepthStencil)
             {
                 const ImgRegisterInfo info = m_img_info[base.id];
 
@@ -808,24 +798,60 @@ namespace vkz
                 createImgBkt(bucket, info, aliasVec, true);
                 m_imgBuckets.push_back(bucket);
             }
+        }
+    }
 
-            // render target
-            if (base.type == ResourceType::RenderTarget)
+    void Framegraph2::fillBucketReadonly()
+    {
+        for (const CombinedResID cid : m_readonly_resList)
+        {
+            // buffers
+            if (cid.type == ResourceType::Buffer)
             {
-                const ImgRegisterInfo info = m_img_info[base.id];
+                const BufRegisterInfo info = m_buf_info[cid.id];
 
-                ImgBucket bucket;
-                createImgBkt(bucket, info, aliasVec, true);
-                m_imgBuckets.push_back(bucket);
+                BufBucket bucket;
+                createBufBkt(bucket, info, {cid});
+                m_bufBuckets.push_back(bucket);
             }
 
-            // depth stencil
-            if (base.type == ResourceType::DepthStencil)
+            // images
+            if (cid.type == ResourceType::Texture
+                || cid.type == ResourceType::RenderTarget
+                || cid.type == ResourceType::DepthStencil)
             {
-                const ImgRegisterInfo info = m_img_info[base.id];
+                const ImgRegisterInfo info = m_img_info[cid.id];
 
                 ImgBucket bucket;
-                createImgBkt(bucket, info, aliasVec, true);
+                createImgBkt(bucket, info, {cid});
+                m_imgBuckets.push_back(bucket);
+            }
+        }
+    }
+
+    void Framegraph2::fillBucketMultiFrame()
+    {
+        for (const CombinedResID cid : m_multiFrame_resList)
+        {
+            // buffers
+            if (cid.type == ResourceType::Buffer)
+            {
+                const BufRegisterInfo info = m_buf_info[cid.id];
+
+                BufBucket bucket;
+                createBufBkt(bucket, info, { cid });
+                m_bufBuckets.push_back(bucket);
+            }
+
+            // images
+            if (cid.type == ResourceType::Texture
+                || cid.type == ResourceType::RenderTarget
+                || cid.type == ResourceType::DepthStencil)
+            {
+                const ImgRegisterInfo info = m_img_info[cid.id];
+
+                ImgBucket bucket;
+                createImgBkt(bucket, info, { cid });
                 m_imgBuckets.push_back(bucket);
             }
         }
@@ -1049,14 +1075,18 @@ namespace vkz
     {
         buildResLifetime();
 
-        // force aliases
-        // each one is in one bucket
+        // static aliases ========================
+        // force aliases 
         fillBucketForceAlias();
+        // bucket for read-only
+        fillBucketReadonly();
+        // bucket for multi-frame resources
+        fillBucketMultiFrame();
 
-        // for buffers
+        // dynamic aliases =======================
+        // buffers
         fillBufferBuckets();
-
-        // for textures
+        // images
         fillImageBuckets();
     }
 

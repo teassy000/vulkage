@@ -11,6 +11,8 @@ namespace vkz
     {
         InvalidMagic = 0x00000000,
 
+        SetBrief,
+
         RegisterPass,
         RegisterBuffer,
         RegisterTexture,
@@ -47,6 +49,14 @@ namespace vkz
         Texture,
         RenderTarget,
         DepthStencil,
+    };
+
+    struct FrameGraphBrief
+    {
+        uint32_t    version;
+        uint32_t    passNum;
+        uint32_t    bufNum;
+        uint32_t    imgNum;
     };
 
     // Register Info
@@ -140,12 +150,17 @@ namespace vkz
             m_pMemBlock = _memBlock;
         }
 
+        inline void setBrief(MemoryBlock* _briefBlock)
+        {
+            m_pBirefMemBlock = _briefBlock;
+        }
+
     private:
-        
         void parseOp();
 
         // ==============================
         // process operations 
+        void setBrief(MemoryReader& _reader);
         void registerPass(MemoryReader& _reader);
         void registerBuffer(MemoryReader& _reader);
         void registerTexture(MemoryReader& _reader);
@@ -243,6 +258,8 @@ namespace vkz
         bool isAliasable(const CombinedResID& _res, const ImgBucket& _bucket, const std::vector<CombinedResID>& _reses) const;
 
         void fillBucketForceAlias();
+        void fillBucketReadonly();
+        void fillBucketMultiFrame();
 
         void createBufBkt(BufBucket& _bkt, const BufRegisterInfo& _info, const std::vector<CombinedResID>& _res, const bool _forceAliased = false);
         void createImgBkt(ImgBucket& _bkt, const ImgRegisterInfo& _info, const std::vector<CombinedResID>& _res, const bool _forceAliased = false);
@@ -286,6 +303,7 @@ namespace vkz
 
     private:
         MemoryBlockI* m_pMemBlock;
+        MemoryBlockI* m_pBirefMemBlock;
 
         CombinedResID  m_resultRT;
         PassHandle     m_finalPass;
@@ -329,10 +347,12 @@ namespace vkz
         // lv1 index: one pass in each queue
         std::vector< std::array<uint16_t, (uint16_t)PassExeQueue::Count> >    m_nearestSyncPassIdx;
 
-        std::vector< CombinedResID>     m_multiFrame_res;
+        std::vector< CombinedResID>     m_multiFrame_resList;
+        std::vector< CombinedResID>     m_readonly_resList;
 
-        std::vector< CombinedResID>     m_uesdResUniList;
+        std::vector< CombinedResID>     m_resInUseUniList;
         std::vector< CombinedResID>     m_resToOptmUniList;
+
         std::vector< CombinedResID>     m_readResUniList;
         std::vector< CombinedResID>     m_writeResUniList;
         std::vector< ResLifetime>       m_resLifeTime;

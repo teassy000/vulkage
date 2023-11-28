@@ -14,6 +14,24 @@
 
 namespace vkz
 {
+
+    static AllocatorI* s_allocator = nullptr;
+
+    static AllocatorI* getAllocator()
+    {
+        if (s_allocator == nullptr)
+        {
+            s_allocator = new DefaultAllocator();
+        }
+        return s_allocator;
+    }
+
+    static void shutdownAllocator()
+    {
+        delete s_allocator;
+        s_allocator = nullptr;
+    }
+
     uint16_t getBytesPerPixel(TextureFormat format)
     {
         switch (format)
@@ -105,7 +123,9 @@ namespace vkz
         void setMutiFrameResource(const uint16_t* _reses, const uint16_t _resCount, MagicTag _tag); // do not alias atomically
         void setResultRenderTarget(RenderTargetHandle _rt);
 
+        void init();
         void update();
+        void shutdown();
 
         HandleArrayT<kMaxNumOfShaderHandle> m_shaderHandles;
         HandleArrayT<kMaxNumOfProgramHandle> m_programHandles;
@@ -127,7 +147,7 @@ namespace vkz
         // frame graph
         MemoryBlock* m_fgMemBlock;
         MemoryWriter* m_fgMemWriter;
-        
+
         Framegraph2* m_frameGraph;
 
         // store actual resource data, after frame graph processed
@@ -389,7 +409,7 @@ namespace vkz
         info.aliasNum = _aliasCount;
         write(m_fgMemWriter, info);
 
-        write(m_fgMemWriter, _aliases, sizeof(uint16_t) * _aliasCount);
+        write(m_fgMemWriter, *_aliases, sizeof(uint16_t) * _aliasCount);
     }
 
     void Context::readwriteResource(const uint16_t _pass, const uint16_t* _reses, const uint16_t _resCount, MagicTag _tag)
@@ -425,6 +445,22 @@ namespace vkz
         m_resultRenderTarget = _rt;
     }
 
+    void Context::init()
+    {
+        m_allocator = getAllocator();
+        m_fgMemBlock = new MemoryBlock(m_allocator);
+        m_fgMemBlock->expand(kInitialFrameGraphMemSize);
+        m_fgMemWriter = new MemoryWriter((void*)(m_fgMemBlock->expand(0)), m_fgMemBlock->size());
+
+        m_frameGraph = new Framegraph2();
+
+        uint32_t magic = static_cast<uint32_t>(MagicTag::SetBrief);
+        write(m_fgMemWriter, magic);
+
+        // reserve the brief
+        write(m_fgMemWriter, FrameGraphBrief());
+    }
+
     void Context::update()
     {
         if (kInvalidHandle == m_resultRenderTarget.idx)
@@ -437,27 +473,40 @@ namespace vkz
         uint32_t magic = static_cast<uint32_t>(MagicTag::End);
         write(m_fgMemWriter, magic);
 
+        // move mem pos to the beginning of the memory block
+        int64_t size = m_fgMemWriter->seek(0, Whence::Current);
+        m_fgMemWriter->seek(sizeof(MagicTag), Whence::Begin);
+        
+        // replace the brief data
+        FrameGraphBrief brief;
+        brief.version = 1u;
+        brief.passNum = m_passHandles.getNumHandles();
+        brief.bufNum = m_bufferHandles.getNumHandles();
+        brief.imgNum = m_textureHandles.getNumHandles();
+        write(m_fgMemWriter, brief);
+
+        // set back the mem pos
+        size -= sizeof(FrameGraphBrief);
+        m_fgMemWriter->seek(size, Whence::Current);
+
         m_frameGraph->setMemoryBlock(m_fgMemBlock);
         m_frameGraph->bake();
     }
 
+    void Context::shutdown()
+    {
+        m_frameGraph = nullptr;
+        delete m_frameGraph;
+
+        m_fgMemWriter = nullptr;
+        delete m_fgMemWriter;
+
+        m_fgMemBlock = nullptr;
+        delete m_fgMemBlock;
+    }
+
+    // ================================================
     static Context* s_ctx = nullptr;
-    static AllocatorI* s_allocator = nullptr;
-
-    static AllocatorI* getAllocator()
-    {
-        if (s_allocator == nullptr)
-        {
-            s_allocator = new DefaultAllocator();
-        }
-        return s_allocator;
-    }
-
-    static void shutdownAllocator()
-    {
-        delete s_allocator;
-        s_allocator = nullptr;
-    }
 
     vkz::ShaderHandle registShader(const char* _name, const Memory* _mem)
     {
@@ -850,14 +899,7 @@ namespace vkz
     bool init()
     {
         s_ctx = new Context();
-        s_ctx->m_allocator = getAllocator();
-
-        s_ctx->m_fgMemBlock = new MemoryBlock(getAllocator());
-        s_ctx->m_fgMemBlock->expand(kInitialFrameGraphMemSize);
-
-        s_ctx->m_fgMemWriter = new MemoryWriter((void*)(s_ctx->m_fgMemBlock->expand(0)), s_ctx->m_fgMemBlock->size());
-
-        s_ctx->m_frameGraph = new Framegraph2();
+        s_ctx->init();
 
         return true;
     }
@@ -869,15 +911,6 @@ namespace vkz
 
     void shutdown()
     {
-        s_ctx->m_frameGraph = nullptr;
-        delete s_ctx->m_frameGraph;
-
-        s_ctx->m_fgMemWriter = nullptr;
-        delete s_ctx->m_fgMemWriter;
-
-        s_ctx->m_fgMemBlock = nullptr;
-        delete s_ctx->m_fgMemBlock;
-
         shutdownAllocator();
 
         s_ctx = nullptr;
