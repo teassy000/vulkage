@@ -202,7 +202,9 @@
     <ClCompile Include="framegraph.cpp" />
     <ClCompile Include="framegraph_2.cpp" />
     <ClCompile Include="mesh.cpp" />
-    <ClCompile Include="resource_manager.cpp" />
+    <ClCompile Include="res_creator.cpp" />
+    <ClCompile Include="vk_resource.cpp" />
+    <ClCompile Include="vk_res_creator.cpp" />
     <ClCompile Include="scene.cpp" />
     <ClCompile Include="debug.cpp" />
     <ClCompile Include="vkz.cpp" />
@@ -237,12 +239,15 @@
     <ClInclude Include="device.h" />
     <ClInclude Include="framegraph_2.h" />
     <ClInclude Include="handle.h" />
+    <ClInclude Include="macro.h" />
     <ClInclude Include="math.h" />
     <ClInclude Include="memory_operation.h" />
     <ClInclude Include="mesh.h" />
     <ClInclude Include="framegraph.h" />
     <ClInclude Include="name.h" />
-    <ClInclude Include="resource_manager.h" />
+    <ClInclude Include="res_creator.h" />
+    <ClInclude Include="vk_resource.h" />
+    <ClInclude Include="vk_res_creator.h" />
     <ClInclude Include="scene.h" />
     <ClInclude Include="uidata.h" />
     <ClInclude Include="resources.h" />

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "memory_operation.h"
-#include <unordered_set>
 
 namespace vkz
 {
@@ -136,7 +135,6 @@ namespace vkz
     {
     public:
         void bake();
-        void execute(); // execute passes
 
     public:
 
@@ -150,17 +148,13 @@ namespace vkz
             m_pMemBlock = _memBlock;
         }
 
-        inline void setBrief(MemoryBlock* _briefBlock)
-        {
-            m_pBirefMemBlock = _briefBlock;
-        }
-
     private:
         void parseOp();
 
         // ==============================
         // process operations 
         void setBrief(MemoryReader& _reader);
+
         void registerPass(MemoryReader& _reader);
         void registerBuffer(MemoryReader& _reader);
         void registerTexture(MemoryReader& _reader);
@@ -264,7 +258,7 @@ namespace vkz
         void createBufBkt(BufBucket& _bkt, const BufRegisterInfo& _info, const std::vector<CombinedResID>& _res, const bool _forceAliased = false);
         void createImgBkt(ImgBucket& _bkt, const ImgRegisterInfo& _info, const std::vector<CombinedResID>& _res, const bool _forceAliased = false);
 
-        void aliasBuffers(const std::vector<uint16_t>& _sortedBufList);
+        void aliasBuffers(std::vector<BufBucket>& _buckets, const std::vector<uint16_t>& _sortedBufList);
         void aliasImages(std::vector<ImgBucket>& _buckets, const std::vector< ImgRegisterInfo >& _infos, const std::vector<uint16_t>& _sortedTexList, const ResourceType _type);
 
         void fillBufferBuckets();
@@ -303,7 +297,6 @@ namespace vkz
 
     private:
         MemoryBlockI* m_pMemBlock;
-        MemoryBlockI* m_pBirefMemBlock;
 
         CombinedResID  m_resultRT;
         PassHandle     m_finalPass;

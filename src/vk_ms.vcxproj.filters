@@ -164,7 +164,7 @@
     <ClCompile Include="framegraph_2.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="resource_manager.cpp">
+    <ClCompile Include="vk_res_creator.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="vkz.cpp">
@@ -174,6 +174,12 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="demo.cpp" />
+    <ClCompile Include="res_creator.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="vk_resource.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\externs\fast_obj\fast_obj.h">
@@ -269,7 +275,7 @@
     <ClInclude Include="framegraph_2.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="resource_manager.h">
+    <ClInclude Include="vk_res_creator.h">
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="handle.h">
@@ -289,6 +295,15 @@
     </ClInclude>
     <ClInclude Include="demo.h" />
     <ClInclude Include="memory_operation.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="res_creator.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="macro.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="vk_resource.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>
@@ -357,6 +372,8 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="memory_operation.inl" />
+    <None Include="memory_operation.inl">
+      <Filter>src</Filter>
+    </None>
   </ItemGroup>
 </Project>

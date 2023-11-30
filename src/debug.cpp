@@ -1,5 +1,6 @@
 #include "common.h"
 #include "debug.h"
+#include "macro.h"
 
 #include <stdio.h>
 

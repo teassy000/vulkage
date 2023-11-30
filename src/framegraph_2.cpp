@@ -1,5 +1,5 @@
 #include "common.h"
-#include "resources.h"
+#include "macro.h"
 #include "config.h"
 
 #include "memory_operation.h"
@@ -266,7 +266,6 @@ namespace vkz
     {
         PassRWInfo info;
         read(&_reader, info);
-        alloc(sizeof(uint16_t) * info.resNum);
         
         uint16_t* resArr = new uint16_t[info.resNum];
         read(&_reader, resArr, sizeof(uint16_t) * info.resNum);
@@ -281,8 +280,7 @@ namespace vkz
             m_pass_rw_res[idx].readCombinedRes.push_back(plainIdx);
         }
 
-        delete[] resArr;
-        resArr = nullptr;
+        VKZ_DELETE_ARRAY(resArr);
     }
 
     void Framegraph2::passWriteRes(MemoryReader& _reader, ResourceType _type)
@@ -303,8 +301,7 @@ namespace vkz
             m_pass_rw_res[idx].writeCombinedRes.push_back(plainIdx);
         }
 
-        delete[] resArr;
-        resArr = nullptr;
+        
     }
 
     void Framegraph2::aliasResForce(MemoryReader& _reader, ResourceType _type)
@@ -333,8 +330,7 @@ namespace vkz
             push_back_unique(m_combinedForceAlias[idx], combinedIdx);
         }
 
-        delete[] resArr;
-        resArr = nullptr;
+        VKZ_DELETE_ARRAY(resArr);
     }
 
 
@@ -878,7 +874,7 @@ namespace vkz
         _bkt.forceAliased = _forceAliased;
     }
 
-    void Framegraph2::aliasBuffers(const std::vector<uint16_t>& _sortedBufList)
+    void Framegraph2::aliasBuffers(std::vector<BufBucket>& _buckets, const std::vector<uint16_t>& _sortedBufList)
     {
         std::vector<uint16_t> restRes = _sortedBufList;
 
@@ -916,8 +912,6 @@ namespace vkz
                         continue;
 
                     restRes.erase(begin(restRes) + idx);
-
-                       
                 }
                 aliased = true;
                 break;
@@ -940,7 +934,7 @@ namespace vkz
             resInLevel.emplace_back();
         }
 
-        m_bufBuckets.insert(end(m_bufBuckets), begin(buckets), end(buckets));
+        _buckets = _buckets;
     }
 
     void Framegraph2::aliasImages(std::vector<ImgBucket>& _buckets,const std::vector< ImgRegisterInfo >& _infos, const std::vector<uint16_t>& _sortedTexList, const ResourceType _type)
@@ -1024,7 +1018,10 @@ namespace vkz
             return m_buf_info[_l].size > m_buf_info[_r].size;
         });
 
-        aliasBuffers(sortedBufIdx);
+        std::vector<BufBucket> buckets;
+        aliasBuffers(buckets,sortedBufIdx);
+
+        m_bufBuckets.insert(end(m_bufBuckets), begin(buckets), end(buckets));
     }
 
     void Framegraph2::fillImageBuckets()
@@ -1052,7 +1049,10 @@ namespace vkz
             return size_l > size_r;
         });
 
-        aliasImages(m_imgBuckets, m_img_info, sortedTexIdx, type);
+        std::vector<ImgBucket> buckets;
+        aliasImages(buckets, m_img_info, sortedTexIdx, type);
+
+        m_imgBuckets.insert(end(m_imgBuckets), begin(buckets), end(buckets));
     }
 
     void Framegraph2::optimizeSync()
@@ -1102,7 +1102,7 @@ namespace vkz
             remaingSize -= m_buf_info[res.id].size;
         }
 
-        bSzMatch = info.size <= remaingSize;
+        bSzMatch = (info.size <= remaingSize);
 
         return bSzMatch;
     }

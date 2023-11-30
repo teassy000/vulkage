@@ -3,12 +3,14 @@
 #include <stdint.h> // uint32_t
 #include <initializer_list>
 
+#include "macro.h"
+
 namespace vkz
 {
     static const uint16_t kInvalidHandle = UINT16_MAX;
 
     template <class HandleType>
-    struct __declspec(novtable) Handle {
+    struct NO_VTABLE Handle {
         uint16_t idx;
 
         bool operator == (const Handle<HandleType>& rhs) const {

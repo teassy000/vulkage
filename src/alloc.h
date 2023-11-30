@@ -1,8 +1,10 @@
 #pragma once
 
+#include "macro.h"
+
 namespace vkz
 {
-    struct __declspec(novtable) AllocatorI
+    struct NO_VTABLE AllocatorI
     {
         virtual ~AllocatorI() = 0;
 

@@ -1,4 +1,5 @@
 #include "common.h"
+#include "macro.h"
 #include "device.h"
 
 #include <stdio.h>

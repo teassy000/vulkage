@@ -1,4 +1,5 @@
 #include "common.h"
+#include "macro.h"
 #include "resources.h"
 
 #include "framegraph.h"

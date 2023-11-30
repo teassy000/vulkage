@@ -8,7 +8,6 @@
 #include "name.h"
 
 #include "framegraph_2.h"
-#include "resource_manager.h"
 #include <array>
 
 
@@ -28,8 +27,7 @@ namespace vkz
 
     static void shutdownAllocator()
     {
-        delete s_allocator;
-        s_allocator = nullptr;
+        VKZ_DELETE_ARRAY(s_allocator);
     }
 
     uint16_t getBytesPerPixel(TextureFormat format)
@@ -149,10 +147,6 @@ namespace vkz
         MemoryWriter* m_fgMemWriter;
 
         Framegraph2* m_frameGraph;
-
-        // store actual resource data, after frame graph processed
-        // so all resources are late allocated
-        ResMgr m_resMgr;
 
         AllocatorI* m_allocator = nullptr;
     };
@@ -495,14 +489,9 @@ namespace vkz
 
     void Context::shutdown()
     {
-        m_frameGraph = nullptr;
-        delete m_frameGraph;
-
-        m_fgMemWriter = nullptr;
-        delete m_fgMemWriter;
-
-        m_fgMemBlock = nullptr;
-        delete m_fgMemBlock;
+        VKZ_DELETE(m_frameGraph);
+        VKZ_DELETE(m_fgMemWriter);
+        VKZ_DELETE(m_fgMemBlock);
     }
 
     // ================================================
@@ -559,7 +548,7 @@ namespace vkz
             (*_aliases[ii]).idx = aliases[ii];
         }
 
-        delete[] aliases;
+        VKZ_DELETE_ARRAY(aliases);
     }
 
     void aliasTexture(TextureHandle** _aliases, const uint16_t _aliasCount, const TextureHandle _tex)
@@ -573,7 +562,7 @@ namespace vkz
             (*_aliases[ii]).idx = aliases[ii];
         }
 
-        delete[] aliases;
+        VKZ_DELETE_ARRAY(aliases);
     }
 
     void aliasRenderTarget(RenderTargetHandle** _aliases, const uint16_t _aliasCount, const RenderTargetHandle _rt)
@@ -587,7 +576,7 @@ namespace vkz
             (*_aliases[ii]).idx = aliases[ii];
         }
 
-        delete[] aliases;
+        VKZ_DELETE_ARRAY(aliases);
     }
 
     void aliasDepthStencil(DepthStencilHandle** _aliases, const uint16_t _aliasCount, const DepthStencilHandle _ds)
@@ -601,7 +590,7 @@ namespace vkz
             (*_aliases[ii]).idx = aliases[ii];
         }
 
-        delete[] aliases;
+        VKZ_DELETE_ARRAY(aliases);
     }
 
     BufferHandle aliasBuffer(const BufferHandle _handle)
@@ -664,8 +653,7 @@ namespace vkz
 
         s_ctx->readwriteResource(_pass.idx, reses, size, MagicTag::PassWriteBuffer);
 
-        delete[] reses;
-        reses = nullptr;
+        VKZ_DELETE_ARRAY(reses);
     }
 
     void readBuffers(PassHandle _pass, BufferHandleList _resList)
@@ -681,8 +669,7 @@ namespace vkz
 
         s_ctx->readwriteResource(_pass.idx, reses, size, MagicTag::PassReadBuffer);
 
-        delete[] reses;
-        reses = nullptr;
+        VKZ_DELETE_ARRAY(reses);
     }
 
     void writeTextures(PassHandle _pass, TextureHandleList _resList)
@@ -698,8 +685,7 @@ namespace vkz
 
         s_ctx->readwriteResource(_pass.idx, reses, size, MagicTag::PassWriteTexture);
 
-        delete[] reses;
-        reses = nullptr;
+        VKZ_DELETE_ARRAY(reses);
     }
 
     void readTextures(PassHandle _pass, TextureHandleList _resList)
@@ -715,8 +701,7 @@ namespace vkz
 
         s_ctx->readwriteResource(_pass.idx, reses, size, MagicTag::PassReadTexture);
 
-        delete[] reses;
-        reses = nullptr;
+        VKZ_DELETE_ARRAY(reses);
     }
 
     void writeRenderTargets(PassHandle _pass, RenderTargetHandleList _resList)
@@ -732,8 +717,7 @@ namespace vkz
 
         s_ctx->readwriteResource(_pass.idx, reses, size, MagicTag::PassWriteRenderTarget);
 
-        delete[] reses;
-        reses = nullptr;
+        VKZ_DELETE_ARRAY(reses);
     }
 
     void readRenderTargets(PassHandle _pass, RenderTargetHandleList _resList)
@@ -749,8 +733,7 @@ namespace vkz
 
         s_ctx->readwriteResource(_pass.idx, reses, size, MagicTag::PassReadRenderTarget);
 
-        delete[] reses;
-        reses = nullptr;
+        VKZ_DELETE_ARRAY(reses);
     }
 
     void writeDepthStencils(PassHandle _pass, DepthStencilHandleList _resList)
@@ -766,8 +749,7 @@ namespace vkz
 
         s_ctx->readwriteResource(_pass.idx, reses, size, MagicTag::PassWriteDepthStencil);
 
-        delete[] reses;
-        reses = nullptr;
+        VKZ_DELETE_ARRAY(reses);
     }
 
     void readDepthStencils(PassHandle _pass, DepthStencilHandleList _resList)
@@ -783,8 +765,7 @@ namespace vkz
 
         s_ctx->readwriteResource(_pass.idx, reses, size, MagicTag::PassReadDepthStencil);
 
-        delete[] reses;
-        reses = nullptr;
+        VKZ_DELETE_ARRAY(reses);
     }
 
     void setMultiFrameBuffer(BufferHandleList _resList)
@@ -913,7 +894,6 @@ namespace vkz
     {
         shutdownAllocator();
 
-        s_ctx = nullptr;
-        delete s_ctx;
+        VKZ_DELETE(s_ctx);
     }
 }
