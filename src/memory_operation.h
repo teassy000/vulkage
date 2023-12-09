@@ -125,7 +125,7 @@ namespace vkz
     class MemoryWriter : public WriterSeekerI
     {
     public:
-        MemoryWriter(void* _data, uint32_t _size);
+        MemoryWriter(MemoryBlockI* _mb);
 
         virtual ~MemoryWriter() override;
 
@@ -138,6 +138,20 @@ namespace vkz
         int64_t m_pos;
         int64_t m_top;
         int64_t m_size;
+    };
+
+    /// Static (fixed size) memory block writer.
+    class StaticMemoryBlockWriter : public MemoryWriter
+    {
+    public:
+        ///
+        StaticMemoryBlockWriter(void* _data, uint32_t _size);
+
+        ///
+        virtual ~StaticMemoryBlockWriter();
+
+    private:
+        StaticMemoryBlock m_smb;
     };
 
     // API

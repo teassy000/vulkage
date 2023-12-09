@@ -5,7 +5,7 @@
 namespace vkz
 {
 
-    struct VK_Buffer
+    struct Buffer_vk
     {
         uint16_t resId;
 
@@ -15,27 +15,26 @@ namespace vkz
         size_t size;
     };
 
-    struct VK_BufAliasInfo
+    struct BufAliasInfo_vk
     {
         uint16_t    resId;
         size_t      size;
     };
 
+    Buffer_vk createBuffer(const BufAliasInfo_vk& info, const VkPhysicalDeviceMemoryProperties& _memProps, VkDevice _device, VkBufferUsageFlags _usage, VkMemoryPropertyFlags _memFlags);
+    void createBuffer(std::vector<Buffer_vk>& _results, const std::vector<BufAliasInfo_vk> _infos, const VkPhysicalDeviceMemoryProperties& _memProps, VkDevice _device, VkBufferUsageFlags _usage, VkMemoryPropertyFlags _memFlags);
+    void uploadBuffer(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer cmdBuffer, VkQueue queue, const Buffer_vk& buffer, const Buffer_vk& scratch, const void* data, size_t size);
+    void flushBuffer(VkDevice device, const Buffer_vk& buffer, uint32_t offset = 0);
 
-    using BufferList = std::initializer_list<VK_Buffer* const>;
-    using SizeList = std::initializer_list<size_t>;
-
-    void createBuffer(VK_Buffer& result, const VkPhysicalDeviceMemoryProperties& _memProps, VkDevice _device, size_t sz, VkBufferUsageFlags _usage, VkMemoryPropertyFlags _memFlags, BufferList = {});
-    void createBuffer(std::vector<VK_Buffer>& _results, const std::vector<VK_BufAliasInfo> _infos, const VkPhysicalDeviceMemoryProperties& _memProps, VkDevice _device, VkBufferUsageFlags _usage, VkMemoryPropertyFlags _memFlags);
-    void uploadBuffer(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer cmdBuffer, VkQueue queue, const VK_Buffer& buffer, const VK_Buffer& scratch, const void* data, size_t size);
-    void flushBuffer(VkDevice device, const VK_Buffer& buffer, uint32_t offset = 0);
-    void destroyBuffer(VkDevice device, const VK_Buffer& buffer, BufferList = {});
+    // destroy a list of buffers, which shares the same memory
+    void destroyBuffer(const VkDevice _device, const std::vector<Buffer_vk>& _buffers);
 
     VkBufferMemoryBarrier2 bufferBarrier(VkBuffer buffer, VkAccessFlags2 srcAccessMask, VkPipelineStageFlags2 srcStage, VkAccessFlags2 dstAccessMask, VkPipelineStageFlags2 dstStage);
 
-    struct VK_Image
+    struct Image_vk
     {
         uint32_t ID;
+        uint16_t resId;
 
         VkImage image;
         VkImageView imageView;
@@ -45,25 +44,33 @@ namespace vkz
         uint32_t width, height;
     };
 
-    struct ImgInitProps
+    struct ImgAliasInfo_vk
     {
-        uint32_t mipLevels;
-        uint32_t width, height;
-
-        VkImageUsageFlags usage;
-        VkImageType       type{ VK_IMAGE_TYPE_2D };
-        VkImageLayout     layout{ VK_IMAGE_LAYOUT_GENERAL };
-        VkImageViewType   viewType{ VK_IMAGE_VIEW_TYPE_2D };
+        uint16_t resId;
     };
 
-    using ImageAliases = std::initializer_list<VK_Image* const>;
+    struct ImgInitProps
+    {
+        uint32_t level;
 
-    void createImage(VK_Image& result, VkDevice device, const VkPhysicalDeviceMemoryProperties& memoryProps, const VkFormat format, const ImgInitProps createInfo, ImageAliases = {}, const uint32_t aliasCount = 0);
-    void loadTexture2DFromFile(VK_Image& tex2d, const char* path, VkDevice device, VkCommandPool cmdPool, VkQueue queue, const VkPhysicalDeviceMemoryProperties& memoryProps, VkFormat format, VkImageUsageFlags usage, VkImageLayout layout);
-    void loadTexture2DArrayFromFile(VK_Image& tex2dArray, const char* path, VkDevice device, VkCommandPool cmdPool, VkQueue queue, const VkPhysicalDeviceMemoryProperties& memoryProps, VkFormat format, VkImageUsageFlags usage);
-    void loadTextureCubeFromFile(VK_Image& texCube, const char* path, VkDevice device, VkCommandPool cmdPool, VkQueue queue, const VkPhysicalDeviceMemoryProperties& memoryProps, VkFormat format, VkImageUsageFlags usage, VkImageLayout layout);
-    void uploadImage(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer cmdBuffer, VkQueue queue, const VK_Image& image, const VK_Buffer& scratch, const void* data, size_t size, VkImageLayout layout, const uint32_t regionCount = 1, uint32_t mipLevels = 1);
-    void destroyImage(VkDevice device, const VK_Image& image, ImageAliases = {});
+        uint32_t width;
+        uint32_t height;
+        uint32_t depth;
+
+        VkFormat            format;
+        VkImageUsageFlags   usage;
+        VkImageType         type{ VK_IMAGE_TYPE_2D };
+        VkImageLayout       layout{ VK_IMAGE_LAYOUT_GENERAL };
+        VkImageViewType     viewType{ VK_IMAGE_VIEW_TYPE_2D };
+    };
+
+    Image_vk createImage(const ImgAliasInfo_vk& info, const VkDevice _device, const VkPhysicalDeviceMemoryProperties& _memProps, const ImgInitProps& _initProps);
+    void createImage(std::vector<Image_vk>& _results, const std::vector<ImgAliasInfo_vk>& _infos, const VkDevice _device, const VkPhysicalDeviceMemoryProperties& _memProps, const ImgInitProps& _initProps);
+    void uploadImage(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer cmdBuffer, VkQueue queue, const Image_vk& image, const Buffer_vk& scratch, const void* data, size_t size, VkImageLayout layout, const uint32_t regionCount = 1, uint32_t mipLevels = 1);
+    // destroy a list of buffers, which shares the same memory
+    void destroyImage(const VkDevice _device, const std::vector<Image_vk>& _images);
+
+
     VkImageView createImageView(VkDevice device, VkImage image, VkFormat format, uint32_t baseMipLevel, uint32_t levelCount, VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D);
 
     VkImageMemoryBarrier2 imageBarrier(VkImage image, VkImageAspectFlagBits aspectMask, VkAccessFlags2 srcAccessMask, VkImageLayout oldLayout, VkPipelineStageFlags2 srcStage, VkAccessFlags2 dstAccessMask, VkImageLayout newLayout, VkPipelineStageFlags2 dstStage);

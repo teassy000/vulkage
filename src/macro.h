@@ -20,3 +20,9 @@ char(*countof_helper(T(&_Array)[Size]))[Size];
                 ptr = nullptr; \
             } \
     } while (false)
+
+
+///
+#define VKZ_DECLARE_TAG(_name)  \
+	struct    _name ## Tag {}; \
+	constexpr _name ## Tag _name

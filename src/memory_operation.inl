@@ -143,12 +143,12 @@ namespace vkz
         return m_top - m_pos;
     }
 
-    inline MemoryWriter::MemoryWriter(void* _data, uint32_t _size)
-        : m_memBlock(nullptr)
-        , m_data(reinterpret_cast<uint8_t*>(_data))
+    inline MemoryWriter::MemoryWriter(MemoryBlockI* _mb)
+        : m_memBlock(_mb)
+        , m_data()
         , m_pos(0)
-        , m_top(_size)
-        , m_size(_size)
+        , m_top(0)
+        , m_size(0)
     {
     }
 
@@ -158,12 +158,21 @@ namespace vkz
 
     inline int32_t MemoryWriter::write(const void* _data, int32_t _size)
     {
-        int32_t size = std::min(_size, int32_t(m_top - m_pos));
-        if (0 < size)
+        int32_t morecore = int32_t(m_pos - m_size) + _size;
+        
+        if (0 < morecore)
         {
-            ::memcpy(&m_data[m_pos], _data, size);
-            m_pos += size;
+            morecore = alignUp(morecore, 0x1000);
+
+            m_data = (uint8_t*)m_memBlock->expand(morecore);
+            m_size = m_memBlock->size();
         }
+
+        int64_t remainder = m_size - m_pos;
+        int32_t size = std::min<uint32_t>(_size, uint32_t(std::min<int64_t>(remainder, INT32_MAX)));
+        ::memcpy(&m_data[m_pos], _data, size);
+        m_pos += size;
+        m_top = std::max(m_top, m_pos);
 
         return size;
     }
@@ -186,6 +195,16 @@ namespace vkz
         }
 
         return m_pos;
+    }
+
+    inline StaticMemoryBlockWriter::StaticMemoryBlockWriter(void* _data, uint32_t _size)
+        : MemoryWriter(&m_smb)
+        , m_smb(_data, _size)
+    {
+    }
+
+    inline StaticMemoryBlockWriter::~StaticMemoryBlockWriter()
+    {
     }
 
     inline int32_t read(ReaderI* _reader, void* _data, int32_t _size)

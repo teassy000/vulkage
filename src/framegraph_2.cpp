@@ -13,6 +13,11 @@
 
 namespace vkz
 {
+
+    Framegraph2::~Framegraph2()
+    {
+    }
+
     void Framegraph2::bake()
     {
         // prepare
@@ -184,7 +189,6 @@ namespace vkz
         return idx;
     }
 
-
     void Framegraph2::setBrief(MemoryReader& _reader)
     {
         FrameGraphBrief brief;
@@ -195,6 +199,16 @@ namespace vkz
         m_img_info.resize(brief.imgNum);
     }
 
+
+    void Framegraph2::registerShader(MemoryReader& _reader)
+    {
+        // temporarily do nothing
+    }
+
+    void Framegraph2::registerProgram(MemoryReader& _reader)
+    {
+        // temporarily do nothing
+    }
 
     void Framegraph2::registerPass(MemoryReader& _reader)
     {
@@ -543,17 +557,15 @@ namespace vkz
             const PassInDependLevel& passDep = m_passIdxInDpLevels[passIdx];
 
             // iterate each level
-            for (uint16_t ii = 0; ii < passDep.passInLv.size(); ++ii)
+            for (const auto & passInCurrLv : passDep.passInLv)
             {
                 // iterate each pass in current level
-                for (uint16_t jj = 0; jj < passDep.passInLv[ii].size(); ++jj)
+                for (uint16_t pIdx : passInCurrLv)
                 {
-                    const uint16_t inPassInCurrLevel = passDep.passInLv[ii][jj];
-
                     // check if pass in m_passIdxInDLevels can match with m_passIdxInQueue
                     for (uint16_t qIdx = 0; qIdx < m_passIdxInQueue.size(); ++qIdx)
                     {
-                        const uint16_t idx = getIndex(m_passIdxInQueue[qIdx], inPassInCurrLevel);
+                        const uint16_t idx = getIndex(m_passIdxInQueue[qIdx], pIdx);
 
                         bool isMatch = 
                                (kInvalidIndex == m_nearestSyncPassIdx[passIdx][qIdx]) // not set yet
@@ -561,7 +573,7 @@ namespace vkz
 
                         // only first met would set the value
                         if ( isMatch) {
-                            m_nearestSyncPassIdx[passIdx][qIdx] = inPassInCurrLevel;
+                            m_nearestSyncPassIdx[passIdx][qIdx] = pIdx;
                             break;
                         }
                     }

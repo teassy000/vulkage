@@ -20,6 +20,9 @@ namespace vkz
 
             switch (magic)
             {
+            case ResCreatorOpMagic::Init:
+                init(reader);
+                break;
             case ResCreatorOpMagic::CreatePass:
                 createPass(reader);
                 break;

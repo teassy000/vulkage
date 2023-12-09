@@ -203,6 +203,7 @@
     <ClCompile Include="framegraph_2.cpp" />
     <ClCompile Include="mesh.cpp" />
     <ClCompile Include="res_creator.cpp" />
+    <ClCompile Include="shader_manager.cpp" />
     <ClCompile Include="vk_resource.cpp" />
     <ClCompile Include="vk_res_creator.cpp" />
     <ClCompile Include="scene.cpp" />
@@ -213,6 +214,7 @@
     <ClCompile Include="shaders.cpp" />
     <ClCompile Include="swapchain.cpp" />
     <ClCompile Include="ui.cpp" />
+    <ClCompile Include="vk_shaders.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\externs\fast_obj\fast_obj.h" />
@@ -246,6 +248,7 @@
     <ClInclude Include="framegraph.h" />
     <ClInclude Include="name.h" />
     <ClInclude Include="res_creator.h" />
+    <ClInclude Include="shader_manager.h" />
     <ClInclude Include="vk_resource.h" />
     <ClInclude Include="vk_res_creator.h" />
     <ClInclude Include="scene.h" />
@@ -257,6 +260,7 @@
     <ClInclude Include="swapchain.h" />
     <ClInclude Include="ui.h" />
     <ClInclude Include="vkz.h" />
+    <ClInclude Include="vk_shaders.h" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="shaders\meshlet.mesh.glsl">

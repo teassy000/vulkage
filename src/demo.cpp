@@ -6,9 +6,9 @@ void right()
 
     vkz::ImageDesc colorDesc;
     colorDesc.format = vkz::TextureFormat::RGBA8S;
-    colorDesc.x = 1024;
-    colorDesc.y = 1024;
-    colorDesc.z = 1;
+    colorDesc.width = 1024;
+    colorDesc.height = 1024;
+    colorDesc.depth = 1;
     colorDesc.layers = 1;
     colorDesc.mips = 1;
     vkz::RenderTargetHandle color = vkz::registRenderTarget("color", colorDesc);
@@ -16,9 +16,9 @@ void right()
 
     vkz::ImageDesc depthDesc;
     depthDesc.format = vkz::TextureFormat::D32;
-    depthDesc.x = 1024;
-    depthDesc.y = 1024;
-    depthDesc.z = 1;
+    depthDesc.width = 1024;
+    depthDesc.height = 1024;
+    depthDesc.depth = 1;
     depthDesc.layers = 1;
     depthDesc.mips = 1;
     vkz::DepthStencilHandle depth = vkz::registDepthStencil("depth", depthDesc);
@@ -26,9 +26,9 @@ void right()
 
     vkz::ImageDesc outputDesc;
     outputDesc.format = vkz::TextureFormat::RGBA8S;
-    outputDesc.x = 1024;
-    outputDesc.y = 1024;
-    outputDesc.z = 1;
+    outputDesc.width = 1024;
+    outputDesc.height = 1024;
+    outputDesc.depth = 1;
     outputDesc.layers = 1;
     outputDesc.mips = 1;
     vkz::RenderTargetHandle output = vkz::registRenderTarget("output", outputDesc);
@@ -36,9 +36,9 @@ void right()
 
     vkz::ImageDesc pyramidDesc;
     pyramidDesc.format = vkz::TextureFormat::R32;
-    pyramidDesc.x = 1024;
-    pyramidDesc.y = 1024;
-    pyramidDesc.z = 1;
+    pyramidDesc.width = 1024;
+    pyramidDesc.height = 1024;
+    pyramidDesc.depth = 1;
     pyramidDesc.layers = 1;
     pyramidDesc.mips = 8;
     vkz::TextureHandle pyramid = vkz::registTexture("pyramid", pyramidDesc);
@@ -102,34 +102,34 @@ void right()
 
     // set resource for passes
     // cull_a
-    vkz::readTextures(cull_a, { pyramid_lastFrame });
-    vkz::readBuffers(cull_a, { mltBuf, mvisLastFrame });
-    vkz::writeBuffers(cull_a, { cmdBuf , mvisBuf });
+    vkz::passReadTextures(cull_a, { pyramid_lastFrame });
+    vkz::passReadBuffers(cull_a, { mltBuf, mvisLastFrame });
+    vkz::passWriteBuffers(cull_a, { cmdBuf , mvisBuf });
 
     // draw_a
-    vkz::readBuffers(draw_a, { cmdBuf });
-    vkz::readTextures(draw_a, { pyramid_lastFrame });
-    vkz::writeRenderTargets(draw_a, { color });
-    vkz::writeDepthStencils(draw_a, { depth });
+    vkz::passReadBuffers(draw_a, { cmdBuf });
+    vkz::passReadTextures(draw_a, { pyramid_lastFrame });
+    vkz::passWriteRTs(draw_a, { color });
+    vkz::passWriteDSs(draw_a, { depth });
 
     // pyramid
-    vkz::readDepthStencils(py_pass, { depth });
-    vkz::writeTextures(py_pass, { pyramid });
+    vkz::passReadDSs(py_pass, { depth });
+    vkz::passWriteTextures(py_pass, { pyramid });
 
     // cull_b
-    vkz::readTextures(cull_b, { pyramid });
-    vkz::readBuffers(cull_b, { mltBuf, mvisBuf });
-    vkz::writeBuffers(cull_b, { cmdBuf_late , mvisLate});
+    vkz::passReadTextures(cull_b, { pyramid });
+    vkz::passReadBuffers(cull_b, { mltBuf, mvisBuf });
+    vkz::passWriteBuffers(cull_b, { cmdBuf_late , mvisLate});
 
     // draw_b
-    vkz::readBuffers(draw_b, { cmdBuf_late });
-    vkz::readTextures(draw_b, { pyramid });
-    vkz::writeRenderTargets(draw_b, { color_late });
-    vkz::writeDepthStencils(draw_b, { depth_late });
+    vkz::passReadBuffers(draw_b, { cmdBuf_late });
+    vkz::passReadTextures(draw_b, { pyramid });
+    vkz::passWriteRTs(draw_b, { color_late });
+    vkz::passWriteDSs(draw_b, { depth_late });
 
     // output
-    vkz::readRenderTargets(out_pass, { color_late });
-    vkz::writeRenderTargets(out_pass, { output });
+    vkz::passReadRTs(out_pass, { color_late });
+    vkz::passWriteRTs(out_pass, { output });
 
     vkz::update();
 
@@ -140,44 +140,38 @@ void wrong()
 {
     vkz::init();
 
-    const vkz::Memory* mem = vkz::alloc(1024 * 1024 * 1024);
-    // TODO: load shader data here
-    // ...
-
-    vkz::ShaderHandle sha = vkz::registShader("sha", mem);
-
     vkz::ImageDesc colorDesc;
     colorDesc.format = vkz::TextureFormat::RGBA8S;
-    colorDesc.x = 1024;
-    colorDesc.y = 1024;
-    colorDesc.z = 1;
+    colorDesc.width = 1024;
+    colorDesc.height = 1024;
+    colorDesc.depth = 1;
     colorDesc.layers = 1;
     colorDesc.mips = 1;
     vkz::RenderTargetHandle color = vkz::registRenderTarget("color", colorDesc);
 
     vkz::ImageDesc depthDesc;
     depthDesc.format = vkz::TextureFormat::D32;
-    depthDesc.x = 1024;
-    depthDesc.y = 1024;
-    depthDesc.z = 1;
+    depthDesc.width = 1024;
+    depthDesc.height = 1024;
+    depthDesc.depth = 1;
     depthDesc.layers = 1;
     depthDesc.mips = 1;
     vkz::DepthStencilHandle depth = vkz::registDepthStencil("depth", depthDesc);
 
     vkz::ImageDesc outputDesc;
     outputDesc.format = vkz::TextureFormat::RGBA8S;
-    outputDesc.x = 1024;
-    outputDesc.y = 1024;
-    outputDesc.z = 1;
+    outputDesc.width = 1024;
+    outputDesc.height = 1024;
+    outputDesc.depth = 1;
     outputDesc.layers = 1;
     outputDesc.mips = 1;
     vkz::RenderTargetHandle output = vkz::registRenderTarget("output", outputDesc);
 
     vkz::ImageDesc pyramidDesc;
     pyramidDesc.format = vkz::TextureFormat::D32;
-    pyramidDesc.x = 1024;
-    pyramidDesc.y = 1024;
-    pyramidDesc.z = 1;
+    pyramidDesc.width = 1024;
+    pyramidDesc.height = 1024;
+    pyramidDesc.depth = 1;
     pyramidDesc.layers = 1;
     pyramidDesc.mips = 8;
     vkz::TextureHandle pyramid = vkz::registTexture("pyramid", pyramidDesc);
@@ -228,33 +222,33 @@ void wrong()
 
     // set resource for passes
     // cull_a
-    vkz::readTextures(cull_a, { pyramid });
-    vkz::readBuffers(cull_a, { mltBuf });
-    vkz::writeBuffers(cull_a, { cmdBuf });
+    vkz::passReadTextures(cull_a, { pyramid });
+    vkz::passReadBuffers(cull_a, { mltBuf });
+    vkz::passWriteBuffers(cull_a, { cmdBuf });
 
     // draw_a
-    vkz::readBuffers(draw_a, { cmdBuf, idxBuf, vtxBuf });
-    vkz::writeRenderTargets(draw_a, { color });
-    vkz::writeDepthStencils(draw_a, { depth });
+    vkz::passReadBuffers(draw_a, { cmdBuf, idxBuf, vtxBuf });
+    vkz::passWriteRTs(draw_a, { color });
+    vkz::passWriteDSs(draw_a, { depth });
 
     // pyramid
-    vkz::readDepthStencils(py_pass, { depth });
-    vkz::writeTextures(py_pass, { pyramid });
+    vkz::passReadDSs(py_pass, { depth });
+    vkz::passWriteTextures(py_pass, { pyramid });
 
     // cull_b
-    vkz::readTextures(cull_b, { pyramid });
-    vkz::readBuffers(cull_b, { mltBuf });
-    vkz::writeBuffers(cull_b, { cmdBuf });
+    vkz::passReadTextures(cull_b, { pyramid });
+    vkz::passReadBuffers(cull_b, { mltBuf });
+    vkz::passWriteBuffers(cull_b, { cmdBuf });
 
     // draw_b
-    vkz::readBuffers(draw_b, { cmdBuf, idxBuf, vtxBuf });
-    vkz::readTextures(draw_b, { pyramid });
-    vkz::writeRenderTargets(draw_b, { color });
-    vkz::writeDepthStencils(draw_b, { depth });
+    vkz::passReadBuffers(draw_b, { cmdBuf, idxBuf, vtxBuf });
+    vkz::passReadTextures(draw_b, { pyramid });
+    vkz::passWriteRTs(draw_b, { color });
+    vkz::passWriteDSs(draw_b, { depth });
 
     // output
-    vkz::readRenderTargets(out_pass, { color });
-    vkz::writeRenderTargets(out_pass, { output });
+    vkz::passReadRTs(out_pass, { color });
+    vkz::passWriteRTs(out_pass, { output });
 
 
     vkz::update();
@@ -263,7 +257,42 @@ void wrong()
     vkz::shutdown();
 }
 
+void colorScreen()
+{
+    vkz::init();
+
+    vkz::ImageDesc rt;
+    rt.format = vkz::TextureFormat::RGBA8S;
+    rt.width = 1024;
+    rt.height = 1024;
+    rt.depth = 1;
+    rt.layers = 1;
+    rt.mips = 1;
+    vkz::RenderTargetHandle color = vkz::registRenderTarget("color", rt);
+
+    vkz::PassDesc result;
+    result.queue = vkz::PassExeQueue::Graphics;
+    vkz::PassHandle pass = vkz::registPass("result", result);
+
+    // TODO:
+    // set r/w resources
+    // set shaders/program
+    // set vertex/index buffer ( if has
+    // set viewport/scissor
+
+
+
+    vkz::passWriteRTs(pass, { color });
+
+
+    vkz::setResultRenderTarget(color);
+
+    vkz::update();
+
+    vkz::shutdown();
+}
+
 void DemoMain()
 {
-    right();
+    colorScreen();
 }

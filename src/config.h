@@ -14,3 +14,5 @@ constexpr unsigned int kMaxNumOfBufferHandle = 1024;
 constexpr unsigned int kMaxNumOfSamplerHandle = 1024;
 
 constexpr unsigned int kInitialFrameGraphMemSize = 16 * 1024; // 16k
+
+constexpr unsigned int kMaxPathLen = 256;

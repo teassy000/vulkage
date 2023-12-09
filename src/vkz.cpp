@@ -13,21 +13,21 @@
 
 namespace vkz
 {
-
     static AllocatorI* s_allocator = nullptr;
 
     static AllocatorI* getAllocator()
     {
         if (s_allocator == nullptr)
         {
-            s_allocator = new DefaultAllocator();
+            DefaultAllocator allocator;
+            s_allocator = VKZ_NEW(&allocator, DefaultAllocator);
         }
         return s_allocator;
     }
 
     static void shutdownAllocator()
     {
-        VKZ_DELETE_ARRAY(s_allocator);
+        deleteObject(getAllocator(), s_allocator);
     }
 
     uint16_t getBytesPerPixel(TextureFormat format)
@@ -101,13 +101,40 @@ namespace vkz
         }
     }
 
+    struct MemoryRef
+    {
+        Memory mem;
+        ReleaseFn releaseFn;
+        void* userData;
+    };
+
+    bool isMemoryRef(const Memory* _mem)
+    {
+        return _mem->data != (uint8_t*)_mem + sizeof(Memory);
+    }
+
+    void release(const Memory* _mem)
+    {
+        assert(nullptr != _mem);
+        Memory* mem = const_cast<Memory*>(_mem);
+        if (isMemoryRef(mem))
+        {
+            MemoryRef* memRef = reinterpret_cast<MemoryRef*>(mem);
+            if (nullptr != memRef->releaseFn)
+            {
+                memRef->releaseFn(mem->data, memRef->userData);
+            }
+        }
+        vkz::free(getAllocator(), mem);
+    }
+
     struct Context
     {
         // Context API
-        ShaderHandle registShader(const char* _name, const Memory* code);
-        ProgramHandle registProgram(const char* _name, ShaderHandleList shaders);
-        PipelineHandle registPipeline(const char* _name, ProgramHandle program);
-        PassHandle registPass(const char* _name, PassDesc _desc);
+        ShaderHandle registShader(const char* _name, const char* _path);
+        ProgramHandle registProgram(const char* _name, const Memory* _shaders, const uint16_t _shaderCount, const uint32_t _sizePushConstants = 0);
+
+        PassHandle registPass(const char* _name, const PassDesc& _desc);
 
         BufferHandle registBuffer(const char* _name, BufferDesc _desc);
         TextureHandle registTexture(const char* _name, ImageDesc _desc);
@@ -115,9 +142,11 @@ namespace vkz
         DepthStencilHandle registDepthStencil(const char* _name, ImageDesc _desc);
 
         uint16_t aliasAlloc(MagicTag _tag);
-        void aliasResrouce(uint16_t** _aliases, const uint16_t _aliasCount, const uint16_t _baseRes, MagicTag _tag);
-        void readwriteResource(const uint16_t _pass, const uint16_t* _reses, const uint16_t _resCount, MagicTag _tag);
 
+        void aliasResrouce(const Memory* _outMem, const uint16_t _aliasCount, const uint16_t _baseRes, MagicTag _tag);
+        void readwriteResource(const uint16_t _pass, const Memory* _reses, const uint16_t _resCount, MagicTag _tag);
+
+        void setMultiFrameResource(const Memory* _mem, const uint16_t _resCount, MagicTag _tag);
         void setMutiFrameResource(const uint16_t* _reses, const uint16_t _resCount, MagicTag _tag); // do not alias atomically
         void setResultRenderTarget(RenderTargetHandle _rt);
 
@@ -151,36 +180,40 @@ namespace vkz
         AllocatorI* m_allocator = nullptr;
     };
 
-    vkz::ShaderHandle Context::registShader(const char* _name, const Memory* _mem)
+    ShaderHandle Context::registShader(const char* _name, const char* _path)
     {
         uint16_t idx = m_shaderHandles.alloc();
-
-        ShaderHandle handle = ShaderHandle{ idx };
         
-        // TODO: backup resources info
-        // maybe in resource manager, setup those data first, and try to allocate resources after frame graph processed
+        MagicTag magic{ MagicTag::RegisterShader };
+        write(m_fgMemWriter, magic);
 
-        return handle;
+        int32_t len = (int32_t)strnlen_s(_path, kMaxPathLen);
+
+        write(m_fgMemWriter, len);
+        write(m_fgMemWriter, (void*)_path, len);
+
+        return ShaderHandle{ idx };
     }
 
-    ProgramHandle Context::registProgram(const char* _name, ShaderHandleList _shaders)
+    vkz::ProgramHandle Context::registProgram(const char* _name, const Memory* _shaders, const uint16_t _shaderCount, const uint32_t _sizePushConstants /*= 0*/)
     {
         uint16_t idx = m_programHandles.alloc();
 
-        ProgramHandle handle = ProgramHandle{ idx };
+        // magic tag
+        MagicTag magic{ MagicTag::RegisterProgram };
+        write(m_fgMemWriter, magic);
 
-        return handle;
+        // push constants size
+        write(m_fgMemWriter, _sizePushConstants);
+
+        // shader indexes
+        write(m_fgMemWriter, _shaderCount);
+        write(m_fgMemWriter, _shaders->data, _shaders->size);
+
+        return ProgramHandle{ idx };
     }
 
-    PipelineHandle Context::registPipeline(const char* _name, ProgramHandle _prog)
-    {
-        uint16_t idx = m_passHandles.alloc();
-
-        PipelineHandle handle = PipelineHandle{ idx };
-        return handle;
-    }
-
-    PassHandle Context::registPass(const char* _name, PassDesc _desc)
+    PassHandle Context::registPass(const char* _name, const PassDesc& _desc)
     {
         uint16_t idx = m_passHandles.alloc();
         PassHandle handle = PassHandle{ idx };
@@ -193,7 +226,11 @@ namespace vkz
         }
 
         PassDesc& desc = m_passDescs[idx];
-        desc = _desc;
+        desc.program = _desc.program;
+        desc.queue = _desc.queue;
+        desc.pipelineConfig = _desc.pipelineConfig;
+        desc.vertexAttributeNum = _desc.vertexAttributeNum;
+        desc.vertexBindingNum = _desc.vertexBindingNum;
 
         // frame graph data
         uint32_t magic = static_cast<uint32_t>(MagicTag::RegisterPass);
@@ -202,7 +239,15 @@ namespace vkz
         PassRegisterInfo info;
         info.idx = idx;
         info.queue = _desc.queue;
+        info.vtxBindingNum = _desc.vertexBindingNum;
+        info.vtxAttributeNum = _desc.vertexAttributeNum;
+        info.pipelineConfig = _desc.pipelineConfig;
+
         write(m_fgMemWriter, info);
+
+        // TODO: iterate the vertex binding and attribute, store the index then
+
+        
 
         return handle;
     }
@@ -260,9 +305,9 @@ namespace vkz
 
         ImgRegisterInfo info;
         info.idx = idx;
-        info.x = _desc.x;
-        info.y = _desc.y;
-        info.z = _desc.z;
+        info.x = _desc.width;
+        info.y = _desc.height;
+        info.z = _desc.depth;
         info.mips = _desc.mips;
         info.format = static_cast<uint16_t>(_desc.format);
         info.usage = static_cast<uint16_t>(_desc.usage);
@@ -302,9 +347,9 @@ namespace vkz
 
         ImgRegisterInfo info;
         info.idx = idx;
-        info.x = _desc.x;
-        info.y = _desc.y;
-        info.z = _desc.z;
+        info.x = _desc.width;
+        info.y = _desc.height;
+        info.z = _desc.depth;
         info.mips = _desc.mips;
         info.format = static_cast<uint16_t>(_desc.format);
         info.usage = static_cast<uint16_t>(_desc.usage);
@@ -344,9 +389,9 @@ namespace vkz
 
         ImgRegisterInfo info;
         info.idx = idx;
-        info.x = _desc.x;
-        info.y = _desc.y;
-        info.z = _desc.z;
+        info.x = _desc.width;
+        info.y = _desc.height;
+        info.z = _desc.depth;
         info.mips = _desc.mips;
         info.format = static_cast<uint16_t>(_desc.format);
         info.usage = static_cast<uint16_t>(_desc.usage);
@@ -383,16 +428,19 @@ namespace vkz
         return kInvalidHandle;
     }
 
-    void Context::aliasResrouce(uint16_t** _aliases, const uint16_t _aliasCount, const uint16_t _baseRes, MagicTag _tag)
+    void Context::aliasResrouce(const Memory* _outMem, const uint16_t _aliasCount, const uint16_t _baseRes, MagicTag _tag)
     {
         assert(_aliasCount > 0 && _aliasCount < kMaxNumOfBufferHandle);
+        assert(_outMem != nullptr);
+
+        StaticMemoryBlockWriter outWriter(_outMem->data, _outMem->size);
 
         for (uint16_t ii = 0; ii < _aliasCount; ++ii)
         {
             uint16_t idx = aliasAlloc(_tag);
 
             assert(idx != kInvalidHandle);
-            *_aliases[ii] = idx;
+            write(&outWriter, idx);
         }
 
         uint32_t magic = static_cast<uint32_t>(_tag);
@@ -403,10 +451,10 @@ namespace vkz
         info.aliasNum = _aliasCount;
         write(m_fgMemWriter, info);
 
-        write(m_fgMemWriter, *_aliases, sizeof(uint16_t) * _aliasCount);
+        write(m_fgMemWriter, (void*)_outMem->data, sizeof(uint16_t) * _aliasCount);
     }
 
-    void Context::readwriteResource(const uint16_t _pass, const uint16_t* _reses, const uint16_t _resCount, MagicTag _tag)
+    void Context::readwriteResource(const uint16_t _pass, const Memory* _reses, const uint16_t _resCount, MagicTag _tag)
     {
         uint32_t magic = static_cast<uint32_t>(_tag);
         write(m_fgMemWriter, magic);
@@ -415,8 +463,18 @@ namespace vkz
         info.pass = _pass;
         info.resNum = _resCount;
         write(m_fgMemWriter, info);
+        write(m_fgMemWriter, _reses->data, _reses->size);
+    }
 
-        write(m_fgMemWriter, _reses, sizeof(uint16_t) * _resCount);
+    void Context::setMultiFrameResource(const Memory* _mem, const uint16_t _resCount, MagicTag _tag)
+    {
+        assert(_mem != nullptr);
+        assert(_mem->size == sizeof(uint16_t) * _resCount);
+
+        uint32_t magic = static_cast<uint32_t>(_tag);
+        write(m_fgMemWriter, magic);
+        write(m_fgMemWriter, _resCount);
+        write(m_fgMemWriter, (void*)_mem->data, _mem->size);
     }
 
     void Context::setMutiFrameResource(const uint16_t* _reses, const uint16_t _resCount, MagicTag _tag)
@@ -442,11 +500,11 @@ namespace vkz
     void Context::init()
     {
         m_allocator = getAllocator();
-        m_fgMemBlock = new MemoryBlock(m_allocator);
+        m_fgMemBlock = VKZ_NEW(getAllocator(), MemoryBlock(m_allocator));
         m_fgMemBlock->expand(kInitialFrameGraphMemSize);
-        m_fgMemWriter = new MemoryWriter((void*)(m_fgMemBlock->expand(0)), m_fgMemBlock->size());
+        m_fgMemWriter = VKZ_NEW(getAllocator(), MemoryWriter(m_fgMemBlock));
 
-        m_frameGraph = new Framegraph2();
+        m_frameGraph = VKZ_NEW(getAllocator(), Framegraph2(getAllocator()));
 
         uint32_t magic = static_cast<uint32_t>(MagicTag::SetBrief);
         write(m_fgMemWriter, magic);
@@ -497,19 +555,25 @@ namespace vkz
     // ================================================
     static Context* s_ctx = nullptr;
 
-    vkz::ShaderHandle registShader(const char* _name, const Memory* _mem)
+
+    vkz::ShaderHandle registShader(const char* _name, const char* _path)
     {
-        return s_ctx->registShader(_name, _mem);
+        return s_ctx->registShader(_name, _path);
     }
 
-    ProgramHandle registProgram(const char* _name, ShaderHandleList _shaders)
+    vkz::ProgramHandle registProgram(const char* _name, ShaderHandleList _shaders, const uint32_t _sizePushConstants /*= 0*/)
     {
-        return s_ctx->registProgram(_name, _shaders);
-    }
+        const uint16_t size = static_cast<const uint16_t>(_shaders.size());
+        const Memory* mem = alloc(size * sizeof(uint16_t));
 
-    PipelineHandle registPipeline(const char* _name, ProgramHandle _program)
-    {
-        return s_ctx->registPipeline(_name, _program);
+        StaticMemoryBlockWriter writer(mem->data, mem->size);
+        for (uint16_t ii = 0; ii < size; ++ii)
+        {
+            const ShaderHandle& handle = begin(_shaders)[ii];
+            write(&writer, handle.idx);
+        }
+
+        return s_ctx->registProgram(_name, mem, size);
     }
 
     vkz::BufferHandle registBuffer(const char* _name, const BufferDesc& _desc)
@@ -537,60 +601,59 @@ namespace vkz
         return s_ctx->registPass(_name, _desc);
     }
 
-    void aliasBuffer(BufferHandle** _aliases, const uint16_t _aliasCount, const BufferHandle _buf)
+    void aliasBuffer(BufferHandle** _aliases, const uint16_t _aliasCount, const BufferHandle _base)
     {
-        uint16_t* aliases = new uint16_t[_aliasCount];
-
-        s_ctx->aliasResrouce(&aliases, _aliasCount, _buf.idx, MagicTag::AliasBuffer);
+        const Memory* mem = alloc(_aliasCount * sizeof(uint16_t));
+        
+        s_ctx->aliasResrouce(mem, _aliasCount, _base.idx, MagicTag::AliasBuffer);
         
         for (uint16_t ii = 0; ii < _aliasCount; ++ii)
         {
-            (*_aliases[ii]).idx = aliases[ii];
+            (*_aliases[ii]).idx = mem->data[ii];
         }
 
-        VKZ_DELETE_ARRAY(aliases);
+        release(mem);
     }
 
-    void aliasTexture(TextureHandle** _aliases, const uint16_t _aliasCount, const TextureHandle _tex)
+    void aliasTexture(TextureHandle** _aliases, const uint16_t _aliasCount, const TextureHandle _base)
     {
-        uint16_t* aliases = new uint16_t[_aliasCount];
+        const Memory* mem = alloc(_aliasCount * sizeof(uint16_t));
 
-        s_ctx->aliasResrouce(&aliases, _aliasCount, _tex.idx, MagicTag::AliasTexture);
+        s_ctx->aliasResrouce(mem, _aliasCount, _base.idx, MagicTag::AliasTexture);
 
         for (uint16_t ii = 0; ii < _aliasCount; ++ii)
         {
-            (*_aliases[ii]).idx = aliases[ii];
+            (*_aliases[ii]).idx = mem->data[ii];
         }
 
-        VKZ_DELETE_ARRAY(aliases);
+        release(mem);
     }
 
-    void aliasRenderTarget(RenderTargetHandle** _aliases, const uint16_t _aliasCount, const RenderTargetHandle _rt)
+    void aliasRenderTarget(RenderTargetHandle** _aliases, const uint16_t _aliasCount, const RenderTargetHandle _base)
     {
-        uint16_t* aliases = new uint16_t[_aliasCount];
+        const Memory* mem = alloc(_aliasCount * sizeof(uint16_t));
 
-        s_ctx->aliasResrouce(&aliases, _aliasCount, _rt.idx, MagicTag::AliasRenderTarget);
+        s_ctx->aliasResrouce(mem, _aliasCount, _base.idx, MagicTag::AliasRenderTarget);
 
         for (uint16_t ii = 0; ii < _aliasCount; ++ii)
         {
-            (*_aliases[ii]).idx = aliases[ii];
+            (*_aliases[ii]).idx = mem->data[ii];
         }
 
-        VKZ_DELETE_ARRAY(aliases);
+        release(mem);
     }
 
-    void aliasDepthStencil(DepthStencilHandle** _aliases, const uint16_t _aliasCount, const DepthStencilHandle _ds)
+    void aliasDepthStencil(DepthStencilHandle** _aliases, const uint16_t _aliasCount, const DepthStencilHandle _base)
     {
-        uint16_t* aliases = new uint16_t[_aliasCount];
-
-        s_ctx->aliasResrouce(&aliases, _aliasCount, _ds.idx, MagicTag::AliasDepthStencil);
+        const Memory* mem = alloc(_aliasCount * sizeof(uint16_t));
+        s_ctx->aliasResrouce(mem, _aliasCount, _base.idx, MagicTag::AliasDepthStencil);
 
         for (uint16_t ii = 0; ii < _aliasCount; ++ii)
         {
-            (*_aliases[ii]).idx = aliases[ii];
+            (*_aliases[ii]).idx = mem->data[ii];
         }
 
-        VKZ_DELETE_ARRAY(aliases);
+        release(mem);
     }
 
     BufferHandle aliasBuffer(const BufferHandle _handle)
@@ -640,188 +703,212 @@ namespace vkz
         return ret;
     }
 
-    void writeBuffers(PassHandle _pass, BufferHandleList _resList)
+    void passWriteBuffers(PassHandle _pass, BufferHandleList _resList)
     {
         const uint16_t size = static_cast<const uint16_t>(_resList.size());
-        uint16_t* reses = new uint16_t[size];
+        const Memory* mem = alloc(size * sizeof(uint16_t));
 
+        StaticMemoryBlockWriter writer(mem->data, mem->size);
         for (uint16_t ii = 0; ii < size; ++ii)
         {
             const BufferHandle& handle = begin(_resList)[ii];
-            reses[ii] = handle.idx;
+            write(&writer, handle.idx);
         }
 
-        s_ctx->readwriteResource(_pass.idx, reses, size, MagicTag::PassWriteBuffer);
+        s_ctx->readwriteResource(_pass.idx, mem, size, MagicTag::PassWriteBuffer);
 
-        VKZ_DELETE_ARRAY(reses);
+        release(mem);
     }
 
-    void readBuffers(PassHandle _pass, BufferHandleList _resList)
+    void passReadBuffers(PassHandle _pass, BufferHandleList _resList)
     {
         const uint16_t size = static_cast<const uint16_t>(_resList.size());
-        uint16_t* reses = new uint16_t[size];
+        const Memory* mem = alloc(size * sizeof(uint16_t));
 
+        StaticMemoryBlockWriter writer(mem->data, mem->size);
         for (uint16_t ii = 0; ii < size; ++ii)
         {
             const BufferHandle& handle = begin(_resList)[ii];
-            reses[ii] = handle.idx;
+            write(&writer, handle.idx);
         }
 
-        s_ctx->readwriteResource(_pass.idx, reses, size, MagicTag::PassReadBuffer);
+        s_ctx->readwriteResource(_pass.idx, mem, size, MagicTag::PassReadBuffer);
 
-        VKZ_DELETE_ARRAY(reses);
+        release(mem);
     }
 
-    void writeTextures(PassHandle _pass, TextureHandleList _resList)
+    void passWriteTextures(PassHandle _pass, TextureHandleList _resList)
     {
         const uint16_t size = static_cast<const uint16_t>(_resList.size());
-        uint16_t* reses = new uint16_t[size];
+        const Memory* mem = alloc(size * sizeof(uint16_t));
 
+        StaticMemoryBlockWriter writer(mem->data, mem->size);
         for (uint16_t ii = 0; ii < size; ++ii)
         {
             const TextureHandle& handle = begin(_resList)[ii];
-            reses[ii] = handle.idx;
+            write(&writer, handle.idx);
         }
 
-        s_ctx->readwriteResource(_pass.idx, reses, size, MagicTag::PassWriteTexture);
+        s_ctx->readwriteResource(_pass.idx, mem, size, MagicTag::PassWriteTexture);
 
-        VKZ_DELETE_ARRAY(reses);
+        release(mem);
     }
 
-    void readTextures(PassHandle _pass, TextureHandleList _resList)
+    void passReadTextures(PassHandle _pass, TextureHandleList _resList)
     {
         const uint16_t size = static_cast<const uint16_t>(_resList.size());
-        uint16_t* reses = new uint16_t[size];
+        const Memory* mem = alloc(size * sizeof(uint16_t));
 
+        StaticMemoryBlockWriter writer(mem->data, mem->size);
         for (uint16_t ii = 0; ii < size; ++ii)
         {
             const TextureHandle& handle = begin(_resList)[ii];
-            reses[ii] = handle.idx;
+            write(&writer, handle.idx);
         }
+        
+        s_ctx->readwriteResource(_pass.idx, mem, size, MagicTag::PassReadTexture);
 
-        s_ctx->readwriteResource(_pass.idx, reses, size, MagicTag::PassReadTexture);
-
-        VKZ_DELETE_ARRAY(reses);
+        release(mem);
     }
 
-    void writeRenderTargets(PassHandle _pass, RenderTargetHandleList _resList)
+    void passWriteRTs(PassHandle _pass, RenderTargetHandleList _resList)
     {
         const uint16_t size = static_cast<const uint16_t>(_resList.size());
-        uint16_t* reses = new uint16_t[size];
+        const Memory* mem = alloc(size * sizeof(uint16_t));
 
+        StaticMemoryBlockWriter writer(mem->data, mem->size);
         for (uint16_t ii = 0; ii < size; ++ii)
         {
             const RenderTargetHandle& handle = begin(_resList)[ii];
-            reses[ii] = handle.idx;
+            write(&writer, handle.idx);
         }
 
-        s_ctx->readwriteResource(_pass.idx, reses, size, MagicTag::PassWriteRenderTarget);
+        s_ctx->readwriteResource(_pass.idx, mem, size, MagicTag::PassWriteRenderTarget);
 
-        VKZ_DELETE_ARRAY(reses);
+        release(mem);
     }
 
-    void readRenderTargets(PassHandle _pass, RenderTargetHandleList _resList)
+    void passReadRTs(PassHandle _pass, RenderTargetHandleList _resList)
     {
         const uint16_t size = static_cast<const uint16_t>(_resList.size());
-        uint16_t* reses = new uint16_t[size];
+        const Memory* mem = alloc(size * sizeof(uint16_t));
 
+        StaticMemoryBlockWriter writer(mem->data, mem->size);
         for (uint16_t ii = 0; ii < size; ++ii)
         {
             const RenderTargetHandle& handle = begin(_resList)[ii];
-            reses[ii] = handle.idx;
+            write(&writer, handle.idx);
         }
 
-        s_ctx->readwriteResource(_pass.idx, reses, size, MagicTag::PassReadRenderTarget);
+        s_ctx->readwriteResource(_pass.idx, mem, size, MagicTag::PassReadRenderTarget);
 
-        VKZ_DELETE_ARRAY(reses);
+        release(mem);
     }
 
-    void writeDepthStencils(PassHandle _pass, DepthStencilHandleList _resList)
+    void passWriteDSs(PassHandle _pass, DepthStencilHandleList _resList)
     {
         const uint16_t size = static_cast<const uint16_t>(_resList.size());
-        uint16_t* reses = new uint16_t[size];
-
+        const Memory* mem = alloc(size * sizeof(uint16_t));
+        
+        StaticMemoryBlockWriter writer(mem->data, mem->size);
         for (uint16_t ii = 0; ii < size; ++ii)
         {
             const DepthStencilHandle& handle = begin(_resList)[ii];
-            reses[ii] = handle.idx;
+            write(&writer, handle.idx);
         }
 
-        s_ctx->readwriteResource(_pass.idx, reses, size, MagicTag::PassWriteDepthStencil);
+        s_ctx->readwriteResource(_pass.idx, mem, size, MagicTag::PassWriteDepthStencil);
 
-        VKZ_DELETE_ARRAY(reses);
+        release(mem);
     }
 
-    void readDepthStencils(PassHandle _pass, DepthStencilHandleList _resList)
+    void passReadDSs(PassHandle _pass, DepthStencilHandleList _resList)
     {
         const uint16_t size = static_cast<const uint16_t>(_resList.size());
-        uint16_t* reses = new uint16_t[size];
+        const Memory* mem = alloc(size * sizeof(uint16_t));
 
+        StaticMemoryBlockWriter writer(mem->data, mem->size);
         for (uint16_t ii = 0; ii < size; ++ii)
         {
             const DepthStencilHandle& handle = begin(_resList)[ii];
-            reses[ii] = handle.idx;
+            write(&writer, handle.idx);
         }
 
-        s_ctx->readwriteResource(_pass.idx, reses, size, MagicTag::PassReadDepthStencil);
+        s_ctx->readwriteResource(_pass.idx, mem, size, MagicTag::PassReadDepthStencil);
 
-        VKZ_DELETE_ARRAY(reses);
+        release(mem);
     }
 
     void setMultiFrameBuffer(BufferHandleList _resList)
     {
         const uint16_t size = static_cast<const uint16_t>(_resList.size());
-        uint16_t* reses = new uint16_t[size];
+
+        const Memory* mem = alloc((uint32_t)(_resList.size() * sizeof(uint16_t)));
+        StaticMemoryBlockWriter writer(mem->data, mem->size);
 
         for (uint16_t ii = 0; ii < size; ++ii)
         {
             const BufferHandle& handle = begin(_resList)[ii];
-            reses[ii] = handle.idx;
+            write(&writer, handle.idx);
         }
 
-        s_ctx->setMutiFrameResource(reses, size, MagicTag::SetMuitiFrameBuffer);
+        s_ctx->setMultiFrameResource(mem, size, MagicTag::SetMuitiFrameBuffer);
+
+        release(mem);
     }
 
     void setMultiFrameTexture(TextureHandleList _resList)
     {
         const uint16_t size = static_cast<const uint16_t>(_resList.size());
-        uint16_t* reses = new uint16_t[size];
+
+        const Memory* mem = alloc((uint32_t)(size * sizeof(uint16_t)));
+        StaticMemoryBlockWriter writer(mem->data, mem->size);
 
         for (uint16_t ii = 0; ii < size; ++ii)
         {
             const TextureHandle& handle = begin(_resList)[ii];
-            reses[ii] = handle.idx;
+            write(&writer, handle.idx);
         }
 
-        s_ctx->setMutiFrameResource(reses, size, MagicTag::SetMuitiFrameTexture);
+        s_ctx->setMultiFrameResource(mem, size, MagicTag::SetMuitiFrameTexture);
+
+        release(mem);
     }
 
     void setMultiFrameRenderTarget(RenderTargetHandleList _resList)
     {
         const uint16_t size = static_cast<const uint16_t>(_resList.size());
-        uint16_t* reses = new uint16_t[size];
+
+        const Memory* mem = alloc((uint32_t)(size * sizeof(uint16_t)));
+        StaticMemoryBlockWriter writer(mem->data, mem->size);
 
         for (uint16_t ii = 0; ii < size; ++ii)
         {
             const RenderTargetHandle& handle = begin(_resList)[ii];
-            reses[ii] = handle.idx;
+            write(&writer, handle.idx);
         }
 
-        s_ctx->setMutiFrameResource(reses, size, MagicTag::SetMultiFrameRenderTarget);
+        s_ctx->setMultiFrameResource(mem, size, MagicTag::SetMultiFrameRenderTarget);
+
+        release(mem);
     }
 
     void setMultiFrameDepthStencil(DepthStencilHandleList _resList)
     {
         const uint16_t size = static_cast<const uint16_t>(_resList.size());
-        uint16_t* reses = new uint16_t[size];
+
+        const Memory* mem = alloc((uint32_t)(size * sizeof(uint16_t)));
+        StaticMemoryBlockWriter writer(mem->data, mem->size);
 
         for (uint16_t ii = 0; ii < size; ++ii)
         {
             const DepthStencilHandle& handle = begin(_resList)[ii];
-            reses[ii] = handle.idx;
+            write(&writer, handle.idx);
         }
 
-        s_ctx->setMutiFrameResource(reses, size, MagicTag::SetMultiFrameDepthStencil);
+        s_ctx->setMultiFrameResource(mem, size, MagicTag::SetMultiFrameDepthStencil);
+
+        release(mem);
     }
 
     void setResultRenderTarget(RenderTargetHandle _rt)
@@ -859,13 +946,6 @@ namespace vkz
         return copy(_mem->data, _mem->size);
     }
 
-    struct MemoryRef
-    {
-        Memory mem;
-        ReleaseFn releaseFn;
-        void* userData;
-    };
-
     const Memory* makeRef(const void* _data, uint32_t _sz, ReleaseFn _releaseFn /*= nullptr*/, void* _userData /*= nullptr*/)
     {
         MemoryRef* memRef = (MemoryRef*)vkz::alloc(getAllocator(), sizeof(MemoryRef));
@@ -879,7 +959,7 @@ namespace vkz
     // main data here
     bool init()
     {
-        s_ctx = new Context();
+        s_ctx = VKZ_NEW(getAllocator(), Context);
         s_ctx->init();
 
         return true;
@@ -894,6 +974,6 @@ namespace vkz
     {
         shutdownAllocator();
 
-        VKZ_DELETE(s_ctx);
+        deleteObject(getAllocator(), s_ctx);
     }
 }

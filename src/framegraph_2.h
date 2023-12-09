@@ -12,6 +12,9 @@ namespace vkz
 
         SetBrief,
 
+        RegisterShader,
+        RegisterProgram,
+
         RegisterPass,
         RegisterBuffer,
         RegisterTexture,
@@ -61,8 +64,18 @@ namespace vkz
     // Register Info
     struct PassRegisterInfo
     {
-        uint16_t     idx;
+        uint16_t    idx;
+        
         PassExeQueue queue;
+
+        // bind pass with pipeline, thus implicitly bind with program
+        uint16_t    programId;
+        uint16_t    vtxBindingNum;
+        uint16_t    vtxAttributeNum;
+        PipelineConfig pipelineConfig;
+
+        // pipeline rendering create info
+        // write depth stencil format, color attachment format, and count
     };
 
     struct FGBarrierState
@@ -111,38 +124,32 @@ namespace vkz
         uint16_t    aliasNum;
     };
 
-    struct PassRenderData
+    class Framegraph2;
+    class RenderPass2
     {
-        uint16_t        _idx;
-        PassExeQueue _queue{ PassExeQueue::Graphics };
-        std::vector<uint32_t> _resources;
-        
-        // constants
-
-        // resource state in current pass
-        std::unordered_map<uint32_t, FGBarrierState>     _resourceState;
-        // optimal pass to sync with, no redundant sync
-        std::vector<uint32_t>                            _passToSync; 
-
-        std::vector<uint32_t>         _parentPassIDs;
-        std::vector<uint32_t>         _childPassIDs;
-
-        std::vector<uint32_t>     _inputResIDs;
-        std::vector<uint32_t>     _outputResIDs;
+    public:
+        RenderPass2(Framegraph2& _graph, uint16_t _id, PassExeQueue _queue)
+            : m_id(_id), m_graph(_graph), m_queue(_queue)
+        {
+        }
+    private:
+        uint16_t        m_id;
+        PassExeQueue    m_queue;
+        Framegraph2&    m_graph;
     };
 
     class Framegraph2
     {
     public:
+        Framegraph2(AllocatorI* allocator)
+            : m_pAllocator(allocator)
+        {
+        }
+
+        ~Framegraph2();
         void bake();
 
     public:
-
-        inline PassRenderData& getPassData(uint32_t p)
-        {
-            return m_passData[p];
-        }
-
         inline void setMemoryBlock(MemoryBlockI* _memBlock)
         {
             m_pMemBlock = _memBlock;
@@ -154,6 +161,9 @@ namespace vkz
         // ==============================
         // process operations 
         void setBrief(MemoryReader& _reader);
+
+        void registerShader(MemoryReader& _reader);
+        void registerProgram(MemoryReader& _reader);
 
         void registerPass(MemoryReader& _reader);
         void registerBuffer(MemoryReader& _reader);
@@ -180,7 +190,6 @@ namespace vkz
 
         // =======================================
         void postParse();
-        void postParseMultiFrameRes();
 
         void buildResLifetime();
 
@@ -217,7 +226,7 @@ namespace vkz
 
         struct ImgBucket
         {
-            uint32_t        idx;
+            uint32_t    idx;
 
             uint16_t    mips{ 1u };
 
@@ -296,6 +305,7 @@ namespace vkz
         };
 
     private:
+        AllocatorI* m_pAllocator;
         MemoryBlockI* m_pMemBlock;
 
         CombinedResID  m_resultRT;
@@ -319,8 +329,6 @@ namespace vkz
         std::vector< PassDependency>                m_pass_dependency;
         std::vector< CombinedResID>                 m_combinedForceAlias_base;
         std::vector< std::vector<CombinedResID>>    m_combinedForceAlias;
-
-        std::vector< PassRenderData> m_passData;
 
         // sorted and cut passes
         std::vector< PassHandle>    m_sortedPass;

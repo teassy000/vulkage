@@ -2,6 +2,11 @@
 
 #include "macro.h"
 
+
+#define VKZ_NEW(_allocator, _type)                 VKZ_PLACEMENT_NEW(vkz::alloc(_allocator, sizeof(_type) ), _type)
+#define VKZ_ALIGNED_NEW(_allocator, _type, _align) VKZ_PLACEMENT_NEW(vkz::alloc(_allocator, sizeof(_type), _align), _type)
+#define VKZ_PLACEMENT_NEW(_ptr, _type)             ::new(vkz::PlacementNew, _ptr) _type
+
 namespace vkz
 {
     struct NO_VTABLE AllocatorI
@@ -85,12 +90,19 @@ namespace vkz
     {
     }
 
+    template<typename Ty>
+    inline Ty alignUp(Ty _a, int32_t _align)
+    {
+        const Ty mask = Ty(_align - 1);
+        return Ty((_a + mask) & ~mask);
+    }
+
     inline void* alignPtr(void* _ptr, size_t _extra, size_t _align)
     {
         uintptr_t ptr = (uintptr_t)_ptr;
         uintptr_t unaligned = ptr + _extra; // space for header
-        uintptr_t mask = _align - 1;
-        uintptr_t aligned = (unaligned + mask) & ~mask;
+
+        uintptr_t aligned = alignUp(unaligned, (int32_t)_align);
 
         return (void*)aligned;
     }
@@ -167,14 +179,14 @@ namespace vkz
 
 namespace vkz
 {
-    struct PlaceHolder {};
+    VKZ_DECLARE_TAG(PlacementNew);
 }
 
-inline void* operator new(size_t, vkz::PlaceHolder, void* _ptr)
+inline void* operator new(size_t, vkz::PlacementNewTag, void* _ptr)
 {
     return _ptr;
 }
 
-inline void operator delete(void*, vkz::PlaceHolder, void*) throw()
+inline void operator delete(void*, vkz::PlacementNewTag, void*) throw()
 {
 }

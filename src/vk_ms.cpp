@@ -368,7 +368,7 @@ int main(int argc, const char** argv)
 
 	VkDevice device = createDevice(instance, physicalDevice, gfxFamilyIdx, meshShadingSupported);
 	assert(device);
-
+    // only single device used in this application.
     volkLoadDevice(device);
 
 	GLFWwindow* window = glfwCreateWindow(2560, 1440, "mesh_shading_demo", 0, 0);

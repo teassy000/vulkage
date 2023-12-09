@@ -42,69 +42,7 @@ namespace vkz
         return ~0u;
     }
 
-    void createBuffer(VK_Buffer& result, const VkPhysicalDeviceMemoryProperties& memoryProps, VkDevice device, size_t sz
-        , VkBufferUsageFlags usage, VkMemoryPropertyFlags memFlags, BufferList alisings /* = {}*/)
-    {
-        VkBufferCreateInfo createInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
-        createInfo.size = sz;
-        createInfo.usage = usage;
-
-        VkBuffer buffer = 0;
-        VK_CHECK(vkCreateBuffer(device, &createInfo, 0, &buffer));
-
-        for (VK_Buffer* const buf : alisings)
-        {
-            VK_CHECK(vkCreateBuffer(device, &createInfo, 0, &buf->buffer));
-        }
-
-        VkMemoryRequirements memoryReqs;
-        vkGetBufferMemoryRequirements(device, buffer, &memoryReqs);
-
-        uint32_t memoryTypeIdx = selectMemoryType(memoryProps, memoryReqs.memoryTypeBits, memFlags);
-        assert(memoryTypeIdx != ~0u);
-
-        VkMemoryAllocateInfo allocInfo = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
-        allocInfo.allocationSize = memoryReqs.size;
-        allocInfo.memoryTypeIndex = memoryTypeIdx;
-
-        VkDeviceMemory memory = 0;
-        VK_CHECK(vkAllocateMemory(device, &allocInfo, 0, &memory));
-
-        VK_CHECK(vkBindBufferMemory(device, buffer, memory, 0));
-
-        void* data = 0;
-        if (memFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
-        {
-            VK_CHECK(vkMapMemory(device, memory, 0, sz, 0, &data));
-        
-            for (VK_Buffer* const buf : alisings)
-            {
-                VK_CHECK(vkMapMemory(device, memory, 0, sz, 0, &buf->data));
-            }
-        }
-
-        for (VK_Buffer* const buf : alisings)
-        {
-            VK_CHECK(vkBindBufferMemory(device, buf->buffer, memory, 0));
-            buf->memory = memory;
-            buf->size = sz;
-        }
-
-        result.buffer = buffer;
-        result.memory = memory;
-        result.data = data;
-        result.size = sz;
-
-        // setting for aliases
-        for (VK_Buffer* const buf : alisings)
-        {
-            buf->memory = memory;
-            buf->data = data;
-            buf->size = sz;
-        }
-    }
-
-    void createBuffer(std::vector<VK_Buffer>& _results, const std::vector<VK_BufAliasInfo> _infos, const VkPhysicalDeviceMemoryProperties& _memProps
+    void createBuffer(std::vector<Buffer_vk>& _results, const std::vector<BufAliasInfo_vk> _infos, const VkPhysicalDeviceMemoryProperties& _memProps
             , const VkDevice _device, const VkBufferUsageFlags _usage, const VkMemoryPropertyFlags _memFlags)
     {
         if (_infos.empty())
@@ -112,10 +50,10 @@ namespace vkz
             return;
         }
 
-        assert(_results.size() == _infos.size());
+        assert(_results.empty());
 
-        uint32_t size = (uint32_t)_results.size();
-        std::vector<VK_Buffer> results(size);
+        uint32_t size = (uint32_t)_infos.size();
+        std::vector<Buffer_vk> results(size);
 
         for (uint32_t ii = 0; ii < size; ++ii)
         {
@@ -123,7 +61,7 @@ namespace vkz
             createInfo.size = _infos[ii].size;
             createInfo.usage = _usage;
 
-            VK_Buffer& buf = results[ii];
+            Buffer_vk& buf = results[ii];
 
             VK_CHECK(vkCreateBuffer(_device, &createInfo, nullptr, &(buf.buffer)));
         }
@@ -147,7 +85,7 @@ namespace vkz
         // all buffers share the same memory
         for (uint32_t ii = 0; ii < size; ++ii)
         {
-            VK_Buffer& buf = results[ii];
+            Buffer_vk& buf = results[ii];
             VK_CHECK(vkBindBufferMemory(_device, buf.buffer, memory, 0));
             buf.memory = memory;
             buf.size = _infos[ii].size;
@@ -159,7 +97,7 @@ namespace vkz
         {
             for (uint32_t ii = 0; ii < size; ++ii)
             {
-                VK_Buffer& buf = results[ii];
+                Buffer_vk& buf = results[ii];
                 VK_CHECK(vkMapMemory(_device, memory, 0, buf.size, 0, &(buf.data)));
             }
         }
@@ -167,7 +105,15 @@ namespace vkz
         _results = results;
     }
 
-    void uploadBuffer(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer cmdBuffer, VkQueue queue, const VK_Buffer& buffer, const VK_Buffer& scratch, const void* data, size_t size)
+    Buffer_vk createBuffer(const BufAliasInfo_vk& info, const VkPhysicalDeviceMemoryProperties& _memProps, VkDevice _device, VkBufferUsageFlags _usage, VkMemoryPropertyFlags _memFlags)
+    {
+        std::vector<Buffer_vk> results;
+        createBuffer(results, {info}, _memProps, _device, _usage, _memFlags);
+
+        return results[0];
+    }
+
+    void uploadBuffer(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer cmdBuffer, VkQueue queue, const Buffer_vk& buffer, const Buffer_vk& scratch, const void* data, size_t size)
     {
         assert(size > 0);
         assert(scratch.data);
@@ -204,7 +150,7 @@ namespace vkz
     }
 
     // only for non-coherent buffer 
-    void flushBuffer(VkDevice device, const VK_Buffer& buffer, uint32_t offset /* = 0*/)
+    void flushBuffer(VkDevice device, const Buffer_vk& buffer, uint32_t offset /* = 0*/)
     {
         VkMappedMemoryRange range = { VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE };
         range.memory = buffer.memory;
@@ -214,21 +160,21 @@ namespace vkz
         VK_CHECK(vkFlushMappedMemoryRanges(device, 1, &range));
     }
 
-    void destroyBuffer(VkDevice device, const VK_Buffer& buffer, BufferList aliases /* = {} */)
+    void destroyBuffer(const VkDevice _device, const std::vector<Buffer_vk>& _buffers)
     {
+        assert(!_buffers.empty());
+        
         // depends on this doc:
         //    If a memory object is mapped at the time it is freed, it is implicitly unmapped.
         // https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/vkFreeMemory.html
-        vkFreeMemory(device, buffer.memory, 0);
-        vkDestroyBuffer(device, buffer.buffer, 0);
+        Buffer_vk baseBuf = _buffers[0];
+        vkFreeMemory(_device, baseBuf.memory, 0);
 
-        for (VK_Buffer* const buf : aliases)
+        for (const Buffer_vk& buf : _buffers)
         {
-            // no need to free memory, because it is shared with the original one
-            vkDestroyBuffer(device, buf->buffer, 0);
+            vkDestroyBuffer(_device, buf.buffer, 0);
         }
     }
-
 
     VkBufferMemoryBarrier2 bufferBarrier(VkBuffer buffer, VkAccessFlags2 srcAccessMask, VkPipelineStageFlags2 srcStage, VkAccessFlags2 dstAccessMask, VkPipelineStageFlags2 dstStage)
     {
@@ -247,78 +193,86 @@ namespace vkz
     }
 
 
-
-    void createImage(VK_Image& result, VkDevice device, const VkPhysicalDeviceMemoryProperties& memoryProps
-        , const VkFormat format, const ImgInitProps imgProps, ImageAliases aliases /*= {}*/, const uint32_t aliasCount /* = 0*/)
+    void createImage(std::vector<Image_vk>& _results, const std::vector<ImgAliasInfo_vk>& _infos, const VkDevice _device, const VkPhysicalDeviceMemoryProperties& _memProps, const ImgInitProps& _initProps)
     {
+        if (_infos.empty())
+        {
+            return;
+        }
+
+        assert(_results.empty());
+
+        uint32_t num = (uint32_t)_infos.size();
+        std::vector<Image_vk> results(num);
+
         VkImageCreateInfo createInfo = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
 
-        createInfo.imageType = imgProps.type;
-        createInfo.format = format;
-        createInfo.extent = { imgProps.width, imgProps.height, 1u };
-        createInfo.mipLevels = imgProps.mipLevels;
-        createInfo.arrayLayers = (imgProps.viewType == VK_IMAGE_VIEW_TYPE_CUBE) ? 6 : 1;
+        createInfo.imageType = _initProps.type;
+        createInfo.format = _initProps.format;
+        createInfo.extent = { _initProps.width, _initProps.height, _initProps.depth };
+        createInfo.mipLevels = _initProps.level;
+        createInfo.arrayLayers = (_initProps.viewType == VK_IMAGE_VIEW_TYPE_CUBE) ? 6 : 1;
         createInfo.samples = VK_SAMPLE_COUNT_1_BIT;
         createInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-        createInfo.usage = imgProps.usage;
-	    createInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        createInfo.usage = _initProps.usage;
+        createInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-        if (imgProps.viewType == VK_IMAGE_VIEW_TYPE_CUBE)
+        if (_initProps.viewType == VK_IMAGE_VIEW_TYPE_CUBE)
         {
             createInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
         }
 
-        VkImage image = 0;
-        VK_CHECK(vkCreateImage(device, &createInfo, 0, &image));
-
         // create for aliases
-        for (VK_Image* const img : aliases)
+        for (uint32_t ii = 0; ii < num; ++ii)
         {
-            VK_CHECK(vkCreateImage(device, &createInfo, 0, &img->image));
+            Image_vk& img = results[ii];
+            VK_CHECK(vkCreateImage(_device, &createInfo, 0, &(img.image)));
         }
 
-        VkMemoryRequirements memoryReqs;
-        vkGetImageMemoryRequirements(device, image, &memoryReqs);
 
-        uint32_t memoryTypeIdx = selectMemoryType(memoryProps, memoryReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        VkImage baseImg = results[0].image;
+
+        VkMemoryRequirements memoryReqs;
+        vkGetImageMemoryRequirements(_device, baseImg, &memoryReqs);
+
+        uint32_t memoryTypeIdx = selectMemoryType(_memProps, memoryReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
         VkMemoryAllocateInfo allocInfo = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
         allocInfo.allocationSize = memoryReqs.size;
         allocInfo.memoryTypeIndex = memoryTypeIdx;
 
         VkDeviceMemory memory = 0;
-        VK_CHECK(vkAllocateMemory(device, &allocInfo, 0, &memory));
+        VK_CHECK(vkAllocateMemory(_device, &allocInfo, 0, &memory));
 
-
-        VK_CHECK(vkBindImageMemory(device, image, memory, 0));
-        for (VK_Image* const img : aliases) // bind memory for alias
+        for (uint32_t ii = 0; ii < num; ++ii)
         {
-            VK_CHECK(vkBindImageMemory(device, img->image, memory, 0));
+            Image_vk& img = results[ii];
+            VK_CHECK(vkBindImageMemory(_device, img.image, memory, 0));
         }
 
-        // calculate ID for render graph
-        result.ID = hash32(image);
-        result.image = image;
-        result.imageView = createImageView(device, image, format, 0, imgProps.mipLevels, imgProps.viewType);
-        result.memory = memory;
-
-        result.width = imgProps.width;
-        result.height = imgProps.height;
-        result.mipLevels = imgProps.mipLevels;
-
         // setting for aliases
-        for (VK_Image* const img : aliases)
+        for (uint32_t ii = 0; ii < num; ++ii)
         {
-            img->ID = hash32(img->image);
-            img->imageView = createImageView(device, img->image, format, 0, imgProps.mipLevels, imgProps.viewType); // ImageView bind to the image handle it self, should create a new one for alias
-            img->memory = memory;
+            Image_vk& img = results[ii];
 
-            img->width = imgProps.width;
-            img->height = imgProps.height;
-            img->mipLevels = imgProps.mipLevels;
+            img.ID = hash32(img.image);
+            img.resId = _infos[ii].resId;
+            img.imageView = createImageView(_device, img.image, _initProps.format, 0, _initProps.level, _initProps.viewType); // ImageView bind to the image handle it self, should create a new one for alias
+            img.memory = memory;
+
+            img.width = _initProps.width;
+            img.height = _initProps.height;
+            img.mipLevels = _initProps.level;
         }
     }
 
+    vkz::Image_vk createImage(const ImgAliasInfo_vk& _info, const VkDevice _device, const VkPhysicalDeviceMemoryProperties& _memProps, const ImgInitProps& _initProps)
+    {
+        std::vector<Image_vk> results;
+        createImage(results, {_info}, _device, _memProps, _initProps);
+
+        return results[0];
+    }
 
     void loadKtxFromFile(ktxTexture** texture, const char* path)
     {
@@ -329,181 +283,7 @@ namespace vkz
         assert(result == KTX_SUCCESS);
     }
 
-    void loadTexture2DFromFile(VK_Image& tex2d, const char* path, VkDevice device, VkCommandPool cmdPool, VkQueue queue, const VkPhysicalDeviceMemoryProperties& memoryProps, VkFormat format, VkImageUsageFlags usage, VkImageLayout layout)
-    {
-        ktxTexture* ktxTex{ nullptr };
-        loadKtxFromFile(&ktxTex, path);
-        assert(ktxTex);
-
-        uint32_t width = ktxTex->baseWidth;
-        uint32_t height = ktxTex->baseHeight;
-        uint32_t mipLevels = ktxTex->numLevels;
-
-        ImgInitProps imgProps = {};
-        imgProps.width = width;
-        imgProps.height = height;
-        imgProps.mipLevels = mipLevels;
-        imgProps.type = VK_IMAGE_TYPE_2D;
-        imgProps.usage = usage;
-        imgProps.layout = layout;
-        imgProps.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
-
-        VK_Image texture = {};
-        createImage(texture, device, memoryProps, format, imgProps);
-
-        ktx_uint8_t* ktxTexData = ktxTexture_GetData(ktxTex);
-        ktx_size_t ktxTexDataSize = ktxTexture_GetDataSize(ktxTex);
-
-        VK_Buffer scratch = {};
-        createBuffer(scratch, memoryProps, device, ktxTexDataSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-        VkCommandBufferAllocateInfo allocateInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
-        allocateInfo.commandPool = cmdPool;
-        allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        allocateInfo.commandBufferCount = 1;
-
-        VkCommandBuffer uploadCmd = 0;
-        VK_CHECK(vkAllocateCommandBuffers(device, &allocateInfo, &uploadCmd));
-        assert(uploadCmd);
-        uploadImage(device, cmdPool, uploadCmd, queue, texture, scratch, ktxTexData, ktxTexDataSize, layout);
-
-        ktxTexture_Destroy(ktxTex);
-        destroyBuffer(device, scratch);
-
-        VkSampler sampler = createSampler(device);
-        assert(sampler);
-
-        tex2d.width = width;
-        tex2d.height = height;
-        tex2d.mipLevels = mipLevels;
-    
-        tex2d.image = texture.image;
-        tex2d.imageView = texture.imageView;
-    }
-
-
-    void loadTextureCubeFromFile(VK_Image& texCube, const char* path, VkDevice device, VkCommandPool cmdPool, VkQueue queue, const VkPhysicalDeviceMemoryProperties& memoryProps, VkFormat format, VkImageUsageFlags usage, VkImageLayout layout)
-    {
-        ktxTexture* ktxTex{ nullptr };
-        loadKtxFromFile(&ktxTex, path);
-        assert(ktxTex && ktxTex->isCubemap);
-
-        uint32_t width = ktxTex->baseWidth;
-        uint32_t height = ktxTex->baseHeight;
-        uint32_t mipLevels = ktxTex->numLevels;
-
-        ImgInitProps imgProps = {};
-        imgProps.width = width;
-        imgProps.height = height;
-        imgProps.mipLevels = mipLevels;
-        imgProps.usage = usage;
-        imgProps.layout = layout;
-        imgProps.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
-
-        VK_Image texture = {};
-        createImage(texture, device, memoryProps, format, imgProps);
-
-        ktx_uint8_t* ktxTexData = ktxTexture_GetData(ktxTex);
-        ktx_size_t ktxTexDataSize = ktxTexture_GetDataSize(ktxTex);
-
-        VK_Buffer scratch = {};
-        createBuffer(scratch, memoryProps, device, ktxTexDataSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-        VkCommandBufferAllocateInfo allocateInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
-        allocateInfo.commandPool = cmdPool;
-        allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        allocateInfo.commandBufferCount = 1;
-
-        VkCommandBuffer uploadCmd = 0;
-        VK_CHECK(vkAllocateCommandBuffers(device, &allocateInfo, &uploadCmd));
-        assert(uploadCmd);
-
-        memcpy(scratch.data, ktxTexData, ktxTexDataSize);
-
-        std::vector<VkBufferImageCopy> regions;
-        for (uint32_t face = 0; face < 6; ++face)
-        {
-            for (uint32_t level = 0; level < mipLevels; ++level)
-            {
-                ktx_size_t offset = 0;
-                KTX_error_code result = ktxTexture_GetImageOffset(ktxTex, level, 0, face, &offset);
-                assert(result == KTX_SUCCESS);
-
-                VkBufferImageCopy region = {};
-                region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-                region.imageSubresource.layerCount = 1;
-                region.imageSubresource.baseArrayLayer = face;
-                region.imageSubresource.mipLevel = level;
-                region.imageExtent.width = texture.width >> level;
-                region.imageExtent.height = texture.height >> level;
-                region.imageExtent.depth = 1;
-                region.bufferOffset = offset;
-
-                regions.push_back(region);
-            }
-        }
-
-        VK_CHECK(vkResetCommandPool(device, cmdPool, 0));
-
-        VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-        VK_CHECK(vkBeginCommandBuffer(uploadCmd, &beginInfo));
-
-        VkImageMemoryBarrier copyBarrier[1] = {};
-        copyBarrier[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-        copyBarrier[0].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        copyBarrier[0].oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        copyBarrier[0].newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-        copyBarrier[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        copyBarrier[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        copyBarrier[0].image = texture.image;
-        copyBarrier[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        copyBarrier[0].subresourceRange.levelCount = mipLevels;
-        copyBarrier[0].subresourceRange.layerCount = 6;
-
-        vkCmdPipelineBarrier(uploadCmd, VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, copyBarrier);
-
-        vkCmdCopyBufferToImage(uploadCmd, scratch.buffer, texture.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, (uint32_t)regions.size(), regions.data());
-
-        VkImageMemoryBarrier useBarrier[1] = {};
-        useBarrier[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-        useBarrier[0].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        useBarrier[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-        useBarrier[0].oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-        useBarrier[0].newLayout = layout;
-        useBarrier[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        useBarrier[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        useBarrier[0].image = texture.image;
-        useBarrier[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        useBarrier[0].subresourceRange.levelCount = mipLevels;
-        useBarrier[0].subresourceRange.layerCount = 6;
-        vkCmdPipelineBarrier(uploadCmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, useBarrier);
-
-        VK_CHECK(vkEndCommandBuffer(uploadCmd));
-
-        VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-
-        submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &uploadCmd;
-
-        VK_CHECK(vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE));
-
-        VK_CHECK(vkDeviceWaitIdle(device));
-
-        ktxTexture_Destroy(ktxTex);
-        destroyBuffer(device, scratch);
-
-        texCube.width = width;
-        texCube.height = height;
-        texCube.mipLevels = 1;
-
-        texCube.image = texture.image;
-        texCube.imageView = texture.imageView;
-        texCube.memory = texture.memory;
-    }
-
-    void uploadImage(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer cmdBuffer, VkQueue queue, const VK_Image& image, const VK_Buffer& scratch, const void* data, size_t size, VkImageLayout layout, const uint32_t regionCount /*= 1*/, uint32_t mipLevels /*= 1*/)
+    void uploadImage(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer cmdBuffer, VkQueue queue, const Image_vk& image, const Buffer_vk& scratch, const void* data, size_t size, VkImageLayout layout, const uint32_t regionCount /*= 1*/, uint32_t mipLevels /*= 1*/)
     {
         assert(scratch.data);
         assert(scratch.size >= size);
@@ -575,20 +355,22 @@ namespace vkz
         VK_CHECK(vkDeviceWaitIdle(device));
     }
 
-    void destroyImage(VkDevice device, const VK_Image& image, ImageAliases aliases /*= {}*/)
+    void destroyImage(const VkDevice _device, const std::vector<Image_vk>& _images)
     {
-        vkFreeMemory(device, image.memory, 0);
-        vkDestroyImageView(device, image.imageView, 0);
-        vkDestroyImage(device, image.image, 0);
+        assert(!_images.empty());
 
-        for (VK_Image* const img : aliases)
+        // depends on this doc:
+        //    If a memory object is mapped at the time it is freed, it is implicitly unmapped.
+        // https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/vkFreeMemory.html
+        Image_vk baseImg = _images[0];
+        vkFreeMemory(_device, baseImg.memory, nullptr);
+
+        for (const Image_vk& img : _images)
         {
-            // no need to free memory, because it is shared with the original one
-            vkDestroyImageView(device, img->imageView, 0);
-            vkDestroyImage(device, img->image, 0);
+            vkDestroyImageView(_device, img.imageView, nullptr);
+            vkDestroyImage(_device, img.image, nullptr);
         }
     }
-
 
     VkImageView createImageView(VkDevice device, VkImage image, VkFormat format, uint32_t baseMipLevel, uint32_t levelCount, VkImageViewType viewType /*= VK_IMAGE_VIEW_TYPE_2D*/)
     {
@@ -667,8 +449,6 @@ namespace vkz
         createInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
         createInfo.minLod = 0.f;
         createInfo.maxLod = 16.f; // required by occlusion culling, or tiny object will just culled since greater pyramid lod does not exist;
-
-
 
         VkSamplerReductionModeCreateInfoEXT createInfoReduction = { VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO_EXT };
         if (reductionMode != VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE)

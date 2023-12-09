@@ -6,6 +6,8 @@ namespace vkz
     {
         InvalidMagic = 0,
 
+        Init,
+
         CreatePass,
         CreateImage,
         CreateBuffer,
@@ -16,11 +18,24 @@ namespace vkz
         End,
     };
 
+    enum class PassType : uint16_t
+    {
+        Invalid = 0,
+        Compute,
+        Graphics,
+    };
+
+
     class ResCreator
     {
+    public:
+        inline void setMemoryBlock(MemoryBlockI* pMemBlock) {
+            m_pMemBlock = pMemBlock;
+        }
     private:
         void parseOp();
 
+        virtual void init(MemoryReader& reader) = 0;
         virtual void createPass(MemoryReader& reader) = 0;
         virtual void createImage(MemoryReader& reader) = 0;
         virtual void createBuffer(MemoryReader& reader) = 0;

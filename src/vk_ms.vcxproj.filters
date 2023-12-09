@@ -180,6 +180,12 @@
     <ClCompile Include="vk_resource.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="vk_shaders.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="shader_manager.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\externs\fast_obj\fast_obj.h">
@@ -304,6 +310,12 @@
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="vk_resource.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="vk_shaders.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="shader_manager.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>

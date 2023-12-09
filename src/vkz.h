@@ -33,6 +33,20 @@ namespace vkz
         Count = 4,
     };
 
+
+    enum class CompareOp : uint16_t
+    {
+        Op_Never = 0,
+        Op_Less = 1,
+        Op_Equal = 2,
+        Op_Less_or_Equal = 3,
+        Op_Greater = 4,
+        Op_not_Equal = 5,
+        Op_Greater_or_Equal = 6,
+        Op_Alwas = 7,
+        Op_MAX_ENUM = 0x7FFF
+    };
+
     enum class TextureFormat : uint16_t
     {
         Unknown, // plain color formats below
@@ -81,6 +95,29 @@ namespace vkz
     };
 
 
+    struct VertexBinding
+    {
+        uint16_t    binding;
+        uint16_t    stride;
+        uint16_t    inputRate;
+    };
+
+    struct VertexAttribute
+    {
+        uint32_t        location;
+        uint32_t        binding;
+        TextureFormat   format;
+        uint32_t        offset;
+    };
+
+    struct PipelineConfig
+    {
+        uint16_t enableDepthTest;
+        uint16_t enableDepthWrite;
+        CompareOp depthCompOp{ CompareOp::Op_Greater };
+    };
+
+
     using ShaderHandle = Handle<struct ShaderHandleTag>;
     using ProgramHandle = Handle<struct ProgramHandleTag>;
     using PipelineHandle = Handle<struct PipelineHandleTag>;
@@ -100,17 +137,23 @@ namespace vkz
     struct ImageDesc {
         TextureFormat format;
         
-        uint16_t x, y, z;
+        uint32_t width;
+        uint32_t height;
+        uint32_t depth;
         uint16_t layers;
         uint16_t mips;
         ResourceUsage usage{ ResourceUsage::SingleFrame };
-    };
+    }; 
 
     struct PassDesc
     {
-        PipelineHandle pipeline;
-        ProgramHandle program;
-        PassExeQueue queue;
+        ProgramHandle   program;
+        PassExeQueue    queue;
+
+        uint16_t        vertexBindingNum;
+        uint16_t        vertexAttributeNum;
+
+        PipelineConfig  pipelineConfig;
     };
 
     typedef void (*ReleaseFn)(void* _ptr, void* _userData);
@@ -131,9 +174,8 @@ namespace vkz
     using DepthStencilHandleList = std::initializer_list<const DepthStencilHandle>;
 
     // resource management functions
-    ShaderHandle registShader(const char* _name, const Memory* code);
-    ProgramHandle registProgram(const char* _name, ShaderHandleList _shaders);
-    PipelineHandle registPipeline(const char* _name, ProgramHandle _program);
+    ShaderHandle registShader(const char* _name, const char* _path);
+    ProgramHandle registProgram(const char* _name, ShaderHandleList _shaders, const uint32_t _sizePushConstants = 0);
 
     BufferHandle registBuffer(const char* _name, const BufferDesc& _desc);
     TextureHandle registTexture(const char* _name, ImageDesc& _desc, const Memory* _mem = nullptr);
@@ -152,17 +194,17 @@ namespace vkz
     RenderTargetHandle aliasRenderTarget(const RenderTargetHandle _rt);
     DepthStencilHandle aliasDepthStencil(const DepthStencilHandle _ds);
 
-    void writeBuffers(PassHandle _pass, BufferHandleList _bufList);
-    void readBuffers(PassHandle _pass, BufferHandleList _bufList);
+    void passWriteBuffers(PassHandle _pass, BufferHandleList _bufList);
+    void passReadBuffers(PassHandle _pass, BufferHandleList _bufList);
 
-    void writeTextures(PassHandle _pass, TextureHandleList _texList);
-    void readTextures(PassHandle _pass, TextureHandleList _texesList);
+    void passWriteTextures(PassHandle _pass, TextureHandleList _texList);
+    void passReadTextures(PassHandle _pass, TextureHandleList _texesList);
 
-    void writeRenderTargets(PassHandle _pass, RenderTargetHandleList _rtList);
-    void readRenderTargets(PassHandle _pass, RenderTargetHandleList _rtList);
+    void passWriteRTs(PassHandle _pass, RenderTargetHandleList _rtList);
+    void passReadRTs(PassHandle _pass, RenderTargetHandleList _rtList);
 
-    void writeDepthStencils(PassHandle _pass, DepthStencilHandleList _dsList);
-    void readDepthStencils(PassHandle _pass, DepthStencilHandleList _dsList);
+    void passWriteDSs(PassHandle _pass, DepthStencilHandleList _dsList);
+    void passReadDSs(PassHandle _pass, DepthStencilHandleList _dsList);
 
     void setMultiFrameBuffer(BufferHandleList _bufList);
     void setMultiFrameTexture(TextureHandleList _texList);
