@@ -56,12 +56,28 @@ namespace vkz
     struct FrameGraphBrief
     {
         uint32_t    version;
+        uint32_t    shaderNum;
+        uint32_t    programNum;
         uint32_t    passNum;
         uint32_t    bufNum;
         uint32_t    imgNum;
     };
 
     // Register Info
+
+    struct ShaderCreateInfo
+    {
+        uint16_t    shaderId;
+        char        path[kMaxPathLen];
+    };
+
+    struct ProgramRegisterInfo
+    {
+        uint16_t idx;
+        uint16_t shaderNum;
+        uint32_t sizePushConstants;
+    };
+
     struct PassRegisterInfo
     {
         uint16_t    idx;
@@ -71,10 +87,10 @@ namespace vkz
         // bind pass with pipeline, thus implicitly bind with program
         uint16_t    programId;
         uint16_t    vtxBindingNum;
-        uint16_t    vtxAttributeNum;
+        uint16_t    vtxAttrNum;
         PipelineConfig pipelineConfig;
 
-        // pipeline rendering create info
+        // TODO: pipeline rendering create info
         // write depth stencil format, color attachment format, and count
     };
 
@@ -124,18 +140,17 @@ namespace vkz
         uint16_t    aliasNum;
     };
 
-    class Framegraph2;
-    class RenderPass2
+    struct ProgramCreateInfo
     {
-    public:
-        RenderPass2(Framegraph2& _graph, uint16_t _id, PassExeQueue _queue)
-            : m_id(_id), m_graph(_graph), m_queue(_queue)
-        {
-        }
-    private:
-        uint16_t        m_id;
-        PassExeQueue    m_queue;
-        Framegraph2&    m_graph;
+        ProgramRegisterInfo     regInfo;
+        uint16_t   shaderIds[kMaxNumOfStageInPorgram];
+    };
+
+    struct PassCreateInfo
+    {
+        PassRegisterInfo        regInfo;
+        std::vector<uint16_t>   vtxBindingIdxs;
+        std::vector<uint16_t>   vtxAttrIdxs;
     };
 
     class Framegraph2
@@ -196,7 +211,6 @@ namespace vkz
         // =======================================
         void optimizeSync();
         void optimizeAlias();
-        void allocate_resources();
 
     private:
         union CombinedResID
@@ -311,19 +325,27 @@ namespace vkz
         CombinedResID  m_resultRT;
         PassHandle     m_finalPass;
 
+        std::vector< ShaderHandle       >   m_hShader;
+        std::vector< ProgramHandle      >   m_hProgram;
         std::vector< PassHandle         >   m_hPass;
         std::vector< BufferHandle       >   m_hBuf;
         std::vector< TextureHandle      >   m_hTex;
         std::vector< RenderTargetHandle >   m_hRT;
         std::vector< DepthStencilHandle >   m_hDS;
 
-        std::vector< PassRegisterInfo>  m_pass_info;
+        std::vector< ShaderCreateInfo > m_shader_info;
+        std::vector< ProgramCreateInfo> m_program_info;
+        std::vector< PassRegisterInfo > m_pass_info;
         std::vector< BufRegisterInfo >  m_buf_info;
         std::vector< ImgRegisterInfo >  m_img_info;
-        std::vector< ImgRegisterInfo >  m_rt_info;
-        std::vector< ImgRegisterInfo >  m_ds_info;
+        
+        std::vector<PassCreateInfo>     m_pass_create_info;
+
                      
         std::vector< CombinedResID>     m_combinedResId;
+
+        std::vector< VertexBindingDesc>     m_vtxBindingDesc;
+        std::vector< VertexAttributeDesc>   m_vtxAttrDesc;
 
         std::vector< PassRWResource>                m_pass_rw_res;
         std::vector< PassDependency>                m_pass_dependency;

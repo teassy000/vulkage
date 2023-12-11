@@ -5,7 +5,7 @@ void right()
     vkz::init();
 
     vkz::ImageDesc colorDesc;
-    colorDesc.format = vkz::TextureFormat::RGBA8S;
+    colorDesc.format = vkz::ResourceFormat::RGBA8S;
     colorDesc.width = 1024;
     colorDesc.height = 1024;
     colorDesc.depth = 1;
@@ -15,7 +15,7 @@ void right()
     vkz::RenderTargetHandle color_late = vkz::aliasRenderTarget(color);
 
     vkz::ImageDesc depthDesc;
-    depthDesc.format = vkz::TextureFormat::D32;
+    depthDesc.format = vkz::ResourceFormat::D32;
     depthDesc.width = 1024;
     depthDesc.height = 1024;
     depthDesc.depth = 1;
@@ -25,7 +25,7 @@ void right()
     vkz::DepthStencilHandle depth_late = vkz::aliasDepthStencil(depth);
 
     vkz::ImageDesc outputDesc;
-    outputDesc.format = vkz::TextureFormat::RGBA8S;
+    outputDesc.format = vkz::ResourceFormat::RGBA8S;
     outputDesc.width = 1024;
     outputDesc.height = 1024;
     outputDesc.depth = 1;
@@ -35,7 +35,7 @@ void right()
     vkz::setResultRenderTarget(output);
 
     vkz::ImageDesc pyramidDesc;
-    pyramidDesc.format = vkz::TextureFormat::R32;
+    pyramidDesc.format = vkz::ResourceFormat::R32;
     pyramidDesc.width = 1024;
     pyramidDesc.height = 1024;
     pyramidDesc.depth = 1;
@@ -141,7 +141,7 @@ void wrong()
     vkz::init();
 
     vkz::ImageDesc colorDesc;
-    colorDesc.format = vkz::TextureFormat::RGBA8S;
+    colorDesc.format = vkz::ResourceFormat::RGBA8S;
     colorDesc.width = 1024;
     colorDesc.height = 1024;
     colorDesc.depth = 1;
@@ -150,7 +150,7 @@ void wrong()
     vkz::RenderTargetHandle color = vkz::registRenderTarget("color", colorDesc);
 
     vkz::ImageDesc depthDesc;
-    depthDesc.format = vkz::TextureFormat::D32;
+    depthDesc.format = vkz::ResourceFormat::D32;
     depthDesc.width = 1024;
     depthDesc.height = 1024;
     depthDesc.depth = 1;
@@ -159,7 +159,7 @@ void wrong()
     vkz::DepthStencilHandle depth = vkz::registDepthStencil("depth", depthDesc);
 
     vkz::ImageDesc outputDesc;
-    outputDesc.format = vkz::TextureFormat::RGBA8S;
+    outputDesc.format = vkz::ResourceFormat::RGBA8S;
     outputDesc.width = 1024;
     outputDesc.height = 1024;
     outputDesc.depth = 1;
@@ -168,7 +168,7 @@ void wrong()
     vkz::RenderTargetHandle output = vkz::registRenderTarget("output", outputDesc);
 
     vkz::ImageDesc pyramidDesc;
-    pyramidDesc.format = vkz::TextureFormat::D32;
+    pyramidDesc.format = vkz::ResourceFormat::D32;
     pyramidDesc.width = 1024;
     pyramidDesc.height = 1024;
     pyramidDesc.depth = 1;
@@ -262,7 +262,7 @@ void colorScreen()
     vkz::init();
 
     vkz::ImageDesc rt;
-    rt.format = vkz::TextureFormat::RGBA8S;
+    rt.format = vkz::ResourceFormat::RGBA8S;
     rt.width = 1024;
     rt.height = 1024;
     rt.depth = 1;

@@ -47,7 +47,7 @@ namespace vkz
         Op_MAX_ENUM = 0x7FFF
     };
 
-    enum class TextureFormat : uint16_t
+    enum class ResourceFormat : uint16_t
     {
         Unknown, // plain color formats below
 
@@ -89,9 +89,15 @@ namespace vkz
 
     enum class ResourceUsage : uint8_t
     {
-        SingleFrame,
-        MultiFrame,
-        Count,
+        usage_single_frame,
+        usage_multi_frame,
+        usage_max_count,
+    };
+
+    enum class VertexInputRate {
+        input_rate_vertex = 0,
+        input_rate_instance = 1,
+        input_rate_max = 0x7FFFFFFF
     };
 
 
@@ -106,7 +112,7 @@ namespace vkz
     {
         uint32_t        location;
         uint32_t        binding;
-        TextureFormat   format;
+        ResourceFormat   format;
         uint32_t        offset;
     };
 
@@ -131,19 +137,34 @@ namespace vkz
     struct BufferDesc {
         uint32_t size;
         uint32_t memPropFlags;
-        ResourceUsage usage{ ResourceUsage::SingleFrame };
+        ResourceUsage usage{ ResourceUsage::usage_single_frame };
     };
 
     struct ImageDesc {
-        TextureFormat format;
+        ResourceFormat format;
         
         uint32_t width;
         uint32_t height;
         uint32_t depth;
         uint16_t layers;
         uint16_t mips;
-        ResourceUsage usage{ ResourceUsage::SingleFrame };
+        ResourceUsage usage{ ResourceUsage::usage_single_frame };
     }; 
+
+    struct VertexBindingDesc
+    {
+        uint32_t            binding;
+        uint32_t            stride;
+        VertexInputRate     inputRate;
+    };
+
+    struct VertexAttributeDesc
+    {
+        uint32_t        location;
+        uint32_t        binding;
+        uint32_t        offset;
+        ResourceFormat  format;
+    };
 
     struct PassDesc
     {
@@ -152,6 +173,8 @@ namespace vkz
 
         uint16_t        vertexBindingNum;
         uint16_t        vertexAttributeNum;
+        void*           vertexBindingInfos;
+        void*           vertexAttributeInfos;
 
         PipelineConfig  pipelineConfig;
     };

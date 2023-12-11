@@ -30,71 +30,71 @@ namespace vkz
         deleteObject(getAllocator(), s_allocator);
     }
 
-    uint16_t getBytesPerPixel(TextureFormat format)
+    uint16_t getBytesPerPixel(ResourceFormat format)
     {
         switch (format)
         {
-        case TextureFormat::Unknown:
+        case ResourceFormat::Unknown:
             return 0;
-        case TextureFormat::A8:
+        case ResourceFormat::A8:
             return 1;
-        case TextureFormat::R8:
+        case ResourceFormat::R8:
             return 1;
-        case TextureFormat::R8I:
+        case ResourceFormat::R8I:
             return 1;
-        case TextureFormat::R8S:
+        case ResourceFormat::R8S:
             return 1;
-        case TextureFormat::R8U:
+        case ResourceFormat::R8U:
             return 1;
-        case TextureFormat::R16:
+        case ResourceFormat::R16:
             return 2;
-        case TextureFormat::R16I:
+        case ResourceFormat::R16I:
             return 2;
-        case TextureFormat::R16U:
+        case ResourceFormat::R16U:
             return 2;
-        case TextureFormat::R16F:
+        case ResourceFormat::R16F:
             return 2;
-        case TextureFormat::R16S:
+        case ResourceFormat::R16S:
             return 2;
-        case TextureFormat::R32:
+        case ResourceFormat::R32:
             return 4;
-        case TextureFormat::R32I:
+        case ResourceFormat::R32I:
             return 4;
-        case TextureFormat::R32U:
+        case ResourceFormat::R32U:
             return 4;
-        case TextureFormat::R32F:
+        case ResourceFormat::R32F:
             return 4;
-        case TextureFormat::R32S:
+        case ResourceFormat::R32S:
             return 4;
-        case TextureFormat::BGRA8:
+        case ResourceFormat::BGRA8:
             return 4;
-        case TextureFormat::BGRA8I:
+        case ResourceFormat::BGRA8I:
             return 4;
-        case TextureFormat::BGRA8U:
+        case ResourceFormat::BGRA8U:
             return 4;
-        case TextureFormat::BGRA8F:
+        case ResourceFormat::BGRA8F:
             return 4;
-        case TextureFormat::BGRA8S:
+        case ResourceFormat::BGRA8S:
             return 4;
-        case TextureFormat::RGBA8:
+        case ResourceFormat::RGBA8:
             return 4;
-        case TextureFormat::RGBA8I:
+        case ResourceFormat::RGBA8I:
             return 4;
-        case TextureFormat::RGBA8U:
+        case ResourceFormat::RGBA8U:
             return 4;
-        case TextureFormat::RGBA8F:
+        case ResourceFormat::RGBA8F:
             return 4;
-        case TextureFormat::RGBA8S:
+        case ResourceFormat::RGBA8S:
             return 4;
-        case TextureFormat::UnknownDepth:
+        case ResourceFormat::UnknownDepth:
             return 0;
-        case TextureFormat::D16:
+        case ResourceFormat::D16:
             return 2;
-        case TextureFormat::D32:
+        case ResourceFormat::D32:
             return 4;
-        case TextureFormat::D16F:
+        case ResourceFormat::D16F:
             return 2;
-        case TextureFormat::D32F:
+        case ResourceFormat::D32F:
             return 4;
         default:
             return 0;
@@ -183,34 +183,55 @@ namespace vkz
     ShaderHandle Context::registShader(const char* _name, const char* _path)
     {
         uint16_t idx = m_shaderHandles.alloc();
+
+        ShaderHandle handle = ShaderHandle{ idx };
+
+        if (!isValid(handle))
+        {
+            message(error, "create ShaderHandle failed!");
+            return ShaderHandle{ kInvalidHandle };
+        }
         
         MagicTag magic{ MagicTag::RegisterShader };
         write(m_fgMemWriter, magic);
 
-        int32_t len = (int32_t)strnlen_s(_path, kMaxPathLen);
+        write(m_fgMemWriter, idx);
+
+        uint32_t len = (uint32_t)strnlen_s(_path, kMaxPathLen);
 
         write(m_fgMemWriter, len);
-        write(m_fgMemWriter, (void*)_path, len);
+        write(m_fgMemWriter, (void*)_path, (int32_t)len);
 
-        return ShaderHandle{ idx };
+        return handle;
     }
 
-    vkz::ProgramHandle Context::registProgram(const char* _name, const Memory* _shaders, const uint16_t _shaderCount, const uint32_t _sizePushConstants /*= 0*/)
+    ProgramHandle Context::registProgram(const char* _name, const Memory* _mem, const uint16_t _shaderNum, const uint32_t _sizePushConstants /*= 0*/)
     {
         uint16_t idx = m_programHandles.alloc();
+
+        ProgramHandle handle = ProgramHandle{ idx };
+
+        if (!isValid(handle))
+        {
+            message(error, "create ProgramHandle failed!");
+            return ProgramHandle{ kInvalidHandle };
+        }
 
         // magic tag
         MagicTag magic{ MagicTag::RegisterProgram };
         write(m_fgMemWriter, magic);
 
-        // push constants size
-        write(m_fgMemWriter, _sizePushConstants);
+        // info
+        ProgramRegisterInfo info;
+        info.idx = idx;
+        info.sizePushConstants = _sizePushConstants;
+        info.shaderNum = _shaderNum;
+        write(m_fgMemWriter, info);
+        
+        // actual shader indexes
+        write(m_fgMemWriter, _mem->data, _mem->size);
 
-        // shader indexes
-        write(m_fgMemWriter, _shaderCount);
-        write(m_fgMemWriter, _shaders->data, _shaders->size);
-
-        return ProgramHandle{ idx };
+        return handle;
     }
 
     PassHandle Context::registPass(const char* _name, const PassDesc& _desc)
@@ -239,16 +260,20 @@ namespace vkz
         PassRegisterInfo info;
         info.idx = idx;
         info.queue = _desc.queue;
-        info.vtxBindingNum = _desc.vertexBindingNum;
-        info.vtxAttributeNum = _desc.vertexAttributeNum;
-        info.pipelineConfig = _desc.pipelineConfig;
+        info.vtxBindingNum = _desc.vertexBindingNum; // binding struct
+        info.vtxAttrNum = _desc.vertexAttributeNum; // attribute struct 
+        info.pipelineConfig = _desc.pipelineConfig; // int
 
         write(m_fgMemWriter, info);
-
-        // TODO: iterate the vertex binding and attribute, store the index then
-
         
-
+        if (0 != _desc.vertexBindingNum)
+        {
+            write(m_fgMemWriter, _desc.vertexBindingInfos, sizeof(VertexBindingDesc) * _desc.vertexBindingNum);
+        }
+        if (0 != _desc.vertexAttributeNum)
+        {
+            write(m_fgMemWriter, _desc.vertexAttributeInfos, sizeof(VertexAttributeDesc) * _desc.vertexAttributeNum);
+        }
         return handle;
     }
 
@@ -535,6 +560,9 @@ namespace vkz
         brief.passNum = m_passHandles.getNumHandles();
         brief.bufNum = m_bufferHandles.getNumHandles();
         brief.imgNum = m_textureHandles.getNumHandles();
+        brief.shaderNum = m_shaderHandles.getNumHandles();
+        brief.programNum = m_programHandles.getNumHandles();
+
         write(m_fgMemWriter, brief);
 
         // set back the mem pos
@@ -563,17 +591,17 @@ namespace vkz
 
     vkz::ProgramHandle registProgram(const char* _name, ShaderHandleList _shaders, const uint32_t _sizePushConstants /*= 0*/)
     {
-        const uint16_t size = static_cast<const uint16_t>(_shaders.size());
-        const Memory* mem = alloc(size * sizeof(uint16_t));
+        const uint16_t count = static_cast<const uint16_t>(_shaders.size());
+        const Memory* mem = alloc(count * sizeof(uint16_t));
 
         StaticMemoryBlockWriter writer(mem->data, mem->size);
-        for (uint16_t ii = 0; ii < size; ++ii)
+        for (uint16_t ii = 0; ii < count; ++ii)
         {
             const ShaderHandle& handle = begin(_shaders)[ii];
             write(&writer, handle.idx);
         }
 
-        return s_ctx->registProgram(_name, mem, size);
+        return s_ctx->registProgram(_name, mem, count);
     }
 
     vkz::BufferHandle registBuffer(const char* _name, const BufferDesc& _desc)

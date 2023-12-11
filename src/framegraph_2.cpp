@@ -54,6 +54,14 @@ namespace vkz
                 break;
             }
             // Register
+            case MagicTag::RegisterShader: {
+                registerShader(reader);
+                break;
+            }
+            case MagicTag::RegisterProgram: {
+                registerProgram(reader);
+                break;
+            }
             case MagicTag::RegisterPass: {
                 registerPass(reader);
                 break;
@@ -194,26 +202,71 @@ namespace vkz
         FrameGraphBrief brief;
         read(&_reader, brief);
 
+        // info data will use idx from handle as iterator
+        m_shader_info.resize(brief.shaderNum);
+        m_program_info.resize(brief.programNum);
         m_pass_info.resize(brief.passNum);
         m_buf_info.resize(brief.bufNum);
         m_img_info.resize(brief.imgNum);
+
+        m_pass_create_info.resize(brief.passNum);
     }
 
 
     void Framegraph2::registerShader(MemoryReader& _reader)
     {
-        // temporarily do nothing
+        uint16_t idx;
+        read(&_reader, idx);
+
+        int32_t len;
+        read(&_reader, len);
+
+        ShaderCreateInfo& createInfo = m_shader_info[idx];
+        read(&_reader, (void*)(createInfo.path), len);
+        createInfo.path[len] = '\0'; //TODO: do I really need this?
+
+        createInfo.shaderId = idx;
+
+        m_hShader.push_back({ idx });
     }
 
     void Framegraph2::registerProgram(MemoryReader& _reader)
     {
-        // temporarily do nothing
+        ProgramRegisterInfo info;
+        read(&_reader, info);
+
+        assert(info.shaderNum <= kMaxNumOfStageInPorgram);
+
+        ProgramCreateInfo& createInfo = m_program_info[info.idx];
+        createInfo.regInfo = info;
+
+        read(&_reader, (void*)(createInfo.shaderIds), sizeof(uint16_t) * info.shaderNum);
+
+        m_hProgram.push_back({ info.idx });
     }
 
     void Framegraph2::registerPass(MemoryReader& _reader)
     {
         PassRegisterInfo info;
         read(&_reader, info);
+
+        for (uint32_t ii = 0; ii < info.vtxBindingNum; ++ii)
+        {
+            VertexBindingDesc bInfo;
+            read(&_reader, bInfo);
+            m_vtxBindingDesc.emplace_back(bInfo);
+            m_pass_create_info[info.idx].vtxBindingIdxs.push_back((uint16_t)m_vtxBindingDesc.size() - 1);
+        }
+
+        for (uint32_t ii = 0; ii < info.vtxAttrNum; ++ii)
+        {
+            VertexAttributeDesc aInfo;
+            read(&_reader, aInfo);
+            m_vtxAttrDesc.emplace_back(aInfo);
+            m_pass_create_info[info.idx].vtxAttrIdxs.push_back((uint16_t)m_vtxAttrDesc.size() - 1);
+        }
+
+        m_pass_create_info[info.idx].regInfo = info;
 
         // fill pass idx in queue
         uint16_t qIdx = (uint16_t)info.queue;
