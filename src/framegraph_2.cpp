@@ -33,6 +33,10 @@ namespace vkz
         // optimize
         optimizeSync();
         optimizeAlias();
+
+        // actual create resources for renderer
+        collectReources();
+        createResources();
     }
 
     void Framegraph2::parseOp()
@@ -334,20 +338,20 @@ namespace vkz
         PassRWInfo info;
         read(&_reader, info);
         
-        uint16_t* resArr = new uint16_t[info.resNum];
-        read(&_reader, resArr, sizeof(uint16_t) * info.resNum);
+        void* mem = alloc(m_pAllocator ,info.resNum * sizeof(uint16_t));
+        read(&_reader, mem, info.resNum * sizeof(uint16_t));
 
         for (uint16_t ii = 0; ii < info.resNum; ++ii)
         {
             uint16_t idx = getIndex(m_hPass, { info.pass });
             assert(idx != kInvalidIndex);
             
-            uint16_t resIdx = resArr[ii];
+            uint16_t resIdx = *((uint16_t*)mem + ii);
             CombinedResID plainIdx = getCombinedResID(resIdx, _type);
             m_pass_rw_res[idx].readCombinedRes.push_back(plainIdx);
         }
 
-        VKZ_DELETE_ARRAY(resArr);
+        free(m_pAllocator, mem, info.resNum * sizeof(uint16_t));
     }
 
     void Framegraph2::passWriteRes(MemoryReader& _reader, ResourceType _type)
@@ -355,20 +359,20 @@ namespace vkz
         PassRWInfo info;
         read(&_reader, info);
 
-        uint16_t* resArr = new uint16_t[info.resNum];
-        read(&_reader, resArr, sizeof(uint16_t) * info.resNum);
+        void* mem = alloc(m_pAllocator, info.resNum * sizeof(uint16_t));
+        read(&_reader, mem, info.resNum * sizeof(uint16_t));
 
         for (uint16_t ii = 0; ii < info.resNum; ++ii)
         {
             uint16_t idx = getIndex(m_hPass, { info.pass });
             assert(idx != kInvalidIndex);
             
-            uint16_t resIdx = resArr[ii];
+            uint16_t resIdx = *((uint16_t*)mem + ii);
             CombinedResID plainIdx = getCombinedResID(resIdx, _type);
             m_pass_rw_res[idx].writeCombinedRes.push_back(plainIdx);
         }
 
-        
+        free(m_pAllocator, mem, info.resNum * sizeof(uint16_t));
     }
 
     void Framegraph2::aliasResForce(MemoryReader& _reader, ResourceType _type)
@@ -376,8 +380,8 @@ namespace vkz
         ResAliasInfo info;
         read(&_reader, info);
 
-        uint16_t* resArr = new uint16_t[info.aliasNum];
-        read(&_reader, resArr, sizeof(uint16_t) * info.aliasNum);
+        void* mem = alloc(m_pAllocator, info.aliasNum * sizeof(uint16_t));
+        read(&_reader, mem, info.aliasNum * sizeof(uint16_t));
 
         CombinedResID combinedBaseIdx = getCombinedResID(info.resBase, _type);
         uint16_t idx = getIndex(m_combinedForceAlias_base, combinedBaseIdx);
@@ -392,12 +396,12 @@ namespace vkz
 
         for (uint16_t ii = 0; ii < info.aliasNum; ++ii)
         {
-            uint16_t resIdx = resArr[ii];
+            uint16_t resIdx = *((uint16_t*)mem + ii);
             CombinedResID combinedIdx = getCombinedResID(resIdx, _type);
             push_back_unique(m_combinedForceAlias[idx], combinedIdx);
         }
 
-        VKZ_DELETE_ARRAY(resArr);
+        free(m_pAllocator, mem, info.aliasNum * sizeof(uint16_t));
     }
 
 
@@ -406,15 +410,17 @@ namespace vkz
         uint16_t resNum = 0;
         read(&_reader, resNum);
 
-        uint16_t* resArr = new uint16_t[resNum];
-        read(&_reader, resArr, sizeof(uint16_t) * resNum);
+        void* mem = alloc(m_pAllocator, resNum * sizeof(uint16_t));
+        read(&_reader, mem, resNum * sizeof(uint16_t));
 
         for (uint16_t ii = 0; ii < resNum; ++ii)
         {
-            uint16_t resIdx = resArr[ii];
+            uint16_t resIdx = *((uint16_t*)mem + ii);
             CombinedResID plainIdx = getCombinedResID(resIdx, _type);
             m_multiFrame_resList.push_back(plainIdx);
         }
+
+        free(m_pAllocator, mem, resNum * sizeof(uint16_t));
     }
 
     void Framegraph2::setResultRT(MemoryReader& _reader)
@@ -920,19 +926,25 @@ namespace vkz
 
     void Framegraph2::createBufBkt(BufBucket& _bkt, const BufRegisterInfo& _info, const std::vector<CombinedResID>& _reses, const bool _forceAliased /*= false*/)
     {
-        _bkt.size = _info.size;
+        _bkt.desc.size = _info.size;
+        _bkt.desc.memFlags = _info.memFlags;
+        _bkt.desc.usage = _info.usage;
+
         _bkt.reses = _reses;
         _bkt.forceAliased = _forceAliased;
     }
 
     void Framegraph2::createImgBkt(ImgBucket& _bkt, const ImgRegisterInfo& _info, const std::vector<CombinedResID>& _reses, const bool _forceAliased /*= false*/)
     {
-        _bkt.mips = _info.mips;
-        _bkt.x = _info.x;
-        _bkt.y = _info.y;
-        _bkt.z = _info.z;
-        _bkt.format = _info.format;
-        _bkt.usage = _info.usage;
+
+        _bkt.desc.mips = _info.mips;
+        _bkt.desc.width = _info.width;
+        _bkt.desc.height = _info.height;
+        _bkt.desc.depth = _info.depth;
+        _bkt.desc.format = _info.format;
+        _bkt.desc.usage = _info.usage;
+        _bkt.desc.layers = _info.layers;
+        
         _bkt.type = _info.type;
 
         _bkt.reses = _reses;
@@ -1108,8 +1120,8 @@ namespace vkz
             ImgRegisterInfo info_l = m_img_info[_l];
             ImgRegisterInfo info_r = m_img_info[_r];
 
-            size_t size_l = info_l.x * info_l.y * info_l.z * info_l.mips * info_l.bpp;
-            size_t size_r = info_r.x * info_r.y * info_r.z * info_r.mips * info_r.bpp;
+            size_t size_l = info_l.width * info_l.height * info_l.depth * info_l.mips * info_l.bpp;
+            size_t size_r = info_r.width * info_r.height * info_r.depth * info_r.mips * info_r.bpp;
 
             return size_l > size_r;
         });
@@ -1155,21 +1167,68 @@ namespace vkz
         fillImageBuckets();
     }
 
+    void Framegraph2::createBuffers()
+    {
+        // create things via bucket
+    }
+
+    void Framegraph2::createImages()
+    {
+        // create things via bucket
+    }
+
+    void Framegraph2::createShaders()
+    {
+        // create things via pass
+    }
+
+    void Framegraph2::createPrograms()
+    {
+        // create things via pass info
+    }
+
+    void Framegraph2::createPasses()
+    {
+        // create things via pass info
+    }
+
+    void Framegraph2::collectReources()
+    {
+        BufBucket bkt;
+        
+    }
+
+    void Framegraph2::createResources()
+    {
+        createBuffers();
+        createImages();
+        createShaders();
+        createPrograms();
+        createPasses();
+    }
+
     bool Framegraph2::isBufInfoAliasable(uint16_t _idx, const BufBucket& _bucket, const std::vector<CombinedResID> _resInCurrStack) const
     {
-        bool bSzMatch = true;
+
 
         // size check in current stack
         const BufRegisterInfo& info = m_buf_info[_idx];
-        size_t remaingSize = _bucket.size;
+        size_t remaingSize = _bucket.desc.size;
+
+        bool bCondMatch = (info.size <= remaingSize);
+
         for (const CombinedResID res : _resInCurrStack)
         {
-            remaingSize -= m_buf_info[res.id].size;
+            const BufRegisterInfo& stackInfo = m_buf_info[res.id];
+
+            bCondMatch &= (info.memFlags == stackInfo.memFlags);
+            bCondMatch &= (info.usage == stackInfo.usage);
+
+            // remaingSize -= m_buf_info[res.id].size; // no need to check current stack size because each stack only contains 1 resource
         }
 
-        bSzMatch = (info.size <= remaingSize);
 
-        return bSzMatch;
+        return bCondMatch;
     }
 
     bool Framegraph2::isImgInfoAliasable(uint16_t _idx, const ImgBucket& _bucket, const std::vector<CombinedResID> _resInCurrStack) const
@@ -1182,9 +1241,11 @@ namespace vkz
         {
             const ImgRegisterInfo& stackInfo = m_img_info[res.id];
 
-            bCondMatch &= (info.x == stackInfo.x && info.y == stackInfo.y && info.z == stackInfo.z);
             bCondMatch &= (info.mips == stackInfo.mips);
+            bCondMatch &= (info.width == stackInfo.width && info.height == stackInfo.height && info.depth == stackInfo.depth);
+            bCondMatch &= (info.layers == stackInfo.layers);
             bCondMatch &= (info.format == stackInfo.format);
+
             bCondMatch &= (info.usage == stackInfo.usage);
             bCondMatch &= (info.type == stackInfo.type);
         }
@@ -1213,7 +1274,10 @@ namespace vkz
 
     bool Framegraph2::isAliasable(const CombinedResID& _res, const BufBucket& _bucket, const std::vector<CombinedResID>& _resInCurrStack) const
     {
-        bool bInfoMatch = isBufInfoAliasable(_res.id, _bucket, _resInCurrStack);
+        // no stack checking for stacks, because each stack only contains 1 resource
+        // bool bInfoMatch = isBufInfoAliasable(_res.id, _bucket, _resInCurrStack);
+        
+        bool bInfoMatch = isBufInfoAliasable(_res.id, _bucket, _bucket.reses);
         bool bStackMatch = isStackAliasable(_res, _bucket.reses);
 
         return bInfoMatch && bStackMatch;
@@ -1221,7 +1285,10 @@ namespace vkz
 
     bool Framegraph2::isAliasable(const CombinedResID& _res, const ImgBucket& _bucket, const std::vector<CombinedResID>& _resInCurrStack) const
     {
-        bool bInfoMatch = isImgInfoAliasable(_res.id, _bucket, _resInCurrStack);
+        // no stack checking for stacks, because each stack only contains 1 resource
+        // bool bInfoMatch = isImgInfoAliasable(_res.id, _bucket, _resInCurrStack);
+
+        bool bInfoMatch = isImgInfoAliasable(_res.id, _bucket, _bucket.reses);
         bool bStackMatch = isStackAliasable(_res, _bucket.reses);
 
         return bInfoMatch && bStackMatch;

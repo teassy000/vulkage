@@ -318,6 +318,12 @@
     <ClInclude Include="shader_manager.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="vkz_structs.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="vkz_structs_inner.h">
+      <Filter>src</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="shaders\mesh.frag.glsl">

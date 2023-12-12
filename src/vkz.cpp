@@ -136,10 +136,10 @@ namespace vkz
 
         PassHandle registPass(const char* _name, const PassDesc& _desc);
 
-        BufferHandle registBuffer(const char* _name, BufferDesc _desc);
-        TextureHandle registTexture(const char* _name, ImageDesc _desc);
-        RenderTargetHandle registRenderTarget(const char* _name, ImageDesc _desc);
-        DepthStencilHandle registDepthStencil(const char* _name, ImageDesc _desc);
+        BufferHandle registBuffer(const char* _name, const BufferDesc& _desc, const ResourceLifetime _lifetime);
+        TextureHandle registTexture(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime);
+        RenderTargetHandle registRenderTarget(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime);
+        DepthStencilHandle registDepthStencil(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime);
 
         uint16_t aliasAlloc(MagicTag _tag);
 
@@ -247,7 +247,7 @@ namespace vkz
         }
 
         PassDesc& desc = m_passDescs[idx];
-        desc.program = _desc.program;
+        desc.programId = _desc.programId;
         desc.queue = _desc.queue;
         desc.pipelineConfig = _desc.pipelineConfig;
         desc.vertexAttributeNum = _desc.vertexAttributeNum;
@@ -277,7 +277,7 @@ namespace vkz
         return handle;
     }
 
-    BufferHandle Context::registBuffer(const char* _name, BufferDesc _desc)
+    vkz::BufferHandle Context::registBuffer(const char* _name, const BufferDesc& _desc, const ResourceLifetime _lifetime)
     {
         uint16_t idx = m_bufferHandles.alloc();
 
@@ -300,15 +300,19 @@ namespace vkz
         BufRegisterInfo info;
         info.idx = idx;
         info.size = _desc.size;
+        info.usage = desc.usage;
+        info.memFlags = desc.memFlags;
+        info.lifetime = _lifetime;
         info.access = 0u; // TODO: set the barrier state
         info.layout = 0u; // TODO: set the barrier state
         info.stage = 0u;  // TODO: set the barrier state
+
         write(m_fgMemWriter, info);
 
         return handle;
     }
 
-    TextureHandle Context::registTexture(const char* _name, ImageDesc _desc)
+    vkz::TextureHandle Context::registTexture(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime)
     {
         uint16_t idx = m_textureHandles.alloc();
 
@@ -330,12 +334,14 @@ namespace vkz
 
         ImgRegisterInfo info;
         info.idx = idx;
-        info.x = _desc.width;
-        info.y = _desc.height;
-        info.z = _desc.depth;
+        info.width = _desc.width;
+        info.height = _desc.height;
+        info.depth = _desc.depth;
         info.mips = _desc.mips;
-        info.format = static_cast<uint16_t>(_desc.format);
-        info.usage = static_cast<uint16_t>(_desc.usage);
+        info.format = _desc.format;
+        info.layers = _desc.layers;
+        info.usage = _desc.usage;
+        info.lifetime = _lifetime;
         info.bpp = getBytesPerPixel(_desc.format);
         
         // TODO: image type
@@ -350,7 +356,7 @@ namespace vkz
         return handle;
     }
 
-    RenderTargetHandle Context::registRenderTarget(const char* _name, ImageDesc _desc)
+    vkz::RenderTargetHandle Context::registRenderTarget(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime)
     {
         uint16_t idx = m_textureHandles.alloc();
 
@@ -372,12 +378,14 @@ namespace vkz
 
         ImgRegisterInfo info;
         info.idx = idx;
-        info.x = _desc.width;
-        info.y = _desc.height;
-        info.z = _desc.depth;
+        info.width = _desc.width;
+        info.height = _desc.height;
+        info.depth = _desc.depth;
         info.mips = _desc.mips;
-        info.format = static_cast<uint16_t>(_desc.format);
-        info.usage = static_cast<uint16_t>(_desc.usage);
+        info.format = _desc.format;
+        info.layers = _desc.layers;
+        info.usage = _desc.usage;
+        info.lifetime = _lifetime;
         info.bpp = getBytesPerPixel(_desc.format);
 
         // TODO: image type
@@ -392,7 +400,7 @@ namespace vkz
         return handle;
     }
 
-    DepthStencilHandle Context::registDepthStencil(const char* _name, ImageDesc _desc)
+    vkz::DepthStencilHandle Context::registDepthStencil(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime)
     {
         uint16_t idx = m_textureHandles.alloc();
 
@@ -414,12 +422,14 @@ namespace vkz
 
         ImgRegisterInfo info;
         info.idx = idx;
-        info.x = _desc.width;
-        info.y = _desc.height;
-        info.z = _desc.depth;
+        info.width = _desc.width;
+        info.height = _desc.height;
+        info.depth = _desc.depth;
         info.mips = _desc.mips;
-        info.format = static_cast<uint16_t>(_desc.format);
-        info.usage = static_cast<uint16_t>(_desc.usage);
+        info.format = _desc.format;
+        info.layers = _desc.layers;
+        info.usage = _desc.usage;
+        info.lifetime = _lifetime;
         info.bpp = getBytesPerPixel(_desc.format);
 
         // TODO: image type
@@ -575,9 +585,9 @@ namespace vkz
 
     void Context::shutdown()
     {
-        VKZ_DELETE(m_frameGraph);
-        VKZ_DELETE(m_fgMemWriter);
-        VKZ_DELETE(m_fgMemBlock);
+        deleteObject(getAllocator(), m_frameGraph);
+        deleteObject(getAllocator(), m_fgMemWriter);
+        deleteObject(getAllocator(), m_fgMemBlock);
     }
 
     // ================================================
@@ -604,24 +614,24 @@ namespace vkz
         return s_ctx->registProgram(_name, mem, count);
     }
 
-    vkz::BufferHandle registBuffer(const char* _name, const BufferDesc& _desc)
+    vkz::BufferHandle registBuffer(const char* _name, const BufferDesc& _desc, const ResourceLifetime _lifetime /*= ResourceLifetime::single_frame*/)
     {
-        return s_ctx->registBuffer(_name, _desc);
+        return s_ctx->registBuffer(_name, _desc, _lifetime);
     }
 
-    vkz::TextureHandle registTexture(const char* _name, ImageDesc& _desc, const Memory* _mem /* = nullptr */)
+    vkz::TextureHandle registTexture(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime /*= ResourceLifetime::single_frame*/, const Memory* _mem /*= nullptr*/)
     {
-        return s_ctx->registTexture(_name, _desc);
+        return s_ctx->registTexture(_name, _desc, _lifetime);
     }
 
-    vkz::RenderTargetHandle registRenderTarget(const char* _name, ImageDesc& _desc)
+    vkz::RenderTargetHandle registRenderTarget(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime /*= ResourceLifetime::single_frame*/)
     {
-        return s_ctx->registRenderTarget(_name, _desc);
+        return s_ctx->registRenderTarget(_name, _desc, _lifetime);
     }
 
-    vkz::DepthStencilHandle registDepthStencil(const char* _name, ImageDesc& _desc)
+    vkz::DepthStencilHandle registDepthStencil(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime /*= ResourceLifetime::single_frame*/)
     {
-        return s_ctx->registDepthStencil(_name, _desc);
+        return s_ctx->registDepthStencil(_name, _desc, _lifetime);
     }
 
     PassHandle registPass(const char* _name, PassDesc _desc)

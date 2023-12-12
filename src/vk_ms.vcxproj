@@ -249,6 +249,8 @@
     <ClInclude Include="name.h" />
     <ClInclude Include="res_creator.h" />
     <ClInclude Include="shader_manager.h" />
+    <ClInclude Include="vkz_structs.h" />
+    <ClInclude Include="vkz_structs_inner.h" />
     <ClInclude Include="vk_resource.h" />
     <ClInclude Include="vk_res_creator.h" />
     <ClInclude Include="scene.h" />

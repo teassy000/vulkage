@@ -46,29 +46,24 @@ void right()
 
     vkz::BufferDesc mltBufDesc;
     mltBufDesc.size = 1024 * 1024 * 1024;
-    mltBufDesc.memPropFlags = 0;
     vkz::BufferHandle mltBuf = vkz::registBuffer("mlt", mltBufDesc);
 
     vkz::BufferDesc mvisBufDesc;
     mvisBufDesc.size = 1024 * 1024 * 1024;
-    mvisBufDesc.memPropFlags = 0;
     vkz::BufferHandle mvisBuf = vkz::registBuffer("mvis", mltBufDesc);
     vkz::BufferHandle mvisLastFrame = vkz::aliasBuffer(mvisBuf);
     vkz::BufferHandle mvisLate = vkz::aliasBuffer(mvisBuf);
 
     vkz::BufferDesc idxBufDesc;
     idxBufDesc.size = 1024 * 1024 * 1024;
-    idxBufDesc.memPropFlags = 0;
     vkz::BufferHandle idxBuf = vkz::registBuffer("idx", idxBufDesc);
 
     vkz::BufferDesc vtxBufDesc;
     vtxBufDesc.size = 1024 * 1024 * 1024;
-    vtxBufDesc.memPropFlags = 0;
     vkz::BufferHandle vtxBuf = vkz::registBuffer("vtx", vtxBufDesc);
 
     vkz::BufferDesc cmdBufDesc;
     cmdBufDesc.size = 1024 * 1024 * 1;
-    cmdBufDesc.memPropFlags;
     vkz::BufferHandle cmdBuf = vkz::registBuffer("cmd", cmdBufDesc);
     vkz::BufferHandle cmdBuf_late = vkz::aliasBuffer(cmdBuf);
 
@@ -178,22 +173,18 @@ void wrong()
 
     vkz::BufferDesc mltBufDesc;
     mltBufDesc.size = 1024 * 1024 * 1024;
-    mltBufDesc.memPropFlags = 0;
     vkz::BufferHandle mltBuf = vkz::registBuffer("idx", mltBufDesc);
 
     vkz::BufferDesc idxBufDesc;
     idxBufDesc.size = 1024 * 1024 * 1024;
-    idxBufDesc.memPropFlags = 0;
     vkz::BufferHandle idxBuf = vkz::registBuffer("idx", idxBufDesc);
 
     vkz::BufferDesc vtxBufDesc;
     vtxBufDesc.size = 1024 * 1024 * 1024;
-    vtxBufDesc.memPropFlags = 0;
     vkz::BufferHandle vtxBuf = vkz::registBuffer("vtx", vtxBufDesc);
 
     vkz::BufferDesc cmdBufDesc;
     cmdBufDesc.size = 1024 * 1024 * 1;
-    cmdBufDesc.memPropFlags;
     vkz::BufferHandle cmdBuf = vkz::registBuffer("cmd", cmdBufDesc);
 
     vkz::PassDesc cull_a_desc;

@@ -101,27 +101,21 @@ namespace vkz
         uint32_t    access;
     };
 
-    struct BufRegisterInfo : public FGBarrierState
+    struct BufRegisterInfo : public FGBarrierState, public BufferDesc
     {
         uint16_t    idx;
-        uint16_t    padding;
         
-        uint32_t    size;
+        ResourceLifetime    lifetime{ ResourceLifetime::single_frame };
     };
 
-    struct ImgRegisterInfo : public FGBarrierState
+    struct ImgRegisterInfo : public FGBarrierState, public ImageDesc
     {
         uint16_t    idx;
 
-        uint16_t    mips{ 1u };
         uint16_t    bpp{ 4u };
 
-        uint32_t    x{ 0u };
-        uint32_t    y{ 0u };
-        uint32_t    z{ 1u };
+        ResourceLifetime    lifetime{ ResourceLifetime::single_frame };
 
-        uint32_t    format;
-        uint32_t    usage;
         uint32_t    type{ VK_IMAGE_TYPE_2D };
         uint32_t    viewType{ VK_IMAGE_VIEW_TYPE_2D };
     };
@@ -146,7 +140,7 @@ namespace vkz
         uint16_t   shaderIds[kMaxNumOfStageInPorgram];
     };
 
-    struct PassCreateInfo
+    struct PassCreateInfo_fg
     {
         PassRegisterInfo        regInfo;
         std::vector<uint16_t>   vtxBindingIdxs;
@@ -212,6 +206,16 @@ namespace vkz
         void optimizeSync();
         void optimizeAlias();
 
+        // =======================================
+        void createBuffers();
+        void createImages();
+        void createShaders();
+        void createPrograms();
+        void createPasses();
+
+        void collectReources();
+        void createResources();
+
     private:
         union CombinedResID
         {
@@ -230,8 +234,8 @@ namespace vkz
         struct BufBucket
         {
             uint32_t        idx;
-
-            size_t          size;
+            
+            BufferDesc      desc;
 
             bool            forceAliased{ false };
 
@@ -242,14 +246,7 @@ namespace vkz
         {
             uint32_t    idx;
 
-            uint16_t    mips{ 1u };
-
-            uint32_t    x{ 0u };
-            uint32_t    y{ 0u };
-            uint32_t    z{ 1u };
-
-            uint32_t    format;
-            uint32_t    usage;
+            ImageDesc   desc;
             uint32_t    type{ VK_IMAGE_TYPE_2D };
 
             bool        forceAliased{ false };
@@ -339,7 +336,7 @@ namespace vkz
         std::vector< BufRegisterInfo >  m_buf_info;
         std::vector< ImgRegisterInfo >  m_img_info;
         
-        std::vector<PassCreateInfo>     m_pass_create_info;
+        std::vector<PassCreateInfo_fg>     m_pass_create_info;
 
                      
         std::vector< CombinedResID>     m_combinedResId;
