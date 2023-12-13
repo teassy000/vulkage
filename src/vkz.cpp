@@ -203,12 +203,12 @@ namespace vkz
         MagicTag magic{ MagicTag::RegisterShader };
         write(m_fgMemWriter, magic);
 
-        write(m_fgMemWriter, idx);
+        ShaderRegisterInfo info;
+        info.shaderId = idx;
+        info.strLen = (uint16_t)strnlen_s(_path, kMaxPathLen);
 
-        uint32_t len = (uint32_t)strnlen_s(_path, kMaxPathLen);
-
-        write(m_fgMemWriter, len);
-        write(m_fgMemWriter, (void*)_path, (int32_t)len);
+        write(m_fgMemWriter, info);
+        write(m_fgMemWriter, (void*)_path, (int32_t)info.strLen);
 
         return handle;
     }
@@ -231,7 +231,7 @@ namespace vkz
 
         // info
         ProgramRegisterInfo info;
-        info.idx = idx;
+        info.progId = idx;
         info.sizePushConstants = _sizePushConstants;
         info.shaderNum = _shaderNum;
         write(m_fgMemWriter, info);
@@ -266,7 +266,7 @@ namespace vkz
         write(m_fgMemWriter, magic);
 
         PassRegisterInfo info;
-        info.idx = idx;
+        info.passId = idx;
         info.queue = _desc.queue;
         info.vtxBindingNum = _desc.vertexBindingNum; // binding struct
         info.vtxAttrNum = _desc.vertexAttributeNum; // attribute struct 
@@ -306,7 +306,7 @@ namespace vkz
         write(m_fgMemWriter, magic);
 
         BufRegisterInfo info;
-        info.idx = idx;
+        info.bufId = idx;
         info.size = _desc.size;
         info.usage = desc.usage;
         info.memFlags = desc.memFlags;
@@ -341,7 +341,7 @@ namespace vkz
         write(m_fgMemWriter, magic);
 
         ImgRegisterInfo info;
-        info.idx = idx;
+        info.imgId = idx;
         info.width = _desc.width;
         info.height = _desc.height;
         info.depth = _desc.depth;
@@ -385,7 +385,7 @@ namespace vkz
         write(m_fgMemWriter, magic);
 
         ImgRegisterInfo info;
-        info.idx = idx;
+        info.imgId = idx;
         info.width = _desc.width;
         info.height = _desc.height;
         info.depth = _desc.depth;
@@ -429,7 +429,7 @@ namespace vkz
         write(m_fgMemWriter, magic);
 
         ImgRegisterInfo info;
-        info.idx = idx;
+        info.imgId = idx;
         info.width = _desc.width;
         info.height = _desc.height;
         info.depth = _desc.depth;
@@ -614,17 +614,17 @@ namespace vkz
 
     vkz::ProgramHandle registProgram(const char* _name, ShaderHandleList _shaders, const uint32_t _sizePushConstants /*= 0*/)
     {
-        const uint16_t count = static_cast<const uint16_t>(_shaders.size());
-        const Memory* mem = alloc(count * sizeof(uint16_t));
+        const uint16_t shaderNum = static_cast<const uint16_t>(_shaders.size());
+        const Memory* mem = alloc(shaderNum * sizeof(uint16_t));
 
         StaticMemoryBlockWriter writer(mem->data, mem->size);
-        for (uint16_t ii = 0; ii < count; ++ii)
+        for (uint16_t ii = 0; ii < shaderNum; ++ii)
         {
             const ShaderHandle& handle = begin(_shaders)[ii];
             write(&writer, handle.idx);
         }
 
-        return s_ctx->registProgram(_name, mem, count);
+        return s_ctx->registProgram(_name, mem, shaderNum, _sizePushConstants);
     }
 
     vkz::BufferHandle registBuffer(const char* _name, const BufferDesc& _desc, const ResourceLifetime _lifetime /*= ResourceLifetime::single_frame*/)

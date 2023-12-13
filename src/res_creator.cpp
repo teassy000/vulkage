@@ -23,12 +23,20 @@ namespace vkz
             case ResCreatorOpMagic::Init:
                 init(reader);
                 break;
+            case ResCreatorOpMagic::CreateShader:
+                createShader(reader);
+                break;
+            case ResCreatorOpMagic::CreateProgram:
+                createProgram(reader);
+                break;
             case ResCreatorOpMagic::CreatePass:
                 createPass(reader);
                 break;
             case ResCreatorOpMagic::CreateBuffer:
+                createBuffer(reader);
                 break;
             case ResCreatorOpMagic::CreateImage:
+                createImage(reader);
                 break;
                 // End
             case ResCreatorOpMagic::InvalidMagic:

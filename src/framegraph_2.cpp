@@ -8,6 +8,7 @@
 #include "framegraph_2.h"
 #include <stack>
 #include <algorithm>
+#include "res_creator.h"
 
 
 
@@ -36,7 +37,6 @@ namespace vkz
         optimizeAlias();
 
         // actual create resources for renderer
-        collectReources();
         createResources();
     }
 
@@ -220,19 +220,17 @@ namespace vkz
 
     void Framegraph2::registerShader(MemoryReader& _reader)
     {
-        uint16_t idx;
-        read(&_reader, idx);
+        ShaderRegisterInfo info;
+        read(&_reader, info);
 
-        int32_t len;
-        read(&_reader, len);
+        m_hShader.push_back({ info.shaderId });
+        
+        char path[kMaxPathLen];
+        read(&_reader, (void*)(path), info.strLen);
 
-        ShaderCreateInfo& createInfo = m_shader_info[idx];
-        read(&_reader, (void*)(createInfo.path), len);
-        createInfo.path[len] = '\0'; //TODO: do I really need this?
-
-        createInfo.shaderId = idx;
-
-        m_hShader.push_back({ idx });
+        m_shader_path.emplace_back(path);
+        m_shader_info[info.shaderId].regInfo = info;
+        m_shader_info[info.shaderId].pathIdx = (uint16_t)m_shader_path.size() - 1;
     }
 
     void Framegraph2::registerProgram(MemoryReader& _reader)
@@ -242,12 +240,12 @@ namespace vkz
 
         assert(info.shaderNum <= kMaxNumOfStageInPorgram);
 
-        ProgramCreateInfo& createInfo = m_program_info[info.idx];
+        ProgramInfo& createInfo = m_program_info[info.progId];
         createInfo.regInfo = info;
 
         read(&_reader, (void*)(createInfo.shaderIds), sizeof(uint16_t) * info.shaderNum);
 
-        m_hProgram.push_back({ info.idx });
+        m_hProgram.push_back({ info.progId });
     }
 
     void Framegraph2::registerPass(MemoryReader& _reader)
@@ -260,7 +258,7 @@ namespace vkz
             VertexBindingDesc bInfo;
             read(&_reader, bInfo);
             m_vtxBindingDesc.emplace_back(bInfo);
-            m_pass_create_data_ref[info.idx].vtxBindingIdxs.push_back((uint16_t)m_vtxBindingDesc.size() - 1);
+            m_pass_create_data_ref[info.passId].vtxBindingIdxs.push_back((uint16_t)m_vtxBindingDesc.size() - 1);
         }
 
         for (uint32_t ii = 0; ii < info.vtxAttrNum; ++ii)
@@ -268,7 +266,7 @@ namespace vkz
             VertexAttributeDesc aInfo;
             read(&_reader, aInfo);
             m_vtxAttrDesc.emplace_back(aInfo);
-            m_pass_create_data_ref[info.idx].vtxAttrIdxs.push_back((uint16_t)m_vtxAttrDesc.size() - 1);
+            m_pass_create_data_ref[info.passId].vtxAttrIdxs.push_back((uint16_t)m_vtxAttrDesc.size() - 1);
         }
 
 
@@ -277,10 +275,10 @@ namespace vkz
         m_passIdxInQueue[qIdx].push_back((uint16_t)m_hPass.size());
 
         // fill pass info
-        m_hPass.push_back({ info.idx });
-        m_pass_info[info.idx] = info;
+        m_hPass.push_back({ info.passId });
+        m_pass_info[info.passId] = info;
 
-        m_pass_create_data_ref[info.idx].passRegInfoIdx = info.idx;
+        m_pass_create_data_ref[info.passId].passRegInfoIdx = info.passId;
 
         m_pass_rw_res.emplace_back();
         m_pass_dependency.emplace_back();
@@ -292,10 +290,10 @@ namespace vkz
         BufRegisterInfo info;
         read(&_reader, info);
 
-        m_hBuf.push_back({ info.idx });
-        m_buf_info[info.idx] = info;
+        m_hBuf.push_back({ info.bufId });
+        m_buf_info[info.bufId] = info;
 
-        CombinedResID plainResID = getCombinedResID(info.idx, ResourceType::Buffer);
+        CombinedResID plainResID = getCombinedResID(info.bufId, ResourceType::Buffer);
         m_combinedResId.push_back(plainResID);
     }
 
@@ -304,10 +302,10 @@ namespace vkz
         ImgRegisterInfo info;
         read(&_reader, info);
 
-        m_hTex.push_back({ info.idx });
-        m_img_info[info.idx] = info;
+        m_hTex.push_back({ info.imgId });
+        m_img_info[info.imgId] = info;
 
-        CombinedResID plainResIdx = getCombinedResID(info.idx, ResourceType::Texture);
+        CombinedResID plainResIdx = getCombinedResID(info.imgId, ResourceType::Texture);
         m_combinedResId.push_back(plainResIdx);
     }
 
@@ -316,10 +314,10 @@ namespace vkz
         ImgRegisterInfo info;
         read(&_reader, info);
 
-        m_hTex.push_back({ info.idx });
-        m_img_info[info.idx] = info;
+        m_hTex.push_back({ info.imgId });
+        m_img_info[info.imgId] = info;
 
-        CombinedResID plainResIdx = getCombinedResID(info.idx, ResourceType::RenderTarget);
+        CombinedResID plainResIdx = getCombinedResID(info.imgId, ResourceType::RenderTarget);
         m_combinedResId.push_back(plainResIdx);
     }
 
@@ -328,10 +326,10 @@ namespace vkz
         ImgRegisterInfo info;
         read(&_reader, info);
 
-        m_hTex.push_back({ info.idx });
-        m_img_info[info.idx] = info;
+        m_hTex.push_back({ info.imgId });
+        m_img_info[info.imgId] = info;
 
-        CombinedResID plainResIdx = getCombinedResID(info.idx, ResourceType::DepthStencil);
+        CombinedResID plainResIdx = getCombinedResID(info.imgId, ResourceType::DepthStencil);
         m_combinedResId.push_back(plainResIdx);
     }
 
@@ -938,16 +936,17 @@ namespace vkz
 
     void Framegraph2::createImgBkt(ImgBucket& _bkt, const ImgRegisterInfo& _info, const std::vector<CombinedResID>& _reses, const bool _forceAliased /*= false*/)
     {
-
         _bkt.desc.mips = _info.mips;
         _bkt.desc.width = _info.width;
         _bkt.desc.height = _info.height;
         _bkt.desc.depth = _info.depth;
+        _bkt.desc.arrayLayers = _info.arrayLayers;
+
+        _bkt.desc.type = _info.type;
+        _bkt.desc.viewType = _info.viewType;
         _bkt.desc.format = _info.format;
         _bkt.desc.usage = _info.usage;
-        _bkt.desc.arrayLayers = _info.arrayLayers;
-        
-        _bkt.type = _info.type;
+        _bkt.desc.layout = _info.layout;
 
         _bkt.reses = _reses;
         _bkt.forceAliased = _forceAliased;
@@ -1171,34 +1170,12 @@ namespace vkz
 
     void Framegraph2::createBuffers()
     {
-        // create things via bucket
-    }
-
-    void Framegraph2::createImages()
-    {
-        // create things via bucket
-    }
-
-    void Framegraph2::createShaders()
-    {
-        // create things via pass
-    }
-
-    void Framegraph2::createPrograms()
-    {
-        // create things via pass info
-    }
-
-    void Framegraph2::createPasses()
-    {
-        // create things via pass info
-    }
-
-    void Framegraph2::collectReources()
-    {
-
         for (const BufBucket& bkt : m_bufBuckets)
         {
+            ResCreatorOpMagic magic{ ResCreatorOpMagic::CreateBuffer };
+
+            write(&m_creatorMemWriter, magic);
+
             BufferCreateInfo info;
             info.size = bkt.desc.size;
             info.memFlags = bkt.desc.memFlags;
@@ -1207,9 +1184,123 @@ namespace vkz
 
             write(&m_creatorMemWriter, info);
 
-            write(&m_creatorMemWriter, (void*)bkt.reses.data(), int32_t(sizeof(uint16_t) * bkt.reses.size()));
+            std::vector<BufferAliasInfo> aliasInfo;
+            for (const CombinedResID cid : bkt.reses)
+            {
+                BufferAliasInfo alias;
+                alias.bufId = cid.id;
+                alias.size = m_buf_info[cid.id].size;
+                aliasInfo.push_back(alias);
+            }
+
+            write(&m_creatorMemWriter, (void*)aliasInfo.data(), int32_t(sizeof(BufferAliasInfo) * bkt.reses.size()));
         }
-        
+    }
+
+    void Framegraph2::createImages()
+    {
+        for (const ImgBucket& bkt : m_imgBuckets)
+        {
+
+            ResCreatorOpMagic magic{ ResCreatorOpMagic::CreateImage };
+
+            write(&m_creatorMemWriter, magic);
+
+            ImageCreateInfo info;
+            info.mips = bkt.desc.mips;
+            info.width = bkt.desc.width;
+            info.height = bkt.desc.height;
+            info.depth = bkt.desc.depth;
+            info.arrayLayers = bkt.desc.arrayLayers;
+
+            info.type = bkt.desc.type;
+            info.viewType = bkt.desc.viewType;
+            info.format = bkt.desc.format;
+            info.usage = bkt.desc.usage;
+            info.layout = bkt.desc.layout;
+
+            info.resNum = (uint16_t)bkt.reses.size();
+
+            write(&m_creatorMemWriter, info);
+
+            std::vector<ImageAliasInfo> aliasInfo;
+            for (const CombinedResID cid : bkt.reses)
+            {
+                ImageAliasInfo alias;
+                alias.imgId = cid.id;
+                aliasInfo.push_back(alias);
+            }
+
+            write(&m_creatorMemWriter, (void*)aliasInfo.data(), int32_t(sizeof(ImageAliasInfo) * bkt.reses.size()));
+        }
+    }
+
+    void Framegraph2::createShaders()
+    {
+        std::vector<ProgramHandle> usedProgram;
+        std::vector<ShaderHandle> usedShaders;
+        for ( PassHandle pass : m_sortedPass)
+        {
+            const PassRegisterInfo& info = m_pass_info[pass.idx];
+
+            const ProgramInfo& progInfo = m_program_info[info.programId];
+            usedProgram.push_back({ info.programId });
+
+            for (uint16_t ii = 0; ii < progInfo.regInfo.shaderNum; ++ii)
+            {
+                const uint16_t shaderId = progInfo.shaderIds[ii];
+
+                usedShaders.push_back({ shaderId });
+            }
+        }
+
+        // write shader info
+        for (ShaderHandle shader : usedShaders)
+        {
+            const ShaderInfo& info = m_shader_info[shader.idx];
+            assert(shader.idx == info.regInfo.shaderId);
+
+            std::string& path = m_shader_path[info.pathIdx];
+            
+            ShaderCreateInfo createInfo;
+            createInfo.shaderId = info.regInfo.shaderId;
+            createInfo.pathLen = (uint16_t)path.length();
+
+            ResCreatorOpMagic magic{ ResCreatorOpMagic::CreateShader };
+
+            write(&m_creatorMemWriter, magic);
+
+            write(&m_creatorMemWriter, createInfo);
+
+            write(&m_creatorMemWriter, (void*)path.c_str(), (int32_t)path.length());
+        }
+
+
+        // write program info
+        for (ProgramHandle prog : usedProgram)
+        {
+            const ProgramInfo& info = m_program_info[prog.idx];
+            assert(prog.idx == info.regInfo.progId);
+
+            ProgramCreateInfo createInfo;
+            createInfo.progId = info.regInfo.progId;
+            createInfo.shaderNum = info.regInfo.shaderNum;
+            createInfo.sizePushConstants = info.regInfo.sizePushConstants;
+
+            ResCreatorOpMagic magic{ ResCreatorOpMagic::CreateProgram };
+
+            write(&m_creatorMemWriter, magic);
+
+            write(&m_creatorMemWriter, createInfo);
+
+            write(&m_creatorMemWriter, (void*)info.shaderIds, (int32_t)(info.regInfo.shaderNum * sizeof(uint16_t)));
+        }
+
+    }
+
+    void Framegraph2::createPasses()
+    {
+        // create things via pass info
     }
 
     void Framegraph2::createResources()
@@ -1217,7 +1308,6 @@ namespace vkz
         createBuffers();
         createImages();
         createShaders();
-        createPrograms();
         createPasses();
     }
 

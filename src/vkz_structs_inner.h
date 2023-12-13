@@ -26,6 +26,24 @@ namespace vkz
         uint16_t    imgId;
     };
 
+    struct ShaderCreateInfo 
+    {
+        uint16_t shaderId;
+        uint16_t pathLen;
+    };
+    
+    struct ProgramDesc
+    {
+        uint16_t progId;
+        uint16_t shaderNum;
+        uint32_t sizePushConstants;
+    };
+
+    struct ProgramCreateInfo : public ProgramDesc
+    {
+        std::vector<uint16_t>   shaderIds;
+    };
+
     struct PassCreateInfo : public PassDesc
     {
         uint16_t    passId;

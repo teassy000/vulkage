@@ -17,7 +17,7 @@ namespace vkz
         CreateImage,
         CreateBuffer,
         CreateDescriptorSet,
-        CreatePipeline,
+        CreateProgram,
         CreateShader,
 
         End,
@@ -34,6 +34,8 @@ namespace vkz
     {
     private:
         virtual void init(MemoryReader& reader) = 0;
+        virtual void createShader(MemoryReader& reader) = 0;
+        virtual void createProgram(MemoryReader& reader) = 0;
         virtual void createPass(MemoryReader& reader) = 0;
         virtual void createImage(MemoryReader& reader) = 0;
         virtual void createBuffer(MemoryReader& reader) = 0;
@@ -63,6 +65,8 @@ namespace vkz
         void parseOp();
 
         void init(MemoryReader& reader) override {};
+        void createShader(MemoryReader& reader) override {};
+        void createProgram(MemoryReader& reader) override {};
         void createPass(MemoryReader& reader) override {};
         void createImage(MemoryReader& reader) override {};
         void createBuffer(MemoryReader& reader) override {};

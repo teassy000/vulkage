@@ -63,23 +63,19 @@ namespace vkz
     };
 
     // Register Info
-
-    struct ShaderCreateInfo
+    struct ShaderRegisterInfo
     {
         uint16_t    shaderId;
-        char        path[kMaxPathLen];
+        uint16_t    strLen;
     };
 
-    struct ProgramRegisterInfo
+    struct ProgramRegisterInfo : public ProgramDesc
     {
-        uint16_t idx;
-        uint16_t shaderNum;
-        uint32_t sizePushConstants;
     };
 
     struct PassRegisterInfo
     {
-        uint16_t    idx;
+        uint16_t    passId;
         
         PassExeQueue queue;
 
@@ -102,7 +98,7 @@ namespace vkz
 
     struct BufRegisterInfo : public BufferDesc
     {
-        uint16_t    idx;
+        uint16_t    bufId;
         
         ResourceLifetime    lifetime{ ResourceLifetime::single_frame };
 
@@ -111,16 +107,13 @@ namespace vkz
 
     struct ImgRegisterInfo : public ImageDesc
     {
-        uint16_t    idx;
+        uint16_t    imgId;
 
         uint16_t    bpp{ 4u };
 
         ResourceLifetime    lifetime{ ResourceLifetime::single_frame };
 
         FGBarrierState state;
-
-        uint32_t    type{ VK_IMAGE_TYPE_2D };
-        uint32_t    viewType{ VK_IMAGE_VIEW_TYPE_2D };
     };
 
     // Read/Write Info
@@ -137,7 +130,13 @@ namespace vkz
         uint16_t    aliasNum;
     };
 
-    struct ProgramCreateInfo
+    struct ShaderInfo
+    {
+        ShaderRegisterInfo      regInfo;
+        uint16_t                pathIdx;
+    };
+
+    struct ProgramInfo
     {
         ProgramRegisterInfo     regInfo;
         uint16_t   shaderIds[kMaxNumOfStageInPorgram];
@@ -225,10 +224,8 @@ namespace vkz
         void createBuffers();
         void createImages();
         void createShaders();
-        void createPrograms();
         void createPasses();
 
-        void collectReources();
         void createResources();
 
     private:
@@ -262,8 +259,6 @@ namespace vkz
             uint32_t    idx;
 
             ImageDesc   desc;
-
-            uint32_t    type{ VK_IMAGE_TYPE_2D };
 
             bool        forceAliased{ false };
 
@@ -349,12 +344,13 @@ namespace vkz
         std::vector< RenderTargetHandle >   m_hRT;
         std::vector< DepthStencilHandle >   m_hDS;
 
-        std::vector< ShaderCreateInfo > m_shader_info;
-        std::vector< ProgramCreateInfo> m_program_info;
+        std::vector< ShaderInfo > m_shader_info;
+        std::vector< ProgramInfo> m_program_info;
         std::vector< PassRegisterInfo > m_pass_info;
         std::vector< BufRegisterInfo >  m_buf_info;
         std::vector< ImgRegisterInfo >  m_img_info;
         
+        std::vector< std::string>       m_shader_path;
         std::vector< PassCreateDataRef>     m_pass_create_data_ref;
 
         std::vector< CombinedResID>     m_combinedResId;
