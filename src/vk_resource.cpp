@@ -42,7 +42,7 @@ namespace vkz
         return ~0u;
     }
 
-    void createBuffer(std::vector<Buffer_vk>& _results, const std::vector<BufAliasInfo_vk> _infos, const VkPhysicalDeviceMemoryProperties& _memProps
+    void createBuffer(std::vector<Buffer_vk>& _results, const std::vector<BufferAliasInfo> _infos, const VkPhysicalDeviceMemoryProperties& _memProps
             , const VkDevice _device, const VkBufferUsageFlags _usage, const VkMemoryPropertyFlags _memFlags)
     {
         if (_infos.empty())
@@ -89,7 +89,7 @@ namespace vkz
             VK_CHECK(vkBindBufferMemory(_device, buf.buffer, memory, 0));
             buf.memory = memory;
             buf.size = _infos[ii].size;
-            buf.resId = _infos[ii].resId;
+            buf.resId = _infos[ii].bufId;
         }
 
         // map to local memory
@@ -105,7 +105,7 @@ namespace vkz
         _results = results;
     }
 
-    Buffer_vk createBuffer(const BufAliasInfo_vk& info, const VkPhysicalDeviceMemoryProperties& _memProps, VkDevice _device, VkBufferUsageFlags _usage, VkMemoryPropertyFlags _memFlags)
+    Buffer_vk createBuffer(const BufferAliasInfo& info, const VkPhysicalDeviceMemoryProperties& _memProps, VkDevice _device, VkBufferUsageFlags _usage, VkMemoryPropertyFlags _memFlags)
     {
         std::vector<Buffer_vk> results;
         createBuffer(results, {info}, _memProps, _device, _usage, _memFlags);
@@ -193,7 +193,7 @@ namespace vkz
     }
 
 
-    void createImage(std::vector<Image_vk>& _results, const std::vector<ImgAliasInfo_vk>& _infos, const VkDevice _device, const VkPhysicalDeviceMemoryProperties& _memProps, const ImgInitProps& _initProps)
+    void createImage(std::vector<Image_vk>& _results, const std::vector<ImageAliasInfo>& _infos, const VkDevice _device, const VkPhysicalDeviceMemoryProperties& _memProps, const ImgInitProps& _initProps)
     {
         if (_infos.empty())
         {
@@ -256,7 +256,7 @@ namespace vkz
             Image_vk& img = results[ii];
 
             img.ID = hash32(img.image);
-            img.resId = _infos[ii].resId;
+            img.resId = _infos[ii].imgId;
             img.imageView = createImageView(_device, img.image, _initProps.format, 0, _initProps.level, _initProps.viewType); // ImageView bind to the image handle it self, should create a new one for alias
             img.memory = memory;
 
@@ -266,7 +266,7 @@ namespace vkz
         }
     }
 
-    vkz::Image_vk createImage(const ImgAliasInfo_vk& _info, const VkDevice _device, const VkPhysicalDeviceMemoryProperties& _memProps, const ImgInitProps& _initProps)
+    vkz::Image_vk createImage(const ImageAliasInfo& _info, const VkDevice _device, const VkPhysicalDeviceMemoryProperties& _memProps, const ImgInitProps& _initProps)
     {
         std::vector<Image_vk> results;
         createImage(results, {_info}, _device, _memProps, _initProps);

@@ -16,6 +16,7 @@ namespace vkz
 
     Framegraph2::~Framegraph2()
     {
+        deleteObject(m_pAllocator, m_pMemBlock);
     }
 
     void Framegraph2::bake()
@@ -213,7 +214,7 @@ namespace vkz
         m_buf_info.resize(brief.bufNum);
         m_img_info.resize(brief.imgNum);
 
-        m_pass_create_info.resize(brief.passNum);
+        m_pass_create_data_ref.resize(brief.passNum);
     }
 
 
@@ -259,7 +260,7 @@ namespace vkz
             VertexBindingDesc bInfo;
             read(&_reader, bInfo);
             m_vtxBindingDesc.emplace_back(bInfo);
-            m_pass_create_info[info.idx].vtxBindingIdxs.push_back((uint16_t)m_vtxBindingDesc.size() - 1);
+            m_pass_create_data_ref[info.idx].vtxBindingIdxs.push_back((uint16_t)m_vtxBindingDesc.size() - 1);
         }
 
         for (uint32_t ii = 0; ii < info.vtxAttrNum; ++ii)
@@ -267,10 +268,9 @@ namespace vkz
             VertexAttributeDesc aInfo;
             read(&_reader, aInfo);
             m_vtxAttrDesc.emplace_back(aInfo);
-            m_pass_create_info[info.idx].vtxAttrIdxs.push_back((uint16_t)m_vtxAttrDesc.size() - 1);
+            m_pass_create_data_ref[info.idx].vtxAttrIdxs.push_back((uint16_t)m_vtxAttrDesc.size() - 1);
         }
 
-        m_pass_create_info[info.idx].regInfo = info;
 
         // fill pass idx in queue
         uint16_t qIdx = (uint16_t)info.queue;
@@ -279,6 +279,8 @@ namespace vkz
         // fill pass info
         m_hPass.push_back({ info.idx });
         m_pass_info[info.idx] = info;
+
+        m_pass_create_data_ref[info.idx].passRegInfoIdx = info.idx;
 
         m_pass_rw_res.emplace_back();
         m_pass_dependency.emplace_back();
@@ -943,7 +945,7 @@ namespace vkz
         _bkt.desc.depth = _info.depth;
         _bkt.desc.format = _info.format;
         _bkt.desc.usage = _info.usage;
-        _bkt.desc.layers = _info.layers;
+        _bkt.desc.arrayLayers = _info.arrayLayers;
         
         _bkt.type = _info.type;
 
@@ -1194,7 +1196,19 @@ namespace vkz
 
     void Framegraph2::collectReources()
     {
-        BufBucket bkt;
+
+        for (const BufBucket& bkt : m_bufBuckets)
+        {
+            BufferCreateInfo info;
+            info.size = bkt.desc.size;
+            info.memFlags = bkt.desc.memFlags;
+            info.usage = bkt.desc.usage;
+            info.resNum = (uint16_t)bkt.reses.size();
+
+            write(&m_creatorMemWriter, info);
+
+            write(&m_creatorMemWriter, (void*)bkt.reses.data(), int32_t(sizeof(uint16_t) * bkt.reses.size()));
+        }
         
     }
 
@@ -1243,7 +1257,7 @@ namespace vkz
 
             bCondMatch &= (info.mips == stackInfo.mips);
             bCondMatch &= (info.width == stackInfo.width && info.height == stackInfo.height && info.depth == stackInfo.depth);
-            bCondMatch &= (info.layers == stackInfo.layers);
+            bCondMatch &= (info.arrayLayers == stackInfo.arrayLayers);
             bCondMatch &= (info.format == stackInfo.format);
 
             bCondMatch &= (info.usage == stackInfo.usage);

@@ -30,44 +30,38 @@ namespace vkz
         max_enum = 0x7FFF
     };
 
-    enum class ResourceFormat : uint16_t
+    enum class ResourceFormat
     {
-        Unknown, // plain color formats below
+        undefined, // plain color formats below
 
-        A8,
-        R8,
-        R8I,
-        R8S,
-        R8U,
-        R16,
-        R16I,
-        R16U,
-        R16F,
-        R16S,
-        R32,
-        R32I,
-        R32U,
-        R32F,
-        R32S,
-        BGRA8,
-        BGRA8I,
-        BGRA8U,
-        BGRA8F,
-        BGRA8S,
-        RGBA8,
-        RGBA8I,
-        RGBA8U,
-        RGBA8F,
-        RGBA8S,
+        r8_sint,
+        r8_uint,
 
-        UnknownDepth, // Depth formats below.
+        r16_uint,
+        r16_sint,
+        r16_snorm,
+        r16_unorm,
+        
+        r32_uint,
+        r32_sint,
+        r32_sfloat,
+        
+        b8g8r8a8_snorm,
+        b8g8r8a8_unorm,
+        b8g8r8a8_sint,
+        b8g8r8a8_uint,
 
-        D16,
-        D32,
-        D16F,
-        D32F,
+        r8g8b8a8_snorm,
+        r8g8b8a8_unorm,
+        r8g8b8a8_sint,
+        r8g8b8a8_uint,
 
-        Count,
+        unknown_depth, // Depth formats below.
+
+        d16,
+        d32,
+
+        resource_format_max = 0x7fffffff,
     };
 
     enum class ResourceLifetime : uint8_t
@@ -79,46 +73,126 @@ namespace vkz
     };
 
     enum class VertexInputRate {
-        input_rate_vertex = 0,
-        input_rate_instance = 1,
+        vertex = 0,
+        instance = 1,
         input_rate_max = 0x7FFFFFFF
     };
 
-    enum class BufferUsageFlagBits : uint16_t
+    enum class ImageType
     {
-        none = 0,
-        vertex = 1 << 0,
-        index = 1 << 1,
-        uniform = 1 << 2,
-        storage = 1 << 3,
-        indirect = 1 << 4,
-        max_enum = 0x7fff,
+        type_1d,
+        type_2d,
+        type_3d,
+        img_type_max = 0x7FFFFFFF
     };
+
+    enum class ImageViewType
+    {
+        type_1d,
+        type_2d,
+        type_3d,
+        type_cube,
+        type_1d_array,
+        type_2d_array,
+        type_cube_array,
+        img_view_type_max = 0x7FFFFFFF
+
+    };
+
+    enum class ImageLayout
+    {
+        undefined,
+        general,
+        color_attachment_optimal,
+        depth_stencil_attachment_optimal,
+        depth_stencil_read_only_optimal,
+        shader_read_only_optimal,
+        transfer_src_optimal,
+        transfer_dst_optimal,
+        preinitialized,
+        depth_read_only_stencil_attachment_optimal,
+        depth_attachment_stencil_read_only_optimal,
+        depth_attachment_optimal,
+        depth_read_only_optimal,
+        stencil_attachment_optimal,
+        stencil_read_only_optimal,
+        read_only_optimal,
+        attacment_optimal,
+        present_optimal,
+
+        img_layout_max = 0x7FFFFFFF
+    };
+
+    namespace BufferUsageFlagBits
+    {
+        enum Enum : uint16_t
+        {
+            none = 0,
+
+            vertex = 1 << 0,
+            index = 1 << 1,
+            uniform = 1 << 2,
+            storage = 1 << 3,
+            indirect = 1 << 4,
+            transfer_src = 1 << 5,
+            transfer_dst = 1 << 6,
+
+            max_enum = 0x7fff,
+        };
+    }
     using BufferUsageFlags = uint16_t;
 
-    enum class ImageUsageFlagBits : uint16_t
+
+    namespace ImageUsageFlagBits
     {
-        none = 0,
-        color_attachment = 1 << 0,
-        depth_stencil_attachment = 1 << 1,
-        sampled = 1 << 2,
-        storage = 1 << 3,
-        transient_attachment = 1 << 4,
-        input_attachment = 1 << 5,
-        max_enum = 0x7fff,
-    };
+        enum Enum : uint16_t
+        {
+            none = 0,
+
+            color_attachment = 1 << 0,
+            depth_stencil_attachment = 1 << 1,
+            sampled = 1 << 2,
+            storage = 1 << 3,
+            transient_attachment = 1 << 4,
+            input_attachment = 1 << 5,
+            transfer_src = 1 << 6,
+            transfer_dst = 1 << 7,
+
+            max_enum = 0x7fff,
+        };
+    }
     using ImageUsageFlags = uint16_t;
 
-    enum class MemoryPropFlagBits : uint16_t
+    namespace ImageAspectFlagBits
     {
-        none = 0,
-        device_local = 1 << 0,
-        host_visible = 1 << 1,
-        host_coherent = 1 << 2,
-        host_cached = 1 << 3,
-        lazily_allocated = 1 << 4,
-        max_enum = 0x7fff,
-    };
+        enum Enum : uint16_t
+        {
+            none = 0,
+
+            color = 1 << 0,
+            depth = 1 << 1,
+            stencil = 1 << 2,
+
+            max_enum = 0x7fff,
+        };
+    }
+    using ImageAspectFlags = uint16_t;
+
+    namespace MemoryPropFlagBits
+    {
+        enum Enum : uint16_t
+        {
+            none = 0,
+
+            device_local = 1 << 0,
+            host_visible = 1 << 1,
+            host_coherent = 1 << 2,
+            host_cached = 1 << 3,
+            lazily_allocated = 1 << 4,
+
+            max_enum = 0x7fff,
+        };
+    }
     using MemoryPropFlags = uint16_t;
 
     struct VertexBinding
@@ -154,10 +228,13 @@ namespace vkz
         uint32_t width;
         uint32_t height;
         uint32_t depth;
-        uint16_t layers;
+        uint16_t arrayLayers;
         uint16_t mips;
 
-        ResourceFormat format;
+        ImageType       type;
+        ImageViewType   viewType;
+        ImageLayout     layout;
+        ResourceFormat  format;
         ImageUsageFlags usage;
     };
 
@@ -183,8 +260,8 @@ namespace vkz
 
         uint16_t        vertexBindingNum;
         uint16_t        vertexAttributeNum;
-        void* vertexBindingInfos;
-        void* vertexAttributeInfos;
+        void*           vertexBindingInfos;
+        void*           vertexAttributeInfos;
 
         PipelineConfig  pipelineConfig;
     };

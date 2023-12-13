@@ -59,17 +59,6 @@ namespace vkz
         VkCompareOp depthCompOp{ VK_COMPARE_OP_GREATER };
     };
 
-    struct BufBucketInfo_vk
-    {
-        uint16_t    bucketId;
-        uint16_t    resNum;
-        
-        uint32_t    size;
-        uint32_t    usage;
-        uint32_t    memFlag;
-        bool        forceAliased{ false };
-    };
-
     struct ImgBucketInfo_vk
     {
         uint16_t    bucketId;
@@ -95,6 +84,7 @@ namespace vkz
     class ResCreator_vk : public ResCreator
     {
     private:
+        void init(MemoryReader& _reader) override;
         void createPass(MemoryReader& _reader) override;
         void createImage(MemoryReader& _reader) override;
         void createBuffer(MemoryReader& _reader) override;

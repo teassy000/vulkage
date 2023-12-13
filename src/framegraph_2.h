@@ -1,11 +1,10 @@
 #pragma once
 
 #include "memory_operation.h"
+#include "vkz_structs_inner.h"
 
 namespace vkz
 {
-    typedef uint32_t DependLevel;
-
     enum class MagicTag : uint32_t
     {
         InvalidMagic = 0x00000000,
@@ -96,25 +95,29 @@ namespace vkz
 
     struct FGBarrierState
     {
-        uint32_t    layout;
-        uint32_t    stage;
-        uint32_t    access;
+        ImageLayout     layout;
+        uint32_t        stage;
+        uint32_t        access;
     };
 
-    struct BufRegisterInfo : public FGBarrierState, public BufferDesc
+    struct BufRegisterInfo : public BufferDesc
     {
         uint16_t    idx;
         
         ResourceLifetime    lifetime{ ResourceLifetime::single_frame };
+
+        FGBarrierState state;
     };
 
-    struct ImgRegisterInfo : public FGBarrierState, public ImageDesc
+    struct ImgRegisterInfo : public ImageDesc
     {
         uint16_t    idx;
 
         uint16_t    bpp{ 4u };
 
         ResourceLifetime    lifetime{ ResourceLifetime::single_frame };
+
+        FGBarrierState state;
 
         uint32_t    type{ VK_IMAGE_TYPE_2D };
         uint32_t    viewType{ VK_IMAGE_VIEW_TYPE_2D };
@@ -140,25 +143,37 @@ namespace vkz
         uint16_t   shaderIds[kMaxNumOfStageInPorgram];
     };
 
-    struct PassCreateInfo_fg
+    struct PassCreateDataRef
     {
-        PassRegisterInfo        regInfo;
+        uint16_t                passRegInfoIdx;
         std::vector<uint16_t>   vtxBindingIdxs;
         std::vector<uint16_t>   vtxAttrIdxs;
     };
 
+
+    class ResCreator;
+    
     class Framegraph2
     {
     public:
-        Framegraph2(AllocatorI* allocator)
-            : m_pAllocator(allocator)
-        {
+        Framegraph2(AllocatorI* _allocator, MemoryBlockI* _creatorMem)
+            : m_pAllocator{ _allocator }
+            , m_pCreatorMemBlock {_creatorMem}
+            , m_creatorMemWriter{ _creatorMem }
+        { 
+            m_pMemBlock = VKZ_NEW(m_pAllocator, MemoryBlock(m_pAllocator));
+            m_pMemBlock->expand(kInitialFrameGraphMemSize);
         }
 
         ~Framegraph2();
         void bake();
 
     public:
+        inline MemoryBlockI* getMemoryBlock() const
+        {
+            return m_pMemBlock;
+        }
+
         inline void setMemoryBlock(MemoryBlockI* _memBlock)
         {
             m_pMemBlock = _memBlock;
@@ -234,7 +249,7 @@ namespace vkz
         struct BufBucket
         {
             uint32_t        idx;
-            
+
             BufferDesc      desc;
 
             bool            forceAliased{ false };
@@ -247,6 +262,7 @@ namespace vkz
             uint32_t    idx;
 
             ImageDesc   desc;
+
             uint32_t    type{ VK_IMAGE_TYPE_2D };
 
             bool        forceAliased{ false };
@@ -319,6 +335,9 @@ namespace vkz
         AllocatorI* m_pAllocator;
         MemoryBlockI* m_pMemBlock;
 
+        MemoryBlockI* m_pCreatorMemBlock;
+        MemoryWriter m_creatorMemWriter;
+
         CombinedResID  m_resultRT;
         PassHandle     m_finalPass;
 
@@ -336,9 +355,8 @@ namespace vkz
         std::vector< BufRegisterInfo >  m_buf_info;
         std::vector< ImgRegisterInfo >  m_img_info;
         
-        std::vector<PassCreateInfo_fg>     m_pass_create_info;
+        std::vector< PassCreateDataRef>     m_pass_create_data_ref;
 
-                     
         std::vector< CombinedResID>     m_combinedResId;
 
         std::vector< VertexBindingDesc>     m_vtxBindingDesc;

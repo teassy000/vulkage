@@ -5,7 +5,34 @@
 
 namespace vkz
 {
+    struct BufferCreateInfo : public BufferDesc
+    {
+        uint16_t    resNum;
+    };
 
+    struct BufferAliasInfo
+    {
+        uint16_t   bufId;
+        uint16_t   size;
+    };
+
+    struct ImageCreateInfo : public ImageDesc
+    {
+        uint16_t    resNum;
+    };
+
+    struct ImageAliasInfo
+    {
+        uint16_t    imgId;
+    };
+
+    struct PassCreateInfo : public PassDesc
+    {
+        uint16_t    passId;
+
+        std::vector<uint16_t>   vtxBindingIdxs;
+        std::vector<uint16_t>   vtxAttrIdxs;
+    };
 } // namespace vkz
 
 #endif // __VKZ_STRUCTS_INNER_H__

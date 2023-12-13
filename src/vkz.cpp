@@ -7,6 +7,7 @@
 #include "config.h"
 #include "name.h"
 
+#include "res_creator.h"
 #include "framegraph_2.h"
 #include <array>
 
@@ -30,75 +31,80 @@ namespace vkz
         deleteObject(getAllocator(), s_allocator);
     }
 
-    uint16_t getBytesPerPixel(ResourceFormat format)
+    uint16_t getBytesPerPixel(ResourceFormat _format)
     {
-        switch (format)
+        uint16_t bpp = 0;
+        switch (_format)
         {
-        case ResourceFormat::Unknown:
-            return 0;
-        case ResourceFormat::A8:
-            return 1;
-        case ResourceFormat::R8:
-            return 1;
-        case ResourceFormat::R8I:
-            return 1;
-        case ResourceFormat::R8S:
-            return 1;
-        case ResourceFormat::R8U:
-            return 1;
-        case ResourceFormat::R16:
-            return 2;
-        case ResourceFormat::R16I:
-            return 2;
-        case ResourceFormat::R16U:
-            return 2;
-        case ResourceFormat::R16F:
-            return 2;
-        case ResourceFormat::R16S:
-            return 2;
-        case ResourceFormat::R32:
-            return 4;
-        case ResourceFormat::R32I:
-            return 4;
-        case ResourceFormat::R32U:
-            return 4;
-        case ResourceFormat::R32F:
-            return 4;
-        case ResourceFormat::R32S:
-            return 4;
-        case ResourceFormat::BGRA8:
-            return 4;
-        case ResourceFormat::BGRA8I:
-            return 4;
-        case ResourceFormat::BGRA8U:
-            return 4;
-        case ResourceFormat::BGRA8F:
-            return 4;
-        case ResourceFormat::BGRA8S:
-            return 4;
-        case ResourceFormat::RGBA8:
-            return 4;
-        case ResourceFormat::RGBA8I:
-            return 4;
-        case ResourceFormat::RGBA8U:
-            return 4;
-        case ResourceFormat::RGBA8F:
-            return 4;
-        case ResourceFormat::RGBA8S:
-            return 4;
-        case ResourceFormat::UnknownDepth:
-            return 0;
-        case ResourceFormat::D16:
-            return 2;
-        case ResourceFormat::D32:
-            return 4;
-        case ResourceFormat::D16F:
-            return 2;
-        case ResourceFormat::D32F:
-            return 4;
+        case vkz::ResourceFormat::undefined:
+            bpp = 0;
+            break;
+        case vkz::ResourceFormat::r8_sint:
+            bpp = 1;
+            break;
+        case vkz::ResourceFormat::r8_uint:
+            bpp = 1;
+            break;
+        case vkz::ResourceFormat::r16_uint:
+            bpp = 2;
+            break;
+        case vkz::ResourceFormat::r16_sint:
+            bpp = 2;
+            break;
+        case vkz::ResourceFormat::r16_snorm:
+            bpp = 2;
+            break;
+        case vkz::ResourceFormat::r16_unorm:
+            bpp = 2;
+            break;
+        case vkz::ResourceFormat::r32_uint:
+            bpp = 4;
+            break;
+        case vkz::ResourceFormat::r32_sint:
+            bpp = 4;
+            break;
+        case vkz::ResourceFormat::r32_sfloat:
+            bpp = 4;
+            break;
+        case vkz::ResourceFormat::b8g8r8a8_snorm:
+            bpp = 4;
+            break;
+        case vkz::ResourceFormat::b8g8r8a8_unorm:
+            bpp = 4;
+            break;
+        case vkz::ResourceFormat::b8g8r8a8_sint:
+            bpp = 4;
+            break;
+        case vkz::ResourceFormat::b8g8r8a8_uint:
+            bpp = 4;
+            break;
+        case vkz::ResourceFormat::r8g8b8a8_snorm:
+            bpp = 4;
+            break;
+        case vkz::ResourceFormat::r8g8b8a8_unorm:
+            bpp = 4;
+            break;
+        case vkz::ResourceFormat::r8g8b8a8_sint:
+            bpp = 4;
+            break;
+        case vkz::ResourceFormat::r8g8b8a8_uint:
+            bpp = 4;
+            break;
+        case vkz::ResourceFormat::unknown_depth:
+            bpp = 0;
+            break;
+        case vkz::ResourceFormat::d16:
+            bpp = 2;
+            break;
+        case vkz::ResourceFormat::d32:
+            bpp = 4;
+            break;
         default:
-            return 0;
+            bpp = 0;
+            break;
         }
+        
+        return bpp;
     }
 
     struct MemoryRef
@@ -172,12 +178,14 @@ namespace vkz
 
 
         // frame graph
-        MemoryBlock* m_fgMemBlock;
-        MemoryWriter* m_fgMemWriter;
+        MemoryBlockI* m_pFgMemBlock{ nullptr };
+        MemoryWriter* m_fgMemWriter{ nullptr };
 
-        Framegraph2* m_frameGraph;
+        ResCreator* m_resCreator{ nullptr };
 
-        AllocatorI* m_allocator = nullptr;
+        Framegraph2* m_frameGraph{ nullptr };
+
+        AllocatorI* m_pAllocator{ nullptr };
     };
 
     ShaderHandle Context::registShader(const char* _name, const char* _path)
@@ -303,9 +311,9 @@ namespace vkz
         info.usage = desc.usage;
         info.memFlags = desc.memFlags;
         info.lifetime = _lifetime;
-        info.access = 0u; // TODO: set the barrier state
-        info.layout = 0u; // TODO: set the barrier state
-        info.stage = 0u;  // TODO: set the barrier state
+        info.state.access = 0u; // TODO: set the barrier state
+        info.state.layout = ImageLayout::undefined; // TODO: set the barrier state
+        info.state.stage = 0u;  // TODO: set the barrier state
 
         write(m_fgMemWriter, info);
 
@@ -339,7 +347,7 @@ namespace vkz
         info.depth = _desc.depth;
         info.mips = _desc.mips;
         info.format = _desc.format;
-        info.layers = _desc.layers;
+        info.arrayLayers = _desc.arrayLayers;
         info.usage = _desc.usage;
         info.lifetime = _lifetime;
         info.bpp = getBytesPerPixel(_desc.format);
@@ -347,9 +355,9 @@ namespace vkz
         // TODO: image type
         // TODO: image view type
 
-        info.access = 0u; // TODO: set the barrier state
-        info.layout = 0u; // TODO: set the barrier state
-        info.stage = 0u;  // TODO: set the barrier state
+        info.state.access = 0u; // TODO: set the barrier state
+        info.state.layout = ImageLayout::undefined; // TODO: set the barrier state
+        info.state.stage = 0u;  // TODO: set the barrier state
 
         write(m_fgMemWriter, info);
 
@@ -383,7 +391,7 @@ namespace vkz
         info.depth = _desc.depth;
         info.mips = _desc.mips;
         info.format = _desc.format;
-        info.layers = _desc.layers;
+        info.arrayLayers = _desc.arrayLayers;
         info.usage = _desc.usage;
         info.lifetime = _lifetime;
         info.bpp = getBytesPerPixel(_desc.format);
@@ -391,9 +399,9 @@ namespace vkz
         // TODO: image type
         // TODO: image view type
 
-        info.access = 0u; // TODO: set the barrier state
-        info.layout = 0u; // TODO: set the barrier state
-        info.stage = 0u;  // TODO: set the barrier state
+        info.state.access = 0u; // TODO: set the barrier state
+        info.state.layout = ImageLayout::undefined; // TODO: set the barrier state
+        info.state.stage = 0u;  // TODO: set the barrier state
 
         write(m_fgMemWriter, info);
 
@@ -427,7 +435,7 @@ namespace vkz
         info.depth = _desc.depth;
         info.mips = _desc.mips;
         info.format = _desc.format;
-        info.layers = _desc.layers;
+        info.arrayLayers = _desc.arrayLayers;
         info.usage = _desc.usage;
         info.lifetime = _lifetime;
         info.bpp = getBytesPerPixel(_desc.format);
@@ -435,9 +443,9 @@ namespace vkz
         // TODO: image type
         // TODO: image view type
 
-        info.access = 0u; // TODO: set the barrier state
-        info.layout = 0u; // TODO: set the barrier state
-        info.stage = 0u;  // TODO: set the barrier state
+        info.state.access = 0u; // TODO: set the barrier state
+        info.state.layout = ImageLayout::undefined; // TODO: set the barrier state
+        info.state.stage = 0u;  // TODO: set the barrier state
 
         write(m_fgMemWriter, info);
 
@@ -534,12 +542,14 @@ namespace vkz
 
     void Context::init()
     {
-        m_allocator = getAllocator();
-        m_fgMemBlock = VKZ_NEW(getAllocator(), MemoryBlock(m_allocator));
-        m_fgMemBlock->expand(kInitialFrameGraphMemSize);
-        m_fgMemWriter = VKZ_NEW(getAllocator(), MemoryWriter(m_fgMemBlock));
+        m_pAllocator = getAllocator();
 
-        m_frameGraph = VKZ_NEW(getAllocator(), Framegraph2(getAllocator()));
+        m_resCreator = VKZ_NEW(m_pAllocator, ResCreator(m_pAllocator));
+
+        m_frameGraph = VKZ_NEW(m_pAllocator, Framegraph2(m_pAllocator, m_resCreator->getMemoryBlock()));
+
+        m_pFgMemBlock = m_frameGraph->getMemoryBlock();
+        m_fgMemWriter = VKZ_NEW(m_pAllocator, MemoryWriter(m_pFgMemBlock));
 
         uint32_t magic = static_cast<uint32_t>(MagicTag::SetBrief);
         write(m_fgMemWriter, magic);
@@ -579,15 +589,18 @@ namespace vkz
         size -= sizeof(FrameGraphBrief);
         m_fgMemWriter->seek(size, Whence::Current);
 
-        m_frameGraph->setMemoryBlock(m_fgMemBlock);
+        m_frameGraph->setMemoryBlock(m_pFgMemBlock);
         m_frameGraph->bake();
     }
 
     void Context::shutdown()
     {
-        deleteObject(getAllocator(), m_frameGraph);
-        deleteObject(getAllocator(), m_fgMemWriter);
-        deleteObject(getAllocator(), m_fgMemBlock);
+        deleteObject(m_pAllocator, m_frameGraph);
+        deleteObject(m_pAllocator, m_resCreator);
+        deleteObject(m_pAllocator, m_fgMemWriter);
+
+        m_pFgMemBlock = nullptr;
+        m_pAllocator = nullptr;
     }
 
     // ================================================

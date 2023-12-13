@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "vkz_structs_inner.h"
+#include "config.h"
 
 namespace vkz
 {
@@ -29,39 +30,46 @@ namespace vkz
         Graphics,
     };
 
-    struct PassCreateInfo
+    class ResCreatorI
     {
-        uint16_t    idx;
-
-        PassExeQueue queue;
-
-        // bind pass with pipeline, thus implicitly bind with program
-        uint16_t    programId;
-        uint16_t    vtxBindingNum;
-        uint16_t    vtxAttrNum;
-        PipelineConfig pipelineConfig;
-
-        std::vector<uint16_t>   vtxBindingIdxs;
-        std::vector<uint16_t>   vtxAttrIdxs;
-    };
-
-
-    class ResCreator
-    {
-    public:
-        inline void setMemoryBlock(MemoryBlockI* pMemBlock) {
-            m_pMemBlock = pMemBlock;
-        }
     private:
-        void parseOp();
-
         virtual void init(MemoryReader& reader) = 0;
         virtual void createPass(MemoryReader& reader) = 0;
         virtual void createImage(MemoryReader& reader) = 0;
         virtual void createBuffer(MemoryReader& reader) = 0;
+    };
+
+    class ResCreator : public ResCreatorI
+    {
+    public:
+        ResCreator(AllocatorI* _allocator)
+            : m_pAllocator{ _allocator }
+            , m_pMemBlock{ nullptr }
+        {
+            m_pMemBlock = VKZ_NEW(m_pAllocator, MemoryBlock(m_pAllocator));
+            m_pMemBlock->expand(kInitialFrameGraphMemSize);
+        }
+
+        virtual ~ResCreator()
+        {
+            deleteObject(m_pAllocator, m_pMemBlock);
+        }
+
+        inline MemoryBlockI* getMemoryBlock() const {
+            return m_pMemBlock;
+        }
 
     private:
-        MemoryBlockI* m_pMemBlock;
+        void parseOp();
+
+        void init(MemoryReader& reader) override {};
+        void createPass(MemoryReader& reader) override {};
+        void createImage(MemoryReader& reader) override {};
+        void createBuffer(MemoryReader& reader) override {};
+
+    private:
+        AllocatorI*     m_pAllocator;
+        MemoryBlockI*   m_pMemBlock;
     };
 
 } // namespace vkz
