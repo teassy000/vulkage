@@ -229,7 +229,6 @@ namespace vkz
         return _writer->write(&_value, sizeof(T));
     }
 
-
     inline int64_t skip(SeekerI* _seeker, int64_t _offset)
     {
         return _seeker->seek(_offset, Whence::Current);

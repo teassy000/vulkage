@@ -33,19 +33,18 @@ namespace vkz
         bool enableDepthWrite{ true };
         VkCompareOp depthCompOp{ VK_COMPARE_OP_GREATER };
     };
-
-    using Shaders = std::initializer_list<const Shader_vk*>;
     using Constants = std::initializer_list<int>;
 
     bool loadShader(Shader_vk& shader, VkDevice device, const char* path);
 
-    VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, const VkPipelineRenderingCreateInfo& renderInfo, Shaders shaders, VkPipelineVertexInputStateCreateInfo* vtxInputState, Constants constants = {}, const PipelineConfigs_vk& pipeConfigs = {});
-    VkPipeline createComputePipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, const Shader_vk& shader, Constants constants = {});
+    VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, const VkPipelineRenderingCreateInfo& renderInfo
+        , const std::vector<Shader_vk>& shaders, VkPipelineVertexInputStateCreateInfo* vtxInputState, const std::vector<int> constants = {}, const PipelineConfigs_vk& pipeConfigs = {});
+    VkPipeline createComputePipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, const Shader_vk& shader, const std::vector<int> constants = {});
 
-    VkDescriptorSetLayout createSetLayout(VkDevice device, Shaders shaders);
+    VkDescriptorSetLayout createSetLayout(VkDevice device, const std::vector<Shader_vk>& shaders);
     VkPipelineLayout createPipelineLayout(VkDevice device, VkDescriptorSetLayout outSetLayout, VkShaderStageFlags pushConstantStages, size_t pushConstantSize);
 
-    Program_vk createProgram(VkDevice device, VkPipelineBindPoint bindingPoint, Shaders shaders, size_t pushConstantSize = 0);
+    Program_vk createProgram(VkDevice device, VkPipelineBindPoint bindingPoint, const std::vector<Shader_vk>& shaders, size_t pushConstantSize = 0);
     void destroyProgram(VkDevice device, const Program_vk& program);
 
     inline uint32_t calcGroupCount(uint32_t threadCount, uint32_t localSize)

@@ -74,7 +74,7 @@ bool checkExtSupportness(const std::vector<VkExtensionProperties>& props, const 
 {
     bool extSupported = false;
     for (const auto& extension : props) {
-        if(strcmp(extension.extensionName, extName)){
+        if(strcmp(extension.extensionName, extName) != 0){
         //if (std::string(extension.extensionName) == extName) {
             extSupported = true;
             break;
@@ -1157,7 +1157,7 @@ int main(int argc, const char** argv)
                 vkCmdBindIndexBuffer(cmdBuffer, buf_idx.buffer, 0, VK_INDEX_TYPE_UINT32);
                 vkCmdDrawIndexedIndirectCount(cmdBuffer, mdcb_local.buffer, offsetof(MeshDrawCommand, indirect), mdccb_local.buffer, 0, (uint32_t)scene.meshDraws.size(), sizeof(MeshDrawCommand));
             }
-            
+             
             vkCmdEndRendering(cmdBuffer);
             vkCmdEndQuery(cmdBuffer, queryPoolStatistics, query);
 
@@ -1183,7 +1183,7 @@ int main(int argc, const char** argv)
         culling(/* late = */false, taskSubmitOn ? taskCullPipeline : drawcmdPipeline);
         
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, queryPoolTimeStemp, 2);
-       
+        
         vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, queryPoolTimeStemp, 3);
 
         render(/* late = */false, /*taskSubmit = */ taskSubmitOn, clearColor, clearDepth, taskSubmitOn ? taskPipelineMS : meshPipelineMS, 0);

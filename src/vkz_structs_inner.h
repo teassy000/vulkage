@@ -7,49 +7,53 @@ namespace vkz
 {
     struct BufferCreateInfo : public BufferDesc
     {
-        uint16_t    resNum;
+        uint16_t    resNum{ 0 };
     };
 
     struct BufferAliasInfo
     {
-        uint16_t   bufId;
-        uint16_t   size;
+        uint16_t   bufId{ kInvalidHandle };
+        uint16_t   size{ 0 };
     };
 
     struct ImageCreateInfo : public ImageDesc
     {
-        uint16_t    resNum;
+        uint16_t    resNum{ 0 };
     };
 
     struct ImageAliasInfo
     {
-        uint16_t    imgId;
+        uint16_t    imgId{ kInvalidHandle };
     };
 
     struct ShaderCreateInfo 
     {
-        uint16_t shaderId;
-        uint16_t pathLen;
+        uint16_t shaderId{ kInvalidHandle };
+        uint16_t pathLen{ 0 };
     };
     
     struct ProgramDesc
     {
-        uint16_t progId;
-        uint16_t shaderNum;
-        uint32_t sizePushConstants;
+        uint16_t progId{ kInvalidHandle };
+        uint16_t shaderNum{ 0 };
+        uint32_t sizePushConstants{ 0 };
     };
 
     struct ProgramCreateInfo : public ProgramDesc
     {
-        std::vector<uint16_t>   shaderIds;
+
     };
+    
 
     struct PassCreateInfo : public PassDesc
     {
-        uint16_t    passId;
+        uint16_t    passId{ kInvalidHandle };
 
-        std::vector<uint16_t>   vtxBindingIdxs;
-        std::vector<uint16_t>   vtxAttrIdxs;
+        uint16_t    writeDepthId{ kInvalidHandle };
+        uint16_t    writeColorNum{ 0 };
+        
+        uint16_t    readImageNum{ 0 };
+        uint16_t    rwBufferNum{ 0 };
     };
 } // namespace vkz
 

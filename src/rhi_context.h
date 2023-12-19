@@ -7,11 +7,9 @@
 
 namespace vkz
 {
-    enum class ResCreatorOpMagic : uint32_t
+    enum class RHIContextOpMagic : uint32_t
     {
         InvalidMagic = 0,
-
-        Init,
 
         CreatePass,
         CreateImage,
@@ -23,17 +21,14 @@ namespace vkz
         End,
     };
 
-    enum class PassType : uint16_t
-    {
-        Invalid = 0,
-        Compute,
-        Graphics,
-    };
 
-    class ResCreatorI
+
+    class RHIContextI
     {
+    public:
+        virtual void init() = 0;
+        virtual void loop() = 0;
     private:
-        virtual void init(MemoryReader& reader) = 0;
         virtual void createShader(MemoryReader& reader) = 0;
         virtual void createProgram(MemoryReader& reader) = 0;
         virtual void createPass(MemoryReader& reader) = 0;
@@ -41,10 +36,10 @@ namespace vkz
         virtual void createBuffer(MemoryReader& reader) = 0;
     };
 
-    class ResCreator : public ResCreatorI
+    class RHIContext : public RHIContextI
     {
     public:
-        ResCreator(AllocatorI* _allocator)
+        RHIContext(AllocatorI* _allocator)
             : m_pAllocator{ _allocator }
             , m_pMemBlock{ nullptr }
         {
@@ -52,19 +47,21 @@ namespace vkz
             m_pMemBlock->expand(kInitialFrameGraphMemSize);
         }
 
-        virtual ~ResCreator()
+        virtual ~RHIContext()
         {
             deleteObject(m_pAllocator, m_pMemBlock);
         }
 
-        inline MemoryBlockI* getMemoryBlock() const {
-            return m_pMemBlock;
-        }
+        inline MemoryBlockI* getMemoryBlock() const {return m_pMemBlock;}
+        inline AllocatorI* getAllocator() const { return m_pAllocator; }
+
+        void init() override {};
+        void loop() override {};
+    protected:
 
     private:
         void parseOp();
 
-        void init(MemoryReader& reader) override {};
         void createShader(MemoryReader& reader) override {};
         void createProgram(MemoryReader& reader) override {};
         void createPass(MemoryReader& reader) override {};

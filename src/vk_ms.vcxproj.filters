@@ -164,7 +164,7 @@
     <ClCompile Include="framegraph_2.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="vk_res_creator.cpp">
+    <ClCompile Include="rhi_context_vk.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="vkz.cpp">
@@ -174,7 +174,7 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="demo.cpp" />
-    <ClCompile Include="res_creator.cpp">
+    <ClCompile Include="rhi_context.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="vk_resource.cpp">
@@ -184,6 +184,12 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="shader_manager.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="vk_device.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="vk_swapchain.cpp">
       <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>
@@ -281,7 +287,7 @@
     <ClInclude Include="framegraph_2.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="vk_res_creator.h">
+    <ClInclude Include="rhi_context_vk.h">
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="handle.h">
@@ -303,7 +309,7 @@
     <ClInclude Include="memory_operation.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="res_creator.h">
+    <ClInclude Include="rhi_context.h">
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="macro.h">
@@ -322,6 +328,15 @@
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="vkz_structs_inner.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="pass.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="vk_device.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="vk_swapchain.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>
@@ -360,6 +375,12 @@
       <Filter>shaders</Filter>
     </CustomBuild>
     <CustomBuild Include="shaders\skybox.vert.glsl">
+      <Filter>shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="shaders\triangle.vert.glsl">
+      <Filter>shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="shaders\triangle.frag.glsl">
       <Filter>shaders</Filter>
     </CustomBuild>
   </ItemGroup>

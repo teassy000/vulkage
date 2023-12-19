@@ -202,10 +202,11 @@
     <ClCompile Include="framegraph.cpp" />
     <ClCompile Include="framegraph_2.cpp" />
     <ClCompile Include="mesh.cpp" />
-    <ClCompile Include="res_creator.cpp" />
+    <ClCompile Include="rhi_context.cpp" />
     <ClCompile Include="shader_manager.cpp" />
+    <ClCompile Include="vk_device.cpp" />
     <ClCompile Include="vk_resource.cpp" />
-    <ClCompile Include="vk_res_creator.cpp" />
+    <ClCompile Include="rhi_context_vk.cpp" />
     <ClCompile Include="scene.cpp" />
     <ClCompile Include="debug.cpp" />
     <ClCompile Include="vkz.cpp" />
@@ -215,6 +216,7 @@
     <ClCompile Include="swapchain.cpp" />
     <ClCompile Include="ui.cpp" />
     <ClCompile Include="vk_shaders.cpp" />
+    <ClCompile Include="vk_swapchain.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\externs\fast_obj\fast_obj.h" />
@@ -247,12 +249,14 @@
     <ClInclude Include="mesh.h" />
     <ClInclude Include="framegraph.h" />
     <ClInclude Include="name.h" />
-    <ClInclude Include="res_creator.h" />
+    <ClInclude Include="pass.h" />
+    <ClInclude Include="rhi_context.h" />
     <ClInclude Include="shader_manager.h" />
     <ClInclude Include="vkz_structs.h" />
     <ClInclude Include="vkz_structs_inner.h" />
+    <ClInclude Include="vk_device.h" />
     <ClInclude Include="vk_resource.h" />
-    <ClInclude Include="vk_res_creator.h" />
+    <ClInclude Include="rhi_context_vk.h" />
     <ClInclude Include="scene.h" />
     <ClInclude Include="uidata.h" />
     <ClInclude Include="resources.h" />
@@ -263,6 +267,7 @@
     <ClInclude Include="ui.h" />
     <ClInclude Include="vkz.h" />
     <ClInclude Include="vk_shaders.h" />
+    <ClInclude Include="vk_swapchain.h" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="shaders\meshlet.mesh.glsl">
@@ -363,6 +368,14 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="memory_operation.inl" />
+    <CustomBuild Include="shaders\triangle.frag.glsl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders\%(outputpath)\%(Filename).spv</Command>
+    </CustomBuild>
+    <CustomBuild Include="shaders\triangle.vert.glsl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders\%(outputpath)\%(Filename).spv</Command>
+    </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

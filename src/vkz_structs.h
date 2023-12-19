@@ -3,19 +3,42 @@
 
 
 #include <stdint.h>
+#include "macro.h"
 
 namespace vkz
 {
+    static const uint16_t kInvalidHandle = UINT16_MAX;
+
+    template <class HandleType>
+    struct NO_VTABLE Handle {
+        uint16_t id;
+
+        bool operator == (const Handle<HandleType>& rhs) const {
+            return id == rhs.id;
+        }
+    };
+
+    template <class HandleType>
+    bool inline isValid(const Handle<HandleType>& handle) {
+        return kInvalidHandle != handle.id;
+    }
+
 
     enum class PassExeQueue : uint16_t
     {
-        Graphics = 0,
-        AsyncCompute0 = 1,
-        AsyncCompute1 = 2,
-        AsyncCompute2 = 3,
-        Count = 4,
+        graphics = 0,
+        compute = 1,
+        copy,
+        count,
     };
 
+    enum class PipelineBindPoint : uint16_t
+    {
+        compute = 0,
+        graphics = 1,
+        raytracing = 2,
+        max_enum = 0x7FFF
+    };
 
     enum class CompareOp : uint16_t
     {
@@ -195,75 +218,63 @@ namespace vkz
     }
     using MemoryPropFlags = uint16_t;
 
-    struct VertexBinding
-    {
-        uint16_t    binding;
-        uint16_t    stride;
-        uint16_t    inputRate;
-    };
-
-    struct VertexAttribute
-    {
-        uint32_t        location;
-        uint32_t        binding;
-        ResourceFormat   format;
-        uint32_t        offset;
-    };
-
     struct PipelineConfig
     {
-        uint16_t enableDepthTest;
-        uint16_t enableDepthWrite;
+        bool enableDepthTest{true};
+        bool enableDepthWrite{true};
         CompareOp depthCompOp{ CompareOp::greater };
     };
 
     struct BufferDesc {
-        uint32_t size;
+        uint32_t size{ 0 };
 
-        BufferUsageFlags usage;
-        MemoryPropFlags memFlags;
+        BufferUsageFlags usage{ BufferUsageFlagBits::none };
+        MemoryPropFlags memFlags{ MemoryPropFlagBits::none };
     };
 
     struct ImageDesc {
-        uint32_t width;
-        uint32_t height;
-        uint32_t depth;
-        uint16_t arrayLayers;
-        uint16_t mips;
+        uint32_t width{ 0 };
+        uint32_t height{ 0 };
+        uint32_t depth{ 0 };
+        uint16_t arrayLayers{ 1 };
+        uint16_t mips{ 1 };
 
-        ImageType       type;
-        ImageViewType   viewType;
-        ImageLayout     layout;
-        ResourceFormat  format;
-        ImageUsageFlags usage;
+        ImageType       type{ ImageType::type_2d };
+        ImageViewType   viewType{ ImageViewType::type_2d };
+        ImageLayout     layout{ ImageLayout::general };
+        ResourceFormat  format{ ResourceFormat::undefined };
+        ImageUsageFlags usage{ ImageUsageFlagBits::none };
     };
 
     struct VertexBindingDesc
     {
-        uint32_t            binding;
-        uint32_t            stride;
-        VertexInputRate     inputRate;
+        uint32_t            binding{ 0 };
+        uint32_t            stride{ 0 };
+        VertexInputRate     inputRate{ VertexInputRate::vertex };
     };
 
     struct VertexAttributeDesc
     {
-        uint32_t        location;
-        uint32_t        binding;
-        uint32_t        offset;
-        ResourceFormat  format;
+        uint32_t        location{ 0 };
+        uint32_t        binding{ 0 };
+        uint32_t        offset{ 0 };
+        ResourceFormat  format{ ResourceFormat::undefined };
     };
+
 
     struct PassDesc
     {
-        uint16_t        programId;
-        PassExeQueue    queue;
+        uint16_t        programId{kInvalidHandle};
+        PassExeQueue    queue{ PassExeQueue::graphics};
 
-        uint16_t        vertexBindingNum;
-        uint16_t        vertexAttributeNum;
-        void*           vertexBindingInfos;
-        void*           vertexAttributeInfos;
+        uint16_t        vertexBindingNum{0};
+        uint16_t        vertexAttributeNum{0};
+        void* vertexBindingInfos{ nullptr };
+        void* vertexAttributeInfos{ nullptr };
 
-        PipelineConfig  pipelineConfig;
+        uint32_t        pushConstantNum{0}; // each constant is 4 byte
+        void*           pushConstants{nullptr};
+        PipelineConfig  pipelineConfig{};
     };
 
 } // namespace vkz

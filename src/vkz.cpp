@@ -7,9 +7,10 @@
 #include "config.h"
 #include "name.h"
 
-#include "res_creator.h"
+#include "rhi_context.h"
 #include "framegraph_2.h"
 #include <array>
+#include "rhi_context_vk.h"
 
 
 namespace vkz
@@ -157,7 +158,10 @@ namespace vkz
         void setResultRenderTarget(RenderTargetHandle _rt);
 
         void init();
-        void update();
+        void loop();
+
+        void render();
+
         void shutdown();
 
         HandleArrayT<kMaxNumOfShaderHandle> m_shaderHandles;
@@ -181,7 +185,7 @@ namespace vkz
         MemoryBlockI* m_pFgMemBlock{ nullptr };
         MemoryWriter* m_fgMemWriter{ nullptr };
 
-        ResCreator* m_resCreator{ nullptr };
+        RHIContext* m_rhiContext{ nullptr };
 
         Framegraph2* m_frameGraph{ nullptr };
 
@@ -254,12 +258,7 @@ namespace vkz
             return PassHandle{ kInvalidHandle };
         }
 
-        PassDesc& desc = m_passDescs[idx];
-        desc.programId = _desc.programId;
-        desc.queue = _desc.queue;
-        desc.pipelineConfig = _desc.pipelineConfig;
-        desc.vertexAttributeNum = _desc.vertexAttributeNum;
-        desc.vertexBindingNum = _desc.vertexBindingNum;
+        m_passDescs[idx] = _desc;
 
         // frame graph data
         uint32_t magic = static_cast<uint32_t>(MagicTag::RegisterPass);
@@ -267,10 +266,14 @@ namespace vkz
 
         PassRegisterInfo info;
         info.passId = idx;
+        info.programId = _desc.programId;
         info.queue = _desc.queue;
-        info.vtxBindingNum = _desc.vertexBindingNum; // binding struct
-        info.vtxAttrNum = _desc.vertexAttributeNum; // attribute struct 
-        info.pipelineConfig = _desc.pipelineConfig; // int
+        info.vertexBindingNum = _desc.vertexBindingNum; // binding struct
+        info.vertexAttributeNum = _desc.vertexAttributeNum; // attribute struct 
+        info.vertexAttributeInfos = nullptr;
+        info.vertexBindingInfos = nullptr;
+        info.pushConstantNum = _desc.pushConstantNum; // int
+        info.pipelineConfig = _desc.pipelineConfig;
 
         write(m_fgMemWriter, info);
         
@@ -281,6 +284,10 @@ namespace vkz
         if (0 != _desc.vertexAttributeNum)
         {
             write(m_fgMemWriter, _desc.vertexAttributeInfos, sizeof(VertexAttributeDesc) * _desc.vertexAttributeNum);
+        }
+        if (0 != _desc.pushConstantNum)
+        {
+            write(m_fgMemWriter, _desc.pushConstants, sizeof(int) * _desc.pushConstantNum);
         }
         return handle;
     }
@@ -535,7 +542,7 @@ namespace vkz
         uint32_t magic = static_cast<uint32_t>(MagicTag::SetResultRenderTarget);
         write(m_fgMemWriter, magic);
         
-        write(m_fgMemWriter, _rt.idx);
+        write(m_fgMemWriter, _rt.id);
         
         m_resultRenderTarget = _rt;
     }
@@ -543,10 +550,10 @@ namespace vkz
     void Context::init()
     {
         m_pAllocator = getAllocator();
+        
+        m_rhiContext = VKZ_NEW(m_pAllocator, RHIContext_vk(m_pAllocator));
 
-        m_resCreator = VKZ_NEW(m_pAllocator, ResCreator(m_pAllocator));
-
-        m_frameGraph = VKZ_NEW(m_pAllocator, Framegraph2(m_pAllocator, m_resCreator->getMemoryBlock()));
+        m_frameGraph = VKZ_NEW(m_pAllocator, Framegraph2(m_pAllocator, m_rhiContext->getMemoryBlock()));
 
         m_pFgMemBlock = m_frameGraph->getMemoryBlock();
         m_fgMemWriter = VKZ_NEW(m_pAllocator, MemoryWriter(m_pFgMemBlock));
@@ -558,9 +565,9 @@ namespace vkz
         write(m_fgMemWriter, FrameGraphBrief());
     }
 
-    void Context::update()
+    void Context::loop()
     {
-        if (kInvalidHandle == m_resultRenderTarget.idx)
+        if (kInvalidHandle == m_resultRenderTarget.id)
         {
             message(error, "result render target is not set!");
             return;
@@ -596,7 +603,7 @@ namespace vkz
     void Context::shutdown()
     {
         deleteObject(m_pAllocator, m_frameGraph);
-        deleteObject(m_pAllocator, m_resCreator);
+        deleteObject(m_pAllocator, m_rhiContext);
         deleteObject(m_pAllocator, m_fgMemWriter);
 
         m_pFgMemBlock = nullptr;
@@ -621,7 +628,7 @@ namespace vkz
         for (uint16_t ii = 0; ii < shaderNum; ++ii)
         {
             const ShaderHandle& handle = begin(_shaders)[ii];
-            write(&writer, handle.idx);
+            write(&writer, handle.id);
         }
 
         return s_ctx->registProgram(_name, mem, shaderNum, _sizePushConstants);
@@ -656,11 +663,11 @@ namespace vkz
     {
         const Memory* mem = alloc(_aliasCount * sizeof(uint16_t));
         
-        s_ctx->aliasResrouce(mem, _aliasCount, _base.idx, MagicTag::AliasBuffer);
+        s_ctx->aliasResrouce(mem, _aliasCount, _base.id, MagicTag::AliasBuffer);
         
         for (uint16_t ii = 0; ii < _aliasCount; ++ii)
         {
-            (*_aliases[ii]).idx = mem->data[ii];
+            (*_aliases[ii]).id = mem->data[ii];
         }
 
         release(mem);
@@ -670,11 +677,11 @@ namespace vkz
     {
         const Memory* mem = alloc(_aliasCount * sizeof(uint16_t));
 
-        s_ctx->aliasResrouce(mem, _aliasCount, _base.idx, MagicTag::AliasTexture);
+        s_ctx->aliasResrouce(mem, _aliasCount, _base.id, MagicTag::AliasTexture);
 
         for (uint16_t ii = 0; ii < _aliasCount; ++ii)
         {
-            (*_aliases[ii]).idx = mem->data[ii];
+            (*_aliases[ii]).id = mem->data[ii];
         }
 
         release(mem);
@@ -684,11 +691,11 @@ namespace vkz
     {
         const Memory* mem = alloc(_aliasCount * sizeof(uint16_t));
 
-        s_ctx->aliasResrouce(mem, _aliasCount, _base.idx, MagicTag::AliasRenderTarget);
+        s_ctx->aliasResrouce(mem, _aliasCount, _base.id, MagicTag::AliasRenderTarget);
 
         for (uint16_t ii = 0; ii < _aliasCount; ++ii)
         {
-            (*_aliases[ii]).idx = mem->data[ii];
+            (*_aliases[ii]).id = mem->data[ii];
         }
 
         release(mem);
@@ -697,11 +704,11 @@ namespace vkz
     void aliasDepthStencil(DepthStencilHandle** _aliases, const uint16_t _aliasCount, const DepthStencilHandle _base)
     {
         const Memory* mem = alloc(_aliasCount * sizeof(uint16_t));
-        s_ctx->aliasResrouce(mem, _aliasCount, _base.idx, MagicTag::AliasDepthStencil);
+        s_ctx->aliasResrouce(mem, _aliasCount, _base.id, MagicTag::AliasDepthStencil);
 
         for (uint16_t ii = 0; ii < _aliasCount; ++ii)
         {
-            (*_aliases[ii]).idx = mem->data[ii];
+            (*_aliases[ii]).id = mem->data[ii];
         }
 
         release(mem);
@@ -763,10 +770,10 @@ namespace vkz
         for (uint16_t ii = 0; ii < size; ++ii)
         {
             const BufferHandle& handle = begin(_resList)[ii];
-            write(&writer, handle.idx);
+            write(&writer, handle.id);
         }
 
-        s_ctx->readwriteResource(_pass.idx, mem, size, MagicTag::PassWriteBuffer);
+        s_ctx->readwriteResource(_pass.id, mem, size, MagicTag::PassWriteBuffer);
 
         release(mem);
     }
@@ -780,10 +787,10 @@ namespace vkz
         for (uint16_t ii = 0; ii < size; ++ii)
         {
             const BufferHandle& handle = begin(_resList)[ii];
-            write(&writer, handle.idx);
+            write(&writer, handle.id);
         }
 
-        s_ctx->readwriteResource(_pass.idx, mem, size, MagicTag::PassReadBuffer);
+        s_ctx->readwriteResource(_pass.id, mem, size, MagicTag::PassReadBuffer);
 
         release(mem);
     }
@@ -797,10 +804,10 @@ namespace vkz
         for (uint16_t ii = 0; ii < size; ++ii)
         {
             const TextureHandle& handle = begin(_resList)[ii];
-            write(&writer, handle.idx);
+            write(&writer, handle.id);
         }
 
-        s_ctx->readwriteResource(_pass.idx, mem, size, MagicTag::PassWriteTexture);
+        s_ctx->readwriteResource(_pass.id, mem, size, MagicTag::PassWriteTexture);
 
         release(mem);
     }
@@ -814,10 +821,10 @@ namespace vkz
         for (uint16_t ii = 0; ii < size; ++ii)
         {
             const TextureHandle& handle = begin(_resList)[ii];
-            write(&writer, handle.idx);
+            write(&writer, handle.id);
         }
         
-        s_ctx->readwriteResource(_pass.idx, mem, size, MagicTag::PassReadTexture);
+        s_ctx->readwriteResource(_pass.id, mem, size, MagicTag::PassReadTexture);
 
         release(mem);
     }
@@ -831,10 +838,10 @@ namespace vkz
         for (uint16_t ii = 0; ii < size; ++ii)
         {
             const RenderTargetHandle& handle = begin(_resList)[ii];
-            write(&writer, handle.idx);
+            write(&writer, handle.id);
         }
 
-        s_ctx->readwriteResource(_pass.idx, mem, size, MagicTag::PassWriteRenderTarget);
+        s_ctx->readwriteResource(_pass.id, mem, size, MagicTag::PassWriteRenderTarget);
 
         release(mem);
     }
@@ -848,10 +855,10 @@ namespace vkz
         for (uint16_t ii = 0; ii < size; ++ii)
         {
             const RenderTargetHandle& handle = begin(_resList)[ii];
-            write(&writer, handle.idx);
+            write(&writer, handle.id);
         }
 
-        s_ctx->readwriteResource(_pass.idx, mem, size, MagicTag::PassReadRenderTarget);
+        s_ctx->readwriteResource(_pass.id, mem, size, MagicTag::PassReadRenderTarget);
 
         release(mem);
     }
@@ -865,10 +872,10 @@ namespace vkz
         for (uint16_t ii = 0; ii < size; ++ii)
         {
             const DepthStencilHandle& handle = begin(_resList)[ii];
-            write(&writer, handle.idx);
+            write(&writer, handle.id);
         }
 
-        s_ctx->readwriteResource(_pass.idx, mem, size, MagicTag::PassWriteDepthStencil);
+        s_ctx->readwriteResource(_pass.id, mem, size, MagicTag::PassWriteDepthStencil);
 
         release(mem);
     }
@@ -882,10 +889,10 @@ namespace vkz
         for (uint16_t ii = 0; ii < size; ++ii)
         {
             const DepthStencilHandle& handle = begin(_resList)[ii];
-            write(&writer, handle.idx);
+            write(&writer, handle.id);
         }
 
-        s_ctx->readwriteResource(_pass.idx, mem, size, MagicTag::PassReadDepthStencil);
+        s_ctx->readwriteResource(_pass.id, mem, size, MagicTag::PassReadDepthStencil);
 
         release(mem);
     }
@@ -900,7 +907,7 @@ namespace vkz
         for (uint16_t ii = 0; ii < size; ++ii)
         {
             const BufferHandle& handle = begin(_resList)[ii];
-            write(&writer, handle.idx);
+            write(&writer, handle.id);
         }
 
         s_ctx->setMultiFrameResource(mem, size, MagicTag::SetMuitiFrameBuffer);
@@ -918,7 +925,7 @@ namespace vkz
         for (uint16_t ii = 0; ii < size; ++ii)
         {
             const TextureHandle& handle = begin(_resList)[ii];
-            write(&writer, handle.idx);
+            write(&writer, handle.id);
         }
 
         s_ctx->setMultiFrameResource(mem, size, MagicTag::SetMuitiFrameTexture);
@@ -936,7 +943,7 @@ namespace vkz
         for (uint16_t ii = 0; ii < size; ++ii)
         {
             const RenderTargetHandle& handle = begin(_resList)[ii];
-            write(&writer, handle.idx);
+            write(&writer, handle.id);
         }
 
         s_ctx->setMultiFrameResource(mem, size, MagicTag::SetMultiFrameRenderTarget);
@@ -954,7 +961,7 @@ namespace vkz
         for (uint16_t ii = 0; ii < size; ++ii)
         {
             const DepthStencilHandle& handle = begin(_resList)[ii];
-            write(&writer, handle.idx);
+            write(&writer, handle.id);
         }
 
         s_ctx->setMultiFrameResource(mem, size, MagicTag::SetMultiFrameDepthStencil);
@@ -1016,15 +1023,14 @@ namespace vkz
         return true;
     }
 
-    void update()
+    void loop()
     {
-        s_ctx->update();
+        s_ctx->loop();
     }
 
     void shutdown()
     {
-        shutdownAllocator();
-
         deleteObject(getAllocator(), s_ctx);
+        shutdownAllocator();
     }
 }

@@ -68,27 +68,27 @@ void right()
     vkz::BufferHandle cmdBuf_late = vkz::aliasBuffer(cmdBuf);
 
     vkz::PassDesc cull_a_desc;
-    cull_a_desc.queue = vkz::PassExeQueue::AsyncCompute0;
+    cull_a_desc.queue = vkz::PassExeQueue::compute;
     vkz::PassHandle cull_a = vkz::registPass("cull_a", cull_a_desc);
 
     vkz::PassDesc draw_a_desc;
-    draw_a_desc.queue = vkz::PassExeQueue::Graphics;
+    draw_a_desc.queue = vkz::PassExeQueue::graphics;
     vkz::PassHandle draw_a = vkz::registPass("draw_a", draw_a_desc);
 
     vkz::PassDesc py_desc;
-    py_desc.queue = vkz::PassExeQueue::AsyncCompute0;
+    py_desc.queue = vkz::PassExeQueue::compute;
     vkz::PassHandle py_pass = vkz::registPass("py_pass", py_desc);
 
     vkz::PassDesc cull_b_desc;
-    cull_b_desc.queue = vkz::PassExeQueue::AsyncCompute0;
+    cull_b_desc.queue = vkz::PassExeQueue::compute;
     vkz::PassHandle cull_b = vkz::registPass("cull_b", cull_b_desc);
 
     vkz::PassDesc draw_b_desc;
-    draw_b_desc.queue = vkz::PassExeQueue::Graphics;
+    draw_b_desc.queue = vkz::PassExeQueue::graphics;
     vkz::PassHandle draw_b = vkz::registPass("draw_b", draw_b_desc);
 
     vkz::PassDesc output_desc;
-    output_desc.queue = vkz::PassExeQueue::Graphics;
+    output_desc.queue = vkz::PassExeQueue::graphics;
     vkz::PassHandle out_pass = vkz::registPass("output", output_desc);
 
     // set multi-frame resource
@@ -126,7 +126,7 @@ void right()
     vkz::passReadRTs(out_pass, { color_late });
     vkz::passWriteRTs(out_pass, { output });
 
-    vkz::update();
+    vkz::loop();
 
     vkz::shutdown();
 }
@@ -188,27 +188,27 @@ void wrong()
     vkz::BufferHandle cmdBuf = vkz::registBuffer("cmd", cmdBufDesc);
 
     vkz::PassDesc cull_a_desc;
-    cull_a_desc.queue = vkz::PassExeQueue::AsyncCompute0;
+    cull_a_desc.queue = vkz::PassExeQueue::compute;
     vkz::PassHandle cull_a = vkz::registPass("cull_a", cull_a_desc);
 
     vkz::PassDesc draw_a_desc;
-    draw_a_desc.queue = vkz::PassExeQueue::Graphics;
+    draw_a_desc.queue = vkz::PassExeQueue::graphics;
     vkz::PassHandle draw_a = vkz::registPass("draw_a", draw_a_desc);
 
     vkz::PassDesc cull_b_desc;
-    cull_b_desc.queue = vkz::PassExeQueue::AsyncCompute0;
+    cull_b_desc.queue = vkz::PassExeQueue::compute;
     vkz::PassHandle cull_b = vkz::registPass("cull_b", cull_b_desc);
 
     vkz::PassDesc draw_b_desc;
-    draw_b_desc.queue = vkz::PassExeQueue::Graphics;
+    draw_b_desc.queue = vkz::PassExeQueue::graphics;
     vkz::PassHandle draw_b = vkz::registPass("draw_b", draw_b_desc);
 
     vkz::PassDesc py_desc;
-    py_desc.queue = vkz::PassExeQueue::AsyncCompute0;
+    py_desc.queue = vkz::PassExeQueue::compute;
     vkz::PassHandle py_pass = vkz::registPass("py_pass", py_desc);
 
     vkz::PassDesc output_desc;
-    output_desc.queue = vkz::PassExeQueue::Graphics;
+    output_desc.queue = vkz::PassExeQueue::graphics;
     vkz::PassHandle out_pass = vkz::registPass("output", output_desc);
 
     // set resource for passes
@@ -242,13 +242,13 @@ void wrong()
     vkz::passWriteRTs(out_pass, { output });
 
 
-    vkz::update();
+    vkz::loop();
     // 
 
     vkz::shutdown();
 }
 
-void colorScreen()
+void triangle()
 {
     vkz::init();
 
@@ -261,8 +261,19 @@ void colorScreen()
     rt.mips = 1;
     vkz::RenderTargetHandle color = vkz::registRenderTarget("color", rt);
 
+
+    vkz::ShaderHandle vs = vkz::registShader("color_vert_shader", "color.vert.spv");
+    vkz::ShaderHandle fs = vkz::registShader("color_frag_shader", "color.frag.spv");
+
+    vkz::ProgramHandle program = vkz::registProgram("color_prog", {vs, fs});
+
     vkz::PassDesc result;
-    result.queue = vkz::PassExeQueue::Graphics;
+    result.programId = program.id;
+    result.queue = vkz::PassExeQueue::graphics;
+    result.pipelineConfig.depthCompOp = vkz::CompareOp::greater;
+    result.pipelineConfig.enableDepthTest = true;
+    result.pipelineConfig.enableDepthWrite = true;
+
     vkz::PassHandle pass = vkz::registPass("result", result);
 
     // TODO:
@@ -278,12 +289,12 @@ void colorScreen()
 
     vkz::setResultRenderTarget(color);
 
-    vkz::update();
+    vkz::loop();
 
     vkz::shutdown();
 }
 
 void DemoMain()
 {
-    colorScreen();
+    triangle();
 }

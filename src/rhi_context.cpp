@@ -2,50 +2,49 @@
 #include "common.h"
 #include "memory_operation.h"
 
-#include "res_creator.h"
+#include "rhi_context.h"
 
 namespace vkz
 {
-    void ResCreator::parseOp()
+    void RHIContext::parseOp()
     {
         assert(m_pMemBlock != nullptr);
         MemoryReader reader(m_pMemBlock->expand(0), m_pMemBlock->size());
 
         while (true)
         {
-            ResCreatorOpMagic magic = ResCreatorOpMagic::InvalidMagic;
+            RHIContextOpMagic magic = RHIContextOpMagic::InvalidMagic;
             read(&reader, magic);
 
             bool finished = false;
 
             switch (magic)
             {
-            case ResCreatorOpMagic::Init:
-                init(reader);
-                break;
-            case ResCreatorOpMagic::CreateShader:
+            case RHIContextOpMagic::CreateShader:
                 createShader(reader);
                 break;
-            case ResCreatorOpMagic::CreateProgram:
+            case RHIContextOpMagic::CreateProgram:
                 createProgram(reader);
                 break;
-            case ResCreatorOpMagic::CreatePass:
+            case RHIContextOpMagic::CreatePass:
                 createPass(reader);
                 break;
-            case ResCreatorOpMagic::CreateBuffer:
+            case RHIContextOpMagic::CreateBuffer:
                 createBuffer(reader);
                 break;
-            case ResCreatorOpMagic::CreateImage:
+            case RHIContextOpMagic::CreateImage:
                 createImage(reader);
                 break;
                 // End
-            case ResCreatorOpMagic::InvalidMagic:
+            case RHIContextOpMagic::InvalidMagic:
                 message(DebugMessageType::warning, "invalid magic tag, data incorrect!");
-            case ResCreatorOpMagic::End:
+            case RHIContextOpMagic::End:
             default:
                 finished = true;
                 break;
             }
         }
+
+        reader.seek(0, Whence::Begin); // reset reader
     }
 }

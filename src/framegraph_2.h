@@ -73,17 +73,10 @@ namespace vkz
     {
     };
 
-    struct PassRegisterInfo
+    struct PassRegisterInfo : public PassDesc
     {
         uint16_t    passId;
-        
-        PassExeQueue queue;
 
-        // bind pass with pipeline, thus implicitly bind with program
-        uint16_t    programId;
-        uint16_t    vtxBindingNum;
-        uint16_t    vtxAttrNum;
-        PipelineConfig pipelineConfig;
 
         // TODO: pipeline rendering create info
         // write depth stencil format, color attachment format, and count
@@ -147,18 +140,19 @@ namespace vkz
         uint16_t                passRegInfoIdx;
         std::vector<uint16_t>   vtxBindingIdxs;
         std::vector<uint16_t>   vtxAttrIdxs;
+        std::vector<uint32_t>   pushConstantIdxs;
     };
 
 
-    class ResCreator;
+    class RHIContext;
     
     class Framegraph2
     {
     public:
-        Framegraph2(AllocatorI* _allocator, MemoryBlockI* _creatorMem)
+        Framegraph2(AllocatorI* _allocator, MemoryBlockI* _rhiMem)
             : m_pAllocator{ _allocator }
-            , m_pCreatorMemBlock {_creatorMem}
-            , m_creatorMemWriter{ _creatorMem }
+            , m_pCreatorMemBlock {_rhiMem}
+            , m_rhiMemWriter{ _rhiMem }
         { 
             m_pMemBlock = VKZ_NEW(m_pAllocator, MemoryBlock(m_pAllocator));
             m_pMemBlock->expand(kInitialFrameGraphMemSize);
@@ -242,6 +236,26 @@ namespace vkz
                 return combined == rhs.combined;
             }
         };
+
+        inline bool isBuffer(const CombinedResID& _res) const
+        {
+            return _res.type == ResourceType::Buffer;
+        }
+
+        inline bool isTexture(const CombinedResID& _res) const
+        {
+            return _res.type == ResourceType::Texture;
+        }
+
+        inline bool isRenderTarget(const CombinedResID& _res) const
+        {
+            return _res.type == ResourceType::RenderTarget;
+        }
+
+        inline bool isDepthStencil(const CombinedResID& _res) const
+        {
+            return _res.type == ResourceType::DepthStencil;
+        }
 
         struct BufBucket
         {
@@ -331,7 +345,7 @@ namespace vkz
         MemoryBlockI* m_pMemBlock;
 
         MemoryBlockI* m_pCreatorMemBlock;
-        MemoryWriter m_creatorMemWriter;
+        MemoryWriter m_rhiMemWriter;
 
         CombinedResID  m_resultRT;
         PassHandle     m_finalPass;
@@ -344,19 +358,20 @@ namespace vkz
         std::vector< RenderTargetHandle >   m_hRT;
         std::vector< DepthStencilHandle >   m_hDS;
 
-        std::vector< ShaderInfo > m_shader_info;
-        std::vector< ProgramInfo> m_program_info;
-        std::vector< PassRegisterInfo > m_pass_info;
-        std::vector< BufRegisterInfo >  m_buf_info;
-        std::vector< ImgRegisterInfo >  m_img_info;
+        std::vector< ShaderInfo >       m_sparse_shader_info;
+        std::vector< ProgramInfo>       m_sparse_program_info;
+        std::vector< PassRegisterInfo > m_sparse_pass_info;
+        std::vector< BufRegisterInfo >  m_sparse_buf_info;
+        std::vector< ImgRegisterInfo >  m_sparse_img_info;
         
-        std::vector< std::string>       m_shader_path;
-        std::vector< PassCreateDataRef>     m_pass_create_data_ref;
+        std::vector< std::string>           m_shader_path;
+        std::vector< PassCreateDataRef>     m_sparse_pass_data_ref;
 
-        std::vector< CombinedResID>     m_combinedResId;
+        std::vector< CombinedResID>         m_combinedResId;
 
         std::vector< VertexBindingDesc>     m_vtxBindingDesc;
         std::vector< VertexAttributeDesc>   m_vtxAttrDesc;
+        std::vector< int>                   m_pushConstants;
 
         std::vector< PassRWResource>                m_pass_rw_res;
         std::vector< PassDependency>                m_pass_dependency;
@@ -374,12 +389,12 @@ namespace vkz
         // =====================
         // lv0: each queue
         // lv1: passes in queue
-        std::array< std::vector<uint16_t>, (uint16_t)PassExeQueue::Count >    m_passIdxInQueue; 
+        std::array< std::vector<uint16_t>, (uint16_t)PassExeQueue::count >    m_passIdxInQueue; 
 
         // =====================
         // lv0 index: each pass would use
         // lv1 index: one pass in each queue
-        std::vector< std::array<uint16_t, (uint16_t)PassExeQueue::Count> >    m_nearestSyncPassIdx;
+        std::vector< std::array<uint16_t, (uint16_t)PassExeQueue::count> >    m_nearestSyncPassIdx;
 
         std::vector< CombinedResID>     m_multiFrame_resList;
         std::vector< CombinedResID>     m_readonly_resList;
@@ -396,6 +411,44 @@ namespace vkz
 
         std::vector< BufBucket>          m_bufBuckets;
         std::vector< ImgBucket>          m_imgBuckets;
+    };
+
+
+    /////////////////////////////////////////////////////////////////////////////////////////
+    struct PassMetaData
+    {
+        uint16_t passId;
+        uint16_t programId;
+        uint16_t pipelineId;
+
+        uint32_t pushConstantOffset;
+        uint32_t pushConstantSize;
+
+        uint32_t descriptorSetNum;
+        uint32_t descriptorSetOffset;
+        uint32_t descriptorSetSize;
+
+        MemoryBlockI*   pMemBlock;
+    };
+
+    struct ComputePassData : public PassMetaData
+    {
+        uint32_t groupCountX;
+        uint32_t groupCountY;
+        uint32_t groupCountZ;
+    };
+
+    struct GraphicPassData : public PassMetaData
+    {
+        uint32_t vertexBindingNum;
+        uint32_t vertexAttributeNum;
+        uint32_t vertexBindingOffset;
+        uint32_t vertexAttributeOffset;
+    };
+
+    class Framegraph2Executor
+    {
+
     };
 
 

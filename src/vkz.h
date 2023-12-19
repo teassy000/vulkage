@@ -3,28 +3,10 @@
 #include <stdint.h> // uint32_t
 #include <initializer_list>
 
-#include "macro.h"
 #include "vkz_structs.h"
 
 namespace vkz
 {
-    static const uint16_t kInvalidHandle = UINT16_MAX;
-
-    template <class HandleType>
-    struct NO_VTABLE Handle {
-        uint16_t idx;
-
-        bool operator == (const Handle<HandleType>& rhs) const {
-            return idx == rhs.idx;
-        }
-    };
-
-    template <class HandleType>
-    bool inline isValid(const Handle<HandleType>& handle) {
-        return kInvalidHandle != handle.idx;
-    }
-
-
     using ReleaseFn = void (*)(void* _ptr, void* _userData);
 
     struct Memory
@@ -103,6 +85,6 @@ namespace vkz
 
     // engine basic functions
     bool init();
-    void update();
+    void loop();
     void shutdown();
 }

@@ -8,7 +8,7 @@
 #include "framegraph_2.h"
 #include <stack>
 #include <algorithm>
-#include "res_creator.h"
+#include "rhi_context.h"
 
 
 
@@ -208,13 +208,13 @@ namespace vkz
         read(&_reader, brief);
 
         // info data will use idx from handle as iterator
-        m_shader_info.resize(brief.shaderNum);
-        m_program_info.resize(brief.programNum);
-        m_pass_info.resize(brief.passNum);
-        m_buf_info.resize(brief.bufNum);
-        m_img_info.resize(brief.imgNum);
+        m_sparse_shader_info.resize(brief.shaderNum);
+        m_sparse_program_info.resize(brief.programNum);
+        m_sparse_pass_info.resize(brief.passNum);
+        m_sparse_buf_info.resize(brief.bufNum);
+        m_sparse_img_info.resize(brief.imgNum);
 
-        m_pass_create_data_ref.resize(brief.passNum);
+        m_sparse_pass_data_ref.resize(brief.passNum);
     }
 
 
@@ -227,25 +227,26 @@ namespace vkz
         
         char path[kMaxPathLen];
         read(&_reader, (void*)(path), info.strLen);
+        path[info.strLen] = '\0'; // null-terminated string
 
         m_shader_path.emplace_back(path);
-        m_shader_info[info.shaderId].regInfo = info;
-        m_shader_info[info.shaderId].pathIdx = (uint16_t)m_shader_path.size() - 1;
+        m_sparse_shader_info[info.shaderId].regInfo = info;
+        m_sparse_shader_info[info.shaderId].pathIdx = (uint16_t)m_shader_path.size() - 1;
     }
 
     void Framegraph2::registerProgram(MemoryReader& _reader)
     {
-        ProgramRegisterInfo info;
-        read(&_reader, info);
+        ProgramRegisterInfo regInfo;
+        read(&_reader, regInfo);
 
-        assert(info.shaderNum <= kMaxNumOfStageInPorgram);
+        assert(regInfo.shaderNum <= kMaxNumOfStageInPorgram);
 
-        ProgramInfo& createInfo = m_program_info[info.progId];
-        createInfo.regInfo = info;
+        ProgramInfo& progInfo = m_sparse_program_info[regInfo.progId];
+        progInfo.regInfo = regInfo;
 
-        read(&_reader, (void*)(createInfo.shaderIds), sizeof(uint16_t) * info.shaderNum);
+        read(&_reader, (void*)(progInfo.shaderIds), sizeof(uint16_t) * regInfo.shaderNum);
 
-        m_hProgram.push_back({ info.progId });
+        m_hProgram.push_back({ regInfo.progId });
     }
 
     void Framegraph2::registerPass(MemoryReader& _reader)
@@ -253,22 +254,29 @@ namespace vkz
         PassRegisterInfo info;
         read(&_reader, info);
 
-        for (uint32_t ii = 0; ii < info.vtxBindingNum; ++ii)
+        for (uint32_t ii = 0; ii < info.vertexBindingNum; ++ii)
         {
             VertexBindingDesc bInfo;
             read(&_reader, bInfo);
             m_vtxBindingDesc.emplace_back(bInfo);
-            m_pass_create_data_ref[info.passId].vtxBindingIdxs.push_back((uint16_t)m_vtxBindingDesc.size() - 1);
+            m_sparse_pass_data_ref[info.passId].vtxBindingIdxs.push_back((uint16_t)m_vtxBindingDesc.size() - 1);
         }
 
-        for (uint32_t ii = 0; ii < info.vtxAttrNum; ++ii)
+        for (uint32_t ii = 0; ii < info.vertexAttributeNum; ++ii)
         {
             VertexAttributeDesc aInfo;
             read(&_reader, aInfo);
             m_vtxAttrDesc.emplace_back(aInfo);
-            m_pass_create_data_ref[info.passId].vtxAttrIdxs.push_back((uint16_t)m_vtxAttrDesc.size() - 1);
+            m_sparse_pass_data_ref[info.passId].vtxAttrIdxs.push_back((uint16_t)m_vtxAttrDesc.size() - 1);
         }
 
+        for (uint32_t ii = 0; ii < info.pushConstantNum; ++ii)
+        {
+            int pushConstant;
+            read(&_reader, pushConstant);
+            m_pushConstants.emplace_back(pushConstant);
+            m_sparse_pass_data_ref[info.passId].pushConstantIdxs.push_back((uint16_t)m_pushConstants.size() - 1);
+        }
 
         // fill pass idx in queue
         uint16_t qIdx = (uint16_t)info.queue;
@@ -276,9 +284,9 @@ namespace vkz
 
         // fill pass info
         m_hPass.push_back({ info.passId });
-        m_pass_info[info.passId] = info;
+        m_sparse_pass_info[info.passId] = info;
 
-        m_pass_create_data_ref[info.passId].passRegInfoIdx = info.passId;
+        m_sparse_pass_data_ref[info.passId].passRegInfoIdx = info.passId;
 
         m_pass_rw_res.emplace_back();
         m_pass_dependency.emplace_back();
@@ -291,7 +299,7 @@ namespace vkz
         read(&_reader, info);
 
         m_hBuf.push_back({ info.bufId });
-        m_buf_info[info.bufId] = info;
+        m_sparse_buf_info[info.bufId] = info;
 
         CombinedResID plainResID = getCombinedResID(info.bufId, ResourceType::Buffer);
         m_combinedResId.push_back(plainResID);
@@ -303,7 +311,7 @@ namespace vkz
         read(&_reader, info);
 
         m_hTex.push_back({ info.imgId });
-        m_img_info[info.imgId] = info;
+        m_sparse_img_info[info.imgId] = info;
 
         CombinedResID plainResIdx = getCombinedResID(info.imgId, ResourceType::Texture);
         m_combinedResId.push_back(plainResIdx);
@@ -315,7 +323,7 @@ namespace vkz
         read(&_reader, info);
 
         m_hTex.push_back({ info.imgId });
-        m_img_info[info.imgId] = info;
+        m_sparse_img_info[info.imgId] = info;
 
         CombinedResID plainResIdx = getCombinedResID(info.imgId, ResourceType::RenderTarget);
         m_combinedResId.push_back(plainResIdx);
@@ -327,7 +335,7 @@ namespace vkz
         read(&_reader, info);
 
         m_hTex.push_back({ info.imgId });
-        m_img_info[info.imgId] = info;
+        m_sparse_img_info[info.imgId] = info;
 
         CombinedResID plainResIdx = getCombinedResID(info.imgId, ResourceType::DepthStencil);
         m_combinedResId.push_back(plainResIdx);
@@ -847,7 +855,7 @@ namespace vkz
             // buffers
             if (base.type == ResourceType::Buffer) 
             {
-                const BufRegisterInfo info = m_buf_info[base.id];
+                const BufRegisterInfo info = m_sparse_buf_info[base.id];
 
                 BufBucket bucket;
                 createBufBkt(bucket, info, aliasVec, true);
@@ -859,7 +867,7 @@ namespace vkz
                 || base.type == ResourceType::RenderTarget
                 || base.type == ResourceType::DepthStencil)
             {
-                const ImgRegisterInfo info = m_img_info[base.id];
+                const ImgRegisterInfo info = m_sparse_img_info[base.id];
 
                 ImgBucket bucket;
                 createImgBkt(bucket, info, aliasVec, true);
@@ -875,7 +883,7 @@ namespace vkz
             // buffers
             if (cid.type == ResourceType::Buffer)
             {
-                const BufRegisterInfo info = m_buf_info[cid.id];
+                const BufRegisterInfo info = m_sparse_buf_info[cid.id];
 
                 BufBucket bucket;
                 createBufBkt(bucket, info, {cid});
@@ -887,7 +895,7 @@ namespace vkz
                 || cid.type == ResourceType::RenderTarget
                 || cid.type == ResourceType::DepthStencil)
             {
-                const ImgRegisterInfo info = m_img_info[cid.id];
+                const ImgRegisterInfo info = m_sparse_img_info[cid.id];
 
                 ImgBucket bucket;
                 createImgBkt(bucket, info, {cid});
@@ -903,7 +911,7 @@ namespace vkz
             // buffers
             if (cid.type == ResourceType::Buffer)
             {
-                const BufRegisterInfo info = m_buf_info[cid.id];
+                const BufRegisterInfo info = m_sparse_buf_info[cid.id];
 
                 BufBucket bucket;
                 createBufBkt(bucket, info, { cid });
@@ -915,7 +923,7 @@ namespace vkz
                 || cid.type == ResourceType::RenderTarget
                 || cid.type == ResourceType::DepthStencil)
             {
-                const ImgRegisterInfo info = m_img_info[cid.id];
+                const ImgRegisterInfo info = m_sparse_img_info[cid.id];
 
                 ImgBucket bucket;
                 createImgBkt(bucket, info, { cid });
@@ -1002,7 +1010,7 @@ namespace vkz
 
             // no suitable bucket found, create a new one
             BufBucket bucket;
-            const BufRegisterInfo& info = m_buf_info[baseRes];
+            const BufRegisterInfo& info = m_sparse_buf_info[baseRes];
             createBufBkt(bucket, info, { baseCid });
             buckets.push_back(bucket);
 
@@ -1093,7 +1101,7 @@ namespace vkz
         }
 
         std::sort(begin(sortedBufIdx), end(sortedBufIdx), [&](uint16_t _l, uint16_t _r) {
-            return m_buf_info[_l].size > m_buf_info[_r].size;
+            return m_sparse_buf_info[_l].size > m_sparse_buf_info[_r].size;
         });
 
         std::vector<BufBucket> buckets;
@@ -1118,8 +1126,8 @@ namespace vkz
         }
 
         std::sort(begin(sortedTexIdx), end(sortedTexIdx), [&](uint16_t _l, uint16_t _r) {
-            ImgRegisterInfo info_l = m_img_info[_l];
-            ImgRegisterInfo info_r = m_img_info[_r];
+            ImgRegisterInfo info_l = m_sparse_img_info[_l];
+            ImgRegisterInfo info_r = m_sparse_img_info[_r];
 
             size_t size_l = info_l.width * info_l.height * info_l.depth * info_l.mips * info_l.bpp;
             size_t size_r = info_r.width * info_r.height * info_r.depth * info_r.mips * info_r.bpp;
@@ -1128,7 +1136,7 @@ namespace vkz
         });
 
         std::vector<ImgBucket> buckets;
-        aliasImages(buckets, m_img_info, sortedTexIdx, type);
+        aliasImages(buckets, m_sparse_img_info, sortedTexIdx, type);
 
         m_imgBuckets.insert(end(m_imgBuckets), begin(buckets), end(buckets));
     }
@@ -1172,9 +1180,9 @@ namespace vkz
     {
         for (const BufBucket& bkt : m_bufBuckets)
         {
-            ResCreatorOpMagic magic{ ResCreatorOpMagic::CreateBuffer };
+            RHIContextOpMagic magic{ RHIContextOpMagic::CreateBuffer };
 
-            write(&m_creatorMemWriter, magic);
+            write(&m_rhiMemWriter, magic);
 
             BufferCreateInfo info;
             info.size = bkt.desc.size;
@@ -1182,18 +1190,18 @@ namespace vkz
             info.usage = bkt.desc.usage;
             info.resNum = (uint16_t)bkt.reses.size();
 
-            write(&m_creatorMemWriter, info);
+            write(&m_rhiMemWriter, info);
 
             std::vector<BufferAliasInfo> aliasInfo;
             for (const CombinedResID cid : bkt.reses)
             {
                 BufferAliasInfo alias;
                 alias.bufId = cid.id;
-                alias.size = m_buf_info[cid.id].size;
+                alias.size = m_sparse_buf_info[cid.id].size;
                 aliasInfo.push_back(alias);
             }
 
-            write(&m_creatorMemWriter, (void*)aliasInfo.data(), int32_t(sizeof(BufferAliasInfo) * bkt.reses.size()));
+            write(&m_rhiMemWriter, (void*)aliasInfo.data(), int32_t(sizeof(BufferAliasInfo) * bkt.reses.size()));
         }
     }
 
@@ -1202,9 +1210,9 @@ namespace vkz
         for (const ImgBucket& bkt : m_imgBuckets)
         {
 
-            ResCreatorOpMagic magic{ ResCreatorOpMagic::CreateImage };
+            RHIContextOpMagic magic{ RHIContextOpMagic::CreateImage };
 
-            write(&m_creatorMemWriter, magic);
+            write(&m_rhiMemWriter, magic);
 
             ImageCreateInfo info;
             info.mips = bkt.desc.mips;
@@ -1221,7 +1229,7 @@ namespace vkz
 
             info.resNum = (uint16_t)bkt.reses.size();
 
-            write(&m_creatorMemWriter, info);
+            write(&m_rhiMemWriter, info);
 
             std::vector<ImageAliasInfo> aliasInfo;
             for (const CombinedResID cid : bkt.reses)
@@ -1231,19 +1239,19 @@ namespace vkz
                 aliasInfo.push_back(alias);
             }
 
-            write(&m_creatorMemWriter, (void*)aliasInfo.data(), int32_t(sizeof(ImageAliasInfo) * bkt.reses.size()));
+            write(&m_rhiMemWriter, (void*)aliasInfo.data(), int32_t(sizeof(ImageAliasInfo) * bkt.reses.size()));
         }
     }
 
     void Framegraph2::createShaders()
     {
-        std::vector<ProgramHandle> usedProgram;
-        std::vector<ShaderHandle> usedShaders;
+        std::vector<ProgramHandle> usedProgram{};
+        std::vector<ShaderHandle> usedShaders{};
         for ( PassHandle pass : m_sortedPass)
         {
-            const PassRegisterInfo& info = m_pass_info[pass.idx];
+            const PassRegisterInfo& info = m_sparse_pass_info[pass.id];
 
-            const ProgramInfo& progInfo = m_program_info[info.programId];
+            const ProgramInfo& progInfo = m_sparse_program_info[info.programId];
             usedProgram.push_back({ info.programId });
 
             for (uint16_t ii = 0; ii < progInfo.regInfo.shaderNum; ++ii)
@@ -1257,8 +1265,8 @@ namespace vkz
         // write shader info
         for (ShaderHandle shader : usedShaders)
         {
-            const ShaderInfo& info = m_shader_info[shader.idx];
-            assert(shader.idx == info.regInfo.shaderId);
+            const ShaderInfo& info = m_sparse_shader_info[shader.id];
+            assert(shader.id == info.regInfo.shaderId);
 
             std::string& path = m_shader_path[info.pathIdx];
             
@@ -1266,41 +1274,177 @@ namespace vkz
             createInfo.shaderId = info.regInfo.shaderId;
             createInfo.pathLen = (uint16_t)path.length();
 
-            ResCreatorOpMagic magic{ ResCreatorOpMagic::CreateShader };
+            RHIContextOpMagic magic{ RHIContextOpMagic::CreateShader };
 
-            write(&m_creatorMemWriter, magic);
+            write(&m_rhiMemWriter, magic);
 
-            write(&m_creatorMemWriter, createInfo);
+            write(&m_rhiMemWriter, createInfo);
 
-            write(&m_creatorMemWriter, (void*)path.c_str(), (int32_t)path.length());
+            write(&m_rhiMemWriter, (void*)path.c_str(), (int32_t)path.length());
         }
 
 
         // write program info
         for (ProgramHandle prog : usedProgram)
         {
-            const ProgramInfo& info = m_program_info[prog.idx];
-            assert(prog.idx == info.regInfo.progId);
+            const ProgramInfo& info = m_sparse_program_info[prog.id];
+            assert(prog.id == info.regInfo.progId);
 
             ProgramCreateInfo createInfo;
             createInfo.progId = info.regInfo.progId;
             createInfo.shaderNum = info.regInfo.shaderNum;
             createInfo.sizePushConstants = info.regInfo.sizePushConstants;
 
-            ResCreatorOpMagic magic{ ResCreatorOpMagic::CreateProgram };
+            RHIContextOpMagic magic{ RHIContextOpMagic::CreateProgram };
 
-            write(&m_creatorMemWriter, magic);
+            write(&m_rhiMemWriter, magic);
 
-            write(&m_creatorMemWriter, createInfo);
+            write(&m_rhiMemWriter, createInfo);
 
-            write(&m_creatorMemWriter, (void*)info.shaderIds, (int32_t)(info.regInfo.shaderNum * sizeof(uint16_t)));
+            write(&m_rhiMemWriter, (void*)info.shaderIds, (int32_t)(info.regInfo.shaderNum * sizeof(uint16_t)));
         }
 
     }
 
+
+
     void Framegraph2::createPasses()
     {
+        std::vector<PassCreateInfo> passCreateInfo{};
+        std::vector<std::vector<VertexBindingDesc>> passVertexBinding(m_sortedPass.size());
+        std::vector<std::vector<VertexAttributeDesc>> passVertexAttribute(m_sortedPass.size());
+        std::vector<std::vector<int>> passPushConstants(m_sortedPass.size());
+        std::vector<DepthStencilHandle> passWriteDepthStencils(m_sortedPass.size());
+        std::vector<std::vector<RenderTargetHandle> > passWriteRenderTargets(m_sortedPass.size());
+        std::vector<std::vector<TextureHandle> > passReadImages(m_sortedPass.size());
+        std::vector<std::vector<BufferHandle> > passRWBuffers(m_sortedPass.size());
+        
+        for (PassHandle pass : m_sortedPass)
+        {
+            const PassRegisterInfo& regInfo = m_sparse_pass_info[pass.id];
+            assert(pass.id == regInfo.passId);
+
+
+            DepthStencilHandle& writeDepthStencil = passWriteDepthStencils[pass.id];
+            std::vector<RenderTargetHandle>& writeRenderTargets = passWriteRenderTargets[pass.id];
+            std::vector<TextureHandle>& readImages = passReadImages[pass.id];
+            std::vector<BufferHandle>& rwBuffers = passRWBuffers[pass.id];
+            {
+                writeDepthStencil = { kInvalidHandle };
+                const uint16_t passIdx = getIndex(m_hPass, pass);
+                const PassRWResource& rwRes = m_pass_rw_res[passIdx];
+                // set write resources
+                for (const CombinedResID writeRes : rwRes.writeCombinedRes)
+                {
+                    if (isDepthStencil(writeRes)) {
+                        assert(writeDepthStencil.id == kInvalidHandle);
+                        writeDepthStencil = { writeRes.id };
+                    }
+                    else if (isRenderTarget(writeRes))
+                    {
+                        writeRenderTargets.push_back({ writeRes.id });
+                    }
+                    else if (isBuffer(writeRes))
+                    {
+                        rwBuffers.push_back({ writeRes.id });
+                    }
+                    else if (isTexture(writeRes))
+                    {
+                        vkz::message(DebugMessageType::error, "a pass should not write to texture: %4d\n", writeRes.id);
+                    }
+                }
+
+                // set read resources
+                for (const CombinedResID writeRes : rwRes.readCombinedRes)
+                {
+                    if (  isRenderTarget(writeRes) 
+                        || isDepthStencil(writeRes)
+                        || isTexture(writeRes))
+                    {
+                        readImages.push_back({ writeRes.id });
+                    }
+                    else if (isBuffer(writeRes))
+                    {
+                        rwBuffers.push_back({ writeRes.id });
+                    }
+                }
+            }
+
+
+            PassCreateInfo createInfo{};
+            createInfo.passId = pass.id;
+            createInfo.programId = regInfo.programId;
+            createInfo.queue = regInfo.queue;
+            createInfo.vertexBindingNum = regInfo.vertexBindingNum;
+            createInfo.vertexAttributeNum = regInfo.vertexAttributeNum;
+            createInfo.vertexBindingInfos = nullptr; // no need this any more
+            createInfo.vertexAttributeInfos = nullptr; // no need this any more
+            
+            createInfo.pushConstantNum = regInfo.pushConstantNum;
+            createInfo.pushConstants = nullptr;
+            createInfo.pipelineConfig = regInfo.pipelineConfig;
+
+            createInfo.writeDepthId = writeDepthStencil.id;
+            createInfo.writeColorNum = (uint16_t)writeRenderTargets.size();
+            createInfo.readImageNum = (uint16_t)readImages.size();
+            createInfo.rwBufferNum = (uint16_t)rwBuffers.size();
+
+
+            passCreateInfo.emplace_back(createInfo);
+
+            const PassCreateDataRef& createDataRef = m_sparse_pass_data_ref[pass.id];
+
+            // vertex binding           
+            std::vector<VertexBindingDesc>& bindingDesc = passVertexBinding[pass.id];
+            for (const uint16_t& bindingIdx : createDataRef.vtxBindingIdxs)
+            {
+                bindingDesc.push_back(m_vtxBindingDesc[bindingIdx]);
+            }
+            assert(bindingDesc.size() == createInfo.vertexBindingNum);
+
+            // vertex attribute
+            std::vector<VertexAttributeDesc>& attributeDesc = passVertexAttribute[pass.id];
+            for (const uint16_t& attributeIdx : createDataRef.vtxAttrIdxs)
+            {
+                attributeDesc.push_back(m_vtxAttrDesc[attributeIdx]);
+            }
+            assert(attributeDesc.size() == createInfo.vertexAttributeNum);
+
+            // push constants
+            std::vector<int>& pushConstants = passPushConstants[pass.id];
+            for (const uint16_t& pcIdx : createDataRef.pushConstantIdxs)
+            {
+                pushConstants.push_back(m_pushConstants[pcIdx]);
+            }
+            assert(pushConstants.size() == createInfo.pushConstantNum);
+        }
+
         // create things via pass info
+        for (uint16_t ii = 0; ii < passCreateInfo.size(); ++ii)
+        {
+            const PassCreateInfo& createInfo = passCreateInfo[ii];
+
+            RHIContextOpMagic magic{ RHIContextOpMagic::CreatePass };
+
+            write(&m_rhiMemWriter, magic);
+
+            write(&m_rhiMemWriter, createInfo);
+
+            // vertex binding
+            write(&m_rhiMemWriter, (void*)passVertexBinding[ii].data(), (int32_t)(createInfo.vertexBindingNum * sizeof(VertexBindingDesc)));
+
+            // vertex attribute
+            write(&m_rhiMemWriter, (void*)passVertexAttribute[ii].data(), (int32_t)(createInfo.vertexAttributeNum * sizeof(VertexAttributeDesc)));
+
+            // push constants
+            write(&m_rhiMemWriter, (void*)passPushConstants[ii].data(), (int32_t)(createInfo.pushConstantNum * sizeof(int)));
+
+            // pass read/write resources
+            write(&m_rhiMemWriter, passWriteDepthStencils[ii]);
+            write(&m_rhiMemWriter, (void*)passWriteRenderTargets[ii].data(), (int32_t)(createInfo.writeColorNum * sizeof(RenderTargetHandle)));
+            write(&m_rhiMemWriter, (void*)passReadImages[ii].data(), (int32_t)(createInfo.readImageNum * sizeof(TextureHandle)));
+            write(&m_rhiMemWriter, (void*)passRWBuffers[ii].data(), (int32_t)(createInfo.rwBufferNum * sizeof(BufferHandle)));
+        }
     }
 
     void Framegraph2::createResources()
@@ -1316,14 +1460,14 @@ namespace vkz
 
 
         // size check in current stack
-        const BufRegisterInfo& info = m_buf_info[_idx];
+        const BufRegisterInfo& info = m_sparse_buf_info[_idx];
         size_t remaingSize = _bucket.desc.size;
 
         bool bCondMatch = (info.size <= remaingSize);
 
         for (const CombinedResID res : _resInCurrStack)
         {
-            const BufRegisterInfo& stackInfo = m_buf_info[res.id];
+            const BufRegisterInfo& stackInfo = m_sparse_buf_info[res.id];
 
             bCondMatch &= (info.memFlags == stackInfo.memFlags);
             bCondMatch &= (info.usage == stackInfo.usage);
@@ -1335,15 +1479,15 @@ namespace vkz
         return bCondMatch;
     }
 
-    bool Framegraph2::isImgInfoAliasable(uint16_t _idx, const ImgBucket& _bucket, const std::vector<CombinedResID> _resInCurrStack) const
+    bool Framegraph2::isImgInfoAliasable(uint16_t _ImgId, const ImgBucket& _bucket, const std::vector<CombinedResID> _resInCurrStack) const
     {
         bool bCondMatch = true;
 
         // condition check
-        const ImgRegisterInfo& info = m_img_info[_idx];
+        const ImgRegisterInfo& info = m_sparse_img_info[_ImgId];
         for (const CombinedResID res : _resInCurrStack)
         {
-            const ImgRegisterInfo& stackInfo = m_img_info[res.id];
+            const ImgRegisterInfo& stackInfo = m_sparse_img_info[res.id];
 
             bCondMatch &= (info.mips == stackInfo.mips);
             bCondMatch &= (info.width == stackInfo.width && info.height == stackInfo.height && info.depth == stackInfo.depth);
