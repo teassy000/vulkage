@@ -1,6 +1,7 @@
 #include "common.h"
 #include "macro.h"
 #include "config.h"
+#include "util.h"
 
 #include "memory_operation.h"
 #include "handle.h"
@@ -173,33 +174,6 @@ namespace vkz
                 break;
             }
         }
-    }
-
-    constexpr uint16_t kInvalidIndex = 0xffff;
-    template<typename T>
-    const uint16_t getIndex(const std::vector<T>& _vec, const T _data)
-    {
-        auto it = std::find(begin(_vec), end(_vec), _data);
-        if (it == end(_vec))
-        {
-            return kInvalidIndex;
-        }
-
-        return (uint16_t)std::distance(begin(_vec), it);
-    }
-
-    template<typename T>
-    const uint16_t push_back_unique(std::vector<T>& _vec, const T _data)
-    {
-        uint16_t idx = getIndex(_vec, _data);
-
-        if (kInvalidIndex == idx)
-        {
-            idx = (uint16_t)_vec.size();
-            _vec.push_back(_data);
-        }
-
-        return idx;
     }
 
     void Framegraph2::setBrief(MemoryReader& _reader)
@@ -1306,8 +1280,6 @@ namespace vkz
 
     }
 
-
-
     void Framegraph2::createPasses()
     {
         std::vector<PassCreateInfo> passCreateInfo{};
@@ -1440,7 +1412,6 @@ namespace vkz
             write(&m_rhiMemWriter, (void*)passPushConstants[ii].data(), (int32_t)(createInfo.pushConstantNum * sizeof(int)));
 
             // pass read/write resources
-            write(&m_rhiMemWriter, passWriteDepthStencils[ii]);
             write(&m_rhiMemWriter, (void*)passWriteRenderTargets[ii].data(), (int32_t)(createInfo.writeColorNum * sizeof(RenderTargetHandle)));
             write(&m_rhiMemWriter, (void*)passReadImages[ii].data(), (int32_t)(createInfo.readImageNum * sizeof(TextureHandle)));
             write(&m_rhiMemWriter, (void*)passRWBuffers[ii].data(), (int32_t)(createInfo.rwBufferNum * sizeof(BufferHandle)));
@@ -1453,6 +1424,10 @@ namespace vkz
         createImages();
         createShaders();
         createPasses();
+
+        // end mem tag
+        RHIContextOpMagic magic{ RHIContextOpMagic::End };
+        write(&m_rhiMemWriter, magic);
     }
 
     bool Framegraph2::isBufInfoAliasable(uint16_t _idx, const BufBucket& _bucket, const std::vector<CombinedResID> _resInCurrStack) const

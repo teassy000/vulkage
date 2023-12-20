@@ -27,7 +27,9 @@ namespace vkz
     {
     public:
         virtual void init() = 0;
-        virtual void loop() = 0;
+        virtual void update() = 0;
+        virtual void render() = 0;
+
     private:
         virtual void createShader(MemoryReader& reader) = 0;
         virtual void createProgram(MemoryReader& reader) = 0;
@@ -56,7 +58,9 @@ namespace vkz
         inline AllocatorI* getAllocator() const { return m_pAllocator; }
 
         void init() override {};
-        void loop() override {};
+
+        void update() override;
+        void render() override {};
     protected:
 
     private:

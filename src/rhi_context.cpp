@@ -6,6 +6,12 @@
 
 namespace vkz
 {
+
+    void RHIContext::update()
+    {
+        parseOp();
+    }
+
     void RHIContext::parseOp()
     {
         assert(m_pMemBlock != nullptr);
@@ -41,6 +47,11 @@ namespace vkz
             case RHIContextOpMagic::End:
             default:
                 finished = true;
+                break;
+            }
+
+            if (finished)
+            {
                 break;
             }
         }

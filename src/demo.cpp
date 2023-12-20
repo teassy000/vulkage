@@ -253,17 +253,17 @@ void triangle()
     vkz::init();
 
     vkz::ImageDesc rt;
-    rt.format = vkz::ResourceFormat::r8g8b8a8_snorm;
-    rt.width = 1024;
-    rt.height = 1024;
+    rt.width = 2560;
+    rt.height = 1440;
     rt.depth = 1;
     rt.arrayLayers = 1;
     rt.mips = 1;
+    rt.usage = vkz::ImageUsageFlagBits::color_attachment;
     vkz::RenderTargetHandle color = vkz::registRenderTarget("color", rt);
 
 
-    vkz::ShaderHandle vs = vkz::registShader("color_vert_shader", "color.vert.spv");
-    vkz::ShaderHandle fs = vkz::registShader("color_frag_shader", "color.frag.spv");
+    vkz::ShaderHandle vs = vkz::registShader("color_vert_shader", "shaders/triangle.vert.spv");
+    vkz::ShaderHandle fs = vkz::registShader("color_frag_shader", "shaders/triangle.frag.spv");
 
     vkz::ProgramHandle program = vkz::registProgram("color_prog", {vs, fs});
 
@@ -274,6 +274,11 @@ void triangle()
     result.pipelineConfig.enableDepthTest = true;
     result.pipelineConfig.enableDepthWrite = true;
 
+    vkz::BufferDesc dummyBufDesc;
+    dummyBufDesc.size = 32;
+    dummyBufDesc.usage = vkz::BufferUsageFlagBits::storage;
+    vkz::BufferHandle dummyBuf = vkz::registBuffer("dummy", dummyBufDesc);
+
     vkz::PassHandle pass = vkz::registPass("result", result);
 
     // TODO:
@@ -283,7 +288,7 @@ void triangle()
     // set viewport/scissor
 
 
-
+    vkz::passReadBuffers(pass, { dummyBuf });
     vkz::passWriteRTs(pass, { color });
 
 

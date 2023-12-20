@@ -4,7 +4,7 @@
 #include "memory_operation.h"
 #include "config.h"
 #include "vkz.h"
-
+#include "util.h"
 
 #include "rhi_context_vk.h"
 
@@ -307,6 +307,23 @@ namespace vkz
         return format;
     }
 
+
+    VkFormat getValidFormat(ResourceFormat _format, ImageUsageFlags _usage, VkFormat _color, VkFormat _depth)
+    {
+        if (_usage &= ImageUsageFlagBits::color_attachment)
+        {
+            return _color;
+        }
+        else if (_usage &= ImageUsageFlagBits::depth_stencil_attachment)
+        {
+            return _depth;
+        }
+        else
+        {
+            return getFormat(_format);
+        }
+    }
+
     VkPipelineBindPoint getBindPoint(const std::vector<Shader_vk>& shaders)
     {
         VkShaderStageFlags stages = 0;
@@ -390,8 +407,13 @@ namespace vkz
         return rate;
     }
 
-    VkPipelineVertexInputStateCreateInfo getVertexInputState(const std::vector<VertexBindingDesc>& _bindings, const std::vector<VertexAttributeDesc>& _attributes)
+    bool getVertexInputState(VkPipelineVertexInputStateCreateInfo& _out, const std::vector<VertexBindingDesc>& _bindings, const std::vector<VertexAttributeDesc>& _attributes)
     {
+        if (_bindings.empty() && _attributes.empty())
+        {
+            return false;
+        }
+
         std::vector<VkVertexInputBindingDescription> bindings;
         for (const auto& bind : _bindings)
         {
@@ -404,13 +426,13 @@ namespace vkz
             attributes.push_back({ attr.location, attr.binding, getFormat(attr.format), attr.offset });
         }
 
-        VkPipelineVertexInputStateCreateInfo vertexInput = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
-        vertexInput.vertexBindingDescriptionCount = (uint32_t)bindings.size();
-        vertexInput.pVertexBindingDescriptions = bindings.data();
-        vertexInput.vertexAttributeDescriptionCount = (uint32_t)attributes.size();
-        vertexInput.pVertexAttributeDescriptions = attributes.data();
+        _out.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+        _out.vertexBindingDescriptionCount = (uint32_t)bindings.size();
+        _out.pVertexBindingDescriptions = bindings.data();
+        _out.vertexAttributeDescriptionCount = (uint32_t)attributes.size();
+        _out.pVertexAttributeDescriptions = attributes.data();
 
-        return vertexInput;
+        return true;
     }
 
     void enumrateDeviceExtPorps(VkPhysicalDevice physicalDevice, std::vector<VkExtensionProperties>& availableExtensions)
@@ -477,6 +499,9 @@ namespace vkz
         , m_releaseSemaphore{ VK_NULL_HANDLE }
         , m_imageFormat{ VK_FORMAT_UNDEFINED }
         , m_depthFormat{ VK_FORMAT_UNDEFINED }
+        , m_pWindow{ nullptr }
+        , m_swapchain{}
+        , m_gfxFamilyIdx{ VK_QUEUE_FAMILY_IGNORED }
 #if _DEBUG
         , m_debugCallback{ VK_NULL_HANDLE }
 #endif
@@ -534,7 +559,7 @@ namespace vkz
         glfwSetCursorPosCallback(window, mouseMoveCallback);
         */
 
-        VkSurfaceKHR m_surface = createSurface(m_instance, m_pWindow);
+        m_surface = createSurface(m_instance, m_pWindow);
         assert(m_surface);
 
         VkBool32 presentSupported = 0;
@@ -569,9 +594,9 @@ namespace vkz
         vkGetPhysicalDeviceMemoryProperties(m_phyDevice, &m_memProps);
     }
 
-    void RHIContext_vk::loop()
+    void RHIContext_vk::render()
     {
-        while (!glfwWindowShouldClose(glfwGetCurrentContext()))
+        while (!glfwWindowShouldClose(m_pWindow))
         {
             glfwPollEvents();
 
@@ -593,47 +618,40 @@ namespace vkz
 
             VK_CHECK(vkBeginCommandBuffer(m_cmdBuffer, &beginInfo));
 
-            // begin pass
-            VkClearColorValue color = { 33.f / 255.f, 200.f / 255.f, 242.f / 255.f, 1 };
-            VkClearValue clearColor = { color };
+            
+            for (const PassInfo_vk& passInfo : m_passInfos)
+            {
+                passRender(passInfo.passId);
+            }
 
-            /*
-            VkRenderingAttachmentInfo colorAttachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-            colorAttachment.clearValue.color = color;
-            colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-            colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-            colorAttachment.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
-            colorAttachment.imageView = colorTarget_local.imageView;
-
-            VkRenderingAttachmentInfo depthAttachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-            depthAttachment.clearValue.depthStencil = depth;
-            depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-            depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-            depthAttachment.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
-            depthAttachment.imageView = depthTarget_local.imageView;
-
-            VkRenderingInfo renderingInfo = { VK_STRUCTURE_TYPE_RENDERING_INFO };
-            renderingInfo.renderArea.extent.width = swapchain.width;
-            renderingInfo.renderArea.extent.height = swapchain.height;
-            renderingInfo.layerCount = 1;
-            renderingInfo.colorAttachmentCount = 1;
-            renderingInfo.pColorAttachments = &colorAttachment;
-            renderingInfo.pDepthAttachment = &depthAttachment;
-
-            vkCmdBeginRendering(m_cmdBuffer, &renderingInfo);
+            VK_CHECK(vkEndCommandBuffer(m_cmdBuffer));
 
 
-            // drawcalls
-            VkViewport viewport = { 0.f, float(windowHeight), float(windowWidth), -float(windowHeight), 0.f, 1.f };
-            VkRect2D scissor = { {0, 0}, {windowWidth, windowHeight } };
+            VkPipelineStageFlags submitStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
 
-            vkCmdSetViewport(cmdBuffer, 0, 1, &viewport);
-            vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
+            VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+            submitInfo.waitSemaphoreCount = 1;
+            submitInfo.pWaitSemaphores = &m_acquirSemaphore;
+            submitInfo.pWaitDstStageMask = &submitStageMask;
+            submitInfo.commandBufferCount = 1;
+            submitInfo.pCommandBuffers = &m_cmdBuffer;
+            submitInfo.signalSemaphoreCount = 1;
+            submitInfo.pSignalSemaphores = &m_releaseSemaphore;
 
-            vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, trianglePipeline);
-            vkCmdDraw(cmdBuffer, 3, 1, 0, 0);
-            */
+            VK_CHECK(vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE));
 
+            VkPresentInfoKHR presentInfo = { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
+            presentInfo.swapchainCount = 1;
+            presentInfo.pSwapchains = &m_swapchain.swapchain;
+            presentInfo.pImageIndices = &imageIndex;
+            presentInfo.pWaitSemaphores = &m_releaseSemaphore;
+            presentInfo.waitSemaphoreCount = 1;
+
+            VK_CHECK(vkQueuePresentKHR(m_queue, &presentInfo));
+
+            double waitTimeBegin = glfwGetTime() * 1000.0;
+            VK_CHECK(vkDeviceWaitIdle(m_device)); // TODO: a fence here?
+            double waitTimeEnd = glfwGetTime() * 1000.0;
         }
     }
 
@@ -680,11 +698,11 @@ namespace vkz
 
     void RHIContext_vk::createPass(MemoryReader& _reader)
     {
-        PassCreateInfo info;
-        read(&_reader, info);
+        PassCreateInfo createInfo;
+        read(&_reader, createInfo);
         
-        size_t bindingSz = info.vertexBindingNum * sizeof(VertexBindingDesc);
-        size_t attributeSz = info.vertexAttributeNum * sizeof(VertexAttributeDesc);
+        size_t bindingSz = createInfo.vertexBindingNum * sizeof(VertexBindingDesc);
+        size_t attributeSz = createInfo.vertexAttributeNum * sizeof(VertexAttributeDesc);
         size_t offset = bindingSz;
         size_t totolSz = bindingSz + attributeSz;
         
@@ -692,52 +710,79 @@ namespace vkz
         void* mem = alloc(getAllocator(), totolSz);
         read(&_reader, mem, (int32_t)totolSz);
 
-        std::vector<VertexBindingDesc> passVertexBinding{ (VertexBindingDesc*)mem, ((VertexBindingDesc*)mem) + info.vertexBindingNum };
-        std::vector<VertexAttributeDesc> passVertexAttribute{ (VertexAttributeDesc*)((char*)mem + offset), ((VertexAttributeDesc*)mem) + info.vertexBindingNum };
+        std::vector<VertexBindingDesc> passVertexBinding{ (VertexBindingDesc*)mem, ((VertexBindingDesc*)mem) + createInfo.vertexBindingNum };
+        std::vector<VertexAttributeDesc> passVertexAttribute{ (VertexAttributeDesc*)((char*)mem + offset), ((VertexAttributeDesc*)mem) + createInfo.vertexBindingNum };
 
         // constants
-        std::vector<int> pushConstants(info.pushConstantNum);
-        read(&_reader, pushConstants.data(), info.pushConstantNum * sizeof(int));
+        std::vector<int> pushConstants(createInfo.pushConstantNum);
+        read(&_reader, pushConstants.data(), createInfo.pushConstantNum * sizeof(int));
+
+        // r/w resurces
+        std::vector<uint16_t> writeColorIds(createInfo.writeColorNum);
+        read(&_reader, writeColorIds.data(), createInfo.writeColorNum * sizeof(uint16_t));
+        std::vector<uint16_t> readImageIds(createInfo.readImageNum);
+        read(&_reader, readImageIds.data(), createInfo.readImageNum * sizeof(uint16_t));
+        std::vector<uint16_t> rwBufferIds(createInfo.rwBufferNum);
+        read(&_reader, rwBufferIds.data(), createInfo.rwBufferNum * sizeof(uint16_t));
+
+
 
         // create pipeline
-        const Program_vk& program = m_programs[info.programId];
-        const std::vector<uint16_t>& shaderIds = m_programShaderIds[info.programId];
+        const Program_vk& program = m_programs[createInfo.programId];
+        const std::vector<uint16_t>& shaderIds = m_programShaderIds[createInfo.programId];
 
-        if (info.queue == PassExeQueue::graphics)
+        VkPipeline pipeline{};
+        if (createInfo.queue == PassExeQueue::graphics)
         {
             VkPipelineRenderingCreateInfo renderInfo = { VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
-            renderInfo.colorAttachmentCount = 1;
+            renderInfo.colorAttachmentCount = createInfo.writeColorNum;
             renderInfo.pColorAttachmentFormats = &m_imageFormat;
             renderInfo.depthAttachmentFormat = m_depthFormat;
 
             std::vector< Shader_vk> shaders;
             for (const uint16_t sid : shaderIds)
             {
-                shaders.push_back(m_shaders[sid]);
+                uint16_t shaderIdx = getIndex(m_shaderIds, sid);
+                shaders.push_back(m_shaders[shaderIdx]);
             }
+
+            VkPipelineVertexInputStateCreateInfo vtxInputCreateInfo{};
+            bool hasVIS = getVertexInputState(vtxInputCreateInfo, passVertexBinding, passVertexAttribute);
+
+
+            PipelineConfigs_vk configs{ createInfo.pipelineConfig.enableDepthTest, createInfo.pipelineConfig.enableDepthWrite, getCompareOp(createInfo.pipelineConfig.depthCompOp) };
 
             VkPipelineCache cache{};
-
-
-            VkPipelineVertexInputStateCreateInfo* pPvisCreateInfo = nullptr;
-            if (passVertexBinding.empty() || passVertexAttribute.empty())
-            {
-                *pPvisCreateInfo = getVertexInputState(passVertexBinding, passVertexAttribute);
-            }
-
-            PipelineConfigs_vk configs{ info.pipelineConfig.enableDepthTest, info.pipelineConfig.enableDepthWrite, getCompareOp(info.pipelineConfig.depthCompOp) };
-
-            VkPipeline pipeline = vkz::createGraphicsPipeline(m_device, cache, program.layout, renderInfo, shaders, pPvisCreateInfo, pushConstants, configs);
-
-            m_pipelines.push_back(pipeline);
+            pipeline = vkz::createGraphicsPipeline(m_device, cache, program.layout, renderInfo, shaders, hasVIS ? &vtxInputCreateInfo : nullptr, pushConstants, configs);
         }
-        else if (info.queue == PassExeQueue::compute)
+        else if (createInfo.queue == PassExeQueue::compute)
         {
             
         }
 
+        // fill pass info
+        PassInfo_vk passInfo{};
+        passInfo.passId = createInfo.passId;
+        passInfo.pipeline = pipeline;
+        passInfo.writeDepthId = createInfo.writeDepthId;
+        passInfo.writeColorIds = writeColorIds;
+        passInfo.readImageIds = readImageIds;
+        passInfo.rwBufferIds = rwBufferIds;
+
+        // desc part
+        passInfo.programId = createInfo.programId;
+        passInfo.queue = createInfo.queue;
+        passInfo.vertexBindingNum = createInfo.vertexBindingNum;
+        passInfo.vertexAttributeNum = createInfo.vertexAttributeNum;
+        passInfo.vertexBindingInfos = createInfo.vertexBindingInfos;
+        passInfo.vertexAttributeInfos = createInfo.vertexAttributeInfos;
+        passInfo.pushConstantNum = createInfo.pushConstantNum;
+        passInfo.pushConstants = createInfo.pushConstants;
+        passInfo.pipelineConfig = createInfo.pipelineConfig;
+
+
         // fill pass
-        m_passInfos.push_back(info);
+        m_passInfos.push_back(passInfo);
     }
 
     void RHIContext_vk::createImage(MemoryReader& _reader)
@@ -756,7 +801,7 @@ namespace vkz
         initPorps.width = info.width;
         initPorps.height = info.height;
         initPorps.depth = info.depth;
-        initPorps.format = getFormat(info.format);
+        initPorps.format = getValidFormat(info.format, info.usage, m_imageFormat, m_depthFormat);
         initPorps.usage = getImageUsageFlags(info.usage);
         initPorps.type = getImageType(info.type);
         initPorps.layout = getImageLayout(info.layout);
@@ -823,6 +868,64 @@ namespace vkz
 
         m_phyDevice = vkz::pickPhysicalDevice(physicalDevices, deviceCount);
         assert(m_phyDevice);
+    }
+
+    void RHIContext_vk::passRender(uint16_t _passId)
+    {
+        const PassInfo_vk& passInfo = m_passInfos[_passId];
+
+        VkClearColorValue color = { 33.f / 255.f, 200.f / 255.f, 242.f / 255.f, 1 };
+        VkClearDepthStencilValue depth = { 0.f, 0 };
+
+        std::vector<VkRenderingAttachmentInfo> colorAttachments(passInfo.writeColorIds.size());
+        for (int i = 0; i < passInfo.writeColorIds.size(); ++i)
+        {
+            uint16_t colorIdx = getIndex(m_imageIds, passInfo.writeColorIds[i]);
+            const Image_vk& colorTarget_local = m_images[colorIdx];
+
+            colorAttachments[i].sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+            colorAttachments[i].clearValue.color = color;
+            colorAttachments[i].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+            colorAttachments[i].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+            colorAttachments[i].imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+            colorAttachments[i].imageView = colorTarget_local.imageView;
+        }
+
+        bool hasDepth = passInfo.writeDepthId != kInvalidHandle;
+        VkRenderingAttachmentInfo depthAttachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+        if (hasDepth)
+        {
+            uint16_t depthIdx = getIndex(m_imageIds, passInfo.writeDepthId);
+            const Image_vk& depthTarget_local = m_images[depthIdx];
+
+            depthAttachment.clearValue.depthStencil = depth;
+            depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+            depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+            depthAttachment.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+            depthAttachment.imageView = depthTarget_local.imageView;
+        }
+
+        VkRenderingInfo renderingInfo = { VK_STRUCTURE_TYPE_RENDERING_INFO };
+        renderingInfo.renderArea.extent.width = m_swapchain.width;
+        renderingInfo.renderArea.extent.height = m_swapchain.height;
+        renderingInfo.layerCount = 1;
+        renderingInfo.colorAttachmentCount = (uint32_t)colorAttachments.size();
+        renderingInfo.pColorAttachments = colorAttachments.data();
+        renderingInfo.pDepthAttachment = hasDepth ? &depthAttachment : nullptr;
+
+        vkCmdBeginRendering(m_cmdBuffer, &renderingInfo);
+
+        // drawcalls
+        VkViewport viewport = { 0.f, float(m_swapchain.height), float(m_swapchain.width), -float(m_swapchain.height), 0.f, 1.f };
+        VkRect2D scissor = { {0, 0}, {m_swapchain.width, m_swapchain.height } };
+
+        vkCmdSetViewport(m_cmdBuffer, 0, 1, &viewport);
+        vkCmdSetScissor(m_cmdBuffer, 0, 1, &scissor);
+
+        vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, passInfo.pipeline);
+        vkCmdDraw(m_cmdBuffer, 3, 1, 0, 0);
+
+        vkCmdEndRendering(m_cmdBuffer);
     }
 
 } // namespace vkz

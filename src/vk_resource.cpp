@@ -102,7 +102,7 @@ namespace vkz
             }
         }
 
-        _results = results;
+        _results = std::move(results);
     }
 
     Buffer_vk createBuffer(const BufferAliasInfo& info, const VkPhysicalDeviceMemoryProperties& _memProps, VkDevice _device, VkBufferUsageFlags _usage, VkMemoryPropertyFlags _memFlags)
@@ -264,6 +264,8 @@ namespace vkz
             img.height = _initProps.height;
             img.mipLevels = _initProps.level;
         }
+
+        _results = std::move(results);
     }
 
     vkz::Image_vk createImage(const ImageAliasInfo& _info, const VkDevice _device, const VkPhysicalDeviceMemoryProperties& _memProps, const ImgInitProps& _initProps)

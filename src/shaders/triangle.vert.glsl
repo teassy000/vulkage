@@ -7,6 +7,11 @@ const vec3 vertices[] =
    vec3(-0.5, -0.5, 0),
 };
 
+layout(binding = 0) buffer Dummy
+{
+    uint dummy;
+};
+
 void main()
 {
     gl_Position = vec4(vertices[gl_VertexIndex], 1.0);

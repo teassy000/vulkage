@@ -160,6 +160,7 @@ namespace vkz
         void init();
         void loop();
 
+        void update();
         void render();
 
         void shutdown();
@@ -384,6 +385,13 @@ namespace vkz
             return RenderTargetHandle{ kInvalidHandle };
         }
 
+        // do not set the texture format
+        if (_desc.format != ResourceFormat::undefined)
+        {
+            message(error, "do not set the resource format for render target");
+            return RenderTargetHandle{ kInvalidHandle };
+        }
+
         ImageDesc& desc = m_textureDescs[idx];
         desc = _desc;
 
@@ -397,9 +405,9 @@ namespace vkz
         info.height = _desc.height;
         info.depth = _desc.depth;
         info.mips = _desc.mips;
-        info.format = _desc.format;
+        info.format = ResourceFormat::undefined;
         info.arrayLayers = _desc.arrayLayers;
-        info.usage = _desc.usage;
+        info.usage = ImageUsageFlagBits::color_attachment | _desc.usage;
         info.lifetime = _lifetime;
         info.bpp = getBytesPerPixel(_desc.format);
 
@@ -428,6 +436,13 @@ namespace vkz
             return DepthStencilHandle{ kInvalidHandle };
         }
 
+        // do not set the texture format
+        if (_desc.format != ResourceFormat::undefined)
+        {
+            message(error, "do not set the resource format for depth stencil!");
+            return DepthStencilHandle{ kInvalidHandle };
+        }
+
         ImageDesc& desc = m_textureDescs[idx];
         desc = _desc;
 
@@ -441,9 +456,9 @@ namespace vkz
         info.height = _desc.height;
         info.depth = _desc.depth;
         info.mips = _desc.mips;
-        info.format = _desc.format;
+        info.format = ResourceFormat::undefined;
         info.arrayLayers = _desc.arrayLayers;
-        info.usage = _desc.usage;
+        info.usage = ImageUsageFlagBits::depth_stencil_attachment | _desc.usage;
         info.lifetime = _lifetime;
         info.bpp = getBytesPerPixel(_desc.format);
 
@@ -567,6 +582,12 @@ namespace vkz
 
     void Context::loop()
     {
+        update();
+        render();
+    }
+
+    void Context::update()
+    {
         if (kInvalidHandle == m_resultRenderTarget.id)
         {
             message(error, "result render target is not set!");
@@ -580,7 +601,7 @@ namespace vkz
         // move mem pos to the beginning of the memory block
         int64_t size = m_fgMemWriter->seek(0, Whence::Current);
         m_fgMemWriter->seek(sizeof(MagicTag), Whence::Begin);
-        
+
         // replace the brief data
         FrameGraphBrief brief;
         brief.version = 1u;
@@ -598,6 +619,13 @@ namespace vkz
 
         m_frameGraph->setMemoryBlock(m_pFgMemBlock);
         m_frameGraph->bake();
+
+        m_rhiContext->update();
+    }
+
+    void Context::render()
+    {
+        m_rhiContext->render();
     }
 
     void Context::shutdown()

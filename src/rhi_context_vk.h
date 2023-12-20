@@ -32,6 +32,18 @@ namespace vkz
         VkCompareOp depthCompOp{ VK_COMPARE_OP_GREATER };
     };
 
+    struct PassInfo_vk : PassDesc
+    {
+        VkPipeline pipeline{};
+
+        uint16_t passId{ kInvalidHandle };
+        uint16_t writeDepthId{ kInvalidHandle };
+
+        std::vector<uint16_t> writeColorIds;
+        std::vector<uint16_t> readImageIds;
+        std::vector<uint16_t> rwBufferIds;
+    };
+
     class RHIContext_vk : public RHIContext
     {
     public:
@@ -39,7 +51,7 @@ namespace vkz
 
         ~RHIContext_vk() override;
         void init() override;
-        void loop() override;
+        void render() override;
     private:
 
         void createShader(MemoryReader& _reader) override;
@@ -51,6 +63,8 @@ namespace vkz
     private:
         void createInstance();
         void createPhysicalDevice();
+
+        void passRender(uint16_t _passId);
 
     private:
         std::vector<uint16_t>   m_bufferIds;
@@ -65,12 +79,8 @@ namespace vkz
         std::vector<uint16_t>   m_programIds;
         std::vector<std::vector<uint16_t>> m_programShaderIds;
         std::vector<Program_vk> m_programs;
-        
 
-        std::vector<VkPipeline>     m_pipelines;
-        std::vector<VkPipelineLayout> m_pipelineLayouts;
-
-        std::vector<PassCreateInfo> m_passInfos;
+        std::vector<PassInfo_vk> m_passInfos;
 
         // glfw data
         GLFWwindow* m_pWindow;

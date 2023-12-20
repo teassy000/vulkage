@@ -84,6 +84,8 @@ namespace vkz
         d16,
         d32,
 
+        depth = d16 | d32,
+
         resource_format_max = 0x7fffffff,
     };
 
@@ -243,7 +245,7 @@ namespace vkz
         ImageViewType   viewType{ ImageViewType::type_2d };
         ImageLayout     layout{ ImageLayout::general };
         ResourceFormat  format{ ResourceFormat::undefined };
-        ImageUsageFlags usage{ ImageUsageFlagBits::none };
+        ImageUsageFlags usage{ ImageUsageFlagBits::color_attachment };
     };
 
     struct VertexBindingDesc

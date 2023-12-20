@@ -252,6 +252,7 @@
     <ClInclude Include="pass.h" />
     <ClInclude Include="rhi_context.h" />
     <ClInclude Include="shader_manager.h" />
+    <ClInclude Include="util.h" />
     <ClInclude Include="vkz_structs.h" />
     <ClInclude Include="vkz_structs_inner.h" />
     <ClInclude Include="vk_device.h" />
