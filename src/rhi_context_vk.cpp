@@ -307,7 +307,6 @@ namespace vkz
         return format;
     }
 
-
     VkFormat getValidFormat(ResourceFormat _format, ImageUsageFlags _usage, VkFormat _color, VkFormat _depth)
     {
         if (_usage &= ImageUsageFlagBits::color_attachment)
@@ -405,6 +404,189 @@ namespace vkz
         }
 
         return rate;
+    }
+
+    VkAccessFlags getAccessFlags(AccessFlags _flags)
+    {
+        VkAccessFlags flags = 0;
+
+        if (_flags & AccessFlagBits::indirect_command_read)
+        {
+            flags |= VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
+        }
+        if (_flags & AccessFlagBits::index_read)
+        {
+            flags |= VK_ACCESS_INDEX_READ_BIT;
+        }
+        if (_flags & AccessFlagBits::vertex_attribute_read)
+        {
+            flags |= VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+        }
+        if (_flags & AccessFlagBits::uniform_read)
+        {
+            flags |= VK_ACCESS_UNIFORM_READ_BIT;
+        }
+        if (_flags & AccessFlagBits::input_attachment_read)
+        {
+            flags |= VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
+        }
+        if (_flags & AccessFlagBits::shader_read)
+        {
+            flags |= VK_ACCESS_SHADER_READ_BIT;
+        }
+        if (_flags & AccessFlagBits::shader_write)
+        {
+            flags |= VK_ACCESS_SHADER_WRITE_BIT;
+        }
+        if (_flags & AccessFlagBits::color_attachment_read)
+        {
+            flags |= VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
+        }
+        if (_flags & AccessFlagBits::color_attachment_write)
+        {
+            flags |= VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        }
+        if (_flags & AccessFlagBits::depth_stencil_attachment_read)
+        {
+            flags |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+        }
+        if (_flags & AccessFlagBits::depth_stencil_attachment_write)
+        {
+            flags |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        }
+        if (_flags & AccessFlagBits::transfer_read)
+        {
+            flags |= VK_ACCESS_TRANSFER_READ_BIT;
+        }
+        if (_flags & AccessFlagBits::transfer_write)
+        {
+            flags |= VK_ACCESS_TRANSFER_WRITE_BIT;
+        }
+        if (_flags & AccessFlagBits::host_read)
+        {
+            flags |= VK_ACCESS_HOST_READ_BIT;
+        }
+        if (_flags & AccessFlagBits::host_write)
+        {
+            flags |= VK_ACCESS_HOST_WRITE_BIT;
+        }
+        if (_flags & AccessFlagBits::memory_read)
+        {
+            flags |= VK_ACCESS_MEMORY_READ_BIT;
+        }
+        if (_flags & AccessFlagBits::memory_write)
+        {
+            flags |= VK_ACCESS_MEMORY_WRITE_BIT;
+        }
+        if (_flags & AccessFlagBits::transform_feedback_write)
+        {
+            flags |= VK_ACCESS_TRANSFORM_FEEDBACK_WRITE_BIT_EXT;
+        }
+        if (_flags & AccessFlagBits::transform_feedback_counter_read)
+        {
+            flags |= VK_ACCESS_TRANSFORM_FEEDBACK_COUNTER_READ_BIT_EXT;
+        }
+        if (_flags & AccessFlagBits::transform_feedback_counter_write)
+        {
+            flags |= VK_ACCESS_TRANSFORM_FEEDBACK_COUNTER_WRITE_BIT_EXT;
+        }
+        if (_flags & AccessFlagBits::conditional_rendering_read)
+        {
+            flags |= VK_ACCESS_CONDITIONAL_RENDERING_READ_BIT_EXT;
+        }
+        if (_flags & AccessFlagBits::color_attachment_read_noncoherent)
+        {
+            flags |= VK_ACCESS_COLOR_ATTACHMENT_READ_NONCOHERENT_BIT_EXT;
+        }
+        if (_flags & AccessFlagBits::acceleration_structure_read)
+        {
+            flags |= VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
+        }
+        if (_flags & AccessFlagBits::acceleration_structure_write)
+        {
+            flags |= VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
+        }
+        if (_flags & AccessFlagBits::shading_rate_image_read)
+        {
+            flags |= VK_ACCESS_SHADING_RATE_IMAGE_READ_BIT_NV;
+        }
+
+        return flags;
+    }
+
+    VkPipelineStageFlags getPipelineStageFlags(PipelineStageFlags _flags)
+    {
+        VkPipelineStageFlags flags = 0;
+
+        if (_flags & PipelineStageFlagBits::top_of_pipe)
+        {
+            flags |= VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        }
+        if (_flags & PipelineStageFlagBits::draw_indirect)
+        {
+            flags |= VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT;
+        }
+        if (_flags & PipelineStageFlagBits::vertex_input)
+        {
+            flags |= VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
+        }
+        if (_flags & PipelineStageFlagBits::vertex_shader)
+        {
+            flags |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
+        }
+        if (_flags & PipelineStageFlagBits::geometry_shader)
+        {
+            flags |= VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
+        }
+        if (_flags & PipelineStageFlagBits::fragment_shader)
+        {
+            flags |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        }
+        if (_flags & PipelineStageFlagBits::early_fragment_tests)
+        {
+            flags |= VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+        }
+        if (_flags & PipelineStageFlagBits::late_fragment_tests)
+        {
+            flags |= VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+        }
+        if (_flags & PipelineStageFlagBits::color_attachment_output)
+        {
+            flags |= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        }
+        if (_flags & PipelineStageFlagBits::compute_shader)
+        {
+            flags |= VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+        }
+        if (_flags & PipelineStageFlagBits::transfer)
+        {
+            flags |= VK_PIPELINE_STAGE_TRANSFER_BIT;
+        }
+        if (_flags & PipelineStageFlagBits::bottom_of_pipe)
+        {
+            flags |= VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+        }
+        if (_flags & PipelineStageFlagBits::host)
+        {
+            flags |= VK_PIPELINE_STAGE_HOST_BIT;
+        }
+        if (_flags & PipelineStageFlagBits::all_graphics)
+        {
+            flags |= VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+        }
+        if (_flags & PipelineStageFlagBits::all_commands)
+        {
+            flags |= VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+        }
+        if (_flags & PipelineStageFlagBits::task_shader)
+        {
+            flags |= VK_PIPELINE_STAGE_TASK_SHADER_BIT_EXT;
+        }
+        if (_flags & PipelineStageFlagBits::mesh_shader)
+        {
+            flags |= VK_PIPELINE_STAGE_MESH_SHADER_BIT_EXT;
+        }
+        return flags;
     }
 
     bool getVertexInputState(VkPipelineVertexInputStateCreateInfo& _out, const std::vector<VertexBindingDesc>& _bindings, const std::vector<VertexAttributeDesc>& _attributes)
@@ -618,10 +800,9 @@ namespace vkz
 
             VK_CHECK(vkBeginCommandBuffer(m_cmdBuffer, &beginInfo));
 
-            
-            for (const PassInfo_vk& passInfo : m_passInfos)
+            for (size_t ii = 0; ii < m_passContainer.size(); ++ii)
             {
-                passRender(passInfo.passId);
+                passRender(m_passContainer.getId(ii));
             }
 
             VK_CHECK(vkEndCommandBuffer(m_cmdBuffer));
@@ -668,8 +849,7 @@ namespace vkz
         bool lsr = loadShader(shader, m_device, path);
         assert(lsr);
 
-        m_shaderIds.push_back(info.shaderId);
-        m_shaders.push_back(shader);
+        m_shaderContainer.addData(info.shaderId, shader);
     }
 
     void RHIContext_vk::createProgram(MemoryReader& _reader)
@@ -685,15 +865,16 @@ namespace vkz
         std::vector<Shader_vk> shaders;
         for (const uint16_t sid : shaderIds)
         {
-            shaders.push_back(m_shaders[sid]);
+            shaders.push_back(m_shaderContainer.getData(sid));
         }
 
         VkPipelineBindPoint bindPoint = getBindPoint(shaders);
         Program_vk prog = vkz::createProgram(m_device, bindPoint, shaders, info.sizePushConstants);
 
-        m_programIds.emplace_back(info.progId);
+        m_programContainer.addData(info.progId, prog);
         m_programShaderIds.emplace_back(shaderIds);
-        m_programs.emplace_back(prog);
+
+        assert(m_programContainer.size() == m_programShaderIds.size());
     }
 
     void RHIContext_vk::createPass(MemoryReader& _reader)
@@ -726,10 +907,10 @@ namespace vkz
         read(&_reader, rwBufferIds.data(), createInfo.rwBufferNum * sizeof(uint16_t));
 
 
-
         // create pipeline
-        const Program_vk& program = m_programs[createInfo.programId];
-        const std::vector<uint16_t>& shaderIds = m_programShaderIds[createInfo.programId];
+        const uint16_t progIdx = (uint16_t)m_programContainer.getIndex(createInfo.programId);
+        const Program_vk& program = m_programContainer.getData(createInfo.programId);
+        const std::vector<uint16_t>& shaderIds = m_programShaderIds[progIdx];
 
         VkPipeline pipeline{};
         if (createInfo.queue == PassExeQueue::graphics)
@@ -742,8 +923,7 @@ namespace vkz
             std::vector< Shader_vk> shaders;
             for (const uint16_t sid : shaderIds)
             {
-                uint16_t shaderIdx = getIndex(m_shaderIds, sid);
-                shaders.push_back(m_shaders[shaderIdx]);
+                shaders.push_back(m_shaderContainer.getData(sid));
             }
 
             VkPipelineVertexInputStateCreateInfo vtxInputCreateInfo{};
@@ -781,8 +961,7 @@ namespace vkz
         passInfo.pipelineConfig = createInfo.pipelineConfig;
 
 
-        // fill pass
-        m_passInfos.push_back(passInfo);
+        m_passContainer.addData(passInfo.passId, passInfo);
     }
 
     void RHIContext_vk::createImage(MemoryReader& _reader)
@@ -811,16 +990,20 @@ namespace vkz
         vkz::createImage(images, infoList, m_device, m_memProps, initPorps);
 
         assert(images.size() == info.resNum);
-        assert(m_imageIds.size() == m_images.size());
 
-        // fill buffers and IDs
-        m_imageIds.resize(m_imageIds.size() + info.resNum);
-        m_images.resize(m_images.size() + info.resNum);
         for (int i = 0; i < info.resNum; ++i)
         {
-            m_imageIds[m_imageIds.size() - info.resNum + i] = resArr[i].imgId;
-            m_images[m_images.size() - info.resNum + i] = images[i];
+            m_imageContainer.addData(resArr[i].imgId, images[i]);
+
+            BarrierState_vk barrierState{};
+            barrierState.accessMask = getAccessFlags(info.barrierState.access);
+            barrierState.stageMask = getPipelineStageFlags(info.barrierState.stage);
+            barrierState.imgLayout = initPorps.layout;
+
+            m_imageBarrierStates.addData(resArr[i].imgId, barrierState);
         }
+        
+        VKZ_DELETE_ARRAY(resArr);
     }
 
     void RHIContext_vk::createBuffer(MemoryReader& _reader)
@@ -838,15 +1021,16 @@ namespace vkz
         vkz::createBuffer(buffers, infoList, m_memProps, m_device, getBufferUsageFlags(info.usage), getMemPropFlags(info.memFlags));
 
         assert(buffers.size() == info.resNum);
-        assert(m_bufferIds.size() == m_buffers.size());
 
-        // fill buffers and IDs
-        m_bufferIds.resize(m_bufferIds.size() + info.resNum);
-        m_buffers.resize(m_buffers.size() + info.resNum);
         for (int i = 0; i < info.resNum; ++i)
         {
-            m_bufferIds[m_bufferIds.size() - info.resNum + i] = resArr[i].bufId;
-            m_buffers[m_buffers.size() - info.resNum + i] = buffers[i];
+            m_bufferContainer.addData(resArr[i].bufId, buffers[i]);
+
+            BarrierState_vk barrierState{};
+            barrierState.accessMask = getAccessFlags(info.barrierState.access);
+            barrierState.stageMask = getPipelineStageFlags(info.barrierState.stage);
+
+            m_bufferBarrierStates.addData(resArr[i].bufId, barrierState);
         }
 
         VKZ_DELETE_ARRAY(resArr);
@@ -872,7 +1056,8 @@ namespace vkz
 
     void RHIContext_vk::passRender(uint16_t _passId)
     {
-        const PassInfo_vk& passInfo = m_passInfos[_passId];
+        //const PassInfo_vk& passInfo = m_passInfos[_passId];
+        const PassInfo_vk& passInfo = m_passContainer.getData(_passId);
 
         VkClearColorValue color = { 33.f / 255.f, 200.f / 255.f, 242.f / 255.f, 1 };
         VkClearDepthStencilValue depth = { 0.f, 0 };
@@ -880,29 +1065,27 @@ namespace vkz
         std::vector<VkRenderingAttachmentInfo> colorAttachments(passInfo.writeColorIds.size());
         for (int i = 0; i < passInfo.writeColorIds.size(); ++i)
         {
-            uint16_t colorIdx = getIndex(m_imageIds, passInfo.writeColorIds[i]);
-            const Image_vk& colorTarget_local = m_images[colorIdx];
+            const Image_vk& colorTarget = m_imageContainer.getData(passInfo.writeColorIds[i]);
 
             colorAttachments[i].sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
             colorAttachments[i].clearValue.color = color;
             colorAttachments[i].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
             colorAttachments[i].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
             colorAttachments[i].imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
-            colorAttachments[i].imageView = colorTarget_local.imageView;
+            colorAttachments[i].imageView = colorTarget.imageView;
         }
 
         bool hasDepth = passInfo.writeDepthId != kInvalidHandle;
         VkRenderingAttachmentInfo depthAttachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
         if (hasDepth)
         {
-            uint16_t depthIdx = getIndex(m_imageIds, passInfo.writeDepthId);
-            const Image_vk& depthTarget_local = m_images[depthIdx];
+            const Image_vk& depthTarget = m_imageContainer.getData(passInfo.writeDepthId);
 
             depthAttachment.clearValue.depthStencil = depth;
             depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
             depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
             depthAttachment.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
-            depthAttachment.imageView = depthTarget_local.imageView;
+            depthAttachment.imageView = depthTarget.imageView;
         }
 
         VkRenderingInfo renderingInfo = { VK_STRUCTURE_TYPE_RENDERING_INFO };
@@ -923,6 +1106,8 @@ namespace vkz
         vkCmdSetScissor(m_cmdBuffer, 0, 1, &scissor);
 
         vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, passInfo.pipeline);
+
+        // vkCmdPushDescriptorSetWithTemplateKHR(m_cmdBuffer, passInfo.pipeline, passInfo.pipelineLayout, 0, passInfo.pushConstants.data());
         vkCmdDraw(m_cmdBuffer, 3, 1, 0, 0);
 
         vkCmdEndRendering(m_cmdBuffer);

@@ -7,6 +7,8 @@
 #include "config.h"
 #include "name.h"
 
+#include "util.h"
+
 #include "rhi_context.h"
 #include "framegraph_2.h"
 #include <array>
@@ -151,6 +153,10 @@ namespace vkz
         uint16_t aliasAlloc(MagicTag _tag);
 
         void aliasResrouce(const Memory* _outMem, const uint16_t _aliasCount, const uint16_t _baseRes, MagicTag _tag);
+
+        void readwriteBuffer(const uint16_t _pass, MagicTag _tag, const uint16_t _resCount, const BufferInteractDesc& _interact);
+        void readwriteImage(const uint16_t _pass, MagicTag _tag, const uint16_t _resCount, const BufferInteractDesc& _interact);
+
         void readwriteResource(const uint16_t _pass, const Memory* _reses, const uint16_t _resCount, MagicTag _tag);
 
         void setMultiFrameResource(const Memory* _mem, const uint16_t _resCount, MagicTag _tag);
@@ -169,18 +175,19 @@ namespace vkz
         HandleArrayT<kMaxNumOfProgramHandle> m_programHandles;
         HandleArrayT<kMaxNumOfPipelineHandle> m_pipelineHandles;
         HandleArrayT<kMaxNumOfPassHandle> m_passHandles;
-        HandleArrayT<kMaxNumOfTextureHandle> m_textureHandles;
+        HandleArrayT<kMaxNumOfImageHandle> m_imageHandles;
         HandleArrayT<kMaxNumOfBufferHandle> m_bufferHandles;
 
         RenderTargetHandle m_resultRenderTarget{kInvalidHandle};
 
         // resource Info
         BufferDesc m_bufferDescs[kMaxNumOfBufferHandle];
-        ImageDesc m_textureDescs[kMaxNumOfTextureHandle];
-        ImageDesc m_renderTargetDescs[kMaxNumOfRenderTargetHandle];
-        ImageDesc m_depthStencilDescs[kMaxNumOfDepthStencilHandle];
+        ImageDesc m_imageDescs[kMaxNumOfImageHandle];
         PassDesc m_passDescs[kMaxNumOfPassHandle];
 
+        // read/write desc
+        std::vector<std::vector<BufferInteractDesc>> m_bufferInteractDescs;
+        std::vector<std::vector<ImageInteractDesc>> m_imageInteractDescs;
 
         // frame graph
         MemoryBlockI* m_pFgMemBlock{ nullptr };
@@ -319,9 +326,10 @@ namespace vkz
         info.usage = desc.usage;
         info.memFlags = desc.memFlags;
         info.lifetime = _lifetime;
-        info.state.access = 0u; // TODO: set the barrier state
-        info.state.layout = ImageLayout::undefined; // TODO: set the barrier state
-        info.state.stage = 0u;  // TODO: set the barrier state
+
+        info.initialState.access = 0u; // TODO: set the barrier state
+        info.initialState.layout = ImageLayout::undefined; // TODO: set the barrier state
+        info.initialState.stage = 0u;  // TODO: set the barrier state
 
         write(m_fgMemWriter, info);
 
@@ -330,7 +338,7 @@ namespace vkz
 
     vkz::TextureHandle Context::registTexture(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime)
     {
-        uint16_t idx = m_textureHandles.alloc();
+        uint16_t idx = m_imageHandles.alloc();
 
         TextureHandle handle = TextureHandle{ idx };
 
@@ -341,7 +349,7 @@ namespace vkz
             return TextureHandle{ kInvalidHandle };
         }
 
-        ImageDesc& desc = m_textureDescs[idx];
+        ImageDesc& desc = m_imageDescs[idx];
         desc = _desc;
 
         // frame graph data
@@ -363,9 +371,9 @@ namespace vkz
         // TODO: image type
         // TODO: image view type
 
-        info.state.access = 0u; // TODO: set the barrier state
-        info.state.layout = ImageLayout::undefined; // TODO: set the barrier state
-        info.state.stage = 0u;  // TODO: set the barrier state
+        info.initialState.access = AccessFlagBits::none;
+        info.initialState.layout = ImageLayout::undefined; 
+        info.initialState.stage = PipelineStageFlagBits::host;
 
         write(m_fgMemWriter, info);
 
@@ -374,7 +382,7 @@ namespace vkz
 
     vkz::RenderTargetHandle Context::registRenderTarget(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime)
     {
-        uint16_t idx = m_textureHandles.alloc();
+        uint16_t idx = m_imageHandles.alloc();
 
         RenderTargetHandle handle = RenderTargetHandle{ idx };
 
@@ -392,7 +400,7 @@ namespace vkz
             return RenderTargetHandle{ kInvalidHandle };
         }
 
-        ImageDesc& desc = m_textureDescs[idx];
+        ImageDesc& desc = m_imageDescs[idx];
         desc = _desc;
 
         // frame graph data
@@ -414,9 +422,9 @@ namespace vkz
         // TODO: image type
         // TODO: image view type
 
-        info.state.access = 0u; // TODO: set the barrier state
-        info.state.layout = ImageLayout::undefined; // TODO: set the barrier state
-        info.state.stage = 0u;  // TODO: set the barrier state
+        info.initialState.access = AccessFlagBits::shader_write;
+        info.initialState.layout = ImageLayout::undefined;
+        info.initialState.stage = PipelineStageFlagBits::host;
 
         write(m_fgMemWriter, info);
 
@@ -425,7 +433,7 @@ namespace vkz
 
     vkz::DepthStencilHandle Context::registDepthStencil(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime)
     {
-        uint16_t idx = m_textureHandles.alloc();
+        uint16_t idx = m_imageHandles.alloc();
 
         DepthStencilHandle handle = DepthStencilHandle{ idx };
 
@@ -443,7 +451,7 @@ namespace vkz
             return DepthStencilHandle{ kInvalidHandle };
         }
 
-        ImageDesc& desc = m_textureDescs[idx];
+        ImageDesc& desc = m_imageDescs[idx];
         desc = _desc;
 
         // frame graph data
@@ -464,10 +472,9 @@ namespace vkz
 
         // TODO: image type
         // TODO: image view type
-
-        info.state.access = 0u; // TODO: set the barrier state
-        info.state.layout = ImageLayout::undefined; // TODO: set the barrier state
-        info.state.stage = 0u;  // TODO: set the barrier state
+        info.initialState.access = AccessFlagBits::shader_write;
+        info.initialState.layout = ImageLayout::undefined;
+        info.initialState.stage = PipelineStageFlagBits::host;
 
         write(m_fgMemWriter, info);
 
@@ -480,13 +487,13 @@ namespace vkz
             return m_bufferHandles.alloc();
         }
         if (MagicTag::AliasTexture == _tag) {
-            return m_textureHandles.alloc();
+            return m_imageHandles.alloc();
         }
         if (MagicTag::AliasRenderTarget == _tag) {
-            return m_textureHandles.alloc();
+            return m_imageHandles.alloc();
         }
         if (MagicTag::AliasDepthStencil == _tag) {
-            return m_textureHandles.alloc();
+            return m_imageHandles.alloc();
         }
 
         message(error, "invalid alias tag!");
@@ -521,6 +528,10 @@ namespace vkz
 
     void Context::readwriteResource(const uint16_t _pass, const Memory* _reses, const uint16_t _resCount, MagicTag _tag)
     {
+        // magic: 4 bytes
+        // info: 4 bytes
+        // reses: 2 bytes * _resCount + sizeof(ResourceInteractDesc)
+
         uint32_t magic = static_cast<uint32_t>(_tag);
         write(m_fgMemWriter, magic);
 
@@ -530,6 +541,7 @@ namespace vkz
         write(m_fgMemWriter, info);
         write(m_fgMemWriter, _reses->data, _reses->size);
     }
+
 
     void Context::setMultiFrameResource(const Memory* _mem, const uint16_t _resCount, MagicTag _tag)
     {
@@ -607,7 +619,7 @@ namespace vkz
         brief.version = 1u;
         brief.passNum = m_passHandles.getNumHandles();
         brief.bufNum = m_bufferHandles.getNumHandles();
-        brief.imgNum = m_textureHandles.getNumHandles();
+        brief.imgNum = m_imageHandles.getNumHandles();
         brief.shaderNum = m_shaderHandles.getNumHandles();
         brief.programNum = m_programHandles.getNumHandles();
 
@@ -741,6 +753,7 @@ namespace vkz
 
         release(mem);
     }
+
 
     BufferHandle aliasBuffer(const BufferHandle _handle)
     {

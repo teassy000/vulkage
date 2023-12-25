@@ -2,6 +2,7 @@
 
 #include "memory_operation.h"
 #include "vkz_structs_inner.h"
+#include "util.h"
 
 namespace vkz
 {
@@ -77,17 +78,10 @@ namespace vkz
     {
         uint16_t    passId;
 
-
         // TODO: pipeline rendering create info
         // write depth stencil format, color attachment format, and count
     };
 
-    struct FGBarrierState
-    {
-        ImageLayout     layout;
-        uint32_t        stage;
-        uint32_t        access;
-    };
 
     struct BufRegisterInfo : public BufferDesc
     {
@@ -95,7 +89,7 @@ namespace vkz
         
         ResourceLifetime    lifetime{ ResourceLifetime::single_frame };
 
-        FGBarrierState state;
+        BarrierState initialState;
     };
 
     struct ImgRegisterInfo : public ImageDesc
@@ -106,7 +100,7 @@ namespace vkz
 
         ResourceLifetime    lifetime{ ResourceLifetime::single_frame };
 
-        FGBarrierState state;
+        BarrierState initialState;
     };
 
     // Read/Write Info
@@ -260,19 +254,20 @@ namespace vkz
         struct BufBucket
         {
             uint32_t        idx;
-
+            uint16_t        baseBufId;
             BufferDesc      desc;
+            BarrierState    initialBarrierState;
 
             bool            forceAliased{ false };
-
             std::vector<CombinedResID> reses;
         };
 
         struct ImgBucket
         {
             uint32_t    idx;
-
+            uint16_t    baseImgId;
             ImageDesc   desc;
+            BarrierState    initialBarrierState;
 
             bool        forceAliased{ false };
 
@@ -363,9 +358,9 @@ namespace vkz
         std::vector< PassRegisterInfo > m_sparse_pass_info;
         std::vector< BufRegisterInfo >  m_sparse_buf_info;
         std::vector< ImgRegisterInfo >  m_sparse_img_info;
+        std::vector< PassCreateDataRef> m_sparse_pass_data_ref;
         
         std::vector< std::string>           m_shader_path;
-        std::vector< PassCreateDataRef>     m_sparse_pass_data_ref;
 
         std::vector< CombinedResID>         m_combinedResId;
 
@@ -406,8 +401,7 @@ namespace vkz
         std::vector< CombinedResID>     m_writeResUniList;
         std::vector< ResLifetime>       m_resLifeTime;
 
-        std::vector< CombinedResID>      m_plainAliasRes;
-        std::vector< uint16_t>           m_plainAliasResIdx;
+        UniDataContainer< CombinedResID, CombinedResID> m_plainResAliasToBase;
 
         std::vector< BufBucket>          m_bufBuckets;
         std::vector< ImgBucket>          m_imgBuckets;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common.h"
+#include "util.h"
 
 #include "vk_resource.h"
 #include "vk_device.h"
@@ -32,6 +33,14 @@ namespace vkz
         VkCompareOp depthCompOp{ VK_COMPARE_OP_GREATER };
     };
 
+
+    struct BarrierState_vk
+    {
+        VkAccessFlags           accessMask;
+        VkPipelineStageFlags    stageMask;
+        VkImageLayout           imgLayout;
+    };
+
     struct PassInfo_vk : PassDesc
     {
         VkPipeline pipeline{};
@@ -42,6 +51,10 @@ namespace vkz
         std::vector<uint16_t> writeColorIds;
         std::vector<uint16_t> readImageIds;
         std::vector<uint16_t> rwBufferIds;
+
+        // expect barrier state in passes
+        UniDataContainer<uint16_t, BarrierState_vk> bufferBarrierStates;
+        UniDataContainer<uint16_t, BarrierState_vk> imageBarrierStates;
     };
 
     class RHIContext_vk : public RHIContext
@@ -67,20 +80,17 @@ namespace vkz
         void passRender(uint16_t _passId);
 
     private:
-        std::vector<uint16_t>   m_bufferIds;
-        std::vector<Buffer_vk>  m_buffers;
+        UniDataContainer<uint16_t, Buffer_vk> m_bufferContainer;
+        UniDataContainer<uint16_t, Image_vk> m_imageContainer;
+        UniDataContainer<uint16_t, Shader_vk> m_shaderContainer;
+        UniDataContainer<uint16_t, Program_vk> m_programContainer;
+        UniDataContainer<uint16_t, PassInfo_vk> m_passContainer;
 
-        std::vector<uint16_t>   m_imageIds;
-        std::vector<Image_vk>   m_images;
-
-        std::vector<uint16_t>   m_shaderIds;
-        std::vector<Shader_vk>  m_shaders;
-
-        std::vector<uint16_t>   m_programIds;
         std::vector<std::vector<uint16_t>> m_programShaderIds;
-        std::vector<Program_vk> m_programs;
 
-        std::vector<PassInfo_vk> m_passInfos;
+        // current state for resources, use resource id as id
+        UniDataContainer<uint16_t, BarrierState_vk> m_bufferBarrierStates;
+        UniDataContainer<uint16_t, BarrierState_vk> m_imageBarrierStates;
 
         // glfw data
         GLFWwindow* m_pWindow;

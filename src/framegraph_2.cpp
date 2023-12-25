@@ -325,7 +325,7 @@ namespace vkz
 
         for (uint16_t ii = 0; ii < info.resNum; ++ii)
         {
-            uint16_t idx = getIndex(m_hPass, { info.pass });
+            uint16_t idx = getElemIndex(m_hPass, { info.pass });
             assert(idx != kInvalidIndex);
             
             uint16_t resIdx = *((uint16_t*)mem + ii);
@@ -346,7 +346,7 @@ namespace vkz
 
         for (uint16_t ii = 0; ii < info.resNum; ++ii)
         {
-            uint16_t idx = getIndex(m_hPass, { info.pass });
+            uint16_t idx = getElemIndex(m_hPass, { info.pass });
             assert(idx != kInvalidIndex);
             
             uint16_t resIdx = *((uint16_t*)mem + ii);
@@ -366,7 +366,7 @@ namespace vkz
         read(&_reader, mem, info.aliasNum * sizeof(uint16_t));
 
         CombinedResID combinedBaseIdx = getCombinedResID(info.resBase, _type);
-        uint16_t idx = getIndex(m_combinedForceAlias_base, combinedBaseIdx);
+        uint16_t idx = getElemIndex(m_combinedForceAlias_base, combinedBaseIdx);
         if (kInvalidIndex == idx)
         {
             m_combinedForceAlias_base.push_back(combinedBaseIdx);
@@ -411,7 +411,7 @@ namespace vkz
         read(&_reader, rt);
 
         // check if rt is ready resisted
-        uint16_t idx = getIndex(m_hTex, { rt });
+        uint16_t idx = getElemIndex(m_hTex, { rt });
         if (kInvalidIndex == idx)
         {
             message(DebugMessageType::error, "result rt is not registered!");
@@ -451,7 +451,7 @@ namespace vkz
 
             for (CombinedResID plainRes : rwRes.readCombinedRes)
             {
-                uint16_t idx = getIndex(linear_outResCID, plainRes);
+                uint16_t idx = getElemIndex(linear_outResCID, plainRes);
                 if (kInvalidIndex == idx) {
                     continue;
                 }
@@ -472,7 +472,7 @@ namespace vkz
         std::vector<bool> visited(passNum, false);
         std::vector<bool> onStack(passNum, false);
 
-        uint16_t finalPassIdx = (uint16_t)getIndex(m_hPass, m_finalPass);
+        uint16_t finalPassIdx = (uint16_t)getElemIndex(m_hPass, m_finalPass);
 
         std::vector<uint16_t> sortedPassIdx;
         std::stack<uint16_t> passIdxStack;
@@ -567,7 +567,7 @@ namespace vkz
 
                 for (const uint16_t inPassIdx : m_pass_dependency[currPassIdx].inPassIdxLst)
                 {
-                    uint16_t idx = getIndex(m_passIdxInDpLevels[passIdx].passInLv[baseLv - currLv], inPassIdx);
+                    uint16_t idx = getElemIndex(m_passIdxInDpLevels[passIdx].passInLv[baseLv - currLv], inPassIdx);
                     if (currLv - 1 != _maxLvLst[inPassIdx] || kInvalidIndex != idx)
                     {
                         continue;
@@ -606,7 +606,7 @@ namespace vkz
                     // check if pass in m_passIdxInDLevels can match with m_passIdxInQueue
                     for (uint16_t qIdx = 0; qIdx < m_passIdxInQueue.size(); ++qIdx)
                     {
-                        const uint16_t idx = getIndex(m_passIdxInQueue[qIdx], pIdx);
+                        const uint16_t idx = getElemIndex(m_passIdxInQueue[qIdx], pIdx);
 
                         bool isMatch = 
                                (kInvalidIndex == m_nearestSyncPassIdx[passIdx][qIdx]) // not set yet
@@ -648,6 +648,7 @@ namespace vkz
     {
         std::vector<CombinedResID> plainAliasRes;
         std::vector<uint16_t> plainAliasResIdx;
+
         for (uint16_t ii = 0; ii < m_combinedForceAlias_base.size(); ++ii)
         {
             CombinedResID base = m_combinedForceAlias_base[ii];
@@ -656,20 +657,29 @@ namespace vkz
 
             plainAliasRes.insert(end(plainAliasRes), begin(aliasVec), end(aliasVec));
             plainAliasResIdx.insert(end(plainAliasResIdx), aliasVec.size(), ii);
+
+            for (CombinedResID alias : aliasVec)
+            {
+                m_plainResAliasToBase.addData(alias, base);
+            }
         }
 
         std::vector<CombinedResID> fullMultiFrameRes = m_multiFrame_resList;
         for (const CombinedResID cid : m_multiFrame_resList)
         {
-            const uint16_t idx = getIndex(plainAliasRes, cid);
+            /* TODO: remove manually mapping to other vectors
+            if (!m_plainResAliasToBase.isValidId(cid))
+            {
+                continue;
+            }
+            */
+            const uint16_t idx = getElemIndex(plainAliasRes, cid);
             if (kInvalidHandle == idx)
             {
                 continue;
             }
 
             const uint16_t alisIdx = plainAliasResIdx[idx];
-            CombinedResID base = m_combinedForceAlias_base[alisIdx];
-
             const std::vector<CombinedResID>& aliasVec = m_combinedForceAlias[alisIdx];
             for (CombinedResID alias : aliasVec)
             {
@@ -677,8 +687,6 @@ namespace vkz
             }
         }
 
-        m_plainAliasRes = plainAliasRes;
-        m_plainAliasResIdx = plainAliasResIdx;
         m_multiFrame_resList = fullMultiFrameRes;
     }
 
@@ -717,13 +725,13 @@ namespace vkz
 
             for (const CombinedResID combRes : rwRes.writeCombinedRes)
             {
-                uint16_t usedIdx = getIndex(resToOptmUniList, combRes);
+                uint16_t usedIdx = getElemIndex(resToOptmUniList, combRes);
                 resToOptmPassIdxByOrder[usedIdx].push_back(ii); // store the idx in ordered pass
             }
 
             for (const CombinedResID combRes : rwRes.readCombinedRes)
             {
-                uint16_t usedIdx = getIndex(resToOptmUniList, combRes);
+                uint16_t usedIdx = getElemIndex(resToOptmUniList, combRes);
                 resToOptmPassIdxByOrder[usedIdx].push_back(ii); // store the idx in ordered pass
             }
         }
@@ -731,7 +739,7 @@ namespace vkz
         std::vector<CombinedResID> readonlyResUniList;
         for (const CombinedResID readRes : readResUniList)
         {
-            if (kInvalidIndex == getIndex(writeResUniList, readRes)) {
+            if (kInvalidIndex == getElemIndex(writeResUniList, readRes)) {
                 continue;
             }
             readonlyResUniList.push_back(readRes);
@@ -740,7 +748,7 @@ namespace vkz
         // remove read-only resource from resToOptmUniList
         for (const CombinedResID readonlyRes : readonlyResUniList)
         {
-            uint16_t idx = getIndex(resToOptmUniList, readonlyRes);
+            uint16_t idx = getElemIndex(resToOptmUniList, readonlyRes);
             if (kInvalidIndex == idx) {
                 continue;
             }
@@ -749,13 +757,15 @@ namespace vkz
         }
 
         // remove force alias resource from resToOptmUniList
-        const std::vector<CombinedResID> plainAliasRes = m_plainAliasRes;
-        for (const CombinedResID plainAlias : plainAliasRes)
+        for (size_t ii = 0; ii < m_plainResAliasToBase.size(); ++ii)
         {
-            uint16_t idx = getIndex(resToOptmUniList, plainAlias);
+            // find current id in resToOptmUniList
+            const CombinedResID plainAlias = m_plainResAliasToBase.getId(ii);
+            uint16_t idx = getElemIndex(resToOptmUniList, plainAlias);
             if (kInvalidIndex == idx) {
                 continue;
             }
+
             resToOptmUniList.erase(resToOptmUniList.begin() + idx);
             resToOptmPassIdxByOrder.erase(resToOptmPassIdxByOrder.begin() + idx);
         }
@@ -764,7 +774,7 @@ namespace vkz
         const std::vector<CombinedResID> multiFrameResUniList = m_multiFrame_resList;
         for (const CombinedResID multiFrameRes : multiFrameResUniList)
         {
-            uint16_t idx = getIndex(resToOptmUniList, multiFrameRes);
+            uint16_t idx = getElemIndex(resToOptmUniList, multiFrameRes);
             if (kInvalidIndex == idx) {
                 continue;
             }
@@ -802,16 +812,14 @@ namespace vkz
         std::vector<std::vector<CombinedResID>> actualAlias;
         for (const CombinedResID combRes : m_resInUseUniList)
         {
-            const uint16_t idx = getIndex(m_plainAliasRes, combRes);
-            if (kInvalidIndex == idx)
+            if (!m_plainResAliasToBase.isValidId(combRes))
             {
                 continue;
             }
 
-            const uint16_t alisIdx = m_plainAliasResIdx[idx];
-            CombinedResID base = m_combinedForceAlias_base[alisIdx];
+            CombinedResID base2 = m_plainResAliasToBase.getData(combRes);
 
-            uint16_t usedBaseIdx = push_back_unique(actualAliasBase, base);
+            uint16_t usedBaseIdx = push_back_unique(actualAliasBase, base2);
             if (actualAlias.size() == usedBaseIdx) // if it's new one
             {
                 actualAlias.emplace_back();
@@ -908,16 +916,22 @@ namespace vkz
 
     void Framegraph2::createBufBkt(BufBucket& _bkt, const BufRegisterInfo& _info, const std::vector<CombinedResID>& _reses, const bool _forceAliased /*= false*/)
     {
+        assert(!_reses.empty());
+
         _bkt.desc.size = _info.size;
         _bkt.desc.memFlags = _info.memFlags;
         _bkt.desc.usage = _info.usage;
 
+        _bkt.initialBarrierState = _info.initialState;
+        _bkt.baseBufId = _info.bufId;
         _bkt.reses = _reses;
         _bkt.forceAliased = _forceAliased;
     }
 
     void Framegraph2::createImgBkt(ImgBucket& _bkt, const ImgRegisterInfo& _info, const std::vector<CombinedResID>& _reses, const bool _forceAliased /*= false*/)
     {
+        assert(!_reses.empty());
+
         _bkt.desc.mips = _info.mips;
         _bkt.desc.width = _info.width;
         _bkt.desc.height = _info.height;
@@ -930,6 +944,9 @@ namespace vkz
         _bkt.desc.usage = _info.usage;
         _bkt.desc.layout = _info.layout;
 
+
+        _bkt.initialBarrierState = _info.initialState;
+        _bkt.baseImgId = _info.imgId;
         _bkt.reses = _reses;
         _bkt.forceAliased = _forceAliased;
     }
@@ -967,7 +984,7 @@ namespace vkz
 
                 for (CombinedResID res : bkt.reses)
                 {
-                    uint16_t idx = getIndex(restRes, res.id);
+                    uint16_t idx = getElemIndex(restRes, res.id);
                     if(kInvalidIndex == idx)
                         continue;
 
@@ -1032,7 +1049,7 @@ namespace vkz
 
                 for (CombinedResID res : bkt.reses)
                 {
-                    uint16_t idx = getIndex(restRes, res.id);
+                    uint16_t idx = getElemIndex(restRes, res.id);
                     if (kInvalidIndex == idx)
                         continue;
 
@@ -1164,6 +1181,8 @@ namespace vkz
             info.usage = bkt.desc.usage;
             info.resNum = (uint16_t)bkt.reses.size();
 
+            info.barrierState = bkt.initialBarrierState;
+
             write(&m_rhiMemWriter, info);
 
             std::vector<BufferAliasInfo> aliasInfo;
@@ -1183,7 +1202,6 @@ namespace vkz
     {
         for (const ImgBucket& bkt : m_imgBuckets)
         {
-
             RHIContextOpMagic magic{ RHIContextOpMagic::CreateImage };
 
             write(&m_rhiMemWriter, magic);
@@ -1202,6 +1220,8 @@ namespace vkz
             info.layout = bkt.desc.layout;
 
             info.resNum = (uint16_t)bkt.reses.size();
+
+            info.barrierState = bkt.initialBarrierState;
 
             write(&m_rhiMemWriter, info);
 
@@ -1303,7 +1323,7 @@ namespace vkz
             std::vector<BufferHandle>& rwBuffers = passRWBuffers[pass.id];
             {
                 writeDepthStencil = { kInvalidHandle };
-                const uint16_t passIdx = getIndex(m_hPass, pass);
+                const uint16_t passIdx = getElemIndex(m_hPass, pass);
                 const PassRWResource& rwRes = m_pass_rw_res[passIdx];
                 // set write resources
                 for (const CombinedResID writeRes : rwRes.writeCombinedRes)
@@ -1432,8 +1452,6 @@ namespace vkz
 
     bool Framegraph2::isBufInfoAliasable(uint16_t _idx, const BufBucket& _bucket, const std::vector<CombinedResID> _resInCurrStack) const
     {
-
-
         // size check in current stack
         const BufRegisterInfo& info = m_sparse_buf_info[_idx];
         size_t remaingSize = _bucket.desc.size;
@@ -1449,7 +1467,6 @@ namespace vkz
 
             // remaingSize -= m_buf_info[res.id].size; // no need to check current stack size because each stack only contains 1 resource
         }
-
 
         return bCondMatch;
     }
@@ -1481,11 +1498,11 @@ namespace vkz
         bool bStackMatch = true;
         
         // life time check in entire bucket
-        const uint16_t idx = getIndex(m_resToOptmUniList, _res);
+        const uint16_t idx = getElemIndex(m_resToOptmUniList, _res);
         const ResLifetime& resLifetime = m_resLifeTime[idx];
         for (const CombinedResID res : _reses)
         {
-            const uint16_t resIdx = getIndex(m_resToOptmUniList, res);
+            const uint16_t resIdx = getElemIndex(m_resToOptmUniList, res);
             const ResLifetime& stackLifetime = m_resLifeTime[resIdx];
 
             // if lifetime overlap with any resource in current bucket, then it's not alias-able

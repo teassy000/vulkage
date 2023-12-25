@@ -220,6 +220,74 @@ namespace vkz
     }
     using MemoryPropFlags = uint16_t;
 
+    namespace PipelineStageFlagBits
+    {
+        enum Enum : uint32_t
+        {
+            none = 0,
+
+            top_of_pipe = 1 << 0,
+            draw_indirect = 1 << 1,
+            vertex_input = 1 << 2,
+            vertex_shader = 1 << 3,
+
+            geometry_shader = 1 << 6,
+            fragment_shader = 1 << 7,
+            early_fragment_tests = 1 << 8,
+            late_fragment_tests = 1 << 9,
+            color_attachment_output = 1 << 10,
+            compute_shader = 1 << 11,
+            transfer = 1 << 12,
+            bottom_of_pipe = 1 << 13,
+            host = 1 << 14,
+            all_graphics = 1 << 15,
+            all_commands = 1 << 16,
+
+            task_shader = 1 << 22,
+            mesh_shader = 1 << 23,
+            
+            max_enum = 0x7fffffff,
+        };
+    }
+    using PipelineStageFlags = uint32_t;
+
+    namespace AccessFlagBits
+    {
+        enum Enum : uint32_t
+        {
+            none = 0,
+
+            indirect_command_read = 1 << 0,
+            index_read = 1 << 1,
+            vertex_attribute_read = 1 << 2,
+            uniform_read = 1 << 3,
+            input_attachment_read = 1 << 4,
+            shader_read = 1 << 5,
+            shader_write = 1 << 6,
+            color_attachment_read = 1 << 7,
+            color_attachment_write = 1 << 8,
+            depth_stencil_attachment_read = 1 << 9,
+            depth_stencil_attachment_write = 1 << 10,
+            transfer_read = 1 << 11,
+            transfer_write = 1 << 12,
+            host_read = 1 << 13,
+            host_write = 1 << 14,
+            memory_read = 1 << 15,
+            memory_write = 1 << 16,
+            transform_feedback_write = 1 << 17,
+            transform_feedback_counter_read = 1 << 18,
+            transform_feedback_counter_write = 1 << 19,
+            conditional_rendering_read = 1 << 20,
+            color_attachment_read_noncoherent = 1 << 21,
+            acceleration_structure_read = 1 << 22,
+            acceleration_structure_write = 1 << 23,
+            shading_rate_image_read = 1 << 24,
+
+            max_enum = 0x7fffffff,
+        };
+    }
+    using AccessFlags = uint32_t;
+
     struct PipelineConfig
     {
         bool enableDepthTest{true};
@@ -246,6 +314,23 @@ namespace vkz
         ImageLayout     layout{ ImageLayout::general };
         ResourceFormat  format{ ResourceFormat::undefined };
         ImageUsageFlags usage{ ImageUsageFlagBits::color_attachment };
+    };
+
+    // use to generate barriers
+    struct BufferInteractDesc
+    {
+        uint32_t            binding{ 0 };
+        PipelineStageFlags  stage{ PipelineStageFlagBits::none };
+        AccessFlags         access{ AccessFlagBits::none };
+    };
+
+    struct ImageInteractDesc
+    {
+        uint32_t            binding{ 0 };
+        PipelineStageFlags  stage{ PipelineStageFlagBits::none };
+        AccessFlags         access{ AccessFlagBits::none };
+
+        ImageLayout         layout{ ImageLayout::general };
     };
 
     struct VertexBindingDesc

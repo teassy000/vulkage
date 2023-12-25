@@ -5,9 +5,18 @@
 
 namespace vkz
 {
+    struct BarrierState
+    {
+        ImageLayout         layout;
+        PipelineStageFlags  stage;
+        AccessFlags         access;
+    };
+
     struct BufferCreateInfo : public BufferDesc
     {
         uint16_t    resNum{ 0 };
+
+        BarrierState    barrierState;
     };
 
     struct BufferAliasInfo
@@ -19,6 +28,8 @@ namespace vkz
     struct ImageCreateInfo : public ImageDesc
     {
         uint16_t    resNum{ 0 };
+
+        BarrierState    barrierState;
     };
 
     struct ImageAliasInfo
