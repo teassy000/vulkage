@@ -243,7 +243,6 @@ void wrong()
 
 
     vkz::loop();
-    // 
 
     vkz::shutdown();
 }
@@ -259,6 +258,7 @@ void triangle()
     rt.arrayLayers = 1;
     rt.mips = 1;
     rt.usage = vkz::ImageUsageFlagBits::color_attachment;
+
     vkz::RenderTargetHandle color = vkz::registRenderTarget("color", rt);
 
 
@@ -287,10 +287,22 @@ void triangle()
     // set vertex/index buffer ( if has
     // set viewport/scissor
 
+    {
+        vkz::ResInteractDesc interact = {};
+        interact.binding = 0;
+        interact.stage = vkz::PipelineStageFlagBits::vertex_shader;
+        interact.access = vkz::AccessFlagBits::vertex_attribute_read;
+        vkz::passReadBuffer(pass, dummyBuf, interact);
+    }
 
-    vkz::passReadBuffers(pass, { dummyBuf });
-    vkz::passWriteRTs(pass, { color });
-
+    {
+        vkz::ResInteractDesc interact = {};
+        interact.binding = 0;
+        interact.stage = vkz::PipelineStageFlagBits::color_attachment_output;
+        interact.access = vkz::AccessFlagBits::none;
+        interact.layout = vkz::ImageLayout::color_attachment_optimal;
+        vkz::passWriteRT(pass, color, interact);
+    }
 
     vkz::setResultRenderTarget(color);
 

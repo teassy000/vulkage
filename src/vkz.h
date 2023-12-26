@@ -40,10 +40,10 @@ namespace vkz
     ProgramHandle registProgram(const char* _name, ShaderHandleList _shaders, const uint32_t _sizePushConstants = 0);
 
     
-    BufferHandle registBuffer(const char* _name, const BufferDesc& _desc, const ResourceLifetime _lifetime = ResourceLifetime::single_frame);
-    TextureHandle registTexture(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime = ResourceLifetime::single_frame, const Memory* _mem = nullptr);
-    RenderTargetHandle registRenderTarget(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime = ResourceLifetime::single_frame);
-    DepthStencilHandle registDepthStencil(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime = ResourceLifetime::single_frame);
+    BufferHandle registBuffer(const char* _name, const BufferDesc& _desc, const ResourceLifetime _lifetime = ResourceLifetime::transition);
+    TextureHandle registTexture(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime = ResourceLifetime::transition, const Memory* _mem = nullptr);
+    RenderTargetHandle registRenderTarget(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime = ResourceLifetime::transition);
+    DepthStencilHandle registDepthStencil(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime = ResourceLifetime::transition);
 
     PassHandle registPass(const char* _name, PassDesc _desc);
 
@@ -56,6 +56,18 @@ namespace vkz
     TextureHandle aliasTexture(const TextureHandle _tex);
     RenderTargetHandle aliasRenderTarget(const RenderTargetHandle _rt);
     DepthStencilHandle aliasDepthStencil(const DepthStencilHandle _ds);
+
+    void passReadBuffer(PassHandle _pass, BufferHandle _buf, ResInteractDesc _interact);
+    void passWriteBuffer(PassHandle _pass, BufferHandle _buf, ResInteractDesc _interact);
+
+    void passReadTexture(PassHandle _pass, TextureHandle _img, ResInteractDesc _interact);
+    void passWriteTexture(PassHandle _pass, TextureHandle _img, ResInteractDesc _interact);
+
+    void passReadRT(PassHandle _pass, RenderTargetHandle _rt, ResInteractDesc _interact);
+    void passWriteRT(PassHandle _pass, RenderTargetHandle _rt, ResInteractDesc _interact);
+
+    void passReadDS(PassHandle _pass, DepthStencilHandle _ds, ResInteractDesc _interact);
+    void passWriteDS(PassHandle _pass, DepthStencilHandle _ds, ResInteractDesc _interact);
 
     void passWriteBuffers(PassHandle _pass, BufferHandleList _bufList);
     void passReadBuffers(PassHandle _pass, BufferHandleList _bufList);

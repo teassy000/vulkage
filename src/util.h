@@ -40,6 +40,11 @@ namespace vkz
             return ids.size();
         }
 
+        void clear() {
+            ids.clear();
+            indexToData.clear();
+        }
+
         void setValueAt(size_t _idx, const IdType _id, const DataType& _data) {
             assert(_idx < ids.size());
 
@@ -59,7 +64,7 @@ namespace vkz
             return idx;
         }
 
-        bool isValidId(IdType _id) const {
+        bool exist(IdType _id) const {
             return getElemIndex(ids, _id) != kInvalidIndex;
         }
 
@@ -84,6 +89,13 @@ namespace vkz
             return indexToData[_idx];
         }
 
+        const IdType* getIds() const {
+            return ids.data();
+        }
+
+        const DataType* getData() const {
+            return indexToData.data();
+        }
     private:
         std::vector<IdType> ids;
         std::vector<DataType> indexToData;

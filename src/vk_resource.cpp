@@ -51,7 +51,7 @@ namespace vkz
         }
 
         assert(_results.empty());
-
+        
         uint32_t size = (uint32_t)_infos.size();
         std::vector<Buffer_vk> results(size);
 

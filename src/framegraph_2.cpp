@@ -48,131 +48,143 @@ namespace vkz
 
         while (true)
         {
-            MagicTag magic = MagicTag::InvalidMagic;
+            MagicTag magic = MagicTag::invalid_magic;
             read(&reader, magic);
 
             bool finished = false;
             switch (magic)
             {
             // Brief
-            case MagicTag::SetBrief: {
+            case MagicTag::set_brief: {
                 setBrief(reader);
                 break;
             }
             // Register
-            case MagicTag::RegisterShader: {
+            case MagicTag::register_shader: {
                 registerShader(reader);
                 break;
             }
-            case MagicTag::RegisterProgram: {
+            case MagicTag::register_program: {
                 registerProgram(reader);
                 break;
             }
-            case MagicTag::RegisterPass: {
+            case MagicTag::register_pass: {
                 registerPass(reader);
                 break;
             }
-            case MagicTag::RegisterBuffer: {
+            case MagicTag::register_buffer: {
                 registerBuffer(reader);
                 break;
             }
-            case MagicTag::RegisterTexture: {
+            case MagicTag::register_texture: {
                 registerTexture(reader);
                 break;
             }
-            case MagicTag::RegisterRenderTarget: {
+            case MagicTag::register_render_target: {
                 registerRenderTarget(reader);
                 break;
             }
-            case MagicTag::RegisterDepthStencil: {
+            case MagicTag::register_depth_stencil: {
                 registerDepthStencil(reader);
                 break;
             }
             // Alias
-            case MagicTag::AliasBuffer: {
-                aliasResForce(reader, ResourceType::Buffer);
+            case MagicTag::force_alias_buffer: {
+                aliasResForce(reader, ResourceType::buffer);
                 break;
             }
-            case MagicTag::AliasTexture: {
-                aliasResForce(reader, ResourceType::Texture);
+            case MagicTag::force_alias_texture: {
+                aliasResForce(reader, ResourceType::texture);
                 break;
             }
-            case MagicTag::AliasRenderTarget: {
-                aliasResForce(reader, ResourceType::RenderTarget);
+            case MagicTag::force_alias_render_target: {
+                aliasResForce(reader, ResourceType::render_target);
                 break;
             }
-            case MagicTag::AliasDepthStencil: {
-                aliasResForce(reader, ResourceType::DepthStencil);
+            case MagicTag::force_alias_depth_stencil: {
+                aliasResForce(reader, ResourceType::depth_stencil);
                 break;
             }
             // Read
-            case MagicTag::PassReadBuffer: {
-                passReadRes(reader, ResourceType::Buffer);
+            case MagicTag::pass_read_buffer: {
+                readResource(reader, ResourceType::buffer);
+                passReadRes(reader, ResourceType::buffer);
                 break;
             }
-            case MagicTag::PassReadTexture: {
-                passReadRes(reader, ResourceType::Texture);
+            case MagicTag::pass_read_texture: {
+                readResource(reader, ResourceType::texture);
+                passReadRes(reader, ResourceType::texture);
                 break;
             }
-            case MagicTag::PassReadRenderTarget: {
-                passReadRes(reader, ResourceType::RenderTarget);
+            case MagicTag::pass_read_render_target: {
+                readResource(reader, ResourceType::render_target);
+                passReadRes(reader, ResourceType::render_target);
                 break;
             }
-            case MagicTag::PassReadDepthStencil: {
-                passReadRes(reader, ResourceType::DepthStencil);
+            case MagicTag::pass_read_depth_stencil: {
+                readResource(reader, ResourceType::depth_stencil);
+                passReadRes(reader, ResourceType::depth_stencil);
                 break;
             }
             // Write
-            case MagicTag::PassWriteBuffer: {
-                passWriteRes(reader, ResourceType::Buffer);
+            case MagicTag::pass_write_buffer: {
+                writeResource(reader, ResourceType::buffer);
+                passWriteRes(reader, ResourceType::buffer);
                 break;
             }
-            case MagicTag::PassWriteTexture: {
-                passWriteRes(reader, ResourceType::Texture);
+            case MagicTag::pass_write_texture: {
+                writeResource(reader, ResourceType::texture);
+                passWriteRes(reader, ResourceType::texture);
                 break;
             }
-            case MagicTag::PassWriteRenderTarget: {
-                passWriteRes(reader, ResourceType::RenderTarget);
+            case MagicTag::pass_write_render_target: {
+                writeResource(reader, ResourceType::render_target);
+                passWriteRes(reader, ResourceType::render_target);
                 break;
             }
-            case MagicTag::PassWriteDepthStencil: {
-                passWriteRes(reader, ResourceType::DepthStencil);
+            case MagicTag::pass_write_depth_stencil: {
+                writeResource(reader, ResourceType::depth_stencil);
+                passWriteRes(reader, ResourceType::depth_stencil);
                 break;
             }
-            case MagicTag::SetResultRenderTarget: {
+            case MagicTag::set_present: {
                 setResultRT(reader);
                 break;
             }
             // MultiFrame
-            case MagicTag::SetMuitiFrameBuffer: {
-                setMultiFrameRes(reader, ResourceType::Buffer);
+            case MagicTag::set_non_transition_buffer: {
+                setMultiFrameRes(reader, ResourceType::buffer);
                 break;
             }
-            case MagicTag::SetMuitiFrameTexture: {
-                setMultiFrameRes(reader, ResourceType::Texture);
+            case MagicTag::set_non_transition_texture: {
+                setMultiFrameRes(reader, ResourceType::texture);
                 break;
             }
-            case MagicTag::SetMultiFrameRenderTarget: {
-                setMultiFrameRes(reader, ResourceType::RenderTarget);
+            case MagicTag::set_non_transition_render_target: {
+                setMultiFrameRes(reader, ResourceType::render_target);
                 break;
             }
-            case MagicTag::SetMultiFrameDepthStencil: {
-                setMultiFrameRes(reader, ResourceType::DepthStencil);
+            case MagicTag::set_non_transition_depth_stencil: {
+                setMultiFrameRes(reader, ResourceType::depth_stencil);
                 break;
             }
             // End
-            case MagicTag::InvalidMagic:
+            case MagicTag::invalid_magic:
                 message(DebugMessageType::warning, "invalid magic tag, data incorrect!");
-            case MagicTag::End:
+            case MagicTag::end:
             default:
                 finished = true;
                 break;
             }
-            
+
             if (finished)
             {
                 break;
             }
+
+            MagicTag bodyEnd;
+            read(&reader, bodyEnd);
+            assert(MagicTag::magic_body_end == bodyEnd);
         }
     }
 
@@ -275,7 +287,7 @@ namespace vkz
         m_hBuf.push_back({ info.bufId });
         m_sparse_buf_info[info.bufId] = info;
 
-        CombinedResID plainResID = getCombinedResID(info.bufId, ResourceType::Buffer);
+        CombinedResID plainResID = getCombinedResID(info.bufId, ResourceType::buffer);
         m_combinedResId.push_back(plainResID);
     }
 
@@ -287,7 +299,7 @@ namespace vkz
         m_hTex.push_back({ info.imgId });
         m_sparse_img_info[info.imgId] = info;
 
-        CombinedResID plainResIdx = getCombinedResID(info.imgId, ResourceType::Texture);
+        CombinedResID plainResIdx = getCombinedResID(info.imgId, ResourceType::texture);
         m_combinedResId.push_back(plainResIdx);
     }
 
@@ -299,7 +311,7 @@ namespace vkz
         m_hTex.push_back({ info.imgId });
         m_sparse_img_info[info.imgId] = info;
 
-        CombinedResID plainResIdx = getCombinedResID(info.imgId, ResourceType::RenderTarget);
+        CombinedResID plainResIdx = getCombinedResID(info.imgId, ResourceType::render_target);
         m_combinedResId.push_back(plainResIdx);
     }
 
@@ -311,12 +323,15 @@ namespace vkz
         m_hTex.push_back({ info.imgId });
         m_sparse_img_info[info.imgId] = info;
 
-        CombinedResID plainResIdx = getCombinedResID(info.imgId, ResourceType::DepthStencil);
+        CombinedResID plainResIdx = getCombinedResID(info.imgId, ResourceType::depth_stencil);
         m_combinedResId.push_back(plainResIdx);
     }
 
     void Framegraph2::passReadRes(MemoryReader& _reader, ResourceType _type)
     {
+        return;
+        
+        /*
         PassRWInfo info;
         read(&_reader, info);
         
@@ -334,10 +349,14 @@ namespace vkz
         }
 
         free(m_pAllocator, mem, info.resNum * sizeof(uint16_t));
+        */
     }
 
     void Framegraph2::passWriteRes(MemoryReader& _reader, ResourceType _type)
     {
+        return;
+
+        /*
         PassRWInfo info;
         read(&_reader, info);
 
@@ -349,12 +368,93 @@ namespace vkz
             uint16_t idx = getElemIndex(m_hPass, { info.pass });
             assert(idx != kInvalidIndex);
             
-            uint16_t resIdx = *((uint16_t*)mem + ii);
-            CombinedResID plainIdx = getCombinedResID(resIdx, _type);
+            uint16_t resId = *((uint16_t*)mem + ii);
+            CombinedResID plainIdx = getCombinedResID(resId, _type);
             m_pass_rw_res[idx].writeCombinedRes.push_back(plainIdx);
         }
 
         free(m_pAllocator, mem, info.resNum * sizeof(uint16_t));
+        */
+    }
+
+    const ResInteractDesc merge(const ResInteractDesc& _desc0, const ResInteractDesc& _desc1)
+    {
+        ResInteractDesc desc = _desc0;
+
+        desc.access |= _desc1.access;
+        desc.stage |= _desc1.stage;
+
+        return std::move(desc);
+    }
+
+    void Framegraph2::readResource(MemoryReader& _reader, ResourceType _type)
+    {
+        RWResInfo info;
+        read(&_reader, info);
+
+        uint16_t passId = info.passId;
+
+        uint16_t resId = info.resId;
+
+        uint16_t hPassIdx = getElemIndex(m_hPass, { passId });
+        assert(hPassIdx != kInvalidIndex);
+
+        CombinedResID plainId = getCombinedResID(resId, _type);
+
+        m_pass_rw_res[passId].readCombinedRes.push_back(plainId);
+
+        ResInteractDesc interact;
+        read(&_reader, interact);
+
+        if (m_pass_rw_res[passId].readInteracts.exist(plainId))
+        {
+            const ResInteractDesc& orig = m_pass_rw_res[passId].readInteracts.getData(plainId);
+            if (orig.binding == interact.binding && orig.layout == interact.layout) {
+
+                message(DebugMessageType::info, "resource interaction in current pass already exist! Now merging!");
+                interact = merge(orig, interact);
+            }
+            else {
+                message(DebugMessageType::error, "resource interaction in current pass already exist! conflicts detected!");
+            }
+        }
+
+        m_pass_rw_res[passId].readInteracts.addData(plainId, interact);
+    }
+
+    void Framegraph2::writeResource(MemoryReader& _reader, ResourceType _type)
+    {
+        RWResInfo info;
+        read(&_reader, info);
+
+        uint16_t passId = info.passId;
+
+        uint16_t resId = info.resId;
+
+        uint16_t hPassIdx = getElemIndex(m_hPass, { passId });
+        assert(hPassIdx != kInvalidIndex);
+
+        CombinedResID plainId = getCombinedResID(resId, _type);
+
+        m_pass_rw_res[passId].writeCombinedRes.push_back(plainId);
+
+        ResInteractDesc interact;
+        read(&_reader, interact);
+
+        if (m_pass_rw_res[passId].writeInteracts.exist(plainId))
+        {
+            const ResInteractDesc& orig = m_pass_rw_res[passId].writeInteracts.getData(plainId);
+            if (orig.binding == interact.binding && orig.layout == interact.layout) {
+
+                message(DebugMessageType::info, "resource interaction in current pass already exist! Now merging!");
+                interact = merge(orig, interact);
+            }
+            else {
+                message(DebugMessageType::error, "resource interaction in current pass already exist! conflicts detected!");
+            }
+        }
+
+        m_pass_rw_res[passId].writeInteracts.addData(plainId, interact);
     }
 
     void Framegraph2::aliasResForce(MemoryReader& _reader, ResourceType _type)
@@ -418,7 +518,7 @@ namespace vkz
             return;
         }
 
-        m_resultRT = getCombinedResID(rt, ResourceType::RenderTarget);
+        m_resultRT = getCombinedResID(rt, ResourceType::render_target);
     }
 
 
@@ -739,7 +839,8 @@ namespace vkz
         std::vector<CombinedResID> readonlyResUniList;
         for (const CombinedResID readRes : readResUniList)
         {
-            if (kInvalidIndex == getElemIndex(writeResUniList, readRes)) {
+            // not found in writeResUniList: no one write to it
+            if (kInvalidIndex != getElemIndex(writeResUniList, readRes)) {
                 continue;
             }
             readonlyResUniList.push_back(readRes);
@@ -812,7 +913,7 @@ namespace vkz
         std::vector<std::vector<CombinedResID>> actualAlias;
         for (const CombinedResID combRes : m_resInUseUniList)
         {
-            if (!m_plainResAliasToBase.isValidId(combRes))
+            if (!m_plainResAliasToBase.exist(combRes))
             {
                 continue;
             }
@@ -835,7 +936,7 @@ namespace vkz
             const std::vector<CombinedResID>& aliasVec = actualAlias[ii];
 
             // buffers
-            if (base.type == ResourceType::Buffer) 
+            if (base.type == ResourceType::buffer) 
             {
                 const BufRegisterInfo info = m_sparse_buf_info[base.id];
 
@@ -845,9 +946,9 @@ namespace vkz
             }
 
             // textures
-            if (base.type == ResourceType::Texture 
-                || base.type == ResourceType::RenderTarget
-                || base.type == ResourceType::DepthStencil)
+            if (base.type == ResourceType::texture 
+                || base.type == ResourceType::render_target
+                || base.type == ResourceType::depth_stencil)
             {
                 const ImgRegisterInfo info = m_sparse_img_info[base.id];
 
@@ -863,7 +964,7 @@ namespace vkz
         for (const CombinedResID cid : m_readonly_resList)
         {
             // buffers
-            if (cid.type == ResourceType::Buffer)
+            if (cid.type == ResourceType::buffer)
             {
                 const BufRegisterInfo info = m_sparse_buf_info[cid.id];
 
@@ -873,9 +974,9 @@ namespace vkz
             }
 
             // images
-            if (cid.type == ResourceType::Texture
-                || cid.type == ResourceType::RenderTarget
-                || cid.type == ResourceType::DepthStencil)
+            if (cid.type == ResourceType::texture
+                || cid.type == ResourceType::render_target
+                || cid.type == ResourceType::depth_stencil)
             {
                 const ImgRegisterInfo info = m_sparse_img_info[cid.id];
 
@@ -891,7 +992,7 @@ namespace vkz
         for (const CombinedResID cid : m_multiFrame_resList)
         {
             // buffers
-            if (cid.type == ResourceType::Buffer)
+            if (cid.type == ResourceType::buffer)
             {
                 const BufRegisterInfo info = m_sparse_buf_info[cid.id];
 
@@ -901,9 +1002,9 @@ namespace vkz
             }
 
             // images
-            if (cid.type == ResourceType::Texture
-                || cid.type == ResourceType::RenderTarget
-                || cid.type == ResourceType::DepthStencil)
+            if (cid.type == ResourceType::texture
+                || cid.type == ResourceType::render_target
+                || cid.type == ResourceType::depth_stencil)
             {
                 const ImgRegisterInfo info = m_sparse_img_info[cid.id];
 
@@ -966,7 +1067,7 @@ namespace vkz
         while (!restRes.empty())
         {
             uint16_t baseRes = *restRes.begin();
-            const CombinedResID baseCid = getCombinedResID(baseRes, ResourceType::Buffer);
+            const CombinedResID baseCid = getCombinedResID(baseRes, ResourceType::buffer);
 
             // check if current resource can alias into any existing bucket
             bool aliased = false;
@@ -1085,7 +1186,7 @@ namespace vkz
         std::vector<uint16_t> sortedBufIdx;
         for (const CombinedResID& crid : m_resToOptmUniList)
         {
-            if (crid.type != ResourceType::Buffer) {
+            if (crid.type != ResourceType::buffer) {
                 continue;
             }
             sortedBufIdx.push_back(crid.id);
@@ -1103,14 +1204,14 @@ namespace vkz
 
     void Framegraph2::fillImageBuckets()
     {
-        const ResourceType type = ResourceType::Texture;
+        const ResourceType type = ResourceType::texture;
 
         std::vector<uint16_t> sortedTexIdx;
         for (const CombinedResID& crid : m_resToOptmUniList)
         {
-            if (crid.type != ResourceType::Texture 
-                && crid.type != ResourceType::RenderTarget
-                && crid.type != ResourceType::DepthStencil) {
+            if (crid.type != ResourceType::texture 
+                && crid.type != ResourceType::render_target
+                && crid.type != ResourceType::depth_stencil) {
                 continue;
             }
             sortedTexIdx.push_back(crid.id);
@@ -1171,7 +1272,7 @@ namespace vkz
     {
         for (const BufBucket& bkt : m_bufBuckets)
         {
-            RHIContextOpMagic magic{ RHIContextOpMagic::CreateBuffer };
+            RHIContextOpMagic magic{ RHIContextOpMagic::create_buffer };
 
             write(&m_rhiMemWriter, magic);
 
@@ -1195,6 +1296,8 @@ namespace vkz
             }
 
             write(&m_rhiMemWriter, (void*)aliasInfo.data(), int32_t(sizeof(BufferAliasInfo) * bkt.reses.size()));
+
+            write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end);
         }
     }
 
@@ -1202,7 +1305,7 @@ namespace vkz
     {
         for (const ImgBucket& bkt : m_imgBuckets)
         {
-            RHIContextOpMagic magic{ RHIContextOpMagic::CreateImage };
+            RHIContextOpMagic magic{ RHIContextOpMagic::create_image };
 
             write(&m_rhiMemWriter, magic);
 
@@ -1234,6 +1337,8 @@ namespace vkz
             }
 
             write(&m_rhiMemWriter, (void*)aliasInfo.data(), int32_t(sizeof(ImageAliasInfo) * bkt.reses.size()));
+
+            write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end);
         }
     }
 
@@ -1268,13 +1373,14 @@ namespace vkz
             createInfo.shaderId = info.regInfo.shaderId;
             createInfo.pathLen = (uint16_t)path.length();
 
-            RHIContextOpMagic magic{ RHIContextOpMagic::CreateShader };
-
+            RHIContextOpMagic magic{ RHIContextOpMagic::create_shader };
             write(&m_rhiMemWriter, magic);
 
             write(&m_rhiMemWriter, createInfo);
 
             write(&m_rhiMemWriter, (void*)path.c_str(), (int32_t)path.length());
+
+            write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end);
         }
 
 
@@ -1289,13 +1395,15 @@ namespace vkz
             createInfo.shaderNum = info.regInfo.shaderNum;
             createInfo.sizePushConstants = info.regInfo.sizePushConstants;
 
-            RHIContextOpMagic magic{ RHIContextOpMagic::CreateProgram };
+            RHIContextOpMagic magic{ RHIContextOpMagic::create_program };
 
             write(&m_rhiMemWriter, magic);
 
             write(&m_rhiMemWriter, createInfo);
 
             write(&m_rhiMemWriter, (void*)info.shaderIds, (int32_t)(info.regInfo.shaderNum * sizeof(uint16_t)));
+
+            write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end);
         }
 
     }
@@ -1306,39 +1414,47 @@ namespace vkz
         std::vector<std::vector<VertexBindingDesc>> passVertexBinding(m_sortedPass.size());
         std::vector<std::vector<VertexAttributeDesc>> passVertexAttribute(m_sortedPass.size());
         std::vector<std::vector<int>> passPushConstants(m_sortedPass.size());
-        std::vector<DepthStencilHandle> passWriteDepthStencils(m_sortedPass.size());
-        std::vector<std::vector<RenderTargetHandle> > passWriteRenderTargets(m_sortedPass.size());
-        std::vector<std::vector<TextureHandle> > passReadImages(m_sortedPass.size());
-        std::vector<std::vector<BufferHandle> > passRWBuffers(m_sortedPass.size());
+
+        std::vector<std::pair<DepthStencilHandle, ResInteractDesc>> writeDSList(m_sortedPass.size());
+        std::vector<UniDataContainer< RenderTargetHandle, ResInteractDesc> > writeRTList(m_sortedPass.size());
+        std::vector<UniDataContainer< TextureHandle, ResInteractDesc> > readImageList(m_sortedPass.size());
+        std::vector<UniDataContainer< BufferHandle, ResInteractDesc> > rwBufferList(m_sortedPass.size());
         
         for (PassHandle pass : m_sortedPass)
         {
             const PassRegisterInfo& regInfo = m_sparse_pass_info[pass.id];
             assert(pass.id == regInfo.passId);
 
+            uint16_t passIdx = getElemIndex(m_sortedPass, pass);
 
-            DepthStencilHandle& writeDepthStencil = passWriteDepthStencils[pass.id];
-            std::vector<RenderTargetHandle>& writeRenderTargets = passWriteRenderTargets[pass.id];
-            std::vector<TextureHandle>& readImages = passReadImages[pass.id];
-            std::vector<BufferHandle>& rwBuffers = passRWBuffers[pass.id];
+            std::pair<DepthStencilHandle, ResInteractDesc>& writeDS = writeDSList[passIdx];
+            UniDataContainer< RenderTargetHandle, ResInteractDesc>& writeRT = writeRTList[passIdx];
+            UniDataContainer< TextureHandle, ResInteractDesc>& rImage = readImageList[passIdx];
+            UniDataContainer< BufferHandle, ResInteractDesc>& rwBuffer = rwBufferList[passIdx];
+
             {
-                writeDepthStencil = { kInvalidHandle };
-                const uint16_t passIdx = getElemIndex(m_hPass, pass);
+                writeDS.first = { kInvalidHandle };
+                writeRT.clear();
+                rImage.clear();
+                rwBuffer.clear();
+
                 const PassRWResource& rwRes = m_pass_rw_res[passIdx];
                 // set write resources
                 for (const CombinedResID writeRes : rwRes.writeCombinedRes)
                 {
                     if (isDepthStencil(writeRes)) {
-                        assert(writeDepthStencil.id == kInvalidHandle);
-                        writeDepthStencil = { writeRes.id };
+
+                        assert(writeDS.first.id == kInvalidHandle);
+                        writeDS.first = { writeRes.id };
+                        writeDS.second = rwRes.writeInteracts.getData(writeRes);
                     }
                     else if (isRenderTarget(writeRes))
                     {
-                        writeRenderTargets.push_back({ writeRes.id });
+                        writeRT.addData({ writeRes.id }, rwRes.writeInteracts.getData(writeRes));
                     }
                     else if (isBuffer(writeRes))
                     {
-                        rwBuffers.push_back({ writeRes.id });
+                        rwBuffer.addData({ writeRes.id }, rwRes.writeInteracts.getData(writeRes));
                     }
                     else if (isTexture(writeRes))
                     {
@@ -1353,11 +1469,14 @@ namespace vkz
                         || isDepthStencil(writeRes)
                         || isTexture(writeRes))
                     {
-                        readImages.push_back({ writeRes.id });
+                        rImage.addData({ writeRes.id }, rwRes.readInteracts.getData(writeRes));
                     }
                     else if (isBuffer(writeRes))
                     {
-                        rwBuffers.push_back({ writeRes.id });
+                        // should not exist in write buffer
+                        // if so, r/w same resource in same pass would cause a cycle.
+                        assert(!rwBuffer.exist({ writeRes.id }));
+                        rwBuffer.addData({ writeRes.id }, rwRes.readInteracts.getData(writeRes));
                     }
                 }
             }
@@ -1376,11 +1495,10 @@ namespace vkz
             createInfo.pushConstants = nullptr;
             createInfo.pipelineConfig = regInfo.pipelineConfig;
 
-            createInfo.writeDepthId = writeDepthStencil.id;
-            createInfo.writeColorNum = (uint16_t)writeRenderTargets.size();
-            createInfo.readImageNum = (uint16_t)readImages.size();
-            createInfo.rwBufferNum = (uint16_t)rwBuffers.size();
-
+            createInfo.writeDepthId = writeDS.first.id;
+            createInfo.writeColorNum = (uint16_t)writeRT.size();
+            createInfo.readImageNum = (uint16_t)rImage.size();
+            createInfo.rwBufferNum = (uint16_t)rwBuffer.size();
 
             passCreateInfo.emplace_back(createInfo);
 
@@ -1416,7 +1534,7 @@ namespace vkz
         {
             const PassCreateInfo& createInfo = passCreateInfo[ii];
 
-            RHIContextOpMagic magic{ RHIContextOpMagic::CreatePass };
+            RHIContextOpMagic magic{ RHIContextOpMagic::create_pass };
 
             write(&m_rhiMemWriter, magic);
 
@@ -1431,10 +1549,17 @@ namespace vkz
             // push constants
             write(&m_rhiMemWriter, (void*)passPushConstants[ii].data(), (int32_t)(createInfo.pushConstantNum * sizeof(int)));
 
-            // pass read/write resources
-            write(&m_rhiMemWriter, (void*)passWriteRenderTargets[ii].data(), (int32_t)(createInfo.writeColorNum * sizeof(RenderTargetHandle)));
-            write(&m_rhiMemWriter, (void*)passReadImages[ii].data(), (int32_t)(createInfo.readImageNum * sizeof(TextureHandle)));
-            write(&m_rhiMemWriter, (void*)passRWBuffers[ii].data(), (int32_t)(createInfo.rwBufferNum * sizeof(BufferHandle)));
+            // pass read/write resources and it's interaction
+            write(&m_rhiMemWriter, (void*)writeRTList[ii].getIds(), (int32_t)(createInfo.writeColorNum * sizeof(RenderTargetHandle)));
+            write(&m_rhiMemWriter, (void*)readImageList[ii].getIds(), (int32_t)(createInfo.readImageNum * sizeof(TextureHandle)));
+            write(&m_rhiMemWriter, (void*)rwBufferList[ii].getIds(), (int32_t)(createInfo.rwBufferNum * sizeof(BufferHandle)));
+
+            write(&m_rhiMemWriter, writeDSList[ii].second);
+            write(&m_rhiMemWriter, (void*)writeRTList[ii].getData(), (int32_t)(createInfo.writeColorNum * sizeof(ResInteractDesc)));
+            write(&m_rhiMemWriter, (void*)readImageList[ii].getData(), (int32_t)(createInfo.readImageNum * sizeof(ResInteractDesc)));
+            write(&m_rhiMemWriter, (void*)rwBufferList[ii].getData(), (int32_t)(createInfo.rwBufferNum * sizeof(ResInteractDesc)));
+
+            write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end);
         }
     }
 

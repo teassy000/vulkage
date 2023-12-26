@@ -92,8 +92,8 @@ namespace vkz
     enum class ResourceLifetime : uint8_t
     {
         none = 0,
-        single_frame,
-        multi_frame,
+        transition,
+        non_transition,
         count,
     };
 
@@ -316,15 +316,8 @@ namespace vkz
         ImageUsageFlags usage{ ImageUsageFlagBits::color_attachment };
     };
 
-    // use to generate barriers
-    struct BufferInteractDesc
-    {
-        uint32_t            binding{ 0 };
-        PipelineStageFlags  stage{ PipelineStageFlagBits::none };
-        AccessFlags         access{ AccessFlagBits::none };
-    };
-
-    struct ImageInteractDesc
+    // to generate barriers
+    struct ResInteractDesc
     {
         uint32_t            binding{ 0 };
         PipelineStageFlags  stage{ PipelineStageFlagBits::none };
@@ -347,7 +340,6 @@ namespace vkz
         uint32_t        offset{ 0 };
         ResourceFormat  format{ ResourceFormat::undefined };
     };
-
 
     struct PassDesc
     {

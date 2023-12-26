@@ -884,7 +884,6 @@ namespace vkz
         
         size_t bindingSz = createInfo.vertexBindingNum * sizeof(VertexBindingDesc);
         size_t attributeSz = createInfo.vertexAttributeNum * sizeof(VertexAttributeDesc);
-        size_t offset = bindingSz;
         size_t totolSz = bindingSz + attributeSz;
         
         // vertex binding and attribute
@@ -892,7 +891,7 @@ namespace vkz
         read(&_reader, mem, (int32_t)totolSz);
 
         std::vector<VertexBindingDesc> passVertexBinding{ (VertexBindingDesc*)mem, ((VertexBindingDesc*)mem) + createInfo.vertexBindingNum };
-        std::vector<VertexAttributeDesc> passVertexAttribute{ (VertexAttributeDesc*)((char*)mem + offset), ((VertexAttributeDesc*)mem) + createInfo.vertexBindingNum };
+        std::vector<VertexAttributeDesc> passVertexAttribute{ (VertexAttributeDesc*)((char*)mem + bindingSz), ((VertexAttributeDesc*)mem) + createInfo.vertexBindingNum };
 
         // constants
         std::vector<int> pushConstants(createInfo.pushConstantNum);
@@ -901,11 +900,16 @@ namespace vkz
         // r/w resurces
         std::vector<uint16_t> writeColorIds(createInfo.writeColorNum);
         read(&_reader, writeColorIds.data(), createInfo.writeColorNum * sizeof(uint16_t));
+
         std::vector<uint16_t> readImageIds(createInfo.readImageNum);
         read(&_reader, readImageIds.data(), createInfo.readImageNum * sizeof(uint16_t));
+
         std::vector<uint16_t> rwBufferIds(createInfo.rwBufferNum);
         read(&_reader, rwBufferIds.data(), createInfo.rwBufferNum * sizeof(uint16_t));
 
+        const size_t interactSz = 1 + createInfo.writeColorNum + createInfo.readImageNum + createInfo.rwBufferNum;
+        std::vector<ResInteractDesc> interacts(interactSz);
+        read(&_reader, interacts.data(), (uint32_t)(interactSz * sizeof(ResInteractDesc)));
 
         // create pipeline
         const uint16_t progIdx = (uint16_t)m_programContainer.getIndex(createInfo.programId);
@@ -937,7 +941,17 @@ namespace vkz
         }
         else if (createInfo.queue == PassExeQueue::compute)
         {
-            
+            std::vector< Shader_vk> shaders;
+            for (const uint16_t sid : shaderIds)
+            {
+                shaders.push_back(m_shaderContainer.getData(sid));
+            }
+
+            assert(shaderIds.size() == 1);
+            Shader_vk shader = m_shaderContainer.getData(shaderIds[0]);
+
+            VkPipelineCache cache{};
+            pipeline = vkz::createComputePipeline(m_device, cache, program.layout, shader, pushConstants);
         }
 
         // fill pass info
@@ -960,6 +974,33 @@ namespace vkz
         passInfo.pushConstants = createInfo.pushConstants;
         passInfo.pipelineConfig = createInfo.pipelineConfig;
 
+        // r/w res part
+        size_t offset = 0;
+        if (kInvalidHandle != passInfo.writeDepthId)
+        {
+            passInfo.writeDepth = std::make_pair(passInfo.writeDepthId, interacts[0]);
+            offset += 1;
+        }
+
+        for (uint32_t ii = 0; ii < writeColorIds.size(); ++ii)
+        {
+            passInfo.writeColors.addData(writeColorIds[ii], interacts[offset + ii]);
+            offset++;
+        }
+
+        for (uint32_t ii = 0; ii < readImageIds.size(); ++ii)
+        {
+            passInfo.readImages.addData(readImageIds[ii], interacts[offset + ii]);
+            offset++;
+        }
+
+        for (uint32_t ii = 0; ii < rwBufferIds.size(); ++ii)
+        {
+            passInfo.readwriteBuffer.addData(rwBufferIds[ii], interacts[offset + ii]);
+            offset++;
+        }
+
+        assert(offset == interacts.size());
 
         m_passContainer.addData(passInfo.passId, passInfo);
     }

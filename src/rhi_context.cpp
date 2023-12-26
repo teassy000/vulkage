@@ -19,30 +19,30 @@ namespace vkz
 
         while (true)
         {
-            RHIContextOpMagic magic = RHIContextOpMagic::InvalidMagic;
+            RHIContextOpMagic magic = RHIContextOpMagic::invalid_magic;
             read(&reader, magic);
 
             bool finished = false;
 
             switch (magic)
             {
-            case RHIContextOpMagic::CreateShader:
+            case RHIContextOpMagic::create_shader:
                 createShader(reader);
                 break;
-            case RHIContextOpMagic::CreateProgram:
+            case RHIContextOpMagic::create_program:
                 createProgram(reader);
                 break;
-            case RHIContextOpMagic::CreatePass:
+            case RHIContextOpMagic::create_pass:
                 createPass(reader);
                 break;
-            case RHIContextOpMagic::CreateBuffer:
+            case RHIContextOpMagic::create_buffer:
                 createBuffer(reader);
                 break;
-            case RHIContextOpMagic::CreateImage:
+            case RHIContextOpMagic::create_image:
                 createImage(reader);
                 break;
                 // End
-            case RHIContextOpMagic::InvalidMagic:
+            case RHIContextOpMagic::invalid_magic:
                 message(DebugMessageType::warning, "invalid magic tag, data incorrect!");
             case RHIContextOpMagic::End:
             default:
@@ -54,6 +54,8 @@ namespace vkz
             {
                 break;
             }
+            
+
         }
 
         reader.seek(0, Whence::Begin); // reset reader

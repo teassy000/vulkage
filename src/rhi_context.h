@@ -9,14 +9,16 @@ namespace vkz
 {
     enum class RHIContextOpMagic : uint32_t
     {
-        InvalidMagic = 0,
+        invalid_magic = 0,
 
-        CreatePass,
-        CreateImage,
-        CreateBuffer,
-        CreateDescriptorSet,
-        CreateProgram,
-        CreateShader,
+        magic_body_end,
+
+        create_pass,
+        create_image,
+        create_buffer,
+        create_descriptor_set,
+        create_program,
+        create_shader,
 
         End,
     };

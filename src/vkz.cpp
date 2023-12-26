@@ -154,8 +154,8 @@ namespace vkz
 
         void aliasResrouce(const Memory* _outMem, const uint16_t _aliasCount, const uint16_t _baseRes, MagicTag _tag);
 
-        void readwriteBuffer(const uint16_t _pass, MagicTag _tag, const uint16_t _resCount, const BufferInteractDesc& _interact);
-        void readwriteImage(const uint16_t _pass, MagicTag _tag, const uint16_t _resCount, const BufferInteractDesc& _interact);
+        void readwriteBuffer(const uint16_t _pass, MagicTag _tag, const uint16_t _resCount, const ResInteractDesc& _interact);
+        void readwriteImage(const uint16_t _pass, MagicTag _tag, const uint16_t _resCount, const ResInteractDesc& _interact);
 
         void readwriteResource(const uint16_t _pass, const Memory* _reses, const uint16_t _resCount, MagicTag _tag);
 
@@ -181,13 +181,9 @@ namespace vkz
         RenderTargetHandle m_resultRenderTarget{kInvalidHandle};
 
         // resource Info
-        BufferDesc m_bufferDescs[kMaxNumOfBufferHandle];
-        ImageDesc m_imageDescs[kMaxNumOfImageHandle];
-        PassDesc m_passDescs[kMaxNumOfPassHandle];
-
-        // read/write desc
-        std::vector<std::vector<BufferInteractDesc>> m_bufferInteractDescs;
-        std::vector<std::vector<ImageInteractDesc>> m_imageInteractDescs;
+        UniDataContainer<uint16_t, BufferDesc> m_bufferDescs;
+        UniDataContainer<uint16_t, ImageDesc> m_imageDescs;
+        UniDataContainer<uint16_t, PassDesc> m_passDescs;
 
         // frame graph
         MemoryBlockI* m_pFgMemBlock{ nullptr };
@@ -212,7 +208,7 @@ namespace vkz
             return ShaderHandle{ kInvalidHandle };
         }
         
-        MagicTag magic{ MagicTag::RegisterShader };
+        MagicTag magic{ MagicTag::register_shader };
         write(m_fgMemWriter, magic);
 
         ShaderRegisterInfo info;
@@ -221,6 +217,8 @@ namespace vkz
 
         write(m_fgMemWriter, info);
         write(m_fgMemWriter, (void*)_path, (int32_t)info.strLen);
+
+        write(m_fgMemWriter, MagicTag::magic_body_end);
 
         return handle;
     }
@@ -238,7 +236,7 @@ namespace vkz
         }
 
         // magic tag
-        MagicTag magic{ MagicTag::RegisterProgram };
+        MagicTag magic{ MagicTag::register_program };
         write(m_fgMemWriter, magic);
 
         // info
@@ -250,6 +248,8 @@ namespace vkz
         
         // actual shader indexes
         write(m_fgMemWriter, _mem->data, _mem->size);
+
+        write(m_fgMemWriter, MagicTag::magic_body_end);
 
         return handle;
     }
@@ -266,10 +266,10 @@ namespace vkz
             return PassHandle{ kInvalidHandle };
         }
 
-        m_passDescs[idx] = _desc;
+        m_passDescs.addData(idx, _desc);
 
         // frame graph data
-        uint32_t magic = static_cast<uint32_t>(MagicTag::RegisterPass);
+        uint32_t magic = static_cast<uint32_t>(MagicTag::register_pass);
         write(m_fgMemWriter, magic);
 
         PassRegisterInfo info;
@@ -297,6 +297,8 @@ namespace vkz
         {
             write(m_fgMemWriter, _desc.pushConstants, sizeof(int) * _desc.pushConstantNum);
         }
+
+        write(m_fgMemWriter, MagicTag::magic_body_end);
         return handle;
     }
 
@@ -313,18 +315,17 @@ namespace vkz
             return BufferHandle{ kInvalidHandle };
         }
 
-        BufferDesc& desc = m_bufferDescs[idx];
-        desc = _desc;
+        m_bufferDescs.addData(idx, _desc);
 
         // frame graph data
-        uint32_t magic = static_cast<uint32_t>(MagicTag::RegisterBuffer);
+        uint32_t magic = static_cast<uint32_t>(MagicTag::register_buffer);
         write(m_fgMemWriter, magic);
 
         BufRegisterInfo info;
         info.bufId = idx;
         info.size = _desc.size;
-        info.usage = desc.usage;
-        info.memFlags = desc.memFlags;
+        info.usage = _desc.usage;
+        info.memFlags = _desc.memFlags;
         info.lifetime = _lifetime;
 
         info.initialState.access = 0u; // TODO: set the barrier state
@@ -332,6 +333,8 @@ namespace vkz
         info.initialState.stage = 0u;  // TODO: set the barrier state
 
         write(m_fgMemWriter, info);
+
+        write(m_fgMemWriter, MagicTag::magic_body_end);
 
         return handle;
     }
@@ -349,11 +352,10 @@ namespace vkz
             return TextureHandle{ kInvalidHandle };
         }
 
-        ImageDesc& desc = m_imageDescs[idx];
-        desc = _desc;
+        m_imageDescs.addData(idx, _desc);
 
         // frame graph data
-        uint32_t magic = static_cast<uint32_t>(MagicTag::RegisterTexture);
+        uint32_t magic = static_cast<uint32_t>(MagicTag::register_texture);
         write(m_fgMemWriter, magic);
 
         ImgRegisterInfo info;
@@ -376,6 +378,8 @@ namespace vkz
         info.initialState.stage = PipelineStageFlagBits::host;
 
         write(m_fgMemWriter, info);
+
+        write(m_fgMemWriter, MagicTag::magic_body_end);
 
         return handle;
     }
@@ -400,11 +404,10 @@ namespace vkz
             return RenderTargetHandle{ kInvalidHandle };
         }
 
-        ImageDesc& desc = m_imageDescs[idx];
-        desc = _desc;
+        m_imageDescs.addData(idx, _desc);
 
         // frame graph data
-        uint32_t magic = static_cast<uint32_t>(MagicTag::RegisterRenderTarget);
+        uint32_t magic = static_cast<uint32_t>(MagicTag::register_render_target);
         write(m_fgMemWriter, magic);
 
         ImgRegisterInfo info;
@@ -427,6 +430,8 @@ namespace vkz
         info.initialState.stage = PipelineStageFlagBits::host;
 
         write(m_fgMemWriter, info);
+
+        write(m_fgMemWriter, MagicTag::magic_body_end);
 
         return handle;
     }
@@ -451,11 +456,10 @@ namespace vkz
             return DepthStencilHandle{ kInvalidHandle };
         }
 
-        ImageDesc& desc = m_imageDescs[idx];
-        desc = _desc;
+        m_imageDescs.addData(idx, _desc);
 
         // frame graph data
-        uint32_t magic = static_cast<uint32_t>(MagicTag::RegisterDepthStencil);
+        uint32_t magic = static_cast<uint32_t>(MagicTag::register_depth_stencil);
         write(m_fgMemWriter, magic);
 
         ImgRegisterInfo info;
@@ -478,21 +482,23 @@ namespace vkz
 
         write(m_fgMemWriter, info);
 
+        write(m_fgMemWriter, MagicTag::magic_body_end);
+
         return handle;
     }
 
     uint16_t Context::aliasAlloc(MagicTag _tag)
     {
-        if (MagicTag::AliasBuffer == _tag) {
+        if (MagicTag::force_alias_buffer == _tag) {
             return m_bufferHandles.alloc();
         }
-        if (MagicTag::AliasTexture == _tag) {
+        if (MagicTag::force_alias_texture == _tag) {
             return m_imageHandles.alloc();
         }
-        if (MagicTag::AliasRenderTarget == _tag) {
+        if (MagicTag::force_alias_render_target == _tag) {
             return m_imageHandles.alloc();
         }
-        if (MagicTag::AliasDepthStencil == _tag) {
+        if (MagicTag::force_alias_depth_stencil == _tag) {
             return m_imageHandles.alloc();
         }
 
@@ -524,6 +530,45 @@ namespace vkz
         write(m_fgMemWriter, info);
 
         write(m_fgMemWriter, (void*)_outMem->data, sizeof(uint16_t) * _aliasCount);
+
+        write(m_fgMemWriter, MagicTag::magic_body_end);
+    }
+
+    void Context::readwriteBuffer(const uint16_t _pass, MagicTag _tag, const uint16_t _resId, const ResInteractDesc& _interact)
+    {
+        // magic: 4 bytes
+        // pass id: 2 bytes
+        // res id: 2 bytes
+        // interact: sizeof(BufferInteractDesc)
+
+        uint32_t magic = static_cast<uint32_t>(_tag);
+
+        write(m_fgMemWriter, magic);
+
+        RWResInfo info;
+        info.passId = _pass;
+        info.resId = _resId;
+        write(m_fgMemWriter, info);
+
+        write(m_fgMemWriter, _interact);
+
+        write(m_fgMemWriter, MagicTag::magic_body_end);
+    }
+
+    void Context::readwriteImage(const uint16_t _pass, MagicTag _tag, const uint16_t _resId, const ResInteractDesc& _interact)
+    {
+        uint32_t magic = static_cast<uint32_t>(_tag);
+
+        write(m_fgMemWriter, magic);
+
+        RWResInfo info;
+        info.passId = _pass;
+        info.resId = _resId;
+        write(m_fgMemWriter, info);
+
+        write(m_fgMemWriter, _interact);
+
+        write(m_fgMemWriter, MagicTag::magic_body_end);
     }
 
     void Context::readwriteResource(const uint16_t _pass, const Memory* _reses, const uint16_t _resCount, MagicTag _tag)
@@ -531,7 +576,9 @@ namespace vkz
         // magic: 4 bytes
         // info: 4 bytes
         // reses: 2 bytes * _resCount + sizeof(ResourceInteractDesc)
+        return;
 
+        /*
         uint32_t magic = static_cast<uint32_t>(_tag);
         write(m_fgMemWriter, magic);
 
@@ -540,6 +587,9 @@ namespace vkz
         info.resNum = _resCount;
         write(m_fgMemWriter, info);
         write(m_fgMemWriter, _reses->data, _reses->size);
+
+        write(m_fgMemWriter, MagicTag::magic_body_end);
+        */
     }
 
 
@@ -552,6 +602,7 @@ namespace vkz
         write(m_fgMemWriter, magic);
         write(m_fgMemWriter, _resCount);
         write(m_fgMemWriter, (void*)_mem->data, _mem->size);
+        write(m_fgMemWriter, MagicTag::magic_body_end);
     }
 
     void Context::setMutiFrameResource(const uint16_t* _reses, const uint16_t _resCount, MagicTag _tag)
@@ -562,14 +613,16 @@ namespace vkz
         write(m_fgMemWriter, _resCount);
 
         write(m_fgMemWriter, _reses, sizeof(uint16_t) * _resCount);
+        write(m_fgMemWriter, MagicTag::magic_body_end);
     }
 
     void Context::setResultRenderTarget(RenderTargetHandle _rt)
     {
-        uint32_t magic = static_cast<uint32_t>(MagicTag::SetResultRenderTarget);
+        uint32_t magic = static_cast<uint32_t>(MagicTag::set_present);
         write(m_fgMemWriter, magic);
         
         write(m_fgMemWriter, _rt.id);
+        write(m_fgMemWriter, MagicTag::magic_body_end);
         
         m_resultRenderTarget = _rt;
     }
@@ -585,11 +638,12 @@ namespace vkz
         m_pFgMemBlock = m_frameGraph->getMemoryBlock();
         m_fgMemWriter = VKZ_NEW(m_pAllocator, MemoryWriter(m_pFgMemBlock));
 
-        uint32_t magic = static_cast<uint32_t>(MagicTag::SetBrief);
+        uint32_t magic = static_cast<uint32_t>(MagicTag::set_brief);
         write(m_fgMemWriter, magic);
 
         // reserve the brief
         write(m_fgMemWriter, FrameGraphBrief());
+        write(m_fgMemWriter, MagicTag::magic_body_end);
     }
 
     void Context::loop()
@@ -607,7 +661,7 @@ namespace vkz
         }
 
         // write the finish tag
-        uint32_t magic = static_cast<uint32_t>(MagicTag::End);
+        uint32_t magic = static_cast<uint32_t>(MagicTag::end);
         write(m_fgMemWriter, magic);
 
         // move mem pos to the beginning of the memory block
@@ -703,7 +757,7 @@ namespace vkz
     {
         const Memory* mem = alloc(_aliasCount * sizeof(uint16_t));
         
-        s_ctx->aliasResrouce(mem, _aliasCount, _base.id, MagicTag::AliasBuffer);
+        s_ctx->aliasResrouce(mem, _aliasCount, _base.id, MagicTag::force_alias_buffer);
         
         for (uint16_t ii = 0; ii < _aliasCount; ++ii)
         {
@@ -717,7 +771,7 @@ namespace vkz
     {
         const Memory* mem = alloc(_aliasCount * sizeof(uint16_t));
 
-        s_ctx->aliasResrouce(mem, _aliasCount, _base.id, MagicTag::AliasTexture);
+        s_ctx->aliasResrouce(mem, _aliasCount, _base.id, MagicTag::force_alias_texture);
 
         for (uint16_t ii = 0; ii < _aliasCount; ++ii)
         {
@@ -731,7 +785,7 @@ namespace vkz
     {
         const Memory* mem = alloc(_aliasCount * sizeof(uint16_t));
 
-        s_ctx->aliasResrouce(mem, _aliasCount, _base.id, MagicTag::AliasRenderTarget);
+        s_ctx->aliasResrouce(mem, _aliasCount, _base.id, MagicTag::force_alias_render_target);
 
         for (uint16_t ii = 0; ii < _aliasCount; ++ii)
         {
@@ -744,7 +798,7 @@ namespace vkz
     void aliasDepthStencil(DepthStencilHandle** _aliases, const uint16_t _aliasCount, const DepthStencilHandle _base)
     {
         const Memory* mem = alloc(_aliasCount * sizeof(uint16_t));
-        s_ctx->aliasResrouce(mem, _aliasCount, _base.id, MagicTag::AliasDepthStencil);
+        s_ctx->aliasResrouce(mem, _aliasCount, _base.id, MagicTag::force_alias_depth_stencil);
 
         for (uint16_t ii = 0; ii < _aliasCount; ++ii)
         {
@@ -754,6 +808,49 @@ namespace vkz
         release(mem);
     }
 
+    void passReadBuffer(PassHandle _pass, BufferHandle _buf, ResInteractDesc _interact)
+    {
+        s_ctx->readwriteBuffer(_pass.id, MagicTag::pass_read_buffer, _buf.id, _interact);
+    }
+
+    void passWriteBuffer(PassHandle _pass, BufferHandle _buf, ResInteractDesc _interact)
+    {
+        s_ctx->readwriteBuffer(_pass.id, MagicTag::pass_write_buffer, _buf.id, _interact);
+    }
+
+    void passReadTexture(PassHandle _pass, TextureHandle _img, ResInteractDesc _interact)
+    {
+        s_ctx->readwriteImage(_pass.id, MagicTag::pass_read_texture, _img.id, _interact);
+    }
+
+    void passWriteTexture(PassHandle _pass, TextureHandle _img, ResInteractDesc _interact)
+    {
+        s_ctx->readwriteImage(_pass.id, MagicTag::pass_write_texture, _img.id, _interact);
+    }
+
+    void passReadRT(PassHandle _pass, RenderTargetHandle _rt, ResInteractDesc _interact)
+    {
+        _interact.access |= AccessFlagBits::color_attachment_read;
+        s_ctx->readwriteImage(_pass.id, MagicTag::pass_read_render_target, _rt.id, _interact);
+    }
+
+    void passWriteRT(PassHandle _pass, RenderTargetHandle _rt, ResInteractDesc _interact)
+    {
+        _interact.access |= AccessFlagBits::color_attachment_write;
+        s_ctx->readwriteImage(_pass.id, MagicTag::pass_write_render_target, _rt.id, _interact);
+    }
+
+    void passReadDS(PassHandle _pass, DepthStencilHandle _ds, ResInteractDesc _interact)
+    {
+        _interact.access |= AccessFlagBits::depth_stencil_attachment_read;
+        s_ctx->readwriteImage(_pass.id, MagicTag::pass_read_depth_stencil, _ds.id, _interact);
+    }
+
+    void passWriteDS(PassHandle _pass, DepthStencilHandle _ds, ResInteractDesc _interact)
+    {
+        _interact.access |= AccessFlagBits::depth_stencil_attachment_write;
+        s_ctx->readwriteImage(_pass.id, MagicTag::pass_write_depth_stencil, _ds.id, _interact);
+    }
 
     BufferHandle aliasBuffer(const BufferHandle _handle)
     {
@@ -814,7 +911,7 @@ namespace vkz
             write(&writer, handle.id);
         }
 
-        s_ctx->readwriteResource(_pass.id, mem, size, MagicTag::PassWriteBuffer);
+        s_ctx->readwriteResource(_pass.id, mem, size, MagicTag::pass_write_buffer);
 
         release(mem);
     }
@@ -831,7 +928,7 @@ namespace vkz
             write(&writer, handle.id);
         }
 
-        s_ctx->readwriteResource(_pass.id, mem, size, MagicTag::PassReadBuffer);
+        s_ctx->readwriteResource(_pass.id, mem, size, MagicTag::pass_read_buffer);
 
         release(mem);
     }
@@ -848,7 +945,7 @@ namespace vkz
             write(&writer, handle.id);
         }
 
-        s_ctx->readwriteResource(_pass.id, mem, size, MagicTag::PassWriteTexture);
+        s_ctx->readwriteResource(_pass.id, mem, size, MagicTag::pass_write_texture);
 
         release(mem);
     }
@@ -865,7 +962,7 @@ namespace vkz
             write(&writer, handle.id);
         }
         
-        s_ctx->readwriteResource(_pass.id, mem, size, MagicTag::PassReadTexture);
+        s_ctx->readwriteResource(_pass.id, mem, size, MagicTag::pass_read_texture);
 
         release(mem);
     }
@@ -882,7 +979,7 @@ namespace vkz
             write(&writer, handle.id);
         }
 
-        s_ctx->readwriteResource(_pass.id, mem, size, MagicTag::PassWriteRenderTarget);
+        s_ctx->readwriteResource(_pass.id, mem, size, MagicTag::pass_write_render_target);
 
         release(mem);
     }
@@ -899,7 +996,7 @@ namespace vkz
             write(&writer, handle.id);
         }
 
-        s_ctx->readwriteResource(_pass.id, mem, size, MagicTag::PassReadRenderTarget);
+        s_ctx->readwriteResource(_pass.id, mem, size, MagicTag::pass_read_render_target);
 
         release(mem);
     }
@@ -916,7 +1013,7 @@ namespace vkz
             write(&writer, handle.id);
         }
 
-        s_ctx->readwriteResource(_pass.id, mem, size, MagicTag::PassWriteDepthStencil);
+        s_ctx->readwriteResource(_pass.id, mem, size, MagicTag::pass_write_depth_stencil);
 
         release(mem);
     }
@@ -933,7 +1030,7 @@ namespace vkz
             write(&writer, handle.id);
         }
 
-        s_ctx->readwriteResource(_pass.id, mem, size, MagicTag::PassReadDepthStencil);
+        s_ctx->readwriteResource(_pass.id, mem, size, MagicTag::pass_read_depth_stencil);
 
         release(mem);
     }
@@ -951,7 +1048,7 @@ namespace vkz
             write(&writer, handle.id);
         }
 
-        s_ctx->setMultiFrameResource(mem, size, MagicTag::SetMuitiFrameBuffer);
+        s_ctx->setMultiFrameResource(mem, size, MagicTag::set_non_transition_buffer);
 
         release(mem);
     }
@@ -969,7 +1066,7 @@ namespace vkz
             write(&writer, handle.id);
         }
 
-        s_ctx->setMultiFrameResource(mem, size, MagicTag::SetMuitiFrameTexture);
+        s_ctx->setMultiFrameResource(mem, size, MagicTag::set_non_transition_texture);
 
         release(mem);
     }
@@ -987,7 +1084,7 @@ namespace vkz
             write(&writer, handle.id);
         }
 
-        s_ctx->setMultiFrameResource(mem, size, MagicTag::SetMultiFrameRenderTarget);
+        s_ctx->setMultiFrameResource(mem, size, MagicTag::set_non_transition_render_target);
 
         release(mem);
     }
@@ -1005,7 +1102,7 @@ namespace vkz
             write(&writer, handle.id);
         }
 
-        s_ctx->setMultiFrameResource(mem, size, MagicTag::SetMultiFrameDepthStencil);
+        s_ctx->setMultiFrameResource(mem, size, MagicTag::set_non_transition_depth_stencil);
 
         release(mem);
     }

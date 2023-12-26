@@ -52,9 +52,10 @@ namespace vkz
         std::vector<uint16_t> readImageIds;
         std::vector<uint16_t> rwBufferIds;
 
-        // expect barrier state in passes
-        UniDataContainer<uint16_t, BarrierState_vk> bufferBarrierStates;
-        UniDataContainer<uint16_t, BarrierState_vk> imageBarrierStates;
+        std::pair<uint16_t, ResInteractDesc> writeDepth;
+        UniDataContainer< uint16_t, ResInteractDesc> writeColors;
+        UniDataContainer< uint16_t, ResInteractDesc> readImages;
+        UniDataContainer< uint16_t, ResInteractDesc> readwriteBuffer;
     };
 
     class RHIContext_vk : public RHIContext

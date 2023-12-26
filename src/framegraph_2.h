@@ -8,49 +8,51 @@ namespace vkz
 {
     enum class MagicTag : uint32_t
     {
-        InvalidMagic = 0x00000000,
+        invalid_magic = 0x00000000,
 
-        SetBrief,
+        magic_body_end,
 
-        RegisterShader,
-        RegisterProgram,
+        set_brief,
 
-        RegisterPass,
-        RegisterBuffer,
-        RegisterTexture,
-        RegisterRenderTarget,
-        RegisterDepthStencil,
+        register_shader,
+        register_program,
 
-        PassReadBuffer,
-        PassWriteBuffer,
-        PassReadTexture,
-        PassWriteTexture,
-        PassReadRenderTarget,
-        PassWriteRenderTarget,
-        PassReadDepthStencil,
-        PassWriteDepthStencil,
+        register_pass,
+        register_buffer,
+        register_texture,
+        register_render_target,
+        register_depth_stencil,
 
-        AliasBuffer,
-        AliasTexture,
-        AliasRenderTarget,
-        AliasDepthStencil,
+        pass_read_buffer,
+        pass_write_buffer,
+        pass_read_texture,
+        pass_write_texture,
+        pass_read_render_target,
+        pass_write_render_target,
+        pass_read_depth_stencil,
+        pass_write_depth_stencil,
 
-        SetMuitiFrameBuffer,
-        SetMuitiFrameTexture,
-        SetMultiFrameRenderTarget,
-        SetMultiFrameDepthStencil,
+        force_alias_buffer,
+        force_alias_texture,
+        force_alias_render_target,
+        force_alias_depth_stencil,
 
-        SetResultRenderTarget,
+        set_non_transition_buffer,
+        set_non_transition_texture,
+        set_non_transition_render_target,
+        set_non_transition_depth_stencil,
 
-        End,
+        set_present,
+
+        end,
     };
 
     enum class ResourceType : uint16_t
     {
-        Buffer = 0,
-        Texture,
-        RenderTarget,
-        DepthStencil,
+        buffer = 0,
+        texture,
+        render_target,
+        depth_stencil,
     };
 
     struct FrameGraphBrief
@@ -87,7 +89,7 @@ namespace vkz
     {
         uint16_t    bufId;
         
-        ResourceLifetime    lifetime{ ResourceLifetime::single_frame };
+        ResourceLifetime    lifetime{ ResourceLifetime::transition };
 
         BarrierState initialState;
     };
@@ -98,9 +100,16 @@ namespace vkz
 
         uint16_t    bpp{ 4u };
 
-        ResourceLifetime    lifetime{ ResourceLifetime::single_frame };
+        ResourceLifetime    lifetime{ ResourceLifetime::transition };
 
         BarrierState initialState;
+    };
+
+    // read/write resource
+    struct RWResInfo
+    {
+        uint16_t    passId;
+        uint16_t    resId;
     };
 
     // Read/Write Info
@@ -109,6 +118,7 @@ namespace vkz
         uint16_t    pass;
         uint16_t    resNum;
     };
+
 
     // Alias Info
     struct ResAliasInfo
@@ -185,6 +195,9 @@ namespace vkz
         void passReadRes(MemoryReader& _reader, ResourceType _type);
         void passWriteRes(MemoryReader& _reader, ResourceType _type);
 
+        void readResource(MemoryReader& _reader, ResourceType _type);
+        void writeResource(MemoryReader& _reader, ResourceType _type);
+
         void aliasResForce(MemoryReader& _reader, ResourceType _type);
 
         void setMultiFrameRes(MemoryReader& _reader, ResourceType _type);
@@ -233,22 +246,22 @@ namespace vkz
 
         inline bool isBuffer(const CombinedResID& _res) const
         {
-            return _res.type == ResourceType::Buffer;
+            return _res.type == ResourceType::buffer;
         }
 
         inline bool isTexture(const CombinedResID& _res) const
         {
-            return _res.type == ResourceType::Texture;
+            return _res.type == ResourceType::texture;
         }
 
         inline bool isRenderTarget(const CombinedResID& _res) const
         {
-            return _res.type == ResourceType::RenderTarget;
+            return _res.type == ResourceType::render_target;
         }
 
         inline bool isDepthStencil(const CombinedResID& _res) const
         {
-            return _res.type == ResourceType::DepthStencil;
+            return _res.type == ResourceType::depth_stencil;
         }
 
         struct BufBucket
@@ -308,6 +321,9 @@ namespace vkz
         // for sort
         struct PassRWResource
         {
+            UniDataContainer<CombinedResID, ResInteractDesc> readInteracts;
+            UniDataContainer<CombinedResID, ResInteractDesc> writeInteracts;
+
             std::vector<CombinedResID> readCombinedRes;
             std::vector<CombinedResID> writeCombinedRes;
         };
