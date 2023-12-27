@@ -87,22 +87,23 @@ namespace vkz
 
     struct BufRegisterInfo : public BufferDesc
     {
-        uint16_t    bufId;
+        uint16_t    bufId{ kInvalidHandle };
         
         ResourceLifetime    lifetime{ ResourceLifetime::transition };
 
-        BarrierState initialState;
+        ResInteractDesc initialState;
     };
 
     struct ImgRegisterInfo : public ImageDesc
     {
-        uint16_t    imgId;
+        uint16_t    imgId{ kInvalidHandle };
 
         uint16_t    bpp{ 4u };
 
         ResourceLifetime    lifetime{ ResourceLifetime::transition };
 
-        BarrierState initialState;
+        ImageAspectFlags    aspectFlags{ 0 };
+        ResInteractDesc     initialState;
     };
 
     // read/write resource
@@ -269,7 +270,7 @@ namespace vkz
             uint32_t        idx;
             uint16_t        baseBufId;
             BufferDesc      desc;
-            BarrierState    initialBarrierState;
+            ResInteractDesc    initialBarrierState;
 
             bool            forceAliased{ false };
             std::vector<CombinedResID> reses;
@@ -280,7 +281,9 @@ namespace vkz
             uint32_t    idx;
             uint16_t    baseImgId;
             ImageDesc   desc;
-            BarrierState    initialBarrierState;
+
+            ImageAspectFlags   aspectFlags;
+            ResInteractDesc    initialBarrierState;
 
             bool        forceAliased{ false };
 

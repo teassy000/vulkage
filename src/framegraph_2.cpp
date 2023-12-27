@@ -861,7 +861,7 @@ namespace vkz
         for (size_t ii = 0; ii < m_plainResAliasToBase.size(); ++ii)
         {
             // find current id in resToOptmUniList
-            const CombinedResID plainAlias = m_plainResAliasToBase.getId(ii);
+            const CombinedResID plainAlias = m_plainResAliasToBase.getIdAt(ii);
             uint16_t idx = getElemIndex(resToOptmUniList, plainAlias);
             if (kInvalidIndex == idx) {
                 continue;
@@ -1045,7 +1045,7 @@ namespace vkz
         _bkt.desc.usage = _info.usage;
         _bkt.desc.layout = _info.layout;
 
-
+        _bkt.aspectFlags = _info.aspectFlags;
         _bkt.initialBarrierState = _info.initialState;
         _bkt.baseImgId = _info.imgId;
         _bkt.reses = _reses;
@@ -1280,7 +1280,7 @@ namespace vkz
             info.size = bkt.desc.size;
             info.memFlags = bkt.desc.memFlags;
             info.usage = bkt.desc.usage;
-            info.resNum = (uint16_t)bkt.reses.size();
+            info.aliasNum = (uint16_t)bkt.reses.size();
 
             info.barrierState = bkt.initialBarrierState;
 
@@ -1322,8 +1322,9 @@ namespace vkz
             info.usage = bkt.desc.usage;
             info.layout = bkt.desc.layout;
 
-            info.resNum = (uint16_t)bkt.reses.size();
+            info.aliasNum = (uint16_t)bkt.reses.size();
 
+            info.aspectFlags = bkt.aspectFlags;
             info.barrierState = bkt.initialBarrierState;
 
             write(&m_rhiMemWriter, info);

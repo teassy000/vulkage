@@ -193,7 +193,7 @@ namespace vkz
     }
 
 
-    void createImage(std::vector<Image_vk>& _results, const std::vector<ImageAliasInfo>& _infos, const VkDevice _device, const VkPhysicalDeviceMemoryProperties& _memProps, const ImgInitProps& _initProps)
+    void createImage(std::vector<Image_vk>& _results, const std::vector<ImageAliasInfo>& _infos, const VkDevice _device, const VkPhysicalDeviceMemoryProperties& _memProps, const ImgInitProps_vk& _initProps)
     {
         if (_infos.empty())
         {
@@ -263,12 +263,13 @@ namespace vkz
             img.width = _initProps.width;
             img.height = _initProps.height;
             img.mipLevels = _initProps.level;
+            img.aspectMask = _initProps.aspectMask;
         }
 
         _results = std::move(results);
     }
 
-    vkz::Image_vk createImage(const ImageAliasInfo& _info, const VkDevice _device, const VkPhysicalDeviceMemoryProperties& _memProps, const ImgInitProps& _initProps)
+    vkz::Image_vk createImage(const ImageAliasInfo& _info, const VkDevice _device, const VkPhysicalDeviceMemoryProperties& _memProps, const ImgInitProps_vk& _initProps)
     {
         std::vector<Image_vk> results;
         createImage(results, {_info}, _device, _memProps, _initProps);
@@ -392,7 +393,7 @@ namespace vkz
         return imageView;
     }
 
-    VkImageMemoryBarrier2 imageBarrier(VkImage image, VkImageAspectFlagBits aspectMask, 
+    VkImageMemoryBarrier2 imageBarrier(VkImage image, VkImageAspectFlags aspectMask,
         VkAccessFlags2 srcAccessMask, VkImageLayout oldLayout, VkPipelineStageFlags2 srcStage,
         VkAccessFlags2 dstAccessMask,  VkImageLayout newLayout, VkPipelineStageFlags2 dstStage)
     {

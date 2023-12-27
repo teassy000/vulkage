@@ -45,6 +45,10 @@ namespace vkz
             indexToData.clear();
         }
 
+        bool exist(IdType _id) const {
+            return getElemIndex(ids, _id) != kInvalidIndex;
+        }
+
         void setValueAt(size_t _idx, const IdType _id, const DataType& _data) {
             assert(_idx < ids.size());
 
@@ -64,17 +68,8 @@ namespace vkz
             return idx;
         }
 
-        bool exist(IdType _id) const {
-            return getElemIndex(ids, _id) != kInvalidIndex;
-        }
-
         const size_t getIndex(IdType _id) const {
             return getElemIndex(ids, _id);
-        }
-
-        const IdType& getId(size_t _idx) const {
-            assert(_idx < ids.size());
-            return ids[_idx];
         }
 
         const DataType& getData(IdType _id) const {
@@ -82,6 +77,11 @@ namespace vkz
             assert(index != kInvalidIndex);
 
             return indexToData[index];
+        }
+
+        const IdType& getIdAt(size_t _idx) const {
+            assert(_idx < ids.size());
+            return ids[_idx];
         }
 
         const DataType& getDataAt(size_t _idx) const {

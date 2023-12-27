@@ -317,13 +317,24 @@ namespace vkz
     };
 
     // to generate barriers
-    struct ResInteractDesc
+    struct NO_VTABLE ResInteractDesc
     {
         uint32_t            binding{ 0 };
         PipelineStageFlags  stage{ PipelineStageFlagBits::none };
         AccessFlags         access{ AccessFlagBits::none };
 
         ImageLayout         layout{ ImageLayout::general };
+
+        inline bool operator == (const ResInteractDesc& rhs) const {
+            return binding == rhs.binding &&
+                stage == rhs.stage &&
+                access == rhs.access &&
+                layout == rhs.layout;
+        }
+
+        inline bool operator != (const ResInteractDesc& rhs) const {
+            return !(*this == rhs);
+        }
     };
 
     struct VertexBindingDesc
@@ -340,6 +351,8 @@ namespace vkz
         uint32_t        offset{ 0 };
         ResourceFormat  format{ ResourceFormat::undefined };
     };
+
+
 
     struct PassDesc
     {

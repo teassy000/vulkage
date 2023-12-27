@@ -54,7 +54,10 @@ namespace vkz
             {
                 break;
             }
-            
+
+            RHIContextOpMagic bodyEnd;
+            read(&reader, bodyEnd);
+            assert(RHIContextOpMagic::magic_body_end == bodyEnd);
 
         }
 

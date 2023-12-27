@@ -48,14 +48,10 @@ namespace vkz
         uint16_t passId{ kInvalidHandle };
         uint16_t writeDepthId{ kInvalidHandle };
 
-        std::vector<uint16_t> writeColorIds;
-        std::vector<uint16_t> readImageIds;
-        std::vector<uint16_t> rwBufferIds;
-
         std::pair<uint16_t, ResInteractDesc> writeDepth;
         UniDataContainer< uint16_t, ResInteractDesc> writeColors;
         UniDataContainer< uint16_t, ResInteractDesc> readImages;
-        UniDataContainer< uint16_t, ResInteractDesc> readwriteBuffer;
+        UniDataContainer< uint16_t, ResInteractDesc> rwBuffer;
     };
 
     class RHIContext_vk : public RHIContext
@@ -78,6 +74,10 @@ namespace vkz
         void createInstance();
         void createPhysicalDevice();
 
+        // barriers
+        void addInvalidateBarrier(uint16_t _passId);
+        void addFlushBarrier(uint16_t _passId);
+
         void passRender(uint16_t _passId);
 
     private:
@@ -90,8 +90,8 @@ namespace vkz
         std::vector<std::vector<uint16_t>> m_programShaderIds;
 
         // current state for resources, use resource id as id
-        UniDataContainer<uint16_t, BarrierState_vk> m_bufferBarrierStates;
-        UniDataContainer<uint16_t, BarrierState_vk> m_imageBarrierStates;
+        UniDataContainer< uint16_t, ResInteractDesc> m_currBufBarriers;
+        UniDataContainer< uint16_t, ResInteractDesc> m_currImgBarriers;
 
         // glfw data
         GLFWwindow* m_pWindow;

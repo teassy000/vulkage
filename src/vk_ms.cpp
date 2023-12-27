@@ -838,7 +838,7 @@ int main(int argc, const char** argv)
                     VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
                     VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT),
             };
-            pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 1, barriers, 0, 0);
+            pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, COUNTOF(barriers), barriers, 0, 0);
             mdvbCleared = true;
         }
 

@@ -82,6 +82,26 @@ namespace vkz
         return usage;
     }
 
+    VkImageAspectFlags getImageAspectFlags(ImageAspectFlags _aspectFlags)
+    {
+        VkImageAspectFlags flags = 0;
+
+        if (_aspectFlags & ImageAspectFlagBits::color)
+        {
+            flags |= VK_IMAGE_ASPECT_COLOR_BIT;
+        }
+        if (_aspectFlags & ImageAspectFlagBits::depth)
+        {
+            flags |= VK_IMAGE_ASPECT_DEPTH_BIT;
+        }
+        if (_aspectFlags & ImageAspectFlagBits::stencil)
+        {
+            flags |= VK_IMAGE_ASPECT_STENCIL_BIT;
+        }
+
+        return flags;
+    }
+
     VkImageType getImageType(ImageType _type)
     {
         VkImageType type = VK_IMAGE_TYPE_2D;
@@ -802,7 +822,10 @@ namespace vkz
 
             for (size_t ii = 0; ii < m_passContainer.size(); ++ii)
             {
-                passRender(m_passContainer.getId(ii));
+                uint16_t passId = m_passContainer.getIdAt(ii);
+                addInvalidateBarrier(passId);
+                passRender(passId);
+                addFlushBarrier(passId);
             }
 
             VK_CHECK(vkEndCommandBuffer(m_cmdBuffer));
@@ -959,9 +982,6 @@ namespace vkz
         passInfo.passId = createInfo.passId;
         passInfo.pipeline = pipeline;
         passInfo.writeDepthId = createInfo.writeDepthId;
-        passInfo.writeColorIds = writeColorIds;
-        passInfo.readImageIds = readImageIds;
-        passInfo.rwBufferIds = rwBufferIds;
 
         // desc part
         passInfo.programId = createInfo.programId;
@@ -975,13 +995,9 @@ namespace vkz
         passInfo.pipelineConfig = createInfo.pipelineConfig;
 
         // r/w res part
-        size_t offset = 0;
-        if (kInvalidHandle != passInfo.writeDepthId)
-        {
-            passInfo.writeDepth = std::make_pair(passInfo.writeDepthId, interacts[0]);
-            offset += 1;
-        }
-
+        passInfo.writeDepth = std::make_pair(passInfo.writeDepthId, interacts[0]);
+        
+        size_t offset = 1;
         for (uint32_t ii = 0; ii < writeColorIds.size(); ++ii)
         {
             passInfo.writeColors.addData(writeColorIds[ii], interacts[offset + ii]);
@@ -996,7 +1012,7 @@ namespace vkz
 
         for (uint32_t ii = 0; ii < rwBufferIds.size(); ++ii)
         {
-            passInfo.readwriteBuffer.addData(rwBufferIds[ii], interacts[offset + ii]);
+            passInfo.rwBuffer.addData(rwBufferIds[ii], interacts[offset + ii]);
             offset++;
         }
 
@@ -1010,13 +1026,13 @@ namespace vkz
         ImageCreateInfo info;
         read(&_reader, info);
         // void createImage(Image& result, VkDevice device, const VkPhysicalDeviceMemoryProperties& memoryProps, const VkFormat format, const ImgInitProps createInfo, ImageAliases = {}, const uint32_t aliasCount = 0 );
-        ImageAliasInfo* resArr = new ImageAliasInfo[info.resNum];
-        read(&_reader, resArr, sizeof(ImageAliasInfo) * info.resNum);
+        ImageAliasInfo* resArr = new ImageAliasInfo[info.aliasNum];
+        read(&_reader, resArr, sizeof(ImageAliasInfo) * info.aliasNum);
 
         // so the res handle should map to the real buffer array
-        std::vector<ImageAliasInfo> infoList(resArr, resArr + info.resNum);
+        std::vector<ImageAliasInfo> infoList(resArr, resArr + info.aliasNum);
 
-        ImgInitProps initPorps{};
+        ImgInitProps_vk initPorps{};
         initPorps.level = info.mips;
         initPorps.width = info.width;
         initPorps.height = info.height;
@@ -1026,22 +1042,19 @@ namespace vkz
         initPorps.type = getImageType(info.type);
         initPorps.layout = getImageLayout(info.layout);
         initPorps.viewType = getImageViewType( info.viewType);
+        initPorps.aspectMask = getImageAspectFlags(info.aspectFlags);
 
         std::vector<Image_vk> images;
         vkz::createImage(images, infoList, m_device, m_memProps, initPorps);
 
-        assert(images.size() == info.resNum);
+        assert(images.size() == info.aliasNum);
 
-        for (int i = 0; i < info.resNum; ++i)
+        for (int i = 0; i < info.aliasNum; ++i)
         {
             m_imageContainer.addData(resArr[i].imgId, images[i]);
 
-            BarrierState_vk barrierState{};
-            barrierState.accessMask = getAccessFlags(info.barrierState.access);
-            barrierState.stageMask = getPipelineStageFlags(info.barrierState.stage);
-            barrierState.imgLayout = initPorps.layout;
-
-            m_imageBarrierStates.addData(resArr[i].imgId, barrierState);
+            ResInteractDesc interact{ info.barrierState };
+            m_currImgBarriers.addData(resArr[i].imgId, interact);
         }
         
         VKZ_DELETE_ARRAY(resArr);
@@ -1052,26 +1065,23 @@ namespace vkz
         BufferCreateInfo info;
         read(&_reader, info);
 
-        BufferAliasInfo* resArr = new BufferAliasInfo[info.resNum];
-        read(&_reader, resArr, sizeof(BufferAliasInfo) * info.resNum);
+        BufferAliasInfo* resArr = new BufferAliasInfo[info.aliasNum];
+        read(&_reader, resArr, sizeof(BufferAliasInfo) * info.aliasNum);
 
         // so the res handle should map to the real buffer array
-        std::vector<BufferAliasInfo> infoList(resArr, resArr + info.resNum);
+        std::vector<BufferAliasInfo> infoList(resArr, resArr + info.aliasNum);
 
         std::vector<Buffer_vk> buffers;
         vkz::createBuffer(buffers, infoList, m_memProps, m_device, getBufferUsageFlags(info.usage), getMemPropFlags(info.memFlags));
 
-        assert(buffers.size() == info.resNum);
+        assert(buffers.size() == info.aliasNum);
 
-        for (int i = 0; i < info.resNum; ++i)
+        for (int i = 0; i < info.aliasNum; ++i)
         {
             m_bufferContainer.addData(resArr[i].bufId, buffers[i]);
 
-            BarrierState_vk barrierState{};
-            barrierState.accessMask = getAccessFlags(info.barrierState.access);
-            barrierState.stageMask = getPipelineStageFlags(info.barrierState.stage);
-
-            m_bufferBarrierStates.addData(resArr[i].bufId, barrierState);
+            ResInteractDesc interact{ info.barrierState };
+            m_currBufBarriers.addData(resArr[i].bufId, interact);
         }
 
         VKZ_DELETE_ARRAY(resArr);
@@ -1095,6 +1105,211 @@ namespace vkz
         assert(m_phyDevice);
     }
 
+    void RHIContext_vk::addInvalidateBarrier(uint16_t _passId)
+    {
+        const PassInfo_vk& passInfo = m_passContainer.getData(_passId);
+        
+        // image barriers
+        std::vector<uint16_t>        imgIds;
+        std::vector<ResInteractDesc> srcImgInteract;
+        std::vector<ResInteractDesc> dstImgInteract;
+
+        // buffer barriers
+        std::vector<uint16_t>        bufIds;
+        std::vector<ResInteractDesc> srcBufInteract;
+        std::vector<ResInteractDesc> dstBufInteract;
+
+        auto addImgBarrier = [&](const uint16_t _img, const ResInteractDesc& _src, const ResInteractDesc& _dst) {
+                if (_src != _dst)
+                {
+                    imgIds.emplace_back(_img);
+                    srcImgInteract.emplace_back(_src);
+                    dstImgInteract.emplace_back(_dst);
+                }
+            };
+
+        auto addBufBarrier = [&](const uint16_t _img, const ResInteractDesc& _src, const ResInteractDesc& _dst) {
+                if (_src != _dst)
+                {
+                    srcBufInteract.emplace_back(_src);
+                    dstBufInteract.emplace_back(_dst);
+                }
+            };
+
+        if (kInvalidHandle != passInfo.writeDepth.first)
+        {
+            uint16_t depth = passInfo.writeDepth.first;
+            assert(m_currImgBarriers.exist(depth));
+            ResInteractDesc src = m_currImgBarriers.getData(depth);
+            ResInteractDesc dst = passInfo.writeDepth.second;
+
+            addImgBarrier(depth, src, dst);
+        }
+
+        for (uint32_t ii = 0; ii < passInfo.writeColors.size(); ++ii)
+        {
+            uint16_t id = passInfo.writeColors.getIdAt(ii);
+            assert(m_currImgBarriers.exist(id));
+            ResInteractDesc src = m_currImgBarriers.getData(id);
+            ResInteractDesc dst = passInfo.writeColors.getData(id);
+
+            addImgBarrier(id, src, dst);
+        }
+
+        for (uint32_t ii = 0; ii < passInfo.readImages.size(); ++ii)
+        {
+            uint16_t id = passInfo.readImages.getIdAt(ii);
+            assert(m_currImgBarriers.exist(id));
+            ResInteractDesc src = m_currImgBarriers.getData(id);
+            ResInteractDesc dst = passInfo.readImages.getData(id);
+
+            addImgBarrier(id, src, dst);
+        }
+
+        for (uint32_t ii = 0; ii < passInfo.rwBuffer.size(); ++ii)
+        {
+            uint16_t id = passInfo.rwBuffer.getIdAt(ii);
+            assert(m_currBufBarriers.exist(id));
+            ResInteractDesc src = m_currBufBarriers.getData(id);
+            ResInteractDesc dst = passInfo.rwBuffer.getData(id);
+
+            addImgBarrier(id, src, dst);
+        }
+
+        // process and generate barriers
+        assert(srcImgInteract.size() == dstImgInteract.size());
+        assert(srcBufInteract.size() == dstBufInteract.size());
+
+        std::vector<VkImageMemoryBarrier2> imgBarriers;
+        for (uint32_t ii = 0; ii < srcImgInteract.size(); ++ii)
+        {
+            uint16_t imgId = imgIds[ii];
+            ResInteractDesc src = srcImgInteract[ii];
+            ResInteractDesc dst = dstImgInteract[ii];
+
+            const Image_vk& img = m_imageContainer.getData(imgId);
+
+            VkImageMemoryBarrier2 barrier = imageBarrier(
+                img.image, img.aspectMask, 
+                getAccessFlags(src.access), getImageLayout(src.layout), getPipelineStageFlags(src.stage),
+                getAccessFlags(dst.access), getImageLayout(dst.layout), getPipelineStageFlags(dst.stage));
+
+            imgBarriers.emplace_back(barrier);
+        }
+
+        std::vector<VkBufferMemoryBarrier2> bufBarriers;
+        for (uint32_t ii = 0; ii < srcBufInteract.size(); ++ii)
+        {
+            uint16_t bufId = bufIds[ii];
+            ResInteractDesc src = srcBufInteract[ii];
+            ResInteractDesc dst = dstBufInteract[ii];
+
+            const Buffer_vk& buf = m_bufferContainer.getData(bufId);
+
+            VkBufferMemoryBarrier2 barrier = bufferBarrier(
+                buf.buffer,
+                getAccessFlags(src.access), getPipelineStageFlags(src.stage),
+                getAccessFlags(dst.access), getPipelineStageFlags(dst.stage));
+
+            bufBarriers.emplace_back(barrier);
+        }
+
+        pipelineBarrier(m_cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, (uint32_t)bufBarriers.size(), bufBarriers.data(), (uint32_t)imgBarriers.size(), imgBarriers.data());
+    }
+
+    // those resource who wrote by current pass should be flushed
+    void RHIContext_vk::addFlushBarrier(uint16_t _passId)
+    {
+        const PassInfo_vk& passInfo = m_passContainer.getData(_passId);
+        
+        // image barriers
+        std::vector<uint16_t>        imgIds;
+        std::vector<ResInteractDesc> srcImgInteract;
+        std::vector<ResInteractDesc> dstImgInteract;
+
+        // buffer barriers
+        std::vector<uint16_t>        bufIds;
+        std::vector<ResInteractDesc> srcBufInteract;
+        std::vector<ResInteractDesc> dstBufInteract;
+
+        auto addImgBarrier = [&](const uint16_t _img, const ResInteractDesc& _src, const ResInteractDesc& _dst) {
+            if (_src != _dst)
+            {
+                imgIds.emplace_back(_img);
+                srcImgInteract.emplace_back(_src);
+                dstImgInteract.emplace_back(_dst);
+            }
+            };
+
+        auto addBufBarrier = [&](const uint16_t _img, const ResInteractDesc& _src, const ResInteractDesc& _dst) {
+            if (_src != _dst)
+            {
+                srcBufInteract.emplace_back(_src);
+                dstBufInteract.emplace_back(_dst);
+            }
+            };
+
+        if (kInvalidHandle != passInfo.writeDepth.first)
+        {
+            uint16_t depth = passInfo.writeDepth.first;
+            assert(m_currImgBarriers.exist(depth));
+            ResInteractDesc src = m_currImgBarriers.getData(depth);
+            ResInteractDesc dst = passInfo.writeDepth.second;
+
+            addImgBarrier(depth, src, dst);
+        }
+
+        for (uint32_t ii = 0; ii < passInfo.writeColors.size(); ++ii)
+        {
+            uint16_t id = passInfo.writeColors.getIdAt(ii);
+            assert(m_currImgBarriers.exist(id));
+            ResInteractDesc src = m_currImgBarriers.getData(id);
+            ResInteractDesc dst = passInfo.writeColors.getData(id);
+
+            addImgBarrier(id, src, dst);
+        }
+
+        // process and generate barriers
+        assert(srcImgInteract.size() == dstImgInteract.size());
+        assert(srcBufInteract.size() == dstBufInteract.size());
+
+        std::vector<VkImageMemoryBarrier2> imgBarriers;
+        for (uint32_t ii = 0; ii < srcImgInteract.size(); ++ii)
+        {
+            uint16_t imgId = imgIds[ii];
+            ResInteractDesc src = srcImgInteract[ii];
+            ResInteractDesc dst = dstImgInteract[ii];
+
+            const Image_vk& img = m_imageContainer.getData(imgId);
+
+            VkImageMemoryBarrier2 barrier = imageBarrier(
+                img.image, img.aspectMask,
+                getAccessFlags(src.access), getImageLayout(src.layout), getPipelineStageFlags(src.stage),
+                getAccessFlags(dst.access), getImageLayout(dst.layout), getPipelineStageFlags(dst.stage));
+
+            imgBarriers.emplace_back(barrier);
+        }
+
+        std::vector<VkBufferMemoryBarrier2> bufBarriers;
+        for (uint32_t ii = 0; ii < srcBufInteract.size(); ++ii)
+        {
+            uint16_t bufId = bufIds[ii];
+            ResInteractDesc src = srcBufInteract[ii];
+            ResInteractDesc dst = dstBufInteract[ii];
+
+            const Buffer_vk& buf = m_bufferContainer.getData(bufId);
+
+            VkBufferMemoryBarrier2 barrier = bufferBarrier(
+                buf.buffer,
+                getAccessFlags(src.access), getPipelineStageFlags(src.stage),
+                getAccessFlags(dst.access), getPipelineStageFlags(dst.stage));
+
+            bufBarriers.emplace_back(barrier);
+        }
+
+        pipelineBarrier(m_cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, (uint32_t)bufBarriers.size(), bufBarriers.data(), (uint32_t)imgBarriers.size(), imgBarriers.data());
+    }
+
     void RHIContext_vk::passRender(uint16_t _passId)
     {
         //const PassInfo_vk& passInfo = m_passInfos[_passId];
@@ -1103,17 +1318,17 @@ namespace vkz
         VkClearColorValue color = { 33.f / 255.f, 200.f / 255.f, 242.f / 255.f, 1 };
         VkClearDepthStencilValue depth = { 0.f, 0 };
 
-        std::vector<VkRenderingAttachmentInfo> colorAttachments(passInfo.writeColorIds.size());
-        for (int i = 0; i < passInfo.writeColorIds.size(); ++i)
+        std::vector<VkRenderingAttachmentInfo> colorAttachments(passInfo.writeColors.size());
+        for (int ii = 0; ii < passInfo.writeColors.size(); ++ii)
         {
-            const Image_vk& colorTarget = m_imageContainer.getData(passInfo.writeColorIds[i]);
+            const Image_vk& colorTarget = m_imageContainer.getData(passInfo.writeColors.getIdAt(ii));
 
-            colorAttachments[i].sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-            colorAttachments[i].clearValue.color = color;
-            colorAttachments[i].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-            colorAttachments[i].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-            colorAttachments[i].imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
-            colorAttachments[i].imageView = colorTarget.imageView;
+            colorAttachments[ii].sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+            colorAttachments[ii].clearValue.color = color;
+            colorAttachments[ii].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+            colorAttachments[ii].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+            colorAttachments[ii].imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+            colorAttachments[ii].imageView = colorTarget.imageView;
         }
 
         bool hasDepth = passInfo.writeDepthId != kInvalidHandle;

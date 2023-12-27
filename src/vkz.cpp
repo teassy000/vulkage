@@ -370,6 +370,7 @@ namespace vkz
         info.lifetime = _lifetime;
         info.bpp = getBytesPerPixel(_desc.format);
         
+        info.aspectFlags = ImageAspectFlagBits::color;
         // TODO: image type
         // TODO: image view type
 
@@ -419,6 +420,7 @@ namespace vkz
         info.format = ResourceFormat::undefined;
         info.arrayLayers = _desc.arrayLayers;
         info.usage = ImageUsageFlagBits::color_attachment | _desc.usage;
+        info.aspectFlags = ImageAspectFlagBits::color;
         info.lifetime = _lifetime;
         info.bpp = getBytesPerPixel(_desc.format);
 
@@ -471,6 +473,7 @@ namespace vkz
         info.format = ResourceFormat::undefined;
         info.arrayLayers = _desc.arrayLayers;
         info.usage = ImageUsageFlagBits::depth_stencil_attachment | _desc.usage;
+        info.aspectFlags = ImageAspectFlagBits::depth;
         info.lifetime = _lifetime;
         info.bpp = getBytesPerPixel(_desc.format);
 
