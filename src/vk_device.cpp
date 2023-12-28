@@ -101,8 +101,6 @@ namespace vkz
         return Instance;
     }
 
-
-
     uint32_t getGraphicsFamilyIndex(VkPhysicalDevice physicalDevice)
     {
         uint32_t propertyCount = 0;

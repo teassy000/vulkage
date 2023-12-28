@@ -257,7 +257,8 @@ void triangle()
     rt.depth = 1;
     rt.arrayLayers = 1;
     rt.mips = 1;
-    rt.usage = vkz::ImageUsageFlagBits::color_attachment;
+    rt.usage = vkz::ImageUsageFlagBits::color_attachment
+        | vkz::ImageUsageFlagBits::transfer_src;
 
     vkz::RenderTargetHandle color = vkz::registRenderTarget("color", rt);
 

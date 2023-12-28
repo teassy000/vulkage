@@ -125,7 +125,7 @@ namespace vkz
         void exeCompute(const uint16_t _passId);
         void exeCopy(const uint16_t _passId);
 
-        void copyToSwapchain();
+        void copyToSwapchain(uint32_t _swapImgIdx);
 
     private:
         UniDataContainer<uint16_t, Buffer_vk> m_bufferContainer;
@@ -156,6 +156,8 @@ namespace vkz
         VkQueue m_queue;
         VkCommandPool   m_cmdPool;
         VkCommandBuffer m_cmdBuffer;
+
+        uint32_t m_swapChainImageIndex{0};
 
         VkSemaphore m_acquirSemaphore;
         VkSemaphore m_releaseSemaphore;

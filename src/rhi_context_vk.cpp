@@ -819,6 +819,7 @@ namespace vkz
 
             VK_CHECK(vkBeginCommandBuffer(m_cmdBuffer, &beginInfo));
 
+            // render passes
             for (size_t ii = 0; ii < m_passContainer.size(); ++ii)
             {
                 uint16_t passId = m_passContainer.getIdAt(ii);
@@ -828,11 +829,12 @@ namespace vkz
             }
 
             // copy to swapchain
-            // 
+            copyToSwapchain(imageIndex);
 
             VK_CHECK(vkEndCommandBuffer(m_cmdBuffer));
             
             
+            // submit
             VkPipelineStageFlags submitStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
 
             VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
@@ -1122,7 +1124,7 @@ namespace vkz
     void RHIContext_vk::addBarriers(uint16_t _passId, bool _flush /* = false */)
     {
         const PassInfo_vk& passInfo = m_passContainer.getData(_passId);
-        
+
         // image barriers
         std::vector<uint16_t>        imgIds;
         std::vector<ResInteractDesc> srcImgInteract;
@@ -1134,21 +1136,21 @@ namespace vkz
         std::vector<ResInteractDesc> dstBufInteract;
 
         auto addImgBarrier = [&](const uint16_t _img, const ResInteractDesc& _src, const ResInteractDesc& _dst) {
-                if (_src != _dst)
-                {
-                    imgIds.emplace_back(_img);
-                    srcImgInteract.emplace_back(_src);
-                    dstImgInteract.emplace_back(_dst);
-                }
+            if (_src != _dst)
+            {
+                imgIds.emplace_back(_img);
+                srcImgInteract.emplace_back(_src);
+                dstImgInteract.emplace_back(_dst);
+            }
             };
 
         auto addBufBarrier = [&](const uint16_t _buf, const ResInteractDesc& _src, const ResInteractDesc& _dst) {
-                if (_src != _dst)
-                {
-                    bufIds.emplace_back(_buf);
-                    srcBufInteract.emplace_back(_src);
-                    dstBufInteract.emplace_back(_dst);
-                }
+            if (_src != _dst)
+            {
+                bufIds.emplace_back(_buf);
+                srcBufInteract.emplace_back(_src);
+                dstBufInteract.emplace_back(_dst);
+            }
             };
 
         // depth
@@ -1226,6 +1228,8 @@ namespace vkz
                 { getAccessFlags(src.access), getImageLayout(src.layout), getPipelineStageFlags(src.stage) },
                 { getAccessFlags(dst.access), getImageLayout(dst.layout), getPipelineStageFlags(dst.stage) }
             );
+
+            m_imgBarrierStatus.updateData(imgId, dst);
         }
 
         // add buffer barriers
@@ -1242,6 +1246,9 @@ namespace vkz
                 { getAccessFlags(src.access), getPipelineStageFlags(src.stage) },
                 { getAccessFlags(dst.access), getPipelineStageFlags(dst.stage) }
             );
+
+            m_bufBarrierStatus.updateData(bufId, dst);
+
         }
     }
 
@@ -1339,19 +1346,63 @@ namespace vkz
         assert(0);
     }
 
-    void RHIContext_vk::copyToSwapchain()
+    void RHIContext_vk::copyToSwapchain(uint32_t _swapImgIdx)
     {
+
         // add swapchain barrier
-        {
-            
-        }
+        // img to present
+        const Image_vk& presentImg = m_imageContainer.getData(m_brief.presentImageId);
+
+        const ResInteractDesc& src = m_imgBarrierStatus.getData(m_brief.presentImageId);
+
+        m_barrierDispatcher.addImgBarrier(
+            presentImg.image, presentImg.aspectMask,
+            { getAccessFlags(src.access), getImageLayout(src.layout), getPipelineStageFlags(src.stage) },
+            { VK_ACCESS_TRANSFER_READ_BIT, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT }
+        );
+
+        // update the image barrier status
+        ResInteractDesc nextStatus{};
+        nextStatus.access = AccessFlagBits::transfer_read;
+        nextStatus.layout = ImageLayout::transfer_src_optimal;
+        nextStatus.stage = PipelineStageFlagBits::transfer;
+        m_imgBarrierStatus.updateData(m_brief.presentImageId, nextStatus);
         
-        // set barriers lass pass
+        // swapchain image
+        const VkImage& swapImg = m_swapchain.images[_swapImgIdx];
+
+        m_barrierDispatcher.addImgBarrier(
+            swapImg, VK_IMAGE_ASPECT_COLOR_BIT,
+            { 0, VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT },
+            { VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT }
+        );
+
         m_barrierDispatcher.dispatch(m_cmdBuffer);
+        
 
         // copy to swapchain
+        VkImageCopy copyRegion = {};
+        copyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        copyRegion.srcSubresource.layerCount = 1;
+        copyRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        copyRegion.dstSubresource.layerCount = 1;
+        copyRegion.extent = { m_swapchain.width, m_swapchain.height, 1 };
 
+        vkCmdCopyImage(
+            m_cmdBuffer,
+            presentImg.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            swapImg, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            1, &copyRegion
+        );
 
+        // add present barrier
+        m_barrierDispatcher.addImgBarrier(
+            swapImg, VK_IMAGE_ASPECT_COLOR_BIT,
+            { VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT },
+            { 0, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT }
+        );
+
+        m_barrierDispatcher.dispatch(m_cmdBuffer);
     }
 
     void BarrierDispatcher::addBufBarrier(const VkBuffer _buf, const BarrierState_vk& _src, const BarrierState_vk& _dst)
@@ -1410,8 +1461,7 @@ namespace vkz
         else
         {
             assert(_aspect == m_imgAspects[idx]);
-            assert(_src.imgLayout == m_srcImgBarriers[idx].imgLayout); // let's not modify the layout between passes
-            assert(_dst.imgLayout == m_dstImgBarriers[idx].imgLayout);
+            assert(_src.imgLayout == m_srcImgBarriers[idx].imgLayout); // there must be something wrong if a image has different src layout between two passes
 
             // update the exist one
             BarrierState_vk& src = m_srcImgBarriers[idx];
@@ -1421,6 +1471,7 @@ namespace vkz
             BarrierState_vk& dst = m_dstImgBarriers[idx];
             dst.accessMask |= _dst.accessMask;
             dst.stageMask |= _dst.stageMask;
+            dst.imgLayout = _dst.imgLayout; // use the new destinate layout instead
         }
     }
 

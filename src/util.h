@@ -68,6 +68,15 @@ namespace vkz
             return idx;
         }
 
+        size_t updateData(IdType _id, const DataType& _data) {
+            size_t idx = getElemIndex(ids, _id);
+            if (idx != kInvalidIndex) {
+                indexToData[idx] = _data;
+            }
+
+            return idx;
+        }
+
         const size_t getIndex(IdType _id) const {
             return getElemIndex(ids, _id);
         }

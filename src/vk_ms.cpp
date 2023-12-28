@@ -320,7 +320,7 @@ int main(int argc, const char** argv)
         return 1;
     }
 
-    static const bool useDemo = true;
+    static const bool useDemo = false;
     if (useDemo)
     {
         DemoMain();
