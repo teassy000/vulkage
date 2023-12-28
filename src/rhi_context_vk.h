@@ -33,21 +33,6 @@ namespace vkz
         VkCompareOp depthCompOp{ VK_COMPARE_OP_GREATER };
     };
 
-
-    struct PassInfo_vk : PassDesc
-    {
-        VkPipeline pipeline{};
-
-        uint16_t passId{ kInvalidHandle };
-        uint16_t writeDepthId{ kInvalidHandle };
-
-        std::pair<uint16_t, ResInteractDesc> writeDepth;
-        UniDataContainer< uint16_t, ResInteractDesc> writeColors;
-        UniDataContainer< uint16_t, ResInteractDesc> readImages;
-        UniDataContainer< uint16_t, ResInteractDesc> readBuffers;
-        UniDataContainer< uint16_t, ResInteractDesc> writeBuffers;
-    };
-
     struct BarrierState_vk
     {
         VkAccessFlags           accessMask;
@@ -59,7 +44,7 @@ namespace vkz
             , imgLayout(VK_IMAGE_LAYOUT_UNDEFINED)
             , stageMask(0)
         {}
-        
+
         // image
         inline BarrierState_vk(const VkAccessFlags _accessMask, const VkImageLayout _imgLayout, const VkPipelineStageFlags _stageMask)
             : accessMask(_accessMask)
@@ -73,13 +58,38 @@ namespace vkz
             , imgLayout(VK_IMAGE_LAYOUT_UNDEFINED)
             , stageMask(_stageMask)
         {}
+
+        inline bool operator == (const BarrierState_vk& rhs) const {
+            return accessMask == rhs.accessMask &&
+                imgLayout == rhs.imgLayout &&
+                stageMask == rhs.stageMask;
+        }
+
+        inline bool operator != (const BarrierState_vk& rhs) const {
+            return !(*this == rhs);
+        }
     };
+
+    struct PassInfo_vk : PassDesc
+    {
+        VkPipeline pipeline{};
+
+        uint16_t passId{ kInvalidHandle };
+        uint16_t writeDepthId{ kInvalidHandle };
+
+        std::pair<uint16_t, BarrierState_vk> writeDepth;
+        UniDataContainer< uint16_t, BarrierState_vk> writeColors;
+        UniDataContainer< uint16_t, BarrierState_vk> readImages;
+        UniDataContainer< uint16_t, BarrierState_vk> readBuffers;
+        UniDataContainer< uint16_t, BarrierState_vk> writeBuffers;
+    };
+
 
     class BarrierDispatcher
     {
     public:
-        void addBufBarrier(const VkBuffer _buf, const BarrierState_vk& _src, const BarrierState_vk& _dst);
-        void addImgBarrier(const VkImage _img, VkImageAspectFlags _aspect, const BarrierState_vk& _src, const BarrierState_vk& _dst);
+        BarrierState_vk addBufBarrier(const VkBuffer _buf, const BarrierState_vk& _src, const BarrierState_vk& _dst);
+        BarrierState_vk addImgBarrier(const VkImage _img, VkImageAspectFlags _aspect, const BarrierState_vk& _src, const BarrierState_vk& _dst);
         
         void dispatch(const VkCommandBuffer& _cmdBuffer);
 
@@ -118,7 +128,8 @@ namespace vkz
         void createPhysicalDevice();
 
         // barriers
-        void addBarriers(uint16_t _passId, bool _flush = false);
+        void createBarriers(uint16_t _passId, bool _flush = false);
+        void createBarriers2(uint16_t _passId, bool _flush = false);
 
         void exeutePass(const uint16_t _passId);
         void exeGraphic(const uint16_t _passId);
@@ -136,9 +147,8 @@ namespace vkz
 
         std::vector<std::vector<uint16_t>> m_programShaderIds;
 
-        // current state for resources, use resource id as id
-        UniDataContainer< uint16_t, ResInteractDesc> m_bufBarrierStatus;
-        UniDataContainer< uint16_t, ResInteractDesc> m_imgBarrierStatus;
+        UniDataContainer< uint16_t, BarrierState_vk> m_bufBarrierStates;
+        UniDataContainer< uint16_t, BarrierState_vk> m_imgBarrierStates;
 
         RHIBrief m_brief;
 
