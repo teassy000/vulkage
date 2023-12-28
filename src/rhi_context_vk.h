@@ -34,13 +34,6 @@ namespace vkz
     };
 
 
-    struct BarrierState_vk
-    {
-        VkAccessFlags           accessMask;
-        VkPipelineStageFlags    stageMask;
-        VkImageLayout           imgLayout;
-    };
-
     struct PassInfo_vk : PassDesc
     {
         VkPipeline pipeline{};
@@ -51,7 +44,56 @@ namespace vkz
         std::pair<uint16_t, ResInteractDesc> writeDepth;
         UniDataContainer< uint16_t, ResInteractDesc> writeColors;
         UniDataContainer< uint16_t, ResInteractDesc> readImages;
-        UniDataContainer< uint16_t, ResInteractDesc> rwBuffer;
+        UniDataContainer< uint16_t, ResInteractDesc> readBuffers;
+        UniDataContainer< uint16_t, ResInteractDesc> writeBuffers;
+    };
+
+    struct BarrierState_vk
+    {
+        VkAccessFlags           accessMask;
+        VkImageLayout           imgLayout;
+        VkPipelineStageFlags    stageMask;
+
+        inline BarrierState_vk()
+            : accessMask(0)
+            , imgLayout(VK_IMAGE_LAYOUT_UNDEFINED)
+            , stageMask(0)
+        {}
+        
+        // image
+        inline BarrierState_vk(const VkAccessFlags _accessMask, const VkImageLayout _imgLayout, const VkPipelineStageFlags _stageMask)
+            : accessMask(_accessMask)
+            , imgLayout(_imgLayout)
+            , stageMask(_stageMask)
+        {}
+
+        // buffer
+        inline BarrierState_vk(const VkAccessFlags _accessMask, const VkPipelineStageFlags _stageMask)
+            : accessMask(_accessMask)
+            , imgLayout(VK_IMAGE_LAYOUT_UNDEFINED)
+            , stageMask(_stageMask)
+        {}
+    };
+
+    class BarrierDispatcher
+    {
+    public:
+        void addBufBarrier(const VkBuffer _buf, const BarrierState_vk& _src, const BarrierState_vk& _dst);
+        void addImgBarrier(const VkImage _img, VkImageAspectFlags _aspect, const BarrierState_vk& _src, const BarrierState_vk& _dst);
+        
+        void dispatch(const VkCommandBuffer& _cmdBuffer);
+
+    private:
+        void clear();
+
+        std::vector<VkImage> m_imgs;
+        std::vector<ImageAspectFlags> m_imgAspects;
+        std::vector<BarrierState_vk> m_srcImgBarriers;
+        std::vector<BarrierState_vk> m_dstImgBarriers;
+        
+        std::vector<VkBuffer> m_bufs;
+        std::vector<BarrierState_vk> m_srcBufBarriers;
+        std::vector<BarrierState_vk> m_dstBufBarriers;
     };
 
     class RHIContext_vk : public RHIContext
@@ -69,16 +111,21 @@ namespace vkz
         void createPass(MemoryReader& _reader) override;
         void createImage(MemoryReader& _reader) override;
         void createBuffer(MemoryReader& _reader) override;
+        void setBrief(MemoryReader& _reader) override;
 
     private:
         void createInstance();
         void createPhysicalDevice();
 
         // barriers
-        void addInvalidateBarrier(uint16_t _passId);
-        void addFlushBarrier(uint16_t _passId);
+        void addBarriers(uint16_t _passId, bool _flush = false);
 
-        void passRender(uint16_t _passId);
+        void exeutePass(const uint16_t _passId);
+        void exeGraphic(const uint16_t _passId);
+        void exeCompute(const uint16_t _passId);
+        void exeCopy(const uint16_t _passId);
+
+        void copyToSwapchain();
 
     private:
         UniDataContainer<uint16_t, Buffer_vk> m_bufferContainer;
@@ -90,8 +137,10 @@ namespace vkz
         std::vector<std::vector<uint16_t>> m_programShaderIds;
 
         // current state for resources, use resource id as id
-        UniDataContainer< uint16_t, ResInteractDesc> m_currBufBarriers;
-        UniDataContainer< uint16_t, ResInteractDesc> m_currImgBarriers;
+        UniDataContainer< uint16_t, ResInteractDesc> m_bufBarrierStatus;
+        UniDataContainer< uint16_t, ResInteractDesc> m_imgBarrierStatus;
+
+        RHIBrief m_brief;
 
         // glfw data
         GLFWwindow* m_pWindow;
@@ -123,6 +172,7 @@ namespace vkz
         // support
         bool m_supportMeshShading{ false };
 
-
+        // barrier dispatcher
+        BarrierDispatcher m_barrierDispatcher;
     };
 } // namespace vkz

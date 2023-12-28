@@ -86,7 +86,7 @@ namespace vkz
     void setMultiFrameRenderTarget(RenderTargetHandleList _rtList);
     void setMultiFrameDepthStencil(DepthStencilHandleList _dsList);
 
-    void setResultRenderTarget(RenderTargetHandle _rt);
+    void setPresentImage(RenderTargetHandle _rt);
 
     // meomory related
     const Memory* alloc(uint32_t _sz);

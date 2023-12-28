@@ -41,10 +41,13 @@ namespace vkz
             case RHIContextOpMagic::create_image:
                 createImage(reader);
                 break;
+            case RHIContextOpMagic::set_brief:
+                setBrief(reader);
+                break;
                 // End
             case RHIContextOpMagic::invalid_magic:
                 message(DebugMessageType::warning, "invalid magic tag, data incorrect!");
-            case RHIContextOpMagic::End:
+            case RHIContextOpMagic::end:
             default:
                 finished = true;
                 break;

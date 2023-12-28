@@ -161,7 +161,7 @@ namespace vkz
 
         void setMultiFrameResource(const Memory* _mem, const uint16_t _resCount, MagicTag _tag);
         void setMutiFrameResource(const uint16_t* _reses, const uint16_t _resCount, MagicTag _tag); // do not alias atomically
-        void setResultRenderTarget(RenderTargetHandle _rt);
+        void setPresentImage(RenderTargetHandle _rt);
 
         void init();
         void loop();
@@ -376,7 +376,7 @@ namespace vkz
 
         info.initialState.access = AccessFlagBits::none;
         info.initialState.layout = ImageLayout::undefined; 
-        info.initialState.stage = PipelineStageFlagBits::host;
+        info.initialState.stage = PipelineStageFlagBits::none;
 
         write(m_fgMemWriter, info);
 
@@ -427,9 +427,9 @@ namespace vkz
         // TODO: image type
         // TODO: image view type
 
-        info.initialState.access = AccessFlagBits::shader_write;
+        info.initialState.access = AccessFlagBits::none;
         info.initialState.layout = ImageLayout::undefined;
-        info.initialState.stage = PipelineStageFlagBits::host;
+        info.initialState.stage = PipelineStageFlagBits::none;
 
         write(m_fgMemWriter, info);
 
@@ -479,9 +479,9 @@ namespace vkz
 
         // TODO: image type
         // TODO: image view type
-        info.initialState.access = AccessFlagBits::shader_write;
+        info.initialState.access = AccessFlagBits::none;
         info.initialState.layout = ImageLayout::undefined;
-        info.initialState.stage = PipelineStageFlagBits::host;
+        info.initialState.stage = PipelineStageFlagBits::none;
 
         write(m_fgMemWriter, info);
 
@@ -619,7 +619,7 @@ namespace vkz
         write(m_fgMemWriter, MagicTag::magic_body_end);
     }
 
-    void Context::setResultRenderTarget(RenderTargetHandle _rt)
+    void Context::setPresentImage(RenderTargetHandle _rt)
     {
         uint32_t magic = static_cast<uint32_t>(MagicTag::set_present);
         write(m_fgMemWriter, magic);
@@ -1110,9 +1110,9 @@ namespace vkz
         release(mem);
     }
 
-    void setResultRenderTarget(RenderTargetHandle _rt)
+    void setPresentImage(RenderTargetHandle _rt)
     {
-        s_ctx->setResultRenderTarget(_rt);
+        s_ctx->setPresentImage(_rt);
     }
 
     const Memory* alloc(uint32_t _sz)

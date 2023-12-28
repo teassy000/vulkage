@@ -20,7 +20,9 @@ namespace vkz
         create_program,
         create_shader,
 
-        End,
+        set_brief,
+
+        end,
     };
 
 
@@ -38,6 +40,7 @@ namespace vkz
         virtual void createPass(MemoryReader& reader) = 0;
         virtual void createImage(MemoryReader& reader) = 0;
         virtual void createBuffer(MemoryReader& reader) = 0;
+        virtual void setBrief(MemoryReader& reader) = 0;
     };
 
     class RHIContext : public RHIContextI
@@ -73,6 +76,7 @@ namespace vkz
         void createPass(MemoryReader& reader) override {};
         void createImage(MemoryReader& reader) override {};
         void createBuffer(MemoryReader& reader) override {};
+        void setBrief(MemoryReader& reader) override {};
 
     private:
         AllocatorI*     m_pAllocator;

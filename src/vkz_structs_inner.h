@@ -58,7 +58,16 @@ namespace vkz
         uint16_t    writeColorNum{ 0 };
         
         uint16_t    readImageNum{ 0 };
-        uint16_t    rwBufferNum{ 0 };
+
+        uint16_t    readBufferNum{ 0 };
+        uint32_t    writeBufferNum{ 0 };
+    };
+
+
+    struct RHIBrief
+    {
+        uint16_t finalPassId{ kInvalidHandle };
+        uint16_t presentImageId{ kInvalidHandle };
     };
 } // namespace vkz
 

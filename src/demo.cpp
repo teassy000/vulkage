@@ -32,7 +32,7 @@ void right()
     outputDesc.arrayLayers = 1;
     outputDesc.mips = 1;
     vkz::RenderTargetHandle output = vkz::registRenderTarget("output", outputDesc);
-    vkz::setResultRenderTarget(output);
+    vkz::setPresentImage(output);
 
     vkz::ImageDesc pyramidDesc;
     pyramidDesc.format = vkz::ResourceFormat::r32_sfloat;
@@ -291,7 +291,7 @@ void triangle()
         vkz::ResInteractDesc interact = {};
         interact.binding = 0;
         interact.stage = vkz::PipelineStageFlagBits::vertex_shader;
-        interact.access = vkz::AccessFlagBits::vertex_attribute_read;
+        interact.access = vkz::AccessFlagBits::shader_read;
         vkz::passReadBuffer(pass, dummyBuf, interact);
     }
 
@@ -304,7 +304,7 @@ void triangle()
         vkz::passWriteRT(pass, color, interact);
     }
 
-    vkz::setResultRenderTarget(color);
+    vkz::setPresentImage(color);
 
     vkz::loop();
 

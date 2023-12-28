@@ -27,7 +27,7 @@ namespace vkz
     enum class PassExeQueue : uint16_t
     {
         graphics = 0,
-        compute = 1,
+        compute,
         copy,
         count,
     };
@@ -352,8 +352,6 @@ namespace vkz
         ResourceFormat  format{ ResourceFormat::undefined };
     };
 
-
-
     struct PassDesc
     {
         uint16_t        programId{kInvalidHandle};
@@ -368,6 +366,5 @@ namespace vkz
         void*           pushConstants{nullptr};
         PipelineConfig  pipelineConfig{};
     };
-
 } // namespace vkz
 #endif // __VKZ_STRUCTS_H__

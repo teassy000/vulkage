@@ -1419,7 +1419,9 @@ namespace vkz
         std::vector<std::pair<DepthStencilHandle, ResInteractDesc>> writeDSList(m_sortedPass.size());
         std::vector<UniDataContainer< RenderTargetHandle, ResInteractDesc> > writeRTList(m_sortedPass.size());
         std::vector<UniDataContainer< TextureHandle, ResInteractDesc> > readImageList(m_sortedPass.size());
-        std::vector<UniDataContainer< BufferHandle, ResInteractDesc> > rwBufferList(m_sortedPass.size());
+
+        std::vector<UniDataContainer< BufferHandle, ResInteractDesc> > readBufferList(m_sortedPass.size());
+        std::vector<UniDataContainer< BufferHandle, ResInteractDesc> > writeBufferList(m_sortedPass.size());
         
         for (PassHandle pass : m_sortedPass)
         {
@@ -1431,13 +1433,15 @@ namespace vkz
             std::pair<DepthStencilHandle, ResInteractDesc>& writeDS = writeDSList[passIdx];
             UniDataContainer< RenderTargetHandle, ResInteractDesc>& writeRT = writeRTList[passIdx];
             UniDataContainer< TextureHandle, ResInteractDesc>& rImage = readImageList[passIdx];
-            UniDataContainer< BufferHandle, ResInteractDesc>& rwBuffer = rwBufferList[passIdx];
 
+            UniDataContainer< BufferHandle, ResInteractDesc>& rBuffer = readBufferList[passIdx];
+            UniDataContainer< BufferHandle, ResInteractDesc>& wBuffer = writeBufferList[passIdx];
             {
                 writeDS.first = { kInvalidHandle };
                 writeRT.clear();
                 rImage.clear();
-                rwBuffer.clear();
+                rBuffer.clear();
+                wBuffer.clear();
 
                 const PassRWResource& rwRes = m_pass_rw_res[passIdx];
                 // set write resources
@@ -1455,7 +1459,7 @@ namespace vkz
                     }
                     else if (isBuffer(writeRes))
                     {
-                        rwBuffer.addData({ writeRes.id }, rwRes.writeInteracts.getData(writeRes));
+                        wBuffer.addData({ writeRes.id }, rwRes.writeInteracts.getData(writeRes));
                     }
                     else if (isTexture(writeRes))
                     {
@@ -1464,42 +1468,37 @@ namespace vkz
                 }
 
                 // set read resources
-                for (const CombinedResID writeRes : rwRes.readCombinedRes)
+                for (const CombinedResID readRes : rwRes.readCombinedRes)
                 {
-                    if (  isRenderTarget(writeRes) 
-                        || isDepthStencil(writeRes)
-                        || isTexture(writeRes))
+                    if (  isRenderTarget(readRes) 
+                        || isDepthStencil(readRes)
+                        || isTexture(readRes))
                     {
-                        rImage.addData({ writeRes.id }, rwRes.readInteracts.getData(writeRes));
+                        rImage.addData({ readRes.id }, rwRes.readInteracts.getData(readRes));
                     }
-                    else if (isBuffer(writeRes))
+                    else if (isBuffer(readRes))
                     {
-                        // should not exist in write buffer
-                        // if so, r/w same resource in same pass would cause a cycle.
-                        assert(!rwBuffer.exist({ writeRes.id }));
-                        rwBuffer.addData({ writeRes.id }, rwRes.readInteracts.getData(writeRes));
+                        rBuffer.addData({ readRes.id }, rwRes.readInteracts.getData(readRes));
                     }
                 }
             }
 
-
+            // create pass info
             PassCreateInfo createInfo{};
             createInfo.passId = pass.id;
             createInfo.programId = regInfo.programId;
             createInfo.queue = regInfo.queue;
             createInfo.vertexBindingNum = regInfo.vertexBindingNum;
             createInfo.vertexAttributeNum = regInfo.vertexAttributeNum;
-            createInfo.vertexBindingInfos = nullptr; // no need this any more
-            createInfo.vertexAttributeInfos = nullptr; // no need this any more
             
             createInfo.pushConstantNum = regInfo.pushConstantNum;
-            createInfo.pushConstants = nullptr;
             createInfo.pipelineConfig = regInfo.pipelineConfig;
 
             createInfo.writeDepthId = writeDS.first.id;
             createInfo.writeColorNum = (uint16_t)writeRT.size();
             createInfo.readImageNum = (uint16_t)rImage.size();
-            createInfo.rwBufferNum = (uint16_t)rwBuffer.size();
+            createInfo.readBufferNum = (uint16_t)rBuffer.size();
+            createInfo.writeBufferNum = (uint16_t)wBuffer.size();
 
             passCreateInfo.emplace_back(createInfo);
 
@@ -1553,12 +1552,14 @@ namespace vkz
             // pass read/write resources and it's interaction
             write(&m_rhiMemWriter, (void*)writeRTList[ii].getIds(), (int32_t)(createInfo.writeColorNum * sizeof(RenderTargetHandle)));
             write(&m_rhiMemWriter, (void*)readImageList[ii].getIds(), (int32_t)(createInfo.readImageNum * sizeof(TextureHandle)));
-            write(&m_rhiMemWriter, (void*)rwBufferList[ii].getIds(), (int32_t)(createInfo.rwBufferNum * sizeof(BufferHandle)));
+            write(&m_rhiMemWriter, (void*)readBufferList[ii].getIds(), (int32_t)(createInfo.readBufferNum * sizeof(BufferHandle)));
+            write(&m_rhiMemWriter, (void*)writeBufferList[ii].getIds(), (int32_t)(createInfo.writeBufferNum * sizeof(BufferHandle)));
 
             write(&m_rhiMemWriter, writeDSList[ii].second);
             write(&m_rhiMemWriter, (void*)writeRTList[ii].getData(), (int32_t)(createInfo.writeColorNum * sizeof(ResInteractDesc)));
             write(&m_rhiMemWriter, (void*)readImageList[ii].getData(), (int32_t)(createInfo.readImageNum * sizeof(ResInteractDesc)));
-            write(&m_rhiMemWriter, (void*)rwBufferList[ii].getData(), (int32_t)(createInfo.rwBufferNum * sizeof(ResInteractDesc)));
+            write(&m_rhiMemWriter, (void*)readBufferList[ii].getData(), (int32_t)(createInfo.readBufferNum * sizeof(ResInteractDesc)));
+            write(&m_rhiMemWriter, (void*)writeBufferList[ii].getData(), (int32_t)(createInfo.writeBufferNum * sizeof(ResInteractDesc)));
 
             write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end);
         }
@@ -1571,8 +1572,19 @@ namespace vkz
         createShaders();
         createPasses();
 
+        // set brief
+        {
+            write(&m_rhiMemWriter, RHIContextOpMagic::set_brief);
+            RHIBrief brief;
+            brief.finalPassId = m_finalPass.id;
+            brief.presentImageId = m_resultRT.id;
+
+            write(&m_rhiMemWriter, brief);
+            write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end);
+        }
+
         // end mem tag
-        RHIContextOpMagic magic{ RHIContextOpMagic::End };
+        RHIContextOpMagic magic{ RHIContextOpMagic::end };
         write(&m_rhiMemWriter, magic);
     }
 
