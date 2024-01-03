@@ -1,5 +1,5 @@
 #include "vkz.h"
-
+/*
 void right()
 {
     vkz::init();
@@ -246,21 +246,21 @@ void wrong()
 
     vkz::shutdown();
 }
-
+*/
 void triangle()
 {
     vkz::init();
 
-    vkz::ImageDesc rt;
-    rt.width = 2560;
-    rt.height = 1440;
-    rt.depth = 1;
-    rt.arrayLayers = 1;
-    rt.mips = 1;
-    rt.usage = vkz::ImageUsageFlagBits::color_attachment
+    vkz::ImageDesc rtDesc;
+    rtDesc.width = 2560;
+    rtDesc.height = 1440;
+    rtDesc.depth = 1;
+    rtDesc.arrayLayers = 1;
+    rtDesc.mips = 1;
+    rtDesc.usage = vkz::ImageUsageFlagBits::color_attachment
         | vkz::ImageUsageFlagBits::transfer_src;
 
-    vkz::RenderTargetHandle color = vkz::registRenderTarget("color", rt);
+    vkz::ImageHandle color = vkz::registRenderTarget("color", rtDesc);
 
 
     vkz::ShaderHandle vs = vkz::registShader("color_vert_shader", "shaders/triangle.vert.spv");
@@ -282,12 +282,6 @@ void triangle()
 
     vkz::PassHandle pass = vkz::registPass("result", result);
 
-    // TODO:
-    // set r/w resources
-    // set shaders/program
-    // set vertex/index buffer ( if has
-    // set viewport/scissor
-
     {
         vkz::ResInteractDesc interact = {};
         interact.binding = 0;
@@ -302,7 +296,7 @@ void triangle()
         interact.stage = vkz::PipelineStageFlagBits::color_attachment_output;
         interact.access = vkz::AccessFlagBits::none;
         interact.layout = vkz::ImageLayout::color_attachment_optimal;
-        vkz::passWriteRT(pass, color, interact);
+        vkz::passWriteTexture(pass, color, interact);
     }
 
     vkz::setPresentImage(color);

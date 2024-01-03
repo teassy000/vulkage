@@ -27,7 +27,7 @@ namespace vkz {
             : "error";
 
         char out[4096];
-        snprintf(out, COUNTOF(out), "[vkz::%s]: %s", ts, str);
+        snprintf(out, COUNTOF(out), "[vkz::%s]: %s\n", ts, str);
 
         printf("%s", out);
 

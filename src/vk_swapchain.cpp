@@ -84,7 +84,7 @@ namespace vkz
 
         VkSwapchainCreateInfoKHR createInfo = { VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
         createInfo.surface = surface;
-        createInfo.minImageCount = std::max(3u, surfaceCaps.minImageCount);
+        createInfo.minImageCount = std::max(4u, surfaceCaps.minImageCount);
         createInfo.imageFormat = format;
         createInfo.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
         createInfo.imageExtent.width = width;

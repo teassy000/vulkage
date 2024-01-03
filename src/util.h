@@ -49,13 +49,6 @@ namespace vkz
             return getElemIndex(ids, _id) != kInvalidIndex;
         }
 
-        void setValueAt(size_t _idx, const IdType _id, const DataType& _data) {
-            assert(_idx < ids.size());
-
-            ids[_idx] = _id;
-            indexToData[_idx] = _data;
-        }
-
         size_t addData(IdType _id, const DataType& _data) {
             size_t idx = getElemIndex(ids, _id);
             if (idx == kInvalidIndex) {
@@ -77,11 +70,18 @@ namespace vkz
             return idx;
         }
 
+        DataType& getDataRef(IdType _id) {
+            size_t index = getElemIndex(ids, _id);
+            assert(index != kInvalidIndex);
+
+            return indexToData[index];
+        }
+
         const size_t getIndex(IdType _id) const {
             return getElemIndex(ids, _id);
         }
 
-        const DataType& getData(IdType _id) const {
+        const DataType& getIdToData(IdType _id) const {
             size_t index = getElemIndex(ids, _id);
             assert(index != kInvalidIndex);
 
@@ -98,11 +98,11 @@ namespace vkz
             return indexToData[_idx];
         }
 
-        const IdType* getIds() const {
+        const IdType* getIdPtr() const {
             return ids.data();
         }
 
-        const DataType* getData() const {
+        const DataType* getDataPtr() const {
             return indexToData.data();
         }
     private:

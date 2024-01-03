@@ -15,3 +15,13 @@ constexpr unsigned int kInitialFrameGraphMemSize = 16 * 1024; // 16k
 
 constexpr unsigned int kMaxPathLen = 256;
 constexpr unsigned int kMaxNumOfStageInPorgram = 6;
+
+constexpr unsigned int kMaxNumOfVertexAttribute = 16;
+constexpr unsigned int kMaxNumOfVertexBinding = 16;
+
+constexpr unsigned int kMaxNumOfDescriptorSet = 16;
+constexpr unsigned int kMaxNumOfDescriptorSetLayout = 16;
+
+constexpr unsigned int kMaxNumOfPushConstant = 16;
+
+constexpr unsigned int kMaxNumOfShaderInProgram = 6;

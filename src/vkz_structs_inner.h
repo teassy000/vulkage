@@ -2,9 +2,46 @@
 #define __VKZ_STRUCTS_INNER_H__
 
 #include "vkz_structs.h"
+#include "config.h"
 
 namespace vkz
 {
+    struct ImageMetaData : public ImageDesc
+    {
+        ImageMetaData(const ImageDesc& desc) : ImageDesc(desc) {}
+
+        uint16_t    imgId{ kInvalidHandle };
+
+        uint16_t    bpp{ 4u };
+
+        ResourceLifetime    lifetime{ ResourceLifetime::transition };
+        ImageAspectFlags    aspectFlags{ 0 };
+    };
+
+    struct BufferMetaData : public BufferDesc
+    {
+        BufferMetaData(const BufferDesc& desc) : BufferDesc(desc) {}
+
+        uint16_t    bufId{ kInvalidHandle };
+
+        ResourceLifetime    lifetime{ ResourceLifetime::transition };
+    };
+
+    struct PassMetaData : public PassDesc
+    {
+        PassMetaData(const PassDesc& desc) : PassDesc(desc) {}
+
+        uint16_t    passId{ kInvalidHandle };
+
+        uint16_t    writeDepthId{ kInvalidHandle };
+
+        uint16_t    writeImageNum{ 0 };
+        uint16_t    readImageNum{ 0 };
+
+        uint16_t    readBufferNum{ 0 };
+        uint32_t    writeBufferNum{ 0 };
+    };
+
     struct BufferCreateInfo : public BufferDesc
     {
         uint16_t    aliasNum{ 0 };
@@ -42,6 +79,8 @@ namespace vkz
         uint16_t progId{ kInvalidHandle };
         uint16_t shaderNum{ 0 };
         uint32_t sizePushConstants{ 0 };
+
+        uint16_t shaderIds[kMaxNumOfShaderInProgram]{ kInvalidHandle };
     };
 
     struct ProgramCreateInfo : public ProgramDesc

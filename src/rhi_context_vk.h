@@ -129,7 +129,6 @@ namespace vkz
 
         // barriers
         void createBarriers(uint16_t _passId, bool _flush = false);
-        void createBarriers2(uint16_t _passId, bool _flush = false);
 
         void exeutePass(const uint16_t _passId);
         void exeGraphic(const uint16_t _passId);

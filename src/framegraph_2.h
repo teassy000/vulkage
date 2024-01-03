@@ -19,30 +19,10 @@ namespace vkz
 
         register_pass,
         register_buffer,
-        register_texture,
-        register_render_target,
-        register_depth_stencil,
-
-        pass_read_buffer,
-        pass_write_buffer,
-        pass_read_texture,
-        pass_write_texture,
-        pass_read_render_target,
-        pass_write_render_target,
-        pass_read_depth_stencil,
-        pass_write_depth_stencil,
+        register_image,
 
         force_alias_buffer,
-        force_alias_texture,
-        force_alias_render_target,
-        force_alias_depth_stencil,
-
-        set_non_transition_buffer,
-        set_non_transition_texture,
-        set_non_transition_render_target,
-        set_non_transition_depth_stencil,
-
-        set_present,
+        force_alias_image,
 
         end,
     };
@@ -50,9 +30,7 @@ namespace vkz
     enum class ResourceType : uint16_t
     {
         buffer = 0,
-        texture,
-        render_target,
-        depth_stencil,
+        image,
     };
 
     struct FrameGraphBrief
@@ -63,6 +41,8 @@ namespace vkz
         uint32_t    passNum;
         uint32_t    bufNum;
         uint32_t    imgNum;
+
+        uint16_t    presentImage;
     };
 
     // Register Info
@@ -80,8 +60,13 @@ namespace vkz
     {
         uint16_t    passId;
 
-        // TODO: pipeline rendering create info
-        // write depth stencil format, color attachment format, and count
+        uint16_t    writeDepthId{ kInvalidHandle };
+        uint16_t    writeImageNum{ 0 };
+
+        uint16_t    readImageNum{ 0 };
+
+        uint16_t    readBufferNum{ 0 };
+        uint32_t    writeBufferNum{ 0 };
     };
 
 
@@ -104,6 +89,14 @@ namespace vkz
 
         ImageAspectFlags    aspectFlags{ 0 };
         ResInteractDesc     initialState;
+    };
+
+    struct PassResInteract
+    {
+        uint16_t    passId;
+        uint16_t    resId;
+
+        ResInteractDesc interact;
     };
 
     // read/write resource
@@ -145,7 +138,7 @@ namespace vkz
         uint16_t                passRegInfoIdx;
         std::vector<uint16_t>   vtxBindingIdxs;
         std::vector<uint16_t>   vtxAttrIdxs;
-        std::vector<uint32_t>   pushConstantIdxs;
+        std::vector<int>   pushConstantIdxs;
     };
 
 
@@ -189,21 +182,12 @@ namespace vkz
 
         void registerPass(MemoryReader& _reader);
         void registerBuffer(MemoryReader& _reader);
-        void registerTexture(MemoryReader& _reader);
-        void registerRenderTarget(MemoryReader& _reader);
-        void registerDepthStencil(MemoryReader& _reader);
+        void registerImage(MemoryReader& _reader);
 
-        void passReadRes(MemoryReader& _reader, ResourceType _type);
-        void passWriteRes(MemoryReader& _reader, ResourceType _type);
-
-        void readResource(MemoryReader& _reader, ResourceType _type);
-        void writeResource(MemoryReader& _reader, ResourceType _type);
+        void readRes(const PassResInteract& _prInteract, const ResourceType _type);
+        void writeRes(const PassResInteract& _prInteract, const ResourceType _type);
 
         void aliasResForce(MemoryReader& _reader, ResourceType _type);
-
-        void setMultiFrameRes(MemoryReader& _reader, ResourceType _type);
-
-        void setResultRT(MemoryReader& _reader);
 
         // =======================================
         void buildGraph();
@@ -250,19 +234,41 @@ namespace vkz
             return _res.type == ResourceType::buffer;
         }
 
-        inline bool isTexture(const CombinedResID& _res) const
+        inline bool isImage(const CombinedResID& _res) const
         {
-            return _res.type == ResourceType::texture;
+            return _res.type == ResourceType::image;
         }
 
-        inline bool isRenderTarget(const CombinedResID& _res) const
+        inline bool isDepthStencil(const CombinedResID _res)
         {
-            return _res.type == ResourceType::render_target;
+            if (!isImage(_res))
+            {
+                return false;
+            }
+
+            const ImgRegisterInfo& info = m_sparse_img_info[_res.id];
+            return info.usage & ImageUsageFlagBits::depth_stencil_attachment;
         }
 
-        inline bool isDepthStencil(const CombinedResID& _res) const
+        bool isColorAttachment(const CombinedResID _res)
         {
-            return _res.type == ResourceType::depth_stencil;
+            if (!isImage(_res))
+            {
+                return false;
+            }
+
+            const ImgRegisterInfo& info = m_sparse_img_info[_res.id];
+            return info.usage & ImageUsageFlagBits::color_attachment;
+        }
+
+        bool isNormalImage(const CombinedResID _res)
+        {
+            if (!isImage(_res))
+            {
+                return false;
+            }
+
+            return !isDepthStencil(_res) && !isColorAttachment(_res);
         }
 
         struct BufBucket
@@ -361,16 +367,14 @@ namespace vkz
         MemoryBlockI* m_pCreatorMemBlock;
         MemoryWriter m_rhiMemWriter;
 
-        CombinedResID  m_resultRT;
+        CombinedResID  m_combinedPresentImage;
         PassHandle     m_finalPass;
 
         std::vector< ShaderHandle       >   m_hShader;
         std::vector< ProgramHandle      >   m_hProgram;
         std::vector< PassHandle         >   m_hPass;
         std::vector< BufferHandle       >   m_hBuf;
-        std::vector< TextureHandle      >   m_hTex;
-        std::vector< RenderTargetHandle >   m_hRT;
-        std::vector< DepthStencilHandle >   m_hDS;
+        std::vector< ImageHandle      >   m_hTex;
 
         std::vector< ShaderInfo >       m_sparse_shader_info;
         std::vector< ProgramInfo>       m_sparse_program_info;
@@ -424,44 +428,6 @@ namespace vkz
 
         std::vector< BufBucket>          m_bufBuckets;
         std::vector< ImgBucket>          m_imgBuckets;
-    };
-
-
-    /////////////////////////////////////////////////////////////////////////////////////////
-    struct PassMetaData
-    {
-        uint16_t passId;
-        uint16_t programId;
-        uint16_t pipelineId;
-
-        uint32_t pushConstantOffset;
-        uint32_t pushConstantSize;
-
-        uint32_t descriptorSetNum;
-        uint32_t descriptorSetOffset;
-        uint32_t descriptorSetSize;
-
-        MemoryBlockI*   pMemBlock;
-    };
-
-    struct ComputePassData : public PassMetaData
-    {
-        uint32_t groupCountX;
-        uint32_t groupCountY;
-        uint32_t groupCountZ;
-    };
-
-    struct GraphicPassData : public PassMetaData
-    {
-        uint32_t vertexBindingNum;
-        uint32_t vertexAttributeNum;
-        uint32_t vertexBindingOffset;
-        uint32_t vertexAttributeOffset;
-    };
-
-    class Framegraph2Executor
-    {
-
     };
 
 

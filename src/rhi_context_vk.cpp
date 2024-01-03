@@ -797,6 +797,12 @@ namespace vkz
 
     void RHIContext_vk::render()
     {
+        if (m_passContainer.size() < 1)
+        {
+            message(DebugMessageType::error, "no pass needs to execute in context!");
+            return;
+        }
+
         while (!glfwWindowShouldClose(m_pWindow))
         {
             glfwPollEvents();
@@ -807,6 +813,11 @@ namespace vkz
             SwapchainStatus_vk swapchainStatus = resizeSwapchainIfNecessary(m_swapchain, m_phyDevice, m_device, m_surface, m_gfxFamilyIdx, m_imageFormat);
             if (swapchainStatus == SwapchainStatus_vk::not_ready) {
                 continue;
+            }
+
+            if(swapchainStatus == SwapchainStatus_vk::resize)
+            {
+                // TODO: recreate images
             }
 
             uint32_t imageIndex = 0;
@@ -823,9 +834,9 @@ namespace vkz
             for (size_t ii = 0; ii < m_passContainer.size(); ++ii)
             {
                 uint16_t passId = m_passContainer.getIdAt(ii);
-                createBarriers2(passId);
+                createBarriers(passId);
                 exeutePass(passId);
-                createBarriers2(passId, true); // flush
+                createBarriers(passId, true); // flush
             }
 
             // copy to swapchain
@@ -890,7 +901,7 @@ namespace vkz
         std::vector<Shader_vk> shaders;
         for (const uint16_t sid : shaderIds)
         {
-            shaders.push_back(m_shaderContainer.getData(sid));
+            shaders.push_back(m_shaderContainer.getIdToData(sid));
         }
 
         VkPipelineBindPoint bindPoint = getBindPoint(shaders);
@@ -936,7 +947,7 @@ namespace vkz
         read(&_reader, writeBufferIds.data(), createInfo.writeBufferNum * sizeof(uint16_t));
 
         const size_t interactSz =
-            1 +
+            1 + // write depth
             createInfo.writeColorNum +
             createInfo.readImageNum +
             createInfo.readBufferNum +
@@ -947,7 +958,7 @@ namespace vkz
 
         // create pipeline
         const uint16_t progIdx = (uint16_t)m_programContainer.getIndex(createInfo.programId);
-        const Program_vk& program = m_programContainer.getData(createInfo.programId);
+        const Program_vk& program = m_programContainer.getIdToData(createInfo.programId);
         const std::vector<uint16_t>& shaderIds = m_programShaderIds[progIdx];
 
         VkPipeline pipeline{};
@@ -961,7 +972,7 @@ namespace vkz
             std::vector< Shader_vk> shaders;
             for (const uint16_t sid : shaderIds)
             {
-                shaders.push_back(m_shaderContainer.getData(sid));
+                shaders.push_back(m_shaderContainer.getIdToData(sid));
             }
 
             VkPipelineVertexInputStateCreateInfo vtxInputCreateInfo{};
@@ -978,11 +989,11 @@ namespace vkz
             std::vector< Shader_vk> shaders;
             for (const uint16_t sid : shaderIds)
             {
-                shaders.push_back(m_shaderContainer.getData(sid));
+                shaders.push_back(m_shaderContainer.getIdToData(sid));
             }
 
             assert(shaderIds.size() == 1);
-            Shader_vk shader = m_shaderContainer.getData(shaderIds[0]);
+            Shader_vk shader = m_shaderContainer.getIdToData(shaderIds[0]);
 
             VkPipelineCache cache{};
             pipeline = vkz::createComputePipeline(m_device, cache, program.layout, shader, pushConstants);
@@ -1017,7 +1028,7 @@ namespace vkz
                 return state;
             };
 
-        size_t offset = 1;
+        size_t offset = 1; // the depth is the first one
         auto addToPass = [&interacts, &offset, getBarrierState](const std::vector<uint16_t>& _ids, UniDataContainer< uint16_t, BarrierState_vk>& _container) {
                 for (uint32_t ii = 0; ii < _ids.size(); ++ii)
                 {
@@ -1139,9 +1150,9 @@ namespace vkz
         assert(m_phyDevice);
     }
 
-    void RHIContext_vk::createBarriers2(uint16_t _passId, bool _flush /*= false*/)
+    void RHIContext_vk::createBarriers(uint16_t _passId, bool _flush /*= false*/)
     {
-        const PassInfo_vk& passInfo = m_passContainer.getData(_passId);
+        const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 
         // image barriers
         std::vector<uint16_t>        imgIds;
@@ -1169,7 +1180,7 @@ namespace vkz
         {
             uint16_t depth = passInfo.writeDepth.first;
             assert(m_imgBarrierStates.exist(depth));
-            BarrierState_vk src = m_imgBarrierStates.getData(depth);
+            BarrierState_vk src = m_imgBarrierStates.getIdToData(depth);
             BarrierState_vk dst = passInfo.writeDepth.second;
 
             addBarrier(depth, src, dst, imgIds, srcImgInteract, dstImgInteract);
@@ -1180,8 +1191,8 @@ namespace vkz
         {
             uint16_t id = passInfo.writeColors.getIdAt(ii);
             assert(m_imgBarrierStates.exist(id));
-            BarrierState_vk src = m_imgBarrierStates.getData(id);
-            BarrierState_vk dst = passInfo.writeColors.getData(id);
+            BarrierState_vk src = m_imgBarrierStates.getIdToData(id);
+            BarrierState_vk dst = passInfo.writeColors.getIdToData(id);
 
             addBarrier(id, src, dst, imgIds, srcImgInteract, dstImgInteract);
         }
@@ -1191,8 +1202,8 @@ namespace vkz
         {
             uint16_t id = passInfo.writeBuffers.getIdAt(ii);
             assert(m_bufBarrierStates.exist(id));
-            BarrierState_vk src = m_bufBarrierStates.getData(id);
-            BarrierState_vk dst = passInfo.writeBuffers.getData(id);
+            BarrierState_vk src = m_bufBarrierStates.getIdToData(id);
+            BarrierState_vk dst = passInfo.writeBuffers.getIdToData(id);
 
             addBarrier(id, src, dst, bufIds, srcBufInteract, dstBufInteract);
         }
@@ -1204,8 +1215,8 @@ namespace vkz
             {
                 uint16_t id = passInfo.readImages.getIdAt(ii);
                 assert(m_imgBarrierStates.exist(id));
-                BarrierState_vk src = m_imgBarrierStates.getData(id);
-                BarrierState_vk dst = passInfo.readImages.getData(id);
+                BarrierState_vk src = m_imgBarrierStates.getIdToData(id);
+                BarrierState_vk dst = passInfo.readImages.getIdToData(id);
 
                 addBarrier(id, src, dst, imgIds, srcImgInteract, dstImgInteract);
             }
@@ -1215,8 +1226,8 @@ namespace vkz
             {
                 uint16_t id = passInfo.readBuffers.getIdAt(ii);
                 assert(m_bufBarrierStates.exist(id));
-                BarrierState_vk src = m_bufBarrierStates.getData(id);
-                BarrierState_vk dst = passInfo.readBuffers.getData(id);
+                BarrierState_vk src = m_bufBarrierStates.getIdToData(id);
+                BarrierState_vk dst = passInfo.readBuffers.getIdToData(id);
 
                 addBarrier(id, src, dst, bufIds, srcBufInteract, dstBufInteract);
             }
@@ -1230,7 +1241,7 @@ namespace vkz
         {
             uint16_t imgId = imgIds[ii];
 
-            const Image_vk& img = m_imageContainer.getData(imgId);
+            const Image_vk& img = m_imageContainer.getIdToData(imgId);
 
             BarrierState_vk vkDst = m_barrierDispatcher.addImgBarrier(
                 img.image, img.aspectMask,
@@ -1246,7 +1257,7 @@ namespace vkz
         {
             uint16_t bufId = bufIds[ii];
 
-            const Buffer_vk& buf = m_bufferContainer.getData(bufId);
+            const Buffer_vk& buf = m_bufferContainer.getIdToData(bufId);
 
             BarrierState_vk vkDst = m_barrierDispatcher.addBufBarrier(
                 buf.buffer,
@@ -1261,7 +1272,7 @@ namespace vkz
 
     void RHIContext_vk::exeutePass(const uint16_t _passId)
     {
-        const PassInfo_vk& passInfo = m_passContainer.getData(_passId);
+        const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 
         m_barrierDispatcher.dispatch(m_cmdBuffer);
 
@@ -1286,7 +1297,7 @@ namespace vkz
 
     void RHIContext_vk::exeGraphic(const uint16_t _passId)
     {
-        const PassInfo_vk& passInfo = m_passContainer.getData(_passId);
+        const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 
         VkClearColorValue color = { 33.f / 255.f, 200.f / 255.f, 242.f / 255.f, 1 };
         VkClearDepthStencilValue depth = { 0.f, 0 };
@@ -1294,7 +1305,7 @@ namespace vkz
         std::vector<VkRenderingAttachmentInfo> colorAttachments(passInfo.writeColors.size());
         for (int ii = 0; ii < passInfo.writeColors.size(); ++ii)
         {
-            const Image_vk& colorTarget = m_imageContainer.getData(passInfo.writeColors.getIdAt(ii));
+            const Image_vk& colorTarget = m_imageContainer.getIdToData(passInfo.writeColors.getIdAt(ii));
 
             colorAttachments[ii].sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
             colorAttachments[ii].clearValue.color = color;
@@ -1308,7 +1319,7 @@ namespace vkz
         VkRenderingAttachmentInfo depthAttachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
         if (hasDepth)
         {
-            const Image_vk& depthTarget = m_imageContainer.getData(passInfo.writeDepthId);
+            const Image_vk& depthTarget = m_imageContainer.getIdToData(passInfo.writeDepthId);
 
             depthAttachment.clearValue.depthStencil = depth;
             depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -1354,12 +1365,16 @@ namespace vkz
 
     void RHIContext_vk::copyToSwapchain(uint32_t _swapImgIdx)
     {
-
+        if (!m_imageContainer.exist(m_brief.presentImageId))
+        {
+            message(DebugMessageType::error, "Does the presentImageId set correctly?");
+            return;
+        }
         // add swapchain barrier
         // img to present
-        const Image_vk& presentImg = m_imageContainer.getData(m_brief.presentImageId);
+        const Image_vk& presentImg = m_imageContainer.getIdToData(m_brief.presentImageId);
 
-        const BarrierState_vk& src2 = m_imgBarrierStates.getData(m_brief.presentImageId);
+        const BarrierState_vk& src2 = m_imgBarrierStates.getIdToData(m_brief.presentImageId);
 
         BarrierState_vk next2 = m_barrierDispatcher.addImgBarrier(
             presentImg.image, presentImg.aspectMask,
