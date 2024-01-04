@@ -35,7 +35,6 @@ namespace vkz
     ShaderHandle registShader(const char* _name, const char* _path);
     ProgramHandle registProgram(const char* _name, ShaderHandleList _shaders, const uint32_t _sizePushConstants = 0);
 
-    
     BufferHandle registBuffer(const char* _name, const BufferDesc& _desc, const ResourceLifetime _lifetime = ResourceLifetime::transition);
     ImageHandle registTexture(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime = ResourceLifetime::transition, const Memory* _mem = nullptr);
     ImageHandle registRenderTarget(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime = ResourceLifetime::transition);
@@ -49,8 +48,8 @@ namespace vkz
     void passReadBuffer(PassHandle _pass, BufferHandle _buf, ResInteractDesc _interact);
     void passWriteBuffer(PassHandle _pass, BufferHandle _buf, ResInteractDesc _interact);
 
-    void passReadTexture(PassHandle _pass, ImageHandle _img, ResInteractDesc _interact);
-    void passWriteTexture(PassHandle _pass, ImageHandle _img, ResInteractDesc _interact);
+    void passReadImage(PassHandle _pass, ImageHandle _img, ResInteractDesc _interact);
+    void passWriteImage(PassHandle _pass, ImageHandle _img, ResInteractDesc _interact);
 
     void setPresentImage(ImageHandle _rt);
 

@@ -296,7 +296,7 @@ void triangle()
         interact.stage = vkz::PipelineStageFlagBits::color_attachment_output;
         interact.access = vkz::AccessFlagBits::none;
         interact.layout = vkz::ImageLayout::color_attachment_optimal;
-        vkz::passWriteTexture(pass, color, interact);
+        vkz::passWriteImage(pass, color, interact);
     }
 
     vkz::setPresentImage(color);

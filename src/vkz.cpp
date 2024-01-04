@@ -819,7 +819,6 @@ namespace vkz
         {
             assert((meta.aspectFlags & ImageAspectFlagBits::depth) > 0);
 
-
             passMeta.writeDepthId = _hImg.id;
 
             _interact.access |= AccessFlagBits::depth_stencil_attachment_write;
@@ -1015,12 +1014,12 @@ namespace vkz
         s_ctx->writeBuffer(_pass, _buf, _interact);
     }
 
-    void passReadTexture(PassHandle _pass, ImageHandle _img, ResInteractDesc _interact)
+    void passReadImage(PassHandle _pass, ImageHandle _img, ResInteractDesc _interact)
     {
         s_ctx->readImage(_pass, _img, _interact);
     }
 
-    void passWriteTexture(PassHandle _pass, ImageHandle _img, ResInteractDesc _interact)
+    void passWriteImage(PassHandle _pass, ImageHandle _img, ResInteractDesc _interact)
     {
         s_ctx->writeImage(_pass, _img, _interact);
     }
