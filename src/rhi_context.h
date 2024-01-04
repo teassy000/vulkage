@@ -30,7 +30,7 @@ namespace vkz
     class RHIContextI
     {
     public:
-        virtual void init() = 0;
+        virtual void init(RHI_Config _config) = 0;
         virtual void update() = 0;
         virtual void render() = 0;
 
@@ -62,7 +62,7 @@ namespace vkz
         inline MemoryBlockI* getMemoryBlock() const {return m_pMemBlock;}
         inline AllocatorI* getAllocator() const { return m_pAllocator; }
 
-        void init() override {};
+        void init(RHI_Config _config) override {};
 
         void update() override;
         void render() override {};

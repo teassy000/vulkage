@@ -60,6 +60,8 @@ namespace vkz
     {
         uint16_t    passId;
 
+        uint16_t    vertexBufferId{ kInvalidHandle };
+        uint16_t    indexBufferId{ kInvalidHandle };
         uint16_t    writeDepthId{ kInvalidHandle };
         uint16_t    writeImageNum{ 0 };
 

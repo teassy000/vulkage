@@ -75,6 +75,8 @@ namespace vkz
         VkPipeline pipeline{};
 
         uint16_t passId{ kInvalidHandle };
+        uint16_t vertexBufferId{ kInvalidHandle };
+        uint16_t indexBufferId{ kInvalidHandle };
         uint16_t writeDepthId{ kInvalidHandle };
 
         std::pair<uint16_t, BarrierState_vk> writeDepth;
@@ -109,10 +111,10 @@ namespace vkz
     class RHIContext_vk : public RHIContext
     {
     public:
-        RHIContext_vk(AllocatorI* _allocator);        
+        RHIContext_vk(AllocatorI* _allocator, RHI_Config _config);
 
         ~RHIContext_vk() override;
-        void init() override;
+        void init(RHI_Config _config) override;
         void render() override;
     private:
 
@@ -126,6 +128,9 @@ namespace vkz
     private:
         void createInstance();
         void createPhysicalDevice();
+
+        void pushConstants();
+        void pushDescriptorSetWithTemplates();
 
         // barriers
         void createBarriers(uint16_t _passId, bool _flush = false);
@@ -144,6 +149,8 @@ namespace vkz
         UniDataContainer<uint16_t, Program_vk> m_programContainer;
         UniDataContainer<uint16_t, PassInfo_vk> m_passContainer;
 
+        Buffer_vk m_scratchBuffer;
+
         std::vector<std::vector<uint16_t>> m_programShaderIds;
 
         UniDataContainer< uint16_t, BarrierState_vk> m_bufBarrierStates;
@@ -160,11 +167,13 @@ namespace vkz
         VkPhysicalDevice m_phyDevice;
         VkPhysicalDeviceMemoryProperties m_memProps;
         VkSurfaceKHR m_surface;
+
         Swapchain_vk m_swapchain;
 
         VkQueue m_queue;
         VkCommandPool   m_cmdPool;
         VkCommandBuffer m_cmdBuffer;
+        VkDescriptorPool m_descPool;
 
         uint32_t m_swapChainImageIndex{0};
 

@@ -659,7 +659,6 @@ int main(int argc, const char** argv)
         assert(skyboxPipeline);
     }
 
-
     // camera
     freeCameraInit(freeCamera, { 0.f, 0.f, 0.f }, { 0.f, 1.f, 0.f }, 90.f, 0.f);
 

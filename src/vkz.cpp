@@ -142,12 +142,16 @@ namespace vkz
         // conditions
         bool isCompute(const PassHandle _hPass);
         bool isGraphics(const PassHandle _hPass);
+        bool isRead(const AccessFlags _access);
+        bool isWrite(const AccessFlags _access, const PipelineStageFlags _stage);
 
         bool isDepthStencil(const ImageHandle _hImg);
         bool isColorAttachment(const ImageHandle _hImg);
         bool isNormalImage(const ImageHandle _hImg);
 
         // Context API
+        void setRenderSize(uint32_t _width, uint32_t _height);
+
         ShaderHandle registShader(const char* _name, const char* _path);
         ProgramHandle registProgram(const char* _name, const Memory* _shaders, const uint16_t _shaderCount, const uint32_t _sizePushConstants = 0);
 
@@ -160,6 +164,13 @@ namespace vkz
 
         BufferHandle aliasBuffer(const BufferHandle _baseBuf);
         ImageHandle aliasImage(const ImageHandle  _baseImg);
+
+        void bindVertexBuffer(const PassHandle _hPass, const BufferHandle _hBuf);
+        void bindIndexBuffer(const PassHandle _hPass, const BufferHandle _hBuf);
+
+        void bindBuffer(PassHandle _hPass, BufferHandle _buf, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access);
+        void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout);
+
 
         void readBuffer(const PassHandle _hPass, const BufferHandle _hRes, ResInteractDesc _interact);
         void writeBuffer(const PassHandle _hPass, const BufferHandle _hRes, ResInteractDesc _interact);
@@ -215,6 +226,10 @@ namespace vkz
         UniDataContainer<PassHandle, std::vector<PassResInteract>> m_readImages;
         UniDataContainer<PassHandle, std::vector<PassResInteract>> m_writeImages;
 
+        // render config
+        uint32_t m_renderWidth{ 0 };
+        uint32_t m_renderHeight{ 0 };
+
         // render data status
         bool    m_isRenderDataDirty{ false };
 
@@ -241,6 +256,16 @@ namespace vkz
         return meta.queue == PassExeQueue::graphics;
     }
 
+    bool Context::isRead(const AccessFlags _access)
+    {
+        return _access & AccessFlagBits::read_only;
+    }
+
+    bool Context::isWrite(const AccessFlags _access, const PipelineStageFlags _stage)
+    {
+        return (_access & AccessFlagBits::write_only) || (_stage & PipelineStageFlagBits::color_attachment_output);
+    }
+
     bool Context::isDepthStencil(const ImageHandle _hImg)
     {
         const ImageMetaData& meta = m_imageMetas.getIdToData(_hImg);
@@ -256,6 +281,12 @@ namespace vkz
     bool Context::isNormalImage(const ImageHandle _hImg)
     {
         return !isDepthStencil(_hImg) && !isColorAttachment(_hImg);
+    }
+
+    void Context::setRenderSize(uint32_t _width, uint32_t _height)
+    {
+        m_renderWidth = _width;
+        m_renderHeight = _height;
     }
 
     ShaderHandle Context::registShader(const char* _name, const char* _path)
@@ -338,6 +369,12 @@ namespace vkz
         BufferMetaData meta{ _desc };
         meta.bufId = idx;
         meta.lifetime = _lifetime;
+        
+        if (_desc.data != nullptr)
+        {
+            meta.usage |= BufferUsageFlagBits::transfer_dst;
+        }
+
         m_bufferMetas.addData({ idx }, meta);
 
         setRenderDataDirty();
@@ -392,7 +429,14 @@ namespace vkz
             return ImageHandle{ kInvalidHandle };
         }
 
+        if (m_renderWidth != _desc.width || m_renderHeight != _desc.height)
+        {
+            message(warning, "no need to set width and height for render target, will use render size instead");
+        }
+
         ImageMetaData meta = _desc;
+        meta.width = m_renderWidth;
+        meta.height = m_renderHeight;
         meta.imgId = idx;
         meta.format = ResourceFormat::undefined;
         meta.usage = ImageUsageFlagBits::color_attachment | _desc.usage;
@@ -412,6 +456,11 @@ namespace vkz
 
         ImageHandle handle = ImageHandle{ idx };
 
+        if (m_renderWidth != _desc.width || m_renderHeight != _desc.height)
+        {
+            message(warning, "no need to set width and height for depth stencil, will use render size instead");
+        }
+
         // check if pass is valid
         if (!isValid(handle))
         {
@@ -427,6 +476,8 @@ namespace vkz
         }
 
         ImageMetaData meta{ _desc };
+        meta.width = m_renderWidth;
+        meta.height = m_renderHeight;
         meta.imgId = idx;
         meta.format = ResourceFormat::unknown_depth;
         meta.usage = ImageUsageFlagBits::depth_stencil_attachment | _desc.usage;
@@ -455,6 +506,7 @@ namespace vkz
         brief.programNum = m_programHandles.getNumHandles();
 
         brief.presentImage = m_presentImage.id;
+
 
         write(m_fgMemWriter, brief);
 
@@ -536,6 +588,9 @@ namespace vkz
             info.pushConstantNum = meta.pushConstantNum; // int
             info.pipelineConfig = meta.pipelineConfig;
 
+            info.vertexBufferId = meta.vertexBufferId;
+            info.indexBufferId = meta.indexBufferId;
+
             info.writeDepthId = meta.writeDepthId;
             info.writeImageNum = meta.writeImageNum; // include depth and color attachment
             info.readImageNum = meta.readImageNum;
@@ -599,6 +654,7 @@ namespace vkz
             BufRegisterInfo info;
             info.bufId = meta.bufId;
             info.size = meta.size;
+            info.data = meta.data;
             info.usage = meta.usage;
             info.memFlags = meta.memFlags;
             info.lifetime = meta.lifetime;
@@ -749,6 +805,22 @@ namespace vkz
         return { aliasId };
     }
 
+    void Context::bindVertexBuffer(const PassHandle _hPass, const BufferHandle _hBuf)
+    {
+        PassMetaData& meta = m_passMetas.getDataRef(_hPass);
+        meta.vertexBufferId = _hBuf.id;
+
+        setRenderDataDirty();
+    }
+
+    void Context::bindIndexBuffer(const PassHandle _hPass, const BufferHandle _hBuf)
+    {
+        PassMetaData& meta = m_passMetas.getDataRef(_hPass);
+        meta.indexBufferId = _hBuf.id;
+
+        setRenderDataDirty();
+    }
+
     void addResInteract(UniDataContainer<PassHandle, std::vector<PassResInteract>>& _container, const PassHandle _hPass, const uint16_t _resId, const ResInteractDesc& _interact)
     {
         PassResInteract pri;
@@ -768,6 +840,93 @@ namespace vkz
             _container.addData({ _hPass }, prInteractVec);
         }
     }
+
+    void Context::bindBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access)
+    {
+        ResInteractDesc desc{};
+        desc.binding = _binding;
+        desc.stage = _stage;
+        desc.access = _access;
+
+        if (isRead(_access))
+        {
+            addResInteract(m_readBuffers, _hPass, _hBuf.id, desc);
+        }
+
+        if (isWrite(_access, _stage))
+        {
+            addResInteract(m_writeBuffers, _hPass, _hBuf.id, desc);
+        }
+    }
+
+    void Context::bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout)
+    {
+        ImageMetaData& meta = m_imageMetas.getDataRef(_hImg);
+        PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
+
+        ResInteractDesc desc{};
+        desc.binding = _binding;
+        desc.stage = _stage;
+        desc.access = _access;
+        desc.layout = _layout;
+
+        if (isRead(_access))
+        {
+            if (isGraphics(_hPass) && isDepthStencil(_hImg))
+            {
+                assert((meta.aspectFlags & ImageAspectFlagBits::depth) > 0);
+                desc.access |= AccessFlagBits::depth_stencil_attachment_read;
+            }
+            else if (isGraphics(_hPass) && isColorAttachment(_hImg))
+            {
+                assert((meta.aspectFlags & ImageAspectFlagBits::color) > 0);
+                desc.access |= AccessFlagBits::color_attachment_read;
+            }
+
+            addResInteract(m_readImages, _hPass, _hImg.id, desc);
+            passMeta.readImageNum += 1;
+            setRenderDataDirty();
+        }
+
+        if (isWrite(_access, _stage))
+        {
+            bool canWrite = false;
+            if (isGraphics(_hPass) && isDepthStencil(_hImg) && kInvalidHandle == passMeta.writeDepthId)
+            {
+                assert((meta.aspectFlags & ImageAspectFlagBits::depth) > 0);
+
+                passMeta.writeDepthId = _hImg.id;
+
+                desc.access |= AccessFlagBits::depth_stencil_attachment_write;
+                canWrite = true;
+            }
+            else if (isGraphics(_hPass) && isColorAttachment(_hImg))
+            {
+                assert((meta.aspectFlags & ImageAspectFlagBits::color) > 0);
+
+                desc.access |= AccessFlagBits::color_attachment_write;
+                canWrite = true;
+            }
+            else if (isCompute(_hPass) && isNormalImage(_hImg))
+            {
+                assert((meta.aspectFlags & ImageAspectFlagBits::color) > 0);
+                canWrite = true;
+            }
+            else
+            {
+                assert(0);
+            }
+
+            if (canWrite)
+            {
+                addResInteract(m_writeImages, _hPass, _hImg.id, desc);
+                passMeta.writeImageNum += 1;
+                setRenderDataDirty();
+            }
+        }
+    }
+
+
 
     void Context::readBuffer(const PassHandle _hPass, const BufferHandle _hBuf, ResInteractDesc _interact)
     {
@@ -876,11 +1035,16 @@ namespace vkz
         setRenderDataDirty();
     }
 
+
+
     void Context::init()
     {
         m_pAllocator = getAllocator();
         
-        m_rhiContext = VKZ_NEW(m_pAllocator, RHIContext_vk(m_pAllocator));
+        RHI_Config rhiConfig{};
+        rhiConfig.windowWidth = m_renderWidth;
+        rhiConfig.windowHeight = m_renderHeight;
+        m_rhiContext = VKZ_NEW(m_pAllocator, RHIContext_vk(m_pAllocator, rhiConfig));
 
         m_frameGraph = VKZ_NEW(m_pAllocator, Framegraph2(m_pAllocator, m_rhiContext->getMemoryBlock()));
 
@@ -1004,24 +1168,44 @@ namespace vkz
         return s_ctx->aliasImage(_baseImg);
     }
 
-    void passReadBuffer(PassHandle _pass, BufferHandle _buf, ResInteractDesc _interact)
+    void bindVertexBuffer(PassHandle _hPass, BufferHandle _buf)
     {
-        s_ctx->readBuffer(_pass, _buf, _interact);
+        s_ctx->bindVertexBuffer(_hPass, _buf);
     }
 
-    void passWriteBuffer(PassHandle _pass, BufferHandle _buf, ResInteractDesc _interact)
+    void bindIndexBuffer(PassHandle _hPass, BufferHandle _buf)
     {
-        s_ctx->writeBuffer(_pass, _buf, _interact);
+        s_ctx->bindIndexBuffer(_hPass, _buf);
     }
 
-    void passReadImage(PassHandle _pass, ImageHandle _img, ResInteractDesc _interact)
+    void bindBuffer(PassHandle _hPass, BufferHandle _buf, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access)
     {
-        s_ctx->readImage(_pass, _img, _interact);
+        s_ctx->bindBuffer(_hPass, _buf, _binding, _stage, _access);
     }
 
-    void passWriteImage(PassHandle _pass, ImageHandle _img, ResInteractDesc _interact)
+    void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout)
     {
-        s_ctx->writeImage(_pass, _img, _interact);
+        s_ctx->bindImage(_hPass, _hImg, _binding, _stage, _access, _layout);
+    }
+
+    void bindReadBuffer(PassHandle _hPass, BufferHandle _buf, ResInteractDesc _interact)
+    {
+        s_ctx->readBuffer(_hPass, _buf, _interact);
+    }
+
+    void bindWriteBuffer(PassHandle _hPass, BufferHandle _buf, ResInteractDesc _interact)
+    {
+        s_ctx->writeBuffer(_hPass, _buf, _interact);
+    }
+
+    void bindReadImage(PassHandle _hPass, ImageHandle _img, ResInteractDesc _interact)
+    {
+        s_ctx->readImage(_hPass, _img, _interact);
+    }
+
+    void bindWriteImage(PassHandle _hPass, ImageHandle _img, ResInteractDesc _interact)
+    {
+        s_ctx->writeImage(_hPass, _img, _interact);
     }
 
     void setPresentImage(ImageHandle _rt)
@@ -1070,9 +1254,10 @@ namespace vkz
     }
 
     // main data here
-    bool init()
+    bool init(vkz::VKZInitConfig _config /*= {}*/)
     {
         s_ctx = VKZ_NEW(getAllocator(), Context);
+        s_ctx->setRenderSize(_config.windowWidth, _config.windowHeight);
         s_ctx->init();
 
         return true;

@@ -283,10 +283,19 @@ namespace vkz
             acceleration_structure_write = 1 << 23,
             shading_rate_image_read = 1 << 24,
 
+            read_only = indirect_command_read | index_read | vertex_attribute_read | uniform_read | input_attachment_read | shader_read | color_attachment_read | depth_stencil_attachment_read | transfer_read | host_read | memory_read | transform_feedback_counter_read | conditional_rendering_read | color_attachment_read_noncoherent | acceleration_structure_read | shading_rate_image_read,
+            write_only = shader_write | color_attachment_write | depth_stencil_attachment_write | transfer_write | host_write | memory_write | transform_feedback_write | transform_feedback_counter_write | acceleration_structure_write,
+
             max_enum = 0x7fffffff,
         };
     }
     using AccessFlags = uint32_t;
+
+    struct VKZInitConfig
+    {
+        uint32_t windowWidth{ 0 };
+        uint32_t windowHeight{ 0 };
+    };
 
     struct PipelineConfig
     {
@@ -297,6 +306,7 @@ namespace vkz
 
     struct BufferDesc {
         uint32_t size{ 0 };
+        void*   data{ nullptr };
 
         BufferUsageFlags usage{ BufferUsageFlagBits::none };
         MemoryPropFlags memFlags{ MemoryPropFlagBits::none };
@@ -305,7 +315,7 @@ namespace vkz
     struct ImageDesc {
         uint32_t width{ 0 };
         uint32_t height{ 0 };
-        uint32_t depth{ 0 };
+        uint32_t depth{ 1 };
         uint16_t arrayLayers{ 1 };
         uint16_t mips{ 1 };
 
@@ -315,6 +325,8 @@ namespace vkz
         ResourceFormat  format{ ResourceFormat::undefined };
         ImageUsageFlags usage{ ImageUsageFlagBits::color_attachment };
     };
+
+
 
     // to generate barriers
     struct NO_VTABLE ResInteractDesc

@@ -688,7 +688,7 @@ namespace vkz
         return cmdPool;
     }
 
-    RHIContext_vk::RHIContext_vk(AllocatorI* _allocator)
+    RHIContext_vk::RHIContext_vk(AllocatorI* _allocator, RHI_Config _config)
         : RHIContext(_allocator)
         , m_instance{ VK_NULL_HANDLE }
         , m_device{ VK_NULL_HANDLE }
@@ -708,7 +708,7 @@ namespace vkz
         , m_debugCallback{ VK_NULL_HANDLE }
 #endif
     {
-        init();
+        init(_config);
     }
 
     RHIContext_vk::~RHIContext_vk()
@@ -716,7 +716,7 @@ namespace vkz
 
     }
 
-    void RHIContext_vk::init()
+    void RHIContext_vk::init(RHI_Config _config)
 {
         int rc = glfwInit();
         assert(rc);
@@ -751,7 +751,7 @@ namespace vkz
         volkLoadDevice(m_device);
 
         // TODO: move this to another file
-        m_pWindow = glfwCreateWindow(2560, 1440, "mesh_shading_demo", 0, 0);
+        m_pWindow = glfwCreateWindow(_config.windowWidth, _config.windowHeight, "mesh_shading_demo", 0, 0);
         assert(m_pWindow);
 
         /*
@@ -792,7 +792,34 @@ namespace vkz
 
         VK_CHECK(vkAllocateCommandBuffers(m_device, &allocateInfo, &m_cmdBuffer));
 
+        {
+            uint32_t descriptorCount = 512;
+
+            VkDescriptorPoolSize poolSizes[] =
+            {
+                { VK_DESCRIPTOR_TYPE_SAMPLER, descriptorCount },
+                { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, descriptorCount },
+                { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, descriptorCount },
+                { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, descriptorCount },
+                { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, descriptorCount },
+                { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, descriptorCount },
+            };
+
+            VkDescriptorPoolCreateInfo poolCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
+            poolCreateInfo.maxSets = descriptorCount;
+            poolCreateInfo.poolSizeCount = COUNTOF(poolSizes);
+            poolCreateInfo.pPoolSizes = poolSizes;
+
+            VK_CHECK(vkCreateDescriptorPool(m_device, &poolCreateInfo, 0, &m_descPool));
+        }
+
         vkGetPhysicalDeviceMemoryProperties(m_phyDevice, &m_memProps);
+
+
+        BufferAliasInfo scratchAlias;
+        scratchAlias.size = 128 * 1024 * 1024; // 128M
+        m_scratchBuffer = vkz::createBuffer(scratchAlias, m_memProps, m_device, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        
     }
 
     void RHIContext_vk::render()
@@ -1005,6 +1032,9 @@ namespace vkz
         PassInfo_vk passInfo{};
         passInfo.passId = createInfo.passId;
         passInfo.pipeline = pipeline;
+
+        passInfo.vertexBufferId = createInfo.vertexBufferId;
+        passInfo.indexBufferId = createInfo.indexBufferId;
         passInfo.writeDepthId = createInfo.writeDepthId;
 
         // desc part
@@ -1122,6 +1152,12 @@ namespace vkz
         }
 
         VKZ_DELETE_ARRAY(resArr);
+        
+        // try to upload buffer
+        if (info.data != nullptr)
+        {
+            vkz::uploadBuffer(m_device, m_cmdPool, m_cmdBuffer, m_queue, buffers[0], m_scratchBuffer, info.data, info.size);
+        }
     }
 
     void RHIContext_vk::setBrief(MemoryReader& _reader)
@@ -1347,7 +1383,31 @@ namespace vkz
 
         vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, passInfo.pipeline);
 
-        // vkCmdPushDescriptorSetWithTemplateKHR(m_cmdBuffer, passInfo.pipeline, passInfo.pipelineLayout, 0, passInfo.pushConstants.data());
+
+        // TODO: push descriptors by order of binding
+        std::vector<DescriptorInfo> descInfos;
+
+        const Program_vk& prog =  m_programContainer.getIdToData(passInfo.programId);
+        //vkCmdPushDescriptorSetWithTemplateKHR(m_cmdBuffer, prog.updateTemplate, prog.layout, 0, descInfos.data());
+        
+
+        // push constants
+
+        // set vertex buffer
+        if (kInvalidHandle != passInfo.vertexBufferId)
+        {
+            VkDeviceSize offsets[1] = { 0 };
+            const Buffer_vk& vertexBuffer = m_bufferContainer.getIdToData(passInfo.vertexBufferId);
+            vkCmdBindVertexBuffers(m_cmdBuffer, 0, 1, &vertexBuffer.buffer, offsets);
+        }
+
+        // set index buffer
+        if (kInvalidHandle != passInfo.indexBufferId)
+        {
+            const Buffer_vk& indexBuffer = m_bufferContainer.getIdToData(passInfo.indexBufferId);
+            vkCmdBindIndexBuffer(m_cmdBuffer, indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32); // TODO: do I need to expose the index type out?
+        }
+
         vkCmdDraw(m_cmdBuffer, 3, 1, 0, 0);
 
         vkCmdEndRendering(m_cmdBuffer);

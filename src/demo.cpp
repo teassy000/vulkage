@@ -1,259 +1,283 @@
 #include "vkz.h"
-/*
-void right()
+#include "mesh.h"
+#include "scene.h"
+
+struct alignas(16) TransformData
 {
-    vkz::init();
+    mat4 view;
+    mat4 proj;
+    vec3 cameraPos;
+};
 
-    vkz::ImageDesc colorDesc;
-    colorDesc.format = vkz::ResourceFormat::r8g8b8a8_snorm;
-    colorDesc.width = 1024;
-    colorDesc.height = 1024;
-    colorDesc.depth = 1;
-    colorDesc.arrayLayers = 1;
-    colorDesc.mips = 1;
-    vkz::RenderTargetHandle color = vkz::registRenderTarget("color", colorDesc);
-    vkz::RenderTargetHandle color_late = vkz::aliasRenderTarget(color);
+uint32_t previousPow2_new(uint32_t v)
+{
+    uint32_t r = 1;
 
-    vkz::ImageDesc depthDesc;
-    depthDesc.format = vkz::ResourceFormat::d32;
-    depthDesc.width = 1024;
-    depthDesc.height = 1024;
-    depthDesc.depth = 1;
-    depthDesc.arrayLayers = 1;
-    depthDesc.mips = 1;
-    vkz::DepthStencilHandle depth = vkz::registDepthStencil("depth", depthDesc);
-    vkz::DepthStencilHandle depth_late = vkz::aliasDepthStencil(depth);
+    while (r < v)
+        r <<= 1;
+    r >>= 1;
+    return r;
+}
 
-    vkz::ImageDesc outputDesc;
-    outputDesc.format = vkz::ResourceFormat::r8g8b8a8_snorm;
-    outputDesc.width = 1024;
-    outputDesc.height = 1024;
-    outputDesc.depth = 1;
-    outputDesc.arrayLayers = 1;
-    outputDesc.mips = 1;
-    vkz::RenderTargetHandle output = vkz::registRenderTarget("output", outputDesc);
-    vkz::setPresentImage(output);
+uint32_t calculateMipLevelCount_new(uint32_t width, uint32_t height)
+{
+    uint32_t result = 0;
+    while (width > 1 || height > 1)
+    {
+        result++;
+        width >>= 1;
+        height >>= 1;
+    }
 
-    vkz::ImageDesc pyramidDesc;
-    pyramidDesc.format = vkz::ResourceFormat::r32_sfloat;
-    pyramidDesc.width = 1024;
-    pyramidDesc.height = 1024;
-    pyramidDesc.depth = 1;
-    pyramidDesc.arrayLayers = 1;
-    pyramidDesc.mips = 8;
-    vkz::TextureHandle pyramid = vkz::registTexture("pyramid", pyramidDesc);
-    vkz::TextureHandle pyramid_lastFrame = vkz::aliasTexture(pyramid);
+    return result;
+}
 
-    vkz::BufferDesc mltBufDesc;
-    mltBufDesc.size = 1024 * 1024 * 1024;
-    vkz::BufferHandle mltBuf = vkz::registBuffer("mlt", mltBufDesc);
+void meshDemo()
+{
+    vkz::VKZInitConfig config = {};
+    config.windowWidth = 2560;
+    config.windowHeight = 1440;
 
-    vkz::BufferDesc mvisBufDesc;
-    mvisBufDesc.size = 1024 * 1024 * 1024;
-    vkz::BufferHandle mvisBuf = vkz::registBuffer("mvis", mltBufDesc);
-    vkz::BufferHandle mvisLastFrame = vkz::aliasBuffer(mvisBuf);
-    vkz::BufferHandle mvisLate = vkz::aliasBuffer(mvisBuf);
+    vkz::init(config);
 
+    // load scene
+    Scene scene;
+    const char* pathes[] = { "../data/kitten.obj" };
+    bool lmr = loadScene(scene, pathes, COUNTOF(pathes), false);
+    assert(lmr);
+
+    // buffers
+    // mesh data
+    vkz::BufferDesc meshBufDesc;
+    meshBufDesc.size = (uint32_t)(scene.geometry.meshes.size() * sizeof(Mesh));
+    meshBufDesc.data = scene.geometry.meshes.data();
+    meshBufDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::transfer_dst;
+    meshBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
+    vkz::BufferHandle meshBuf = vkz::registBuffer("mesh", meshBufDesc);
+
+    // mesh draw instance buffer
+    vkz::BufferDesc meshDrawBufDesc;
+    meshDrawBufDesc.size = (uint32_t)(scene.meshDraws.size() * sizeof(MeshDraw));
+    meshDrawBufDesc.data = scene.meshDraws.data();
+    meshDrawBufDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::transfer_dst;
+    meshDrawBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
+    vkz::BufferHandle meshDrawBuf = vkz::registBuffer("meshDraw", meshDrawBufDesc);
+
+    // mesh draw instance buffer
+    vkz::BufferDesc meshDrawCmdBufDesc;
+    meshDrawCmdBufDesc.size = 128 * 1024 * 1024; // 128M
+    meshDrawCmdBufDesc.usage = vkz::BufferUsageFlagBits::indirect | vkz::BufferUsageFlagBits::transfer_dst;
+    meshDrawCmdBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
+    vkz::BufferHandle meshDrawCmdBuf = vkz::registBuffer("meshDrawCmd", meshDrawCmdBufDesc);
+
+    // mesh draw instance count buffer
+    vkz::BufferDesc meshDrawCmdCountBufDesc;
+    meshDrawCmdCountBufDesc.size = 16;
+    meshDrawCmdCountBufDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::indirect | vkz::BufferUsageFlagBits::transfer_dst;
+    meshDrawCmdCountBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
+    vkz::BufferHandle meshDrawCmdCountBuf = vkz::registBuffer("meshDrawCmdCount", meshDrawCmdCountBufDesc);
+
+    // mesh draw instance visibility buffer
+    vkz::BufferDesc meshDrawVisBufDesc;
+    meshDrawVisBufDesc.size = uint32_t(scene.drawCount * sizeof(uint32_t));
+    meshDrawVisBufDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::indirect | vkz::BufferUsageFlagBits::transfer_dst;
+    meshDrawVisBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
+    vkz::BufferHandle meshDrawVisBuf = vkz::registBuffer("meshDrawVis", meshDrawVisBufDesc);
+
+    // index buffer
     vkz::BufferDesc idxBufDesc;
-    idxBufDesc.size = 1024 * 1024 * 1024;
+    idxBufDesc.size = (uint32_t)(scene.geometry.indices.size() * sizeof(uint32_t));
+    idxBufDesc.data = scene.geometry.indices.data();
+    idxBufDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::transfer_dst;
+    idxBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
     vkz::BufferHandle idxBuf = vkz::registBuffer("idx", idxBufDesc);
 
+    // vertex buffer
     vkz::BufferDesc vtxBufDesc;
-    vtxBufDesc.size = 1024 * 1024 * 1024;
+    vtxBufDesc.size = (uint32_t)(scene.geometry.vertices.size() * sizeof(Vertex));
+    vtxBufDesc.data = scene.geometry.vertices.data();
+    vtxBufDesc.usage = vkz::BufferUsageFlagBits::index | vkz::BufferUsageFlagBits::transfer_dst;
+    vtxBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
     vkz::BufferHandle vtxBuf = vkz::registBuffer("vtx", vtxBufDesc);
 
-    vkz::BufferDesc cmdBufDesc;
-    cmdBufDesc.size = 1024 * 1024 * 1;
-    vkz::BufferHandle cmdBuf = vkz::registBuffer("cmd", cmdBufDesc);
-    vkz::BufferHandle cmdBuf_late = vkz::aliasBuffer(cmdBuf);
+    // transform
+    // TODO: requires to upload every frame
+    vkz::BufferDesc transformBufDesc;
+    transformBufDesc.size = (uint32_t)(sizeof(TransformData));
+    transformBufDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::transfer_dst;
+    transformBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
+    vkz::BufferHandle transformBuf = vkz::registBuffer("transform", transformBufDesc);
+    
+    // color
+    vkz::ImageDesc rtDesc;
+    rtDesc.depth = 1;
+    rtDesc.arrayLayers = 1;
+    rtDesc.mips = 1;
+    rtDesc.usage = vkz::ImageUsageFlagBits::transfer_src;
 
-    vkz::PassDesc cull_a_desc;
-    cull_a_desc.queue = vkz::PassExeQueue::compute;
-    vkz::PassHandle cull_a = vkz::registPass("cull_a", cull_a_desc);
+    vkz::ImageHandle color = vkz::registRenderTarget("color", rtDesc);
 
-    vkz::PassDesc draw_a_desc;
-    draw_a_desc.queue = vkz::PassExeQueue::graphics;
-    vkz::PassHandle draw_a = vkz::registPass("draw_a", draw_a_desc);
+    vkz::ImageDesc dpDesc;
+    dpDesc.depth = 1;
+    dpDesc.arrayLayers = 1;
+    dpDesc.mips = 1;
+    dpDesc.usage = vkz::ImageUsageFlagBits::transfer_src;
+    vkz::ImageHandle depth = vkz::registDepthStencil("depth", dpDesc);
 
-    vkz::PassDesc py_desc;
-    py_desc.queue = vkz::PassExeQueue::compute;
-    vkz::PassHandle py_pass = vkz::registPass("py_pass", py_desc);
+    vkz::ImageDesc pyDesc;
+    pyDesc.width = previousPow2_new(config.windowWidth);
+    pyDesc.height = previousPow2_new(config.windowHeight);
+    pyDesc.depth = 1;
+    pyDesc.arrayLayers = 1;
+    pyDesc.mips = calculateMipLevelCount_new(config.windowWidth, config.windowHeight);;
+    pyDesc.usage = vkz::ImageUsageFlagBits::transfer_src | vkz::ImageUsageFlagBits::sampled | vkz::ImageUsageFlagBits::storage;
+    vkz::ImageHandle pyramid = vkz::registDepthStencil("pyramid", pyDesc);
 
-    vkz::PassDesc cull_b_desc;
-    cull_b_desc.queue = vkz::PassExeQueue::compute;
-    vkz::PassHandle cull_b = vkz::registPass("cull_b", cull_b_desc);
+    {
+        // render shader
+        vkz::ShaderHandle vs = vkz::registShader("mesh_vert_shader", "shaders/mesh.vert.spv");
+        vkz::ShaderHandle fs = vkz::registShader("mesh_frag_shader", "shaders/mesh.frag.spv");
+        vkz::ProgramHandle program = vkz::registProgram("mesh_prog", { vs, fs });
+        // pass
+        vkz::PassDesc passDesc;
+        passDesc.programId = program.id;
+        passDesc.queue = vkz::PassExeQueue::graphics;
+        passDesc.pipelineConfig.depthCompOp = vkz::CompareOp::greater;
+        passDesc.pipelineConfig.enableDepthTest = true;
+        passDesc.pipelineConfig.enableDepthWrite = true;
+        vkz::PassHandle renderPass = vkz::registPass("mesh_pass", passDesc);
 
-    vkz::PassDesc draw_b_desc;
-    draw_b_desc.queue = vkz::PassExeQueue::graphics;
-    vkz::PassHandle draw_b = vkz::registPass("draw_b", draw_b_desc);
+        // index buffer
+        {
+            vkz::bindIndexBuffer(renderPass, idxBuf);
+        }
 
-    vkz::PassDesc output_desc;
-    output_desc.queue = vkz::PassExeQueue::graphics;
-    vkz::PassHandle out_pass = vkz::registPass("output", output_desc);
+        // bindings
+        {
+            vkz::bindBuffer(renderPass, meshDrawCmdBuf
+                , 0
+                , vkz::PipelineStageFlagBits::vertex_shader
+                , vkz::AccessFlagBits::shader_read);
+        }
 
-    // set multi-frame resource
-    vkz::setMultiFrameBuffer({ mvisBuf });
-    vkz::setMultiFrameTexture({ pyramid });
+        {
+            vkz::bindBuffer(renderPass, meshDrawBuf
+                , 1
+                , vkz::PipelineStageFlagBits::vertex_shader
+                , vkz::AccessFlagBits::shader_read);
+        }
 
-    // set resource for passes
-    // cull_a
-    vkz::passReadTextures(cull_a, { pyramid_lastFrame });
-    vkz::passReadBuffers(cull_a, { mltBuf, mvisLastFrame });
-    vkz::passWriteBuffers(cull_a, { cmdBuf , mvisBuf });
+        {
+            vkz::bindBuffer(renderPass, meshDrawBuf
+                , 2
+                , vkz::PipelineStageFlagBits::vertex_shader
+                , vkz::AccessFlagBits::shader_read);
+        }
 
-    // draw_a
-    vkz::passReadBuffers(draw_a, { cmdBuf });
-    vkz::passReadTextures(draw_a, { pyramid_lastFrame });
-    vkz::passWriteRTs(draw_a, { color });
-    vkz::passWriteDSs(draw_a, { depth });
+        {
+            vkz::bindBuffer(renderPass, meshDrawBuf
+                , 3
+                , vkz::PipelineStageFlagBits::vertex_shader
+                , vkz::AccessFlagBits::shader_read);
+        }
 
-    // pyramid
-    vkz::passReadDSs(py_pass, { depth });
-    vkz::passWriteTextures(py_pass, { pyramid });
+        {
+            vkz::bindImage(renderPass, color
+                , 0
+                , vkz::PipelineStageFlagBits::color_attachment_output
+                , vkz::AccessFlagBits::none
+                , vkz::ImageLayout::color_attachment_optimal);
+        }
 
-    // cull_b
-    vkz::passReadTextures(cull_b, { pyramid });
-    vkz::passReadBuffers(cull_b, { mltBuf, mvisBuf });
-    vkz::passWriteBuffers(cull_b, { cmdBuf_late , mvisLate});
+        {
+            vkz::bindImage(renderPass, depth
+                , 0
+                , vkz::PipelineStageFlagBits::color_attachment_output
+                , vkz::AccessFlagBits::none
+                , vkz::ImageLayout::depth_stencil_attachment_optimal);
+        }
+    }
 
-    // draw_b
-    vkz::passReadBuffers(draw_b, { cmdBuf_late });
-    vkz::passReadTextures(draw_b, { pyramid });
-    vkz::passWriteRTs(draw_b, { color_late });
-    vkz::passWriteDSs(draw_b, { depth_late });
+    {
+        // cull pass
+        vkz::ShaderHandle cs = vkz::registShader("mesh_draw_cmd_shader", "shaders/drawcmd.comp.spv");
+        vkz::ProgramHandle csProgram = vkz::registProgram("mesh_draw_cmd_prog", { cs });
 
-    // output
-    vkz::passReadRTs(out_pass, { color_late });
-    vkz::passWriteRTs(out_pass, { output });
+        vkz::PassDesc passDesc;
+        passDesc.programId = csProgram.id;
+        passDesc.queue = vkz::PassExeQueue::compute;
+        vkz::PassHandle cull_pass = vkz::registPass("cull_pass", passDesc);
+
+        // bindings
+        {
+            vkz::bindBuffer(cull_pass, meshBuf
+                , 0
+                , vkz::PipelineStageFlagBits::compute_shader
+                , vkz::AccessFlagBits::shader_read);
+        }
+
+        {
+            vkz::bindBuffer(cull_pass, meshDrawBuf
+                , 1
+                , vkz::PipelineStageFlagBits::compute_shader
+                , vkz::AccessFlagBits::shader_read);
+        }
+
+        {
+            vkz::bindBuffer(cull_pass, transformBuf
+                , 2
+                , vkz::PipelineStageFlagBits::compute_shader
+                , vkz::AccessFlagBits::shader_read);
+        }
+
+        {
+            vkz::bindBuffer(cull_pass, meshDrawCmdBuf
+                , 3
+                , vkz::PipelineStageFlagBits::compute_shader
+                , vkz::AccessFlagBits::shader_read | vkz::AccessFlagBits::shader_write);
+        }
+
+        {
+            vkz::bindBuffer(cull_pass, meshDrawCmdCountBuf
+                , 4
+                , vkz::PipelineStageFlagBits::compute_shader
+                , vkz::AccessFlagBits::shader_read | vkz::AccessFlagBits::shader_write);
+        }
+
+        {
+            vkz::bindBuffer(cull_pass, meshDrawVisBuf
+                , 5
+                , vkz::PipelineStageFlagBits::compute_shader
+                , vkz::AccessFlagBits::shader_read | vkz::AccessFlagBits::shader_write);
+        }
+
+        {
+            vkz::bindImage(cull_pass, pyramid
+                , 6
+                , vkz::PipelineStageFlagBits::compute_shader
+                , vkz::AccessFlagBits::shader_read
+                , vkz::ImageLayout::general);
+        }
+    }
+
+
+    vkz::setPresentImage(color);
 
     vkz::loop();
 
     vkz::shutdown();
 }
 
-void wrong()
-{
-    vkz::init();
 
-    vkz::ImageDesc colorDesc;
-    colorDesc.format = vkz::ResourceFormat::r8g8b8a8_snorm;
-    colorDesc.width = 1024;
-    colorDesc.height = 1024;
-    colorDesc.depth = 1;
-    colorDesc.arrayLayers = 1;
-    colorDesc.mips = 1;
-    vkz::RenderTargetHandle color = vkz::registRenderTarget("color", colorDesc);
-
-    vkz::ImageDesc depthDesc;
-    depthDesc.format = vkz::ResourceFormat::d32;
-    depthDesc.width = 1024;
-    depthDesc.height = 1024;
-    depthDesc.depth = 1;
-    depthDesc.arrayLayers = 1;
-    depthDesc.mips = 1;
-    vkz::DepthStencilHandle depth = vkz::registDepthStencil("depth", depthDesc);
-
-    vkz::ImageDesc outputDesc;
-    outputDesc.format = vkz::ResourceFormat::r8g8b8a8_snorm;
-    outputDesc.width = 1024;
-    outputDesc.height = 1024;
-    outputDesc.depth = 1;
-    outputDesc.arrayLayers = 1;
-    outputDesc.mips = 1;
-    vkz::RenderTargetHandle output = vkz::registRenderTarget("output", outputDesc);
-
-    vkz::ImageDesc pyramidDesc;
-    pyramidDesc.format = vkz::ResourceFormat::r32_sfloat;
-    pyramidDesc.width = 1024;
-    pyramidDesc.height = 1024;
-    pyramidDesc.depth = 1;
-    pyramidDesc.arrayLayers = 1;
-    pyramidDesc.mips = 8;
-    vkz::TextureHandle pyramid = vkz::registTexture("pyramid", pyramidDesc);
-
-    vkz::BufferDesc mltBufDesc;
-    mltBufDesc.size = 1024 * 1024 * 1024;
-    vkz::BufferHandle mltBuf = vkz::registBuffer("idx", mltBufDesc);
-
-    vkz::BufferDesc idxBufDesc;
-    idxBufDesc.size = 1024 * 1024 * 1024;
-    vkz::BufferHandle idxBuf = vkz::registBuffer("idx", idxBufDesc);
-
-    vkz::BufferDesc vtxBufDesc;
-    vtxBufDesc.size = 1024 * 1024 * 1024;
-    vkz::BufferHandle vtxBuf = vkz::registBuffer("vtx", vtxBufDesc);
-
-    vkz::BufferDesc cmdBufDesc;
-    cmdBufDesc.size = 1024 * 1024 * 1;
-    vkz::BufferHandle cmdBuf = vkz::registBuffer("cmd", cmdBufDesc);
-
-    vkz::PassDesc cull_a_desc;
-    cull_a_desc.queue = vkz::PassExeQueue::compute;
-    vkz::PassHandle cull_a = vkz::registPass("cull_a", cull_a_desc);
-
-    vkz::PassDesc draw_a_desc;
-    draw_a_desc.queue = vkz::PassExeQueue::graphics;
-    vkz::PassHandle draw_a = vkz::registPass("draw_a", draw_a_desc);
-
-    vkz::PassDesc cull_b_desc;
-    cull_b_desc.queue = vkz::PassExeQueue::compute;
-    vkz::PassHandle cull_b = vkz::registPass("cull_b", cull_b_desc);
-
-    vkz::PassDesc draw_b_desc;
-    draw_b_desc.queue = vkz::PassExeQueue::graphics;
-    vkz::PassHandle draw_b = vkz::registPass("draw_b", draw_b_desc);
-
-    vkz::PassDesc py_desc;
-    py_desc.queue = vkz::PassExeQueue::compute;
-    vkz::PassHandle py_pass = vkz::registPass("py_pass", py_desc);
-
-    vkz::PassDesc output_desc;
-    output_desc.queue = vkz::PassExeQueue::graphics;
-    vkz::PassHandle out_pass = vkz::registPass("output", output_desc);
-
-    // set resource for passes
-    // cull_a
-    vkz::passReadTextures(cull_a, { pyramid });
-    vkz::passReadBuffers(cull_a, { mltBuf });
-    vkz::passWriteBuffers(cull_a, { cmdBuf });
-
-    // draw_a
-    vkz::passReadBuffers(draw_a, { cmdBuf, idxBuf, vtxBuf });
-    vkz::passWriteRTs(draw_a, { color });
-    vkz::passWriteDSs(draw_a, { depth });
-
-    // pyramid
-    vkz::passReadDSs(py_pass, { depth });
-    vkz::passWriteTextures(py_pass, { pyramid });
-
-    // cull_b
-    vkz::passReadTextures(cull_b, { pyramid });
-    vkz::passReadBuffers(cull_b, { mltBuf });
-    vkz::passWriteBuffers(cull_b, { cmdBuf });
-
-    // draw_b
-    vkz::passReadBuffers(draw_b, { cmdBuf, idxBuf, vtxBuf });
-    vkz::passReadTextures(draw_b, { pyramid });
-    vkz::passWriteRTs(draw_b, { color });
-    vkz::passWriteDSs(draw_b, { depth });
-
-    // output
-    vkz::passReadRTs(out_pass, { color });
-    vkz::passWriteRTs(out_pass, { output });
-
-
-    vkz::loop();
-
-    vkz::shutdown();
-}
-*/
 void triangle()
 {
-    vkz::init();
+    vkz::VKZInitConfig config = {};
+    config.windowWidth = 2560;
+    config.windowHeight = 1440;
+
+    vkz::init(config);
 
     vkz::ImageDesc rtDesc;
-    rtDesc.width = 2560;
-    rtDesc.height = 1440;
     rtDesc.depth = 1;
     rtDesc.arrayLayers = 1;
     rtDesc.mips = 1;
@@ -263,10 +287,10 @@ void triangle()
     vkz::ImageHandle color = vkz::registRenderTarget("color", rtDesc);
 
 
-    vkz::ShaderHandle vs = vkz::registShader("color_vert_shader", "shaders/triangle.vert.spv");
-    vkz::ShaderHandle fs = vkz::registShader("color_frag_shader", "shaders/triangle.frag.spv");
+    vkz::ShaderHandle vs = vkz::registShader("triangle_vert_shader", "shaders/triangle.vert.spv");
+    vkz::ShaderHandle fs = vkz::registShader("triangle_frag_shader", "shaders/triangle.frag.spv");
 
-    vkz::ProgramHandle program = vkz::registProgram("color_prog", {vs, fs});
+    vkz::ProgramHandle program = vkz::registProgram("triangle_prog", {vs, fs});
 
     vkz::PassDesc result;
     result.programId = program.id;
@@ -283,20 +307,18 @@ void triangle()
     vkz::PassHandle pass = vkz::registPass("result", result);
 
     {
-        vkz::ResInteractDesc interact = {};
-        interact.binding = 0;
-        interact.stage = vkz::PipelineStageFlagBits::vertex_shader;
-        interact.access = vkz::AccessFlagBits::shader_read;
-        vkz::passReadBuffer(pass, dummyBuf, interact);
+        vkz::bindBuffer(pass, dummyBuf
+            , 0
+            , vkz::PipelineStageFlagBits::vertex_shader
+            , vkz::AccessFlagBits::shader_read);
     }
 
     {
-        vkz::ResInteractDesc interact = {};
-        interact.binding = 0;
-        interact.stage = vkz::PipelineStageFlagBits::color_attachment_output;
-        interact.access = vkz::AccessFlagBits::none;
-        interact.layout = vkz::ImageLayout::color_attachment_optimal;
-        vkz::passWriteImage(pass, color, interact);
+        vkz::bindImage(pass, color
+            , 0
+            , vkz::PipelineStageFlagBits::color_attachment_output
+            , vkz::AccessFlagBits::none
+            , vkz::ImageLayout::color_attachment_optimal);
     }
 
     vkz::setPresentImage(color);

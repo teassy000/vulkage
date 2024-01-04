@@ -33,6 +33,8 @@ namespace vkz
 
         uint16_t    passId{ kInvalidHandle };
 
+        uint16_t    vertexBufferId{ kInvalidHandle };
+        uint16_t    indexBufferId{ kInvalidHandle };
         uint16_t    writeDepthId{ kInvalidHandle };
 
         uint16_t    writeImageNum{ 0 };
@@ -51,8 +53,8 @@ namespace vkz
 
     struct BufferAliasInfo
     {
-        uint16_t   bufId{ kInvalidHandle };
-        uint16_t   size{ 0 };
+        uint16_t    bufId{ kInvalidHandle };
+        uint32_t    size{ 0 };
     };
 
     struct ImageCreateInfo : public ImageDesc
@@ -93,6 +95,8 @@ namespace vkz
     {
         uint16_t    passId{ kInvalidHandle };
 
+        uint16_t    vertexBufferId{ kInvalidHandle };
+        uint16_t    indexBufferId{ kInvalidHandle };
         uint16_t    writeDepthId{ kInvalidHandle };
         uint16_t    writeColorNum{ 0 };
         
@@ -107,6 +111,12 @@ namespace vkz
     {
         uint16_t finalPassId{ kInvalidHandle };
         uint16_t presentImageId{ kInvalidHandle };
+    };
+
+    struct RHI_Config
+    {
+        uint32_t windowWidth{0};
+        uint32_t windowHeight{0};
     };
 } // namespace vkz
 

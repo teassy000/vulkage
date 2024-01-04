@@ -42,14 +42,20 @@ namespace vkz
 
     PassHandle registPass(const char* _name, PassDesc _desc);
 
-    BufferHandle alias(const BufferHandle _buf);
+    BufferHandle alias(const BufferHandle _hBuf);
     ImageHandle alias(const ImageHandle _img);
 
-    void passReadBuffer(PassHandle _pass, BufferHandle _buf, ResInteractDesc _interact);
-    void passWriteBuffer(PassHandle _pass, BufferHandle _buf, ResInteractDesc _interact);
+    void bindVertexBuffer(PassHandle _hPass, BufferHandle _hBuf);
+    void bindIndexBuffer(PassHandle _hPass, BufferHandle _hBuf);
 
-    void passReadImage(PassHandle _pass, ImageHandle _img, ResInteractDesc _interact);
-    void passWriteImage(PassHandle _pass, ImageHandle _img, ResInteractDesc _interact);
+    void bindBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access);
+    void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout);
+
+    void bindReadBuffer(PassHandle _hPass, BufferHandle _hBuf, ResInteractDesc _interact);
+    void bindWriteBuffer(PassHandle _hPass, BufferHandle _hBuf, ResInteractDesc _interact);
+
+    void bindReadImage(PassHandle _hPass, ImageHandle _img, ResInteractDesc _interact);
+    void bindWriteImage(PassHandle _hPass, ImageHandle _img, ResInteractDesc _interact);
 
     void setPresentImage(ImageHandle _rt);
 
@@ -61,7 +67,7 @@ namespace vkz
 
 
     // engine basic functions
-    bool init();
+    bool init(vkz::VKZInitConfig _config = {});
     void loop();
     void shutdown();
 }

@@ -114,8 +114,6 @@ namespace vkz
         FrameGraphBrief brief;
         read(&_reader, brief);
 
-        m_combinedPresentImage = getCombinedResID(brief.presentImage, ResourceType::image);
-
         // info data will use idx from handle as iterator
         m_sparse_shader_info.resize(brief.shaderNum);
         m_sparse_program_info.resize(brief.programNum);
@@ -124,6 +122,8 @@ namespace vkz
         m_sparse_img_info.resize(brief.imgNum);
 
         m_sparse_pass_data_ref.resize(brief.passNum);
+
+        m_combinedPresentImage = getCombinedResID(brief.presentImage, ResourceType::image);
     }
 
 
@@ -1119,6 +1119,7 @@ namespace vkz
 
             BufferCreateInfo info;
             info.size = bkt.desc.size;
+            info.data = bkt.desc.data;
             info.memFlags = bkt.desc.memFlags;
             info.usage = bkt.desc.usage;
             info.aliasNum = (uint16_t)bkt.reses.size();
@@ -1126,6 +1127,11 @@ namespace vkz
             info.barrierState = bkt.initialBarrierState;
 
             write(&m_rhiMemWriter, info);
+
+            if (info.aliasNum > 0)
+            {
+                assert(info.data == nullptr);
+            }
 
             std::vector<BufferAliasInfo> aliasInfo;
             for (const CombinedResID cid : bkt.reses)
@@ -1335,6 +1341,8 @@ namespace vkz
             createInfo.pushConstantNum = regInfo.pushConstantNum;
             createInfo.pipelineConfig = regInfo.pipelineConfig;
 
+            createInfo.vertexBufferId = regInfo.vertexBufferId;
+            createInfo.indexBufferId = regInfo.indexBufferId;
             createInfo.writeDepthId = writeDS.first.id;
             createInfo.writeColorNum = (uint16_t)writeRT.size();
             createInfo.readImageNum = (uint16_t)rImage.size();
@@ -1440,8 +1448,10 @@ namespace vkz
         {
             const BufRegisterInfo& stackInfo = m_sparse_buf_info[res.id];
 
+            bCondMatch &= (info.data == nullptr && stackInfo.data == nullptr);
             bCondMatch &= (info.memFlags == stackInfo.memFlags);
             bCondMatch &= (info.usage == stackInfo.usage);
+
         }
 
         return bCondMatch;
