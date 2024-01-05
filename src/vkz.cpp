@@ -172,10 +172,7 @@ namespace vkz
         void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout);
 
 
-        void readBuffer(const PassHandle _hPass, const BufferHandle _hRes, ResInteractDesc _interact);
-        void writeBuffer(const PassHandle _hPass, const BufferHandle _hRes, ResInteractDesc _interact);
-        void readImage(const PassHandle _hPass, const ImageHandle _hRes, ResInteractDesc _interact);
-        void writeImage(const PassHandle _hPass, const ImageHandle _hRes, ResInteractDesc _interact);
+        void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx);
 
         // new
         void setMultiFrame(ImageHandle _img);
@@ -591,11 +588,23 @@ namespace vkz
             info.vertexBufferId = meta.vertexBufferId;
             info.indexBufferId = meta.indexBufferId;
 
+            auto getResInteractNum = [](
+                const UniDataContainer<PassHandle, std::vector<PassResInteract>>& __cont
+                , const PassHandle __pass) -> uint32_t
+            {
+                if (__cont.exist(__pass)) {
+                    return (uint32_t)(__cont.getIdToData(__pass).size());
+                }
+                else {
+                    return 0u;
+                }
+            };
+
             info.writeDepthId = meta.writeDepthId;
-            info.writeImageNum = meta.writeImageNum; // include depth and color attachment
-            info.readImageNum = meta.readImageNum;
-            info.readBufferNum = meta.readBufferNum;
-            info.writeBufferNum = meta.writeBufferNum;
+            info.writeImageNum = getResInteractNum(m_writeImages, pass); // include depth and color attachment
+            info.readImageNum = getResInteractNum(m_readImages, pass);
+            info.writeBufferNum = getResInteractNum(m_writeBuffers, pass);
+            info.readBufferNum = getResInteractNum(m_readBuffers, pass);
 
             write(m_fgMemWriter, info);
 
@@ -619,19 +628,32 @@ namespace vkz
             // read buffer
             if (0 != info.writeImageNum)
             {
-                write(m_fgMemWriter, m_writeImages.getDataRef(pass).data(), sizeof(PassResInteract) * (info.writeImageNum));
+                write(
+                    m_fgMemWriter
+                    , (const void*)m_writeImages.getIdToData(pass).data()
+                    , (uint32_t)(sizeof(PassResInteract) * getResInteractNum(m_writeImages, pass))
+                );
             }
             if (0 != info.readImageNum)
             {
-                write(m_fgMemWriter, (void*)m_readImages.getDataRef(pass).data(), sizeof(PassResInteract) * info.readImageNum);
+                write(
+                    m_fgMemWriter
+                    , (const void*)m_readImages.getIdToData(pass).data()
+                    , (uint32_t)(sizeof(PassResInteract) * getResInteractNum(m_readImages, pass)));
             }
             if (0 != info.writeBufferNum)
             {
-                write(m_fgMemWriter, (void*)m_writeBuffers.getDataRef(pass).data(), sizeof(PassResInteract) * info.writeBufferNum);
+                write(
+                    m_fgMemWriter, 
+                    (const void*)m_writeBuffers.getIdToData(pass).data(), 
+                    (uint32_t)(sizeof(PassResInteract) * getResInteractNum(m_writeBuffers, pass)));
             }
             if (0 != info.readBufferNum)
             {
-                write(m_fgMemWriter, (void*)m_readBuffers.getDataRef(pass).data(), sizeof(PassResInteract) * info.readBufferNum);
+                write(
+                    m_fgMemWriter
+                    , (const void*)m_readBuffers.getIdToData(pass).data()
+                    , (uint32_t)(sizeof(PassResInteract) * getResInteractNum(m_readBuffers, pass)));
             }
 
             write(m_fgMemWriter, MagicTag::magic_body_end);
@@ -843,19 +865,22 @@ namespace vkz
 
     void Context::bindBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access)
     {
-        ResInteractDesc desc{};
-        desc.binding = _binding;
-        desc.stage = _stage;
-        desc.access = _access;
+        ResInteractDesc interact{};
+        interact.binding = _binding;
+        interact.stage = _stage;
+        interact.access = _access;
 
+        PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
         if (isRead(_access))
         {
-            addResInteract(m_readBuffers, _hPass, _hBuf.id, desc);
+            addResInteract(m_readBuffers, _hPass, _hBuf.id, interact);
+            passMeta.readBufferNum += 1;
         }
 
         if (isWrite(_access, _stage))
         {
-            addResInteract(m_writeBuffers, _hPass, _hBuf.id, desc);
+            addResInteract(m_writeBuffers, _hPass, _hBuf.id, interact);
+            passMeta.writeBufferNum += 1;
         }
     }
 
@@ -890,121 +915,56 @@ namespace vkz
 
         if (isWrite(_access, _stage))
         {
-            bool canWrite = false;
-            if (isGraphics(_hPass) && isDepthStencil(_hImg) && kInvalidHandle == passMeta.writeDepthId)
+            if (isGraphics(_hPass))
             {
-                assert((meta.aspectFlags & ImageAspectFlagBits::depth) > 0);
-
-                passMeta.writeDepthId = _hImg.id;
-
-                desc.access |= AccessFlagBits::depth_stencil_attachment_write;
-                canWrite = true;
-            }
-            else if (isGraphics(_hPass) && isColorAttachment(_hImg))
-            {
-                assert((meta.aspectFlags & ImageAspectFlagBits::color) > 0);
-
-                desc.access |= AccessFlagBits::color_attachment_write;
-                canWrite = true;
+                message(DebugMessageType::warning, "Graphics pass not allowed to write to texture via bind! try to use setAttachmentOutput instead.");
             }
             else if (isCompute(_hPass) && isNormalImage(_hImg))
-            {
-                assert((meta.aspectFlags & ImageAspectFlagBits::color) > 0);
-                canWrite = true;
-            }
-            else
-            {
-                assert(0);
-            }
-
-            if (canWrite)
             {
                 addResInteract(m_writeImages, _hPass, _hImg.id, desc);
                 passMeta.writeImageNum += 1;
                 setRenderDataDirty();
             }
+            else
+            {
+                message(DebugMessageType::warning, "write to an attachment via binding? nope!");
+                assert(0);
+            }
         }
     }
 
-
-
-    void Context::readBuffer(const PassHandle _hPass, const BufferHandle _hBuf, ResInteractDesc _interact)
+    void Context::setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx)
     {
-        addResInteract(m_readBuffers, _hPass, _hBuf.id, _interact);
-        setRenderDataDirty();
-    }
+        assert(isGraphics(_hPass));
 
-    void Context::writeBuffer(const PassHandle _hPass, const BufferHandle _hBuf, ResInteractDesc _interact)
-    {
-        addResInteract(m_writeBuffers, _hPass, _hBuf.id, _interact);
-        setRenderDataDirty();
-    }
-
-    void Context::readImage(const PassHandle _hPass, const ImageHandle _hImg, ResInteractDesc _interact)
-    {
-        ImageMetaData& meta = m_imageMetas.getDataRef(_hImg);
-        PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
-        if (isGraphics(_hPass) && isDepthStencil(_hImg))
-        {
-            assert((meta.aspectFlags & ImageAspectFlagBits::depth) > 0);
-
-            _interact.access |= AccessFlagBits::depth_stencil_attachment_read;
-            addResInteract(m_readImages, _hPass, _hImg.id, _interact);
-            passMeta.readImageNum += 1;
-        }
-        else if (isGraphics(_hPass) && isColorAttachment(_hImg))
-        {
-            assert((meta.aspectFlags & ImageAspectFlagBits::color) > 0);
-
-            _interact.access |= AccessFlagBits::color_attachment_read;
-            addResInteract(m_readImages, _hPass, _hImg.id, _interact);
-            passMeta.readImageNum += 1;
-        }
-        else
-        {
-            addResInteract(m_readImages, _hPass, _hImg.id, _interact);
-            passMeta.readImageNum += 1;
-        }
-
-        setRenderDataDirty();
-    }
-
-    void Context::writeImage(const PassHandle _hPass, const ImageHandle _hImg, ResInteractDesc _interact)
-    {
         ImageMetaData& meta = m_imageMetas.getDataRef(_hImg);
         PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
 
-        if (isGraphics(_hPass) && isDepthStencil(_hImg) && kInvalidHandle == passMeta.writeDepthId)
+        ResInteractDesc interact{};
+        interact.binding = _attachmentIdx;
+        interact.stage = PipelineStageFlagBits::color_attachment_output;
+        interact.access = AccessFlagBits::none;
+
+        if (isDepthStencil(_hImg))
         {
             assert((meta.aspectFlags & ImageAspectFlagBits::depth) > 0);
+            assert(kInvalidHandle == passMeta.writeDepthId);
 
             passMeta.writeDepthId = _hImg.id;
-
-            _interact.access |= AccessFlagBits::depth_stencil_attachment_write;
-            addResInteract(m_writeImages, _hPass, _hImg.id, _interact);
-            passMeta.writeImageNum += 1;
+            interact.layout = ImageLayout::depth_stencil_attachment_optimal;
         }
-        else if (isGraphics(_hPass) && isColorAttachment(_hImg))
+        else if (isColorAttachment(_hImg))
         {
             assert((meta.aspectFlags & ImageAspectFlagBits::color) > 0);
-
-            _interact.access |= AccessFlagBits::color_attachment_write;
-            addResInteract(m_writeImages, _hPass, _hImg.id, _interact);
-            passMeta.writeImageNum += 1;
-        }
-
-        else if (isCompute(_hPass) && isNormalImage(_hImg))
-        {
-            assert((meta.aspectFlags & ImageAspectFlagBits::color) > 0);
-
-            addResInteract(m_writeImages, _hPass, _hImg.id, _interact);
-            passMeta.writeImageNum += 1;
+            interact.layout = ImageLayout::color_attachment_optimal;
         }
         else
         {
             assert(0);
         }
 
+        addResInteract(m_writeImages, _hPass, _hImg.id, interact);
+        passMeta.writeImageNum += 1;
         setRenderDataDirty();
     }
 
@@ -1034,8 +994,6 @@ namespace vkz
 
         setRenderDataDirty();
     }
-
-
 
     void Context::init()
     {
@@ -1188,24 +1146,9 @@ namespace vkz
         s_ctx->bindImage(_hPass, _hImg, _binding, _stage, _access, _layout);
     }
 
-    void bindReadBuffer(PassHandle _hPass, BufferHandle _buf, ResInteractDesc _interact)
+    void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx)
     {
-        s_ctx->readBuffer(_hPass, _buf, _interact);
-    }
-
-    void bindWriteBuffer(PassHandle _hPass, BufferHandle _buf, ResInteractDesc _interact)
-    {
-        s_ctx->writeBuffer(_hPass, _buf, _interact);
-    }
-
-    void bindReadImage(PassHandle _hPass, ImageHandle _img, ResInteractDesc _interact)
-    {
-        s_ctx->readImage(_hPass, _img, _interact);
-    }
-
-    void bindWriteImage(PassHandle _hPass, ImageHandle _img, ResInteractDesc _interact)
-    {
-        s_ctx->writeImage(_hPass, _img, _interact);
+        s_ctx->setAttachmentOutput(_hPass, _hImg, _attachmentIdx);
     }
 
     void setPresentImage(ImageHandle _rt)

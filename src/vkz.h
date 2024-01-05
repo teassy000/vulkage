@@ -51,11 +51,7 @@ namespace vkz
     void bindBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access);
     void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout);
 
-    void bindReadBuffer(PassHandle _hPass, BufferHandle _hBuf, ResInteractDesc _interact);
-    void bindWriteBuffer(PassHandle _hPass, BufferHandle _hBuf, ResInteractDesc _interact);
-
-    void bindReadImage(PassHandle _hPass, ImageHandle _img, ResInteractDesc _interact);
-    void bindWriteImage(PassHandle _hPass, ImageHandle _img, ResInteractDesc _interact);
+    void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx);
 
     void setPresentImage(ImageHandle _rt);
 

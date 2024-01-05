@@ -84,6 +84,9 @@ namespace vkz
         UniDataContainer< uint16_t, BarrierState_vk> readImages;
         UniDataContainer< uint16_t, BarrierState_vk> readBuffers;
         UniDataContainer< uint16_t, BarrierState_vk> writeBuffers;
+
+        std::vector<std::pair<CombinedResID, uint32_t>> shaderBindings;
+        std::vector<std::pair<CombinedResID, uint32_t>> colorAttBindings;
     };
 
 

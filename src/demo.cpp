@@ -181,21 +181,10 @@ void meshDemo()
                 , vkz::AccessFlagBits::shader_read);
         }
 
-        {
-            vkz::bindImage(renderPass, color
-                , 0
-                , vkz::PipelineStageFlagBits::color_attachment_output
-                , vkz::AccessFlagBits::none
-                , vkz::ImageLayout::color_attachment_optimal);
-        }
 
-        {
-            vkz::bindImage(renderPass, depth
-                , 0
-                , vkz::PipelineStageFlagBits::color_attachment_output
-                , vkz::AccessFlagBits::none
-                , vkz::ImageLayout::depth_stencil_attachment_optimal);
-        }
+        setAttachmentOutput(renderPass, color, 0);
+        setAttachmentOutput(renderPass, depth, 0);
+
     }
 
     {
@@ -314,11 +303,7 @@ void triangle()
     }
 
     {
-        vkz::bindImage(pass, color
-            , 0
-            , vkz::PipelineStageFlagBits::color_attachment_output
-            , vkz::AccessFlagBits::none
-            , vkz::ImageLayout::color_attachment_optimal);
+        setAttachmentOutput(pass, color, 0);
     }
 
     vkz::setPresentImage(color);

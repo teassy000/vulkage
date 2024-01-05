@@ -123,7 +123,7 @@ namespace vkz
 
         m_sparse_pass_data_ref.resize(brief.passNum);
 
-        m_combinedPresentImage = getCombinedResID(brief.presentImage, ResourceType::image);
+        m_combinedPresentImage = CombinedResID{ brief.presentImage, ResourceType::image };
     }
 
 
@@ -246,12 +246,12 @@ namespace vkz
         m_hBuf.push_back({ info.bufId });
         m_sparse_buf_info[info.bufId] = info;
 
-        CombinedResID plainResID = getCombinedResID(info.bufId, ResourceType::buffer);
+        CombinedResID plainResID{ info.bufId, ResourceType::buffer };
         m_combinedResId.push_back(plainResID);
 
         if (info.lifetime == ResourceLifetime::non_transition)
         {
-            CombinedResID plainIdx = getCombinedResID(info.bufId, ResourceType::buffer);
+            CombinedResID plainIdx{ info.bufId, ResourceType::buffer };
             m_multiFrame_resList.push_back(plainIdx);
         }
     }
@@ -264,12 +264,12 @@ namespace vkz
         m_hTex.push_back({ info.imgId });
         m_sparse_img_info[info.imgId] = info;
 
-        CombinedResID plainResIdx = getCombinedResID(info.imgId, ResourceType::image);
+        CombinedResID plainResIdx{ info.imgId, ResourceType::image };
         m_combinedResId.push_back(plainResIdx);
 
         if (info.lifetime == ResourceLifetime::non_transition)
         {
-            CombinedResID plainIdx = getCombinedResID(info.imgId, ResourceType::image);
+            CombinedResID plainIdx{ info.imgId, ResourceType::image };
             m_multiFrame_resList.push_back(plainIdx);
         }
     }
@@ -293,7 +293,7 @@ namespace vkz
         uint16_t hPassIdx = getElemIndex(m_hPass, { passId });
         assert(hPassIdx != kInvalidIndex);
 
-        CombinedResID plainId = getCombinedResID(resId, _type);
+        CombinedResID plainId{ resId, _type };
 
         m_pass_rw_res[hPassIdx].readCombinedRes.push_back(plainId);
 
@@ -322,7 +322,7 @@ namespace vkz
         uint16_t hPassIdx = getElemIndex(m_hPass, { passId });
         assert(hPassIdx != kInvalidIndex);
 
-        CombinedResID plainId = getCombinedResID(resId, _type);
+        CombinedResID plainId{ resId, _type };
 
         m_pass_rw_res[hPassIdx].writeCombinedRes.push_back(plainId);
 
@@ -350,7 +350,7 @@ namespace vkz
         void* mem = alloc(m_pAllocator, info.aliasNum * sizeof(uint16_t));
         read(&_reader, mem, info.aliasNum * sizeof(uint16_t));
 
-        CombinedResID combinedBaseIdx = getCombinedResID(info.resBase, _type);
+        CombinedResID combinedBaseIdx{ info.resBase, _type };
         uint16_t idx = getElemIndex(m_combinedForceAlias_base, combinedBaseIdx);
         if (kInvalidIndex == idx)
         {
@@ -364,7 +364,7 @@ namespace vkz
         for (uint16_t ii = 0; ii < info.aliasNum; ++ii)
         {
             uint16_t resIdx = *((uint16_t*)mem + ii);
-            CombinedResID combinedIdx = getCombinedResID(resIdx, _type);
+            CombinedResID combinedIdx{resIdx, _type};
             push_back_unique(m_combinedForceAlias[idx], combinedIdx);
         }
 
@@ -910,7 +910,7 @@ namespace vkz
         while (!restRes.empty())
         {
             uint16_t baseRes = *restRes.begin();
-            const CombinedResID baseCid = getCombinedResID(baseRes, ResourceType::buffer);
+            const CombinedResID baseCid{ baseRes, ResourceType::buffer };
 
             // check if current resource can alias into any existing bucket
             bool aliased = false;
@@ -973,7 +973,7 @@ namespace vkz
         while (!restRes.empty())
         {
             uint16_t baseRes = *restRes.begin();
-            const CombinedResID baseCid = getCombinedResID(baseRes, _type);
+            const CombinedResID baseCid{ baseRes, _type };
 
             // check if current resource can alias into any existing bucket
             bool aliased = false;

@@ -6,6 +6,35 @@
 
 namespace vkz
 {
+    enum class ResourceType : uint16_t
+    {
+        buffer = 0,
+        image,
+    };
+
+    struct CombinedResID
+    {
+        uint16_t        id{kInvalidHandle};
+        ResourceType    type;
+
+        CombinedResID() = default;
+        CombinedResID(uint16_t id, ResourceType type) : id(id), type(type) {}
+
+        bool operator == (const CombinedResID& rhs) const {
+            return id == rhs.id && type == rhs.type;
+        }
+    };
+    inline bool isBuffer(const CombinedResID& _id)
+    {
+        return _id.type == ResourceType::buffer;
+    }
+
+    inline bool isImage(const CombinedResID& _id)
+    {
+        return _id.type == ResourceType::image;
+    }
+
+
     struct ImageMetaData : public ImageDesc
     {
         ImageMetaData(const ImageDesc& desc) : ImageDesc(desc) {}

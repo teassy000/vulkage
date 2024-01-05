@@ -27,12 +27,6 @@ namespace vkz
         end,
     };
 
-    enum class ResourceType : uint16_t
-    {
-        buffer = 0,
-        image,
-    };
-
     struct FrameGraphBrief
     {
         uint32_t    version;
@@ -217,30 +211,6 @@ namespace vkz
         void createResources();
 
     private:
-        union CombinedResID
-        {
-            struct {
-                uint16_t        id;
-                ResourceType    type;
-            };
-
-            uint32_t combined;
-
-            bool operator == (const CombinedResID& rhs) const {
-                return combined == rhs.combined;
-            }
-        };
-
-        inline bool isBuffer(const CombinedResID& _res) const
-        {
-            return _res.type == ResourceType::buffer;
-        }
-
-        inline bool isImage(const CombinedResID& _res) const
-        {
-            return _res.type == ResourceType::image;
-        }
-
         inline bool isDepthStencil(const CombinedResID _res)
         {
             if (!isImage(_res))
@@ -297,15 +267,6 @@ namespace vkz
 
             std::vector<CombinedResID> reses;
         };
-
-        inline CombinedResID getCombinedResID(const uint16_t _resIdx, const ResourceType _resType) const
-        {
-            CombinedResID handle;
-            handle.id = _resIdx;
-            handle.type = _resType;
-
-            return handle;
-        }
 
         bool isBufInfoAliasable(uint16_t _idx, const BufBucket& _bucket, const std::vector<CombinedResID> _resInCurrStack) const;
         bool isImgInfoAliasable(uint16_t _idx, const ImgBucket& _bucket, const std::vector<CombinedResID> _resInCurrStack) const;

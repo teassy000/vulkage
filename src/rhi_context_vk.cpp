@@ -10,6 +10,7 @@
 
 #include <glfw/glfw3.h>
 #include <glfw/glfw3native.h>
+#include <algorithm> //sort
 
 
 namespace vkz
@@ -945,16 +946,16 @@ namespace vkz
         PassCreateInfo createInfo;
         read(&_reader, createInfo);
         
-        size_t bindingSz = createInfo.vertexBindingNum * sizeof(VertexBindingDesc);
-        size_t attributeSz = createInfo.vertexAttributeNum * sizeof(VertexAttributeDesc);
-        size_t totolSz = bindingSz + attributeSz;
+        size_t vtxBindingSz = createInfo.vertexBindingNum * sizeof(VertexBindingDesc);
+        size_t vtxAttributeSz = createInfo.vertexAttributeNum * sizeof(VertexAttributeDesc);
+        size_t totolSz = vtxBindingSz + vtxAttributeSz;
         
         // vertex binding and attribute
         void* mem = alloc(getAllocator(), totolSz);
         read(&_reader, mem, (int32_t)totolSz);
 
         std::vector<VertexBindingDesc> passVertexBinding{ (VertexBindingDesc*)mem, ((VertexBindingDesc*)mem) + createInfo.vertexBindingNum };
-        std::vector<VertexAttributeDesc> passVertexAttribute{ (VertexAttributeDesc*)((char*)mem + bindingSz), ((VertexAttributeDesc*)mem) + createInfo.vertexBindingNum };
+        std::vector<VertexAttributeDesc> passVertexAttribute{ (VertexAttributeDesc*)((char*)mem + vtxBindingSz), ((VertexAttributeDesc*)mem) + createInfo.vertexBindingNum };
 
         // constants
         std::vector<int> pushConstants(createInfo.pushConstantNum);
@@ -1059,23 +1060,37 @@ namespace vkz
             };
 
         size_t offset = 1; // the depth is the first one
-        auto addToPass = [&interacts, &offset, getBarrierState](const std::vector<uint16_t>& _ids, UniDataContainer< uint16_t, BarrierState_vk>& _container) {
+        auto addToPass = [&interacts, &offset, getBarrierState](
+              const std::vector<uint16_t>& _ids
+            , UniDataContainer< uint16_t, BarrierState_vk>& _container
+            , std::vector<std::pair<CombinedResID, uint32_t>>& _bindings
+            , const ResourceType _type
+            ) {
                 for (uint32_t ii = 0; ii < _ids.size(); ++ii)
                 {
                     _container.addData(_ids[ii], getBarrierState(interacts[offset + ii]));
+
+                    CombinedResID combined{ _ids[ii], _type };
+
+                    _bindings.emplace_back(combined, interacts[offset + ii].binding);
                     offset++;
                 }
             };
 
-
         passInfo.writeDepth = std::make_pair(passInfo.writeDepthId, getBarrierState(interacts[0]));
 
-        addToPass(writeColorIds, passInfo.writeColors);
-        addToPass(readImageIds, passInfo.readImages);
-        addToPass(readBufferIds, passInfo.readBuffers);
-        addToPass(writeBufferIds, passInfo.writeBuffers);
-
+        addToPass(writeColorIds, passInfo.writeColors, passInfo.colorAttBindings, ResourceType::image);
+        addToPass(readImageIds, passInfo.readImages, passInfo.shaderBindings, ResourceType::image);
+        addToPass(readBufferIds, passInfo.readBuffers, passInfo.shaderBindings, ResourceType::buffer);
+        addToPass(writeBufferIds, passInfo.writeBuffers, passInfo.shaderBindings, ResourceType::buffer);
         assert(offset == interacts.size());
+
+        // sort bindings
+        auto sortFunc = [](const std::pair<CombinedResID, uint32_t>& _lhs, const std::pair<CombinedResID, uint32_t>& _rhs) -> bool {
+            return _lhs.second < _rhs.second;
+        };
+        std::sort(passInfo.shaderBindings.begin(), passInfo.shaderBindings.end(), sortFunc);
+        std::sort(passInfo.colorAttBindings.begin(), passInfo.colorAttBindings.end(), sortFunc);
 
         m_passContainer.addData(passInfo.passId, passInfo);
     }
@@ -1144,7 +1159,6 @@ namespace vkz
             m_bufferContainer.addData(resArr[i].bufId, buffers[i]);
 
             ResInteractDesc interact{ info.barrierState };
-            //m_bufBarrierStatus.addData(resArr[i].bufId, interact);
 
             m_bufBarrierStates.addData(resArr[i].bufId, 
                 { getAccessFlags(interact.access), getPipelineStageFlags(interact.stage) }
@@ -1338,10 +1352,14 @@ namespace vkz
         VkClearColorValue color = { 33.f / 255.f, 200.f / 255.f, 242.f / 255.f, 1 };
         VkClearDepthStencilValue depth = { 0.f, 0 };
 
+
         std::vector<VkRenderingAttachmentInfo> colorAttachments(passInfo.writeColors.size());
+
+        assert(passInfo.colorAttBindings.size() == passInfo.writeColors.size());
         for (int ii = 0; ii < passInfo.writeColors.size(); ++ii)
         {
-            const Image_vk& colorTarget = m_imageContainer.getIdToData(passInfo.writeColors.getIdAt(ii));
+            const CombinedResID imgId = passInfo.colorAttBindings[ii].first;
+            const Image_vk& colorTarget = m_imageContainer.getIdToData(imgId.id);
 
             colorAttachments[ii].sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
             colorAttachments[ii].clearValue.color = color;
@@ -1383,14 +1401,37 @@ namespace vkz
 
         vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, passInfo.pipeline);
 
-
         // TODO: push descriptors by order of binding
-        std::vector<DescriptorInfo> descInfos;
+        std::vector<DescriptorInfo> descInfos(passInfo.shaderBindings.size());
+        for (int ii = 0; ii < passInfo.shaderBindings.size(); ++ii)
+        {
+            const CombinedResID resId = passInfo.shaderBindings[ii].first;
 
-        const Program_vk& prog =  m_programContainer.getIdToData(passInfo.programId);
-        //vkCmdPushDescriptorSetWithTemplateKHR(m_cmdBuffer, prog.updateTemplate, prog.layout, 0, descInfos.data());
-        
+            if (isImage(resId))
+            {
+                const Image_vk& img = m_imageContainer.getIdToData(resId.id);
 
+                DescriptorInfo info{};
+
+                descInfos[ii] = info;
+            }
+            else if (isBuffer(resId))
+            {
+                const Buffer_vk& buf = m_bufferContainer.getIdToData(resId.id);
+
+                DescriptorInfo info{buf.buffer};
+                descInfos[ii] = info;
+            }
+            else
+            {
+                message(DebugMessageType::error, "not a valid resource type!");
+            }
+        }
+        if(!descInfos.empty())
+        {
+            const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
+            vkCmdPushDescriptorSetWithTemplateKHR(m_cmdBuffer, prog.updateTemplate, prog.layout, 0, descInfos.data());
+        }
         // push constants
 
         // set vertex buffer
@@ -1454,7 +1495,6 @@ namespace vkz
         );
 
         m_barrierDispatcher.dispatch(m_cmdBuffer);
-        
 
         // copy to swapchain
         VkImageCopy copyRegion = {};

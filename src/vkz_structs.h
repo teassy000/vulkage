@@ -332,6 +332,7 @@ namespace vkz
     struct NO_VTABLE ResInteractDesc
     {
         uint32_t            binding{ 0 };
+        
         PipelineStageFlags  stage{ PipelineStageFlagBits::none };
         AccessFlags         access{ AccessFlagBits::none };
 
