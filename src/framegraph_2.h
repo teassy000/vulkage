@@ -134,7 +134,7 @@ namespace vkz
         uint16_t                passRegInfoIdx;
         std::vector<uint16_t>   vtxBindingIdxs;
         std::vector<uint16_t>   vtxAttrIdxs;
-        std::vector<int>   pushConstantIdxs;
+        std::vector<int>   pipelineSpecIdxs;
     };
 
 
@@ -352,7 +352,7 @@ namespace vkz
 
         std::vector< VertexBindingDesc>     m_vtxBindingDesc;
         std::vector< VertexAttributeDesc>   m_vtxAttrDesc;
-        std::vector< int>                   m_pushConstants;
+        std::vector< int>                   m_pipelineSpecData;
 
         std::vector< PassRWResource>                m_pass_rw_res;
         std::vector< PassDependency>                m_pass_dependency;

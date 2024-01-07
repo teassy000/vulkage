@@ -375,8 +375,8 @@ namespace vkz
         void* vertexBindingInfos{ nullptr };
         void* vertexAttributeInfos{ nullptr };
 
-        uint32_t        pushConstantNum{0}; // each constant is 4 byte
-        void*           pushConstants{nullptr};
+        uint32_t        pipelineSpecNum{0}; // each constant is 4 byte
+        void*           pipelineSpecData{nullptr};
         PipelineConfig  pipelineConfig{};
     };
 } // namespace vkz

@@ -32,6 +32,31 @@ uint32_t calculateMipLevelCount_new(uint32_t width, uint32_t height)
     return result;
 }
 
+struct alignas(16) MeshDrawCullVKZ
+{
+    float P00, P11;
+    float znear, zfar;
+    float frustum[4];
+    float lodBase, lodStep;
+    float pyramidWidth, pyramidHeight;
+
+    int32_t enableCull;
+    int32_t enableLod;
+    int32_t enableOcclusion;
+    int32_t enableMeshletOcclusion;
+};
+
+struct alignas(16) GlobalsVKZ
+{
+    mat4 projection;
+
+    float znear, zfar;
+    float frustum[4];
+    float pyramidWidth, pyramidHeight;
+    float screenWidth, screenHeight;
+    int enableMeshletOcclusion;
+};
+
 void meshDemo()
 {
     vkz::VKZInitConfig config = {};
@@ -69,6 +94,7 @@ void meshDemo()
     meshDrawCmdBufDesc.usage = vkz::BufferUsageFlagBits::indirect | vkz::BufferUsageFlagBits::transfer_dst;
     meshDrawCmdBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
     vkz::BufferHandle meshDrawCmdBuf = vkz::registBuffer("meshDrawCmd", meshDrawCmdBufDesc);
+    vkz::BufferHandle meshDrawCmdBuf2 = vkz::alias(meshDrawCmdBuf);
 
     // mesh draw instance count buffer
     vkz::BufferDesc meshDrawCmdCountBufDesc;
@@ -76,6 +102,7 @@ void meshDemo()
     meshDrawCmdCountBufDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::indirect | vkz::BufferUsageFlagBits::transfer_dst;
     meshDrawCmdCountBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
     vkz::BufferHandle meshDrawCmdCountBuf = vkz::registBuffer("meshDrawCmdCount", meshDrawCmdCountBufDesc);
+    vkz::BufferHandle meshDrawCmdCountBuf2 = vkz::alias(meshDrawCmdCountBuf);
 
     // mesh draw instance visibility buffer
     vkz::BufferDesc meshDrawVisBufDesc;
@@ -83,6 +110,7 @@ void meshDemo()
     meshDrawVisBufDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::indirect | vkz::BufferUsageFlagBits::transfer_dst;
     meshDrawVisBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
     vkz::BufferHandle meshDrawVisBuf = vkz::registBuffer("meshDrawVis", meshDrawVisBufDesc);
+    vkz::BufferHandle meshDrawVisBuf2 = vkz::alias(meshDrawVisBuf);
 
     // index buffer
     vkz::BufferDesc idxBufDesc;
@@ -114,8 +142,8 @@ void meshDemo()
     rtDesc.arrayLayers = 1;
     rtDesc.mips = 1;
     rtDesc.usage = vkz::ImageUsageFlagBits::transfer_src;
-
     vkz::ImageHandle color = vkz::registRenderTarget("color", rtDesc);
+    vkz::ImageHandle color2 = vkz::alias(color);
 
     vkz::ImageDesc dpDesc;
     dpDesc.depth = 1;
@@ -123,21 +151,23 @@ void meshDemo()
     dpDesc.mips = 1;
     dpDesc.usage = vkz::ImageUsageFlagBits::transfer_src;
     vkz::ImageHandle depth = vkz::registDepthStencil("depth", dpDesc);
+    vkz::ImageHandle depth2 = vkz::alias(depth);
 
     vkz::ImageDesc pyDesc;
     pyDesc.width = previousPow2_new(config.windowWidth);
     pyDesc.height = previousPow2_new(config.windowHeight);
+    pyDesc.format = vkz::ResourceFormat::r32_sfloat;
     pyDesc.depth = 1;
     pyDesc.arrayLayers = 1;
     pyDesc.mips = calculateMipLevelCount_new(config.windowWidth, config.windowHeight);;
     pyDesc.usage = vkz::ImageUsageFlagBits::transfer_src | vkz::ImageUsageFlagBits::sampled | vkz::ImageUsageFlagBits::storage;
-    vkz::ImageHandle pyramid = vkz::registDepthStencil("pyramid", pyDesc);
+    vkz::ImageHandle pyramid = vkz::registTexture("pyramid", pyDesc);
 
     {
         // render shader
         vkz::ShaderHandle vs = vkz::registShader("mesh_vert_shader", "shaders/mesh.vert.spv");
         vkz::ShaderHandle fs = vkz::registShader("mesh_frag_shader", "shaders/mesh.frag.spv");
-        vkz::ProgramHandle program = vkz::registProgram("mesh_prog", { vs, fs });
+        vkz::ProgramHandle program = vkz::registProgram("mesh_prog", { vs, fs }, sizeof(GlobalsVKZ));
         // pass
         vkz::PassDesc passDesc;
         passDesc.programId = program.id;
@@ -154,7 +184,7 @@ void meshDemo()
 
         // bindings
         {
-            vkz::bindBuffer(renderPass, meshDrawCmdBuf
+            vkz::bindBuffer(renderPass, meshDrawCmdBuf2
                 , 0
                 , vkz::PipelineStageFlagBits::vertex_shader
                 , vkz::AccessFlagBits::shader_read);
@@ -168,33 +198,41 @@ void meshDemo()
         }
 
         {
-            vkz::bindBuffer(renderPass, meshDrawBuf
+            vkz::bindBuffer(renderPass, vtxBuf
                 , 2
                 , vkz::PipelineStageFlagBits::vertex_shader
                 , vkz::AccessFlagBits::shader_read);
         }
 
         {
-            vkz::bindBuffer(renderPass, meshDrawBuf
+            vkz::bindBuffer(renderPass, transformBuf
                 , 3
                 , vkz::PipelineStageFlagBits::vertex_shader
                 , vkz::AccessFlagBits::shader_read);
         }
 
 
-        setAttachmentOutput(renderPass, color, 0);
-        setAttachmentOutput(renderPass, depth, 0);
+        setAttachmentOutput(renderPass, color, 0, color2);
+        setAttachmentOutput(renderPass, depth, 0, depth2);
 
     }
 
     {
+        int pushConstants[] = { false };
+
+        const vkz::Memory* pConst = vkz::alloc(sizeof(int) * COUNTOF(pushConstants));
+        memcpy_s(pConst->data, pConst->size, pushConstants, sizeof(int)* COUNTOF(pushConstants));
+
         // cull pass
         vkz::ShaderHandle cs = vkz::registShader("mesh_draw_cmd_shader", "shaders/drawcmd.comp.spv");
-        vkz::ProgramHandle csProgram = vkz::registProgram("mesh_draw_cmd_prog", { cs });
+        vkz::ProgramHandle csProgram = vkz::registProgram("mesh_draw_cmd_prog", { cs }, sizeof(MeshDrawCullVKZ));
 
         vkz::PassDesc passDesc;
         passDesc.programId = csProgram.id;
         passDesc.queue = vkz::PassExeQueue::compute;
+        passDesc.pipelineSpecNum = COUNTOF(pushConstants);
+        passDesc.pipelineSpecData = (void*)pConst->data;
+        
         vkz::PassHandle cull_pass = vkz::registPass("cull_pass", passDesc);
 
         // bindings
@@ -223,21 +261,24 @@ void meshDemo()
             vkz::bindBuffer(cull_pass, meshDrawCmdBuf
                 , 3
                 , vkz::PipelineStageFlagBits::compute_shader
-                , vkz::AccessFlagBits::shader_read | vkz::AccessFlagBits::shader_write);
+                , vkz::AccessFlagBits::shader_read | vkz::AccessFlagBits::shader_write
+                , meshDrawCmdBuf2);
         }
 
         {
             vkz::bindBuffer(cull_pass, meshDrawCmdCountBuf
                 , 4
                 , vkz::PipelineStageFlagBits::compute_shader
-                , vkz::AccessFlagBits::shader_read | vkz::AccessFlagBits::shader_write);
+                , vkz::AccessFlagBits::shader_read | vkz::AccessFlagBits::shader_write
+                , meshDrawCmdCountBuf2);
         }
 
         {
             vkz::bindBuffer(cull_pass, meshDrawVisBuf
                 , 5
                 , vkz::PipelineStageFlagBits::compute_shader
-                , vkz::AccessFlagBits::shader_read | vkz::AccessFlagBits::shader_write);
+                , vkz::AccessFlagBits::shader_read | vkz::AccessFlagBits::shader_write
+                , meshDrawVisBuf2);
         }
 
         {
@@ -250,13 +291,12 @@ void meshDemo()
     }
 
 
-    vkz::setPresentImage(color);
+    vkz::setPresentImage(color2);
 
     vkz::loop();
 
     vkz::shutdown();
 }
-
 
 void triangle()
 {
@@ -315,5 +355,6 @@ void triangle()
 
 void DemoMain()
 {
-    triangle();
+    //triangle();
+    meshDemo();
 }

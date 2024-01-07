@@ -935,6 +935,9 @@ namespace vkz
         VkPipelineBindPoint bindPoint = getBindPoint(shaders);
         Program_vk prog = vkz::createProgram(m_device, bindPoint, shaders, info.sizePushConstants);
 
+        prog.pushConstantSize = info.sizePushConstants;
+        prog.pushConstantData = info.pPushConstants;
+
         m_programContainer.addData(info.progId, prog);
         m_programShaderIds.emplace_back(shaderIds);
 
@@ -958,10 +961,10 @@ namespace vkz
         std::vector<VertexAttributeDesc> passVertexAttribute{ (VertexAttributeDesc*)((char*)mem + vtxBindingSz), ((VertexAttributeDesc*)mem) + createInfo.vertexBindingNum };
 
         // constants
-        std::vector<int> pushConstants(createInfo.pushConstantNum);
-        read(&_reader, pushConstants.data(), createInfo.pushConstantNum * sizeof(int));
+        std::vector<int> pipelineSpecData(createInfo.pipelineSpecNum);
+        read(&_reader, pipelineSpecData.data(), createInfo.pipelineSpecNum * sizeof(int));
 
-        // r/w resurces
+        // r/w resources
         std::vector<uint16_t> writeColorIds(createInfo.writeColorNum);
         read(&_reader, writeColorIds.data(), createInfo.writeColorNum * sizeof(uint16_t));
 
@@ -1006,11 +1009,10 @@ namespace vkz
             VkPipelineVertexInputStateCreateInfo vtxInputCreateInfo{};
             bool hasVIS = getVertexInputState(vtxInputCreateInfo, passVertexBinding, passVertexAttribute);
 
-
             PipelineConfigs_vk configs{ createInfo.pipelineConfig.enableDepthTest, createInfo.pipelineConfig.enableDepthWrite, getCompareOp(createInfo.pipelineConfig.depthCompOp) };
 
             VkPipelineCache cache{};
-            pipeline = vkz::createGraphicsPipeline(m_device, cache, program.layout, renderInfo, shaders, hasVIS ? &vtxInputCreateInfo : nullptr, pushConstants, configs);
+            pipeline = vkz::createGraphicsPipeline(m_device, cache, program.layout, renderInfo, shaders, hasVIS ? &vtxInputCreateInfo : nullptr, pipelineSpecData, configs);
         }
         else if (createInfo.queue == PassExeQueue::compute)
         {
@@ -1024,7 +1026,7 @@ namespace vkz
             Shader_vk shader = m_shaderContainer.getIdToData(shaderIds[0]);
 
             VkPipelineCache cache{};
-            pipeline = vkz::createComputePipeline(m_device, cache, program.layout, shader, pushConstants);
+            pipeline = vkz::createComputePipeline(m_device, cache, program.layout, shader, {false});
         }
 
         assert(pipeline);
@@ -1045,8 +1047,8 @@ namespace vkz
         passInfo.vertexAttributeNum = createInfo.vertexAttributeNum;
         passInfo.vertexBindingInfos = createInfo.vertexBindingInfos;
         passInfo.vertexAttributeInfos = createInfo.vertexAttributeInfos;
-        passInfo.pushConstantNum = createInfo.pushConstantNum;
-        passInfo.pushConstants = createInfo.pushConstants;
+        passInfo.pipelineSpecNum = createInfo.pipelineSpecNum;
+        passInfo.pipelineSpecData = createInfo.pipelineSpecData;
         passInfo.pipelineConfig = createInfo.pipelineConfig;
 
         // r/w res part
@@ -1073,8 +1075,9 @@ namespace vkz
                     CombinedResID combined{ _ids[ii], _type };
 
                     _bindings.emplace_back(combined, interacts[offset + ii].binding);
-                    offset++;
                 }
+
+                offset += _ids.size();
             };
 
         passInfo.writeDepth = std::make_pair(passInfo.writeDepthId, getBarrierState(interacts[0]));
@@ -1433,6 +1436,11 @@ namespace vkz
             vkCmdPushDescriptorSetWithTemplateKHR(m_cmdBuffer, prog.updateTemplate, prog.layout, 0, descInfos.data());
         }
         // push constants
+        const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
+        if (prog.pushConstantSize > 0)
+        {
+            vkCmdPushConstants(m_cmdBuffer, prog.layout, VK_SHADER_STAGE_ALL, 0, prog.pushConstantSize, prog.pushConstantData);
+        }
 
         // set vertex buffer
         if (kInvalidHandle != passInfo.vertexBufferId)
@@ -1449,6 +1457,7 @@ namespace vkz
             vkCmdBindIndexBuffer(m_cmdBuffer, indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32); // TODO: do I need to expose the index type out?
         }
 
+        // TODO: execute corresponding draw call
         vkCmdDraw(m_cmdBuffer, 3, 1, 0, 0);
 
         vkCmdEndRendering(m_cmdBuffer);
@@ -1627,8 +1636,8 @@ namespace vkz
         for (uint32_t ii = 0; ii < m_bufs.size(); ++ii)
         {
             const VkBuffer& buf = m_bufs[ii];
-            BarrierState_vk src = m_srcImgBarriers[ii];
-            BarrierState_vk dst = m_dstImgBarriers[ii];
+            BarrierState_vk src = m_srcBufBarriers[ii];
+            BarrierState_vk dst = m_dstBufBarriers[ii];
 
             VkBufferMemoryBarrier2 barrier = bufferBarrier(
                 buf,

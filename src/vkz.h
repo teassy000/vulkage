@@ -48,12 +48,14 @@ namespace vkz
     void bindVertexBuffer(PassHandle _hPass, BufferHandle _hBuf);
     void bindIndexBuffer(PassHandle _hPass, BufferHandle _hBuf);
 
-    void bindBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access);
-    void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout);
+    void bindBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, const BufferHandle _outAlias = {kInvalidHandle});
+    void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout, const ImageHandle _outAlias = { kInvalidHandle });
 
-    void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx);
+    void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx, const ImageHandle _outAlias = { kInvalidHandle });
 
     void setPresentImage(ImageHandle _rt);
+
+    void* getPushConstantPtr(const ProgramHandle _hProgram);
 
     // meomory related
     const Memory* alloc(uint32_t _sz);

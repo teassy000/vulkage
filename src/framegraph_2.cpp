@@ -181,12 +181,12 @@ namespace vkz
             m_sparse_pass_data_ref[info.passId].vtxAttrIdxs.push_back((uint16_t)m_vtxAttrDesc.size() - 1);
         }
 
-        for (uint32_t ii = 0; ii < info.pushConstantNum; ++ii)
+        for (uint32_t ii = 0; ii < info.pipelineSpecNum; ++ii)
         {
-            int pushConstant;
-            read(&_reader, pushConstant);
-            m_pushConstants.emplace_back(pushConstant);
-            m_sparse_pass_data_ref[info.passId].pushConstantIdxs.push_back((uint16_t)m_pushConstants.size() - 1);
+            int pipelineSpec;
+            read(&_reader, pipelineSpec);
+            m_pipelineSpecData.emplace_back(pipelineSpec);
+            m_sparse_pass_data_ref[info.passId].pipelineSpecIdxs.push_back((uint16_t)m_pipelineSpecData.size() - 1);
         }
 
         // fill pass idx in queue
@@ -355,7 +355,7 @@ namespace vkz
         if (kInvalidIndex == idx)
         {
             m_combinedForceAlias_base.push_back(combinedBaseIdx);
-            std::vector<CombinedResID> aliasVec({ combinedBaseIdx }); // store base resource!
+            std::vector<CombinedResID> aliasVec({ combinedBaseIdx }); // store base resource into the list
 
             m_combinedForceAlias.push_back(aliasVec);
             idx = (uint16_t)m_combinedForceAlias.size() - 1;
@@ -363,9 +363,9 @@ namespace vkz
 
         for (uint16_t ii = 0; ii < info.aliasNum; ++ii)
         {
-            uint16_t resIdx = *((uint16_t*)mem + ii);
-            CombinedResID combinedIdx{resIdx, _type};
-            push_back_unique(m_combinedForceAlias[idx], combinedIdx);
+            uint16_t resId = *((uint16_t*)mem + ii);
+            CombinedResID combinedId{resId, _type};
+            push_back_unique(m_combinedForceAlias[idx], combinedId);
         }
 
         free(m_pAllocator, mem, info.aliasNum * sizeof(uint16_t));
@@ -422,6 +422,7 @@ namespace vkz
         std::vector<bool> onStack(passNum, false);
 
         uint16_t finalPassIdx = (uint16_t)getElemIndex(m_hPass, m_finalPass);
+        assert(finalPassIdx != kInvalidIndex);
 
         std::vector<uint16_t> sortedPassIdx;
         std::stack<uint16_t> passIdxStack;
@@ -1118,6 +1119,7 @@ namespace vkz
             write(&m_rhiMemWriter, magic);
 
             BufferCreateInfo info;
+            info.bufId = bkt.baseBufId;
             info.size = bkt.desc.size;
             info.data = bkt.desc.data;
             info.memFlags = bkt.desc.memFlags;
@@ -1157,6 +1159,7 @@ namespace vkz
             write(&m_rhiMemWriter, magic);
 
             ImageCreateInfo info;
+            info.imgId = bkt.baseImgId;
             info.mips = bkt.desc.mips;
             info.width = bkt.desc.width;
             info.height = bkt.desc.height;
@@ -1242,6 +1245,7 @@ namespace vkz
             createInfo.progId = info.regInfo.progId;
             createInfo.shaderNum = info.regInfo.shaderNum;
             createInfo.sizePushConstants = info.regInfo.sizePushConstants;
+            createInfo.pPushConstants = info.regInfo.pPushConstants;
 
             RHIContextOpMagic magic{ RHIContextOpMagic::create_program };
 
@@ -1261,7 +1265,7 @@ namespace vkz
         std::vector<PassCreateInfo> passCreateInfo{};
         std::vector<std::vector<VertexBindingDesc>> passVertexBinding(m_sortedPass.size());
         std::vector<std::vector<VertexAttributeDesc>> passVertexAttribute(m_sortedPass.size());
-        std::vector<std::vector<int>> passPushConstants(m_sortedPass.size());
+        std::vector<std::vector<int>> passPipelineSpecData(m_sortedPass.size());
 
         std::vector<std::pair<ImageHandle, ResInteractDesc>> writeDSPair(m_sortedPass.size());
         std::vector<UniDataContainer< ImageHandle, ResInteractDesc> > writeColorList(m_sortedPass.size());
@@ -1270,19 +1274,19 @@ namespace vkz
         std::vector<UniDataContainer< BufferHandle, ResInteractDesc> > readBufferList(m_sortedPass.size());
         std::vector<UniDataContainer< BufferHandle, ResInteractDesc> > writeBufferList(m_sortedPass.size());
         
-        for (PassHandle pass : m_sortedPass)
+        for (uint32_t ii = 0; ii < m_sortedPass.size(); ++ii)
         {
+            PassHandle pass = m_sortedPass[ii];
+            uint16_t passIdx = getElemIndex(m_hPass, pass);
             const PassRegisterInfo& regInfo = m_sparse_pass_info[pass.id];
             assert(pass.id == regInfo.passId);
 
-            uint16_t passIdx = getElemIndex(m_sortedPass, pass);
+            std::pair<ImageHandle, ResInteractDesc>& writeDS = writeDSPair[ii];
+            UniDataContainer< ImageHandle, ResInteractDesc>& writeRT = writeColorList[ii];
+            UniDataContainer< ImageHandle, ResInteractDesc>& rImage = readImageList[ii];
 
-            std::pair<ImageHandle, ResInteractDesc>& writeDS = writeDSPair[passIdx];
-            UniDataContainer< ImageHandle, ResInteractDesc>& writeRT = writeColorList[passIdx];
-            UniDataContainer< ImageHandle, ResInteractDesc>& rImage = readImageList[passIdx];
-
-            UniDataContainer< BufferHandle, ResInteractDesc>& rBuffer = readBufferList[passIdx];
-            UniDataContainer< BufferHandle, ResInteractDesc>& wBuffer = writeBufferList[passIdx];
+            UniDataContainer< BufferHandle, ResInteractDesc>& rBuffer = readBufferList[ii];
+            UniDataContainer< BufferHandle, ResInteractDesc>& wBuffer = writeBufferList[ii];
             {
                 writeDS.first = { kInvalidHandle };
                 writeRT.clear();
@@ -1338,7 +1342,7 @@ namespace vkz
             createInfo.vertexBindingNum = regInfo.vertexBindingNum;
             createInfo.vertexAttributeNum = regInfo.vertexAttributeNum;
             
-            createInfo.pushConstantNum = regInfo.pushConstantNum;
+            createInfo.pipelineSpecNum = regInfo.pipelineSpecNum;
             createInfo.pipelineConfig = regInfo.pipelineConfig;
 
             createInfo.vertexBufferId = regInfo.vertexBufferId;
@@ -1354,7 +1358,7 @@ namespace vkz
             const PassCreateDataRef& createDataRef = m_sparse_pass_data_ref[pass.id];
 
             // vertex binding           
-            std::vector<VertexBindingDesc>& bindingDesc = passVertexBinding[pass.id];
+            std::vector<VertexBindingDesc>& bindingDesc = passVertexBinding[ii];
             for (const uint16_t& bindingIdx : createDataRef.vtxBindingIdxs)
             {
                 bindingDesc.push_back(m_vtxBindingDesc[bindingIdx]);
@@ -1362,20 +1366,20 @@ namespace vkz
             assert(bindingDesc.size() == createInfo.vertexBindingNum);
 
             // vertex attribute
-            std::vector<VertexAttributeDesc>& attributeDesc = passVertexAttribute[pass.id];
+            std::vector<VertexAttributeDesc>& attributeDesc = passVertexAttribute[ii];
             for (const uint16_t& attributeIdx : createDataRef.vtxAttrIdxs)
             {
                 attributeDesc.push_back(m_vtxAttrDesc[attributeIdx]);
             }
             assert(attributeDesc.size() == createInfo.vertexAttributeNum);
 
-            // push constants
-            std::vector<int>& pushConstants = passPushConstants[pass.id];
-            for (const uint16_t& pcIdx : createDataRef.pushConstantIdxs)
+            // pipeline constants
+            std::vector<int>& pipelineSpecData = passPipelineSpecData[ii];
+            for (const uint16_t& pcIdx : createDataRef.pipelineSpecIdxs)
             {
-                pushConstants.push_back(m_pushConstants[pcIdx]);
+                pipelineSpecData.push_back(m_pipelineSpecData[pcIdx]);
             }
-            assert(pushConstants.size() == createInfo.pushConstantNum);
+            assert(pipelineSpecData.size() == createInfo.pipelineSpecNum);
         }
 
         // create things via pass info
@@ -1396,7 +1400,7 @@ namespace vkz
             write(&m_rhiMemWriter, (void*)passVertexAttribute[ii].data(), (int32_t)(createInfo.vertexAttributeNum * sizeof(VertexAttributeDesc)));
 
             // push constants
-            write(&m_rhiMemWriter, (void*)passPushConstants[ii].data(), (int32_t)(createInfo.pushConstantNum * sizeof(int)));
+            write(&m_rhiMemWriter, (void*)passPipelineSpecData[ii].data(), (int32_t)(createInfo.pipelineSpecNum * sizeof(int)));
 
             // pass read/write resources and it's interaction
             write(&m_rhiMemWriter, (void*)writeColorList[ii].getIdPtr(), (int32_t)(createInfo.writeColorNum * sizeof(ImageHandle)));

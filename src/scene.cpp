@@ -8,10 +8,11 @@ enum class Scene_Enum : uint64_t
 {
     RamdomScene = 0,
     MatrixScene = 1,
+    SingleMeshScene = 2,
     CornellBox = 2,
 };
 
-static Scene_Enum se = Scene_Enum::RamdomScene;
+static Scene_Enum se = Scene_Enum::SingleMeshScene;
 
 void CreateRandomScene(Scene& scene)
 {
@@ -106,6 +107,33 @@ void CreateMatrixScene(Scene& scene)
     scene.meshDraws.insert(scene.meshDraws.end(), meshDraws.begin(), meshDraws.end());
 }
 
+void CreateSingleMeshScene(Scene& _scene)
+{
+    uint32_t drawCount = 1;
+    MeshDraw meshDraw;
+
+    Mesh& mesh = _scene.geometry.meshes[0];
+
+    //-- NOTE: simplification for occlusion test
+    meshDraw.pos[0] = 2.f;
+    meshDraw.pos[1] = -2.f;
+    meshDraw.pos[2] = 2.f;
+    meshDraw.scale = 1.f;
+    meshDraw.orit = quat(1, 0, 0, 0);
+    meshDraw.meshIdx = 0;
+    meshDraw.vertexOffset = mesh.vertexOffset;
+    meshDraw.meshletVisibilityOffset = 0;
+
+    uint32_t meshletCount = 0;
+    for (uint32_t lod = 0; lod < mesh.lodCount; lod++)
+        meshletCount = std::max(meshletCount, mesh.lods[lod].meshletCount); // use the maximum one for current mesh
+
+    _scene.drawCount = 1;
+    _scene.drawDistance = 100.f;
+    _scene.meshletVisibilityCount = meshletCount;
+    _scene.meshDraws.push_back(meshDraw);
+}
+
 bool loadScene(Scene& scene, const char** pathes, const uint32_t pathCount ,bool buildMeshlets)
 {
     assert(pathCount);
@@ -134,6 +162,9 @@ bool loadScene(Scene& scene, const char** pathes, const uint32_t pathCount ,bool
     {
     case Scene_Enum::MatrixScene:
         CreateMatrixScene(scene);
+        break;
+    case Scene_Enum::SingleMeshScene:
+        CreateSingleMeshScene(scene);
         break;
     case Scene_Enum::RamdomScene:
     default:

@@ -75,6 +75,7 @@ namespace vkz
 
     struct BufferCreateInfo : public BufferDesc
     {
+        uint16_t    bufId{ kInvalidHandle };
         uint16_t    aliasNum{ 0 };
 
         ResInteractDesc    barrierState;
@@ -88,6 +89,7 @@ namespace vkz
 
     struct ImageCreateInfo : public ImageDesc
     {
+        uint16_t    imgId{ kInvalidHandle };
         uint16_t    aliasNum{ 0 };
 
         ImageAspectFlags    aspectFlags;
@@ -110,6 +112,7 @@ namespace vkz
         uint16_t progId{ kInvalidHandle };
         uint16_t shaderNum{ 0 };
         uint32_t sizePushConstants{ 0 };
+        void* pPushConstants{ nullptr };
 
         uint16_t shaderIds[kMaxNumOfShaderInProgram]{ kInvalidHandle };
     };
