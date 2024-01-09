@@ -77,7 +77,15 @@ namespace vkz
         uint16_t passId{ kInvalidHandle };
         uint16_t vertexBufferId{ kInvalidHandle };
         uint16_t indexBufferId{ kInvalidHandle };
+        uint16_t indirectBufferId{ kInvalidHandle };
+        uint16_t indirectCountBufferId{ kInvalidHandle };
+
         uint16_t writeDepthId{ kInvalidHandle };
+
+        uint32_t indirectBufOffset{ 0 };
+        uint32_t indirectCountBufOffset{ 0 };
+        uint32_t defaultIndirectMaxCount{ 1 };
+        uint32_t indirectBufStride{ 0 };
 
         std::pair<uint16_t, BarrierState_vk> writeDepth;
         UniDataContainer< uint16_t, BarrierState_vk> writeColors;
@@ -138,6 +146,10 @@ namespace vkz
         // barriers
         void createBarriers(uint16_t _passId, bool _flush = false);
 
+        // push descriptor set with templates
+        void pushDescriptorSetWithTemplates(const uint16_t _passId);
+        void pushConstants(const uint16_t _passId);
+
         void exeutePass(const uint16_t _passId);
         void exeGraphic(const uint16_t _passId);
         void exeCompute(const uint16_t _passId);
@@ -155,6 +167,7 @@ namespace vkz
         Buffer_vk m_scratchBuffer;
 
         std::vector<std::vector<uint16_t>> m_programShaderIds;
+        std::vector<uint32_t>           m_progThreadCount;
 
         UniDataContainer< uint16_t, BarrierState_vk> m_bufBarrierStates;
         UniDataContainer< uint16_t, BarrierState_vk> m_imgBarrierStates;

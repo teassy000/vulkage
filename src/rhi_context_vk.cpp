@@ -913,7 +913,7 @@ namespace vkz
         bool lsr = loadShader(shader, m_device, path);
         assert(lsr);
 
-        m_shaderContainer.addData(info.shaderId, shader);
+        m_shaderContainer.push_back(info.shaderId, shader);
     }
 
     void RHIContext_vk::createProgram(MemoryReader& _reader)
@@ -938,7 +938,7 @@ namespace vkz
         prog.pushConstantSize = info.sizePushConstants;
         prog.pushConstantData = info.pPushConstants;
 
-        m_programContainer.addData(info.progId, prog);
+        m_programContainer.push_back(info.progId, prog);
         m_programShaderIds.emplace_back(shaderIds);
 
         assert(m_programContainer.size() == m_programShaderIds.size());
@@ -946,57 +946,59 @@ namespace vkz
 
     void RHIContext_vk::createPass(MemoryReader& _reader)
     {
-        PassCreateInfo createInfo;
-        read(&_reader, createInfo);
+        PassMetaData passMeta;
+        read(&_reader, passMeta);
         
-        size_t vtxBindingSz = createInfo.vertexBindingNum * sizeof(VertexBindingDesc);
-        size_t vtxAttributeSz = createInfo.vertexAttributeNum * sizeof(VertexAttributeDesc);
+        size_t vtxBindingSz = passMeta.vertexBindingNum * sizeof(VertexBindingDesc);
+        size_t vtxAttributeSz = passMeta.vertexAttributeNum * sizeof(VertexAttributeDesc);
         size_t totolSz = vtxBindingSz + vtxAttributeSz;
         
         // vertex binding and attribute
         void* mem = alloc(getAllocator(), totolSz);
         read(&_reader, mem, (int32_t)totolSz);
 
-        std::vector<VertexBindingDesc> passVertexBinding{ (VertexBindingDesc*)mem, ((VertexBindingDesc*)mem) + createInfo.vertexBindingNum };
-        std::vector<VertexAttributeDesc> passVertexAttribute{ (VertexAttributeDesc*)((char*)mem + vtxBindingSz), ((VertexAttributeDesc*)mem) + createInfo.vertexBindingNum };
+        std::vector<VertexBindingDesc> passVertexBinding{ (VertexBindingDesc*)mem, ((VertexBindingDesc*)mem) + passMeta.vertexBindingNum };
+        std::vector<VertexAttributeDesc> passVertexAttribute{ (VertexAttributeDesc*)((char*)mem + vtxBindingSz), ((VertexAttributeDesc*)mem) + passMeta.vertexBindingNum };
 
         // constants
-        std::vector<int> pipelineSpecData(createInfo.pipelineSpecNum);
-        read(&_reader, pipelineSpecData.data(), createInfo.pipelineSpecNum * sizeof(int));
+        std::vector<int> pipelineSpecData(passMeta.pipelineSpecNum);
+        read(&_reader, pipelineSpecData.data(), passMeta.pipelineSpecNum * sizeof(int));
 
         // r/w resources
-        std::vector<uint16_t> writeColorIds(createInfo.writeColorNum);
-        read(&_reader, writeColorIds.data(), createInfo.writeColorNum * sizeof(uint16_t));
+        std::vector<uint16_t> writeColorIds(passMeta.writeImageNum);
+        read(&_reader, writeColorIds.data(), passMeta.writeImageNum * sizeof(uint16_t));
 
-        std::vector<uint16_t> readImageIds(createInfo.readImageNum);
-        read(&_reader, readImageIds.data(), createInfo.readImageNum * sizeof(uint16_t));
+        std::vector<uint16_t> readImageIds(passMeta.readImageNum);
+        read(&_reader, readImageIds.data(), passMeta.readImageNum * sizeof(uint16_t));
 
-        std::vector<uint16_t> readBufferIds(createInfo.readBufferNum);
-        read(&_reader, readBufferIds.data(), createInfo.readBufferNum * sizeof(uint16_t));
+        std::vector<uint16_t> readBufferIds(passMeta.readBufferNum);
+        read(&_reader, readBufferIds.data(), passMeta.readBufferNum * sizeof(uint16_t));
         
-        std::vector<uint16_t> writeBufferIds(createInfo.writeBufferNum);
-        read(&_reader, writeBufferIds.data(), createInfo.writeBufferNum * sizeof(uint16_t));
+        std::vector<uint16_t> writeBufferIds(passMeta.writeBufferNum);
+        read(&_reader, writeBufferIds.data(), passMeta.writeBufferNum * sizeof(uint16_t));
 
         const size_t interactSz =
             1 + // write depth
-            createInfo.writeColorNum +
-            createInfo.readImageNum +
-            createInfo.readBufferNum +
-            createInfo.writeBufferNum;
+            passMeta.writeImageNum +
+            passMeta.readImageNum +
+            passMeta.readBufferNum +
+            passMeta.writeBufferNum;
 
         std::vector<ResInteractDesc> interacts(interactSz);
         read(&_reader, interacts.data(), (uint32_t)(interactSz * sizeof(ResInteractDesc)));
 
         // create pipeline
-        const uint16_t progIdx = (uint16_t)m_programContainer.getIndex(createInfo.programId);
-        const Program_vk& program = m_programContainer.getIdToData(createInfo.programId);
+        const uint16_t progIdx = (uint16_t)m_programContainer.getIndex(passMeta.programId);
+        const Program_vk& program = m_programContainer.getIdToData(passMeta.programId);
         const std::vector<uint16_t>& shaderIds = m_programShaderIds[progIdx];
 
         VkPipeline pipeline{};
-        if (createInfo.queue == PassExeQueue::graphics)
+        if (passMeta.queue == PassExeQueue::graphics)
         {
+            uint32_t depthNum = (passMeta.writeDepthId == kInvalidHandle) ? 0 : 1;
+
             VkPipelineRenderingCreateInfo renderInfo = { VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
-            renderInfo.colorAttachmentCount = createInfo.writeColorNum;
+            renderInfo.colorAttachmentCount = passMeta.writeImageNum - depthNum;
             renderInfo.pColorAttachmentFormats = &m_imageFormat;
             renderInfo.depthAttachmentFormat = m_depthFormat;
 
@@ -1009,12 +1011,12 @@ namespace vkz
             VkPipelineVertexInputStateCreateInfo vtxInputCreateInfo{};
             bool hasVIS = getVertexInputState(vtxInputCreateInfo, passVertexBinding, passVertexAttribute);
 
-            PipelineConfigs_vk configs{ createInfo.pipelineConfig.enableDepthTest, createInfo.pipelineConfig.enableDepthWrite, getCompareOp(createInfo.pipelineConfig.depthCompOp) };
+            PipelineConfigs_vk configs{ passMeta.pipelineConfig.enableDepthTest, passMeta.pipelineConfig.enableDepthWrite, getCompareOp(passMeta.pipelineConfig.depthCompOp) };
 
             VkPipelineCache cache{};
             pipeline = vkz::createGraphicsPipeline(m_device, cache, program.layout, renderInfo, shaders, hasVIS ? &vtxInputCreateInfo : nullptr, pipelineSpecData, configs);
         }
-        else if (createInfo.queue == PassExeQueue::compute)
+        else if (passMeta.queue == PassExeQueue::compute)
         {
             std::vector< Shader_vk> shaders;
             for (const uint16_t sid : shaderIds)
@@ -1033,23 +1035,26 @@ namespace vkz
         
         // fill pass info
         PassInfo_vk passInfo{};
-        passInfo.passId = createInfo.passId;
+        passInfo.passId = passMeta.passId;
         passInfo.pipeline = pipeline;
 
-        passInfo.vertexBufferId = createInfo.vertexBufferId;
-        passInfo.indexBufferId = createInfo.indexBufferId;
-        passInfo.writeDepthId = createInfo.writeDepthId;
+        passInfo.vertexBufferId = passMeta.vertexBufferId;
+        passInfo.indexBufferId = passMeta.indexBufferId;
+        passInfo.indirectBufferId = passMeta.indirectBufferId;
+        passInfo.indirectCountBufferId = passMeta.indirectCountBufferId;
+
+        passInfo.writeDepthId = passMeta.writeDepthId;
 
         // desc part
-        passInfo.programId = createInfo.programId;
-        passInfo.queue = createInfo.queue;
-        passInfo.vertexBindingNum = createInfo.vertexBindingNum;
-        passInfo.vertexAttributeNum = createInfo.vertexAttributeNum;
-        passInfo.vertexBindingInfos = createInfo.vertexBindingInfos;
-        passInfo.vertexAttributeInfos = createInfo.vertexAttributeInfos;
-        passInfo.pipelineSpecNum = createInfo.pipelineSpecNum;
-        passInfo.pipelineSpecData = createInfo.pipelineSpecData;
-        passInfo.pipelineConfig = createInfo.pipelineConfig;
+        passInfo.programId = passMeta.programId;
+        passInfo.queue = passMeta.queue;
+        passInfo.vertexBindingNum = passMeta.vertexBindingNum;
+        passInfo.vertexAttributeNum = passMeta.vertexAttributeNum;
+        passInfo.vertexBindingInfos = passMeta.vertexBindingInfos;
+        passInfo.vertexAttributeInfos = passMeta.vertexAttributeInfos;
+        passInfo.pipelineSpecNum = passMeta.pipelineSpecNum;
+        passInfo.pipelineSpecData = passMeta.pipelineSpecData;
+        passInfo.pipelineConfig = passMeta.pipelineConfig;
 
         // r/w res part
         auto getBarrierState = [&](const ResInteractDesc& _desc) -> BarrierState_vk {
@@ -1070,10 +1075,14 @@ namespace vkz
             ) {
                 for (uint32_t ii = 0; ii < _ids.size(); ++ii)
                 {
-                    _container.addData(_ids[ii], getBarrierState(interacts[offset + ii]));
+                    _container.push_back(_ids[ii], getBarrierState(interacts[offset + ii]));
+
+                    if (interacts[offset + ii].binding == kMaxDescriptorSetNum)
+                        continue;
+
+                    assert(interacts[offset + ii].binding != kInvalidDescriptorSetIndex);
 
                     CombinedResID combined{ _ids[ii], _type };
-
                     _bindings.emplace_back(combined, interacts[offset + ii].binding);
                 }
 
@@ -1095,7 +1104,7 @@ namespace vkz
         std::sort(passInfo.shaderBindings.begin(), passInfo.shaderBindings.end(), sortFunc);
         std::sort(passInfo.colorAttBindings.begin(), passInfo.colorAttBindings.end(), sortFunc);
 
-        m_passContainer.addData(passInfo.passId, passInfo);
+        m_passContainer.push_back(passInfo.passId, passInfo);
     }
 
     void RHIContext_vk::createImage(MemoryReader& _reader)
@@ -1128,12 +1137,12 @@ namespace vkz
 
         for (int i = 0; i < info.aliasNum; ++i)
         {
-            m_imageContainer.addData(resArr[i].imgId, images[i]);
+            m_imageContainer.push_back(resArr[i].imgId, images[i]);
 
             ResInteractDesc interact{ info.barrierState };
             //m_imgBarrierStatus.addData(resArr[i].imgId, interact);
 
-            m_imgBarrierStates.addData(resArr[i].imgId,
+            m_imgBarrierStates.push_back(resArr[i].imgId,
                 { getAccessFlags(interact.access), getImageLayout(interact.layout), getPipelineStageFlags(interact.stage) }
             );
         }
@@ -1159,11 +1168,11 @@ namespace vkz
 
         for (int i = 0; i < info.aliasNum; ++i)
         {
-            m_bufferContainer.addData(resArr[i].bufId, buffers[i]);
+            m_bufferContainer.push_back(resArr[i].bufId, buffers[i]);
 
             ResInteractDesc interact{ info.barrierState };
 
-            m_bufBarrierStates.addData(resArr[i].bufId, 
+            m_bufBarrierStates.push_back(resArr[i].bufId, 
                 { getAccessFlags(interact.access), getPipelineStageFlags(interact.stage) }
             );
         }
@@ -1217,7 +1226,8 @@ namespace vkz
         std::vector<BarrierState_vk> srcBufInteract;
         std::vector<BarrierState_vk> dstBufInteract;
 
-        auto addBarrier = [&](const uint16_t id, const BarrierState_vk& src, const BarrierState_vk& dst
+        auto addBarrier = [&](const uint16_t id
+            , const BarrierState_vk& src, const BarrierState_vk& dst
             , std::vector<uint16_t>& ids, std::vector<BarrierState_vk>& srcInteract, std::vector<BarrierState_vk>& dstInteract)
             {
                 if (src != dst)
@@ -1302,7 +1312,7 @@ namespace vkz
                 dstImgInteract[ii]
             );
 
-            m_imgBarrierStates.updateData(imgId, vkDst);
+            m_imgBarrierStates.update_data(imgId, vkDst);
         }
 
         // add buffer barriers
@@ -1318,8 +1328,55 @@ namespace vkz
                 dstBufInteract[ii]
             );
 
-            m_bufBarrierStates.updateData(bufId, vkDst);
+            m_bufBarrierStates.update_data(bufId, vkDst);
 
+        }
+    }
+
+    void RHIContext_vk::pushDescriptorSetWithTemplates(const uint16_t _passId)
+    {
+        const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
+
+        std::vector<DescriptorInfo> descInfos(passInfo.shaderBindings.size());
+        for (int ii = 0; ii < passInfo.shaderBindings.size(); ++ii)
+        {
+            const CombinedResID resId = passInfo.shaderBindings[ii].first;
+
+            if (isImage(resId))
+            {
+                const Image_vk& img = m_imageContainer.getIdToData(resId.id);
+
+                DescriptorInfo info{};
+
+                descInfos[ii] = info;
+            }
+            else if (isBuffer(resId))
+            {
+                const Buffer_vk& buf = m_bufferContainer.getIdToData(resId.id);
+
+                DescriptorInfo info{ buf.buffer };
+                descInfos[ii] = info;
+            }
+            else
+            {
+                message(DebugMessageType::error, "not a valid resource type!");
+            }
+        }
+        if (!descInfos.empty())
+        {
+            const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
+            vkCmdPushDescriptorSetWithTemplateKHR(m_cmdBuffer, prog.updateTemplate, prog.layout, 0, descInfos.data());
+        }
+    }
+
+    void RHIContext_vk::pushConstants(const uint16_t _passId)
+    {
+        const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
+
+        const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
+        if (prog.pushConstantSize > 0)
+        {
+            vkCmdPushConstants(m_cmdBuffer, prog.layout, prog.pushConstantStages, 0, prog.pushConstantSize, prog.pushConstantData);
         }
     }
 
@@ -1345,7 +1402,6 @@ namespace vkz
         {
             message(DebugMessageType::error, "not a valid execute queue! where does this pass belong?");
         }
-
     }
 
     void RHIContext_vk::exeGraphic(const uint16_t _passId)
@@ -1372,7 +1428,7 @@ namespace vkz
             colorAttachments[ii].imageView = colorTarget.imageView;
         }
 
-        bool hasDepth = passInfo.writeDepthId != kInvalidHandle;
+        bool hasDepth = (passInfo.writeDepthId != kInvalidHandle);
         VkRenderingAttachmentInfo depthAttachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
         if (hasDepth)
         {
@@ -1404,43 +1460,9 @@ namespace vkz
 
         vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, passInfo.pipeline);
 
-        // TODO: push descriptors by order of binding
-        std::vector<DescriptorInfo> descInfos(passInfo.shaderBindings.size());
-        for (int ii = 0; ii < passInfo.shaderBindings.size(); ++ii)
-        {
-            const CombinedResID resId = passInfo.shaderBindings[ii].first;
+        pushDescriptorSetWithTemplates(_passId);
 
-            if (isImage(resId))
-            {
-                const Image_vk& img = m_imageContainer.getIdToData(resId.id);
-
-                DescriptorInfo info{};
-
-                descInfos[ii] = info;
-            }
-            else if (isBuffer(resId))
-            {
-                const Buffer_vk& buf = m_bufferContainer.getIdToData(resId.id);
-
-                DescriptorInfo info{buf.buffer};
-                descInfos[ii] = info;
-            }
-            else
-            {
-                message(DebugMessageType::error, "not a valid resource type!");
-            }
-        }
-        if(!descInfos.empty())
-        {
-            const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
-            vkCmdPushDescriptorSetWithTemplateKHR(m_cmdBuffer, prog.updateTemplate, prog.layout, 0, descInfos.data());
-        }
-        // push constants
-        const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
-        if (prog.pushConstantSize > 0)
-        {
-            vkCmdPushConstants(m_cmdBuffer, prog.layout, VK_SHADER_STAGE_ALL, 0, prog.pushConstantSize, prog.pushConstantData);
-        }
+        pushConstants(_passId);
 
         // set vertex buffer
         if (kInvalidHandle != passInfo.vertexBufferId)
@@ -1457,15 +1479,58 @@ namespace vkz
             vkCmdBindIndexBuffer(m_cmdBuffer, indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32); // TODO: do I need to expose the index type out?
         }
 
-        // TODO: execute corresponding draw call
-        vkCmdDraw(m_cmdBuffer, 3, 1, 0, 0);
+        assert(kInvalidHandle != passInfo.indexBufferId);
+
+        if (kInvalidHandle != passInfo.indirectCountBufferId && kInvalidHandle != passInfo.indirectBufferId)
+        {
+            const Buffer_vk& indirectCountBuffer = m_bufferContainer.getIdToData(passInfo.indirectCountBufferId);
+            const Buffer_vk& indirectBuffer = m_bufferContainer.getIdToData(passInfo.indirectBufferId);
+
+            vkCmdDrawIndexedIndirectCount(m_cmdBuffer
+                , indirectBuffer.buffer
+                , passInfo.indirectBufOffset
+                , indirectCountBuffer.buffer
+                , passInfo.indirectCountBufOffset
+                , passInfo.defaultIndirectMaxCount
+                , passInfo.indirectBufStride);
+        }
+        else if (kInvalidHandle != passInfo.indirectBufferId)
+        {
+            const Buffer_vk& indirectBuffer = m_bufferContainer.getIdToData(passInfo.indirectBufferId);
+
+            vkCmdDrawIndexedIndirect(m_cmdBuffer
+                , indirectBuffer.buffer
+                , passInfo.indirectBufOffset
+                , passInfo.defaultIndirectMaxCount
+                , passInfo.indirectBufStride);
+        }
+        else
+        {
+            // Not supported yet
+            assert(0);
+        }
 
         vkCmdEndRendering(m_cmdBuffer);
     }
 
     void RHIContext_vk::exeCompute(const uint16_t _passId)
     {
-        assert(0);
+        const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
+
+        vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, passInfo.pipeline);
+        
+        pushConstants(_passId);
+        pushDescriptorSetWithTemplates(_passId);
+
+        // get the dispatch size
+        const uint16_t progIdx = (uint16_t)m_programContainer.getIndex(passInfo.programId);
+        const std::vector<uint16_t>& shaderIds = m_programShaderIds[progIdx];
+        assert(shaderIds.size() == 1);
+        const Shader_vk& shader = m_shaderContainer.getIdToData(shaderIds[0]);
+        
+        // TODO: set the local size based by the actual dispatch size
+        // vkCmdDispatch(cmdBuffer, uint32_t((scene.meshDraws.size() + drawcmdCS.localSizeX - 1) / drawcmdCS.localSizeX), drawcmdCS.localSizeY, drawcmdCS.localSizeZ);
+        vkCmdDispatch(m_cmdBuffer, calcGroupCount(1, shader.localSizeX), shader.localSizeY, shader.localSizeZ);
     }
 
     void RHIContext_vk::exeCopy(const uint16_t _passId)
@@ -1492,7 +1557,7 @@ namespace vkz
             { VK_ACCESS_TRANSFER_READ_BIT, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT }
         );
 
-        m_imgBarrierStates.updateData(m_brief.presentImageId, next2);
+        m_imgBarrierStates.update_data(m_brief.presentImageId, next2);
         
         // swapchain image
         const VkImage& swapImg = m_swapchain.images[_swapImgIdx];

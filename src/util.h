@@ -49,27 +49,29 @@ namespace vkz
             return getElemIndex(ids, _id) != kInvalidIndex;
         }
 
-        size_t addData(IdType _id, const DataType& _data) {
-            size_t idx = getElemIndex(ids, _id);
-            if (idx == kInvalidIndex) {
-                ids.push_back(_id);
-                indexToData.push_back(_data);
+        size_t push_back(const IdType& _id, const DataType& _data) {
+            ids.push_back(_id);
+            indexToData.push_back(_data);
 
-                idx = (size_t)ids.size() - 1;
-            }
+            size_t idx = (size_t)ids.size() - 1;
 
             return idx;
         }
 
-        size_t updateData(IdType _id, const DataType& _data) {
+        size_t update_data(const IdType& _id, const DataType& _data) {
             size_t idx = getElemIndex(ids, _id);
             if (idx != kInvalidIndex) {
                 indexToData[idx] = _data;
             }
+            else
+            {
+                assert(0);
+            }
 
             return idx;
         }
 
+        
         DataType& getDataRef(IdType _id) {
             size_t index = getElemIndex(ids, _id);
             assert(index != kInvalidIndex);

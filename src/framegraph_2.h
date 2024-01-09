@@ -50,22 +50,6 @@ namespace vkz
     {
     };
 
-    struct PassRegisterInfo : public PassDesc
-    {
-        uint16_t    passId;
-
-        uint16_t    vertexBufferId{ kInvalidHandle };
-        uint16_t    indexBufferId{ kInvalidHandle };
-        uint16_t    writeDepthId{ kInvalidHandle };
-        uint16_t    writeImageNum{ 0 };
-
-        uint16_t    readImageNum{ 0 };
-
-        uint16_t    readBufferNum{ 0 };
-        uint32_t    writeBufferNum{ 0 };
-    };
-
-
     struct BufRegisterInfo : public BufferDesc
     {
         uint16_t    bufId{ kInvalidHandle };
@@ -129,7 +113,7 @@ namespace vkz
         uint16_t   shaderIds[kMaxNumOfStageInPorgram];
     };
 
-    struct PassCreateDataRef
+    struct PassMetaDataRef
     {
         uint16_t                passRegInfoIdx;
         std::vector<uint16_t>   vtxBindingIdxs;
@@ -180,8 +164,8 @@ namespace vkz
         void registerBuffer(MemoryReader& _reader);
         void registerImage(MemoryReader& _reader);
 
-        void readRes(const PassResInteract& _prInteract, const ResourceType _type);
-        void writeRes(const PassResInteract& _prInteract, const ResourceType _type);
+        uint32_t readResource(std::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type);
+        uint32_t writeResource(std::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type);
 
         void aliasResForce(MemoryReader& _reader, ResourceType _type);
 
@@ -302,8 +286,8 @@ namespace vkz
 
         struct PassDependency
         {
-            std::vector<uint16_t> inPassIdxLst;
-            std::vector<uint16_t> outPassIdxLst;
+            std::set<uint16_t> inPassIdxSet;
+            std::set<uint16_t> outPassIdxSet;
         };
 
         // for optimize
@@ -341,10 +325,10 @@ namespace vkz
 
         std::vector< ShaderInfo >       m_sparse_shader_info;
         std::vector< ProgramInfo>       m_sparse_program_info;
-        std::vector< PassRegisterInfo > m_sparse_pass_info;
+        std::vector< PassMetaData >     m_sparse_pass_meta;
         std::vector< BufRegisterInfo >  m_sparse_buf_info;
         std::vector< ImgRegisterInfo >  m_sparse_img_info;
-        std::vector< PassCreateDataRef> m_sparse_pass_data_ref;
+        std::vector< PassMetaDataRef> m_sparse_pass_data_ref;
         
         std::vector< std::string>           m_shader_path;
 

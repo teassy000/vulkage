@@ -229,7 +229,6 @@ namespace vkz
             VK_CHECK(vkCreateImage(_device, &createInfo, 0, &(img.image)));
         }
 
-
         VkImage baseImg = results[0].image;
 
         VkMemoryRequirements memoryReqs;

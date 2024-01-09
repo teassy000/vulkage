@@ -169,11 +169,16 @@ namespace vkz
         BufferHandle aliasBuffer(const BufferHandle _baseBuf);
         ImageHandle aliasImage(const ImageHandle  _baseImg);
 
+        // read-only data, no barrier required
         void bindVertexBuffer(const PassHandle _hPass, const BufferHandle _hBuf);
         void bindIndexBuffer(const PassHandle _hPass, const BufferHandle _hBuf);
 
-        void bindBuffer(PassHandle _hPass, BufferHandle _buf, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, const BufferHandle _outAlias);
+        // TODO: need to set the interact info so we can add the barrier
+        void setIndirectBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset, uint32_t _stride, uint32_t _defaultMaxCount);
+        void setIndirectCountBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset);
 
+        void bindBuffer(PassHandle _hPass, BufferHandle _buf, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, const BufferHandle _outAlias);
+        void sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, ImageLayout _layout, SamplerReductionMode _reductionMode);
         void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout, const ImageHandle _outAlias);
 
         void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx, const ImageHandle _outAlias);
@@ -347,7 +352,7 @@ namespace vkz
             return ShaderHandle{ kInvalidHandle };
         }
 
-        m_shaderDescs.addData({ idx }, _path);
+        m_shaderDescs.push_back({ idx }, _path);
         
         setRenderDataDirty();
 
@@ -374,8 +379,8 @@ namespace vkz
         desc.sizePushConstants = _sizePushConstants;
         desc.pPushConstants = pushConstants;
         memcpy_s(desc.shaderIds, COUNTOF(desc.shaderIds), _mem->data, _mem->size);
-        m_programDescs.addData({ idx }, desc);
-        m_pushConstants.addData({ idx }, pushConstants);
+        m_programDescs.push_back({ idx }, desc);
+        m_pushConstants.push_back({ idx }, pushConstants);
 
         setRenderDataDirty();
 
@@ -396,7 +401,7 @@ namespace vkz
 
         PassMetaData meta{ _desc };
         meta.passId = idx;
-        m_passMetas.addData({ idx }, meta);
+        m_passMetas.push_back({ idx }, meta);
 
         setRenderDataDirty();
 
@@ -425,7 +430,7 @@ namespace vkz
             meta.usage |= BufferUsageFlagBits::transfer_dst;
         }
 
-        m_bufferMetas.addData({ idx }, meta);
+        m_bufferMetas.push_back({ idx }, meta);
 
         setRenderDataDirty();
 
@@ -452,7 +457,7 @@ namespace vkz
         meta.aspectFlags = ImageAspectFlagBits::color;
         meta.lifetime = _lifetime;
 
-        m_imageMetas.addData({ idx }, meta);
+        m_imageMetas.push_back({ idx }, meta);
 
         setRenderDataDirty();
 
@@ -493,7 +498,7 @@ namespace vkz
         meta.aspectFlags = ImageAspectFlagBits::color;
         meta.lifetime = _lifetime;
 
-        m_imageMetas.addData({ idx }, meta);
+        m_imageMetas.push_back({ idx }, meta);
 
         setRenderDataDirty();
 
@@ -534,7 +539,7 @@ namespace vkz
         meta.aspectFlags = ImageAspectFlagBits::depth;
         meta.lifetime = _lifetime;
 
-        m_imageMetas.addData({ idx }, meta);
+        m_imageMetas.push_back({ idx }, meta);
 
         setRenderDataDirty();
 
@@ -621,27 +626,6 @@ namespace vkz
 
         for (uint16_t ii = 0; ii < passCount; ++ii)
         {
-            PassHandle pass{ (m_passHandles.getHandleAt(ii)) };
-            const PassMetaData& meta = m_passMetas.getIdToData(pass);
-
-            // frame graph data
-            MagicTag magic{ MagicTag::register_pass };
-            write(m_fgMemWriter, magic);
-
-            PassRegisterInfo info;
-            info.passId = meta.passId;
-            info.programId = meta.programId;
-            info.queue = meta.queue;
-            info.vertexBindingNum = meta.vertexBindingNum; // binding struct
-            info.vertexAttributeNum = meta.vertexAttributeNum; // attribute struct 
-            info.vertexAttributeInfos = meta.vertexAttributeInfos;
-            info.vertexBindingInfos = meta.vertexBindingInfos;
-            info.pipelineSpecNum = meta.pipelineSpecNum; // int
-            info.pipelineConfig = meta.pipelineConfig;
-
-            info.vertexBufferId = meta.vertexBufferId;
-            info.indexBufferId = meta.indexBufferId;
-
             auto getResInteractNum = [](
                 const UniDataContainer<PassHandle, std::vector<PassResInteract>>& __cont
                 , const PassHandle __pass) -> uint32_t
@@ -649,30 +633,35 @@ namespace vkz
                 if (__cont.exist(__pass)) {
                     return (uint32_t)(__cont.getIdToData(__pass).size());
                 }
-                else {
-                    return 0u;
-                }
+                
+                return 0u;
             };
 
-            info.writeDepthId = meta.writeDepthId;
-            info.writeImageNum = getResInteractNum(m_writeImages, pass); // include depth and color attachment
-            info.readImageNum = getResInteractNum(m_readImages, pass);
-            info.writeBufferNum = getResInteractNum(m_writeBuffers, pass);
-            info.readBufferNum = getResInteractNum(m_readBuffers, pass);
+            PassHandle pass{ (m_passHandles.getHandleAt(ii)) };
+            const PassMetaData& passMeta = m_passMetas.getIdToData(pass);
 
-            write(m_fgMemWriter, info);
+            assert(getResInteractNum(m_writeImages, pass) == passMeta.writeImageNum);
+            assert(getResInteractNum(m_readImages, pass) == passMeta.readImageNum);
+            assert(getResInteractNum(m_writeBuffers, pass) == passMeta.writeBufferNum);
+            assert(getResInteractNum(m_readBuffers, pass) == passMeta.readBufferNum);
 
-            if (0 != meta.vertexBindingNum)
+            // frame graph data
+            MagicTag magic{ MagicTag::register_pass };
+            write(m_fgMemWriter, magic);
+
+            write(m_fgMemWriter, passMeta);
+
+            if (0 != passMeta.vertexBindingNum)
             {
-                write(m_fgMemWriter, meta.vertexBindingInfos, sizeof(VertexBindingDesc) * meta.vertexBindingNum);
+                write(m_fgMemWriter, passMeta.vertexBindingInfos, sizeof(VertexBindingDesc) * passMeta.vertexBindingNum);
             }
-            if (0 != meta.vertexAttributeNum)
+            if (0 != passMeta.vertexAttributeNum)
             {
-                write(m_fgMemWriter, meta.vertexAttributeInfos, sizeof(VertexAttributeDesc) * meta.vertexAttributeNum);
+                write(m_fgMemWriter, passMeta.vertexAttributeInfos, sizeof(VertexAttributeDesc) * passMeta.vertexAttributeNum);
             }
-            if (0 != meta.pipelineSpecNum)
+            if (0 != passMeta.pipelineSpecNum)
             {
-                write(m_fgMemWriter, meta.pipelineSpecData, sizeof(int) * meta.pipelineSpecNum);
+                write(m_fgMemWriter, passMeta.pipelineSpecData, sizeof(int) * passMeta.pipelineSpecNum);
             }
 
             // read/write resources
@@ -680,7 +669,7 @@ namespace vkz
             // read image
             // write buffer
             // read buffer
-            if (0 != info.writeImageNum)
+            if (0 != passMeta.writeImageNum)
             {
                 write(
                     m_fgMemWriter
@@ -688,21 +677,21 @@ namespace vkz
                     , (uint32_t)(sizeof(PassResInteract) * getResInteractNum(m_writeImages, pass))
                 );
             }
-            if (0 != info.readImageNum)
+            if (0 != passMeta.readImageNum)
             {
                 write(
                     m_fgMemWriter
                     , (const void*)m_readImages.getIdToData(pass).data()
                     , (uint32_t)(sizeof(PassResInteract) * getResInteractNum(m_readImages, pass)));
             }
-            if (0 != info.writeBufferNum)
+            if (0 != passMeta.writeBufferNum)
             {
                 write(
                     m_fgMemWriter, 
                     (const void*)m_writeBuffers.getIdToData(pass).data(), 
                     (uint32_t)(sizeof(PassResInteract) * getResInteractNum(m_writeBuffers, pass)));
             }
-            if (0 != info.readBufferNum)
+            if (0 != passMeta.readBufferNum)
             {
                 write(
                     m_fgMemWriter
@@ -858,12 +847,12 @@ namespace vkz
             //aliasVec.push_back(_baseBuf); // first one is the base
             aliasVec.emplace_back(BufferHandle{ aliasId });
 
-            m_aliasBuffers.addData({ _baseBuf }, aliasVec);
+            m_aliasBuffers.push_back({ _baseBuf }, aliasVec);
         }
 
         BufferMetaData meta = { m_bufferMetas.getIdToData(_baseBuf) };
         meta.bufId = aliasId;
-        m_bufferMetas.addData({ aliasId }, meta);
+        m_bufferMetas.push_back({ aliasId }, meta);
 
         setRenderDataDirty();
 
@@ -885,16 +874,45 @@ namespace vkz
             //aliasVec.push_back(_baseImg);
             aliasVec.emplace_back(ImageHandle{ aliasId });
 
-            m_aliasImages.addData({ _baseImg }, aliasVec);
+            m_aliasImages.push_back({ _baseImg }, aliasVec);
         }
 
         ImageMetaData meta = { m_imageMetas.getIdToData(_baseImg) };
         meta.imgId = aliasId;
-        m_imageMetas.addData({ aliasId }, meta);
+        m_imageMetas.push_back({ aliasId }, meta);
 
         setRenderDataDirty();
 
         return { aliasId };
+    }
+
+
+    uint32_t insertResInteract(UniDataContainer<PassHandle, std::vector<PassResInteract>>& _container, const PassHandle _hPass, const uint16_t _resId, const ResInteractDesc& _interact)
+    {
+        uint32_t vecSize = 0u;
+
+        PassResInteract pri;
+        pri.passId = _hPass.id;
+        pri.resId = _resId;
+        pri.interact = _interact;
+
+        if (_container.exist(_hPass))
+        {
+            std::vector<PassResInteract>& prInteractVec = _container.getDataRef(_hPass);
+            prInteractVec.emplace_back(pri);
+            
+            vecSize = (uint32_t)prInteractVec.size();
+        }
+        else
+        {
+            std::vector<PassResInteract> prInteractVec{};
+            prInteractVec.emplace_back(pri);
+            _container.push_back({ _hPass }, prInteractVec);
+
+            vecSize = (uint32_t)prInteractVec.size();
+        }
+
+        return vecSize;
     }
 
     void Context::bindVertexBuffer(const PassHandle _hPass, const BufferHandle _hBuf)
@@ -907,30 +925,46 @@ namespace vkz
 
     void Context::bindIndexBuffer(const PassHandle _hPass, const BufferHandle _hBuf)
     {
-        PassMetaData& meta = m_passMetas.getDataRef(_hPass);
-        meta.indexBufferId = _hBuf.id;
+        PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
+        passMeta.indexBufferId = _hBuf.id;
 
         setRenderDataDirty();
     }
 
-    void addResInteract(UniDataContainer<PassHandle, std::vector<PassResInteract>>& _container, const PassHandle _hPass, const uint16_t _resId, const ResInteractDesc& _interact)
+    void Context::setIndirectBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset, uint32_t _stride, uint32_t _defaultMaxCount)
     {
-        PassResInteract pri;
-        pri.passId = _hPass.id;
-        pri.resId = _resId;
-        pri.interact = _interact;
+        assert(isGraphics(_hPass));
 
-        if (_container.exist(_hPass))
-        {
-            std::vector<PassResInteract>& prInteractVec = _container.getDataRef(_hPass);
-            prInteractVec.emplace_back(pri);
-        }
-        else
-        {
-            std::vector<PassResInteract> prInteractVec{};
-            prInteractVec.emplace_back(pri);
-            _container.addData({ _hPass }, prInteractVec);
-        }
+        PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
+        passMeta.indirectBufferId = _hBuf.id;
+        passMeta.indirectBufOffset = _offset;
+        passMeta.indirectBufStride = _stride;
+        passMeta.defaultIndirectMaxCount = _defaultMaxCount;
+
+        ResInteractDesc interact{};
+        interact.binding = kMaxDescriptorSetNum;
+        interact.stage = PipelineStageFlagBits::draw_indirect;
+        interact.access = AccessFlagBits::indirect_command_read;
+
+        passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _hBuf.id, interact);
+
+        setRenderDataDirty();
+    }
+
+    void Context::setIndirectCountBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset)
+    {
+        PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
+        passMeta.indirectCountBufferId = _hBuf.id;
+        passMeta.indirectCountBufOffset = _offset;
+
+        ResInteractDesc interact{};
+        interact.binding = kMaxDescriptorSetNum;
+        interact.stage = PipelineStageFlagBits::draw_indirect;
+        interact.access = AccessFlagBits::indirect_command_read;
+
+        passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _hBuf.id, interact);
+
+        setRenderDataDirty();
     }
 
     void Context::bindBuffer(PassHandle _hPass, BufferHandle _buf, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, const BufferHandle _outAlias)
@@ -943,8 +977,7 @@ namespace vkz
         PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
         if (isRead(_access))
         {
-            addResInteract(m_readBuffers, _hPass, _buf.id, interact);
-            passMeta.readBufferNum += 1;
+            passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _buf.id, interact);
         }
 
         if (isWrite(_access, _stage))
@@ -954,9 +987,13 @@ namespace vkz
                 message(DebugMessageType::error, "the _outAlias must be valid if trying to write to resource in pass");
             }
 
-            addResInteract(m_writeBuffers, _hPass, _outAlias.id, interact);
-            passMeta.writeBufferNum += 1;
+            passMeta.writeBufferNum = insertResInteract(m_writeBuffers, _hPass, _outAlias.id, interact);
         }
+    }
+
+    void Context::sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, ImageLayout _layout, SamplerReductionMode _reductionMode)
+    {
+
     }
 
     void Context::bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout, const ImageHandle _outAlias)
@@ -983,8 +1020,7 @@ namespace vkz
                 interact.access |= AccessFlagBits::color_attachment_read;
             }
 
-            addResInteract(m_readImages, _hPass, _hImg.id, interact);
-            passMeta.readImageNum += 1;
+            passMeta.readImageNum = insertResInteract(m_readImages, _hPass, _hImg.id, interact);
             setRenderDataDirty();
         }
 
@@ -1001,8 +1037,7 @@ namespace vkz
             }
             else if (isCompute(_hPass) && isNormalImage(_hImg))
             {
-                addResInteract(m_writeImages, _hPass, _outAlias.id, interact);
-                passMeta.writeImageNum += 1;
+                passMeta.writeImageNum = insertResInteract(m_writeImages, _hPass, _outAlias.id, interact);
                 setRenderDataDirty();
             }
             else
@@ -1044,8 +1079,8 @@ namespace vkz
             assert(0);
         }
 
-        addResInteract(m_writeImages, _hPass, _outAlias.id, interact);
-        passMeta.writeImageNum += 1;
+        passMeta.writeImageNum = insertResInteract(m_writeImages, _hPass, _outAlias.id, interact);
+
         setRenderDataDirty();
     }
 
@@ -1054,7 +1089,7 @@ namespace vkz
         ImageMetaData meta = m_imageMetas.getIdToData(_img);
         meta.lifetime = ResourceLifetime::non_transition;
 
-        m_imageMetas.updateData(_img, meta);
+        m_imageMetas.update_data(_img, meta);
 
         setRenderDataDirty();
     }
@@ -1064,7 +1099,7 @@ namespace vkz
         BufferMetaData meta = m_bufferMetas.getIdToData(_buf);
         meta.lifetime = ResourceLifetime::non_transition;
 
-        m_bufferMetas.updateData(_buf, meta);
+        m_bufferMetas.update_data(_buf, meta);
 
         setRenderDataDirty();
     }
@@ -1222,9 +1257,24 @@ namespace vkz
         s_ctx->bindIndexBuffer(_hPass, _buf);
     }
 
+    void setIndirectBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset, uint32_t _stride, uint32_t _defaultMaxCount)
+    {
+        s_ctx->setIndirectBuffer(_hPass, _hBuf, _offset, _stride, _defaultMaxCount);
+    }
+
+    void setIndirectCountBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset)
+    {
+        s_ctx->setIndirectCountBuffer(_hPass, _hBuf, _offset);
+    }
+
     void bindBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, const BufferHandle _outAlias /*= {kInvalidHandle}*/)
     {
         s_ctx->bindBuffer(_hPass, _hBuf, _binding, _stage, _access, _outAlias);
+    }
+
+    void sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, ImageLayout _layout, SamplerReductionMode _reductionMode)
+    {
+
     }
 
     void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout, const ImageHandle _outAlias /*= {kInvalidHandle}*/)
@@ -1241,7 +1291,6 @@ namespace vkz
     {
         s_ctx->setPresentImage(_rt);
     }
-
 
     void* getPushConstantPtr(const ProgramHandle _hProgram)
     {

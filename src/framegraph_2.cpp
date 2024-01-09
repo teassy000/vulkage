@@ -117,7 +117,7 @@ namespace vkz
         // info data will use idx from handle as iterator
         m_sparse_shader_info.resize(brief.shaderNum);
         m_sparse_program_info.resize(brief.programNum);
-        m_sparse_pass_info.resize(brief.passNum);
+        m_sparse_pass_meta.resize(brief.passNum);
         m_sparse_buf_info.resize(brief.bufNum);
         m_sparse_img_info.resize(brief.imgNum);
 
@@ -160,82 +160,68 @@ namespace vkz
 
     void Framegraph2::registerPass(MemoryReader& _reader)
     {
-        PassRegisterInfo info;
-        read(&_reader, info);
-
+        PassMetaData passMeta;
+        read(&_reader, passMeta);
 
         // process order is important
-        for (uint32_t ii = 0; ii < info.vertexBindingNum; ++ii)
+        for (uint32_t ii = 0; ii < passMeta.vertexBindingNum; ++ii)
         {
             VertexBindingDesc bInfo;
             read(&_reader, bInfo);
             m_vtxBindingDesc.emplace_back(bInfo);
-            m_sparse_pass_data_ref[info.passId].vtxBindingIdxs.push_back((uint16_t)m_vtxBindingDesc.size() - 1);
+            m_sparse_pass_data_ref[passMeta.passId].vtxBindingIdxs.push_back((uint16_t)m_vtxBindingDesc.size() - 1);
         }
 
-        for (uint32_t ii = 0; ii < info.vertexAttributeNum; ++ii)
+        for (uint32_t ii = 0; ii < passMeta.vertexAttributeNum; ++ii)
         {
             VertexAttributeDesc aInfo;
             read(&_reader, aInfo);
             m_vtxAttrDesc.emplace_back(aInfo);
-            m_sparse_pass_data_ref[info.passId].vtxAttrIdxs.push_back((uint16_t)m_vtxAttrDesc.size() - 1);
+            m_sparse_pass_data_ref[passMeta.passId].vtxAttrIdxs.push_back((uint16_t)m_vtxAttrDesc.size() - 1);
         }
 
-        for (uint32_t ii = 0; ii < info.pipelineSpecNum; ++ii)
+        for (uint32_t ii = 0; ii < passMeta.pipelineSpecNum; ++ii)
         {
             int pipelineSpec;
             read(&_reader, pipelineSpec);
             m_pipelineSpecData.emplace_back(pipelineSpec);
-            m_sparse_pass_data_ref[info.passId].pipelineSpecIdxs.push_back((uint16_t)m_pipelineSpecData.size() - 1);
+            m_sparse_pass_data_ref[passMeta.passId].pipelineSpecIdxs.push_back((uint16_t)m_pipelineSpecData.size() - 1);
         }
 
+        m_hPass.push_back({ passMeta.passId });
+        m_pass_rw_res.emplace_back();
+
+        // write image
+        // include color attachment and depth stencil attachment
+        std::vector<PassResInteract> writeImgVec(passMeta.writeImageNum);
+        read(&_reader, writeImgVec.data(), sizeof(PassResInteract) * passMeta.writeImageNum);
+        passMeta.writeImageNum = writeResource(writeImgVec, passMeta.passId, ResourceType::image);
+
+        // read image
+        std::vector<PassResInteract> readImgVec(passMeta.readImageNum);
+        read(&_reader, readImgVec.data(), sizeof(PassResInteract) * passMeta.readImageNum);
+        passMeta.readImageNum = readResource(readImgVec, passMeta.passId, ResourceType::image);
+
+        // write buffer
+        std::vector<PassResInteract> writeBufVec(passMeta.writeBufferNum);
+        read(&_reader, writeBufVec.data(), sizeof(PassResInteract) * passMeta.writeBufferNum);
+        passMeta.writeBufferNum = writeResource(writeBufVec, passMeta.passId, ResourceType::buffer);
+
+        // read buffer
+        std::vector<PassResInteract> readBufVec(passMeta.readBufferNum);
+        read(&_reader, readBufVec.data(), sizeof(PassResInteract) * passMeta.readBufferNum);
+        passMeta.readBufferNum = readResource(readBufVec, passMeta.passId, ResourceType::buffer);
+
         // fill pass idx in queue
-        uint16_t qIdx = (uint16_t)info.queue;
+        uint16_t qIdx = (uint16_t)passMeta.queue;
         m_passIdxInQueue[qIdx].push_back((uint16_t)m_hPass.size());
 
         // fill pass info
-        m_hPass.push_back({ info.passId });
-        m_sparse_pass_info[info.passId] = info;
+        m_sparse_pass_data_ref[passMeta.passId].passRegInfoIdx = passMeta.passId;
+        m_sparse_pass_meta[passMeta.passId] = passMeta;
 
-        m_sparse_pass_data_ref[info.passId].passRegInfoIdx = info.passId;
-
-        m_pass_rw_res.emplace_back();
         m_pass_dependency.emplace_back();
         m_passIdxToSync.emplace_back();
-
-        // include color attachment and depth stencil attachment
-        // write image
-        // read image
-        // write buffer
-        // read buffer
-        for (uint32_t ii = 0; ii < info.writeImageNum; ++ii)
-        {
-            PassResInteract interact;
-            read(&_reader, interact);
-
-            writeRes(interact, ResourceType::image);
-        }
-        for (uint32_t ii = 0; ii < info.readImageNum; ++ii)
-        {
-            PassResInteract interact;
-            read(&_reader, interact);
-
-            readRes(interact, ResourceType::image);
-        }
-        for (uint32_t ii = 0; ii < info.writeBufferNum; ++ii)
-        {
-            PassResInteract interact;
-            read(&_reader, interact);
-
-            writeRes(interact, ResourceType::buffer);
-        }
-        for (uint32_t ii = 0; ii < info.readBufferNum; ++ii)
-        {
-            PassResInteract interact;
-            read(&_reader, interact);
-
-            readRes(interact, ResourceType::buffer);
-        }
     }
 
     void Framegraph2::registerBuffer(MemoryReader& _reader)
@@ -274,6 +260,8 @@ namespace vkz
         }
     }
 
+
+
     const ResInteractDesc merge(const ResInteractDesc& _desc0, const ResInteractDesc& _desc1)
     {
         ResInteractDesc desc = _desc0;
@@ -284,62 +272,130 @@ namespace vkz
         return std::move(desc);
     }
 
-    void Framegraph2::readRes(const PassResInteract& _prInteract, const ResourceType _type)
+    bool isValidBinding(uint32_t _binding)
     {
-        uint16_t passId = _prInteract.passId;
-        uint16_t resId = _prInteract.resId;
-        ResInteractDesc interact = _prInteract.interact;
-
-        uint16_t hPassIdx = getElemIndex(m_hPass, { passId });
-        assert(hPassIdx != kInvalidIndex);
-
-        CombinedResID plainId{ resId, _type };
-
-        m_pass_rw_res[hPassIdx].readCombinedRes.push_back(plainId);
-
-        if (m_pass_rw_res[hPassIdx].readInteracts.exist(plainId))
-        {
-            const ResInteractDesc& orig = m_pass_rw_res[hPassIdx].readInteracts.getIdToData(plainId);
-            if (orig.binding == interact.binding && orig.layout == interact.layout) {
-
-                message(DebugMessageType::info, "resource interaction in current pass already exist! Now merging!");
-                interact = merge(orig, interact);
-            }
-            else {
-                message(DebugMessageType::error, "resource interaction in current pass already exist! conflicts detected!");
-            }
-        }
-
-        m_pass_rw_res[hPassIdx].readInteracts.addData(plainId, interact);
+        return _binding < kMaxDescriptorSetNum;
     }
 
-    void Framegraph2::writeRes(const PassResInteract& _prInteract, const ResourceType _type)
+    const ResInteractDesc mergeIfNoConflict(const ResInteractDesc& _desc0, const ResInteractDesc& _desc1)
     {
-        uint16_t passId = _prInteract.passId;
-        uint16_t resId = _prInteract.resId;
-        ResInteractDesc interact = _prInteract.interact;
+        ResInteractDesc retVar = _desc1;
 
-        uint16_t hPassIdx = getElemIndex(m_hPass, { passId });
+        if (_desc0.layout == retVar.layout)
+        {
+
+            if (_desc0.binding == retVar.binding)
+            {
+                message(DebugMessageType::info, "resource interaction in current pass already exist! Now merging!");
+                retVar = merge(_desc0, retVar);
+            }
+            else
+            {
+                if (isValidBinding(_desc0.binding)) {
+                    message(DebugMessageType::info, "resource interaction in current pass already exist! Old: %d, New: %d, Using: %d", _desc0.binding, retVar.binding, _desc0.binding);
+                    retVar = merge(_desc0, retVar);
+                    retVar.binding = _desc0.binding;
+                }
+                else if (isValidBinding(retVar.binding)) {
+                    message(DebugMessageType::info, "resource interaction in current pass already exist! Now merging!");
+                    retVar = merge(_desc0, retVar);
+
+                }
+                else {
+                    message(DebugMessageType::error, "resource interaction in current pass already exist! conflicts detected!");
+                }
+            }
+        }
+        else
+        {
+            message(DebugMessageType::error, "resource interaction in current pass already exist! conflicts detected!");
+        }
+
+        return retVar;
+    }
+
+    uint32_t Framegraph2::readResource(std::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type)
+    {
+        uint16_t hPassIdx = getElemIndex(m_hPass, { _passId });
         assert(hPassIdx != kInvalidIndex);
 
-        CombinedResID plainId{ resId, _type };
-
-        m_pass_rw_res[hPassIdx].writeCombinedRes.push_back(plainId);
-
-        if (m_pass_rw_res[hPassIdx].writeInteracts.exist(plainId))
+        uint32_t actualSize = 0;
+        for (const PassResInteract& prInteract: _resVec)
         {
-            const ResInteractDesc& orig = m_pass_rw_res[hPassIdx].writeInteracts.getIdToData(plainId);
-            if (orig.binding == interact.binding && orig.layout == interact.layout) {
+            uint16_t passId = prInteract.passId;
+            assert(passId == _passId);
 
-                message(DebugMessageType::info, "resource interaction in current pass already exist! Now merging!");
-                interact = merge(orig, interact);
+            uint16_t resId = prInteract.resId;
+            ResInteractDesc interact = prInteract.interact;
+
+            CombinedResID plainId{ resId, _type };
+
+            if (m_pass_rw_res[hPassIdx].readInteracts.exist(plainId))
+            {
+                const ResInteractDesc& orig = m_pass_rw_res[hPassIdx].readInteracts.getIdToData(plainId);
+
+                interact = mergeIfNoConflict(orig, interact);
+                m_pass_rw_res[hPassIdx].readInteracts.update_data(plainId, interact);
             }
-            else {
-                message(DebugMessageType::error, "resource interaction in current pass already exist! conflicts detected!");
+            else
+            {
+                m_pass_rw_res[hPassIdx].readInteracts.push_back(plainId, interact);
+                m_pass_rw_res[hPassIdx].readCombinedRes.push_back(plainId);
+                actualSize++;
             }
         }
 
-        m_pass_rw_res[hPassIdx].writeInteracts.addData(plainId, interact);
+        // make sure vec elements are unique
+        std::vector<CombinedResID>& readVecRef = m_pass_rw_res[hPassIdx].readCombinedRes;
+        std::sort(readVecRef.begin(), readVecRef.end());
+        readVecRef.erase(std::unique(readVecRef.begin(), readVecRef.end()), readVecRef.end());
+
+        assert(readVecRef.size() == m_pass_rw_res[hPassIdx].readInteracts.size());
+
+        return actualSize;
+    }
+
+    uint32_t Framegraph2::writeResource(std::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type)
+    {
+        uint16_t hPassIdx = getElemIndex(m_hPass, { _passId });
+        assert(hPassIdx != kInvalidIndex);
+
+        uint32_t actualSize = 0;
+        for (const PassResInteract& prInteract : _resVec)
+        {
+            uint16_t passId = prInteract.passId;
+            assert(passId == _passId);
+
+            uint16_t resId = prInteract.resId;
+            ResInteractDesc interact = prInteract.interact;
+
+            CombinedResID plainId{ resId, _type };
+
+            if (m_pass_rw_res[hPassIdx].writeInteracts.exist(plainId))
+            {
+                const ResInteractDesc& orig = m_pass_rw_res[hPassIdx].writeInteracts.getIdToData(plainId);
+
+                interact = mergeIfNoConflict(orig, interact);
+                m_pass_rw_res[hPassIdx].writeInteracts.update_data(plainId, interact);
+            }
+            else
+            {
+                m_pass_rw_res[hPassIdx].writeInteracts.push_back(plainId, interact);
+
+                m_pass_rw_res[hPassIdx].writeCombinedRes.push_back(plainId);
+
+                actualSize++;
+            }
+        }
+
+        // make sure vec elements are unique
+        std::vector<CombinedResID>& writeVecRef = m_pass_rw_res[hPassIdx].writeCombinedRes;
+        std::sort(writeVecRef.begin(), writeVecRef.end());
+        writeVecRef.erase(std::unique(writeVecRef.begin(), writeVecRef.end()), writeVecRef.end());
+
+        assert(writeVecRef.size() == m_pass_rw_res[hPassIdx].writeInteracts.size());
+
+        return actualSize;
     }
 
     void Framegraph2::aliasResForce(MemoryReader& _reader, ResourceType _type)
@@ -408,8 +464,8 @@ namespace vkz
                 uint16_t currPassIdx = ii;
                 uint16_t writePassIdx = linear_outPassIdx[idx];
 
-                m_pass_dependency[currPassIdx].inPassIdxLst.push_back(writePassIdx);
-                m_pass_dependency[writePassIdx].outPassIdxLst.push_back(currPassIdx);
+                m_pass_dependency[currPassIdx].inPassIdxSet.insert(writePassIdx);
+                m_pass_dependency[writePassIdx].outPassIdxSet.insert(currPassIdx);
             }
         }
     }
@@ -441,7 +497,7 @@ namespace vkz
 
             bool inPassAllVisited = true;
 
-            for (uint16_t parentPassIdx : passDep.inPassIdxLst)
+            for (uint16_t parentPassIdx : passDep.inPassIdxSet)
             {
                 if (!visited[parentPassIdx])
                 {
@@ -479,7 +535,7 @@ namespace vkz
         {
             uint16_t maxLv = 0;
 
-            for (uint16_t inPassIdx : m_pass_dependency[passIdx].inPassIdxLst)
+            for (uint16_t inPassIdx : m_pass_dependency[passIdx].inPassIdxSet)
             {
                 uint16_t dd = _maxLvLst[inPassIdx] + 1;
                 maxLv = std::max(maxLv, dd);
@@ -514,8 +570,7 @@ namespace vkz
                 passStack.pop();
 
                 const uint16_t currLv = _maxLvLst[currPassIdx];
-
-                for (const uint16_t inPassIdx : m_pass_dependency[currPassIdx].inPassIdxLst)
+                for (const uint16_t inPassIdx : m_pass_dependency[currPassIdx].inPassIdxSet)
                 {
                     uint16_t idx = getElemIndex(m_passIdxInDpLevels[passIdx].passInLv[baseLv - currLv], inPassIdx);
                     if (currLv - 1 != _maxLvLst[inPassIdx] || kInvalidIndex != idx)
@@ -526,7 +581,7 @@ namespace vkz
                     m_passIdxInDpLevels[passIdx].passInLv[baseLv - currLv].push_back(inPassIdx);
                 }
 
-                for (const uint16_t inPassIdx : m_pass_dependency[currPassIdx].inPassIdxLst)
+                for (const uint16_t inPassIdx : m_pass_dependency[currPassIdx].inPassIdxSet)
                 {
                     passStack.push(inPassIdx);
                 }
@@ -610,7 +665,7 @@ namespace vkz
 
             for (CombinedResID alias : aliasVec)
             {
-                m_plainResAliasToBase.addData(alias, base);
+                m_plainResAliasToBase.push_back(alias, base);
             }
         }
 
@@ -1199,10 +1254,10 @@ namespace vkz
         std::vector<ShaderHandle> usedShaders{};
         for ( PassHandle pass : m_sortedPass)
         {
-            const PassRegisterInfo& info = m_sparse_pass_info[pass.id];
+            const PassMetaData& passMeta = m_sparse_pass_meta[pass.id];
 
-            const ProgramInfo& progInfo = m_sparse_program_info[info.programId];
-            usedProgram.push_back({ info.programId });
+            const ProgramInfo& progInfo = m_sparse_program_info[passMeta.programId];
+            usedProgram.push_back({ passMeta.programId });
 
             for (uint16_t ii = 0; ii < progInfo.regInfo.shaderNum; ++ii)
             {
@@ -1257,18 +1312,17 @@ namespace vkz
 
             write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end);
         }
-
     }
 
     void Framegraph2::createPasses()
     {
-        std::vector<PassCreateInfo> passCreateInfo{};
+        std::vector<PassMetaData> passMetaDataVec{};
         std::vector<std::vector<VertexBindingDesc>> passVertexBinding(m_sortedPass.size());
         std::vector<std::vector<VertexAttributeDesc>> passVertexAttribute(m_sortedPass.size());
         std::vector<std::vector<int>> passPipelineSpecData(m_sortedPass.size());
 
         std::vector<std::pair<ImageHandle, ResInteractDesc>> writeDSPair(m_sortedPass.size());
-        std::vector<UniDataContainer< ImageHandle, ResInteractDesc> > writeColorList(m_sortedPass.size());
+        std::vector<UniDataContainer< ImageHandle, ResInteractDesc> > writeImageList(m_sortedPass.size());
         std::vector<UniDataContainer< ImageHandle, ResInteractDesc> > readImageList(m_sortedPass.size());
 
         std::vector<UniDataContainer< BufferHandle, ResInteractDesc> > readBufferList(m_sortedPass.size());
@@ -1278,21 +1332,21 @@ namespace vkz
         {
             PassHandle pass = m_sortedPass[ii];
             uint16_t passIdx = getElemIndex(m_hPass, pass);
-            const PassRegisterInfo& regInfo = m_sparse_pass_info[pass.id];
-            assert(pass.id == regInfo.passId);
+            const PassMetaData& passMeta = m_sparse_pass_meta[pass.id];
+            assert(pass.id == passMeta.passId);
 
             std::pair<ImageHandle, ResInteractDesc>& writeDS = writeDSPair[ii];
-            UniDataContainer< ImageHandle, ResInteractDesc>& writeRT = writeColorList[ii];
-            UniDataContainer< ImageHandle, ResInteractDesc>& rImage = readImageList[ii];
+            UniDataContainer< ImageHandle, ResInteractDesc>& writeImg = writeImageList[ii];
+            UniDataContainer< ImageHandle, ResInteractDesc>& readImg = readImageList[ii];
 
-            UniDataContainer< BufferHandle, ResInteractDesc>& rBuffer = readBufferList[ii];
-            UniDataContainer< BufferHandle, ResInteractDesc>& wBuffer = writeBufferList[ii];
+            UniDataContainer< BufferHandle, ResInteractDesc>& readBuf = readBufferList[ii];
+            UniDataContainer< BufferHandle, ResInteractDesc>& writeBuf = writeBufferList[ii];
             {
                 writeDS.first = { kInvalidHandle };
-                writeRT.clear();
-                rImage.clear();
-                rBuffer.clear();
-                wBuffer.clear();
+                writeImg.clear();
+                readImg.clear();
+                readBuf.clear();
+                writeBuf.clear();
 
                 const PassRWResource& rwRes = m_pass_rw_res[passIdx];
                 // set write resources
@@ -1303,18 +1357,25 @@ namespace vkz
                         assert(writeDS.first.id == kInvalidHandle);
                         writeDS.first = { writeRes.id };
                         writeDS.second = rwRes.writeInteracts.getIdToData(writeRes);
+                        
+                        writeImg.push_back({ writeRes.id }, rwRes.writeInteracts.getIdToData(writeRes));
                     }
                     else if (isColorAttachment(writeRes))
                     {
-                        writeRT.addData({ writeRes.id }, rwRes.writeInteracts.getIdToData(writeRes));
+                        writeImg.push_back({ writeRes.id }, rwRes.writeInteracts.getIdToData(writeRes));
+                    }
+                    else if (isNormalImage(writeRes)
+                        && (passMeta.queue == PassExeQueue::compute || passMeta.queue == PassExeQueue::copy))
+                    {
+                        writeImg.push_back({ writeRes.id }, rwRes.writeInteracts.getIdToData(writeRes));
                     }
                     else if (isBuffer(writeRes))
                     {
-                        wBuffer.addData({ writeRes.id }, rwRes.writeInteracts.getIdToData(writeRes));
+                        writeBuf.push_back({ writeRes.id }, rwRes.writeInteracts.getIdToData(writeRes));
                     }
-                    else if (isImage(writeRes))
+                    else
                     {
-                        vkz::message(DebugMessageType::error, "a pass should not write to texture: %4d\n", writeRes.id);
+                        vkz::message(DebugMessageType::error, "invalid write resource mapping: Res %4d, PassExeQueue: %d\n", writeRes.id, passMeta.queue);
                     }
                 }
 
@@ -1325,37 +1386,26 @@ namespace vkz
                         || isDepthStencil(readRes)
                         || isImage(readRes))
                     {
-                        rImage.addData({ readRes.id }, rwRes.readInteracts.getIdToData(readRes));
+                        readImg.push_back({ readRes.id }, rwRes.readInteracts.getIdToData(readRes));
                     }
                     else if (isBuffer(readRes))
                     {
-                        rBuffer.addData({ readRes.id }, rwRes.readInteracts.getIdToData(readRes));
+                        assert(!readBuf.exist({ readRes.id }));
+                        readBuf.push_back({ readRes.id }, rwRes.readInteracts.getIdToData(readRes));
                     }
                 }
             }
 
             // create pass info
-            PassCreateInfo createInfo{};
-            createInfo.passId = pass.id;
-            createInfo.programId = regInfo.programId;
-            createInfo.queue = regInfo.queue;
-            createInfo.vertexBindingNum = regInfo.vertexBindingNum;
-            createInfo.vertexAttributeNum = regInfo.vertexAttributeNum;
-            
-            createInfo.pipelineSpecNum = regInfo.pipelineSpecNum;
-            createInfo.pipelineConfig = regInfo.pipelineConfig;
+            assert(writeDS.first.id == passMeta.writeDepthId);
+            assert((uint16_t)writeImg.size() == passMeta.writeImageNum);
+            assert((uint16_t)readImg.size() == passMeta.readImageNum);
+            assert((uint16_t)readBuf.size() == passMeta.readBufferNum);
+            assert((uint16_t)writeBuf.size() == passMeta.writeBufferNum);
 
-            createInfo.vertexBufferId = regInfo.vertexBufferId;
-            createInfo.indexBufferId = regInfo.indexBufferId;
-            createInfo.writeDepthId = writeDS.first.id;
-            createInfo.writeColorNum = (uint16_t)writeRT.size();
-            createInfo.readImageNum = (uint16_t)rImage.size();
-            createInfo.readBufferNum = (uint16_t)rBuffer.size();
-            createInfo.writeBufferNum = (uint16_t)wBuffer.size();
+            passMetaDataVec.emplace_back(passMeta);
 
-            passCreateInfo.emplace_back(createInfo);
-
-            const PassCreateDataRef& createDataRef = m_sparse_pass_data_ref[pass.id];
+            const PassMetaDataRef& createDataRef = m_sparse_pass_data_ref[pass.id];
 
             // vertex binding           
             std::vector<VertexBindingDesc>& bindingDesc = passVertexBinding[ii];
@@ -1363,7 +1413,7 @@ namespace vkz
             {
                 bindingDesc.push_back(m_vtxBindingDesc[bindingIdx]);
             }
-            assert(bindingDesc.size() == createInfo.vertexBindingNum);
+            assert(bindingDesc.size() == passMeta.vertexBindingNum);
 
             // vertex attribute
             std::vector<VertexAttributeDesc>& attributeDesc = passVertexAttribute[ii];
@@ -1371,7 +1421,7 @@ namespace vkz
             {
                 attributeDesc.push_back(m_vtxAttrDesc[attributeIdx]);
             }
-            assert(attributeDesc.size() == createInfo.vertexAttributeNum);
+            assert(attributeDesc.size() == passMeta.vertexAttributeNum);
 
             // pipeline constants
             std::vector<int>& pipelineSpecData = passPipelineSpecData[ii];
@@ -1379,13 +1429,13 @@ namespace vkz
             {
                 pipelineSpecData.push_back(m_pipelineSpecData[pcIdx]);
             }
-            assert(pipelineSpecData.size() == createInfo.pipelineSpecNum);
+            assert(pipelineSpecData.size() == passMeta.pipelineSpecNum);
         }
 
         // create things via pass info
-        for (uint16_t ii = 0; ii < passCreateInfo.size(); ++ii)
+        for (uint16_t ii = 0; ii < passMetaDataVec.size(); ++ii)
         {
-            const PassCreateInfo& createInfo = passCreateInfo[ii];
+            const PassMetaData& createInfo = passMetaDataVec[ii];
 
             RHIContextOpMagic magic{ RHIContextOpMagic::create_pass };
 
@@ -1403,13 +1453,13 @@ namespace vkz
             write(&m_rhiMemWriter, (void*)passPipelineSpecData[ii].data(), (int32_t)(createInfo.pipelineSpecNum * sizeof(int)));
 
             // pass read/write resources and it's interaction
-            write(&m_rhiMemWriter, (void*)writeColorList[ii].getIdPtr(), (int32_t)(createInfo.writeColorNum * sizeof(ImageHandle)));
+            write(&m_rhiMemWriter, (void*)writeImageList[ii].getIdPtr(), (int32_t)(createInfo.writeImageNum * sizeof(ImageHandle)));
             write(&m_rhiMemWriter, (void*)readImageList[ii].getIdPtr(), (int32_t)(createInfo.readImageNum * sizeof(ImageHandle)));
             write(&m_rhiMemWriter, (void*)readBufferList[ii].getIdPtr(), (int32_t)(createInfo.readBufferNum * sizeof(BufferHandle)));
             write(&m_rhiMemWriter, (void*)writeBufferList[ii].getIdPtr(), (int32_t)(createInfo.writeBufferNum * sizeof(BufferHandle)));
 
             write(&m_rhiMemWriter, writeDSPair[ii].second);
-            write(&m_rhiMemWriter, (void*)writeColorList[ii].getDataPtr(), (int32_t)(createInfo.writeColorNum * sizeof(ResInteractDesc)));
+            write(&m_rhiMemWriter, (void*)writeImageList[ii].getDataPtr(), (int32_t)(createInfo.writeImageNum * sizeof(ResInteractDesc)));
             write(&m_rhiMemWriter, (void*)readImageList[ii].getDataPtr(), (int32_t)(createInfo.readImageNum * sizeof(ResInteractDesc)));
             write(&m_rhiMemWriter, (void*)readBufferList[ii].getDataPtr(), (int32_t)(createInfo.readBufferNum * sizeof(ResInteractDesc)));
             write(&m_rhiMemWriter, (void*)writeBufferList[ii].getDataPtr(), (int32_t)(createInfo.writeBufferNum * sizeof(ResInteractDesc)));

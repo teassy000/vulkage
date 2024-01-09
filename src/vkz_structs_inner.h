@@ -23,6 +23,12 @@ namespace vkz
         bool operator == (const CombinedResID& rhs) const {
             return id == rhs.id && type == rhs.type;
         }
+
+        bool operator < (const CombinedResID& rhs) const {
+            uint32_t loc_c = (uint32_t)type << 16 | id;
+            uint32_t rhs_c = (uint32_t)rhs.type << 16 | rhs.id;
+            return loc_c < rhs_c;
+        }
     };
     inline bool isBuffer(const CombinedResID& _id)
     {
@@ -33,7 +39,6 @@ namespace vkz
     {
         return _id.type == ResourceType::image;
     }
-
 
     struct ImageMetaData : public ImageDesc
     {
@@ -56,22 +61,43 @@ namespace vkz
         ResourceLifetime    lifetime{ ResourceLifetime::transition };
     };
 
-    struct PassMetaData : public PassDesc
+    // to generate barriers
+    struct NO_VTABLE ResInteractDesc
     {
-        PassMetaData(const PassDesc& desc) : PassDesc(desc) {}
+        uint32_t            binding{ kInvalidDescriptorSetIndex };
 
-        uint16_t    passId{ kInvalidHandle };
+        PipelineStageFlags  stage{ PipelineStageFlagBits::none };
+        AccessFlags         access{ AccessFlagBits::none };
 
-        uint16_t    vertexBufferId{ kInvalidHandle };
-        uint16_t    indexBufferId{ kInvalidHandle };
-        uint16_t    writeDepthId{ kInvalidHandle };
+        ImageLayout         layout{ ImageLayout::general };
 
-        uint16_t    writeImageNum{ 0 };
-        uint16_t    readImageNum{ 0 };
+        inline bool operator == (const ResInteractDesc& rhs) const {
+            return binding == rhs.binding &&
+                stage == rhs.stage &&
+                access == rhs.access &&
+                layout == rhs.layout;
+        }
 
-        uint16_t    readBufferNum{ 0 };
-        uint32_t    writeBufferNum{ 0 };
+        inline bool operator != (const ResInteractDesc& rhs) const {
+            return !(*this == rhs);
+        }
     };
+
+    struct VertexBindingDesc
+    {
+        uint32_t            binding{ 0 };
+        uint32_t            stride{ 0 };
+        VertexInputRate     inputRate{ VertexInputRate::vertex };
+    };
+
+    struct VertexAttributeDesc
+    {
+        uint32_t        location{ 0 };
+        uint32_t        binding{ 0 };
+        uint32_t        offset{ 0 };
+        ResourceFormat  format{ ResourceFormat::undefined };
+    };
+
 
     struct BufferCreateInfo : public BufferDesc
     {
@@ -121,23 +147,34 @@ namespace vkz
     {
 
     };
-    
 
-    struct PassCreateInfo : public PassDesc
+    struct PassMetaData : public PassDesc
     {
+        PassMetaData() = default;
+        PassMetaData(const PassDesc& desc) : PassDesc(desc) {}
+
         uint16_t    passId{ kInvalidHandle };
 
+        // graphics pass specific
         uint16_t    vertexBufferId{ kInvalidHandle };
         uint16_t    indexBufferId{ kInvalidHandle };
-        uint16_t    writeDepthId{ kInvalidHandle };
-        uint16_t    writeColorNum{ 0 };
         
+        uint16_t    indirectBufferId{ kInvalidHandle };
+        uint16_t    indirectCountBufferId{ kInvalidHandle };
+
+        uint16_t    writeDepthId{ kInvalidHandle };
+
+        uint16_t    writeImageNum{ 0 };
         uint16_t    readImageNum{ 0 };
 
         uint16_t    readBufferNum{ 0 };
-        uint32_t    writeBufferNum{ 0 };
-    };
+        uint16_t    writeBufferNum{ 0 };
 
+        uint32_t    indirectBufOffset{ 0 };
+        uint32_t    indirectCountBufOffset{ 0 };
+        uint32_t    defaultIndirectMaxCount{ 1 };
+        uint32_t    indirectBufStride{ 0 };
+    };
 
     struct RHIBrief
     {

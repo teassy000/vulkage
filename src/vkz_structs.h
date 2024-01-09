@@ -8,6 +8,8 @@
 namespace vkz
 {
     static const uint16_t kInvalidHandle = UINT16_MAX;
+    static const uint32_t kInvalidDescriptorSetIndex = UINT32_MAX;
+    static const uint32_t kMaxDescriptorSetNum = UINT32_MAX - 1;
 
     template <class HandleType>
     struct NO_VTABLE Handle {
@@ -146,6 +148,16 @@ namespace vkz
         present_optimal,
 
         img_layout_max = 0x7FFFFFFF
+    };
+
+    enum class SamplerReductionMode
+    {
+        undefined = 0,
+        weighted_average,
+        min,
+        max,
+
+        sampler_reduction_mode_max = 0x7FFFFFFF
     };
 
     namespace BufferUsageFlagBits
@@ -324,45 +336,6 @@ namespace vkz
         ImageLayout     layout{ ImageLayout::general };
         ResourceFormat  format{ ResourceFormat::undefined };
         ImageUsageFlags usage{ ImageUsageFlagBits::color_attachment };
-    };
-
-
-
-    // to generate barriers
-    struct NO_VTABLE ResInteractDesc
-    {
-        uint32_t            binding{ 0 };
-        
-        PipelineStageFlags  stage{ PipelineStageFlagBits::none };
-        AccessFlags         access{ AccessFlagBits::none };
-
-        ImageLayout         layout{ ImageLayout::general };
-
-        inline bool operator == (const ResInteractDesc& rhs) const {
-            return binding == rhs.binding &&
-                stage == rhs.stage &&
-                access == rhs.access &&
-                layout == rhs.layout;
-        }
-
-        inline bool operator != (const ResInteractDesc& rhs) const {
-            return !(*this == rhs);
-        }
-    };
-
-    struct VertexBindingDesc
-    {
-        uint32_t            binding{ 0 };
-        uint32_t            stride{ 0 };
-        VertexInputRate     inputRate{ VertexInputRate::vertex };
-    };
-
-    struct VertexAttributeDesc
-    {
-        uint32_t        location{ 0 };
-        uint32_t        binding{ 0 };
-        uint32_t        offset{ 0 };
-        ResourceFormat  format{ ResourceFormat::undefined };
     };
 
     struct PassDesc

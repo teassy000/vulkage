@@ -1,6 +1,7 @@
 #include "vkz.h"
 #include "mesh.h"
 #include "scene.h"
+#include <cstddef>
 
 struct alignas(16) TransformData
 {
@@ -57,6 +58,26 @@ struct alignas(16) GlobalsVKZ
     int enableMeshletOcclusion;
 };
 
+struct MeshDrawCommandVKZ
+{
+    uint32_t    drawId;
+    uint32_t    taskOffset;
+    uint32_t    taskCount;
+    uint32_t    lateDrawVisibility;
+
+    // struct VkDrawIndexedIndirectCommand
+    uint32_t    indexCount;
+    uint32_t    instanceCount;
+    uint32_t    firstIndex;
+    uint32_t    vertexOffset;
+    uint32_t    firstInstance;
+
+    // struct VkDrawMeshTasksIndirectCommandEXT
+    uint32_t    local_x;
+    uint32_t    local_y;
+    uint32_t    local_z;
+};
+
 void meshDemo()
 {
     vkz::VKZInitConfig config = {};
@@ -91,7 +112,7 @@ void meshDemo()
     // mesh draw instance buffer
     vkz::BufferDesc meshDrawCmdBufDesc;
     meshDrawCmdBufDesc.size = 128 * 1024 * 1024; // 128M
-    meshDrawCmdBufDesc.usage = vkz::BufferUsageFlagBits::indirect | vkz::BufferUsageFlagBits::transfer_dst;
+    meshDrawCmdBufDesc.usage = vkz::BufferUsageFlagBits::indirect | vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::transfer_dst;
     meshDrawCmdBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
     vkz::BufferHandle meshDrawCmdBuf = vkz::registBuffer("meshDrawCmd", meshDrawCmdBufDesc);
     vkz::BufferHandle meshDrawCmdBuf2 = vkz::alias(meshDrawCmdBuf);
@@ -116,7 +137,7 @@ void meshDemo()
     vkz::BufferDesc idxBufDesc;
     idxBufDesc.size = (uint32_t)(scene.geometry.indices.size() * sizeof(uint32_t));
     idxBufDesc.data = scene.geometry.indices.data();
-    idxBufDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::transfer_dst;
+    idxBufDesc.usage = vkz::BufferUsageFlagBits::index | vkz::BufferUsageFlagBits::transfer_dst;
     idxBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
     vkz::BufferHandle idxBuf = vkz::registBuffer("idx", idxBufDesc);
 
@@ -124,7 +145,7 @@ void meshDemo()
     vkz::BufferDesc vtxBufDesc;
     vtxBufDesc.size = (uint32_t)(scene.geometry.vertices.size() * sizeof(Vertex));
     vtxBufDesc.data = scene.geometry.vertices.data();
-    vtxBufDesc.usage = vkz::BufferUsageFlagBits::index | vkz::BufferUsageFlagBits::transfer_dst;
+    vtxBufDesc.usage = vkz::BufferUsageFlagBits::vertex | vkz::BufferUsageFlagBits::transfer_dst;
     vtxBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
     vkz::BufferHandle vtxBuf = vkz::registBuffer("vtx", vtxBufDesc);
 
@@ -211,10 +232,10 @@ void meshDemo()
                 , vkz::AccessFlagBits::shader_read);
         }
 
+        vkz::setIndirectBuffer(renderPass, meshDrawCmdBuf2, offsetof(MeshDrawCommandVKZ, indexCount), sizeof(MeshDrawCommandVKZ), (uint32_t)scene.meshDraws.size());
 
-        setAttachmentOutput(renderPass, color, 0, color2);
-        setAttachmentOutput(renderPass, depth, 0, depth2);
-
+        vkz::setAttachmentOutput(renderPass, color, 0, color2);
+        vkz::setAttachmentOutput(renderPass, depth, 0, depth2);
     }
 
     {
