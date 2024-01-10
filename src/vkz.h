@@ -27,9 +27,6 @@ namespace vkz
     using ImageHandle = Handle<struct TextureHandleTag>;
 
     using ShaderHandleList = std::initializer_list<const ShaderHandle>;
-    using PassHandleList = std::initializer_list<const PassHandle>;
-    using BufferHandleList = std::initializer_list<const BufferHandle>;
-    using TextureHandleList = std::initializer_list<const ImageHandle>;
 
     // resource management functions
     ShaderHandle registShader(const char* _name, const char* _path);

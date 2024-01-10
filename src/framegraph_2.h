@@ -20,6 +20,7 @@ namespace vkz
         register_pass,
         register_buffer,
         register_image,
+        register_sampler,
 
         force_alias_buffer,
         force_alias_image,
@@ -35,6 +36,7 @@ namespace vkz
         uint32_t    passNum;
         uint32_t    bufNum;
         uint32_t    imgNum;
+        uint32_t    samplerNum;
 
         uint16_t    presentImage;
     };
@@ -75,6 +77,7 @@ namespace vkz
     {
         uint16_t    passId;
         uint16_t    resId;
+        uint16_t    samplerId;
 
         ResInteractDesc interact;
     };
@@ -164,6 +167,8 @@ namespace vkz
         void registerBuffer(MemoryReader& _reader);
         void registerImage(MemoryReader& _reader);
 
+        void registerSampler(MemoryReader& _reader);
+
         uint32_t readResource(std::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type);
         uint32_t writeResource(std::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type);
 
@@ -190,6 +195,7 @@ namespace vkz
         void createBuffers();
         void createImages();
         void createShaders();
+        void createSamplers();
         void createPasses();
 
         void createResources();
@@ -282,6 +288,8 @@ namespace vkz
 
             std::vector<CombinedResID> readCombinedRes;
             std::vector<CombinedResID> writeCombinedRes;
+
+            UniDataContainer<CombinedResID, uint16_t> imageSamplerMap;
         };
 
         struct PassDependency
@@ -317,18 +325,20 @@ namespace vkz
         CombinedResID  m_combinedPresentImage;
         PassHandle     m_finalPass;
 
-        std::vector< ShaderHandle       >   m_hShader;
-        std::vector< ProgramHandle      >   m_hProgram;
-        std::vector< PassHandle         >   m_hPass;
-        std::vector< BufferHandle       >   m_hBuf;
-        std::vector< ImageHandle      >   m_hTex;
+        std::vector< ShaderHandle >     m_hShader;
+        std::vector< ProgramHandle >    m_hProgram;
+        std::vector< PassHandle >       m_hPass;
+        std::vector< BufferHandle >     m_hBuf;
+        std::vector< ImageHandle >      m_hTex;
+        std::vector< SamplerHandle >    m_hSampler;
 
         std::vector< ShaderInfo >       m_sparse_shader_info;
         std::vector< ProgramInfo>       m_sparse_program_info;
         std::vector< PassMetaData >     m_sparse_pass_meta;
         std::vector< BufRegisterInfo >  m_sparse_buf_info;
         std::vector< ImgRegisterInfo >  m_sparse_img_info;
-        std::vector< PassMetaDataRef> m_sparse_pass_data_ref;
+        std::vector< PassMetaDataRef>   m_sparse_pass_data_ref;
+        std::vector< SamplerMetaData >  m_sparse_sampler_meta;
         
         std::vector< std::string>           m_shader_path;
 

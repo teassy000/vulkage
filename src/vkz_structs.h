@@ -150,9 +150,25 @@ namespace vkz
         img_layout_max = 0x7FFFFFFF
     };
 
+    enum class SamplerFilter
+    {
+        nearest,
+        linear,
+        sampler_filter_max = 0x7FFFFFFF
+    };
+
+    enum class SamplerAddressMode
+    {
+        repeat,
+        mirrored_repeat,
+        clamp_to_edge,
+        clamp_to_border,
+        mirror_clamp_to_edge,
+        sampler_address_mode_max = 0x7FFFFFFF
+    };
+
     enum class SamplerReductionMode
     {
-        undefined = 0,
         weighted_average,
         min,
         max,

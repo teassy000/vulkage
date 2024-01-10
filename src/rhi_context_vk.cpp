@@ -229,6 +229,28 @@ namespace vkz
         return layout;
     };
 
+    VkSamplerReductionMode getSamplerReductionMode(SamplerReductionMode _reduction)
+    {
+        VkSamplerReductionMode reduction = VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE;
+        switch (_reduction)
+        {
+            case SamplerReductionMode::weighted_average:
+                reduction = VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE;
+                break;
+            case SamplerReductionMode::min:
+                reduction = VK_SAMPLER_REDUCTION_MODE_MIN;
+                break;
+            case SamplerReductionMode::max:
+                reduction = VK_SAMPLER_REDUCTION_MODE_MAX;
+                break;
+            default:
+                reduction = VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE;
+                break;
+        }
+
+        return reduction;
+    }
+
     VkMemoryPropertyFlags getMemPropFlags(MemoryPropFlags _memFlags)
     {
         VkMemoryPropertyFlags flags = 0;
@@ -987,6 +1009,13 @@ namespace vkz
         std::vector<ResInteractDesc> interacts(interactSz);
         read(&_reader, interacts.data(), (uint32_t)(interactSz * sizeof(ResInteractDesc)));
 
+        // samplers
+        std::vector<uint16_t> sampleImageIds(passMeta.sampleImageNum);
+        std::vector<uint16_t> samplerIds(passMeta.sampleImageNum);
+        read(&_reader, sampleImageIds.data(), passMeta.sampleImageNum * sizeof(uint16_t));
+        read(&_reader, samplerIds.data(), passMeta.sampleImageNum * sizeof(uint16_t));
+
+
         // create pipeline
         const uint16_t progIdx = (uint16_t)m_programContainer.getIndex(passMeta.programId);
         const Program_vk& program = m_programContainer.getIdToData(passMeta.programId);
@@ -1104,6 +1133,12 @@ namespace vkz
         std::sort(passInfo.shaderBindings.begin(), passInfo.shaderBindings.end(), sortFunc);
         std::sort(passInfo.colorAttBindings.begin(), passInfo.colorAttBindings.end(), sortFunc);
 
+
+        for (uint16_t ii = 0; ii < passMeta.sampleImageNum; ++ii)
+        {
+            passInfo.imageToSamplerIds.push_back(sampleImageIds[ii], samplerIds[ii]);
+        }
+
         m_passContainer.push_back(passInfo.passId, passInfo);
     }
 
@@ -1184,6 +1219,17 @@ namespace vkz
         {
             vkz::uploadBuffer(m_device, m_cmdPool, m_cmdBuffer, m_queue, buffers[0], m_scratchBuffer, info.data, info.size);
         }
+    }
+
+    void RHIContext_vk::createSampler(MemoryReader& _reader)
+    {
+        SamplerMetaData meta;
+        read(&_reader, meta);
+
+        VkSampler sampler = vkz::createSampler(m_device, getSamplerReductionMode( meta.reductionMode));
+        assert(sampler);
+
+        m_samplerContainer.push_back(meta.samplerId, sampler);
     }
 
     void RHIContext_vk::setBrief(MemoryReader& _reader)
@@ -1336,6 +1382,7 @@ namespace vkz
     void RHIContext_vk::pushDescriptorSetWithTemplates(const uint16_t _passId)
     {
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
+        
 
         std::vector<DescriptorInfo> descInfos(passInfo.shaderBindings.size());
         for (int ii = 0; ii < passInfo.shaderBindings.size(); ++ii)
@@ -1345,9 +1392,17 @@ namespace vkz
             if (isImage(resId))
             {
                 const Image_vk& img = m_imageContainer.getIdToData(resId.id);
+                const uint16_t samplerId = passInfo.imageToSamplerIds.getIdToData(resId.id);
+                
+                VkSampler sampler = 0;
+                if (passInfo.imageToSamplerIds.exist(resId.id))
+                {
+                    sampler = m_samplerContainer.getIdToData(samplerId);
+                }
 
-                DescriptorInfo info{};
-
+                const BarrierState_vk& barrierState = m_imgBarrierStates.getDataAt(resId.id);
+                
+                DescriptorInfo info{ sampler, img.imageView, barrierState.imgLayout};
                 descInfos[ii] = info;
             }
             else if (isBuffer(resId))

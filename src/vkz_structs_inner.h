@@ -127,6 +127,26 @@ namespace vkz
         uint16_t    imgId{ kInvalidHandle };
     };
 
+    using SamplerHandle = Handle<struct SamplerHandleTag>;
+
+    struct SamplerDesc
+    {
+        SamplerFilter filter{ SamplerFilter::nearest };
+        SamplerAddressMode addressMode{ SamplerAddressMode::clamp_to_edge };
+        SamplerReductionMode reductionMode{ SamplerReductionMode::weighted_average };
+
+        bool operator == (const SamplerDesc& rhs) const {
+            return filter == rhs.filter &&
+                addressMode == rhs.addressMode &&
+                reductionMode == rhs.reductionMode;
+        }
+    };
+
+    struct SamplerMetaData : public SamplerDesc
+    {
+        uint16_t samplerId;
+    };
+
     struct ShaderCreateInfo 
     {
         uint16_t shaderId{ kInvalidHandle };
@@ -169,6 +189,8 @@ namespace vkz
 
         uint16_t    readBufferNum{ 0 };
         uint16_t    writeBufferNum{ 0 };
+
+        uint16_t    sampleImageNum{ 0 };
 
         uint32_t    indirectBufOffset{ 0 };
         uint32_t    indirectCountBufOffset{ 0 };

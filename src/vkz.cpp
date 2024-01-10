@@ -152,7 +152,6 @@ namespace vkz
         bool isAliasFromBuffer(const BufferHandle _hBase, const BufferHandle _hAlias);
         bool isAliasFromImage(const ImageHandle _hBase, const ImageHandle _hAlias);
 
-
         // Context API
         void setRenderSize(uint32_t _width, uint32_t _height);
 
@@ -165,6 +164,8 @@ namespace vkz
         ImageHandle registTexture(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime);
         ImageHandle registRenderTarget(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime);
         ImageHandle registDepthStencil(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime);
+
+        SamplerHandle requestSampler(const SamplerDesc& _desc);
 
         BufferHandle aliasBuffer(const BufferHandle _baseBuf);
         ImageHandle aliasImage(const ImageHandle  _baseImg);
@@ -199,6 +200,7 @@ namespace vkz
         void storeBufferData();
         void storeImageData();
         void storeAliasData();
+        void storeSamplerData();
 
         void init();
         void loop();
@@ -212,9 +214,10 @@ namespace vkz
         HandleArrayT<kMaxNumOfShaderHandle> m_shaderHandles;
         HandleArrayT<kMaxNumOfProgramHandle> m_programHandles;
         HandleArrayT<kMaxNumOfPassHandle> m_passHandles;
-        HandleArrayT<kMaxNumOfImageHandle> m_imageHandles;
         HandleArrayT<kMaxNumOfBufferHandle> m_bufferHandles;
-
+        HandleArrayT<kMaxNumOfImageHandle> m_imageHandles;
+        HandleArrayT<kMaxNumOfSamplerHandle> m_samplerHandles;
+        
         ImageHandle m_presentImage{kInvalidHandle};
 
         // resource Info
@@ -223,6 +226,7 @@ namespace vkz
         UniDataContainer<BufferHandle, BufferMetaData> m_bufferMetas;
         UniDataContainer<ImageHandle, ImageMetaData> m_imageMetas;
         UniDataContainer<PassHandle, PassMetaData> m_passMetas;
+        UniDataContainer<SamplerHandle, SamplerDesc> m_samplerDescs;
 
         // alias
         UniDataContainer<BufferHandle, std::vector<BufferHandle>> m_aliasBuffers;
@@ -546,6 +550,38 @@ namespace vkz
         return handle;
     }
 
+    vkz::SamplerHandle Context::requestSampler(const SamplerDesc& _desc)
+    {
+        // find if the sampler already exist
+        uint16_t samplerId = kInvalidHandle;
+        for (uint16_t ii = 0; ii < m_samplerHandles.getNumHandles(); ++ii)
+        {
+            SamplerHandle handle{ m_samplerHandles.getHandleAt(ii) };
+            const SamplerDesc& desc = m_samplerDescs.getIdToData(handle);
+
+            if (desc == _desc)
+            {
+                samplerId = handle.id;
+                break;
+            }
+        }
+
+        if (kInvalidHandle == samplerId)
+        {
+            samplerId = m_samplerHandles.alloc();
+
+            if (kInvalidHandle == samplerId)
+            {
+                message(error, "create SamplerHandle failed!");
+                return SamplerHandle{ kInvalidHandle };
+            }
+            
+            m_samplerDescs.push_back({ samplerId }, _desc);
+        }
+
+        return SamplerHandle{ samplerId };
+    }
+
     void Context::storeBrief()
     {
         MagicTag magic{ MagicTag::set_brief };
@@ -559,6 +595,7 @@ namespace vkz
         brief.imgNum = m_imageHandles.getNumHandles();
         brief.shaderNum = m_shaderHandles.getNumHandles();
         brief.programNum = m_programHandles.getNumHandles();
+        brief.samplerNum = m_samplerHandles.getNumHandles();
 
         brief.presentImage = m_presentImage.id;
 
@@ -828,7 +865,23 @@ namespace vkz
             write(m_fgMemWriter, aliasVec.data(), uint32_t(sizeof(uint16_t) * aliasVec.size()));
 
             write(m_fgMemWriter, MagicTag::magic_body_end);
+        }
+    }
 
+    void Context::storeSamplerData()
+    {
+        for (uint16_t ii = 0; ii < m_samplerHandles.getNumHandles(); ++ii )
+        {
+            uint16_t samplerId = m_samplerHandles.getHandleAt(ii);
+            const SamplerDesc& desc = m_samplerDescs.getIdToData({ samplerId });
+
+            // magic tag
+            MagicTag magic{ MagicTag::register_sampler };
+            write(m_fgMemWriter, magic);
+
+            write(m_fgMemWriter, desc);
+
+            write(m_fgMemWriter, MagicTag::magic_body_end);
         }
     }
 
@@ -887,7 +940,7 @@ namespace vkz
     }
 
 
-    uint32_t insertResInteract(UniDataContainer<PassHandle, std::vector<PassResInteract>>& _container, const PassHandle _hPass, const uint16_t _resId, const ResInteractDesc& _interact)
+    uint32_t insertResInteract(UniDataContainer<PassHandle, std::vector<PassResInteract>>& _container, const PassHandle _hPass, const uint16_t _resId, const SamplerHandle _hSampler, const ResInteractDesc& _interact)
     {
         uint32_t vecSize = 0u;
 
@@ -895,6 +948,7 @@ namespace vkz
         pri.passId = _hPass.id;
         pri.resId = _resId;
         pri.interact = _interact;
+        pri.samplerId = _hSampler.id;
 
         if (_container.exist(_hPass))
         {
@@ -946,7 +1000,7 @@ namespace vkz
         interact.stage = PipelineStageFlagBits::draw_indirect;
         interact.access = AccessFlagBits::indirect_command_read;
 
-        passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _hBuf.id, interact);
+        passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _hBuf.id, { kInvalidHandle }, interact);
 
         setRenderDataDirty();
     }
@@ -962,7 +1016,7 @@ namespace vkz
         interact.stage = PipelineStageFlagBits::draw_indirect;
         interact.access = AccessFlagBits::indirect_command_read;
 
-        passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _hBuf.id, interact);
+        passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _hBuf.id, { kInvalidHandle }, interact);
 
         setRenderDataDirty();
     }
@@ -977,7 +1031,7 @@ namespace vkz
         PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
         if (isRead(_access))
         {
-            passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _buf.id, interact);
+            passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _buf.id, { kInvalidHandle }, interact);
         }
 
         if (isWrite(_access, _stage))
@@ -987,13 +1041,27 @@ namespace vkz
                 message(DebugMessageType::error, "the _outAlias must be valid if trying to write to resource in pass");
             }
 
-            passMeta.writeBufferNum = insertResInteract(m_writeBuffers, _hPass, _outAlias.id, interact);
+            passMeta.writeBufferNum = insertResInteract(m_writeBuffers, _hPass, _outAlias.id, {kInvalidHandle}, interact);
         }
     }
 
     void Context::sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, ImageLayout _layout, SamplerReductionMode _reductionMode)
     {
+        // get the sampler id
+        SamplerDesc desc;
+        desc.reductionMode = _reductionMode;
 
+        SamplerHandle sampler = requestSampler(desc);
+
+        ResInteractDesc interact{};
+        interact.binding = _binding;
+        interact.stage = _stage;
+        interact.access = AccessFlagBits::shader_read;
+        interact.layout = _layout;
+
+        PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
+        passMeta.readImageNum = insertResInteract(m_readImages, _hPass, _hImg.id, { kInvalidHandle }, interact);
+        setRenderDataDirty();
     }
 
     void Context::bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout, const ImageHandle _outAlias)
@@ -1002,7 +1070,7 @@ namespace vkz
         PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
 
         ResInteractDesc interact{};
-        interact.binding = _binding;
+        interact.binding = _binding; 
         interact.stage = _stage;
         interact.access = _access;
         interact.layout = _layout;
@@ -1020,7 +1088,7 @@ namespace vkz
                 interact.access |= AccessFlagBits::color_attachment_read;
             }
 
-            passMeta.readImageNum = insertResInteract(m_readImages, _hPass, _hImg.id, interact);
+            passMeta.readImageNum = insertResInteract(m_readImages, _hPass, _hImg.id, { kInvalidHandle }, interact);
             setRenderDataDirty();
         }
 
@@ -1037,7 +1105,7 @@ namespace vkz
             }
             else if (isCompute(_hPass) && isNormalImage(_hImg))
             {
-                passMeta.writeImageNum = insertResInteract(m_writeImages, _hPass, _outAlias.id, interact);
+                passMeta.writeImageNum = insertResInteract(m_writeImages, _hPass, _outAlias.id, { kInvalidHandle }, interact);
                 setRenderDataDirty();
             }
             else
@@ -1079,7 +1147,7 @@ namespace vkz
             assert(0);
         }
 
-        passMeta.writeImageNum = insertResInteract(m_writeImages, _hPass, _outAlias.id, interact);
+        passMeta.writeImageNum = insertResInteract(m_writeImages, _hPass, _outAlias.id, { kInvalidHandle }, interact);
 
         setRenderDataDirty();
     }
@@ -1158,6 +1226,7 @@ namespace vkz
         storeProgramData();
         storeImageData();
         storeBufferData();
+        storeSamplerData();
         storePassData();
         storeAliasData();
 
@@ -1274,7 +1343,7 @@ namespace vkz
 
     void sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, ImageLayout _layout, SamplerReductionMode _reductionMode)
     {
-
+        s_ctx->sampleImage(_hPass, _hImg, _binding, _stage, _layout, _reductionMode);
     }
 
     void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout, const ImageHandle _outAlias /*= {kInvalidHandle}*/)

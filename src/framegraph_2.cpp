@@ -54,12 +54,12 @@ namespace vkz
             bool finished = false;
             switch (magic)
             {
-            // Brief
+                // Brief
             case MagicTag::set_brief: {
                 setBrief(reader);
                 break;
             }
-            // Register
+                                    // Register
             case MagicTag::register_shader: {
                 registerShader(reader);
                 break;
@@ -79,6 +79,9 @@ namespace vkz
             case MagicTag::register_image: {
                 registerImage(reader);
                 break;
+            }
+            case MagicTag::register_sampler: {
+                registerSampler(reader);
             }
             // Alias
             case MagicTag::force_alias_buffer: {
@@ -120,6 +123,7 @@ namespace vkz
         m_sparse_pass_meta.resize(brief.passNum);
         m_sparse_buf_info.resize(brief.bufNum);
         m_sparse_img_info.resize(brief.imgNum);
+        m_sparse_sampler_meta.resize(brief.samplerNum);
 
         m_sparse_pass_data_ref.resize(brief.passNum);
 
@@ -260,7 +264,14 @@ namespace vkz
         }
     }
 
+    void Framegraph2::registerSampler(MemoryReader& _reader)
+    {
+        SamplerMetaData meta;
+        read(&_reader, meta);
 
+        m_hSampler.push_back({ meta.samplerId });
+        m_sparse_sampler_meta[meta.samplerId] = meta;
+    }
 
     const ResInteractDesc merge(const ResInteractDesc& _desc0, const ResInteractDesc& _desc1)
     {
@@ -343,6 +354,8 @@ namespace vkz
                 m_pass_rw_res[hPassIdx].readCombinedRes.push_back(plainId);
                 actualSize++;
             }
+
+            m_pass_rw_res[hPassIdx].imageSamplerMap.push_back(plainId, prInteract.samplerId);
         }
 
         // make sure vec elements are unique
@@ -1314,6 +1327,36 @@ namespace vkz
         }
     }
 
+    void Framegraph2::createSamplers()
+    {
+
+        std::set<uint16_t> usedSamplers{};
+        for (uint32_t ii = 0; ii < m_sortedPass.size(); ++ii)
+        {
+            PassHandle pass = m_sortedPass[ii];
+            uint16_t passIdx = getElemIndex(m_hPass, pass);
+            const PassRWResource& rwRes = m_pass_rw_res[passIdx];
+
+            uint32_t usedSamplerNum = (uint32_t)rwRes.imageSamplerMap.size();
+            for (uint32_t ii = 0; ii < usedSamplerNum; ++ii)
+            {
+                const uint16_t& samplerId = rwRes.imageSamplerMap.getDataAt(ii);
+                usedSamplers.insert(samplerId);
+            }
+        }
+
+        for (uint16_t samplerId : usedSamplers)
+        {
+            const SamplerMetaData& meta = m_sparse_sampler_meta[samplerId];
+
+            RHIContextOpMagic magic{ RHIContextOpMagic::create_sampler };
+
+            write(&m_rhiMemWriter, magic);
+            write(&m_rhiMemWriter, meta);
+            write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end);
+        }
+    }
+
     void Framegraph2::createPasses()
     {
         std::vector<PassMetaData> passMetaDataVec{};
@@ -1322,11 +1365,12 @@ namespace vkz
         std::vector<std::vector<int>> passPipelineSpecData(m_sortedPass.size());
 
         std::vector<std::pair<ImageHandle, ResInteractDesc>> writeDSPair(m_sortedPass.size());
-        std::vector<UniDataContainer< ImageHandle, ResInteractDesc> > writeImageList(m_sortedPass.size());
-        std::vector<UniDataContainer< ImageHandle, ResInteractDesc> > readImageList(m_sortedPass.size());
+        std::vector<UniDataContainer< ImageHandle, ResInteractDesc> > writeImageVec(m_sortedPass.size());
+        std::vector<UniDataContainer< ImageHandle, ResInteractDesc> > readImageVec(m_sortedPass.size());
 
-        std::vector<UniDataContainer< BufferHandle, ResInteractDesc> > readBufferList(m_sortedPass.size());
-        std::vector<UniDataContainer< BufferHandle, ResInteractDesc> > writeBufferList(m_sortedPass.size());
+        std::vector<UniDataContainer< BufferHandle, ResInteractDesc> > readBufferVec(m_sortedPass.size());
+        std::vector<UniDataContainer< BufferHandle, ResInteractDesc> > writeBufferVec(m_sortedPass.size());
+        std::vector<UniDataContainer< ImageHandle, SamplerHandle> > imageSamplerVec(m_sortedPass.size());
         
         for (uint32_t ii = 0; ii < m_sortedPass.size(); ++ii)
         {
@@ -1336,17 +1380,19 @@ namespace vkz
             assert(pass.id == passMeta.passId);
 
             std::pair<ImageHandle, ResInteractDesc>& writeDS = writeDSPair[ii];
-            UniDataContainer< ImageHandle, ResInteractDesc>& writeImg = writeImageList[ii];
-            UniDataContainer< ImageHandle, ResInteractDesc>& readImg = readImageList[ii];
+            UniDataContainer< ImageHandle, ResInteractDesc>& writeImg = writeImageVec[ii];
+            UniDataContainer< ImageHandle, ResInteractDesc>& readImg = readImageVec[ii];
 
-            UniDataContainer< BufferHandle, ResInteractDesc>& readBuf = readBufferList[ii];
-            UniDataContainer< BufferHandle, ResInteractDesc>& writeBuf = writeBufferList[ii];
+            UniDataContainer< BufferHandle, ResInteractDesc>& readBuf = readBufferVec[ii];
+            UniDataContainer< BufferHandle, ResInteractDesc>& writeBuf = writeBufferVec[ii];
+            UniDataContainer< ImageHandle, SamplerHandle>& imgSamplerMap = imageSamplerVec[ii];
             {
                 writeDS.first = { kInvalidHandle };
                 writeImg.clear();
                 readImg.clear();
                 readBuf.clear();
                 writeBuf.clear();
+                imgSamplerMap.clear();
 
                 const PassRWResource& rwRes = m_pass_rw_res[passIdx];
                 // set write resources
@@ -1384,7 +1430,7 @@ namespace vkz
                 {
                     if (  isColorAttachment(readRes) 
                         || isDepthStencil(readRes)
-                        || isImage(readRes))
+                        || isNormalImage(readRes))
                     {
                         readImg.push_back({ readRes.id }, rwRes.readInteracts.getIdToData(readRes));
                     }
@@ -1394,6 +1440,14 @@ namespace vkz
                         readBuf.push_back({ readRes.id }, rwRes.readInteracts.getIdToData(readRes));
                     }
                 }
+
+                uint32_t usedSamplerNum = (uint32_t)rwRes.imageSamplerMap.size();
+                for (uint32_t ii = 0; ii < usedSamplerNum; ++ii)
+                {
+                    const CombinedResID& image = rwRes.imageSamplerMap.getIdAt(ii);
+                    const uint16_t& samplerId = rwRes.imageSamplerMap.getDataAt(ii);
+                    imgSamplerMap.push_back({ image.id }, {samplerId });
+                }
             }
 
             // create pass info
@@ -1402,6 +1456,7 @@ namespace vkz
             assert((uint16_t)readImg.size() == passMeta.readImageNum);
             assert((uint16_t)readBuf.size() == passMeta.readBufferNum);
             assert((uint16_t)writeBuf.size() == passMeta.writeBufferNum);
+            assert((uint16_t)imgSamplerMap.size() == passMeta.sampleImageNum);
 
             passMetaDataVec.emplace_back(passMeta);
 
@@ -1453,16 +1508,20 @@ namespace vkz
             write(&m_rhiMemWriter, (void*)passPipelineSpecData[ii].data(), (int32_t)(createInfo.pipelineSpecNum * sizeof(int)));
 
             // pass read/write resources and it's interaction
-            write(&m_rhiMemWriter, (void*)writeImageList[ii].getIdPtr(), (int32_t)(createInfo.writeImageNum * sizeof(ImageHandle)));
-            write(&m_rhiMemWriter, (void*)readImageList[ii].getIdPtr(), (int32_t)(createInfo.readImageNum * sizeof(ImageHandle)));
-            write(&m_rhiMemWriter, (void*)readBufferList[ii].getIdPtr(), (int32_t)(createInfo.readBufferNum * sizeof(BufferHandle)));
-            write(&m_rhiMemWriter, (void*)writeBufferList[ii].getIdPtr(), (int32_t)(createInfo.writeBufferNum * sizeof(BufferHandle)));
+            write(&m_rhiMemWriter, (void*)writeImageVec[ii].getIdPtr(), (int32_t)(createInfo.writeImageNum * sizeof(ImageHandle)));
+            write(&m_rhiMemWriter, (void*)readImageVec[ii].getIdPtr(), (int32_t)(createInfo.readImageNum * sizeof(ImageHandle)));
+            write(&m_rhiMemWriter, (void*)readBufferVec[ii].getIdPtr(), (int32_t)(createInfo.readBufferNum * sizeof(BufferHandle)));
+            write(&m_rhiMemWriter, (void*)writeBufferVec[ii].getIdPtr(), (int32_t)(createInfo.writeBufferNum * sizeof(BufferHandle)));
 
             write(&m_rhiMemWriter, writeDSPair[ii].second);
-            write(&m_rhiMemWriter, (void*)writeImageList[ii].getDataPtr(), (int32_t)(createInfo.writeImageNum * sizeof(ResInteractDesc)));
-            write(&m_rhiMemWriter, (void*)readImageList[ii].getDataPtr(), (int32_t)(createInfo.readImageNum * sizeof(ResInteractDesc)));
-            write(&m_rhiMemWriter, (void*)readBufferList[ii].getDataPtr(), (int32_t)(createInfo.readBufferNum * sizeof(ResInteractDesc)));
-            write(&m_rhiMemWriter, (void*)writeBufferList[ii].getDataPtr(), (int32_t)(createInfo.writeBufferNum * sizeof(ResInteractDesc)));
+            write(&m_rhiMemWriter, (void*)writeImageVec[ii].getDataPtr(), (int32_t)(createInfo.writeImageNum * sizeof(ResInteractDesc)));
+            write(&m_rhiMemWriter, (void*)readImageVec[ii].getDataPtr(), (int32_t)(createInfo.readImageNum * sizeof(ResInteractDesc)));
+            write(&m_rhiMemWriter, (void*)readBufferVec[ii].getDataPtr(), (int32_t)(createInfo.readBufferNum * sizeof(ResInteractDesc)));
+            write(&m_rhiMemWriter, (void*)writeBufferVec[ii].getDataPtr(), (int32_t)(createInfo.writeBufferNum * sizeof(ResInteractDesc)));
+
+            // samplers
+            write(&m_rhiMemWriter, (void*)imageSamplerVec[ii].getIdPtr(), (int32_t)(createInfo.sampleImageNum * sizeof(ImageHandle)));
+            write(&m_rhiMemWriter, (void*)imageSamplerVec[ii].getDataPtr(), (int32_t)(createInfo.sampleImageNum * sizeof(SamplerHandle)));
 
             write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end);
         }

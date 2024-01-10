@@ -303,11 +303,11 @@ void meshDemo()
         }
 
         {
-            vkz::bindImage(cull_pass, pyramid
+            vkz::sampleImage(cull_pass, pyramid
                 , 6
                 , vkz::PipelineStageFlagBits::compute_shader
-                , vkz::AccessFlagBits::shader_read
-                , vkz::ImageLayout::general);
+                , vkz::ImageLayout::general
+                , vkz::SamplerReductionMode::weighted_average );
         }
     }
 

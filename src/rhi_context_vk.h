@@ -93,6 +93,8 @@ namespace vkz
         UniDataContainer< uint16_t, BarrierState_vk> readBuffers;
         UniDataContainer< uint16_t, BarrierState_vk> writeBuffers;
 
+        UniDataContainer<uint16_t, uint16_t>    imageToSamplerIds;
+
         std::vector<std::pair<CombinedResID, uint32_t>> shaderBindings;
         std::vector<std::pair<CombinedResID, uint32_t>> colorAttBindings;
     };
@@ -134,14 +136,12 @@ namespace vkz
         void createPass(MemoryReader& _reader) override;
         void createImage(MemoryReader& _reader) override;
         void createBuffer(MemoryReader& _reader) override;
+        void createSampler(MemoryReader& _reader) override;
         void setBrief(MemoryReader& _reader) override;
 
     private:
         void createInstance();
         void createPhysicalDevice();
-
-        void pushConstants();
-        void pushDescriptorSetWithTemplates();
 
         // barriers
         void createBarriers(uint16_t _passId, bool _flush = false);
@@ -163,6 +163,7 @@ namespace vkz
         UniDataContainer<uint16_t, Shader_vk> m_shaderContainer;
         UniDataContainer<uint16_t, Program_vk> m_programContainer;
         UniDataContainer<uint16_t, PassInfo_vk> m_passContainer;
+        UniDataContainer<uint16_t, VkSampler> m_samplerContainer;
 
         Buffer_vk m_scratchBuffer;
 

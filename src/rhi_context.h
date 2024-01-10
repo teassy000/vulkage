@@ -19,6 +19,7 @@ namespace vkz
         create_descriptor_set,
         create_program,
         create_shader,
+        create_sampler,
 
         set_brief,
 
@@ -40,6 +41,7 @@ namespace vkz
         virtual void createPass(MemoryReader& reader) = 0;
         virtual void createImage(MemoryReader& reader) = 0;
         virtual void createBuffer(MemoryReader& reader) = 0;
+        virtual void createSampler(MemoryReader& _reader) = 0;
         virtual void setBrief(MemoryReader& reader) = 0;
     };
 
@@ -76,6 +78,7 @@ namespace vkz
         void createPass(MemoryReader& reader) override {};
         void createImage(MemoryReader& reader) override {};
         void createBuffer(MemoryReader& reader) override {};
+        void createSampler(MemoryReader& _reader) override {};
         void setBrief(MemoryReader& reader) override {};
 
     private:

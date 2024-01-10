@@ -41,6 +41,9 @@ namespace vkz
             case RHIContextOpMagic::create_image:
                 createImage(reader);
                 break;
+            case RHIContextOpMagic::create_sampler:
+                createSampler(reader);
+                break;
             case RHIContextOpMagic::set_brief:
                 setBrief(reader);
                 break;
