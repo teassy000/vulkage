@@ -987,8 +987,8 @@ namespace vkz
         read(&_reader, pipelineSpecData.data(), passMeta.pipelineSpecNum * sizeof(int));
 
         // r/w resources
-        std::vector<uint16_t> writeColorIds(passMeta.writeImageNum);
-        read(&_reader, writeColorIds.data(), passMeta.writeImageNum * sizeof(uint16_t));
+        std::vector<uint16_t> writeImageIds(passMeta.writeImageNum);
+        read(&_reader, writeImageIds.data(), passMeta.writeImageNum * sizeof(uint16_t));
 
         std::vector<uint16_t> readImageIds(passMeta.readImageNum);
         read(&_reader, readImageIds.data(), passMeta.readImageNum * sizeof(uint16_t));
@@ -1000,7 +1000,6 @@ namespace vkz
         read(&_reader, writeBufferIds.data(), passMeta.writeBufferNum * sizeof(uint16_t));
 
         const size_t interactSz =
-            1 + // write depth
             passMeta.writeImageNum +
             passMeta.readImageNum +
             passMeta.readBufferNum +
@@ -1095,43 +1094,64 @@ namespace vkz
                 return state;
             };
 
-        size_t offset = 1; // the depth is the first one
-        auto addToPass = [&interacts, &offset, getBarrierState](
+        size_t offset = 0; // the depth is the first one
+        auto preparePassBarriers = [&interacts, &offset, getBarrierState](
               const std::vector<uint16_t>& _ids
             , UniDataContainer< uint16_t, BarrierState_vk>& _container
-            , std::vector<std::pair<CombinedResID, uint32_t>>& _bindings
+            , std::vector<std::pair<uint32_t, CombinedResID>>& _bindings
             , const ResourceType _type
             ) {
                 for (uint32_t ii = 0; ii < _ids.size(); ++ii)
                 {
                     _container.push_back(_ids[ii], getBarrierState(interacts[offset + ii]));
 
-                    if (interacts[offset + ii].binding == kMaxDescriptorSetNum)
+                    const uint32_t bindPoint = interacts[offset + ii].binding;
+
+                    if (kDescriptorSetBindingDontCare == bindPoint)
                         continue;
 
-                    assert(interacts[offset + ii].binding != kInvalidDescriptorSetIndex);
+                    assert(kInvalidDescriptorSetIndex != bindPoint);
 
-                    CombinedResID combined{ _ids[ii], _type };
-                    _bindings.emplace_back(combined, interacts[offset + ii].binding);
+                    auto it = std::find_if(_bindings.begin(), _bindings.end(), [bindPoint](const std::pair<uint32_t, CombinedResID>& pair) {
+                        return pair.first == bindPoint;
+                        });
+                    
+                    if (it == _bindings.end())
+                    {
+                        CombinedResID combined{ _ids[ii], _type };
+                        _bindings.emplace_back(bindPoint, combined);
+                    }
+                    else
+                    {
+                        // same binding already exist because manually in vkz.cpp, would handle it in barrier creation
+                        ;
+                    }
                 }
 
                 offset += _ids.size();
             };
 
-        passInfo.writeDepth = std::make_pair(passInfo.writeDepthId, getBarrierState(interacts[0]));
+        uint32_t depthIdx = getElemIndex(writeImageIds, passInfo.writeDepthId);
+        if (depthIdx != kInvalidIndex)
+        {
+            passInfo.writeDepth = std::make_pair(passInfo.writeDepthId, getBarrierState(interacts[depthIdx]));
+            writeImageIds.erase(begin(writeImageIds) + depthIdx);
+            interacts.erase(begin(interacts) + depthIdx);
+        }
 
-        addToPass(writeColorIds, passInfo.writeColors, passInfo.colorAttBindings, ResourceType::image);
-        addToPass(readImageIds, passInfo.readImages, passInfo.shaderBindings, ResourceType::image);
-        addToPass(readBufferIds, passInfo.readBuffers, passInfo.shaderBindings, ResourceType::buffer);
-        addToPass(writeBufferIds, passInfo.writeBuffers, passInfo.shaderBindings, ResourceType::buffer);
+
+        preparePassBarriers(writeImageIds, passInfo.writeColors, passInfo.bindingToColorIds, ResourceType::image);
+        preparePassBarriers(readImageIds, passInfo.readImages, passInfo.bindingToResIds, ResourceType::image);
+        preparePassBarriers(readBufferIds, passInfo.readBuffers, passInfo.bindingToResIds, ResourceType::buffer);
+        preparePassBarriers(writeBufferIds, passInfo.writeBuffers, passInfo.bindingToResIds, ResourceType::buffer);
         assert(offset == interacts.size());
 
         // sort bindings
-        auto sortFunc = [](const std::pair<CombinedResID, uint32_t>& _lhs, const std::pair<CombinedResID, uint32_t>& _rhs) -> bool {
-            return _lhs.second < _rhs.second;
-        };
-        std::sort(passInfo.shaderBindings.begin(), passInfo.shaderBindings.end(), sortFunc);
-        std::sort(passInfo.colorAttBindings.begin(), passInfo.colorAttBindings.end(), sortFunc);
+        auto sortFunc2 = [](const std::pair<uint32_t, CombinedResID>& _lhs, const std::pair<uint32_t, CombinedResID>& _rhs) -> bool {
+            return _lhs.first < _rhs.first;
+            };
+        std::sort(passInfo.bindingToResIds.begin(), passInfo.bindingToResIds.end(), sortFunc2);
+        std::sort(passInfo.bindingToColorIds.begin(), passInfo.bindingToColorIds.end(), sortFunc2);
 
 
         for (uint16_t ii = 0; ii < passMeta.sampleImageNum; ++ii)
@@ -1285,7 +1305,7 @@ namespace vkz
             };
 
         // depth
-        if (kInvalidHandle != passInfo.writeDepth.first)
+        if (kInvalidHandle != passInfo.writeDepthId)
         {
             uint16_t depth = passInfo.writeDepth.first;
             assert(m_imgBarrierStates.exist(depth));
@@ -1384,10 +1404,10 @@ namespace vkz
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
         
 
-        std::vector<DescriptorInfo> descInfos(passInfo.shaderBindings.size());
-        for (int ii = 0; ii < passInfo.shaderBindings.size(); ++ii)
+        std::vector<DescriptorInfo> descInfos(passInfo.bindingToResIds.size());
+        for (int ii = 0; ii < passInfo.bindingToResIds.size(); ++ii)
         {
-            const CombinedResID resId = passInfo.shaderBindings[ii].first;
+            const CombinedResID resId = passInfo.bindingToResIds[ii].second;
 
             if (isImage(resId))
             {
@@ -1400,7 +1420,7 @@ namespace vkz
                     sampler = m_samplerContainer.getIdToData(samplerId);
                 }
 
-                const BarrierState_vk& barrierState = m_imgBarrierStates.getDataAt(resId.id);
+                const BarrierState_vk& barrierState = m_imgBarrierStates.getIdToData(resId.id);
                 
                 DescriptorInfo info{ sampler, img.imageView, barrierState.imgLayout};
                 descInfos[ii] = info;
@@ -1469,10 +1489,10 @@ namespace vkz
 
         std::vector<VkRenderingAttachmentInfo> colorAttachments(passInfo.writeColors.size());
 
-        assert(passInfo.colorAttBindings.size() == passInfo.writeColors.size());
+        assert(passInfo.bindingToColorIds.size() == passInfo.writeColors.size());
         for (int ii = 0; ii < passInfo.writeColors.size(); ++ii)
         {
-            const CombinedResID imgId = passInfo.colorAttBindings[ii].first;
+            const CombinedResID imgId = passInfo.bindingToColorIds[ii].second;
             const Image_vk& colorTarget = m_imageContainer.getIdToData(imgId.id);
 
             colorAttachments[ii].sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
@@ -1534,8 +1554,6 @@ namespace vkz
             vkCmdBindIndexBuffer(m_cmdBuffer, indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32); // TODO: do I need to expose the index type out?
         }
 
-        assert(kInvalidHandle != passInfo.indexBufferId);
-
         if (kInvalidHandle != passInfo.indirectCountBufferId && kInvalidHandle != passInfo.indirectBufferId)
         {
             const Buffer_vk& indirectCountBuffer = m_bufferContainer.getIdToData(passInfo.indirectCountBufferId);
@@ -1562,6 +1580,7 @@ namespace vkz
         else
         {
             // Not supported yet
+            vkCmdDraw(m_cmdBuffer, 3, 1, 0, 0);
             assert(0);
         }
 

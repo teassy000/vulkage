@@ -323,7 +323,7 @@ namespace vkz
         MemoryWriter m_rhiMemWriter;
 
         CombinedResID  m_combinedPresentImage;
-        PassHandle     m_finalPass;
+        PassHandle     m_finalPass{kInvalidHandle};
 
         std::vector< ShaderHandle >     m_hShader;
         std::vector< ProgramHandle >    m_hProgram;

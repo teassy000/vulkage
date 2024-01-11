@@ -9,7 +9,7 @@ namespace vkz
 {
     static const uint16_t kInvalidHandle = UINT16_MAX;
     static const uint32_t kInvalidDescriptorSetIndex = UINT32_MAX;
-    static const uint32_t kMaxDescriptorSetNum = UINT32_MAX - 1;
+    static const uint32_t kDescriptorSetBindingDontCare = UINT32_MAX - 1;
 
     template <class HandleType>
     struct NO_VTABLE Handle {

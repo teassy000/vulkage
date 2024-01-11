@@ -145,7 +145,7 @@ void meshDemo()
     vkz::BufferDesc vtxBufDesc;
     vtxBufDesc.size = (uint32_t)(scene.geometry.vertices.size() * sizeof(Vertex));
     vtxBufDesc.data = scene.geometry.vertices.data();
-    vtxBufDesc.usage = vkz::BufferUsageFlagBits::vertex | vkz::BufferUsageFlagBits::transfer_dst;
+    vtxBufDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::transfer_dst;
     vtxBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
     vkz::BufferHandle vtxBuf = vkz::registBuffer("vtx", vtxBufDesc);
 
@@ -335,6 +335,7 @@ void triangle()
         | vkz::ImageUsageFlagBits::transfer_src;
 
     vkz::ImageHandle color = vkz::registRenderTarget("color", rtDesc);
+    vkz::ImageHandle color2 = vkz::alias(color);
 
 
     vkz::ShaderHandle vs = vkz::registShader("triangle_vert_shader", "shaders/triangle.vert.spv");
@@ -364,10 +365,10 @@ void triangle()
     }
 
     {
-        setAttachmentOutput(pass, color, 0);
+        setAttachmentOutput(pass, color, 0, color2);
     }
 
-    vkz::setPresentImage(color);
+    vkz::setPresentImage(color2);
 
     vkz::loop();
 

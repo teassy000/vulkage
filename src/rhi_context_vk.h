@@ -87,7 +87,7 @@ namespace vkz
         uint32_t defaultIndirectMaxCount{ 1 };
         uint32_t indirectBufStride{ 0 };
 
-        std::pair<uint16_t, BarrierState_vk> writeDepth;
+        std::pair<uint16_t, BarrierState_vk> writeDepth{ kInvalidHandle, {} };
         UniDataContainer< uint16_t, BarrierState_vk> writeColors;
         UniDataContainer< uint16_t, BarrierState_vk> readImages;
         UniDataContainer< uint16_t, BarrierState_vk> readBuffers;
@@ -95,8 +95,8 @@ namespace vkz
 
         UniDataContainer<uint16_t, uint16_t>    imageToSamplerIds;
 
-        std::vector<std::pair<CombinedResID, uint32_t>> shaderBindings;
-        std::vector<std::pair<CombinedResID, uint32_t>> colorAttBindings;
+        std::vector<std::pair<uint32_t, CombinedResID>> bindingToColorIds;
+        std::vector<std::pair<uint32_t, CombinedResID>> bindingToResIds;
     };
 
 

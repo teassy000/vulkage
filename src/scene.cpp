@@ -115,8 +115,8 @@ void CreateSingleMeshScene(Scene& _scene)
     Mesh& mesh = _scene.geometry.meshes[0];
 
     //-- NOTE: simplification for occlusion test
-    meshDraw.pos[0] = 2.f;
-    meshDraw.pos[1] = -2.f;
+    meshDraw.pos[0] = 0.f;
+    meshDraw.pos[1] = 0.f;
     meshDraw.pos[2] = 2.f;
     meshDraw.scale = 1.f;
     meshDraw.orit = quat(1, 0, 0, 0);

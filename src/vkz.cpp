@@ -238,6 +238,10 @@ namespace vkz
         UniDataContainer<PassHandle, std::vector<PassResInteract>> m_readImages;
         UniDataContainer<PassHandle, std::vector<PassResInteract>> m_writeImages;
 
+        // binding
+        UniDataContainer<PassHandle, std::vector<uint32_t>> m_usedBindPoints;
+        UniDataContainer<PassHandle, std::vector<uint32_t>> m_usedAttchBindPoints;
+
         // push constants
         UniDataContainer<ProgramHandle, void *> m_pushConstants;
 
@@ -876,10 +880,12 @@ namespace vkz
             const SamplerDesc& desc = m_samplerDescs.getIdToData({ samplerId });
 
             // magic tag
-            MagicTag magic{ MagicTag::register_sampler };
-            write(m_fgMemWriter, magic);
+            write(m_fgMemWriter, MagicTag::register_sampler);
 
-            write(m_fgMemWriter, desc);
+            SamplerMetaData meta{desc};
+            meta.samplerId = samplerId;
+
+            write(m_fgMemWriter, meta);
 
             write(m_fgMemWriter, MagicTag::magic_body_end);
         }
@@ -939,6 +945,29 @@ namespace vkz
         return { aliasId };
     }
 
+    uint32_t availableBinding(UniDataContainer<PassHandle, std::vector<uint32_t>>& _container, const PassHandle _hPass, const uint32_t _binding)
+    {
+        bool conflict = false;
+        if (_container.exist(_hPass))
+        {
+            const std::vector<uint32_t>& bindingVec = _container.getDataRef(_hPass);
+            for (const uint32_t& binding : bindingVec)
+            {
+                if (binding == _binding)
+                {
+                    conflict = true;
+                }
+            }
+        }
+        else
+        {
+            std::vector<uint32_t> bindingVec{};
+            bindingVec.emplace_back(_binding);
+            _container.push_back({ _hPass }, bindingVec);
+        }
+
+        return !conflict;
+    }
 
     uint32_t insertResInteract(UniDataContainer<PassHandle, std::vector<PassResInteract>>& _container, const PassHandle _hPass, const uint16_t _resId, const SamplerHandle _hSampler, const ResInteractDesc& _interact)
     {
@@ -971,8 +1000,15 @@ namespace vkz
 
     void Context::bindVertexBuffer(const PassHandle _hPass, const BufferHandle _hBuf)
     {
-        PassMetaData& meta = m_passMetas.getDataRef(_hPass);
-        meta.vertexBufferId = _hBuf.id;
+        PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
+        passMeta.vertexBufferId = _hBuf.id;
+
+        ResInteractDesc interact{};
+        interact.binding = kDescriptorSetBindingDontCare;
+        interact.stage = PipelineStageFlagBits::none;
+        interact.access = AccessFlagBits::none;
+
+        passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _hBuf.id, { kInvalidHandle }, interact);
 
         setRenderDataDirty();
     }
@@ -981,6 +1017,13 @@ namespace vkz
     {
         PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
         passMeta.indexBufferId = _hBuf.id;
+
+        ResInteractDesc interact{};
+        interact.binding = kDescriptorSetBindingDontCare;
+        interact.stage = PipelineStageFlagBits::none;
+        interact.access = AccessFlagBits::none;
+
+        passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _hBuf.id, { kInvalidHandle }, interact);
 
         setRenderDataDirty();
     }
@@ -996,7 +1039,7 @@ namespace vkz
         passMeta.defaultIndirectMaxCount = _defaultMaxCount;
 
         ResInteractDesc interact{};
-        interact.binding = kMaxDescriptorSetNum;
+        interact.binding = kDescriptorSetBindingDontCare;
         interact.stage = PipelineStageFlagBits::draw_indirect;
         interact.access = AccessFlagBits::indirect_command_read;
 
@@ -1012,7 +1055,7 @@ namespace vkz
         passMeta.indirectCountBufOffset = _offset;
 
         ResInteractDesc interact{};
-        interact.binding = kMaxDescriptorSetNum;
+        interact.binding = kDescriptorSetBindingDontCare;
         interact.stage = PipelineStageFlagBits::draw_indirect;
         interact.access = AccessFlagBits::indirect_command_read;
 
@@ -1023,6 +1066,13 @@ namespace vkz
 
     void Context::bindBuffer(PassHandle _hPass, BufferHandle _buf, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, const BufferHandle _outAlias)
     {
+        if (!availableBinding(m_usedBindPoints, _hPass, _binding))
+        {
+            message(DebugMessageType::error, "trying to binding the same point: %d", _binding);
+            return;
+        }
+
+
         ResInteractDesc interact{};
         interact.binding = _binding;
         interact.stage = _stage;
@@ -1047,6 +1097,12 @@ namespace vkz
 
     void Context::sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, ImageLayout _layout, SamplerReductionMode _reductionMode)
     {
+        if (!availableBinding(m_usedBindPoints, _hPass, _binding))
+        {
+            message(DebugMessageType::error, "trying to binding the same point: %d", _binding);
+            return;
+        }
+
         // get the sampler id
         SamplerDesc desc;
         desc.reductionMode = _reductionMode;
@@ -1060,12 +1116,19 @@ namespace vkz
         interact.layout = _layout;
 
         PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
-        passMeta.readImageNum = insertResInteract(m_readImages, _hPass, _hImg.id, { kInvalidHandle }, interact);
+        passMeta.readImageNum = insertResInteract(m_readImages, _hPass, _hImg.id, sampler, interact);
+        passMeta.sampleImageNum++; // Note: is this the only way to read texture?
         setRenderDataDirty();
     }
 
     void Context::bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout, const ImageHandle _outAlias)
     {
+        if (!availableBinding(m_usedBindPoints, _hPass, _binding))
+        {
+            message(DebugMessageType::error, "trying to binding the same point: %d", _binding);
+            return;
+        }
+
         ImageMetaData& meta = m_imageMetas.getDataRef(_hImg);
         PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
 
@@ -1074,6 +1137,7 @@ namespace vkz
         interact.stage = _stage;
         interact.access = _access;
         interact.layout = _layout;
+
 
         if (isRead(_access))
         {
@@ -1099,6 +1163,7 @@ namespace vkz
                 message(DebugMessageType::error, "the _outAlias must be valid if trying to write to resource in pass");
             }
 
+
             if (isGraphics(_hPass))
             {
                 message(DebugMessageType::warning, "Graphics pass not allowed to write to texture via bind! try to use setAttachmentOutput instead.");
@@ -1118,6 +1183,12 @@ namespace vkz
 
     void Context::setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx, const ImageHandle _outAlias)
     {
+        if (isColorAttachment(_hImg) && !availableBinding(m_usedAttchBindPoints, _hPass, _attachmentIdx))
+        {
+            message(DebugMessageType::error, "trying to binding the same point: %d", _attachmentIdx);
+            return;
+        }
+
         assert(isGraphics(_hPass));
         assert(isValid(_outAlias));
 

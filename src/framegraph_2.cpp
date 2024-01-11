@@ -82,6 +82,7 @@ namespace vkz
             }
             case MagicTag::register_sampler: {
                 registerSampler(reader);
+                break;
             }
             // Alias
             case MagicTag::force_alias_buffer: {
@@ -285,7 +286,7 @@ namespace vkz
 
     bool isValidBinding(uint32_t _binding)
     {
-        return _binding < kMaxDescriptorSetNum;
+        return _binding < kDescriptorSetBindingDontCare;
     }
 
     const ResInteractDesc mergeIfNoConflict(const ResInteractDesc& _desc0, const ResInteractDesc& _desc1)
@@ -355,7 +356,12 @@ namespace vkz
                 actualSize++;
             }
 
-            m_pass_rw_res[hPassIdx].imageSamplerMap.push_back(plainId, prInteract.samplerId);
+            if (isImage(plainId))
+            {
+                assert(kInvalidHandle != prInteract.samplerId);
+                m_pass_rw_res[hPassIdx].imageSamplerMap.push_back(plainId, prInteract.samplerId);
+            }
+            
         }
 
         // make sure vec elements are unique
@@ -932,6 +938,8 @@ namespace vkz
         assert(!_reses.empty());
 
         _bkt.desc.size = _info.size;
+        _bkt.desc.data = _info.data;
+
         _bkt.desc.memFlags = _info.memFlags;
         _bkt.desc.usage = _info.usage;
 
@@ -1198,7 +1206,7 @@ namespace vkz
 
             write(&m_rhiMemWriter, info);
 
-            if (info.aliasNum > 0)
+            if (info.aliasNum > 1)
             {
                 assert(info.data == nullptr);
             }
@@ -1329,7 +1337,6 @@ namespace vkz
 
     void Framegraph2::createSamplers()
     {
-
         std::set<uint16_t> usedSamplers{};
         for (uint32_t ii = 0; ii < m_sortedPass.size(); ++ii)
         {
@@ -1380,7 +1387,7 @@ namespace vkz
             assert(pass.id == passMeta.passId);
 
             std::pair<ImageHandle, ResInteractDesc>& writeDS = writeDSPair[ii];
-            UniDataContainer< ImageHandle, ResInteractDesc>& writeImg = writeImageVec[ii];
+            UniDataContainer< ImageHandle, ResInteractDesc>& writeColor = writeImageVec[ii];
             UniDataContainer< ImageHandle, ResInteractDesc>& readImg = readImageVec[ii];
 
             UniDataContainer< BufferHandle, ResInteractDesc>& readBuf = readBufferVec[ii];
@@ -1388,7 +1395,7 @@ namespace vkz
             UniDataContainer< ImageHandle, SamplerHandle>& imgSamplerMap = imageSamplerVec[ii];
             {
                 writeDS.first = { kInvalidHandle };
-                writeImg.clear();
+                writeColor.clear();
                 readImg.clear();
                 readBuf.clear();
                 writeBuf.clear();
@@ -1404,16 +1411,16 @@ namespace vkz
                         writeDS.first = { writeRes.id };
                         writeDS.second = rwRes.writeInteracts.getIdToData(writeRes);
                         
-                        writeImg.push_back({ writeRes.id }, rwRes.writeInteracts.getIdToData(writeRes));
+                        writeColor.push_back({ writeRes.id }, rwRes.writeInteracts.getIdToData(writeRes));
                     }
                     else if (isColorAttachment(writeRes))
                     {
-                        writeImg.push_back({ writeRes.id }, rwRes.writeInteracts.getIdToData(writeRes));
+                        writeColor.push_back({ writeRes.id }, rwRes.writeInteracts.getIdToData(writeRes));
                     }
                     else if (isNormalImage(writeRes)
                         && (passMeta.queue == PassExeQueue::compute || passMeta.queue == PassExeQueue::copy))
                     {
-                        writeImg.push_back({ writeRes.id }, rwRes.writeInteracts.getIdToData(writeRes));
+                        writeColor.push_back({ writeRes.id }, rwRes.writeInteracts.getIdToData(writeRes));
                     }
                     else if (isBuffer(writeRes))
                     {
@@ -1452,7 +1459,7 @@ namespace vkz
 
             // create pass info
             assert(writeDS.first.id == passMeta.writeDepthId);
-            assert((uint16_t)writeImg.size() == passMeta.writeImageNum);
+            assert((uint16_t)writeColor.size() == passMeta.writeImageNum);
             assert((uint16_t)readImg.size() == passMeta.readImageNum);
             assert((uint16_t)readBuf.size() == passMeta.readBufferNum);
             assert((uint16_t)writeBuf.size() == passMeta.writeBufferNum);
@@ -1513,7 +1520,7 @@ namespace vkz
             write(&m_rhiMemWriter, (void*)readBufferVec[ii].getIdPtr(), (int32_t)(createInfo.readBufferNum * sizeof(BufferHandle)));
             write(&m_rhiMemWriter, (void*)writeBufferVec[ii].getIdPtr(), (int32_t)(createInfo.writeBufferNum * sizeof(BufferHandle)));
 
-            write(&m_rhiMemWriter, writeDSPair[ii].second);
+            //write(&m_rhiMemWriter, writeDSPair[ii].second);
             write(&m_rhiMemWriter, (void*)writeImageVec[ii].getDataPtr(), (int32_t)(createInfo.writeImageNum * sizeof(ResInteractDesc)));
             write(&m_rhiMemWriter, (void*)readImageVec[ii].getDataPtr(), (int32_t)(createInfo.readImageNum * sizeof(ResInteractDesc)));
             write(&m_rhiMemWriter, (void*)readBufferVec[ii].getDataPtr(), (int32_t)(createInfo.readBufferNum * sizeof(ResInteractDesc)));
@@ -1532,6 +1539,7 @@ namespace vkz
         createBuffers();
         createImages();
         createShaders();
+        createSamplers();
         createPasses();
 
         // set brief
@@ -1546,8 +1554,7 @@ namespace vkz
         }
 
         // end mem tag
-        RHIContextOpMagic magic{ RHIContextOpMagic::end };
-        write(&m_rhiMemWriter, magic);
+        write(&m_rhiMemWriter,  RHIContextOpMagic::end );
     }
 
     bool Framegraph2::isBufInfoAliasable(uint16_t _idx, const BufBucket& _bucket, const std::vector<CombinedResID> _resInCurrStack) const

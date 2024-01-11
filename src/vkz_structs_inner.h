@@ -144,7 +144,10 @@ namespace vkz
 
     struct SamplerMetaData : public SamplerDesc
     {
-        uint16_t samplerId;
+        SamplerMetaData() = default;
+        SamplerMetaData(const SamplerDesc& desc) : SamplerDesc(desc) {}
+
+        uint16_t samplerId{kInvalidHandle};
     };
 
     struct ShaderCreateInfo 
