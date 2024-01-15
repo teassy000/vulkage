@@ -845,81 +845,86 @@ namespace vkz
         
     }
 
-    void RHIContext_vk::render()
+    bool RHIContext_vk::render()
     {
         if (m_passContainer.size() < 1)
         {
             message(DebugMessageType::error, "no pass needs to execute in context!");
-            return;
+            return false;
         }
 
-        while (!glfwWindowShouldClose(m_pWindow))
+
+        if (glfwWindowShouldClose(m_pWindow)) {
+            return false;
+        }
+
+
+        glfwPollEvents();
+
+        int newWindowWidth = 0, newWindowHeight = 0;
+        glfwGetWindowSize(m_pWindow, &newWindowWidth, &newWindowHeight);
+
+        SwapchainStatus_vk swapchainStatus = resizeSwapchainIfNecessary(m_swapchain, m_phyDevice, m_device, m_surface, m_gfxFamilyIdx, m_imageFormat);
+        if (swapchainStatus == SwapchainStatus_vk::not_ready) {  // skip this frame
+            return true;
+        }
+
+        if(swapchainStatus == SwapchainStatus_vk::resize)
         {
-            glfwPollEvents();
-
-            int newWindowWidth = 0, newWindowHeight = 0;
-            glfwGetWindowSize(m_pWindow, &newWindowWidth, &newWindowHeight);
-
-            SwapchainStatus_vk swapchainStatus = resizeSwapchainIfNecessary(m_swapchain, m_phyDevice, m_device, m_surface, m_gfxFamilyIdx, m_imageFormat);
-            if (swapchainStatus == SwapchainStatus_vk::not_ready) {
-                continue;
-            }
-
-            if(swapchainStatus == SwapchainStatus_vk::resize)
-            {
-                // TODO: recreate images
-            }
-
-            uint32_t imageIndex = 0;
-            VK_CHECK(vkAcquireNextImageKHR(m_device, m_swapchain.swapchain, ~0ull, m_acquirSemaphore, VK_NULL_HANDLE, &imageIndex));
-
-            VK_CHECK(vkResetCommandPool(m_device, m_cmdPool, 0));
-
-            VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-            beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-            VK_CHECK(vkBeginCommandBuffer(m_cmdBuffer, &beginInfo));
-
-            // render passes
-            for (size_t ii = 0; ii < m_passContainer.size(); ++ii)
-            {
-                uint16_t passId = m_passContainer.getIdAt(ii);
-                createBarriers(passId);
-                exeutePass(passId);
-                createBarriers(passId, true); // flush
-            }
-
-            // copy to swapchain
-            copyToSwapchain(imageIndex);
-
-            VK_CHECK(vkEndCommandBuffer(m_cmdBuffer));
-            
-            
-            // submit
-            VkPipelineStageFlags submitStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-
-            VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-            submitInfo.waitSemaphoreCount = 1;
-            submitInfo.pWaitSemaphores = &m_acquirSemaphore;
-            submitInfo.pWaitDstStageMask = &submitStageMask;
-            submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &m_cmdBuffer;
-            submitInfo.signalSemaphoreCount = 1;
-            submitInfo.pSignalSemaphores = &m_releaseSemaphore;
-
-            VK_CHECK(vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE));
-
-            VkPresentInfoKHR presentInfo = { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
-            presentInfo.swapchainCount = 1;
-            presentInfo.pSwapchains = &m_swapchain.swapchain;
-            presentInfo.pImageIndices = &imageIndex;
-            presentInfo.pWaitSemaphores = &m_releaseSemaphore;
-            presentInfo.waitSemaphoreCount = 1;
-
-            VK_CHECK(vkQueuePresentKHR(m_queue, &presentInfo));
-
-            VK_CHECK(vkDeviceWaitIdle(m_device)); // TODO: a fence here?
+            // TODO: recreate images
         }
+
+        uint32_t imageIndex = 0;
+        VK_CHECK(vkAcquireNextImageKHR(m_device, m_swapchain.swapchain, ~0ull, m_acquirSemaphore, VK_NULL_HANDLE, &imageIndex));
+
+        VK_CHECK(vkResetCommandPool(m_device, m_cmdPool, 0));
+
+        VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+        VK_CHECK(vkBeginCommandBuffer(m_cmdBuffer, &beginInfo));
+
+        // render passes
+        for (size_t ii = 0; ii < m_passContainer.size(); ++ii)
+        {
+            uint16_t passId = m_passContainer.getIdAt(ii);
+            createBarriers(passId);
+            exeutePass(passId);
+            createBarriers(passId, true); // flush
+        }
+
+        // copy to swapchain
+        copyToSwapchain(imageIndex);
+
+        VK_CHECK(vkEndCommandBuffer(m_cmdBuffer));
+            
+            
+        // submit
+        VkPipelineStageFlags submitStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+
+        VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+        submitInfo.waitSemaphoreCount = 1;
+        submitInfo.pWaitSemaphores = &m_acquirSemaphore;
+        submitInfo.pWaitDstStageMask = &submitStageMask;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &m_cmdBuffer;
+        submitInfo.signalSemaphoreCount = 1;
+        submitInfo.pSignalSemaphores = &m_releaseSemaphore;
+
+        VK_CHECK(vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE));
+
+        VkPresentInfoKHR presentInfo = { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
+        presentInfo.swapchainCount = 1;
+        presentInfo.pSwapchains = &m_swapchain.swapchain;
+        presentInfo.pImageIndices = &imageIndex;
+        presentInfo.pWaitSemaphores = &m_releaseSemaphore;
+        presentInfo.waitSemaphoreCount = 1;
+
+        VK_CHECK(vkQueuePresentKHR(m_queue, &presentInfo));
+
+        VK_CHECK(vkDeviceWaitIdle(m_device)); // TODO: a fence here?
+
+        return true;
     }
 
     void RHIContext_vk::createShader(MemoryReader& _reader)
@@ -1084,6 +1089,7 @@ namespace vkz
         passInfo.pipelineSpecData = passMeta.pipelineSpecData;
         passInfo.pipelineConfig = passMeta.pipelineConfig;
 
+
         // r/w res part
         auto getBarrierState = [&](const ResInteractDesc& _desc) -> BarrierState_vk {
                 BarrierState_vk state{};
@@ -1126,7 +1132,7 @@ namespace vkz
                         // same binding already exist because manually in vkz.cpp, would handle it in barrier creation
                         ;
                     }
-                }
+                } 
 
                 offset += _ids.size();
             };
@@ -1138,7 +1144,6 @@ namespace vkz
             writeImageIds.erase(begin(writeImageIds) + depthIdx);
             interacts.erase(begin(interacts) + depthIdx);
         }
-
 
         preparePassBarriers(writeImageIds, passInfo.writeColors, passInfo.bindingToColorIds, ResourceType::image);
         preparePassBarriers(readImageIds, passInfo.readImages, passInfo.bindingToResIds, ResourceType::image);

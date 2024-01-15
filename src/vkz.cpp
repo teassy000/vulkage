@@ -203,9 +203,9 @@ namespace vkz
         void storeSamplerData();
 
         void init();
-        void loop();
+        bool run();
         void update();
-        void render();
+        bool render();
         void shutdown();
 
         void setRenderDataDirty() { m_isRenderDataDirty = true; }
@@ -1272,25 +1272,25 @@ namespace vkz
         setRenderDataDirty();
     }
 
-    void Context::loop()
-    {
-        update();
-        render();
-    }
-
-    void Context::update()
+    bool Context::run()
     {
         if (kInvalidHandle == m_presentImage.id)
         {
             message(error, "result render target is not set!");
-            return;
+            return false;
         }
 
-        if (!isRenderDataDirty())
+        if (isRenderDataDirty())
         {
-            return;
+            update();
         }
 
+
+        return render();
+    }
+
+    void Context::update()
+    {
         // store all resources
         storeBrief();
         storeShaderData();
@@ -1308,14 +1308,14 @@ namespace vkz
         m_frameGraph->setMemoryBlock(m_pFgMemBlock);
         m_frameGraph->bake();
 
-        m_rhiContext->update();
-
         m_isRenderDataDirty = false;
+
+        m_rhiContext->update();
     }
 
-    void Context::render()
+    bool Context::render()
     {
-        m_rhiContext->render();
+        return m_rhiContext->render();
     }
 
     void Context::shutdown()
@@ -1487,9 +1487,9 @@ namespace vkz
         return true;
     }
 
-    void loop()
+    bool run()
     {
-        s_ctx->loop();
+        return s_ctx->run();
     }
 
     void shutdown()
@@ -1497,4 +1497,4 @@ namespace vkz
         deleteObject(getAllocator(), s_ctx);
         shutdownAllocator();
     }
-}
+} // namespace vkz

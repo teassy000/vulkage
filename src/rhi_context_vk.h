@@ -128,7 +128,7 @@ namespace vkz
 
         ~RHIContext_vk() override;
         void init(RHI_Config _config) override;
-        void render() override;
+        bool render() override;
     private:
 
         void createShader(MemoryReader& _reader) override;

@@ -58,6 +58,8 @@ namespace vkz
 
     void* getPushConstantPtr(const ProgramHandle _hProgram);
 
+
+
     // meomory related
     const Memory* alloc(uint32_t _sz);
     const Memory* copy(const void* _data, uint32_t _sz);
@@ -67,6 +69,6 @@ namespace vkz
 
     // engine basic functions
     bool init(vkz::VKZInitConfig _config = {});
-    void loop();
+    bool run();
     void shutdown();
 }

@@ -2,6 +2,7 @@
 #include "mesh.h"
 #include "scene.h"
 #include <cstddef>
+#include "camera.h"
 
 struct alignas(16) TransformData
 {
@@ -78,6 +79,24 @@ struct MeshDrawCommandVKZ
     uint32_t    local_z;
 };
 
+
+// left handed?
+mat4 perspectiveProjection2(float fovY, float aspectWbyH, float zNear)
+{
+    float f = 1.0f / tanf(fovY / 2.0f);
+
+    return mat4(
+        f / aspectWbyH, 0.0f, 0.0f, 0.0f,
+        0.0f, f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f,
+        0.0f, 0.0f, zNear, 0.0f);
+}
+
+vec4 normalizePlane2(vec4 p)
+{
+    return p / glm::length(p);
+}
+
 void meshDemo()
 {
     vkz::VKZInitConfig config = {};
@@ -91,6 +110,22 @@ void meshDemo()
     const char* pathes[] = { "../data/kitten.obj" };
     bool lmr = loadScene(scene, pathes, COUNTOF(pathes), false);
     assert(lmr);
+
+    // basic data
+    FreeCamera freeCamera = {};
+    freeCameraInit(freeCamera, vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 1.0f, 0.0f), 90.0f, 0.0f);
+
+    float znear = .1f;
+    mat4 projection = perspectiveProjection2(glm::radians(70.f), (float)config.windowWidth / (float)config.windowHeight, znear);
+    mat4 projectionT = glm::transpose(projection);
+    vec4 frustumX = normalizePlane2(projectionT[3] - projectionT[0]);
+    vec4 frustumY = normalizePlane2(projectionT[3] - projectionT[1]);
+
+    mat4 view = freeCameraGetViewMatrix(freeCamera);
+    TransformData trans = {};
+    trans.view = view;
+    trans.proj = projection;
+    trans.cameraPos = freeCamera.pos;
 
     // buffers
     // mesh data
@@ -153,6 +188,7 @@ void meshDemo()
     // TODO: requires to upload every frame
     vkz::BufferDesc transformBufDesc;
     transformBufDesc.size = (uint32_t)(sizeof(TransformData));
+    transformBufDesc.data = &trans;
     transformBufDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::transfer_dst;
     transformBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
     vkz::BufferHandle transformBuf = vkz::registBuffer("transform", transformBufDesc);
@@ -314,7 +350,10 @@ void meshDemo()
 
     vkz::setPresentImage(color2);
 
-    vkz::loop();
+    while (vkz::run())
+    {
+        ;
+    }
 
     vkz::shutdown();
 }
@@ -370,13 +409,16 @@ void triangle()
 
     vkz::setPresentImage(color2);
 
-    vkz::loop();
+    while (vkz::run())
+    {
+        ;
+    }
 
     vkz::shutdown();
 }
 
 void DemoMain()
 {
-    //triangle();
-    meshDemo();
+    triangle();
+    //meshDemo();
 }

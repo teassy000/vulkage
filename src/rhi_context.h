@@ -33,7 +33,7 @@ namespace vkz
     public:
         virtual void init(RHI_Config _config) = 0;
         virtual void update() = 0;
-        virtual void render() = 0;
+        virtual bool render() = 0;
 
     private:
         virtual void createShader(MemoryReader& reader) = 0;
@@ -67,7 +67,7 @@ namespace vkz
         void init(RHI_Config _config) override {};
 
         void update() override;
-        void render() override {};
+        bool render() override { return false; };
     protected:
 
     private:
