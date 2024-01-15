@@ -56,9 +56,7 @@ namespace vkz
 
     void setPresentImage(ImageHandle _rt);
 
-    void* getPushConstantPtr(const ProgramHandle _hProgram);
-
-
+    void updatePushConstant(const PassHandle _hPass, const Memory* _mem);
 
     // meomory related
     const Memory* alloc(uint32_t _sz);

@@ -275,19 +275,19 @@ void meshDemo()
     }
 
     {
-        int pushConstants[] = { false };
-
-        const vkz::Memory* pConst = vkz::alloc(sizeof(int) * COUNTOF(pushConstants));
-        memcpy_s(pConst->data, pConst->size, pushConstants, sizeof(int)* COUNTOF(pushConstants));
-
         // cull pass
         vkz::ShaderHandle cs = vkz::registShader("mesh_draw_cmd_shader", "shaders/drawcmd.comp.spv");
         vkz::ProgramHandle csProgram = vkz::registProgram("mesh_draw_cmd_prog", { cs }, sizeof(MeshDrawCullVKZ));
 
+        int pipelineSpecs[] = { false };
+
+        const vkz::Memory* pConst = vkz::alloc(sizeof(int) * COUNTOF(pipelineSpecs));
+        memcpy_s(pConst->data, pConst->size, pipelineSpecs, sizeof(int)* COUNTOF(pipelineSpecs));
+
         vkz::PassDesc passDesc;
         passDesc.programId = csProgram.id;
         passDesc.queue = vkz::PassExeQueue::compute;
-        passDesc.pipelineSpecNum = COUNTOF(pushConstants);
+        passDesc.pipelineSpecNum = COUNTOF(pipelineSpecs);
         passDesc.pipelineSpecData = (void*)pConst->data;
         
         vkz::PassHandle cull_pass = vkz::registPass("cull_pass", passDesc);

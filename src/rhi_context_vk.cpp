@@ -962,8 +962,10 @@ namespace vkz
         VkPipelineBindPoint bindPoint = getBindPoint(shaders);
         Program_vk prog = vkz::createProgram(m_device, bindPoint, shaders, info.sizePushConstants);
 
-        prog.pushConstantSize = info.sizePushConstants;
-        prog.pushConstantData = info.pPushConstants;
+
+        const Memory* constantMem = alloc(info.sizePushConstants);
+        memcpy(constantMem->data, info.pPushConstants, info.sizePushConstants);
+        m_constantsMemBlock.addConstant({ info.progId }, constantMem);
 
         m_programContainer.push_back(info.progId, prog);
         m_programShaderIds.emplace_back(shaderIds);
@@ -1452,11 +1454,14 @@ namespace vkz
     void RHIContext_vk::pushConstants(const uint16_t _passId)
     {
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
-
         const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
-        if (prog.pushConstantSize > 0)
+
+        uint32_t size = m_constantsMemBlock.getConstantSize({ _passId });
+        const void* pData = m_constantsMemBlock.getConstantData({ _passId });
+
+        if (size > 0 && pData != nullptr)
         {
-            vkCmdPushConstants(m_cmdBuffer, prog.layout, prog.pushConstantStages, 0, prog.pushConstantSize, prog.pushConstantData);
+            vkCmdPushConstants(m_cmdBuffer, prog.layout, prog.pushConstantStages, 0, size, pData);
         }
     }
 

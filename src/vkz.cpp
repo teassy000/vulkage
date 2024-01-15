@@ -190,6 +190,8 @@ namespace vkz
         
         void setPresentImage(ImageHandle _rt);
 
+        void updatePushConstant(const PassHandle _hPass, const Memory* _mem);
+
         void* getPushConstantPtr(const ProgramHandle _hProgram);
 
         // actual write to memory
@@ -204,12 +206,12 @@ namespace vkz
 
         void init();
         bool run();
-        void update();
+        void bake();
         bool render();
         void shutdown();
 
-        void setRenderDataDirty() { m_isRenderDataDirty = true; }
-        bool isRenderDataDirty() const { return m_isRenderDataDirty; }
+        void setRenderGraphDataDirty() { m_isRenderGraphDataDirty = true; }
+        bool isRenderGraphDataDirty() const { return m_isRenderGraphDataDirty; }
 
         HandleArrayT<kMaxNumOfShaderHandle> m_shaderHandles;
         HandleArrayT<kMaxNumOfProgramHandle> m_programHandles;
@@ -250,7 +252,7 @@ namespace vkz
         uint32_t m_renderHeight{ 0 };
 
         // render data status
-        bool    m_isRenderDataDirty{ false };
+        bool    m_isRenderGraphDataDirty{ false };
 
         // frame graph
         MemoryBlockI* m_pFgMemBlock{ nullptr };
@@ -362,7 +364,7 @@ namespace vkz
 
         m_shaderDescs.push_back({ idx }, _path);
         
-        setRenderDataDirty();
+        setRenderGraphDataDirty();
 
         return handle;
     }
@@ -390,7 +392,7 @@ namespace vkz
         m_programDescs.push_back({ idx }, desc);
         m_pushConstants.push_back({ idx }, pushConstants);
 
-        setRenderDataDirty();
+        setRenderGraphDataDirty();
 
         return handle;
     }
@@ -411,7 +413,7 @@ namespace vkz
         meta.passId = idx;
         m_passMetas.push_back({ idx }, meta);
 
-        setRenderDataDirty();
+        setRenderGraphDataDirty();
 
         return handle;
     }
@@ -440,7 +442,7 @@ namespace vkz
 
         m_bufferMetas.push_back({ idx }, meta);
 
-        setRenderDataDirty();
+        setRenderGraphDataDirty();
 
         return handle;
     }
@@ -467,7 +469,7 @@ namespace vkz
 
         m_imageMetas.push_back({ idx }, meta);
 
-        setRenderDataDirty();
+        setRenderGraphDataDirty();
 
         return handle;
     }
@@ -508,7 +510,7 @@ namespace vkz
 
         m_imageMetas.push_back({ idx }, meta);
 
-        setRenderDataDirty();
+        setRenderGraphDataDirty();
 
         return handle;
     }
@@ -549,7 +551,7 @@ namespace vkz
 
         m_imageMetas.push_back({ idx }, meta);
 
-        setRenderDataDirty();
+        setRenderGraphDataDirty();
 
         return handle;
     }
@@ -913,7 +915,7 @@ namespace vkz
         meta.bufId = aliasId;
         m_bufferMetas.push_back({ aliasId }, meta);
 
-        setRenderDataDirty();
+        setRenderGraphDataDirty();
 
         return { aliasId };
     }
@@ -940,7 +942,7 @@ namespace vkz
         meta.imgId = aliasId;
         m_imageMetas.push_back({ aliasId }, meta);
 
-        setRenderDataDirty();
+        setRenderGraphDataDirty();
 
         return { aliasId };
     }
@@ -1010,7 +1012,7 @@ namespace vkz
 
         passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _hBuf.id, { kInvalidHandle }, interact);
 
-        setRenderDataDirty();
+        setRenderGraphDataDirty();
     }
 
     void Context::bindIndexBuffer(const PassHandle _hPass, const BufferHandle _hBuf)
@@ -1025,7 +1027,7 @@ namespace vkz
 
         passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _hBuf.id, { kInvalidHandle }, interact);
 
-        setRenderDataDirty();
+        setRenderGraphDataDirty();
     }
 
     void Context::setIndirectBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset, uint32_t _stride, uint32_t _defaultMaxCount)
@@ -1045,7 +1047,7 @@ namespace vkz
 
         passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _hBuf.id, { kInvalidHandle }, interact);
 
-        setRenderDataDirty();
+        setRenderGraphDataDirty();
     }
 
     void Context::setIndirectCountBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset)
@@ -1061,7 +1063,7 @@ namespace vkz
 
         passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _hBuf.id, { kInvalidHandle }, interact);
 
-        setRenderDataDirty();
+        setRenderGraphDataDirty();
     }
 
     void Context::bindBuffer(PassHandle _hPass, BufferHandle _buf, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, const BufferHandle _outAlias)
@@ -1118,7 +1120,7 @@ namespace vkz
         PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
         passMeta.readImageNum = insertResInteract(m_readImages, _hPass, _hImg.id, sampler, interact);
         passMeta.sampleImageNum++; // Note: is this the only way to read texture?
-        setRenderDataDirty();
+        setRenderGraphDataDirty();
     }
 
     void Context::bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout, const ImageHandle _outAlias)
@@ -1153,7 +1155,7 @@ namespace vkz
             }
 
             passMeta.readImageNum = insertResInteract(m_readImages, _hPass, _hImg.id, { kInvalidHandle }, interact);
-            setRenderDataDirty();
+            setRenderGraphDataDirty();
         }
 
         if (isWrite(_access, _stage))
@@ -1171,7 +1173,7 @@ namespace vkz
             else if (isCompute(_hPass) && isNormalImage(_hImg))
             {
                 passMeta.writeImageNum = insertResInteract(m_writeImages, _hPass, _outAlias.id, { kInvalidHandle }, interact);
-                setRenderDataDirty();
+                setRenderGraphDataDirty();
             }
             else
             {
@@ -1220,7 +1222,7 @@ namespace vkz
 
         passMeta.writeImageNum = insertResInteract(m_writeImages, _hPass, _outAlias.id, { kInvalidHandle }, interact);
 
-        setRenderDataDirty();
+        setRenderGraphDataDirty();
     }
 
     void Context::setMultiFrame(ImageHandle _img)
@@ -1230,7 +1232,7 @@ namespace vkz
 
         m_imageMetas.update_data(_img, meta);
 
-        setRenderDataDirty();
+        setRenderGraphDataDirty();
     }
 
     void Context::setMultiFrame(BufferHandle _buf)
@@ -1240,14 +1242,25 @@ namespace vkz
 
         m_bufferMetas.update_data(_buf, meta);
 
-        setRenderDataDirty();
+        setRenderGraphDataDirty();
     }
 
     void Context::setPresentImage(ImageHandle _img)
     {
         m_presentImage = _img;
 
-        setRenderDataDirty();
+        setRenderGraphDataDirty();
+    }
+
+    void Context::updatePushConstant(const PassHandle _hPass, const Memory* _mem)
+    {
+        if (isRenderGraphDataDirty())
+        {
+            message(warning, "render graph is not baked yet!");
+            return;
+        }
+
+        m_rhiContext->updatePushConstants(_hPass, _mem);
     }
 
     void* Context::getPushConstantPtr(const ProgramHandle _hProgram)
@@ -1269,7 +1282,7 @@ namespace vkz
         m_pFgMemBlock = m_frameGraph->getMemoryBlock();
         m_fgMemWriter = VKZ_NEW(m_pAllocator, MemoryWriter(m_pFgMemBlock));
 
-        setRenderDataDirty();
+        setRenderGraphDataDirty();
     }
 
     bool Context::run()
@@ -1280,16 +1293,15 @@ namespace vkz
             return false;
         }
 
-        if (isRenderDataDirty())
+        if (isRenderGraphDataDirty())
         {
-            update();
+            bake();
         }
-
 
         return render();
     }
 
-    void Context::update()
+    void Context::bake()
     {
         // store all resources
         storeBrief();
@@ -1308,9 +1320,9 @@ namespace vkz
         m_frameGraph->setMemoryBlock(m_pFgMemBlock);
         m_frameGraph->bake();
 
-        m_isRenderDataDirty = false;
+        m_isRenderGraphDataDirty = false;
 
-        m_rhiContext->update();
+        m_rhiContext->bake();
     }
 
     bool Context::render()
@@ -1431,10 +1443,10 @@ namespace vkz
     {
         s_ctx->setPresentImage(_rt);
     }
-
-    void* getPushConstantPtr(const ProgramHandle _hProgram)
+    
+    void updatePushConstant(const PassHandle _hPass, const Memory* _mem)
     {
-        return s_ctx->getPushConstantPtr(_hProgram);
+        s_ctx->updatePushConstant(_hPass, _mem);
     }
 
     const Memory* alloc(uint32_t _sz)

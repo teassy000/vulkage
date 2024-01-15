@@ -13,6 +13,8 @@ constexpr unsigned int kMaxNumOfBufferHandle = 1024;
 
 constexpr unsigned int kInitialFrameGraphMemSize = 16 * 1024; // 16k
 
+constexpr unsigned int kInitialUniformTotalMemSize = 16 * 1024; // 16k
+
 constexpr unsigned int kMaxPathLen = 256;
 constexpr unsigned int kMaxNumOfStageInPorgram = 6;
 

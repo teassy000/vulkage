@@ -25,9 +25,6 @@ namespace vkz
         VkDescriptorUpdateTemplate updateTemplate;
 
         VkShaderStageFlags pushConstantStages;
-
-        uint32_t pushConstantSize;
-        void* pushConstantData;
     };
 
     struct PipelineConfigs_vk
@@ -36,7 +33,6 @@ namespace vkz
         bool enableDepthWrite{ true };
         VkCompareOp depthCompOp{ VK_COMPARE_OP_GREATER };
     };
-    using Constants = std::initializer_list<int>;
 
     bool loadShader(Shader_vk& shader, VkDevice device, const char* path);
 

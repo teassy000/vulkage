@@ -99,7 +99,6 @@ namespace vkz
         std::vector<std::pair<uint32_t, CombinedResID>> bindingToResIds;
     };
 
-
     class BarrierDispatcher
     {
     public:
@@ -129,6 +128,7 @@ namespace vkz
         ~RHIContext_vk() override;
         void init(RHI_Config _config) override;
         bool render() override;
+
     private:
 
         void createShader(MemoryReader& _reader) override;
