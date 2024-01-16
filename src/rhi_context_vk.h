@@ -123,10 +123,10 @@ namespace vkz
     class RHIContext_vk : public RHIContext
     {
     public:
-        RHIContext_vk(AllocatorI* _allocator, RHI_Config _config);
+        RHIContext_vk(AllocatorI* _allocator, RHI_Config _config, void* _wnd);
 
         ~RHIContext_vk() override;
-        void init(RHI_Config _config) override;
+        void init(RHI_Config _config, void* _wnd) override;
         bool render() override;
 
     private:

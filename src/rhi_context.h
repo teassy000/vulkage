@@ -118,7 +118,7 @@ namespace vkz
     class RHIContextI
     {
     public:
-        virtual void init(RHI_Config _config) = 0;
+        virtual void init(RHI_Config _config, void* _wnd) = 0;
         virtual void bake() = 0;
         virtual bool render() = 0;
 
@@ -157,7 +157,7 @@ namespace vkz
         inline MemoryBlockI* getMemoryBlock() const {return m_pMemBlockBaked;}
         inline AllocatorI* getAllocator() const { return m_pAllocator; }
 
-        void init(RHI_Config _config) override {};
+        void init(RHI_Config _config, void* _wnd) override {};
 
         void bake() override;
         bool render() override { return false; };

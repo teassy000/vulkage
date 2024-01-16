@@ -350,9 +350,9 @@ void meshDemo()
 
     vkz::setPresentImage(color2);
 
-    while (vkz::run())
+    while (!vkz::shouldClose())
     {
-        ;
+        vkz::run();
     }
 
     vkz::shutdown();
@@ -363,6 +363,7 @@ void triangle()
     vkz::VKZInitConfig config = {};
     config.windowWidth = 2560;
     config.windowHeight = 1440;
+    config.name = "triangle";
 
     vkz::init(config);
 
@@ -409,9 +410,9 @@ void triangle()
 
     vkz::setPresentImage(color2);
 
-    while (vkz::run())
+    while (!vkz::shouldClose())
     {
-        ;
+        vkz::run();
     }
 
     vkz::shutdown();

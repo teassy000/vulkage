@@ -56,7 +56,7 @@ namespace vkz
 
     void setPresentImage(ImageHandle _rt);
 
-    void updatePushConstant(const PassHandle _hPass, const Memory* _mem);
+    void updatePushConstants(const PassHandle _hPass, const Memory* _mem);
 
     // meomory related
     const Memory* alloc(uint32_t _sz);
@@ -67,6 +67,7 @@ namespace vkz
 
     // engine basic functions
     bool init(vkz::VKZInitConfig _config = {});
-    bool run();
+    bool shouldClose();
+    void run();
     void shutdown();
 }

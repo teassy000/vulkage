@@ -323,6 +323,7 @@ namespace vkz
     {
         uint32_t windowWidth{ 0 };
         uint32_t windowHeight{ 0 };
+        const char* name{ nullptr };
     };
 
     struct PipelineConfig

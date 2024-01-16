@@ -26,7 +26,7 @@ namespace vkz
         resize = 2u,
     };
 
-    VkSurfaceKHR createSurface(VkInstance instance, GLFWwindow* window);
+    VkSurfaceKHR createSurface(VkInstance instance, void* _wnd);
     VkFormat getSwapchainFormat(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface);
 
     void createSwapchain(Swapchain_vk& result, VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, uint32_t familyIndex, VkFormat format, VkSwapchainKHR oldSwapchain = 0);

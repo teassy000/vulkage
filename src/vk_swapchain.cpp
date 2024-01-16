@@ -11,12 +11,12 @@
 namespace vkz
 {
 
-    VkSurfaceKHR createSurface(VkInstance instance, GLFWwindow* window)
+    VkSurfaceKHR createSurface(VkInstance instance, void* _wnd)
     {
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
         VkWin32SurfaceCreateInfoKHR createInfo = { VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR };
         createInfo.hinstance = GetModuleHandle(0);
-        createInfo.hwnd = glfwGetWin32Window(window);
+        createInfo.hwnd = (HWND)_wnd;
         VkSurfaceKHR surface;
         VK_CHECK(vkCreateWin32SurfaceKHR(instance, &createInfo, 0, &surface));
         return surface;

@@ -8,8 +8,6 @@
 
 #include "rhi_context_vk.h"
 
-#include <glfw/glfw3.h>
-#include <glfw/glfw3native.h>
 #include <algorithm> //sort
 
 
@@ -711,7 +709,7 @@ namespace vkz
         return cmdPool;
     }
 
-    RHIContext_vk::RHIContext_vk(AllocatorI* _allocator, RHI_Config _config)
+    RHIContext_vk::RHIContext_vk(AllocatorI* _allocator, RHI_Config _config, void* _wnd)
         : RHIContext(_allocator)
         , m_instance{ VK_NULL_HANDLE }
         , m_device{ VK_NULL_HANDLE }
@@ -731,7 +729,7 @@ namespace vkz
         , m_debugCallback{ VK_NULL_HANDLE }
 #endif
     {
-        init(_config);
+        init(_config, _wnd);
     }
 
     RHIContext_vk::~RHIContext_vk()
@@ -739,14 +737,9 @@ namespace vkz
 
     }
 
-    void RHIContext_vk::init(RHI_Config _config)
-{
-        int rc = glfwInit();
-        assert(rc);
-
+    void RHIContext_vk::init(RHI_Config _config, void* _wnd)
+    {
         VK_CHECK(volkInitialize());
-
-        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
         this->createInstance();
 
@@ -773,17 +766,7 @@ namespace vkz
         // only single device used in this application.
         volkLoadDevice(m_device);
 
-        // TODO: move this to another file
-        m_pWindow = glfwCreateWindow(_config.windowWidth, _config.windowHeight, "mesh_shading_demo", 0, 0);
-        assert(m_pWindow);
-
-        /*
-        glfwSetKeyCallback(window, keyCallback);
-        glfwSetMouseButtonCallback(window, mousekeyCallback);
-        glfwSetCursorPosCallback(window, mouseMoveCallback);
-        */
-
-        m_surface = createSurface(m_instance, m_pWindow);
+        m_surface = createSurface(m_instance, _wnd);
         assert(m_surface);
 
         VkBool32 presentSupported = 0;
@@ -852,17 +835,6 @@ namespace vkz
             message(DebugMessageType::error, "no pass needs to execute in context!");
             return false;
         }
-
-
-        if (glfwWindowShouldClose(m_pWindow)) {
-            return false;
-        }
-
-
-        glfwPollEvents();
-
-        int newWindowWidth = 0, newWindowHeight = 0;
-        glfwGetWindowSize(m_pWindow, &newWindowWidth, &newWindowHeight);
 
         SwapchainStatus_vk swapchainStatus = resizeSwapchainIfNecessary(m_swapchain, m_phyDevice, m_device, m_surface, m_gfxFamilyIdx, m_imageFormat);
         if (swapchainStatus == SwapchainStatus_vk::not_ready) {  // skip this frame

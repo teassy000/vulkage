@@ -11,8 +11,10 @@
 
 #include "rhi_context.h"
 #include "framegraph_2.h"
-#include <array>
 #include "rhi_context_vk.h"
+
+#include <glfw/glfw3.h>
+#include <glfw/glfw3native.h>
 
 
 namespace vkz
@@ -137,6 +139,54 @@ namespace vkz
         vkz::free(getAllocator(), mem);
     }
 
+    class GLFWManager
+    {
+    public:
+        bool init(uint32_t _w, uint32_t _h, const char* _name);
+        bool shouldClose();
+        void update();
+        void shutdown();
+        GLFWwindow* getWindow() { return m_pWindow; }
+
+    private:
+        GLFWwindow* m_pWindow;
+    };
+
+    bool GLFWManager::init(uint32_t _w, uint32_t _h, const char* _name)
+    {
+        int rc = glfwInit();
+        assert(rc);
+
+        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+
+        m_pWindow = glfwCreateWindow(_w, _h, _name, nullptr, nullptr);
+        assert(m_pWindow);
+
+        /*
+        glfwSetKeyCallback(window, keyCallback);
+        glfwSetMouseButtonCallback(window, mousekeyCallback);
+        glfwSetCursorPosCallback(window, mouseMoveCallback);
+        */
+
+        return m_pWindow != nullptr;
+    }
+
+    bool GLFWManager::shouldClose()
+    {
+        return glfwWindowShouldClose(m_pWindow);
+    }
+
+    void GLFWManager::update()
+    {
+        glfwPollEvents();
+    }
+
+    void GLFWManager::shutdown()
+    {
+        glfwDestroyWindow(m_pWindow);
+        glfwTerminate();
+    }
+
     struct Context
     {
         // conditions
@@ -154,6 +204,7 @@ namespace vkz
 
         // Context API
         void setRenderSize(uint32_t _width, uint32_t _height);
+        void setWindowName(const char* _name);
 
         ShaderHandle registShader(const char* _name, const char* _path);
         ProgramHandle registProgram(const char* _name, const Memory* _shaders, const uint16_t _shaderCount, const uint32_t _sizePushConstants = 0);
@@ -190,9 +241,7 @@ namespace vkz
         
         void setPresentImage(ImageHandle _rt);
 
-        void updatePushConstant(const PassHandle _hPass, const Memory* _mem);
-
-        void* getPushConstantPtr(const ProgramHandle _hProgram);
+        void updatePushConstants(const PassHandle _hPass, const Memory* _mem);
 
         // actual write to memory
         void storeBrief();
@@ -205,9 +254,10 @@ namespace vkz
         void storeSamplerData();
 
         void init();
-        bool run();
+        bool shouldClose();
+        void run();
         void bake();
-        bool render();
+        void render();
         void shutdown();
 
         void setRenderGraphDataDirty() { m_isRenderGraphDataDirty = true; }
@@ -263,6 +313,10 @@ namespace vkz
         Framegraph2* m_frameGraph{ nullptr };
 
         AllocatorI* m_pAllocator{ nullptr };
+
+        // glfw
+        char m_windowTitle[256];
+        GLFWManager m_glfwManager;
     };
 
     bool Context::isCompute(const PassHandle _hPass)
@@ -348,6 +402,20 @@ namespace vkz
     {
         m_renderWidth = _width;
         m_renderHeight = _height;
+    }
+
+    void Context::setWindowName(const char* _name)
+    {
+        if (nullptr == _name)
+        {
+            memcpy(m_windowTitle, "vkz", 3);
+            m_windowTitle[4] = '\0';
+            return;
+        }
+
+        size_t length = strlen(_name);
+        memcpy(m_windowTitle, _name, length);
+        m_windowTitle[length] = '\0';
     }
 
     ShaderHandle Context::registShader(const char* _name, const char* _path)
@@ -1252,7 +1320,7 @@ namespace vkz
         setRenderGraphDataDirty();
     }
 
-    void Context::updatePushConstant(const PassHandle _hPass, const Memory* _mem)
+    void Context::updatePushConstants(const PassHandle _hPass, const Memory* _mem)
     {
         if (isRenderGraphDataDirty())
         {
@@ -1263,19 +1331,28 @@ namespace vkz
         m_rhiContext->updatePushConstants(_hPass, _mem);
     }
 
-    void* Context::getPushConstantPtr(const ProgramHandle _hProgram)
+    static void* glfwNativeWindowHandle(GLFWwindow* _window)
     {
-        return m_pushConstants.exist(_hProgram) ? m_pushConstants.getIdToData(_hProgram) : nullptr;
+#if defined(VK_USE_PLATFORM_WIN32_KHR)
+        return glfwGetWin32Window(_window);
+#else
+        #error unsupport platform
+#endif
     }
 
     void Context::init()
     {
         m_pAllocator = getAllocator();
+
+        // init glfw
+        m_glfwManager.init(m_renderWidth, m_renderHeight, m_windowTitle);
         
+        void* wnd = glfwNativeWindowHandle(m_glfwManager.getWindow());
+
         RHI_Config rhiConfig{};
         rhiConfig.windowWidth = m_renderWidth;
         rhiConfig.windowHeight = m_renderHeight;
-        m_rhiContext = VKZ_NEW(m_pAllocator, RHIContext_vk(m_pAllocator, rhiConfig));
+        m_rhiContext = VKZ_NEW(m_pAllocator, RHIContext_vk(m_pAllocator, rhiConfig, wnd));
 
         m_frameGraph = VKZ_NEW(m_pAllocator, Framegraph2(m_pAllocator, m_rhiContext->getMemoryBlock()));
 
@@ -1285,12 +1362,19 @@ namespace vkz
         setRenderGraphDataDirty();
     }
 
-    bool Context::run()
+    bool Context::shouldClose()
     {
+        return m_glfwManager.shouldClose();
+    }
+
+    void Context::run()
+    {
+        m_glfwManager.update();
+
         if (kInvalidHandle == m_presentImage.id)
         {
             message(error, "result render target is not set!");
-            return false;
+            return;
         }
 
         if (isRenderGraphDataDirty())
@@ -1298,7 +1382,7 @@ namespace vkz
             bake();
         }
 
-        return render();
+        render();
     }
 
     void Context::bake()
@@ -1325,9 +1409,9 @@ namespace vkz
         m_rhiContext->bake();
     }
 
-    bool Context::render()
+    void Context::render()
     {
-        return m_rhiContext->render();
+        m_rhiContext->render();
     }
 
     void Context::shutdown()
@@ -1444,9 +1528,9 @@ namespace vkz
         s_ctx->setPresentImage(_rt);
     }
     
-    void updatePushConstant(const PassHandle _hPass, const Memory* _mem)
+    void updatePushConstants(const PassHandle _hPass, const Memory* _mem)
     {
-        s_ctx->updatePushConstant(_hPass, _mem);
+        s_ctx->updatePushConstants(_hPass, _mem);
     }
 
     const Memory* alloc(uint32_t _sz)
@@ -1494,14 +1578,20 @@ namespace vkz
     {
         s_ctx = VKZ_NEW(getAllocator(), Context);
         s_ctx->setRenderSize(_config.windowWidth, _config.windowHeight);
+        s_ctx->setWindowName(_config.name);
         s_ctx->init();
 
         return true;
     }
 
-    bool run()
+    bool shouldClose()
     {
-        return s_ctx->run();
+        return s_ctx->shouldClose();
+    }
+
+    void run()
+    {
+        s_ctx->run();
     }
 
     void shutdown()
