@@ -54,6 +54,11 @@ namespace vkz
 
     void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx, const ImageHandle _outAlias = { kInvalidHandle });
 
+    // following interface would trigger in a render pass, which means the render-graph would affect.
+    void fillBuffer(const PassHandle _hPass, const BufferHandle _hBuf, const uint32_t _offset, const uint32_t _size, const uint32_t _value, const BufferHandle _outAlias);
+    void copyBuffer(const PassHandle _hPass, const BufferHandle _hSrc, const BufferHandle _hDst, const uint32_t _size);
+    void blitImage(const PassHandle _hPass, const ImageHandle _hSrc, const ImageHandle _hDst);
+
     void setPresentImage(ImageHandle _rt);
 
     void updatePushConstants(const PassHandle _hPass, const Memory* _mem);

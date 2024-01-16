@@ -861,7 +861,10 @@ namespace vkz
         {
             uint16_t passId = m_passContainer.getIdAt(ii);
             createBarriers(passId);
+            m_barrierDispatcher.dispatch(m_cmdBuffer);
+
             exeutePass(passId);
+
             createBarriers(passId, true); // flush
         }
 
@@ -994,14 +997,14 @@ namespace vkz
         read(&_reader, samplerIds.data(), passMeta.sampleImageNum * sizeof(uint16_t));
 
 
-        // create pipeline
-        const uint16_t progIdx = (uint16_t)m_programContainer.getIndex(passMeta.programId);
-        const Program_vk& program = m_programContainer.getIdToData(passMeta.programId);
-        const std::vector<uint16_t>& shaderIds = m_programShaderIds[progIdx];
-
         VkPipeline pipeline{};
         if (passMeta.queue == PassExeQueue::graphics)
         {
+            // create pipeline
+            const uint16_t progIdx = (uint16_t)m_programContainer.getIndex(passMeta.programId);
+            const Program_vk& program = m_programContainer.getIdToData(passMeta.programId);
+            const std::vector<uint16_t>& shaderIds = m_programShaderIds[progIdx];
+
             uint32_t depthNum = (passMeta.writeDepthId == kInvalidHandle) ? 0 : 1;
 
             VkPipelineRenderingCreateInfo renderInfo = { VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
@@ -1022,9 +1025,15 @@ namespace vkz
 
             VkPipelineCache cache{};
             pipeline = vkz::createGraphicsPipeline(m_device, cache, program.layout, renderInfo, shaders, hasVIS ? &vtxInputCreateInfo : nullptr, pipelineSpecData, configs);
+            assert(pipeline);
         }
         else if (passMeta.queue == PassExeQueue::compute)
         {
+            // create pipeline
+            const uint16_t progIdx = (uint16_t)m_programContainer.getIndex(passMeta.programId);
+            const Program_vk& program = m_programContainer.getIdToData(passMeta.programId);
+            const std::vector<uint16_t>& shaderIds = m_programShaderIds[progIdx];
+
             std::vector< Shader_vk> shaders;
             for (const uint16_t sid : shaderIds)
             {
@@ -1036,9 +1045,10 @@ namespace vkz
 
             VkPipelineCache cache{};
             pipeline = vkz::createComputePipeline(m_device, cache, program.layout, shader, {false});
+            assert(pipeline);
         }
 
-        assert(pipeline);
+
         
         // fill pass info
         PassInfo_vk passInfo{};
@@ -1048,7 +1058,10 @@ namespace vkz
         passInfo.vertexBufferId = passMeta.vertexBufferId;
         passInfo.indexBufferId = passMeta.indexBufferId;
         passInfo.indirectBufferId = passMeta.indirectBufferId;
+        passInfo.indirectBufOffset = passMeta.indirectBufOffset;
+        passInfo.indirectBufStride = passMeta.indirectBufStride;
         passInfo.indirectCountBufferId = passMeta.indirectCountBufferId;
+        passInfo.indirectCountBufOffset = passMeta.indirectCountBufOffset;
 
         passInfo.writeDepthId = passMeta.writeDepthId;
 
@@ -1087,8 +1100,9 @@ namespace vkz
 
                     const uint32_t bindPoint = interacts[offset + ii].binding;
 
-                    if (kDescriptorSetBindingDontCare == bindPoint)
+                    if (kDescriptorSetBindingDontCare == bindPoint) {
                         continue;
+                    }
 
                     assert(kInvalidDescriptorSetIndex != bindPoint);
 
@@ -1103,8 +1117,8 @@ namespace vkz
                     }
                     else
                     {
-                        // same binding already exist because manually in vkz.cpp, would handle it in barrier creation
-                        ;
+                        // same binding already exist because manually in vkz.cpp, should handle it in barrier creation
+                        //assert(0);
                     }
                 } 
 
@@ -1136,6 +1150,13 @@ namespace vkz
         for (uint16_t ii = 0; ii < passMeta.sampleImageNum; ++ii)
         {
             passInfo.imageToSamplerIds.push_back(sampleImageIds[ii], samplerIds[ii]);
+        }
+
+        // one-operation passes
+        if (passInfo.queue == PassExeQueue::fill_buffer)
+        {
+            assert(writeBufferIds.size() == 1);
+            passInfo.oneOpWriteRes = { writeBufferIds[0], ResourceType::buffer };
         }
 
         m_passContainer.push_back(passInfo.passId, passInfo);
@@ -1200,13 +1221,14 @@ namespace vkz
 
         assert(buffers.size() == info.aliasNum);
 
-        for (int i = 0; i < info.aliasNum; ++i)
+        for (int ii = 0; ii < info.aliasNum; ++ii)
         {
-            m_bufferContainer.push_back(resArr[i].bufId, buffers[i]);
+            buffers[ii].fillVal = info.fillVal;
+            m_bufferContainer.push_back(resArr[ii].bufId, buffers[ii]);
 
             ResInteractDesc interact{ info.barrierState };
 
-            m_bufBarrierStates.push_back(resArr[i].bufId, 
+            m_bufBarrierStates.push_back(resArr[ii].bufId, 
                 { getAccessFlags(interact.access), getPipelineStageFlags(interact.stage) }
             );
         }
@@ -1217,6 +1239,10 @@ namespace vkz
         if (info.data != nullptr)
         {
             vkz::uploadBuffer(m_device, m_cmdPool, m_cmdBuffer, m_queue, buffers[0], m_scratchBuffer, info.data, info.size);
+        }
+        else
+        {
+            vkz::fillBuffer(m_device, m_cmdPool, m_cmdBuffer, m_queue, buffers[0], info.fillVal, info.size);
         }
     }
 
@@ -1257,7 +1283,7 @@ namespace vkz
         assert(m_phyDevice);
     }
 
-    void RHIContext_vk::createBarriers(uint16_t _passId, bool _flush /*= false*/)
+    void RHIContext_vk::createBarriers(uint16_t _passId, bool _flushAliases /*= false*/)
     {
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 
@@ -1316,7 +1342,7 @@ namespace vkz
             addBarrier(id, src, dst, bufIds, srcBufInteract, dstBufInteract);
         }
 
-        if (!_flush)
+        if (!_flushAliases)
         {
             // read images
             for (uint32_t ii = 0; ii < passInfo.readImages.size(); ++ii)
@@ -1374,14 +1400,12 @@ namespace vkz
             );
 
             m_bufBarrierStates.update_data(bufId, vkDst);
-
         }
     }
 
     void RHIContext_vk::pushDescriptorSetWithTemplates(const uint16_t _passId)
     {
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
-        
 
         std::vector<DescriptorInfo> descInfos(passInfo.bindingToResIds.size());
         for (int ii = 0; ii < passInfo.bindingToResIds.size(); ++ii)
@@ -1441,8 +1465,6 @@ namespace vkz
     {
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 
-        m_barrierDispatcher.dispatch(m_cmdBuffer);
-
         if (PassExeQueue::graphics == passInfo.queue)
         {
             exeGraphic(_passId);
@@ -1454,6 +1476,10 @@ namespace vkz
         else if (PassExeQueue::copy == passInfo.queue)
         {
             exeCopy(_passId);
+        }
+        else if (PassExeQueue::fill_buffer == passInfo.queue)
+        {
+            exeFillBuffer(_passId);
         }
         else
         {
@@ -1592,6 +1618,20 @@ namespace vkz
     void RHIContext_vk::exeCopy(const uint16_t _passId)
     {
         assert(0);
+    }
+
+    void RHIContext_vk::exeBlit(const uint16_t _passId)
+    {
+        assert(0);
+    }
+
+    void RHIContext_vk::exeFillBuffer(const uint16_t _passId)
+    {
+        const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
+        CombinedResID res = passInfo.oneOpWriteRes;
+        const Buffer_vk& buf = m_bufferContainer.getIdToData(res.id);
+
+        vkCmdFillBuffer(m_cmdBuffer, buf.buffer, 0, buf.size, buf.fillVal);
     }
 
     void RHIContext_vk::copyToSwapchain(uint32_t _swapImgIdx)

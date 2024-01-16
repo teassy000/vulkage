@@ -1198,6 +1198,7 @@ namespace vkz
             info.bufId = bkt.baseBufId;
             info.size = bkt.desc.size;
             info.data = bkt.desc.data;
+            info.fillVal = bkt.desc.fillVal;
             info.memFlags = bkt.desc.memFlags;
             info.usage = bkt.desc.usage;
             info.aliasNum = (uint16_t)bkt.reses.size();
@@ -1276,6 +1277,11 @@ namespace vkz
         for ( PassHandle pass : m_sortedPass)
         {
             const PassMetaData& passMeta = m_sparse_pass_meta[pass.id];
+
+            if (passMeta.queue == PassExeQueue::copy || passMeta.queue == PassExeQueue::fill_buffer)
+            {
+                continue;
+            }
 
             const ProgramInfo& progInfo = m_sparse_program_info[passMeta.programId];
             usedProgram.push_back({ passMeta.programId });

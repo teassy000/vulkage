@@ -134,7 +134,7 @@ namespace vkz
 
         VkBufferMemoryBarrier2 copyBarrier = bufferBarrier(buffer.buffer,
             VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-            VK_ACCESS_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+            VK_ACCESS_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
         pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 1, &copyBarrier, 0, 0);
 
         VK_CHECK(vkEndCommandBuffer(cmdBuffer));
@@ -147,6 +147,36 @@ namespace vkz
         VK_CHECK(vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE));
 
         VK_CHECK(vkDeviceWaitIdle(device));
+    }
+
+    void fillBuffer(VkDevice _device, VkCommandPool _cmdPool, VkCommandBuffer _cmdBuffer, VkQueue _queue, const Buffer_vk& _buffer, uint32_t _value, size_t _size)
+    {
+        assert(_size > 0);
+
+        VK_CHECK(vkResetCommandPool(_device, _cmdPool, 0));
+
+        VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+        VK_CHECK(vkBeginCommandBuffer(_cmdBuffer, &beginInfo));
+
+        vkCmdFillBuffer(_cmdBuffer, _buffer.buffer, 0, _size, _value);
+
+        VkBufferMemoryBarrier2 copyBarrier = bufferBarrier(_buffer.buffer,
+            VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_ACCESS_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
+        pipelineBarrier(_cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 1, &copyBarrier, 0, 0);
+
+        VK_CHECK(vkEndCommandBuffer(_cmdBuffer));
+
+        VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &_cmdBuffer;
+
+        VK_CHECK(vkQueueSubmit(_queue, 1, &submitInfo, VK_NULL_HANDLE));
+
+        VK_CHECK(vkDeviceWaitIdle(_device));
     }
 
     // only for non-coherent buffer 

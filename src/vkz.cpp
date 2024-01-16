@@ -187,11 +187,16 @@ namespace vkz
         glfwTerminate();
     }
 
+    constexpr uint8_t kTouched = 1;
+    constexpr uint8_t kUnTouched = 0;
+
     struct Context
     {
         // conditions
         bool isCompute(const PassHandle _hPass);
         bool isGraphics(const PassHandle _hPass);
+        bool isFillBuffer(const PassHandle _hPass);
+        bool isOneOpPass(const PassHandle _hPass);
         bool isRead(const AccessFlags _access);
         bool isWrite(const AccessFlags _access, const PipelineStageFlags _stage);
 
@@ -234,6 +239,9 @@ namespace vkz
         void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout, const ImageHandle _outAlias);
 
         void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx, const ImageHandle _outAlias);
+
+        
+        void fillBuffer(const PassHandle _hPass, const BufferHandle _hBuf, const uint32_t _offset, const uint32_t _size, const uint32_t _value, const BufferHandle _outAlias);
 
         // new
         void setMultiFrame(ImageHandle _img);
@@ -297,6 +305,10 @@ namespace vkz
         // push constants
         UniDataContainer<ProgramHandle, void *> m_pushConstants;
 
+        // 1-operation pass: blit/copy/fill 
+        UniDataContainer<PassHandle, uint8_t> m_oneOpPassTouched;
+
+
         // render config
         uint32_t m_renderWidth{ 0 };
         uint32_t m_renderHeight{ 0 };
@@ -329,6 +341,22 @@ namespace vkz
     {
         const PassMetaData& meta = m_passMetas.getIdToData(_hPass);
         return meta.queue == PassExeQueue::graphics;
+    }
+
+    bool Context::isFillBuffer(const PassHandle _hPass)
+    {
+        const PassMetaData& meta = m_passMetas.getIdToData(_hPass);
+        return meta.queue == PassExeQueue::fill_buffer;
+    }
+
+    bool Context::isOneOpPass(const PassHandle _hPass)
+    {
+        const PassMetaData& meta = m_passMetas.getIdToData(_hPass);
+
+        return (
+            meta.queue == PassExeQueue::fill_buffer
+            || meta.queue == PassExeQueue::copy
+            );
     }
 
     bool Context::isRead(const AccessFlags _access)
@@ -409,7 +437,7 @@ namespace vkz
         if (nullptr == _name)
         {
             memcpy(m_windowTitle, "vkz", 3);
-            m_windowTitle[4] = '\0';
+            m_windowTitle[3] = '\0';
             return;
         }
 
@@ -480,6 +508,8 @@ namespace vkz
         PassMetaData meta{ _desc };
         meta.passId = idx;
         m_passMetas.push_back({ idx }, meta);
+
+        m_oneOpPassTouched.push_back({ idx }, kUnTouched);
 
         setRenderGraphDataDirty();
 
@@ -831,6 +861,7 @@ namespace vkz
             info.bufId = meta.bufId;
             info.size = meta.size;
             info.data = meta.data;
+            info.fillVal = meta.fillVal;
             info.usage = meta.usage;
             info.memFlags = meta.memFlags;
             info.lifetime = meta.lifetime;
@@ -1142,7 +1173,6 @@ namespace vkz
             return;
         }
 
-
         ResInteractDesc interact{};
         interact.binding = _binding;
         interact.stage = _stage;
@@ -1290,6 +1320,37 @@ namespace vkz
 
         passMeta.writeImageNum = insertResInteract(m_writeImages, _hPass, _outAlias.id, { kInvalidHandle }, interact);
 
+        setRenderGraphDataDirty();
+    }
+
+    void Context::fillBuffer(const PassHandle _hPass, const BufferHandle _hBuf, const uint32_t _offset, const uint32_t _size, const uint32_t _value, const BufferHandle _outAlias)
+    {
+
+        if (!isFillBuffer(_hPass))
+        {
+            message(DebugMessageType::error, "pass type is not match to operation");
+            return;
+        }
+
+        if (m_oneOpPassTouched.getIdToData(_hPass) == kTouched)
+        {
+            message(DebugMessageType::error, "one op pass already touched!");
+            return;
+        }
+
+        BufferMetaData& bufMeta = m_bufferMetas.getDataRef(_hBuf);
+        bufMeta.fillVal = _value;
+
+        PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
+
+        ResInteractDesc interact{};
+        interact.binding = kDescriptorSetBindingDontCare;
+        interact.stage = PipelineStageFlagBits::transfer;
+        interact.access = AccessFlagBits::transfer_write;
+
+        passMeta.writeBufferNum = insertResInteract(m_writeBuffers, _hPass, _outAlias.id, { kInvalidHandle }, interact);
+
+        m_oneOpPassTouched.update_data(_hPass, kTouched);
         setRenderGraphDataDirty();
     }
 
@@ -1521,6 +1582,21 @@ namespace vkz
     void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx, const ImageHandle _outAlias)
     {
         s_ctx->setAttachmentOutput(_hPass, _hImg, _attachmentIdx, _outAlias);
+    }
+
+    void fillBuffer(const PassHandle _hPass, const BufferHandle _hBuf, const uint32_t _offset, const uint32_t _size, const uint32_t _value, const BufferHandle _outAlias)
+    {
+        s_ctx->fillBuffer(_hPass, _hBuf, _offset, _size, _value, _outAlias);
+    }
+
+    void copyBuffer(const PassHandle _hPass, const BufferHandle _hSrc, const BufferHandle _hDst, const uint32_t _size)
+    {
+        ;
+    }
+
+    void blitImage(const PassHandle _hPass, const ImageHandle _hSrc, const ImageHandle _hDst)
+    {
+        ;
     }
 
     void setPresentImage(ImageHandle _rt)

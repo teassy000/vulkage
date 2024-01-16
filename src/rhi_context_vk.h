@@ -95,6 +95,9 @@ namespace vkz
 
         UniDataContainer<uint16_t, uint16_t>    imageToSamplerIds;
 
+        CombinedResID  oneOpReadRes;
+        CombinedResID  oneOpWriteRes;
+
         std::vector<std::pair<uint32_t, CombinedResID>> bindingToColorIds;
         std::vector<std::pair<uint32_t, CombinedResID>> bindingToResIds;
     };
@@ -154,6 +157,8 @@ namespace vkz
         void exeGraphic(const uint16_t _passId);
         void exeCompute(const uint16_t _passId);
         void exeCopy(const uint16_t _passId);
+        void exeBlit(const uint16_t _passId);
+        void exeFillBuffer(const uint16_t _passId);
 
         void copyToSwapchain(uint32_t _swapImgIdx);
 

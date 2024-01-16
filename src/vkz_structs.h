@@ -31,6 +31,7 @@ namespace vkz
         graphics = 0,
         compute,
         copy,
+        fill_buffer,
         count,
     };
 
@@ -336,6 +337,7 @@ namespace vkz
     struct BufferDesc {
         uint32_t size{ 0 };
         void*   data{ nullptr };
+        uint32_t fillVal{ 0 };
 
         BufferUsageFlags usage{ BufferUsageFlagBits::none };
         MemoryPropFlags memFlags{ MemoryPropFlagBits::none };

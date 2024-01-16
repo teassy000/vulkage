@@ -159,6 +159,7 @@ void meshDemo()
     meshDrawCmdCountBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
     vkz::BufferHandle meshDrawCmdCountBuf = vkz::registBuffer("meshDrawCmdCount", meshDrawCmdCountBufDesc);
     vkz::BufferHandle meshDrawCmdCountBuf2 = vkz::alias(meshDrawCmdCountBuf);
+    vkz::BufferHandle meshDrawCmdCountBuf3 = vkz::alias(meshDrawCmdCountBuf);
 
     // mesh draw instance visibility buffer
     vkz::BufferDesc meshDrawVisBufDesc;
@@ -220,6 +221,7 @@ void meshDemo()
     pyDesc.usage = vkz::ImageUsageFlagBits::transfer_src | vkz::ImageUsageFlagBits::sampled | vkz::ImageUsageFlagBits::storage;
     vkz::ImageHandle pyramid = vkz::registTexture("pyramid", pyDesc);
 
+    vkz::PassHandle renderPass;
     {
         // render shader
         vkz::ShaderHandle vs = vkz::registShader("mesh_vert_shader", "shaders/mesh.vert.spv");
@@ -232,7 +234,7 @@ void meshDemo()
         passDesc.pipelineConfig.depthCompOp = vkz::CompareOp::greater;
         passDesc.pipelineConfig.enableDepthTest = true;
         passDesc.pipelineConfig.enableDepthWrite = true;
-        vkz::PassHandle renderPass = vkz::registPass("mesh_pass", passDesc);
+        renderPass = vkz::registPass("mesh_pass", passDesc);
 
         // index buffer
         {
@@ -269,11 +271,13 @@ void meshDemo()
         }
 
         vkz::setIndirectBuffer(renderPass, meshDrawCmdBuf2, offsetof(MeshDrawCommandVKZ, indexCount), sizeof(MeshDrawCommandVKZ), (uint32_t)scene.meshDraws.size());
+        vkz::setIndirectCountBuffer(renderPass, meshDrawCmdCountBuf3, 0);
 
         vkz::setAttachmentOutput(renderPass, color, 0, color2);
         vkz::setAttachmentOutput(renderPass, depth, 0, depth2);
     }
 
+    vkz::PassHandle cull_pass;
     {
         // cull pass
         vkz::ShaderHandle cs = vkz::registShader("mesh_draw_cmd_shader", "shaders/drawcmd.comp.spv");
@@ -290,7 +294,7 @@ void meshDemo()
         passDesc.pipelineSpecNum = COUNTOF(pipelineSpecs);
         passDesc.pipelineSpecData = (void*)pConst->data;
         
-        vkz::PassHandle cull_pass = vkz::registPass("cull_pass", passDesc);
+        cull_pass = vkz::registPass("cull_pass", passDesc);
 
         // bindings
         {
@@ -323,11 +327,11 @@ void meshDemo()
         }
 
         {
-            vkz::bindBuffer(cull_pass, meshDrawCmdCountBuf
+            vkz::bindBuffer(cull_pass, meshDrawCmdCountBuf2
                 , 4
                 , vkz::PipelineStageFlagBits::compute_shader
                 , vkz::AccessFlagBits::shader_read | vkz::AccessFlagBits::shader_write
-                , meshDrawCmdCountBuf2);
+                , meshDrawCmdCountBuf3);
         }
 
         {
@@ -347,11 +351,70 @@ void meshDemo()
         }
     }
 
+    vkz::PassHandle fill_dccb_pass;
+    {
+        vkz::PassDesc passDesc;
+        passDesc.queue = vkz::PassExeQueue::fill_buffer;
+
+        fill_dccb_pass = vkz::registPass("fill_dccb", passDesc);
+
+        {
+            vkz::fillBuffer(fill_dccb_pass, meshDrawCmdCountBuf, 0, 0, sizeof(uint32_t), meshDrawCmdCountBuf2);
+        }
+    }
 
     vkz::setPresentImage(color2);
 
+    uint32_t pyramidLevelWidth = previousPow2_new(config.windowWidth);
+    uint32_t pyramidLevelHeight = previousPow2_new(config.windowHeight);
+
     while (!vkz::shouldClose())
     {
+        float znear = .1f;
+        mat4 projection = perspectiveProjection2(glm::radians(70.f), (float)config.windowWidth / (float)config.windowHeight, znear);
+        mat4 projectionT = glm::transpose(projection);
+        vec4 frustumX = normalizePlane2(projectionT[3] - projectionT[0]);
+        vec4 frustumY = normalizePlane2(projectionT[3] - projectionT[1]);
+
+        MeshDrawCullVKZ drawCull = {};
+        drawCull.P00 = projection[0][0];
+        drawCull.P11 = projection[1][1];
+        drawCull.zfar = 10000.f;//scene.drawDistance;
+        drawCull.znear = znear;
+        drawCull.pyramidWidth = (float)pyramidLevelWidth;
+        drawCull.pyramidHeight = (float)pyramidLevelHeight;
+        drawCull.frustum[0] = frustumX.x;
+        drawCull.frustum[1] = frustumX.z;
+        drawCull.frustum[2] = frustumY.y;
+        drawCull.frustum[3] = frustumY.z;
+        drawCull.enableCull = 0;
+        drawCull.enableLod = 0;
+        drawCull.enableOcclusion = 0;
+        drawCull.enableMeshletOcclusion = 0;
+
+        const vkz::Memory* pConst = vkz::alloc(sizeof(MeshDrawCullVKZ));
+        memcpy_s(pConst->data, pConst->size, &drawCull, sizeof(MeshDrawCullVKZ));
+        vkz::updatePushConstants(cull_pass, pConst);
+
+        GlobalsVKZ globals = {};
+        globals.projection = projection;
+        globals.zfar = scene.drawDistance;
+        globals.znear = znear;
+        globals.frustum[0] = frustumX.x;
+        globals.frustum[1] = frustumX.z;
+        globals.frustum[2] = frustumY.y;
+        globals.frustum[3] = frustumY.z;
+        globals.pyramidWidth = (float)pyramidLevelWidth;
+        globals.pyramidHeight = (float)pyramidLevelHeight;
+        globals.screenWidth = (float)config.windowWidth;
+        globals.screenHeight = (float)config.windowHeight;
+        globals.enableMeshletOcclusion = 0;
+
+        const vkz::Memory* pConst2 = vkz::alloc(sizeof(GlobalsVKZ));
+        memcpy_s(pConst2->data, pConst2->size, &globals, sizeof(GlobalsVKZ));
+        vkz::updatePushConstants(renderPass, pConst2);
+
+
         vkz::run();
     }
 
@@ -420,6 +483,6 @@ void triangle()
 
 void DemoMain()
 {
-    triangle();
-    //meshDemo();
+    //triangle();
+    meshDemo();
 }

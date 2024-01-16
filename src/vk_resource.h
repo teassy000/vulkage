@@ -13,6 +13,7 @@ namespace vkz
         VkDeviceMemory memory;
         void* data;
         size_t size;
+        uint32_t fillVal;
     };
 
     struct BufAliasInfo_vk
@@ -24,6 +25,7 @@ namespace vkz
     Buffer_vk createBuffer(const BufferAliasInfo& info, const VkPhysicalDeviceMemoryProperties& _memProps, VkDevice _device, VkBufferUsageFlags _usage, VkMemoryPropertyFlags _memFlags);
     void createBuffer(std::vector<Buffer_vk>& _results, const std::vector<BufferAliasInfo> _infos, const VkPhysicalDeviceMemoryProperties& _memProps, VkDevice _device, VkBufferUsageFlags _usage, VkMemoryPropertyFlags _memFlags);
     void uploadBuffer(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer cmdBuffer, VkQueue queue, const Buffer_vk& buffer, const Buffer_vk& scratch, const void* data, size_t size);
+    void fillBuffer(VkDevice _device, VkCommandPool _cmdPool, VkCommandBuffer _cmdBuffer, VkQueue _queue, const Buffer_vk& _buffer, uint32_t _value, size_t _size);
     void flushBuffer(VkDevice device, const Buffer_vk& buffer, uint32_t offset = 0);
 
     // destroy a list of buffers, which shares the same memory
