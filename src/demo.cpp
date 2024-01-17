@@ -97,6 +97,19 @@ vec4 normalizePlane2(vec4 p)
     return p / glm::length(p);
 }
 
+uint32_t calculateMipLevelCount2(uint32_t width, uint32_t height)
+{
+    uint32_t result = 0;
+    while (width > 1 || height > 1)
+    {
+        result++;
+        width >>= 1;
+        height >>= 1;
+    }
+
+    return result;
+}
+
 void meshDemo()
 {
     vkz::VKZInitConfig config = {};
@@ -211,6 +224,12 @@ void meshDemo()
     vkz::ImageHandle depth = vkz::registDepthStencil("depth", dpDesc);
     vkz::ImageHandle depth2 = vkz::alias(depth);
 
+
+    // pyramid passes
+    uint32_t pyramidLevelWidth = previousPow2_new(config.windowWidth);
+    uint32_t pyramidLevelHeight = previousPow2_new(config.windowHeight);
+    uint32_t pyramidLevel = calculateMipLevelCount2(pyramidLevelWidth, pyramidLevelHeight);
+
     vkz::ImageDesc pyDesc;
     pyDesc.width = previousPow2_new(config.windowWidth);
     pyDesc.height = previousPow2_new(config.windowHeight);
@@ -221,7 +240,15 @@ void meshDemo()
     pyDesc.usage = vkz::ImageUsageFlagBits::transfer_src | vkz::ImageUsageFlagBits::sampled | vkz::ImageUsageFlagBits::storage;
     vkz::ImageHandle pyramid = vkz::registTexture("pyramid", pyDesc);
 
-    vkz::PassHandle renderPass;
+    uint32_t aliasCount = pyramidLevel * 2;
+    std::vector<vkz::ImageHandle> pyramid_aliases(aliasCount);
+    for (uint32_t ii = 0; ii < aliasCount; ++ii)
+    {
+        pyramid_aliases[ii] = vkz::alias(pyramid);
+    }
+
+
+    vkz::PassHandle draw_pass_0;
     {
         // render shader
         vkz::ShaderHandle vs = vkz::registShader("mesh_vert_shader", "shaders/mesh.vert.spv");
@@ -234,47 +261,38 @@ void meshDemo()
         passDesc.pipelineConfig.depthCompOp = vkz::CompareOp::greater;
         passDesc.pipelineConfig.enableDepthTest = true;
         passDesc.pipelineConfig.enableDepthWrite = true;
-        renderPass = vkz::registPass("mesh_pass", passDesc);
+        draw_pass_0 = vkz::registPass("mesh_pass", passDesc);
 
         // index buffer
-        {
-            vkz::bindIndexBuffer(renderPass, idxBuf);
-        }
+        vkz::bindIndexBuffer(draw_pass_0, idxBuf);
 
         // bindings
-        {
-            vkz::bindBuffer(renderPass, meshDrawCmdBuf2
-                , 0
-                , vkz::PipelineStageFlagBits::vertex_shader
-                , vkz::AccessFlagBits::shader_read);
-        }
+        vkz::bindBuffer(draw_pass_0, meshDrawCmdBuf2
+            , 0
+            , vkz::PipelineStageFlagBits::vertex_shader
+            , vkz::AccessFlagBits::shader_read);
 
-        {
-            vkz::bindBuffer(renderPass, meshDrawBuf
-                , 1
-                , vkz::PipelineStageFlagBits::vertex_shader
-                , vkz::AccessFlagBits::shader_read);
-        }
+        vkz::bindBuffer(draw_pass_0, meshDrawBuf
+            , 1
+            , vkz::PipelineStageFlagBits::vertex_shader
+            , vkz::AccessFlagBits::shader_read);
 
-        {
-            vkz::bindBuffer(renderPass, vtxBuf
-                , 2
-                , vkz::PipelineStageFlagBits::vertex_shader
-                , vkz::AccessFlagBits::shader_read);
-        }
+        vkz::bindBuffer(draw_pass_0, vtxBuf
+            , 2
+            , vkz::PipelineStageFlagBits::vertex_shader
+            , vkz::AccessFlagBits::shader_read);
 
-        {
-            vkz::bindBuffer(renderPass, transformBuf
-                , 3
-                , vkz::PipelineStageFlagBits::vertex_shader
-                , vkz::AccessFlagBits::shader_read);
-        }
+        vkz::bindBuffer(draw_pass_0, transformBuf
+            , 3
+            , vkz::PipelineStageFlagBits::vertex_shader
+            , vkz::AccessFlagBits::shader_read);
+        
 
-        vkz::setIndirectBuffer(renderPass, meshDrawCmdBuf2, offsetof(MeshDrawCommandVKZ, indexCount), sizeof(MeshDrawCommandVKZ), (uint32_t)scene.meshDraws.size());
-        vkz::setIndirectCountBuffer(renderPass, meshDrawCmdCountBuf3, 0);
+        vkz::setIndirectBuffer(draw_pass_0, meshDrawCmdBuf2, offsetof(MeshDrawCommandVKZ, indexCount), sizeof(MeshDrawCommandVKZ), (uint32_t)scene.meshDraws.size());
+        vkz::setIndirectCountBuffer(draw_pass_0, meshDrawCmdCountBuf3, 0);
 
-        vkz::setAttachmentOutput(renderPass, color, 0, color2);
-        vkz::setAttachmentOutput(renderPass, depth, 0, depth2);
+        vkz::setAttachmentOutput(draw_pass_0, color, 0, color2);
+        vkz::setAttachmentOutput(draw_pass_0, depth, 0, depth2);
     }
 
     vkz::PassHandle cull_pass;
@@ -297,58 +315,44 @@ void meshDemo()
         cull_pass = vkz::registPass("cull_pass", passDesc);
 
         // bindings
-        {
-            vkz::bindBuffer(cull_pass, meshBuf
-                , 0
-                , vkz::PipelineStageFlagBits::compute_shader
-                , vkz::AccessFlagBits::shader_read);
-        }
+        vkz::bindBuffer(cull_pass, meshBuf
+            , 0
+            , vkz::PipelineStageFlagBits::compute_shader
+            , vkz::AccessFlagBits::shader_read);
 
-        {
-            vkz::bindBuffer(cull_pass, meshDrawBuf
-                , 1
-                , vkz::PipelineStageFlagBits::compute_shader
-                , vkz::AccessFlagBits::shader_read);
-        }
+        vkz::bindBuffer(cull_pass, meshDrawBuf
+            , 1
+            , vkz::PipelineStageFlagBits::compute_shader
+            , vkz::AccessFlagBits::shader_read);
 
-        {
-            vkz::bindBuffer(cull_pass, transformBuf
-                , 2
-                , vkz::PipelineStageFlagBits::compute_shader
-                , vkz::AccessFlagBits::shader_read);
-        }
+        vkz::bindBuffer(cull_pass, transformBuf
+            , 2
+            , vkz::PipelineStageFlagBits::compute_shader
+            , vkz::AccessFlagBits::shader_read);
 
-        {
-            vkz::bindBuffer(cull_pass, meshDrawCmdBuf
-                , 3
-                , vkz::PipelineStageFlagBits::compute_shader
-                , vkz::AccessFlagBits::shader_read | vkz::AccessFlagBits::shader_write
-                , meshDrawCmdBuf2);
-        }
+        vkz::bindBuffer(cull_pass, meshDrawCmdBuf
+            , 3
+            , vkz::PipelineStageFlagBits::compute_shader
+            , vkz::AccessFlagBits::shader_read | vkz::AccessFlagBits::shader_write
+            , meshDrawCmdBuf2);
+        
+        vkz::bindBuffer(cull_pass, meshDrawCmdCountBuf2
+            , 4
+            , vkz::PipelineStageFlagBits::compute_shader
+            , vkz::AccessFlagBits::shader_read | vkz::AccessFlagBits::shader_write
+            , meshDrawCmdCountBuf3);
 
-        {
-            vkz::bindBuffer(cull_pass, meshDrawCmdCountBuf2
-                , 4
-                , vkz::PipelineStageFlagBits::compute_shader
-                , vkz::AccessFlagBits::shader_read | vkz::AccessFlagBits::shader_write
-                , meshDrawCmdCountBuf3);
-        }
+        vkz::bindBuffer(cull_pass, meshDrawVisBuf
+            , 5
+            , vkz::PipelineStageFlagBits::compute_shader
+            , vkz::AccessFlagBits::shader_read | vkz::AccessFlagBits::shader_write
+            , meshDrawVisBuf2);
 
-        {
-            vkz::bindBuffer(cull_pass, meshDrawVisBuf
-                , 5
-                , vkz::PipelineStageFlagBits::compute_shader
-                , vkz::AccessFlagBits::shader_read | vkz::AccessFlagBits::shader_write
-                , meshDrawVisBuf2);
-        }
-
-        {
-            vkz::sampleImage(cull_pass, pyramid
-                , 6
-                , vkz::PipelineStageFlagBits::compute_shader
-                , vkz::ImageLayout::general
-                , vkz::SamplerReductionMode::weighted_average );
-        }
+        vkz::sampleImage(cull_pass, pyramid
+            , 6
+            , vkz::PipelineStageFlagBits::compute_shader
+            , vkz::ImageLayout::general
+            , vkz::SamplerReductionMode::weighted_average );
     }
 
     vkz::PassHandle fill_dccb_pass;
@@ -358,15 +362,64 @@ void meshDemo()
 
         fill_dccb_pass = vkz::registPass("fill_dccb", passDesc);
 
+        vkz::fillBuffer(fill_dccb_pass, meshDrawCmdCountBuf, 0, 0, sizeof(uint32_t), meshDrawCmdCountBuf2);
+    }
+
+
+    std::vector<glm::vec2> imageSizes(pyramidLevel);
+    std::vector<vkz::PassHandle> pyramid_passes(pyramidLevel);
+    {
+        vkz::ShaderHandle cs = vkz::registShader("pyramid_shader", "shaders/pyramid.comp.spv");
+        vkz::ProgramHandle csProgram = vkz::registProgram("pyramid_prog", { cs }, sizeof(glm::vec2));
+
+        for (uint32_t ii = 0; ii < pyramidLevel; ++ii)
         {
-            vkz::fillBuffer(fill_dccb_pass, meshDrawCmdCountBuf, 0, 0, sizeof(uint32_t), meshDrawCmdCountBuf2);
+            uint32_t levelWidth = glm::max(1u, pyramidLevelWidth >> ii);
+            uint32_t levelHeight = glm::max(1u, pyramidLevelHeight >> ii);
+
+            imageSizes[ii] = glm::vec2(levelWidth, levelHeight);
+
+            vkz::PassDesc passDesc;
+            passDesc.programId = csProgram.id;
+            passDesc.queue = vkz::PassExeQueue::compute;
+            passDesc.threadCountX = levelWidth;
+            passDesc.threadCountY = levelHeight;
+
+            vkz::PassHandle pyramid_pass = vkz::registPass("pyramid_pass", passDesc);
+
+            uint32_t aliasIdx = ii * 2 - 1;
+            
+            if (ii == 0) {
+                vkz::sampleImage(pyramid_pass, depth2
+                    , 0
+                    , vkz::PipelineStageFlagBits::compute_shader
+                    , vkz::ImageLayout::general
+                    , vkz::SamplerReductionMode::weighted_average);
+            }
+            else {
+                vkz::sampleImage(pyramid_pass, pyramid_aliases[aliasIdx]
+                    , 0
+                    , vkz::PipelineStageFlagBits::compute_shader
+                    , vkz::ImageLayout::general
+                    , vkz::SamplerReductionMode::weighted_average);
+            }
+
+            vkz::bindImage(pyramid_pass, pyramid_aliases[aliasIdx + 1]
+                , 1
+                , vkz::PipelineStageFlagBits::compute_shader
+                , vkz::AccessFlagBits::shader_write
+                , vkz::ImageLayout::general
+                , pyramid_aliases[aliasIdx + 2]
+                , ii
+                , 1
+            );
+
         }
     }
 
     vkz::setPresentImage(color2);
 
-    uint32_t pyramidLevelWidth = previousPow2_new(config.windowWidth);
-    uint32_t pyramidLevelHeight = previousPow2_new(config.windowHeight);
+    vkz::bake();
 
     while (!vkz::shouldClose())
     {
@@ -412,8 +465,9 @@ void meshDemo()
 
         const vkz::Memory* pConst2 = vkz::alloc(sizeof(GlobalsVKZ));
         memcpy_s(pConst2->data, pConst2->size, &globals, sizeof(GlobalsVKZ));
-        vkz::updatePushConstants(renderPass, pConst2);
+        vkz::updatePushConstants(draw_pass_0, pConst2);
 
+        vkz::updateThreadCount(cull_pass, (uint32_t)scene.meshDraws.size(), 1, 1);
 
         vkz::run();
     }

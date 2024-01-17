@@ -370,6 +370,10 @@ namespace vkz
         uint32_t        pipelineSpecNum{0}; // each constant is 4 byte
         void*           pipelineSpecData{nullptr};
         PipelineConfig  pipelineConfig{};
+
+        uint32_t        threadCountX;
+        uint32_t        threadCountY;
+        uint32_t        threadCountZ;
     };
 } // namespace vkz
 #endif // __VKZ_STRUCTS_H__

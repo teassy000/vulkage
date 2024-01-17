@@ -456,19 +456,6 @@ namespace vkz
         vkCmdPipelineBarrier2(cmdBuffer, &dependencyInfo);
     }
 
-    uint32_t calculateMipLevelCount(uint32_t width, uint32_t height)
-    {
-        uint32_t result = 0;
-        while (width > 1 || height > 1 )
-        {
-            result++;
-            width >>= 1;
-            height >>= 1;
-        }
-
-        return result;
-    }
-
     VkSampler createSampler(VkDevice device, VkSamplerReductionMode reductionMode /*= VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE*/)
     {
         VkSamplerCreateInfo createInfo = { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };

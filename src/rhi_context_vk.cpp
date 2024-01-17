@@ -902,6 +902,18 @@ namespace vkz
         return true;
     }
 
+    void RHIContext_vk::updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ)
+    {
+        assert(_threadCountX > 0);
+        assert(_threadCountY > 0);
+        assert(_threadCountZ > 0);
+
+        PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
+        passInfo.threadCountX = _threadCountX;
+        passInfo.threadCountY = _threadCountY;
+        passInfo.threadCountZ = _threadCountZ;
+    }
+
     void RHIContext_vk::createShader(MemoryReader& _reader)
     {
         ShaderCreateInfo info;
@@ -1048,8 +1060,6 @@ namespace vkz
             assert(pipeline);
         }
 
-
-        
         // fill pass info
         PassInfo_vk passInfo{};
         passInfo.passId = passMeta.passId;
@@ -1610,9 +1620,11 @@ namespace vkz
         assert(shaderIds.size() == 1);
         const Shader_vk& shader = m_shaderContainer.getIdToData(shaderIds[0]);
         
-        // TODO: set the local size based by the actual dispatch size
-        // vkCmdDispatch(cmdBuffer, uint32_t((scene.meshDraws.size() + drawcmdCS.localSizeX - 1) / drawcmdCS.localSizeX), drawcmdCS.localSizeY, drawcmdCS.localSizeZ);
-        vkCmdDispatch(m_cmdBuffer, calcGroupCount(1, shader.localSizeX), shader.localSizeY, shader.localSizeZ);
+        vkCmdDispatch( m_cmdBuffer
+            , calcGroupCount(passInfo.threadCountX, shader.localSizeX)
+            , calcGroupCount(passInfo.threadCountY, shader.localSizeY)
+            , calcGroupCount(passInfo.threadCountZ, shader.localSizeZ)
+        );
     }
 
     void RHIContext_vk::exeCopy(const uint16_t _passId)

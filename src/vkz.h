@@ -50,7 +50,8 @@ namespace vkz
 
     void bindBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, const BufferHandle _outAlias = {kInvalidHandle});
     void sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, ImageLayout _layout, SamplerReductionMode _reductionMode);
-    void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout, const ImageHandle _outAlias = { kInvalidHandle });
+    void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout
+        , const ImageHandle _outAlias = { kInvalidHandle }, const uint32_t _baseMip = 0, const uint32_t _mipLevel = 1); // base mip and mip level means indipendent image view would use
 
     void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx, const ImageHandle _outAlias = { kInvalidHandle });
 
@@ -63,6 +64,8 @@ namespace vkz
 
     void updatePushConstants(const PassHandle _hPass, const Memory* _mem);
 
+    void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ);
+
     // meomory related
     const Memory* alloc(uint32_t _sz);
     const Memory* copy(const void* _data, uint32_t _sz);
@@ -73,6 +76,7 @@ namespace vkz
     // engine basic functions
     bool init(vkz::VKZInitConfig _config = {});
     bool shouldClose();
+    void bake();
     void run();
     void shutdown();
 }

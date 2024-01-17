@@ -51,7 +51,6 @@ namespace vkz
         return callback;
     }
 
-
     VkInstance createInstance()
     {
         assert(volkGetInstanceVersion() >= VK_API_VERSION_1_3);

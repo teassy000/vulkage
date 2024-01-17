@@ -41,67 +41,67 @@ namespace vkz
         uint16_t bpp = 0;
         switch (_format)
         {
-        case vkz::ResourceFormat::undefined:
+        case ResourceFormat::undefined:
             bpp = 0;
             break;
-        case vkz::ResourceFormat::r8_sint:
+        case ResourceFormat::r8_sint:
             bpp = 1;
             break;
-        case vkz::ResourceFormat::r8_uint:
+        case ResourceFormat::r8_uint:
             bpp = 1;
             break;
-        case vkz::ResourceFormat::r16_uint:
+        case ResourceFormat::r16_uint:
             bpp = 2;
             break;
-        case vkz::ResourceFormat::r16_sint:
+        case ResourceFormat::r16_sint:
             bpp = 2;
             break;
-        case vkz::ResourceFormat::r16_snorm:
+        case ResourceFormat::r16_snorm:
             bpp = 2;
             break;
-        case vkz::ResourceFormat::r16_unorm:
+        case ResourceFormat::r16_unorm:
             bpp = 2;
             break;
-        case vkz::ResourceFormat::r32_uint:
+        case ResourceFormat::r32_uint:
             bpp = 4;
             break;
-        case vkz::ResourceFormat::r32_sint:
+        case ResourceFormat::r32_sint:
             bpp = 4;
             break;
-        case vkz::ResourceFormat::r32_sfloat:
+        case ResourceFormat::r32_sfloat:
             bpp = 4;
             break;
-        case vkz::ResourceFormat::b8g8r8a8_snorm:
+        case ResourceFormat::b8g8r8a8_snorm:
             bpp = 4;
             break;
-        case vkz::ResourceFormat::b8g8r8a8_unorm:
+        case ResourceFormat::b8g8r8a8_unorm:
             bpp = 4;
             break;
-        case vkz::ResourceFormat::b8g8r8a8_sint:
+        case ResourceFormat::b8g8r8a8_sint:
             bpp = 4;
             break;
-        case vkz::ResourceFormat::b8g8r8a8_uint:
+        case ResourceFormat::b8g8r8a8_uint:
             bpp = 4;
             break;
-        case vkz::ResourceFormat::r8g8b8a8_snorm:
+        case ResourceFormat::r8g8b8a8_snorm:
             bpp = 4;
             break;
-        case vkz::ResourceFormat::r8g8b8a8_unorm:
+        case ResourceFormat::r8g8b8a8_unorm:
             bpp = 4;
             break;
-        case vkz::ResourceFormat::r8g8b8a8_sint:
+        case ResourceFormat::r8g8b8a8_sint:
             bpp = 4;
             break;
-        case vkz::ResourceFormat::r8g8b8a8_uint:
+        case ResourceFormat::r8g8b8a8_uint:
             bpp = 4;
             break;
-        case vkz::ResourceFormat::unknown_depth:
+        case ResourceFormat::unknown_depth:
             bpp = 0;
             break;
-        case vkz::ResourceFormat::d16:
+        case ResourceFormat::d16:
             bpp = 2;
             break;
-        case vkz::ResourceFormat::d32:
+        case ResourceFormat::d32:
             bpp = 4;
             break;
         default:
@@ -136,7 +136,7 @@ namespace vkz
                 memRef->releaseFn(mem->data, memRef->userData);
             }
         }
-        vkz::free(getAllocator(), mem);
+        free(getAllocator(), mem);
     }
 
     class GLFWManager
@@ -236,7 +236,8 @@ namespace vkz
 
         void bindBuffer(PassHandle _hPass, BufferHandle _buf, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, const BufferHandle _outAlias);
         void sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, ImageLayout _layout, SamplerReductionMode _reductionMode);
-        void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout, const ImageHandle _outAlias);
+        void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout
+            , const ImageHandle _outAlias, const uint32_t _baseMip, const uint32_t _mipLevel);
 
         void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx, const ImageHandle _outAlias);
 
@@ -250,6 +251,8 @@ namespace vkz
         void setPresentImage(ImageHandle _rt);
 
         void updatePushConstants(const PassHandle _hPass, const Memory* _mem);
+
+        void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ);
 
         // actual write to memory
         void storeBrief();
@@ -516,7 +519,7 @@ namespace vkz
         return handle;
     }
 
-    vkz::BufferHandle Context::registBuffer(const char* _name, const BufferDesc& _desc, const ResourceLifetime _lifetime)
+    BufferHandle Context::registBuffer(const char* _name, const BufferDesc& _desc, const ResourceLifetime _lifetime)
     {
         uint16_t idx = m_bufferHandles.alloc();
 
@@ -545,7 +548,7 @@ namespace vkz
         return handle;
     }
 
-    vkz::ImageHandle Context::registTexture(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime)
+    ImageHandle Context::registTexture(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime)
     {
         uint16_t idx = m_imageHandles.alloc();
 
@@ -572,7 +575,7 @@ namespace vkz
         return handle;
     }
 
-    vkz::ImageHandle Context::registRenderTarget(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime)
+    ImageHandle Context::registRenderTarget(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime)
     {
         uint16_t idx = m_imageHandles.alloc();
 
@@ -613,7 +616,7 @@ namespace vkz
         return handle;
     }
 
-    vkz::ImageHandle Context::registDepthStencil(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime)
+    ImageHandle Context::registDepthStencil(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime)
     {
         uint16_t idx = m_imageHandles.alloc();
 
@@ -654,7 +657,7 @@ namespace vkz
         return handle;
     }
 
-    vkz::SamplerHandle Context::requestSampler(const SamplerDesc& _desc)
+    SamplerHandle Context::requestSampler(const SamplerDesc& _desc)
     {
         // find if the sampler already exist
         uint16_t samplerId = kInvalidHandle;
@@ -992,7 +995,7 @@ namespace vkz
         }
     }
 
-    vkz::BufferHandle Context::aliasBuffer(const BufferHandle _baseBuf)
+    BufferHandle Context::aliasBuffer(const BufferHandle _baseBuf)
     {
         uint16_t aliasId = m_bufferHandles.alloc();
 
@@ -1019,7 +1022,7 @@ namespace vkz
         return { aliasId };
     }
 
-    vkz::ImageHandle Context::aliasImage(const ImageHandle _baseImg)
+    ImageHandle Context::aliasImage(const ImageHandle _baseImg)
     {
         uint16_t aliasId = m_imageHandles.alloc();
 
@@ -1221,7 +1224,8 @@ namespace vkz
         setRenderGraphDataDirty();
     }
 
-    void Context::bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout, const ImageHandle _outAlias)
+    void Context::bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout
+        , const ImageHandle _outAlias, const uint32_t _baseMip, const uint32_t _mipLevel)
     {
         if (!availableBinding(m_usedBindPoints, _hPass, _binding))
         {
@@ -1262,7 +1266,6 @@ namespace vkz
             {
                 message(DebugMessageType::error, "the _outAlias must be valid if trying to write to resource in pass");
             }
-
 
             if (isGraphics(_hPass))
             {
@@ -1392,6 +1395,17 @@ namespace vkz
         m_rhiContext->updatePushConstants(_hPass, _mem);
     }
 
+    void Context::updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ)
+    {
+        if (1 > _threadCountX || 1 > _threadCountY || 1 > _threadCountZ)
+        {
+            message(warning, "thread count in any dimension should not less than 1! update failed");
+            return;
+        }
+
+        m_rhiContext->updateThreadCount(_hPass, _threadCountX, _threadCountY, _threadCountZ);
+    }
+
     static void* glfwNativeWindowHandle(GLFWwindow* _window)
     {
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
@@ -1489,12 +1503,12 @@ namespace vkz
     static Context* s_ctx = nullptr;
 
 
-    vkz::ShaderHandle registShader(const char* _name, const char* _path)
+    ShaderHandle registShader(const char* _name, const char* _path)
     {
         return s_ctx->registShader(_name, _path);
     }
 
-    vkz::ProgramHandle registProgram(const char* _name, ShaderHandleList _shaders, const uint32_t _sizePushConstants /*= 0*/)
+    ProgramHandle registProgram(const char* _name, ShaderHandleList _shaders, const uint32_t _sizePushConstants /*= 0*/)
     {
         const uint16_t shaderNum = static_cast<const uint16_t>(_shaders.size());
         const Memory* mem = alloc(shaderNum * sizeof(uint16_t));
@@ -1509,22 +1523,22 @@ namespace vkz
         return s_ctx->registProgram(_name, mem, shaderNum, _sizePushConstants);
     }
 
-    vkz::BufferHandle registBuffer(const char* _name, const BufferDesc& _desc, const ResourceLifetime _lifetime /*= ResourceLifetime::single_frame*/)
+    BufferHandle registBuffer(const char* _name, const BufferDesc& _desc, const ResourceLifetime _lifetime /*= ResourceLifetime::single_frame*/)
     {
         return s_ctx->registBuffer(_name, _desc, _lifetime);
     }
 
-    vkz::ImageHandle registTexture(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime /*= ResourceLifetime::single_frame*/, const Memory* _mem /*= nullptr*/)
+    ImageHandle registTexture(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime /*= ResourceLifetime::single_frame*/, const Memory* _mem /*= nullptr*/)
     {
         return s_ctx->registTexture(_name, _desc, _lifetime);
     }
 
-    vkz::ImageHandle registRenderTarget(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime /*= ResourceLifetime::single_frame*/)
+    ImageHandle registRenderTarget(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime /*= ResourceLifetime::single_frame*/)
     {
         return s_ctx->registRenderTarget(_name, _desc, _lifetime);
     }
 
-    vkz::ImageHandle registDepthStencil(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime /*= ResourceLifetime::single_frame*/)
+    ImageHandle registDepthStencil(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime /*= ResourceLifetime::single_frame*/)
     {
         return s_ctx->registDepthStencil(_name, _desc, _lifetime);
     }
@@ -1534,12 +1548,12 @@ namespace vkz
         return s_ctx->registPass(_name, _desc);
     }
 
-    vkz::BufferHandle alias(const BufferHandle _baseBuf)
+    BufferHandle alias(const BufferHandle _baseBuf)
     {
         return s_ctx->aliasBuffer(_baseBuf);
     }
 
-    vkz::ImageHandle alias(const ImageHandle _baseImg)
+    ImageHandle alias(const ImageHandle _baseImg)
     {
         return s_ctx->aliasImage(_baseImg);
     }
@@ -1574,9 +1588,10 @@ namespace vkz
         s_ctx->sampleImage(_hPass, _hImg, _binding, _stage, _layout, _reductionMode);
     }
 
-    void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout, const ImageHandle _outAlias /*= {kInvalidHandle}*/)
+    void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout
+        , const ImageHandle _outAlias /*= {kInvalidHandle}*/, const uint32_t _baseMip/* = 0 */, const uint32_t _mipLevel/* = 1 */)
     {
-        s_ctx->bindImage(_hPass, _hImg, _binding, _stage, _access, _layout, _outAlias);
+        s_ctx->bindImage(_hPass, _hImg, _binding, _stage, _access, _layout, _outAlias, _baseMip, _mipLevel);
     }
 
     void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx, const ImageHandle _outAlias)
@@ -1609,6 +1624,12 @@ namespace vkz
         s_ctx->updatePushConstants(_hPass, _mem);
     }
 
+
+    void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ)
+    {
+        s_ctx->updateThreadCount(_hPass, _threadCountX, _threadCountY, _threadCountZ);
+    }
+
     const Memory* alloc(uint32_t _sz)
     {
         if (_sz < 0)
@@ -1616,7 +1637,7 @@ namespace vkz
             message(error, "_sz < 0");
         }
 
-        Memory* mem = (Memory*)vkz::alloc(getAllocator(), sizeof(Memory) + _sz);
+        Memory* mem = (Memory*)alloc(getAllocator(), sizeof(Memory) + _sz);
         mem->size = _sz;
         mem->data = (uint8_t*)mem + sizeof(Memory);
         return mem;
@@ -1641,7 +1662,7 @@ namespace vkz
 
     const Memory* makeRef(const void* _data, uint32_t _sz, ReleaseFn _releaseFn /*= nullptr*/, void* _userData /*= nullptr*/)
     {
-        MemoryRef* memRef = (MemoryRef*)vkz::alloc(getAllocator(), sizeof(MemoryRef));
+        MemoryRef* memRef = (MemoryRef*)alloc(getAllocator(), sizeof(MemoryRef));
         memRef->mem.size = _sz;
         memRef->mem.data = (uint8_t*)_data;
         memRef->releaseFn = _releaseFn;
@@ -1650,7 +1671,7 @@ namespace vkz
     }
 
     // main data here
-    bool init(vkz::VKZInitConfig _config /*= {}*/)
+    bool init(VKZInitConfig _config /*= {}*/)
     {
         s_ctx = VKZ_NEW(getAllocator(), Context);
         s_ctx->setRenderSize(_config.windowWidth, _config.windowHeight);
@@ -1663,6 +1684,11 @@ namespace vkz
     bool shouldClose()
     {
         return s_ctx->shouldClose();
+    }
+
+    void bake()
+    {
+        s_ctx->bake();
     }
 
     void run()

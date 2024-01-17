@@ -87,19 +87,30 @@ namespace vkz
         uint32_t defaultIndirectMaxCount{ 1 };
         uint32_t indirectBufStride{ 0 };
 
+        // barrier status expect in current pass
         std::pair<uint16_t, BarrierState_vk> writeDepth{ kInvalidHandle, {} };
         UniDataContainer< uint16_t, BarrierState_vk> writeColors;
         UniDataContainer< uint16_t, BarrierState_vk> readImages;
         UniDataContainer< uint16_t, BarrierState_vk> readBuffers;
         UniDataContainer< uint16_t, BarrierState_vk> writeBuffers;
 
+        // samplers for image
         UniDataContainer<uint16_t, uint16_t>    imageToSamplerIds;
 
+        // for one op passes:
+        // copy/blit/fill etc.
+        // resources used in this pass
         CombinedResID  oneOpReadRes;
         CombinedResID  oneOpWriteRes;
 
+        // bindings
         std::vector<std::pair<uint32_t, CombinedResID>> bindingToColorIds;
         std::vector<std::pair<uint32_t, CombinedResID>> bindingToResIds;
+
+        // thread count
+        uint32_t threadCountX{ 1 };
+        uint32_t threadCountY{ 1 };
+        uint32_t threadCountZ{ 1 };
     };
 
     class BarrierDispatcher
@@ -131,6 +142,8 @@ namespace vkz
         ~RHIContext_vk() override;
         void init(RHI_Config _config, void* _wnd) override;
         bool render() override;
+
+        void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ) override;
 
     private:
 
