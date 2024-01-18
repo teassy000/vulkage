@@ -27,3 +27,5 @@ constexpr unsigned int kMaxNumOfDescriptorSetLayout = 16;
 constexpr unsigned int kMaxNumOfPushConstant = 16;
 
 constexpr unsigned int kMaxNumOfShaderInProgram = 6;
+
+constexpr unsigned int kAllMipLevel = ~0;

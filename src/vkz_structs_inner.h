@@ -61,7 +61,7 @@ namespace vkz
         ResourceLifetime    lifetime{ ResourceLifetime::transition };
     };
 
-    // to generate barriers
+    // generate barrier, bind descriptor set
     struct NO_VTABLE ResInteractDesc
     {
         uint32_t            binding{ kInvalidDescriptorSetIndex };
@@ -82,6 +82,26 @@ namespace vkz
             return !(*this == rhs);
         }
     };
+
+    struct SpecificImageViewInfo
+    {
+        uint32_t    baseMip;
+        uint32_t    mipLevels;
+
+        inline bool operator == (const SpecificImageViewInfo& rhs) const {
+            return baseMip == rhs.baseMip &&
+                mipLevels == rhs.mipLevels;
+        }
+
+        inline bool operator != (const SpecificImageViewInfo& rhs) const {
+            return !(*this == rhs);
+        }
+    };
+
+    inline SpecificImageViewInfo defaultSpecificImageViewInfo()
+    {
+        return { 0, kAllMipLevel };
+    }
 
     struct VertexBindingDesc
     {
@@ -194,6 +214,8 @@ namespace vkz
         uint16_t    writeBufferNum{ 0 };
 
         uint16_t    sampleImageNum{ 0 };
+
+        uint32_t    specImageViewNum{ 0 }; // count of image view for specific mip levels
 
         uint32_t    indirectBufOffset{ 0 };
         uint32_t    indirectCountBufOffset{ 0 };

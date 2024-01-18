@@ -405,6 +405,18 @@ namespace vkz
 
                 actualSize++;
             }
+
+            if (isImage(plainId))
+            {
+                if (prInteract.specImgViewInfo == defaultSpecificImageViewInfo())
+                {
+                    message(DebugMessageType::info, "specific image view is default, will not set!");
+                }
+                else
+                {
+                    m_pass_rw_res[hPassIdx].specImgViewMap.push_back(plainId, prInteract.specImgViewInfo);
+                }
+            }
         }
 
         // make sure vec elements are unique
@@ -443,7 +455,7 @@ namespace vkz
             push_back_unique(m_combinedForceAlias[idx], combinedId);
         }
 
-        free(m_pAllocator, mem, info.aliasNum * sizeof(uint16_t));
+        //free(m_pAllocator, mem, info.aliasNum * sizeof(uint16_t));
     }
 
     void Framegraph2::buildGraph()
@@ -1344,14 +1356,13 @@ namespace vkz
     void Framegraph2::createSamplers()
     {
         std::set<uint16_t> usedSamplers{};
-        for (uint32_t ii = 0; ii < m_sortedPass.size(); ++ii)
+        for (PassHandle pass : m_sortedPass)
         {
-            PassHandle pass = m_sortedPass[ii];
             uint16_t passIdx = getElemIndex(m_hPass, pass);
             const PassRWResource& rwRes = m_pass_rw_res[passIdx];
 
-            uint32_t usedSamplerNum = (uint32_t)rwRes.imageSamplerMap.size();
-            for (uint32_t ii = 0; ii < usedSamplerNum; ++ii)
+            uint32_t usedSamplerCount = (uint32_t)rwRes.imageSamplerMap.size();
+            for (uint32_t ii = 0; ii < usedSamplerCount; ++ii)
             {
                 const uint16_t& samplerId = rwRes.imageSamplerMap.getDataAt(ii);
                 usedSamplers.insert(samplerId);
@@ -1384,6 +1395,8 @@ namespace vkz
         std::vector<UniDataContainer< BufferHandle, ResInteractDesc> > readBufferVec(m_sortedPass.size());
         std::vector<UniDataContainer< BufferHandle, ResInteractDesc> > writeBufferVec(m_sortedPass.size());
         std::vector<UniDataContainer< ImageHandle, SamplerHandle> > imageSamplerVec(m_sortedPass.size());
+        std::vector<UniDataContainer< ImageHandle, SpecificImageViewInfo> > imageSpecViewVec(m_sortedPass.size());
+
         
         for (uint32_t ii = 0; ii < m_sortedPass.size(); ++ii)
         {
@@ -1399,6 +1412,7 @@ namespace vkz
             UniDataContainer< BufferHandle, ResInteractDesc>& readBuf = readBufferVec[ii];
             UniDataContainer< BufferHandle, ResInteractDesc>& writeBuf = writeBufferVec[ii];
             UniDataContainer< ImageHandle, SamplerHandle>& imgSamplerMap = imageSamplerVec[ii];
+            UniDataContainer< ImageHandle, SpecificImageViewInfo>& imgSpecViewMap = imageSpecViewVec[ii];
             {
                 writeDS.first = { kInvalidHandle };
                 writeColor.clear();
@@ -1406,6 +1420,7 @@ namespace vkz
                 readBuf.clear();
                 writeBuf.clear();
                 imgSamplerMap.clear();
+                imgSpecViewMap.clear();
 
                 const PassRWResource& rwRes = m_pass_rw_res[passIdx];
                 // set write resources
@@ -1461,6 +1476,14 @@ namespace vkz
                     const uint16_t& samplerId = rwRes.imageSamplerMap.getDataAt(ii);
                     imgSamplerMap.push_back({ image.id }, {samplerId });
                 }
+
+                uint32_t usedSpecImgViewNum = (uint32_t)rwRes.specImgViewMap.size();
+                for (uint32_t ii = 0; ii < usedSpecImgViewNum; ++ii)
+                {
+                    const CombinedResID& image = rwRes.specImgViewMap.getIdAt(ii);
+                    const SpecificImageViewInfo& specImgView = rwRes.specImgViewMap.getDataAt(ii);
+                    imgSpecViewMap.push_back({ image.id }, specImgView);
+                }
             }
 
             // create pass info
@@ -1470,6 +1493,7 @@ namespace vkz
             assert((uint16_t)readBuf.size() == passMeta.readBufferNum);
             assert((uint16_t)writeBuf.size() == passMeta.writeBufferNum);
             assert((uint16_t)imgSamplerMap.size() == passMeta.sampleImageNum);
+            assert((uint16_t)imgSpecViewMap.size() == passMeta.specImageViewNum);
 
             passMetaDataVec.emplace_back(passMeta);
 
@@ -1535,6 +1559,10 @@ namespace vkz
             // samplers
             write(&m_rhiMemWriter, (void*)imageSamplerVec[ii].getIdPtr(), (int32_t)(createInfo.sampleImageNum * sizeof(ImageHandle)));
             write(&m_rhiMemWriter, (void*)imageSamplerVec[ii].getDataPtr(), (int32_t)(createInfo.sampleImageNum * sizeof(SamplerHandle)));
+
+            // specific image view
+            write(&m_rhiMemWriter, (void*)imageSpecViewVec[ii].getIdPtr(), (int32_t)(createInfo.specImageViewNum * sizeof(ImageHandle)));
+            write(&m_rhiMemWriter, (void*)imageSpecViewVec[ii].getDataPtr(), (int32_t)(createInfo.specImageViewNum * sizeof(SpecificImageViewInfo)));
 
             write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end);
         }

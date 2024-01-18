@@ -828,6 +828,12 @@ namespace vkz
         
     }
 
+    void RHIContext_vk::bake()
+    {
+        RHIContext::bake();
+        createSpecificImageViews();
+    }
+
     bool RHIContext_vk::render()
     {
         if (m_passContainer.size() < 1)
@@ -1008,6 +1014,12 @@ namespace vkz
         read(&_reader, sampleImageIds.data(), passMeta.sampleImageNum * sizeof(uint16_t));
         read(&_reader, samplerIds.data(), passMeta.sampleImageNum * sizeof(uint16_t));
 
+        // specific image views
+        std::vector<uint16_t> specViewImgIds(passMeta.specImageViewNum);
+        std::vector<SpecificImageViewInfo> specViewInfos(passMeta.specImageViewNum);
+        read(&_reader, specViewImgIds.data(), passMeta.specImageViewNum * sizeof(uint16_t));
+        read(&_reader, specViewInfos.data(), passMeta.specImageViewNum * sizeof(SpecificImageViewInfo));
+
 
         VkPipeline pipeline{};
         if (passMeta.queue == PassExeQueue::graphics)
@@ -1156,12 +1168,17 @@ namespace vkz
         std::sort(passInfo.bindingToResIds.begin(), passInfo.bindingToResIds.end(), sortFunc2);
         std::sort(passInfo.bindingToColorIds.begin(), passInfo.bindingToColorIds.end(), sortFunc2);
 
-
+        // samplers
         for (uint16_t ii = 0; ii < passMeta.sampleImageNum; ++ii)
         {
             passInfo.imageToSamplerIds.push_back(sampleImageIds[ii], samplerIds[ii]);
         }
 
+        // specific image views
+        for (uint16_t ii = 0; ii < passMeta.specImageViewNum; ++ii)
+        {
+            passInfo.imageToSpecificImageViews.push_back(specViewImgIds[ii], specViewInfos[ii]);
+        }
         // one-operation passes
         if (passInfo.queue == PassExeQueue::fill_buffer)
         {
@@ -1205,7 +1222,6 @@ namespace vkz
             m_imageContainer.push_back(resArr[i].imgId, images[i]);
 
             ResInteractDesc interact{ info.barrierState };
-            //m_imgBarrierStatus.addData(resArr[i].imgId, interact);
 
             m_imgBarrierStates.push_back(resArr[i].imgId,
                 { getAccessFlags(interact.access), getImageLayout(interact.layout), getPipelineStageFlags(interact.stage) }
@@ -1291,6 +1307,31 @@ namespace vkz
 
         m_phyDevice = vkz::pickPhysicalDevice(physicalDevices, deviceCount);
         assert(m_phyDevice);
+    }
+
+    void RHIContext_vk::createSpecificImageViews()
+    {
+        for (size_t ii = 0; ii < m_passContainer.size(); ++ii)
+        {
+            uint16_t passId = m_passContainer.getIdAt(ii);
+            PassInfo_vk& passInfo = m_passContainer.getDataRef(passId);
+
+            if (passInfo.queue != PassExeQueue::compute)
+            {
+                continue;
+            }
+
+            for (size_t jj = 0; jj < passInfo.imageToSpecificImageViews.size(); ++jj)
+            {
+                const uint16_t imgId = passInfo.imageToSpecificImageViews.getIdAt(jj);
+                const SpecificImageViewInfo& info = passInfo.imageToSpecificImageViews.getDataAt(jj);
+
+                const Image_vk& image = m_imageContainer.getIdToData(imgId);
+
+                VkImageView imageView = vkz::createImageView(m_device, image.image, image.format, info.baseMip, info.mipLevels);
+                passInfo.imageToImageViews.push_back(imgId, imageView);
+            }
+        }
     }
 
     void RHIContext_vk::createBarriers(uint16_t _passId, bool _flushAliases /*= false*/)
@@ -1433,9 +1474,16 @@ namespace vkz
                     sampler = m_samplerContainer.getIdToData(samplerId);
                 }
 
+                VkImageView view = img.imageView;
+                if (passInfo.writeColors.exist(resId.id)
+                    && passInfo.imageToImageViews.exist(resId.id))
+                {
+                    view = passInfo.imageToImageViews.getIdToData(resId.id);
+                }
+
                 const BarrierState_vk& barrierState = m_imgBarrierStates.getIdToData(resId.id);
                 
-                DescriptorInfo info{ sampler, img.imageView, barrierState.imgLayout};
+                DescriptorInfo info{ sampler, view, barrierState.imgLayout};
                 descInfos[ii] = info;
             }
             else if (isBuffer(resId))

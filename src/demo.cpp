@@ -3,6 +3,7 @@
 #include "scene.h"
 #include <cstddef>
 #include "camera.h"
+#include "debug.h"
 
 struct alignas(16) TransformData
 {
@@ -240,9 +241,9 @@ void meshDemo()
     pyDesc.usage = vkz::ImageUsageFlagBits::transfer_src | vkz::ImageUsageFlagBits::sampled | vkz::ImageUsageFlagBits::storage;
     vkz::ImageHandle pyramid = vkz::registTexture("pyramid", pyDesc);
 
-    uint32_t aliasCount = pyramidLevel * 2;
-    std::vector<vkz::ImageHandle> pyramid_aliases(aliasCount);
-    for (uint32_t ii = 0; ii < aliasCount; ++ii)
+    uint32_t pyramidAliasCount = pyramidLevel * 2;
+    std::vector<vkz::ImageHandle> pyramid_aliases(pyramidAliasCount);
+    for (uint32_t ii = 0; ii < pyramidAliasCount; ++ii)
     {
         pyramid_aliases[ii] = vkz::alias(pyramid);
     }
@@ -369,7 +370,7 @@ void meshDemo()
     std::vector<glm::vec2> imageSizes(pyramidLevel);
     std::vector<vkz::PassHandle> pyramid_passes(pyramidLevel);
     {
-        vkz::ShaderHandle cs = vkz::registShader("pyramid_shader", "shaders/pyramid.comp.spv");
+        vkz::ShaderHandle cs = vkz::registShader("pyramid_shader", "shaders/depthpyramid.comp.spv");
         vkz::ProgramHandle csProgram = vkz::registProgram("pyramid_prog", { cs }, sizeof(glm::vec2));
 
         for (uint32_t ii = 0; ii < pyramidLevel; ++ii)
@@ -386,8 +387,9 @@ void meshDemo()
             passDesc.threadCountY = levelHeight;
 
             vkz::PassHandle pyramid_pass = vkz::registPass("pyramid_pass", passDesc);
+            pyramid_passes[ii] = pyramid_pass;
 
-            uint32_t aliasIdx = ii * 2 - 1;
+            int32_t aliasIdx =  ii * 2 - 1;
             
             if (ii == 0) {
                 vkz::sampleImage(pyramid_pass, depth2
@@ -402,6 +404,8 @@ void meshDemo()
                     , vkz::PipelineStageFlagBits::compute_shader
                     , vkz::ImageLayout::general
                     , vkz::SamplerReductionMode::weighted_average);
+
+                vkz::message(vkz::DebugMessageType::info, "used idx slot 0: %x", aliasIdx);
             }
 
             vkz::bindImage(pyramid_pass, pyramid_aliases[aliasIdx + 1]
@@ -414,10 +418,12 @@ void meshDemo()
                 , 1
             );
 
+            vkz::message(vkz::DebugMessageType::info, "used idx slot 1: %x", aliasIdx + 1);
+            vkz::message(vkz::DebugMessageType::info, "used idx slot 1: %x", aliasIdx + 2);
         }
     }
 
-    vkz::setPresentImage(color2);
+    vkz::setPresentImage(pyramid_aliases[pyramidAliasCount - 1]);
 
     vkz::bake();
 

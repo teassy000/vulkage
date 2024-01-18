@@ -79,6 +79,9 @@ namespace vkz
         uint16_t    resId;
         uint16_t    samplerId;
 
+        // for specific image view creation
+        SpecificImageViewInfo   specImgViewInfo;
+
         ResInteractDesc interact;
     };
 
@@ -279,7 +282,6 @@ namespace vkz
         void fillBufferBuckets();
         void fillImageBuckets();
 
-
         // for sort
         struct PassRWResource
         {
@@ -290,6 +292,7 @@ namespace vkz
             std::vector<CombinedResID> writeCombinedRes;
 
             UniDataContainer<CombinedResID, uint16_t> imageSamplerMap;
+            UniDataContainer<CombinedResID, SpecificImageViewInfo> specImgViewMap;
         };
 
         struct PassDependency

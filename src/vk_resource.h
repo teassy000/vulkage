@@ -42,6 +42,7 @@ namespace vkz
         VkImageView imageView;
         VkDeviceMemory memory;
         VkImageAspectFlags  aspectMask;
+        VkFormat            format;
 
         uint32_t mipLevels;
         uint32_t width, height;

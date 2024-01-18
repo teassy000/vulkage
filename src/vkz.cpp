@@ -230,7 +230,6 @@ namespace vkz
         void bindVertexBuffer(const PassHandle _hPass, const BufferHandle _hBuf);
         void bindIndexBuffer(const PassHandle _hPass, const BufferHandle _hBuf);
 
-        // TODO: need to set the interact info so we can add the barrier
         void setIndirectBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset, uint32_t _stride, uint32_t _defaultMaxCount);
         void setIndirectCountBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset);
 
@@ -1073,7 +1072,10 @@ namespace vkz
         return !conflict;
     }
 
-    uint32_t insertResInteract(UniDataContainer<PassHandle, std::vector<PassResInteract>>& _container, const PassHandle _hPass, const uint16_t _resId, const SamplerHandle _hSampler, const ResInteractDesc& _interact)
+    uint32_t insertResInteract(UniDataContainer<PassHandle, std::vector<PassResInteract>>& _container
+        , const PassHandle _hPass, const uint16_t _resId, const SamplerHandle _hSampler, const ResInteractDesc& _interact
+        , const SpecificImageViewInfo& _specImgViewInfo
+        )
     {
         uint32_t vecSize = 0u;
 
@@ -1082,12 +1084,14 @@ namespace vkz
         pri.resId = _resId;
         pri.interact = _interact;
         pri.samplerId = _hSampler.id;
+        pri.specImgViewInfo = _specImgViewInfo;
+
 
         if (_container.exist(_hPass))
         {
             std::vector<PassResInteract>& prInteractVec = _container.getDataRef(_hPass);
             prInteractVec.emplace_back(pri);
-            
+
             vecSize = (uint32_t)prInteractVec.size();
         }
         else
@@ -1100,6 +1104,14 @@ namespace vkz
         }
 
         return vecSize;
+    }
+    
+
+    uint32_t insertResInteract(UniDataContainer<PassHandle, std::vector<PassResInteract>>& _container
+        , const PassHandle _hPass, const uint16_t _resId, const SamplerHandle _hSampler, const ResInteractDesc& _interact
+        )
+    {
+        return insertResInteract(_container, _hPass, _resId, _hSampler, _interact, defaultSpecificImageViewInfo());
     }
 
     void Context::bindVertexBuffer(const PassHandle _hPass, const BufferHandle _hBuf)
@@ -1273,7 +1285,8 @@ namespace vkz
             }
             else if (isCompute(_hPass) && isNormalImage(_hImg))
             {
-                passMeta.writeImageNum = insertResInteract(m_writeImages, _hPass, _outAlias.id, { kInvalidHandle }, interact);
+                passMeta.writeImageNum = insertResInteract(m_writeImages, _hPass, _outAlias.id, { kInvalidHandle }, interact, { _baseMip, _mipLevel });
+                passMeta.specImageViewNum++;
                 setRenderGraphDataDirty();
             }
             else

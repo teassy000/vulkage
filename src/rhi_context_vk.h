@@ -97,6 +97,10 @@ namespace vkz
         // samplers for image
         UniDataContainer<uint16_t, uint16_t>    imageToSamplerIds;
 
+        // specific image views
+        UniDataContainer<uint16_t, SpecificImageViewInfo> imageToSpecificImageViews;
+        UniDataContainer<uint16_t, VkImageView> imageToImageViews;
+
         // for one op passes:
         // copy/blit/fill etc.
         // resources used in this pass
@@ -141,6 +145,7 @@ namespace vkz
 
         ~RHIContext_vk() override;
         void init(RHI_Config _config, void* _wnd) override;
+        void bake() override;
         bool render() override;
 
         void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ) override;
@@ -158,6 +163,8 @@ namespace vkz
     private:
         void createInstance();
         void createPhysicalDevice();
+
+        void createSpecificImageViews();
 
         // barriers
         void createBarriers(uint16_t _passId, bool _flush = false);

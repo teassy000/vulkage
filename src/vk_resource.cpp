@@ -293,6 +293,7 @@ namespace vkz
             img.height = _initProps.height;
             img.mipLevels = _initProps.level;
             img.aspectMask = _initProps.aspectMask;
+            img.format = _initProps.format;
         }
 
         _results = std::move(results);
@@ -302,6 +303,7 @@ namespace vkz
     {
         std::vector<Image_vk> results;
         createImage(results, {_info}, _device, _memProps, _initProps);
+        assert(!results.empty());
 
         return results[0];
     }
