@@ -519,10 +519,10 @@ namespace vkz
 
         while (!passIdxStack.empty())
         {
-            uint32_t currPassIdx = passIdxStack.top();
+            uint16_t currPassIdx = passIdxStack.top();
 
-            onStack[currPassIdx] = true;
             visited[currPassIdx] = true;
+            onStack[currPassIdx] = true;
 
             PassDependency passDep = m_pass_dependency[currPassIdx];
 
@@ -533,6 +533,8 @@ namespace vkz
                 if (!visited[parentPassIdx])
                 {
                     passIdxStack.push(parentPassIdx);
+                    onStack[parentPassIdx] = true;
+
                     inPassAllVisited = false;
                 }
                 else if (onStack[parentPassIdx])
@@ -544,13 +546,19 @@ namespace vkz
 
             if (inPassAllVisited)
             {
-                sortedPassIdx.push_back(currPassIdx);
-                
+                if (kInvalidIndex == getElemIndex(sortedPassIdx, currPassIdx))
+                {
+                    sortedPassIdx.push_back(currPassIdx);
+                }
+
                 passIdxStack.pop();
                 onStack[currPassIdx] = false;
             }
         }
         
+        m_sortedPass.clear();
+        m_sortedPassIdx.clear();
+
         // fill the sorted and clipped pass
         for (uint16_t idx : sortedPassIdx)
         {

@@ -198,6 +198,12 @@ namespace vkz
         UniDataContainer< uint16_t, BarrierState_vk> m_bufBarrierStates;
         UniDataContainer< uint16_t, BarrierState_vk> m_imgBarrierStates;
 
+        UniDataContainer< uint16_t, uint16_t> m_aliasToBaseImages;
+        UniDataContainer< uint16_t, BarrierState_vk> m_baseImgBarrierStates;
+
+        UniDataContainer< uint16_t, uint16_t> m_aliasToBaseBuffers;
+        UniDataContainer< uint16_t, BarrierState_vk> m_baseBufBarrierStates;
+
         RHIBrief m_brief;
 
         // glfw data

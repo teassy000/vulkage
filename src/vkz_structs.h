@@ -371,9 +371,9 @@ namespace vkz
         void*           pipelineSpecData{nullptr};
         PipelineConfig  pipelineConfig{};
 
-        uint32_t        threadCountX;
-        uint32_t        threadCountY;
-        uint32_t        threadCountZ;
+        uint32_t        threadCountX{1};
+        uint32_t        threadCountY{1};
+        uint32_t        threadCountZ{1};
     };
 } // namespace vkz
 #endif // __VKZ_STRUCTS_H__
