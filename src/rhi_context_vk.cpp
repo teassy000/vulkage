@@ -81,7 +81,7 @@ namespace vkz
         return usage;
     }
 
-    VkImageAspectFlags getImageAspectFlags(ImageAspectFlags _aspectFlags)
+    const VkImageAspectFlags getImageAspectFlags(ImageAspectFlags _aspectFlags)
     {
         VkImageAspectFlags flags = 0;
 
@@ -630,6 +630,279 @@ namespace vkz
         return flags;
     }
 
+    VkAttachmentLoadOp getAttachmentLoadOp(AttachmentLoadOp _op)
+    {
+        VkAttachmentLoadOp op = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+
+        switch (_op)
+        {
+        case AttachmentLoadOp::load:
+            op = VK_ATTACHMENT_LOAD_OP_LOAD;
+            break;
+        case AttachmentLoadOp::clear:
+            op = VK_ATTACHMENT_LOAD_OP_CLEAR;
+            break;
+        case AttachmentLoadOp::dont_care:
+            op = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+            break;
+        default:
+            op = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+            break;
+        }
+
+        return op;
+    }
+
+    VkAttachmentStoreOp getAttachmentStoreOp(AttachmentStoreOp _op)
+    {
+        VkAttachmentStoreOp op = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+        switch (_op)
+        {
+        case AttachmentStoreOp::store:
+            op = VK_ATTACHMENT_STORE_OP_STORE;
+            break;
+        case AttachmentStoreOp::dont_care:
+            op = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+            break;
+        default:
+            op = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+            break;
+        }
+
+        return op;
+    }
+
+    const char* getVkAccessDebugName(VkAccessFlags _flags)
+    {
+        if (_flags == 0)
+        {
+            return "NONE";
+        }
+
+        static char buffer_1[1024];
+        buffer_1[0] = 0;
+
+        if (_flags & VK_ACCESS_INDIRECT_COMMAND_READ_BIT) {
+            strcat(buffer_1, "INDIRECT_COMMAND_READ");
+            strcat(buffer_1, "|");
+        }
+        if (_flags & VK_ACCESS_INDEX_READ_BIT) {
+            strcat(buffer_1, "INDEX_READ");
+            strcat(buffer_1, "|");
+        }
+        if (_flags & VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT) {
+            strcat(buffer_1, "VERTEX_ATTRIBUTE_READ");
+            strcat(buffer_1, "|");
+        }
+        if (_flags & VK_ACCESS_UNIFORM_READ_BIT) {
+            strcat(buffer_1, "UNIFORM_READ");
+            strcat(buffer_1, "|");
+        }
+        if (_flags & VK_ACCESS_INPUT_ATTACHMENT_READ_BIT) {
+            strcat(buffer_1, "INPUT_ATTACHMENT_READ");
+            strcat(buffer_1, "|");
+        }
+        if (_flags & VK_ACCESS_SHADER_READ_BIT) {
+            strcat(buffer_1, "SHADER_READ");
+            strcat(buffer_1, "|");
+        }
+        if (_flags & VK_ACCESS_SHADER_WRITE_BIT) {
+            strcat(buffer_1, "SHADER_WRITE");
+            strcat(buffer_1, "|");
+        }
+        if (_flags & VK_ACCESS_COLOR_ATTACHMENT_READ_BIT) {
+            strcat(buffer_1, "COLOR_ATTACHMENT_READ");
+            strcat(buffer_1, "|");
+        }
+        if (_flags & VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT) {
+            strcat(buffer_1, "COLOR_ATTACHMENT_WRITE");
+            strcat(buffer_1, "|");
+        }
+        if (_flags & VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT) {
+            strcat(buffer_1, "DEPTH_STENCIL_ATTACHMENT_READ");
+            strcat(buffer_1, "|");
+        }
+        if (_flags & VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT) {
+            strcat(buffer_1, "DEPTH_STENCIL_ATTACHMENT_WRITE");
+            strcat(buffer_1, "|");
+        }
+        if (_flags & VK_ACCESS_TRANSFER_READ_BIT) {
+            strcat(buffer_1, "TRANSFER_READ");
+            strcat(buffer_1, "|");
+        }
+        if (_flags & VK_ACCESS_TRANSFER_WRITE_BIT) {
+            strcat(buffer_1, "TRANSFER_WRITE");
+            strcat(buffer_1, "|");
+        }
+        if (_flags & VK_ACCESS_HOST_READ_BIT) {
+            strcat(buffer_1, "HOST_READ");
+            strcat(buffer_1, "|");
+        }
+        if (_flags & VK_ACCESS_HOST_WRITE_BIT) {
+            strcat(buffer_1, "HOST_WRITE");
+            strcat(buffer_1, "|");
+        }
+        if (_flags & VK_ACCESS_MEMORY_READ_BIT) {
+            strcat(buffer_1, "MEMORY_READ");
+            strcat(buffer_1, "|");
+        }
+        if (_flags & VK_ACCESS_MEMORY_WRITE_BIT) {
+            strcat(buffer_1, "MEMORY_WRITE");
+            strcat(buffer_1, "|");
+        }
+        // set the final '|' to '\0'
+        buffer_1[strlen(buffer_1) - 1] = 0;
+
+        return buffer_1;
+
+    }
+
+    const char* getVkPipelineStageDebugName(VkPipelineStageFlags _flags)
+    {
+        if (_flags == 0)
+        {
+            return "NONE";
+        }
+
+        static char buffer_0[1024];
+        buffer_0[0] = 0;
+        if (_flags & VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT) {
+            strcat(buffer_0, "TOP_OF_PIPE");
+            strcat(buffer_0, "|");
+        }
+        if (_flags & VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT) {
+            strcat(buffer_0, "DRAW_INDIRECT");
+            strcat(buffer_0, "|");
+        }
+        if (_flags & VK_PIPELINE_STAGE_VERTEX_INPUT_BIT) {
+            strcat(buffer_0, "VERTEX_INPUT");
+            strcat(buffer_0, "|");
+        }
+        if (_flags & VK_PIPELINE_STAGE_VERTEX_SHADER_BIT) {
+            strcat(buffer_0, "VERTEX_SHADER");
+            strcat(buffer_0, "|");
+        }
+        if (_flags & VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT) {
+            strcat(buffer_0, "TESSELLATION_CONTROL_SHADER");
+            strcat(buffer_0, "|");
+        }
+        if (_flags & VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT) {
+            strcat(buffer_0, "TESSELLATION_EVALUATION_SHADER");
+            strcat(buffer_0, "|");
+        }
+        if (_flags & VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT) {
+            strcat(buffer_0, "GEOMETRY_SHADER");
+            strcat(buffer_0, "|");
+        }
+        if (_flags & VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT) {
+            strcat(buffer_0, "FRAGMENT_SHADER");
+            strcat(buffer_0, "|");
+        }
+        if (_flags & VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT) {
+            strcat(buffer_0, "EARLY_FRAGMENT_TESTS");
+            strcat(buffer_0, "|");
+        }
+        if (_flags & VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT) {
+            strcat(buffer_0, "LATE_FRAGMENT_TESTS");
+            strcat(buffer_0, "|");
+        }
+        if (_flags & VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT) {
+            strcat(buffer_0, "COLOR_ATTACHMENT_OUTPUT");
+            strcat(buffer_0, "|");
+        }
+        if (_flags & VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT) {
+            strcat(buffer_0, "COMPUTE_SHADER");
+            strcat(buffer_0, "|");
+        }
+        if (_flags & VK_PIPELINE_STAGE_TRANSFER_BIT) {
+            strcat(buffer_0, "TRANSFER");
+            strcat(buffer_0, "|");
+        }
+        if (_flags & VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT) {
+            strcat(buffer_0, "BOTTOM_OF_PIPE");
+            strcat(buffer_0, "|");
+        }
+        if (_flags & VK_PIPELINE_STAGE_HOST_BIT) {
+            strcat(buffer_0, "HOST");
+            strcat(buffer_0, "|");
+        }
+        if (_flags & VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT) {
+            strcat(buffer_0, "ALL_GRAPHICS");
+            strcat(buffer_0, "|");
+        }
+        if (_flags & VK_PIPELINE_STAGE_ALL_COMMANDS_BIT) {
+            strcat(buffer_0, "ALL_COMMANDS");
+            strcat(buffer_0, "|");
+        }
+        if (_flags & VK_PIPELINE_STAGE_TRANSFORM_FEEDBACK_BIT_EXT) {
+            strcat(buffer_0, "TRANSFORM_FEEDBACK");
+            strcat(buffer_0, "|");
+        }
+        if (_flags & VK_PIPELINE_STAGE_CONDITIONAL_RENDERING_BIT_EXT) {
+            strcat(buffer_0, "CONDITIONAL_RENDERING");
+            strcat(buffer_0, "|");
+        }
+
+        // set the final '|' to '\0'
+        buffer_0[strlen(buffer_0) - 1] = 0;
+
+        return buffer_0;
+    }
+
+    const char* getVkImageLayoutDebugName(VkImageLayout _layout)
+    {
+        if (_layout == 0)
+        {
+            return "UNDEFINED";
+        }
+
+        if (_layout == VK_IMAGE_LAYOUT_GENERAL) {
+            return "GENERAL";
+        }
+        if (_layout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
+            return "COLOR_ATTACHMENT_OPTIMAL";
+        }
+        if (_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
+            return "DEPTH_STENCIL_ATTACHMENT_OPTIMAL";
+        }
+        if (_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL) {
+            return "DEPTH_STENCIL_READ_ONLY_OPTIMAL";
+        }
+        if (_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+            return "SHADER_READ_ONLY_OPTIMAL";
+        }
+        if (_layout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
+            return "TRANSFER_SRC_OPTIMAL";
+        }
+        if (_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+            return "TRANSFER_DST_OPTIMAL";
+        }
+        if (_layout == VK_IMAGE_LAYOUT_PREINITIALIZED) {
+            return "PREINITIALIZED";
+        }
+        if (_layout == VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL) {
+            return "DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL";
+        }
+        if (_layout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL) {
+            return "DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL";
+        }
+        if (_layout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL) {
+            return "DEPTH_ATTACHMENT_OPTIMAL";
+        }
+        if (_layout == VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL) {
+            return "DEPTH_READ_ONLY_OPTIMAL";
+        }
+        if (_layout == VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL) {
+            return "STENCIL_ATTACHMENT_OPTIMAL";
+        }
+        if (_layout == VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL) {
+            return "STENCIL_READ_ONLY_OPTIMAL";
+        }
+
+        return "UNDEFINED";
+    }
+
     bool getVertexInputState(VkPipelineVertexInputStateCreateInfo& _out, const std::vector<VertexBindingDesc>& _bindings, const std::vector<VertexAttributeDesc>& _attributes)
     {
         if (_bindings.empty() && _attributes.empty())
@@ -866,13 +1139,15 @@ namespace vkz
         for (size_t ii = 0; ii < m_passContainer.size(); ++ii)
         {
             uint16_t passId = m_passContainer.getIdAt(ii);
+            checkUnmatchedBarriers(passId);
             createBarriers(passId);
+            message(info, "---------- before pass %d ------------------------------", passId);
             m_barrierDispatcher.dispatch(m_cmdBuffer);
 
             exeutePass(passId);
 
-            createBarriers(passId, true); // flush
-            m_barrierDispatcher.dispatch(m_cmdBuffer);
+            flushWriteBarriers(passId);
+            
         }
 
         // copy to swapchain
@@ -916,9 +1191,9 @@ namespace vkz
         assert(_threadCountZ > 0);
 
         PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
-        passInfo.threadCountX = _threadCountX;
-        passInfo.threadCountY = _threadCountY;
-        passInfo.threadCountZ = _threadCountZ;
+        passInfo.config.threadCountX = _threadCountX;
+        passInfo.config.threadCountY = _threadCountY;
+        passInfo.config.threadCountZ = _threadCountZ;
     }
 
     void RHIContext_vk::createShader(MemoryReader& _reader)
@@ -1021,6 +1296,13 @@ namespace vkz
         read(&_reader, specViewImgIds.data(), passMeta.specImageViewNum * sizeof(uint16_t));
         read(&_reader, specViewInfos.data(), passMeta.specImageViewNum * sizeof(SpecificImageViewInfo));
 
+        // write op aliases
+        std::vector<CombinedResID> writeOpAliasInIds(passMeta.writeBufAliasNum + passMeta.writeImgAliasNum);
+        read(&_reader, writeOpAliasInIds.data(), (passMeta.writeBufAliasNum + passMeta.writeImgAliasNum) * sizeof(CombinedResID));
+
+        std::vector<CombinedResID> writeOpAliasOutIds(passMeta.writeBufAliasNum + passMeta.writeImgAliasNum);
+        read(&_reader, writeOpAliasOutIds.data(), (passMeta.writeBufAliasNum + passMeta.writeImgAliasNum) * sizeof(CombinedResID));
+
 
         VkPipeline pipeline{};
         if (passMeta.queue == PassExeQueue::graphics)
@@ -1098,9 +1380,7 @@ namespace vkz
         passInfo.pipelineSpecNum = passMeta.pipelineSpecNum;
         passInfo.pipelineSpecData = passMeta.pipelineSpecData;
         passInfo.pipelineConfig = passMeta.pipelineConfig;
-        passInfo.threadCountX = passMeta.threadCountX;
-        passInfo.threadCountY = passMeta.threadCountY;
-        passInfo.threadCountZ = passMeta.threadCountZ;
+        passInfo.config = passMeta.passConfig;
 
 
         // r/w res part
@@ -1184,11 +1464,23 @@ namespace vkz
         {
             passInfo.imageToSpecificImageViews.push_back(specViewImgIds[ii], specViewInfos[ii]);
         }
+
         // one-operation passes
         if (passInfo.queue == PassExeQueue::fill_buffer)
         {
             assert(writeBufferIds.size() == 1);
             passInfo.oneOpWriteRes = { writeBufferIds[0], ResourceType::buffer };
+        }
+
+        // write op alias part
+        {
+            size_t writeOpAliasCount = passMeta.writeBufAliasNum + passMeta.writeImgAliasNum;
+            assert(writeOpAliasInIds.size() == writeOpAliasCount);
+            assert(writeOpAliasOutIds.size() == writeOpAliasCount);
+            for (uint32_t ii = 0; ii < writeOpAliasCount; ++ii )
+            {
+                passInfo.writeOpInToOut.push_back(writeOpAliasInIds[ii], writeOpAliasOutIds[ii]);
+            }
         }
 
         m_passContainer.push_back(passInfo.passId, passInfo);
@@ -1225,13 +1517,19 @@ namespace vkz
         for (int ii = 0; ii < info.aliasNum; ++ii)
         {
             m_imageContainer.push_back(resArr[ii].imgId, images[ii]);
+            m_aliasToBaseImages.push_back(resArr[ii].imgId, info.imgId);
+        }
 
+        const Image_vk& baseImage = m_imageContainer.getIdToData(info.imgId);
+        for (int ii = 0; ii < info.aliasNum; ++ii)
+        {
             ResInteractDesc interact{ info.barrierState };
 
-            m_imgBarrierStates.push_back(resArr[ii].imgId,
-                { getAccessFlags(interact.access), getImageLayout(interact.layout), getPipelineStageFlags(interact.stage) }
+            m_barrierDispatcher.addImage(images[ii].image
+                , getImageAspectFlags(images[ii].aspectMask)
+                , { getAccessFlags(interact.access), getImageLayout(interact.layout) ,getPipelineStageFlags(interact.stage) }
+                , baseImage.image
             );
-            m_aliasToBaseImages.push_back(resArr[ii].imgId, info.imgId);
         }
 
         m_baseImgBarrierStates.push_back(info.imgId,
@@ -1262,14 +1560,24 @@ namespace vkz
             buffers[ii].fillVal = info.fillVal;
             m_bufferContainer.push_back(resArr[ii].bufId, buffers[ii]);
 
-            ResInteractDesc interact{ info.barrierState };
 
-            m_bufBarrierStates.push_back(resArr[ii].bufId, 
-                { getAccessFlags(interact.access), getPipelineStageFlags(interact.stage) }
-            );
 
             m_aliasToBaseBuffers.push_back(resArr[ii].bufId, info.bufId);
+
+
         }
+
+        const Buffer_vk& baseBuffer = m_bufferContainer.getIdToData(info.bufId);
+        for (int ii = 0; ii < info.aliasNum; ++ii)
+        {
+            ResInteractDesc interact{ info.barrierState };
+            m_barrierDispatcher.addBuffer(buffers[ii].buffer
+                , { getAccessFlags(interact.access), getPipelineStageFlags(interact.stage) }
+                , baseBuffer.buffer
+            );
+        }
+
+
 
         m_baseBufBarrierStates.push_back(info.bufId,
             { getAccessFlags(info.barrierState.access), getImageLayout(info.barrierState.layout), getPipelineStageFlags(info.barrierState.stage) }
@@ -1277,14 +1585,14 @@ namespace vkz
 
         VKZ_DELETE_ARRAY(resArr);
         
-        // try to upload buffer
+        // initialize buffer
         if (info.data != nullptr)
         {
-            vkz::uploadBuffer(m_device, m_cmdPool, m_cmdBuffer, m_queue, buffers[0], m_scratchBuffer, info.data, info.size);
+            uploadBuffer(info.bufId, info.data, info.size);
         }
         else
         {
-            vkz::fillBuffer(m_device, m_cmdPool, m_cmdBuffer, m_queue, buffers[0], info.fillVal, info.size);
+            fillBuffer(info.bufId, info.fillVal, info.size);
         }
     }
 
@@ -1350,44 +1658,194 @@ namespace vkz
         }
     }
 
-    void RHIContext_vk::createBarriers(uint16_t _passId, bool _flushAliases /*= false*/)
+    void RHIContext_vk::uploadBuffer(const uint16_t _bufId, const void* data, size_t size)
+    {
+        assert(size > 0);
+        assert(m_scratchBuffer.data);
+        assert(m_scratchBuffer.size > size);
+
+        memcpy(m_scratchBuffer.data, data, size);
+
+        const Buffer_vk& buffer = m_bufferContainer.getIdToData(_bufId);
+
+        VK_CHECK(vkResetCommandPool(m_device, m_cmdPool, 0));
+
+        VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+        VK_CHECK(vkBeginCommandBuffer(m_cmdBuffer, &beginInfo));
+
+        VkBufferCopy region = { 0, 0, VkDeviceSize(size) };
+        vkCmdCopyBuffer(m_cmdBuffer, m_scratchBuffer.buffer, buffer.buffer, 1, &region);
+
+        m_barrierDispatcher.barrier(buffer.buffer,
+            //{ VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT },
+            { VK_ACCESS_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT }
+        );
+        m_barrierDispatcher.dispatch(m_cmdBuffer);
+
+        VK_CHECK(vkEndCommandBuffer(m_cmdBuffer));
+
+        VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &m_cmdBuffer;
+
+        VK_CHECK(vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE));
+
+        VK_CHECK(vkDeviceWaitIdle(m_device));
+    }
+
+    void RHIContext_vk::fillBuffer(const uint16_t _bufId, const uint32_t _value, size_t _size)
+    {
+        assert(_size > 0);
+
+        const Buffer_vk& buf = m_bufferContainer.getIdToData(_bufId);
+
+        VK_CHECK(vkResetCommandPool(m_device, m_cmdPool, 0));
+
+        VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        VK_CHECK(vkBeginCommandBuffer(m_cmdBuffer, &beginInfo));
+
+        vkCmdFillBuffer(m_cmdBuffer, buf.buffer, 0, _size, _value);
+
+        m_barrierDispatcher.barrier(buf.buffer,
+            //{ VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT },
+            { VK_ACCESS_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT }
+        );
+        m_barrierDispatcher.dispatch(m_cmdBuffer);
+
+        VK_CHECK(vkEndCommandBuffer(m_cmdBuffer));
+
+        VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &m_cmdBuffer;
+        VK_CHECK(vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE));
+
+        VK_CHECK(vkDeviceWaitIdle(m_device));
+    }
+
+    void RHIContext_vk::checkUnmatchedBarriers(uint16_t _passId)
     {
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 
-        // image barriers
-        std::vector<uint16_t>        imgIds;
-        std::vector<BarrierState_vk> srcImgInteract;
-        std::vector<BarrierState_vk> dstImgInteract;
+        // flush in out resources
+        // write depth
+        if (kInvalidHandle != passInfo.writeDepthId)
+        {
+            uint16_t depthId = passInfo.writeDepth.first;
+            const Image_vk& depthImg = m_imageContainer.getIdToData(depthId);
 
-        // buffer barriers
-        std::vector<uint16_t>        bufIds;
-        std::vector<BarrierState_vk> srcBufInteract;
-        std::vector<BarrierState_vk> dstBufInteract;
+            uint16_t baseDepth = m_aliasToBaseImages.getIdToData(depthId);
+            const Image_vk& baseImg = m_imageContainer.getIdToData(baseDepth);
 
-        auto addBarrier = [&](const uint16_t id
-            , const BarrierState_vk& src, const BarrierState_vk& dst
-            , std::vector<uint16_t>& ids, std::vector<BarrierState_vk>& srcInteract, std::vector<BarrierState_vk>& dstInteract)
+
+            BarrierState_vk state = m_barrierDispatcher.getBarrierState(depthImg.image);
+            BarrierState_vk baseState = m_barrierDispatcher.getBaseBarrierState(baseImg.image);
+
+            if (baseState != state)
             {
-                if (src != dst)
-                {
-                    ids.emplace_back(id);
-                    srcInteract.emplace_back(src);
-                    dstInteract.emplace_back(dst);
-                }
-            };
+                message(warning, "expect state mismatched for image %d, base %d", depthId, baseImg);
+                m_barrierDispatcher.barrier(depthImg.image, baseImg.aspectMask, baseState);
+            }
+        }
 
-        // depth
+        // write colors
+        for (uint32_t ii = 0; ii < passInfo.writeColors.size(); ++ii)
+        {
+            uint16_t id = passInfo.writeColors.getIdAt(ii);
+            uint16_t baseImgId = m_aliasToBaseImages.getIdToData(id);
+
+            const Image_vk& img = m_imageContainer.getIdToData(id);
+            const Image_vk& baseImg = m_imageContainer.getIdToData(baseImgId);
+
+            BarrierState_vk state = m_barrierDispatcher.getBarrierState(img.image);
+            BarrierState_vk baseState = m_barrierDispatcher.getBaseBarrierState(baseImg.image);
+
+            if (baseState != state)
+            {
+                message(warning, "expect state mismatched for image %d, base %d", id, baseImgId);
+                m_barrierDispatcher.barrier(img.image, baseImg.aspectMask, baseState);
+            }
+        }
+
+        // write buffers
+        for (uint32_t ii = 0; ii < passInfo.writeBuffers.size(); ++ii)
+        {
+            uint16_t id = passInfo.writeBuffers.getIdAt(ii);
+            uint16_t baseBufId = m_aliasToBaseBuffers.getIdToData(id);
+
+            const Buffer_vk& buf = m_bufferContainer.getIdToData(id);
+            const Buffer_vk& baseBuf = m_bufferContainer.getIdToData(baseBufId);
+
+            BarrierState_vk state = m_barrierDispatcher.getBarrierState(buf.buffer);
+            BarrierState_vk baseState = m_barrierDispatcher.getBaseBarrierState(baseBuf.buffer);
+
+            if (baseState != state)
+            {
+                message(warning, "expect state mismatched for buffer %d, base %d", id, baseBufId);
+                m_barrierDispatcher.barrier(buf.buffer, baseState);
+            }
+        }
+
+        // read images
+        for (uint32_t ii = 0; ii < passInfo.readImages.size(); ++ii)
+        {
+            uint16_t id = passInfo.readImages.getIdAt(ii);
+            uint16_t baseImgId = m_aliasToBaseImages.getIdToData(id);
+
+            const Image_vk& img = m_imageContainer.getIdToData(id);
+            const Image_vk& baseImg = m_imageContainer.getIdToData(baseImgId);
+
+            BarrierState_vk state = m_barrierDispatcher.getBarrierState(img.image);
+            BarrierState_vk baseState = m_barrierDispatcher.getBaseBarrierState(baseImg.image);
+
+            if (baseState != state)
+            {
+                message(warning, "expect state mismatched for image %d, base %d", id, baseImgId);
+                m_barrierDispatcher.barrier(img.image, baseImg.aspectMask, baseState);
+            }
+        }
+
+        // read buffers
+        for (uint32_t ii = 0; ii < passInfo.readBuffers.size(); ++ii)
+        {
+            uint16_t id = passInfo.readBuffers.getIdAt(ii);
+            uint16_t baseBufId = m_aliasToBaseBuffers.getIdToData(id);
+
+            const Buffer_vk& buf = m_bufferContainer.getIdToData(id);
+            const Buffer_vk& baseBuf = m_bufferContainer.getIdToData(baseBufId);
+
+            BarrierState_vk state = m_barrierDispatcher.getBarrierState(buf.buffer);
+            BarrierState_vk baseState = m_barrierDispatcher.getBaseBarrierState(baseBuf.buffer);
+
+            if (baseState != state)
+            {
+                message(warning, "expect state mismatched for buffer %d, base %d", id, baseBufId);
+                m_barrierDispatcher.barrier(buf.buffer, baseState);
+            }
+        }
+
+        message(info, "+++++++ mismatched barriers +++++++++++++++++++++");
+        m_barrierDispatcher.dispatch(m_cmdBuffer);
+    }
+
+    void RHIContext_vk::createBarriers(uint16_t _passId)
+    {
+        const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
+
+        // write depth
         if (kInvalidHandle != passInfo.writeDepthId)
         {
             uint16_t depth = passInfo.writeDepth.first;
 
             uint16_t baseDepth = m_aliasToBaseImages.getIdToData(depth);
 
-            assert(m_baseImgBarrierStates.exist(baseDepth));
-            BarrierState_vk src = m_baseImgBarrierStates.getIdToData(baseDepth);
             BarrierState_vk dst = passInfo.writeDepth.second;
 
-            addBarrier(depth, src, dst, imgIds, srcImgInteract, dstImgInteract);
+            const Image_vk& img = m_imageContainer.getIdToData(depth);
+            m_barrierDispatcher.barrier(img.image, img.aspectMask, dst);
         }
 
         // write colors
@@ -1396,11 +1854,9 @@ namespace vkz
             uint16_t id = passInfo.writeColors.getIdAt(ii);
             uint16_t baseImg = m_aliasToBaseImages.getIdToData(id);
 
-            assert(m_baseImgBarrierStates.exist(baseImg));
-            BarrierState_vk src = m_baseImgBarrierStates.getIdToData(baseImg);
             BarrierState_vk dst = passInfo.writeColors.getIdToData(id);
-
-            addBarrier(id, src, dst, imgIds, srcImgInteract, dstImgInteract);
+            const Image_vk& img = m_imageContainer.getIdToData(id);
+            m_barrierDispatcher.barrier(img.image, img.aspectMask, dst);
         }
 
         // write buffers
@@ -1408,87 +1864,70 @@ namespace vkz
         {
             uint16_t id = passInfo.writeBuffers.getIdAt(ii);
 
-            uint16_t baseBuf = m_aliasToBaseBuffers.getIdToData(id);
-
-            assert(m_baseBufBarrierStates.exist(baseBuf));
-            BarrierState_vk src = m_baseBufBarrierStates.getIdToData(baseBuf);
             BarrierState_vk dst = passInfo.writeBuffers.getIdToData(id);
 
-            addBarrier(id, src, dst, bufIds, srcBufInteract, dstBufInteract);
+            m_barrierDispatcher.barrier(m_bufferContainer.getIdToData(id).buffer, dst);
         }
 
-        if (!_flushAliases)
+        // read images
+        for (uint32_t ii = 0; ii < passInfo.readImages.size(); ++ii)
         {
-            // read images
-            for (uint32_t ii = 0; ii < passInfo.readImages.size(); ++ii)
+            uint16_t id = passInfo.readImages.getIdAt(ii);
+
+            BarrierState_vk dst = passInfo.readImages.getIdToData(id);
+
+            const Image_vk& img = m_imageContainer.getIdToData(id);
+            m_barrierDispatcher.barrier(img.image, img.aspectMask, dst);
+        }
+
+        // read buffers
+        for (uint32_t ii = 0; ii < passInfo.readBuffers.size(); ++ii)
+        {
+            uint16_t id = passInfo.readBuffers.getIdAt(ii);
+
+            BarrierState_vk dst = passInfo.readBuffers.getIdToData(id);
+
+            m_barrierDispatcher.barrier(m_bufferContainer.getIdToData(id).buffer, dst);
+        }
+    }
+
+    void RHIContext_vk::flushWriteBarriers(uint16_t _passId)
+    {
+        const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
+
+        // flush in out resources
+        for (uint32_t ii = 0; ii < passInfo.writeOpInToOut.size(); ++ii)
+        {
+            CombinedResID inId = passInfo.writeOpInToOut.getIdAt(ii);
+            CombinedResID outId = passInfo.writeOpInToOut.getDataAt(ii);
+
+            if (isBuffer(outId))
             {
-                uint16_t id = passInfo.readImages.getIdAt(ii);
+                BarrierState_vk dst = passInfo.writeBuffers.getIdToData(inId.id);
 
-                uint16_t baseImg = m_aliasToBaseImages.getIdToData(id);
-
-                assert(m_baseImgBarrierStates.exist(baseImg));
-                BarrierState_vk src = m_baseImgBarrierStates.getIdToData(baseImg);
-                BarrierState_vk dst = passInfo.readImages.getIdToData(id);
-
-                addBarrier(id, src, dst, imgIds, srcImgInteract, dstImgInteract);
+                m_barrierDispatcher.barrier(m_bufferContainer.getIdToData(outId.id).buffer, dst);
             }
-
-            // read buffers
-            for (uint32_t ii = 0; ii < passInfo.readBuffers.size(); ++ii)
+            else if (isImage(outId) && inId.id == passInfo.writeDepthId)
             {
-                uint16_t id = passInfo.readBuffers.getIdAt(ii);
+                uint16_t depth = passInfo.writeDepth.first;
+                assert(depth == inId.id);
+                
+                BarrierState_vk dst = passInfo.writeDepth.second;
+                
+                const Image_vk& outImg = m_imageContainer.getIdToData(outId.id);
+                m_barrierDispatcher.barrier(outImg.image, outImg.aspectMask, dst);
+            }
+            else if (isImage(outId) && inId.id != passInfo.writeDepthId)
+            {
+                BarrierState_vk dst = passInfo.writeColors.getIdToData(inId.id);
 
-                uint16_t baseBuf = m_aliasToBaseBuffers.getIdToData(id);
-
-                assert(m_baseBufBarrierStates.exist(baseBuf));
-                BarrierState_vk src = m_baseBufBarrierStates.getIdToData(baseBuf);
-                BarrierState_vk dst = passInfo.readBuffers.getIdToData(id);
-
-                addBarrier(id, src, dst, bufIds, srcBufInteract, dstBufInteract);
+                const Image_vk& outImg = m_imageContainer.getIdToData(outId.id);
+                m_barrierDispatcher.barrier(outImg.image, outImg.aspectMask, dst);
             }
         }
 
-        assert(srcImgInteract.size() == dstImgInteract.size());
-        assert(srcBufInteract.size() == dstBufInteract.size());
-
-        // add image barriers
-        for (uint32_t ii = 0; ii < srcImgInteract.size(); ++ii)
-        {
-            uint16_t imgId = imgIds[ii];
-
-            const uint16_t baseImgId = m_aliasToBaseImages.getIdToData(imgId);
-            const Image_vk& img = m_imageContainer.getIdToData(baseImgId);
-
-            BarrierState_vk vkDst = m_barrierDispatcher.addImgBarrier(
-                img.image, img.aspectMask,
-                srcImgInteract[ii],
-                dstImgInteract[ii]
-            );
-
-            
-            m_baseImgBarrierStates.update_data(baseImgId, vkDst);
-
-            m_imgBarrierStates.update_data(imgId, vkDst);
-        }
-
-        // add buffer barriers
-        for (uint32_t ii = 0; ii < srcBufInteract.size(); ++ii)
-        {
-            uint16_t bufId = bufIds[ii];
-            const uint16_t baseBufId = m_aliasToBaseBuffers.getIdToData(bufId);
-            const Buffer_vk& buf = m_bufferContainer.getIdToData(baseBufId);
-
-            BarrierState_vk vkDst = m_barrierDispatcher.addBufBarrier(
-                buf.buffer,
-                srcBufInteract[ii],
-                dstBufInteract[ii]
-            );
-
-
-            m_baseBufBarrierStates.update_data(baseBufId, vkDst);
-
-            m_bufBarrierStates.update_data(bufId, vkDst);
-        }
+        message(info, "========= after pass %d ======================================", _passId);
+        m_barrierDispatcher.dispatch(m_cmdBuffer);
     }
 
     void RHIContext_vk::pushDescriptorSetWithTemplates(const uint16_t _passId)
@@ -1533,10 +1972,8 @@ namespace vkz
                     view = passInfo.imageToImageViews.getIdToData(resId.id);
                 }
 
-                uint16_t baseImgId = m_aliasToBaseImages.getIdToData(resId.id);
-                const BarrierState_vk& barrierState = m_baseImgBarrierStates.getIdToData(baseImgId);
-                
-                DescriptorInfo info{ sampler, view, barrierState.imgLayout};
+                VkImageLayout layout = m_barrierDispatcher.getDstImageLayout(img.image);
+                DescriptorInfo info{ sampler, view, layout };
                 descInfos[ii] = info;
             }
             else if (isBuffer(resId))
@@ -1616,8 +2053,8 @@ namespace vkz
 
             colorAttachments[ii].sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
             colorAttachments[ii].clearValue.color = color;
-            colorAttachments[ii].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-            colorAttachments[ii].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+            colorAttachments[ii].loadOp = getAttachmentLoadOp(passInfo.config.colorLoadOp);
+            colorAttachments[ii].storeOp = getAttachmentStoreOp(passInfo.config.colorStoreOp);
             colorAttachments[ii].imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
             colorAttachments[ii].imageView = colorTarget.imageView;
         }
@@ -1629,8 +2066,8 @@ namespace vkz
             const Image_vk& depthTarget = m_imageContainer.getIdToData(passInfo.writeDepthId);
 
             depthAttachment.clearValue.depthStencil = depth;
-            depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-            depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+            depthAttachment.loadOp = getAttachmentLoadOp(passInfo.config.depthLoadOp);
+            depthAttachment.storeOp = getAttachmentStoreOp(passInfo.config.depthStoreOp);
             depthAttachment.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
             depthAttachment.imageView = depthTarget.imageView;
         }
@@ -1722,9 +2159,9 @@ namespace vkz
         const Shader_vk& shader = m_shaderContainer.getIdToData(shaderIds[0]);
         
         vkCmdDispatch( m_cmdBuffer
-            , calcGroupCount(passInfo.threadCountX, shader.localSizeX)
-            , calcGroupCount(passInfo.threadCountY, shader.localSizeY)
-            , calcGroupCount(passInfo.threadCountZ, shader.localSizeZ)
+            , calcGroupCount(passInfo.config.threadCountX, shader.localSizeX)
+            , calcGroupCount(passInfo.config.threadCountY, shader.localSizeY)
+            , calcGroupCount(passInfo.config.threadCountZ, shader.localSizeZ)
         );
     }
 
@@ -1758,24 +2195,18 @@ namespace vkz
         // img to present
         const Image_vk& presentImg = m_imageContainer.getIdToData(m_brief.presentImageId);
 
-        const uint16_t baseImgId = m_aliasToBaseImages.getIdToData(m_brief.presentImageId);
-        const BarrierState_vk& src = m_baseImgBarrierStates.getIdToData(baseImgId);
-
-        BarrierState_vk next = m_barrierDispatcher.addImgBarrier(
+        m_barrierDispatcher.barrier(
             presentImg.image, presentImg.aspectMask,
-            src,
+            //src,
             { VK_ACCESS_TRANSFER_READ_BIT, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT }
         );
-
-        m_imgBarrierStates.update_data(m_brief.presentImageId, next);
-        m_baseImgBarrierStates.update_data(baseImgId, next);
         
         // swapchain image
         const VkImage& swapImg = m_swapchain.images[_swapImgIdx];
 
-        m_barrierDispatcher.addImgBarrier(
+        m_barrierDispatcher.barrier(
             swapImg, VK_IMAGE_ASPECT_COLOR_BIT,
-            { 0, VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT },
+            //{ 0, VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT },
             { VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT }
         );
 
@@ -1797,106 +2228,113 @@ namespace vkz
         );
 
         // add present barrier
-        m_barrierDispatcher.addImgBarrier(
+        m_barrierDispatcher.barrier(
             swapImg, VK_IMAGE_ASPECT_COLOR_BIT,
-            { VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT },
+            //{ VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT },
             { 0, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT }
         );
 
         m_barrierDispatcher.dispatch(m_cmdBuffer);
     }
 
-    BarrierState_vk BarrierDispatcher::addBufBarrier(const VkBuffer _buf, const BarrierState_vk& _src, const BarrierState_vk& _dst)
+    void BarrierDispatcher::addImage(const VkImage _img, const ImageAspectFlags _aspect, BarrierState_vk _barrierState, const VkImage _baseImg/* = 0*/)
     {
-        BarrierState_vk result{};
+        assert(m_imgAspectFlags.find(_img) == end(m_imgAspectFlags));
+        assert(m_imgBarrierStatus.find(_img) == end(m_imgBarrierStatus));
 
-        uint16_t idx = getElemIndex(m_bufs, _buf);
+        m_imgAspectFlags.insert({ _img, getImageAspectFlags(_aspect) });
+        m_imgBarrierStatus.insert({ _img , _barrierState });
+
+        if (_baseImg != 0) {
+
+            m_aliasToBaseImages.insert({ _img, _baseImg });
+            if (_img == _baseImg)
+            {
+                m_baseImgAspectFlags.insert({ _baseImg, getImageAspectFlags(_aspect) });
+                m_baseImgBarrierStatus.insert({ _baseImg , _barrierState });
+            }
+        }
+    }
+
+    void BarrierDispatcher::addBuffer(const VkBuffer _buf, BarrierState_vk _barrierState, const VkBuffer _baseBuf/* = 0*/)
+    {
+        assert(m_bufBarrierStatus.find(_buf) == end(m_bufBarrierStatus));
+
+        m_bufBarrierStatus.insert({ _buf , _barrierState });
+
+        if (_baseBuf != 0) {
+            m_aliasToBaseBuffers.insert({ _buf, _baseBuf });
+
+            if (_buf == _baseBuf)
+            {
+                m_baseBufBarrierStatus.insert({ _baseBuf , _barrierState });
+            }
+        }
+    }
+
+    void BarrierDispatcher::barrier(const VkBuffer _buf, const BarrierState_vk& _dst)
+    {
+        assert(m_bufBarrierStatus.find(_buf) != end(m_bufBarrierStatus));
+
+        uint16_t idx = getElemIndex(m_dispatchBuffers, _buf);
         if (kInvalidHandle == idx)
         {
-            m_bufs.emplace_back(_buf);
+            m_dispatchBuffers.emplace_back(_buf);
 
-            BarrierState_vk src{};
-            src.accessMask = _src.accessMask;
-            src.stageMask = _src.stageMask;
+            const BarrierState_vk src = m_bufBarrierStatus.at(_buf);
             m_srcBufBarriers.emplace_back(src);
 
-            BarrierState_vk dst{};
-            dst.accessMask = _dst.accessMask;
-            dst.stageMask = _dst.stageMask;
-            m_dstBufBarriers.emplace_back(dst);
-
-            result = dst;
+            m_dstBufBarriers.emplace_back( _dst.accessMask , _dst.stageMask );
         }
         else
         {
-            // update the exist one
-            BarrierState_vk& src = m_srcBufBarriers[idx];
-            src.accessMask |= _src.accessMask;
-            src.stageMask |= _src.stageMask;
-
             BarrierState_vk& dst = m_dstBufBarriers[idx];
             dst.accessMask |= _dst.accessMask;
             dst.stageMask |= _dst.stageMask;
-
-            result = dst;
         }
-
-        return result;
     }
 
-    BarrierState_vk BarrierDispatcher::addImgBarrier(const VkImage _img, VkImageAspectFlags _aspect, const BarrierState_vk& _src, const BarrierState_vk& _dst)
+    void BarrierDispatcher::barrier(const VkImage _img, VkImageAspectFlags _aspect, const BarrierState_vk& _dst)
     {
-        uint16_t idx = getElemIndex(m_imgs, _img);
-        BarrierState_vk result{};
+        assert(m_imgAspectFlags.find(_img) != end(m_imgAspectFlags));
+        assert(m_imgBarrierStatus.find(_img) != end(m_imgBarrierStatus));
+
+        uint16_t idx = getElemIndex(m_dispatchImages, _img);
 
         if (kInvalidHandle == idx)
         {
-            m_imgs.emplace_back(_img);
+            m_dispatchImages.emplace_back(_img);
 
             m_imgAspects.emplace_back(_aspect);
 
-            BarrierState_vk src{};
-            src.accessMask = _src.accessMask;
-            src.stageMask = _src.stageMask;
-            src.imgLayout = _src.imgLayout;
+            BarrierState_vk src = m_imgBarrierStatus.at(_img);
             m_srcImgBarriers.emplace_back(src);
 
-            BarrierState_vk dst{};
-            dst.accessMask = _dst.accessMask;
-            dst.stageMask = _dst.stageMask;
-            dst.imgLayout = _dst.imgLayout;
-            m_dstImgBarriers.emplace_back(dst);
-
-            result = dst;
+            m_dstImgBarriers.emplace_back(_dst.accessMask, _dst.imgLayout, _dst.stageMask);
         }
         else
         {
             assert(_aspect == m_imgAspects[idx]);
-            assert(_src.imgLayout == m_srcImgBarriers[idx].imgLayout); // there must be something wrong if a image has different src layout between two passes
-
-            // update the exist one
-            BarrierState_vk& src = m_srcImgBarriers[idx];
-            src.accessMask |= _src.accessMask;
-            src.stageMask |= _src.stageMask;
 
             BarrierState_vk& dst = m_dstImgBarriers[idx];
             dst.accessMask |= _dst.accessMask;
             dst.stageMask |= _dst.stageMask;
             dst.imgLayout = _dst.imgLayout; // use the new destinate layout instead
-
-            result = dst;
         }
-
-        return result;
     }
 
     void BarrierDispatcher::dispatch(const VkCommandBuffer& _cmdBuffer)
     {
-        std::vector<VkImageMemoryBarrier2> imgBarriers;
-        for (uint32_t ii = 0; ii < m_imgs.size(); ++ii)
+        if(m_dispatchBuffers.empty() && m_dispatchImages.empty())
         {
-            const VkImage& img = m_imgs[ii];
-            const VkImageAspectFlags aspect = m_imgAspects[ii];
+            return;
+        }
+
+        std::vector<VkImageMemoryBarrier2> imgBarriers;
+        for (uint32_t ii = 0; ii < m_dispatchImages.size(); ++ii)
+        {
+            const VkImage& img = m_dispatchImages[ii];
+            const VkImageAspectFlags aspect = getImageAspectFlags(m_imgAspects[ii]);
             BarrierState_vk src = m_srcImgBarriers[ii];
             BarrierState_vk dst = m_dstImgBarriers[ii];
 
@@ -1904,14 +2342,33 @@ namespace vkz
                 img, aspect,
                 src.accessMask, src.imgLayout, src.stageMask,
                 dst.accessMask, dst.imgLayout, dst.stageMask);
+            
+            message(info, "[src] image: VkImage: %8x, \n access: %s \n layout: %s \n stage: %s ", img
+                , getVkAccessDebugName(src.accessMask)
+                , getVkImageLayoutDebugName(src.imgLayout)
+                , getVkPipelineStageDebugName(src.stageMask)
+            );
+
+            message(info, "[dst] image: VkImage: %8x, \n access: %s \n layout: %s \n stage: %s ", img
+                , getVkAccessDebugName(dst.accessMask)
+                , getVkImageLayoutDebugName(dst.imgLayout)
+                , getVkPipelineStageDebugName(dst.stageMask)
+            );
 
             imgBarriers.emplace_back(barrier);
+
+            m_imgAspectFlags.at(img) = aspect;
+            m_imgBarrierStatus.at(img) = dst;
+
+            const VkImage baseImg = m_aliasToBaseImages.at(img);
+            m_baseImgAspectFlags.at(baseImg) = aspect;
+            m_baseImgBarrierStatus.at(baseImg) = dst;
         }
 
         std::vector<VkBufferMemoryBarrier2> bufBarriers;
-        for (uint32_t ii = 0; ii < m_bufs.size(); ++ii)
+        for (uint32_t ii = 0; ii < m_dispatchBuffers.size(); ++ii)
         {
-            const VkBuffer& buf = m_bufs[ii];
+            const VkBuffer& buf = m_dispatchBuffers[ii];
             BarrierState_vk src = m_srcBufBarriers[ii];
             BarrierState_vk dst = m_dstBufBarriers[ii];
 
@@ -1920,24 +2377,70 @@ namespace vkz
                 src.accessMask, src.stageMask,
                 dst.accessMask, dst.stageMask);
 
+            message(info, "[src] VkBuffer:0x%x, \n access: %s \n stage: %s ", buf
+                , getVkAccessDebugName(src.accessMask)
+                , getVkPipelineStageDebugName(src.stageMask)
+            );
+
+            message(info, "[dst] VkBuffer:0x%x, \n access: %s \n stage: %s ", buf
+                , getVkAccessDebugName(dst.accessMask)
+                , getVkPipelineStageDebugName(dst.stageMask)
+            );
+
             bufBarriers.emplace_back(barrier);
+
+            m_bufBarrierStatus.at(buf) = dst;
+
+            const VkBuffer baseBuf = m_aliasToBaseBuffers.at(buf);
+            m_baseBufBarrierStatus.at(baseBuf) = dst;
         }
         
         pipelineBarrier(_cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, (uint32_t)bufBarriers.size(), bufBarriers.data(), (uint32_t)imgBarriers.size(), imgBarriers.data());
-
-
+        
         // clear all once barriers dispatched
         clear();
     }
 
+    const VkImageLayout BarrierDispatcher::getDstImageLayout(const VkImage _img) const
+    {
+        const uint16_t idx = getElemIndex(m_dispatchImages, _img);
+        if (kInvalidIndex != idx)
+        {
+            return m_dstImgBarriers[idx].imgLayout;
+        }
+
+        return m_imgBarrierStatus.at(_img).imgLayout;
+        
+    }
+
+    const BarrierState_vk BarrierDispatcher::getBarrierState(const VkImage _img) const
+    {
+        return m_imgBarrierStatus.at(_img);
+    }
+
+    const BarrierState_vk BarrierDispatcher::getBarrierState(const VkBuffer _buf) const
+    {
+        return m_bufBarrierStatus.at(_buf);
+    }
+
+    const BarrierState_vk BarrierDispatcher::getBaseBarrierState(const VkImage _img) const
+    {
+        return m_baseImgBarrierStatus.at(_img);
+    }
+
+    const BarrierState_vk BarrierDispatcher::getBaseBarrierState(const VkBuffer _buf) const
+    {
+        return m_baseBufBarrierStatus.at(_buf);
+    }
+
     void BarrierDispatcher::clear()
     {
-        m_imgs.clear();
+        m_dispatchImages.clear();
         m_imgAspects.clear();
         m_srcImgBarriers.clear();
         m_dstImgBarriers.clear();
         
-        m_bufs.clear();
+        m_dispatchBuffers.clear();
         m_srcBufBarriers.clear();
         m_dstBufBarriers.clear();
     }

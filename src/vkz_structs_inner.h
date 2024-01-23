@@ -83,6 +83,27 @@ namespace vkz
         }
     };
 
+    struct WriteOperationAlias
+    {
+        uint16_t writeOpIn;
+        uint16_t writeOpOut;
+
+        WriteOperationAlias() = default;
+
+        WriteOperationAlias(uint16_t _resIn, uint16_t _resOut)
+            : writeOpIn(_resIn), writeOpOut(_resOut) 
+        {}
+
+        inline bool operator == (const WriteOperationAlias& rhs) const {
+            return writeOpIn == rhs.writeOpIn &&
+                writeOpOut == rhs.writeOpOut;
+        }
+
+        inline bool operator != (const WriteOperationAlias& rhs) const {
+            return !(*this == rhs);
+        }
+    };
+
     struct SpecificImageViewInfo
     {
         uint32_t    baseMip;
@@ -212,6 +233,9 @@ namespace vkz
 
         uint16_t    readBufferNum{ 0 };
         uint16_t    writeBufferNum{ 0 };
+
+        uint16_t    writeBufAliasNum{ 0 };
+        uint16_t    writeImgAliasNum{ 0 };
 
         uint16_t    sampleImageNum{ 0 };
 

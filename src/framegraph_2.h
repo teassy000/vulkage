@@ -172,8 +172,9 @@ namespace vkz
 
         void registerSampler(MemoryReader& _reader);
 
-        uint32_t readResource(std::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type);
-        uint32_t writeResource(std::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type);
+        uint32_t readResource(const std::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type);
+        uint32_t writeResource(const std::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type);
+        uint32_t writeResAlias(const std::vector<WriteOperationAlias>& _aliasMapVec, const uint16_t _passId, const ResourceType _type);
 
         void aliasResForce(MemoryReader& _reader, ResourceType _type);
 
@@ -291,6 +292,8 @@ namespace vkz
             std::vector<CombinedResID> readCombinedRes;
             std::vector<CombinedResID> writeCombinedRes;
 
+            UniDataContainer<CombinedResID, CombinedResID> writeOpAliasMap;
+
             UniDataContainer<CombinedResID, uint16_t> imageSamplerMap;
             UniDataContainer<CombinedResID, SpecificImageViewInfo> specImgViewMap;
         };
@@ -375,13 +378,13 @@ namespace vkz
         std::vector< std::array<uint16_t, (uint16_t)PassExeQueue::count> >    m_nearestSyncPassIdx;
 
         std::vector< CombinedResID>     m_multiFrame_resList;
-        std::vector< CombinedResID>     m_readonly_resList;
+
 
         std::vector< CombinedResID>     m_resInUseUniList;
         std::vector< CombinedResID>     m_resToOptmUniList;
+        std::vector< CombinedResID>     m_resInUseReadonlyList;
+        std::vector< CombinedResID>     m_resInUseMultiframeList;
 
-        std::vector< CombinedResID>     m_readResUniList;
-        std::vector< CombinedResID>     m_writeResUniList;
         std::vector< ResLifetime>       m_resLifeTime;
 
         UniDataContainer< CombinedResID, CombinedResID> m_plainResAliasToBase;

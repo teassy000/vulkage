@@ -217,6 +217,15 @@ namespace vkz
         read(&_reader, readBufVec.data(), sizeof(PassResInteract) * passMeta.readBufferNum);
         passMeta.readBufferNum = readResource(readBufVec, passMeta.passId, ResourceType::buffer);
 
+        // write resource alias
+        std::vector<WriteOperationAlias> writeImgAliasVec(passMeta.writeImgAliasNum);
+        read(&_reader, writeImgAliasVec.data(), sizeof(WriteOperationAlias) * passMeta.writeImgAliasNum);
+        passMeta.writeImgAliasNum = writeResAlias(writeImgAliasVec, passMeta.passId, ResourceType::image);
+
+        std::vector<WriteOperationAlias> writeBufAliasVec(passMeta.writeBufAliasNum);
+        read(&_reader, writeBufAliasVec.data(), sizeof(WriteOperationAlias) * passMeta.writeBufAliasNum);
+        passMeta.writeBufAliasNum = writeResAlias(writeBufAliasVec, passMeta.passId, ResourceType::buffer);
+
         // fill pass idx in queue
         uint16_t qIdx = (uint16_t)passMeta.queue;
         m_passIdxInQueue[qIdx].push_back((uint16_t)m_hPass.size());
@@ -326,7 +335,7 @@ namespace vkz
         return retVar;
     }
 
-    uint32_t Framegraph2::readResource(std::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type)
+    uint32_t Framegraph2::readResource(const std::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type)
     {
         uint16_t hPassIdx = getElemIndex(m_hPass, { _passId });
         assert(hPassIdx != kInvalidIndex);
@@ -361,7 +370,6 @@ namespace vkz
                 assert(kInvalidHandle != prInteract.samplerId);
                 m_pass_rw_res[hPassIdx].imageSamplerMap.push_back(plainId, prInteract.samplerId);
             }
-            
         }
 
         // make sure vec elements are unique
@@ -374,7 +382,7 @@ namespace vkz
         return actualSize;
     }
 
-    uint32_t Framegraph2::writeResource(std::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type)
+    uint32_t Framegraph2::writeResource(const std::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type)
     {
         uint16_t hPassIdx = getElemIndex(m_hPass, { _passId });
         assert(hPassIdx != kInvalidIndex);
@@ -429,6 +437,30 @@ namespace vkz
         return actualSize;
     }
 
+    uint32_t Framegraph2::writeResAlias(const std::vector<WriteOperationAlias>& _aliasMapVec, const uint16_t _passId, const ResourceType _type)
+    {
+        uint16_t hPassIdx = getElemIndex(m_hPass, { _passId });
+        assert(hPassIdx != kInvalidIndex);
+
+        uint32_t actualSize = 0;
+        for (const WriteOperationAlias& wra : _aliasMapVec)
+        {
+            CombinedResID basdCombined{ wra.writeOpIn, _type };
+            CombinedResID aliasCombined{ wra.writeOpOut, _type };
+
+            if (m_pass_rw_res[hPassIdx].writeOpAliasMap.exist(basdCombined))
+            {
+                message(error, "write to same resource in same pass multiple times!");
+                continue;
+            }
+
+            m_pass_rw_res[hPassIdx].writeOpAliasMap.push_back(basdCombined, aliasCombined);
+            actualSize++;
+        }
+
+        return actualSize;
+    }
+
     void Framegraph2::aliasResForce(MemoryReader& _reader, ResourceType _type)
     {
         ResAliasInfo info;
@@ -461,23 +493,47 @@ namespace vkz
     void Framegraph2::buildGraph()
     {
         // make a plain table that can find producer of a resource easily.
-        std::vector<CombinedResID> linear_outResCID;
-        std::vector<uint16_t> linear_outPassIdx;
+        std::vector<CombinedResID> linear_writeResCID;
+        std::vector<uint16_t> linear_writePassIdx;
 
+        uint16_t aliasOutCount = 0;
+        std::set<CombinedResID> writeOpInSetO{};
         for (uint16_t ii = 0; ii < m_hPass.size(); ++ii)
         {
-            PassHandle currPass = m_hPass[ii];
             PassRWResource rwRes = m_pass_rw_res[ii];
+            std::set<CombinedResID> writeOpInSet{};
 
-            for (const CombinedResID CombindRes : rwRes.writeCombinedRes)
+            size_t aliasMapNum = rwRes.writeOpAliasMap.size();
+            for (uint32_t jj = 0; jj < aliasMapNum; ++jj)
             {
-                linear_outResCID.push_back(CombindRes);
-                linear_outPassIdx.push_back(ii); // write by current pass
+                CombinedResID writeOpIn = rwRes.writeOpAliasMap.getIdAt(jj);
+                CombinedResID writeOpOut = rwRes.writeOpAliasMap.getDataAt(jj);
 
-                if (CombindRes == m_combinedPresentImage)
-                {
-                    m_finalPass = currPass;
+                writeOpInSet.insert(writeOpIn);
+
+                linear_writeResCID.push_back(writeOpOut);
+                linear_writePassIdx.push_back(ii); // write by current pass
+            }
+
+            for (const CombinedResID combinedRes : rwRes.writeCombinedRes)
+            {
+                if(writeOpInSet.find(combinedRes) == end(writeOpInSet)){
+                    message(error, "what? there is res written but not added to writeOpInSet? check the vkz part!");
                 }
+            }
+        }
+
+        message(info, "aliasOutCount: %d", aliasOutCount);
+
+        // set final pass
+        for (size_t ii = 0; ii < linear_writeResCID.size(); ++ii)
+        {
+            CombinedResID cid = linear_writeResCID[ii];
+            if (cid == m_combinedPresentImage)
+            {
+                uint16_t passIdx = linear_writePassIdx[ii];
+                m_finalPass = m_hPass[passIdx];
+                break;
             }
         }
 
@@ -485,15 +541,32 @@ namespace vkz
         {
             PassRWResource rwRes = m_pass_rw_res[ii];
 
+            std::set<CombinedResID> readOrBeforeWriteResSet{};
+            
+            size_t aliasMapNum = rwRes.writeOpAliasMap.size();
+            
+            // writeOpIn is not in the readCombinedRes, should affect the graph here
+            for (uint32_t jj = 0; jj < aliasMapNum; ++jj)
+            {
+                CombinedResID writeOpIn = rwRes.writeOpAliasMap.getIdAt(jj);
+
+                readOrBeforeWriteResSet.insert(writeOpIn);
+            }
+
             for (CombinedResID plainRes : rwRes.readCombinedRes)
             {
-                uint16_t idx = getElemIndex(linear_outResCID, plainRes);
+                readOrBeforeWriteResSet.insert(plainRes);
+            }
+
+            for (CombinedResID wirteResIn : readOrBeforeWriteResSet)
+            {
+                uint16_t idx = getElemIndex(linear_writeResCID, wirteResIn);
                 if (kInvalidIndex == idx) {
                     continue;
                 }
 
                 uint16_t currPassIdx = ii;
-                uint16_t writePassIdx = linear_outPassIdx[idx];
+                uint16_t writePassIdx = linear_writePassIdx[idx];
 
                 m_pass_dependency[currPassIdx].inPassIdxSet.insert(writePassIdx);
                 m_pass_dependency[writePassIdx].outPassIdxSet.insert(currPassIdx);
@@ -594,12 +667,10 @@ namespace vkz
             m_passIdxInDpLevels[passIdx].passInLv = std::vector<std::vector<uint16_t>>(maxLv, std::vector<uint16_t>());
         }
 
-
         for (uint16_t passIdx : m_sortedPassIdx)
         {
             std::stack<uint16_t> passStack;
             passStack.push(passIdx);
-
 
             uint16_t baseLv = _maxLvLst[passIdx];
 
@@ -711,12 +782,6 @@ namespace vkz
         std::vector<CombinedResID> fullMultiFrameRes = m_multiFrame_resList;
         for (const CombinedResID cid : m_multiFrame_resList)
         {
-            /* TODO: remove manually mapping to other vectors
-            if (!m_plainResAliasToBase.isValidId(cid))
-            {
-                continue;
-            }
-            */
             const uint16_t idx = getElemIndex(plainAliasRes, cid);
             if (kInvalidHandle == idx)
             {
@@ -758,6 +823,17 @@ namespace vkz
                 push_back_unique(resToOptmUniList, combRes);
                 push_back_unique(resInUseUniList, combRes);
             }
+
+            size_t aliasMapNum = rwRes.writeOpAliasMap.size();
+            for (uint32_t ii = 0; ii < aliasMapNum; ++ii)
+            {
+                CombinedResID writeOpIn = rwRes.writeOpAliasMap.getIdAt(ii);
+                CombinedResID writeOpOut = rwRes.writeOpAliasMap.getDataAt(ii);
+
+                push_back_unique(writeResUniList, writeOpOut);
+                push_back_unique(resToOptmUniList, writeOpOut);
+                push_back_unique(resInUseUniList, writeOpOut);
+            }
         }
 
         std::vector<std::vector<uint16_t>> resToOptmPassIdxByOrder; // share the same idx with resToOptmUniList
@@ -778,6 +854,14 @@ namespace vkz
                 uint16_t usedIdx = getElemIndex(resToOptmUniList, combRes);
                 resToOptmPassIdxByOrder[usedIdx].push_back(ii); // store the idx in ordered pass
             }
+
+            size_t aliasMapNum = rwRes.writeOpAliasMap.size();
+            for (uint32_t alisMapIdx = 0; alisMapIdx < aliasMapNum; ++alisMapIdx)
+            {
+                CombinedResID writeOpOut = rwRes.writeOpAliasMap.getDataAt(alisMapIdx);
+                uint16_t usedIdx = getElemIndex(resToOptmUniList, writeOpOut);
+                resToOptmPassIdxByOrder[usedIdx].push_back(ii); // store the idx in ordered pass
+            }
         }
 
         std::vector<CombinedResID> readonlyResUniList;
@@ -787,18 +871,34 @@ namespace vkz
             if (kInvalidIndex != getElemIndex(writeResUniList, readRes)) {
                 continue;
             }
+
+            // force alias
+            // read-only has lower priority than force alias, if a resource is force aliased, it definitely will alias.
+            // if not, then we consider to fill a individual bucket for it.
+            if (m_plainResAliasToBase.exist(readRes)) {
+                message(warning, "%s %d is force aliased but it's read-only, is this by intention", isImage(readRes) ? "image" :"buffer", readRes.id );
+                continue;
+            }
+
             readonlyResUniList.push_back(readRes);
         }
 
-        // remove read-only resource from resToOptmUniList
-        for (const CombinedResID readonlyRes : readonlyResUniList)
+
+        std::vector<CombinedResID> multiframeResUniList;
+        for (const CombinedResID multiFrameRes : m_multiFrame_resList)
         {
-            uint16_t idx = getElemIndex(resToOptmUniList, readonlyRes);
-            if (kInvalidIndex == idx) {
+            // not in use 
+            if (kInvalidIndex == getElemIndex(resInUseUniList, multiFrameRes)) {
                 continue;
             }
-            resToOptmUniList.erase(resToOptmUniList.begin() + idx);
-            resToOptmPassIdxByOrder.erase(resToOptmPassIdxByOrder.begin() + idx);
+            // force alias
+            // multi-frame has lower priority than force alias, if a resource is force aliased, it definitely will alias.
+            // if not, then we consider to fill a individual bucket for it.
+            if (m_plainResAliasToBase.exist(multiFrameRes)) {
+                continue;
+            }
+
+            multiframeResUniList.push_back(multiFrameRes);
         }
 
         // remove force alias resource from resToOptmUniList
@@ -815,9 +915,20 @@ namespace vkz
             resToOptmPassIdxByOrder.erase(resToOptmPassIdxByOrder.begin() + idx);
         }
 
+        // remove read-only resource from resToOptmUniList
+        for (const CombinedResID readonlyRes : readonlyResUniList)
+        {
+            uint16_t idx = getElemIndex(resToOptmUniList, readonlyRes);
+            if (kInvalidIndex == idx) {
+                continue;
+            }
+
+            resToOptmUniList.erase(resToOptmUniList.begin() + idx);
+            resToOptmPassIdxByOrder.erase(resToOptmPassIdxByOrder.begin() + idx);
+        }
+
         // remove multi-frame resource from resToOptmUniList
-        const std::vector<CombinedResID> multiFrameResUniList = m_multiFrame_resList;
-        for (const CombinedResID multiFrameRes : multiFrameResUniList)
+        for (const CombinedResID multiFrameRes : multiframeResUniList)
         {
             uint16_t idx = getElemIndex(resToOptmUniList, multiFrameRes);
             if (kInvalidIndex == idx) {
@@ -844,9 +955,8 @@ namespace vkz
         // set the value
         m_resInUseUniList = resInUseUniList;
         m_resToOptmUniList = resToOptmUniList;
-        m_readonly_resList = readonlyResUniList;
-        m_readResUniList = readResUniList;
-        m_writeResUniList = writeResUniList;
+        m_resInUseReadonlyList = readonlyResUniList;
+        m_resInUseMultiframeList = multiframeResUniList;
 
         m_resLifeTime = resLifeTime;
     }
@@ -903,7 +1013,7 @@ namespace vkz
 
     void Framegraph2::fillBucketReadonly()
     {
-        for (const CombinedResID cid : m_readonly_resList)
+        for (const CombinedResID cid : m_resInUseReadonlyList)
         {
             // buffers
             if (isBuffer(cid))
@@ -929,7 +1039,7 @@ namespace vkz
 
     void Framegraph2::fillBucketMultiFrame()
     {
-        for (const CombinedResID cid : m_multiFrame_resList)
+        for (const CombinedResID cid : m_resInUseMultiframeList)
         {
             // buffers
             if (isBuffer(cid))
@@ -1404,6 +1514,7 @@ namespace vkz
         std::vector<UniDataContainer< BufferHandle, ResInteractDesc> > writeBufferVec(m_sortedPass.size());
         std::vector<UniDataContainer< ImageHandle, SamplerHandle> > imageSamplerVec(m_sortedPass.size());
         std::vector<UniDataContainer< ImageHandle, SpecificImageViewInfo> > imageSpecViewVec(m_sortedPass.size());
+        std::vector< UniDataContainer<CombinedResID, CombinedResID> >  writeOpAliasMapVec(m_sortedPass.size());
 
         
         for (uint32_t ii = 0; ii < m_sortedPass.size(); ++ii)
@@ -1421,6 +1532,8 @@ namespace vkz
             UniDataContainer< BufferHandle, ResInteractDesc>& writeBuf = writeBufferVec[ii];
             UniDataContainer< ImageHandle, SamplerHandle>& imgSamplerMap = imageSamplerVec[ii];
             UniDataContainer< ImageHandle, SpecificImageViewInfo>& imgSpecViewMap = imageSpecViewVec[ii];
+
+            UniDataContainer<CombinedResID, CombinedResID>& writeOpAliasMap = writeOpAliasMapVec[ii];
             {
                 writeDS.first = { kInvalidHandle };
                 writeColor.clear();
@@ -1492,6 +1605,16 @@ namespace vkz
                     const SpecificImageViewInfo& specImgView = rwRes.specImgViewMap.getDataAt(ii);
                     imgSpecViewMap.push_back({ image.id }, specImgView);
                 }
+
+                // write operation out aliases
+                uint32_t aliasMapNum = (uint32_t)rwRes.writeOpAliasMap.size();
+                for (uint32_t ii = 0; ii < aliasMapNum; ++ii)
+                {
+                    const CombinedResID writeOpIn = rwRes.writeOpAliasMap.getIdAt(ii);
+                    const CombinedResID writeOpOut = rwRes.writeOpAliasMap.getDataAt(ii);
+
+                    writeOpAliasMap.push_back(writeOpIn, writeOpOut);
+                }
             }
 
             // create pass info
@@ -1502,6 +1625,7 @@ namespace vkz
             assert((uint16_t)writeBuf.size() == passMeta.writeBufferNum);
             assert((uint16_t)imgSamplerMap.size() == passMeta.sampleImageNum);
             assert((uint16_t)imgSpecViewMap.size() == passMeta.specImageViewNum);
+            assert((uint16_t)writeOpAliasMap.size() == (passMeta.writeBufAliasNum + passMeta.writeImgAliasNum));
 
             passMetaDataVec.emplace_back(passMeta);
 
@@ -1571,6 +1695,10 @@ namespace vkz
             // specific image view
             write(&m_rhiMemWriter, (void*)imageSpecViewVec[ii].getIdPtr(), (int32_t)(createInfo.specImageViewNum * sizeof(ImageHandle)));
             write(&m_rhiMemWriter, (void*)imageSpecViewVec[ii].getDataPtr(), (int32_t)(createInfo.specImageViewNum * sizeof(SpecificImageViewInfo)));
+
+            // write op alias
+            write(&m_rhiMemWriter, (void*)writeOpAliasMapVec[ii].getIdPtr(), (int32_t)(createInfo.writeBufAliasNum + createInfo.writeImgAliasNum) * sizeof(CombinedResID));
+            write(&m_rhiMemWriter, (void*)writeOpAliasMapVec[ii].getDataPtr(), (int32_t)(createInfo.writeBufAliasNum + createInfo.writeImgAliasNum) * sizeof(CombinedResID));
 
             write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end);
         }

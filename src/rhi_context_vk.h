@@ -101,6 +101,9 @@ namespace vkz
         UniDataContainer<uint16_t, SpecificImageViewInfo> imageToSpecificImageViews;
         UniDataContainer<uint16_t, VkImageView> imageToImageViews;
 
+        // write op base to alias
+        UniDataContainer<CombinedResID, CombinedResID> writeOpInToOut;
+
         // for one op passes:
         // copy/blit/fill etc.
         // resources used in this pass
@@ -111,31 +114,48 @@ namespace vkz
         std::vector<std::pair<uint32_t, CombinedResID>> bindingToColorIds;
         std::vector<std::pair<uint32_t, CombinedResID>> bindingToResIds;
 
-        // thread count
-        uint32_t threadCountX{ 1 };
-        uint32_t threadCountY{ 1 };
-        uint32_t threadCountZ{ 1 };
+        PassConfig config{};
     };
 
     class BarrierDispatcher
     {
     public:
-        BarrierState_vk addBufBarrier(const VkBuffer _buf, const BarrierState_vk& _src, const BarrierState_vk& _dst);
-        BarrierState_vk addImgBarrier(const VkImage _img, VkImageAspectFlags _aspect, const BarrierState_vk& _src, const BarrierState_vk& _dst);
-        
+        void addBuffer(const VkBuffer _img, BarrierState_vk _barrierState, const VkBuffer _baseBuf = 0);
+        void addImage(const VkImage _img, const ImageAspectFlags _aspect, BarrierState_vk _barrierState, const VkImage _baseImg = 0);
+
+        void barrier(const VkBuffer _buf, const BarrierState_vk& _dst);
+        void barrier(const VkImage _img, VkImageAspectFlags _dstAspect, const BarrierState_vk& _dstBarrier);
+
         void dispatch(const VkCommandBuffer& _cmdBuffer);
 
+        const VkImageLayout getDstImageLayout(const VkImage _img) const;
+        const BarrierState_vk getBarrierState(const VkImage _img) const;
+        const BarrierState_vk getBarrierState(const VkBuffer _buf) const;
+
+        const BarrierState_vk getBaseBarrierState(const VkImage _img) const;
+        const BarrierState_vk getBaseBarrierState(const VkBuffer _buf) const;
     private:
         void clear();
 
-        std::vector<VkImage> m_imgs;
+        std::vector<VkImage> m_dispatchImages;
         std::vector<ImageAspectFlags> m_imgAspects;
         std::vector<BarrierState_vk> m_srcImgBarriers;
         std::vector<BarrierState_vk> m_dstImgBarriers;
         
-        std::vector<VkBuffer> m_bufs;
+        std::vector<VkBuffer> m_dispatchBuffers;
         std::vector<BarrierState_vk> m_srcBufBarriers;
         std::vector<BarrierState_vk> m_dstBufBarriers;
+
+        std::unordered_map<VkImage, VkImage> m_aliasToBaseImages;
+        std::unordered_map<VkBuffer, VkBuffer> m_aliasToBaseBuffers;
+
+        std::unordered_map<VkImage, VkImageAspectFlags> m_imgAspectFlags;
+        std::unordered_map<VkImage, BarrierState_vk> m_imgBarrierStatus;
+        std::unordered_map<VkBuffer, BarrierState_vk> m_bufBarrierStatus;
+
+        std::unordered_map<VkImage, VkImageAspectFlags> m_baseImgAspectFlags;
+        std::unordered_map<VkImage, BarrierState_vk> m_baseImgBarrierStatus;
+        std::unordered_map<VkBuffer, BarrierState_vk> m_baseBufBarrierStatus;
     };
 
     class RHIContext_vk : public RHIContext
@@ -163,11 +183,19 @@ namespace vkz
     private:
         void createInstance();
         void createPhysicalDevice();
-
+        
         void createSpecificImageViews();
 
+        // private pass
+        // e.g. upload buffer, copy image, etc.
+        // 
+        void uploadBuffer(const uint16_t _bufId, const void* data, size_t size);
+        void fillBuffer(const uint16_t _bufId, const uint32_t _value, size_t _size);
+
         // barriers
-        void createBarriers(uint16_t _passId, bool _flush = false);
+        void checkUnmatchedBarriers(uint16_t _passId);
+        void createBarriers(uint16_t _passId);
+        void flushWriteBarriers(uint16_t _passId);
 
         // push descriptor set with templates
         void pushDescriptorSetWithTemplates(const uint16_t _passId);
@@ -194,9 +222,6 @@ namespace vkz
 
         std::vector<std::vector<uint16_t>> m_programShaderIds;
         std::vector<uint32_t>           m_progThreadCount;
-
-        UniDataContainer< uint16_t, BarrierState_vk> m_bufBarrierStates;
-        UniDataContainer< uint16_t, BarrierState_vk> m_imgBarrierStates;
 
         UniDataContainer< uint16_t, uint16_t> m_aliasToBaseImages;
         UniDataContainer< uint16_t, BarrierState_vk> m_baseImgBarrierStates;

@@ -320,6 +320,21 @@ namespace vkz
     }
     using AccessFlags = uint32_t;
 
+    enum class AttachmentLoadOp
+    {
+        load,
+        clear,
+        dont_care,
+        attachement_load_op_max = 0x7fffffff,
+    };
+
+    enum class AttachmentStoreOp
+    {
+        store,
+        dont_care,
+        attachement_store_op_max = 0x7fffffff,
+    };
+
     struct VKZInitConfig
     {
         uint32_t windowWidth{ 0 };
@@ -329,9 +344,22 @@ namespace vkz
 
     struct PipelineConfig
     {
-        bool enableDepthTest{true};
-        bool enableDepthWrite{true};
+        bool enableDepthTest{ true };
+        bool enableDepthWrite{ true };
         CompareOp depthCompOp{ CompareOp::greater };
+    };
+
+    struct PassConfig
+    {
+        uint32_t threadCountX{ 1 };
+        uint32_t threadCountY{ 1 };
+        uint32_t threadCountZ{ 1 };
+        
+        AttachmentLoadOp depthLoadOp{ AttachmentLoadOp::clear };
+        AttachmentStoreOp depthStoreOp{ AttachmentStoreOp::store };
+
+        AttachmentLoadOp colorLoadOp{ AttachmentLoadOp::clear };
+        AttachmentStoreOp colorStoreOp{ AttachmentStoreOp::store };
     };
 
     struct BufferDesc {
@@ -352,7 +380,7 @@ namespace vkz
 
         ImageType       type{ ImageType::type_2d };
         ImageViewType   viewType{ ImageViewType::type_2d };
-        ImageLayout     layout{ ImageLayout::general };
+        ImageLayout     layout{ ImageLayout::undefined };
         ResourceFormat  format{ ResourceFormat::undefined };
         ImageUsageFlags usage{ ImageUsageFlagBits::color_attachment };
     };
@@ -370,10 +398,7 @@ namespace vkz
         uint32_t        pipelineSpecNum{0}; // each constant is 4 byte
         void*           pipelineSpecData{nullptr};
         PipelineConfig  pipelineConfig{};
-
-        uint32_t        threadCountX{1};
-        uint32_t        threadCountY{1};
-        uint32_t        threadCountZ{1};
+        PassConfig      passConfig{};
     };
 } // namespace vkz
 #endif // __VKZ_STRUCTS_H__
