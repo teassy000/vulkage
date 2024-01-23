@@ -487,7 +487,7 @@ namespace vkz
             push_back_unique(m_combinedForceAlias[idx], combinedId);
         }
 
-        //free(m_pAllocator, mem, info.aliasNum * sizeof(uint16_t));
+        free(m_pAllocator, mem);
     }
 
     void Framegraph2::buildGraph()

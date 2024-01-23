@@ -84,7 +84,7 @@ namespace vkz
 
         uint32_t indirectBufOffset{ 0 };
         uint32_t indirectCountBufOffset{ 0 };
-        uint32_t defaultIndirectMaxCount{ 1 };
+        uint32_t indirectMaxDrawCount{ 0 };
         uint32_t indirectBufStride{ 0 };
 
         // barrier status expect in current pass
@@ -210,6 +210,26 @@ namespace vkz
 
         void copyToSwapchain(uint32_t _swapImgIdx);
 
+        const Buffer_vk getBuffer(const uint16_t _bufId, bool _base = true) const
+        {
+            if (_base)
+            {
+                uint16_t baseId = m_aliasToBaseBuffers.getIdToData(_bufId);
+                return m_bufferContainer.getIdToData(baseId);
+            }
+            return m_bufferContainer.getIdToData(_bufId);
+        }
+
+        const Image_vk getImage(const uint16_t _imgId, bool _base = true) const
+        {
+            if (_base)
+            {
+                uint16_t baseId = m_aliasToBaseImages.getIdToData(_imgId);
+                return m_imageContainer.getIdToData(baseId);
+            }
+            return m_imageContainer.getIdToData(_imgId);
+        }
+
     private:
         UniDataContainer<uint16_t, Buffer_vk> m_bufferContainer;
         UniDataContainer<uint16_t, Image_vk> m_imageContainer;
@@ -224,10 +244,8 @@ namespace vkz
         std::vector<uint32_t>           m_progThreadCount;
 
         UniDataContainer< uint16_t, uint16_t> m_aliasToBaseImages;
-        UniDataContainer< uint16_t, BarrierState_vk> m_baseImgBarrierStates;
 
         UniDataContainer< uint16_t, uint16_t> m_aliasToBaseBuffers;
-        UniDataContainer< uint16_t, BarrierState_vk> m_baseBufBarrierStates;
 
         RHIBrief m_brief;
 

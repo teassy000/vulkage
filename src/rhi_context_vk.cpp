@@ -1057,6 +1057,15 @@ namespace vkz
 
         vkz::createSwapchain(m_swapchain, m_phyDevice, m_device, m_surface, m_gfxFamilyIdx, m_imageFormat);
 
+        // fill the image to barrier
+        for (uint32_t ii = 0; ii < m_swapchain.imageCount; ++ii)
+        {
+            m_barrierDispatcher.addImage(m_swapchain.images[ii]
+                , VK_IMAGE_ASPECT_COLOR_BIT
+                , { 0, VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT }
+            );
+        }
+
         vkGetDeviceQueue(m_device, m_gfxFamilyIdx, 0, &m_queue);
         assert(m_queue);
 
@@ -1139,9 +1148,9 @@ namespace vkz
         for (size_t ii = 0; ii < m_passContainer.size(); ++ii)
         {
             uint16_t passId = m_passContainer.getIdAt(ii);
-            checkUnmatchedBarriers(passId);
+            //checkUnmatchedBarriers(passId);
             createBarriers(passId);
-            message(info, "---------- before pass %d ------------------------------", passId);
+            //message(info, "---------- before pass %d ------------------------------", passId);
             m_barrierDispatcher.dispatch(m_cmdBuffer);
 
             exeutePass(passId);
@@ -1367,6 +1376,7 @@ namespace vkz
         passInfo.indirectBufStride = passMeta.indirectBufStride;
         passInfo.indirectCountBufferId = passMeta.indirectCountBufferId;
         passInfo.indirectCountBufOffset = passMeta.indirectCountBufOffset;
+        passInfo.indirectMaxDrawCount = passMeta.indirectMaxDrawCount;
 
         passInfo.writeDepthId = passMeta.writeDepthId;
 
@@ -1520,7 +1530,7 @@ namespace vkz
             m_aliasToBaseImages.push_back(resArr[ii].imgId, info.imgId);
         }
 
-        const Image_vk& baseImage = m_imageContainer.getIdToData(info.imgId);
+        const Image_vk& baseImage = getImage(info.imgId);
         for (int ii = 0; ii < info.aliasNum; ++ii)
         {
             ResInteractDesc interact{ info.barrierState };
@@ -1532,10 +1542,6 @@ namespace vkz
             );
         }
 
-        m_baseImgBarrierStates.push_back(info.imgId,
-            { getAccessFlags(info.barrierState.access), getImageLayout(info.barrierState.layout), getPipelineStageFlags(info.barrierState.stage) }
-        );
-        
         VKZ_DELETE_ARRAY(resArr);
     }
 
@@ -1560,14 +1566,10 @@ namespace vkz
             buffers[ii].fillVal = info.fillVal;
             m_bufferContainer.push_back(resArr[ii].bufId, buffers[ii]);
 
-
-
             m_aliasToBaseBuffers.push_back(resArr[ii].bufId, info.bufId);
-
-
         }
 
-        const Buffer_vk& baseBuffer = m_bufferContainer.getIdToData(info.bufId);
+        const Buffer_vk& baseBuffer = getBuffer(info.bufId);
         for (int ii = 0; ii < info.aliasNum; ++ii)
         {
             ResInteractDesc interact{ info.barrierState };
@@ -1576,12 +1578,6 @@ namespace vkz
                 , baseBuffer.buffer
             );
         }
-
-
-
-        m_baseBufBarrierStates.push_back(info.bufId,
-            { getAccessFlags(info.barrierState.access), getImageLayout(info.barrierState.layout), getPipelineStageFlags(info.barrierState.stage) }
-        );
 
         VKZ_DELETE_ARRAY(resArr);
         
@@ -1650,7 +1646,7 @@ namespace vkz
                 const uint16_t imgId = passInfo.imageToSpecificImageViews.getIdAt(jj);
                 const SpecificImageViewInfo& info = passInfo.imageToSpecificImageViews.getDataAt(jj);
 
-                const Image_vk& image = m_imageContainer.getIdToData(imgId);
+                const Image_vk& image = getImage(imgId);
 
                 VkImageView imageView = vkz::createImageView(m_device, image.image, image.format, info.baseMip, info.mipLevels);
                 passInfo.imageToImageViews.push_back(imgId, imageView);
@@ -1666,7 +1662,7 @@ namespace vkz
 
         memcpy(m_scratchBuffer.data, data, size);
 
-        const Buffer_vk& buffer = m_bufferContainer.getIdToData(_bufId);
+        const Buffer_vk& buffer = getBuffer(_bufId);
 
         VK_CHECK(vkResetCommandPool(m_device, m_cmdPool, 0));
 
@@ -1700,7 +1696,7 @@ namespace vkz
     {
         assert(_size > 0);
 
-        const Buffer_vk& buf = m_bufferContainer.getIdToData(_bufId);
+        const Buffer_vk& buf = getBuffer(_bufId);
 
         VK_CHECK(vkResetCommandPool(m_device, m_cmdPool, 0));
 
@@ -1735,10 +1731,8 @@ namespace vkz
         if (kInvalidHandle != passInfo.writeDepthId)
         {
             uint16_t depthId = passInfo.writeDepth.first;
-            const Image_vk& depthImg = m_imageContainer.getIdToData(depthId);
-
-            uint16_t baseDepth = m_aliasToBaseImages.getIdToData(depthId);
-            const Image_vk& baseImg = m_imageContainer.getIdToData(baseDepth);
+            const Image_vk& depthImg = getImage(depthId);
+            const Image_vk& baseImg = getImage(depthId, true);
 
 
             BarrierState_vk state = m_barrierDispatcher.getBarrierState(depthImg.image);
@@ -1757,8 +1751,8 @@ namespace vkz
             uint16_t id = passInfo.writeColors.getIdAt(ii);
             uint16_t baseImgId = m_aliasToBaseImages.getIdToData(id);
 
-            const Image_vk& img = m_imageContainer.getIdToData(id);
-            const Image_vk& baseImg = m_imageContainer.getIdToData(baseImgId);
+            const Image_vk& img = getImage(id);
+            const Image_vk& baseImg = getImage(id, true);
 
             BarrierState_vk state = m_barrierDispatcher.getBarrierState(img.image);
             BarrierState_vk baseState = m_barrierDispatcher.getBaseBarrierState(baseImg.image);
@@ -1776,8 +1770,8 @@ namespace vkz
             uint16_t id = passInfo.writeBuffers.getIdAt(ii);
             uint16_t baseBufId = m_aliasToBaseBuffers.getIdToData(id);
 
-            const Buffer_vk& buf = m_bufferContainer.getIdToData(id);
-            const Buffer_vk& baseBuf = m_bufferContainer.getIdToData(baseBufId);
+            const Buffer_vk& buf = getBuffer(id);
+            const Buffer_vk& baseBuf = getBuffer(id, true);
 
             BarrierState_vk state = m_barrierDispatcher.getBarrierState(buf.buffer);
             BarrierState_vk baseState = m_barrierDispatcher.getBaseBarrierState(baseBuf.buffer);
@@ -1795,8 +1789,8 @@ namespace vkz
             uint16_t id = passInfo.readImages.getIdAt(ii);
             uint16_t baseImgId = m_aliasToBaseImages.getIdToData(id);
 
-            const Image_vk& img = m_imageContainer.getIdToData(id);
-            const Image_vk& baseImg = m_imageContainer.getIdToData(baseImgId);
+            const Image_vk& img = getImage(id);
+            const Image_vk& baseImg = getImage(id, true);
 
             BarrierState_vk state = m_barrierDispatcher.getBarrierState(img.image);
             BarrierState_vk baseState = m_barrierDispatcher.getBaseBarrierState(baseImg.image);
@@ -1814,8 +1808,8 @@ namespace vkz
             uint16_t id = passInfo.readBuffers.getIdAt(ii);
             uint16_t baseBufId = m_aliasToBaseBuffers.getIdToData(id);
 
-            const Buffer_vk& buf = m_bufferContainer.getIdToData(id);
-            const Buffer_vk& baseBuf = m_bufferContainer.getIdToData(baseBufId);
+            const Buffer_vk& buf = getBuffer(id);
+            const Buffer_vk& baseBuf = getBuffer(id, true);
 
             BarrierState_vk state = m_barrierDispatcher.getBarrierState(buf.buffer);
             BarrierState_vk baseState = m_barrierDispatcher.getBaseBarrierState(baseBuf.buffer);
@@ -1827,7 +1821,7 @@ namespace vkz
             }
         }
 
-        message(info, "+++++++ mismatched barriers +++++++++++++++++++++");
+        //message(info, "+++++++ mismatched barriers +++++++++++++++++++++");
         m_barrierDispatcher.dispatch(m_cmdBuffer);
     }
 
@@ -1844,7 +1838,7 @@ namespace vkz
 
             BarrierState_vk dst = passInfo.writeDepth.second;
 
-            const Image_vk& img = m_imageContainer.getIdToData(depth);
+            const Image_vk& img = getImage(depth);
             m_barrierDispatcher.barrier(img.image, img.aspectMask, dst);
         }
 
@@ -1855,7 +1849,7 @@ namespace vkz
             uint16_t baseImg = m_aliasToBaseImages.getIdToData(id);
 
             BarrierState_vk dst = passInfo.writeColors.getIdToData(id);
-            const Image_vk& img = m_imageContainer.getIdToData(id);
+            const Image_vk& img = getImage(id);
             m_barrierDispatcher.barrier(img.image, img.aspectMask, dst);
         }
 
@@ -1866,7 +1860,7 @@ namespace vkz
 
             BarrierState_vk dst = passInfo.writeBuffers.getIdToData(id);
 
-            m_barrierDispatcher.barrier(m_bufferContainer.getIdToData(id).buffer, dst);
+            m_barrierDispatcher.barrier(getBuffer(id).buffer, dst);
         }
 
         // read images
@@ -1876,7 +1870,7 @@ namespace vkz
 
             BarrierState_vk dst = passInfo.readImages.getIdToData(id);
 
-            const Image_vk& img = m_imageContainer.getIdToData(id);
+            const Image_vk& img = getImage(id);
             m_barrierDispatcher.barrier(img.image, img.aspectMask, dst);
         }
 
@@ -1887,7 +1881,7 @@ namespace vkz
 
             BarrierState_vk dst = passInfo.readBuffers.getIdToData(id);
 
-            m_barrierDispatcher.barrier(m_bufferContainer.getIdToData(id).buffer, dst);
+            m_barrierDispatcher.barrier(getBuffer(id).buffer, dst);
         }
     }
 
@@ -1905,7 +1899,7 @@ namespace vkz
             {
                 BarrierState_vk dst = passInfo.writeBuffers.getIdToData(inId.id);
 
-                m_barrierDispatcher.barrier(m_bufferContainer.getIdToData(outId.id).buffer, dst);
+                m_barrierDispatcher.barrier(getBuffer(inId.id).buffer, dst);
             }
             else if (isImage(outId) && inId.id == passInfo.writeDepthId)
             {
@@ -1914,19 +1908,19 @@ namespace vkz
                 
                 BarrierState_vk dst = passInfo.writeDepth.second;
                 
-                const Image_vk& outImg = m_imageContainer.getIdToData(outId.id);
+                const Image_vk& outImg = getImage(outId.id);
                 m_barrierDispatcher.barrier(outImg.image, outImg.aspectMask, dst);
             }
             else if (isImage(outId) && inId.id != passInfo.writeDepthId)
             {
                 BarrierState_vk dst = passInfo.writeColors.getIdToData(inId.id);
 
-                const Image_vk& outImg = m_imageContainer.getIdToData(outId.id);
+                const Image_vk& outImg = getImage(outId.id);
                 m_barrierDispatcher.barrier(outImg.image, outImg.aspectMask, dst);
             }
         }
 
-        message(info, "========= after pass %d ======================================", _passId);
+        //message(info, "========= after pass %d ======================================", _passId);
         m_barrierDispatcher.dispatch(m_cmdBuffer);
     }
 
@@ -1956,7 +1950,7 @@ namespace vkz
 
             if (isImage(resId))
             {
-                const Image_vk& img = m_imageContainer.getIdToData(resId.id);
+                const Image_vk& img = getImage(resId.id);
 
                 VkSampler sampler = 0;
                 if (passInfo.imageToSamplerIds.exist(resId.id))
@@ -1978,7 +1972,7 @@ namespace vkz
             }
             else if (isBuffer(resId))
             {
-                const Buffer_vk& buf = m_bufferContainer.getIdToData(resId.id);
+                const Buffer_vk& buf = getBuffer(resId.id);
 
                 DescriptorInfo info{ buf.buffer };
                 descInfos[ii] = info;
@@ -2049,7 +2043,7 @@ namespace vkz
         for (int ii = 0; ii < passInfo.writeColors.size(); ++ii)
         {
             const CombinedResID imgId = passInfo.bindingToColorIds[ii].second;
-            const Image_vk& colorTarget = m_imageContainer.getIdToData(imgId.id);
+            const Image_vk& colorTarget = getImage(imgId.id);
 
             colorAttachments[ii].sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
             colorAttachments[ii].clearValue.color = color;
@@ -2063,7 +2057,7 @@ namespace vkz
         VkRenderingAttachmentInfo depthAttachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
         if (hasDepth)
         {
-            const Image_vk& depthTarget = m_imageContainer.getIdToData(passInfo.writeDepthId);
+            const Image_vk& depthTarget = getImage(passInfo.writeDepthId);
 
             depthAttachment.clearValue.depthStencil = depth;
             depthAttachment.loadOp = getAttachmentLoadOp(passInfo.config.depthLoadOp);
@@ -2099,38 +2093,38 @@ namespace vkz
         if (kInvalidHandle != passInfo.vertexBufferId)
         {
             VkDeviceSize offsets[1] = { 0 };
-            const Buffer_vk& vertexBuffer = m_bufferContainer.getIdToData(passInfo.vertexBufferId);
+            const Buffer_vk& vertexBuffer =  getBuffer(passInfo.vertexBufferId);
             vkCmdBindVertexBuffers(m_cmdBuffer, 0, 1, &vertexBuffer.buffer, offsets);
         }
 
         // set index buffer
         if (kInvalidHandle != passInfo.indexBufferId)
         {
-            const Buffer_vk& indexBuffer = m_bufferContainer.getIdToData(passInfo.indexBufferId);
+            const Buffer_vk& indexBuffer = getBuffer(passInfo.indexBufferId);
             vkCmdBindIndexBuffer(m_cmdBuffer, indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32); // TODO: do I need to expose the index type out?
         }
 
         if (kInvalidHandle != passInfo.indirectCountBufferId && kInvalidHandle != passInfo.indirectBufferId)
         {
-            const Buffer_vk& indirectCountBuffer = m_bufferContainer.getIdToData(passInfo.indirectCountBufferId);
-            const Buffer_vk& indirectBuffer = m_bufferContainer.getIdToData(passInfo.indirectBufferId);
+            const Buffer_vk& indirectCountBuffer = getBuffer(passInfo.indirectCountBufferId);
+            const Buffer_vk& indirectBuffer = getBuffer(passInfo.indirectBufferId);
 
             vkCmdDrawIndexedIndirectCount(m_cmdBuffer
                 , indirectBuffer.buffer
                 , passInfo.indirectBufOffset
                 , indirectCountBuffer.buffer
                 , passInfo.indirectCountBufOffset
-                , passInfo.defaultIndirectMaxCount
+                , passInfo.indirectMaxDrawCount
                 , passInfo.indirectBufStride);
         }
         else if (kInvalidHandle != passInfo.indirectBufferId)
         {
-            const Buffer_vk& indirectBuffer = m_bufferContainer.getIdToData(passInfo.indirectBufferId);
+            const Buffer_vk& indirectBuffer = getBuffer(passInfo.indirectBufferId);
 
             vkCmdDrawIndexedIndirect(m_cmdBuffer
                 , indirectBuffer.buffer
                 , passInfo.indirectBufOffset
-                , passInfo.defaultIndirectMaxCount
+                , passInfo.indirectMaxDrawCount
                 , passInfo.indirectBufStride);
         }
         else
@@ -2179,7 +2173,7 @@ namespace vkz
     {
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
         CombinedResID res = passInfo.oneOpWriteRes;
-        const Buffer_vk& buf = m_bufferContainer.getIdToData(res.id);
+        const Buffer_vk& buf = getBuffer(res.id);
 
         vkCmdFillBuffer(m_cmdBuffer, buf.buffer, 0, buf.size, buf.fillVal);
     }
@@ -2193,7 +2187,7 @@ namespace vkz
         }
         // add swapchain barrier
         // img to present
-        const Image_vk& presentImg = m_imageContainer.getIdToData(m_brief.presentImageId);
+        const Image_vk& presentImg = getImage(m_brief.presentImageId);
 
         m_barrierDispatcher.barrier(
             presentImg.image, presentImg.aspectMask,
@@ -2343,26 +2337,17 @@ namespace vkz
                 src.accessMask, src.imgLayout, src.stageMask,
                 dst.accessMask, dst.imgLayout, dst.stageMask);
             
-            message(info, "[src] image: VkImage: %8x, \n access: %s \n layout: %s \n stage: %s ", img
-                , getVkAccessDebugName(src.accessMask)
-                , getVkImageLayoutDebugName(src.imgLayout)
-                , getVkPipelineStageDebugName(src.stageMask)
-            );
-
-            message(info, "[dst] image: VkImage: %8x, \n access: %s \n layout: %s \n stage: %s ", img
-                , getVkAccessDebugName(dst.accessMask)
-                , getVkImageLayoutDebugName(dst.imgLayout)
-                , getVkPipelineStageDebugName(dst.stageMask)
-            );
-
             imgBarriers.emplace_back(barrier);
 
             m_imgAspectFlags.at(img) = aspect;
             m_imgBarrierStatus.at(img) = dst;
 
-            const VkImage baseImg = m_aliasToBaseImages.at(img);
-            m_baseImgAspectFlags.at(baseImg) = aspect;
-            m_baseImgBarrierStatus.at(baseImg) = dst;
+            if (m_aliasToBaseImages.find(img) != end(m_aliasToBaseImages))
+            {
+                const VkImage baseImg = m_aliasToBaseImages.at(img);
+                m_baseImgAspectFlags.at(baseImg) = aspect;
+                m_baseImgBarrierStatus.at(baseImg) = dst;
+            }
         }
 
         std::vector<VkBufferMemoryBarrier2> bufBarriers;
@@ -2377,22 +2362,15 @@ namespace vkz
                 src.accessMask, src.stageMask,
                 dst.accessMask, dst.stageMask);
 
-            message(info, "[src] VkBuffer:0x%x, \n access: %s \n stage: %s ", buf
-                , getVkAccessDebugName(src.accessMask)
-                , getVkPipelineStageDebugName(src.stageMask)
-            );
-
-            message(info, "[dst] VkBuffer:0x%x, \n access: %s \n stage: %s ", buf
-                , getVkAccessDebugName(dst.accessMask)
-                , getVkPipelineStageDebugName(dst.stageMask)
-            );
-
             bufBarriers.emplace_back(barrier);
 
             m_bufBarrierStatus.at(buf) = dst;
 
-            const VkBuffer baseBuf = m_aliasToBaseBuffers.at(buf);
-            m_baseBufBarrierStatus.at(baseBuf) = dst;
+            if(m_aliasToBaseBuffers.find(buf) != end(m_aliasToBaseBuffers))
+            {
+                const VkBuffer baseBuf = m_aliasToBaseBuffers.at(buf);
+                m_baseBufBarrierStatus.at(baseBuf) = dst;
+            }
         }
         
         pipelineBarrier(_cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, (uint32_t)bufBarriers.size(), bufBarriers.data(), (uint32_t)imgBarriers.size(), imgBarriers.data());

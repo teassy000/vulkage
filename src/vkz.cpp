@@ -1194,7 +1194,7 @@ namespace vkz
         passMeta.indirectBufferId = _hBuf.id;
         passMeta.indirectBufOffset = _offset;
         passMeta.indirectBufStride = _stride;
-        passMeta.defaultIndirectMaxCount = _defaultMaxCount;
+        passMeta.indirectMaxDrawCount = _defaultMaxCount;
 
         ResInteractDesc interact{};
         interact.binding = kDescriptorSetBindingDontCare;
