@@ -114,8 +114,8 @@ uint32_t calculateMipLevelCount2(uint32_t width, uint32_t height)
 void meshDemo()
 {
     vkz::VKZInitConfig config = {};
-    config.windowWidth = 720;
-    config.windowHeight = 480;
+    config.windowWidth = 2560;
+    config.windowHeight = 1440;
 
     vkz::init(config);
 
@@ -484,7 +484,7 @@ void meshDemo()
 
         pass_fill_dccb = vkz::registPass("fill_dccb", passDesc);
 
-        vkz::fillBuffer(pass_fill_dccb, meshDrawCmdCountBuf, 0, 0, sizeof(uint32_t), meshDrawCmdCountBuf2);
+        vkz::fillBuffer(pass_fill_dccb, meshDrawCmdCountBuf, 0, sizeof(uint32_t), 0, meshDrawCmdCountBuf2);
     } 
 
     vkz::PassHandle pass_fill_dccb_late;
@@ -494,7 +494,7 @@ void meshDemo()
 
         pass_fill_dccb_late = vkz::registPass("fill_dccb", passDesc);
 
-        vkz::fillBuffer(pass_fill_dccb_late, meshDrawCmdCountBuf3, 0, 0, sizeof(uint32_t), meshDrawCmdCountBuf4);
+        vkz::fillBuffer(pass_fill_dccb_late, meshDrawCmdCountBuf3, 0, sizeof(uint32_t), 0, meshDrawCmdCountBuf4);
     }
 
     std::vector<glm::vec2> imageSizes(pyramidLevel);
@@ -577,7 +577,7 @@ void meshDemo()
         drawCull.frustum[2] = frustumY.y;
         drawCull.frustum[3] = frustumY.z;
         drawCull.enableCull = 1;
-        drawCull.enableLod = 1;
+        drawCull.enableLod = 0;
         drawCull.enableOcclusion = 1;
         drawCull.enableMeshletOcclusion = 0;
 
@@ -607,66 +607,14 @@ void meshDemo()
 
         vkz::updateThreadCount(pass_cull_0, (uint32_t)scene.meshDraws.size(), 1, 1);
 
-        vkz::run();
-    }
+        trans.view = view;
+        trans.proj = projection;
+        trans.cameraPos = vec3{0.f, 4.f, 0.f};
 
-    vkz::shutdown();
-}
+        const vkz::Memory* transMem = vkz::alloc(sizeof(TransformData));
+        memcpy_s(transMem->data, transMem->size, &trans, sizeof(TransformData));
+        vkz::updateBuffer(transformBuf, transMem);
 
-void triangle()
-{
-    vkz::VKZInitConfig config = {};
-    config.windowWidth = 2560;
-    config.windowHeight = 1440;
-    config.name = "triangle";
-
-    vkz::init(config);
-
-    vkz::ImageDesc rtDesc;
-    rtDesc.depth = 1;
-    rtDesc.arrayLayers = 1;
-    rtDesc.mips = 1;
-    rtDesc.usage = vkz::ImageUsageFlagBits::color_attachment
-        | vkz::ImageUsageFlagBits::transfer_src;
-
-    vkz::ImageHandle color = vkz::registRenderTarget("color", rtDesc);
-    vkz::ImageHandle color2 = vkz::alias(color);
-
-
-    vkz::ShaderHandle vs = vkz::registShader("triangle_vert_shader", "shaders/triangle.vert.spv");
-    vkz::ShaderHandle fs = vkz::registShader("triangle_frag_shader", "shaders/triangle.frag.spv");
-
-    vkz::ProgramHandle program = vkz::registProgram("triangle_prog", {vs, fs});
-
-    vkz::PassDesc result;
-    result.programId = program.id;
-    result.queue = vkz::PassExeQueue::graphics;
-    result.pipelineConfig.depthCompOp = vkz::CompareOp::greater;
-    result.pipelineConfig.enableDepthTest = true;
-    result.pipelineConfig.enableDepthWrite = true;
-
-    vkz::BufferDesc dummyBufDesc;
-    dummyBufDesc.size = 32;
-    dummyBufDesc.usage = vkz::BufferUsageFlagBits::storage;
-    vkz::BufferHandle dummyBuf = vkz::registBuffer("dummy", dummyBufDesc);
-
-    vkz::PassHandle pass = vkz::registPass("result", result);
-
-    {
-        vkz::bindBuffer(pass, dummyBuf
-            , 0
-            , vkz::PipelineStageFlagBits::vertex_shader
-            , vkz::AccessFlagBits::shader_read);
-    }
-
-    {
-        setAttachmentOutput(pass, color, 0, color2);
-    }
-
-    vkz::setPresentImage(color2);
-
-    while (!vkz::shouldClose())
-    {
         vkz::run();
     }
 
@@ -675,6 +623,5 @@ void triangle()
 
 void DemoMain()
 {
-    //triangle();
     meshDemo();
 }

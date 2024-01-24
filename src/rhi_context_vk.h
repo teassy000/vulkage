@@ -169,6 +169,7 @@ namespace vkz
         bool render() override;
 
         void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ) override;
+        void updateBuffer(BufferHandle _hBuf, const Memory* _mem) override;
 
     private:
 

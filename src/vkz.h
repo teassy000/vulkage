@@ -45,7 +45,7 @@ namespace vkz
     void bindVertexBuffer(PassHandle _hPass, BufferHandle _hBuf);
     void bindIndexBuffer(PassHandle _hPass, BufferHandle _hBuf);
 
-    void setIndirectBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset, uint32_t _stride, uint32_t _defaultMaxCount);
+    void setIndirectBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset, uint32_t _stride, uint32_t _maxCount);
     void setIndirectCountBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset);
 
     void bindBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, const BufferHandle _outAlias = {kInvalidHandle});
@@ -62,6 +62,7 @@ namespace vkz
 
     void setPresentImage(ImageHandle _rt);
 
+    void updateBuffer(const BufferHandle _buffer, const Memory* _mem);
     void updatePushConstants(const PassHandle _hPass, const Memory* _mem);
 
     void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ);

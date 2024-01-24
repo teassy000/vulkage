@@ -126,7 +126,7 @@ namespace vkz
         // update resources
         virtual void updatePushConstants(PassHandle _hPass, const Memory* _mem) = 0;
         virtual void updateUniform(PassHandle _hPass, const Memory* _mem) = 0;
-        virtual void updateBuffer(PassHandle _hPass, BufferHandle _hBuf, const Memory* _mem) = 0;
+        virtual void updateBuffer(BufferHandle _hBuf, const Memory* _mem) = 0;
 
         // update settings
         virtual void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ) = 0;
@@ -173,7 +173,7 @@ namespace vkz
         // update 
         void updatePushConstants(PassHandle _hPass, const Memory* _mem) override;
         void updateUniform(PassHandle _hPass, const Memory* _mem) override {};
-        void updateBuffer(PassHandle _hPass, BufferHandle _hBuf, const Memory* _mem) override {};
+        void updateBuffer(BufferHandle _hBuf, const Memory* _mem) override {};
         void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ) override {};
     
     private:

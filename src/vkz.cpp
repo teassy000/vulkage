@@ -249,6 +249,8 @@ namespace vkz
         
         void setPresentImage(ImageHandle _rt);
 
+        void updateBuffer(const BufferHandle _hbuf, const Memory* _mem);
+
         void updatePushConstants(const PassHandle _hPass, const Memory* _mem);
 
         void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ);
@@ -1453,6 +1455,16 @@ namespace vkz
         setRenderGraphDataDirty();
     }
 
+    void Context::updateBuffer(const BufferHandle _hbuf, const Memory* _mem)
+    {
+        if (_mem == nullptr)
+        {
+            return;
+        }
+
+        m_rhiContext->updateBuffer(_hbuf, _mem);
+    }
+
     void Context::updatePushConstants(const PassHandle _hPass, const Memory* _mem)
     {
         if (isRenderGraphDataDirty())
@@ -1637,9 +1649,9 @@ namespace vkz
         s_ctx->bindIndexBuffer(_hPass, _buf);
     }
 
-    void setIndirectBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset, uint32_t _stride, uint32_t _defaultMaxCount)
+    void setIndirectBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset, uint32_t _stride, uint32_t _maxCount)
     {
-        s_ctx->setIndirectBuffer(_hPass, _hBuf, _offset, _stride, _defaultMaxCount);
+        s_ctx->setIndirectBuffer(_hPass, _hBuf, _offset, _stride, _maxCount);
     }
 
     void setIndirectCountBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset)
@@ -1693,10 +1705,14 @@ namespace vkz
         s_ctx->updatePushConstants(_hPass, _mem);
     }
 
-
     void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ)
     {
         s_ctx->updateThreadCount(_hPass, _threadCountX, _threadCountY, _threadCountZ);
+    }
+
+    void updateBuffer(const BufferHandle _hbuf, const Memory* _mem)
+    {
+        s_ctx->updateBuffer(_hbuf, _mem);
     }
 
     const Memory* alloc(uint32_t _sz)

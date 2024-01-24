@@ -1205,6 +1205,11 @@ namespace vkz
         passInfo.config.threadCountZ = _threadCountZ;
     }
 
+    void RHIContext_vk::updateBuffer(BufferHandle _hBuf, const Memory* _mem)
+    {
+        uploadBuffer(_hBuf.id, _mem->data, _mem->size);
+    }
+
     void RHIContext_vk::createShader(MemoryReader& _reader)
     {
         ShaderCreateInfo info;
@@ -1675,7 +1680,6 @@ namespace vkz
         vkCmdCopyBuffer(m_cmdBuffer, m_scratchBuffer.buffer, buffer.buffer, 1, &region);
 
         m_barrierDispatcher.barrier(buffer.buffer,
-            //{ VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT },
             { VK_ACCESS_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT }
         );
         m_barrierDispatcher.dispatch(m_cmdBuffer);
