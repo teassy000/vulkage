@@ -1,7 +1,9 @@
 #ifndef __VKZ_UTIL_H__
 #define __VKZ_UTIL_H__
 
+#include <assert.h>
 #include <vector>
+
 
 namespace vkz
 {

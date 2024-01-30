@@ -12,6 +12,7 @@
 #include "vkz_structs_inner.h"
 
 #include "rhi_context.h"
+#include "cmd_list_vk.h"
 
 namespace vkz
 {
@@ -87,6 +88,12 @@ namespace vkz
         uint32_t indirectMaxDrawCount{ 0 };
         uint32_t indirectBufStride{ 0 };
 
+        uint32_t indexCount{ 0 };
+        uint32_t vertexCount{ 0 };
+
+        RenderFuncPtr renderFunc{ nullptr };
+        const Memory* renderFuncData{ nullptr };
+
         // barrier status expect in current pass
         std::pair<uint16_t, BarrierState_vk> writeDepth{ kInvalidHandle, {} };
         UniDataContainer< uint16_t, BarrierState_vk> writeColors;
@@ -122,6 +129,9 @@ namespace vkz
     public:
         void addBuffer(const VkBuffer _img, BarrierState_vk _barrierState, const VkBuffer _baseBuf = 0);
         void addImage(const VkImage _img, const ImageAspectFlags _aspect, BarrierState_vk _barrierState, const VkImage _baseImg = 0);
+
+        void removeBuffer(const VkBuffer _buf);
+        void removeImage(const VkImage _img);
 
         void barrier(const VkBuffer _buf, const BarrierState_vk& _dst);
         void barrier(const VkImage _img, VkImageAspectFlags _dstAspect, const BarrierState_vk& _dstBarrier);
@@ -170,9 +180,30 @@ namespace vkz
 
         void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ) override;
         void updateBuffer(BufferHandle _hBuf, const Memory* _mem) override;
+        void updateCustomFuncData(const PassHandle _hPass, const Memory* _mem) override;
+
+        VkBuffer getVkBuffer(const BufferHandle _hBuf) const
+        {
+            assert(m_bufferContainer.exist(_hBuf.id));
+
+            return m_bufferContainer.getIdToData(_hBuf.id).buffer;
+        }
+        VkImage getVkImage(const ImageHandle _hImg) const
+        {
+            assert(m_imageContainer.exist(_hImg.id));
+
+            return m_imageContainer.getIdToData(_hImg.id).image;
+        }
+        
+        void pushDescriptorSetWithTemplates(const VkCommandBuffer& _cmdBuf, const uint16_t _passId) const;
+
+        const Program_vk& getProgram(const PassHandle _hPass) const;
+
+        void beginRendering(const VkCommandBuffer& _cmdBuf, const uint16_t _passId) const;
+        void endRendering(const VkCommandBuffer& _cmdBuf) const;
+
 
     private:
-
         void createShader(MemoryReader& _reader) override;
         void createProgram(MemoryReader& _reader) override;
         void createPass(MemoryReader& _reader) override;
@@ -192,6 +223,7 @@ namespace vkz
         // 
         void uploadBuffer(const uint16_t _bufId, const void* data, size_t size);
         void fillBuffer(const uint16_t _bufId, const uint32_t _value, size_t _size);
+        void uploadImage(const uint16_t _imgId, const void* data, size_t size);
 
         // barriers
         void checkUnmatchedBarriers(uint16_t _passId);
@@ -201,6 +233,8 @@ namespace vkz
         // push descriptor set with templates
         void pushDescriptorSetWithTemplates(const uint16_t _passId);
         void pushConstants(const uint16_t _passId);
+
+        
 
         void exeutePass(const uint16_t _passId);
         void exeGraphic(const uint16_t _passId);
@@ -238,6 +272,9 @@ namespace vkz
         UniDataContainer<uint16_t, Program_vk> m_programContainer;
         UniDataContainer<uint16_t, PassInfo_vk> m_passContainer;
         UniDataContainer<uint16_t, VkSampler> m_samplerContainer;
+
+        UniDataContainer<uint16_t, BufferCreateInfo> m_bufferCreateInfoContainer;
+        UniDataContainer<uint16_t, ImageCreateInfo> m_imageCreateInfoContainer;
 
         Buffer_vk m_scratchBuffer;
 
@@ -286,5 +323,8 @@ namespace vkz
 
         // barrier dispatcher
         BarrierDispatcher m_barrierDispatcher;
+
+        // custom command list
+        CmdList_vk*  m_cmdList;
     };
 } // namespace vkz

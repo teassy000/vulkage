@@ -99,7 +99,6 @@ namespace vkz
         uint16_t    resNum;
     };
 
-
     // Alias Info
     struct ResAliasInfo
     {
@@ -126,7 +125,6 @@ namespace vkz
         std::vector<uint16_t>   vtxAttrIdxs;
         std::vector<int>   pipelineSpecIdxs;
     };
-
 
     class RHIContext;
     

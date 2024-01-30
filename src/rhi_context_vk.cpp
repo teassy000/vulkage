@@ -1,7 +1,7 @@
 #include "common.h"
 #include "macro.h"
 
-#include "memory_operation.h"
+
 #include "config.h"
 #include "vkz.h"
 #include "util.h"
@@ -309,6 +309,15 @@ namespace vkz
             break;
         case vkz::ResourceFormat::r32_sfloat:
             format = VK_FORMAT_R32_SFLOAT;
+            break;
+        case vkz::ResourceFormat::r32g32_uint:
+            format = VK_FORMAT_R32G32_UINT;
+            break;
+        case vkz::ResourceFormat::r32g32_sint:
+            format = VK_FORMAT_R32G32_SINT;
+            break;
+        case vkz::ResourceFormat::r32g32_sfloat:
+            format = VK_FORMAT_R32G32_SFLOAT;
             break;
         case vkz::ResourceFormat::b8g8r8a8_snorm:
             format = VK_FORMAT_B8G8R8A8_SNORM;
@@ -910,23 +919,31 @@ namespace vkz
             return false;
         }
 
-        std::vector<VkVertexInputBindingDescription> bindings;
-        for (const auto& bind : _bindings)
+        std::vector<VkVertexInputBindingDescription> bindings(_bindings.size());
+        for (uint32_t ii = 0; ii < _bindings.size(); ++ ii)
         {
-            bindings.push_back({ bind.binding, bind.stride, getInputRate(bind.inputRate) });
+            const VertexBindingDesc& bind = _bindings[ii];
+            bindings[ii] = { bind.binding, bind.stride, getInputRate(bind.inputRate) };
         }
 
-        std::vector<VkVertexInputAttributeDescription> attributes;
-        for (const auto& attr : _attributes)
+        std::vector<VkVertexInputAttributeDescription> attributes(_attributes.size());
+        for (uint32_t ii = 0; ii < _attributes.size(); ++ii)
         {
-            attributes.push_back({ attr.location, attr.binding, getFormat(attr.format), attr.offset });
+            const VertexAttributeDesc& attr = _attributes[ii];
+            attributes[ii] = { attr.location, attr.binding, getFormat(attr.format), attr.offset };
         }
+
+        const vkz::Memory* vtxBindingMem = vkz::alloc(uint32_t(sizeof(VkVertexInputBindingDescription) * bindings.size()));
+        memcpy(vtxBindingMem->data, bindings.data(), sizeof(VkVertexInputAttributeDescription) * bindings.size());
+
+        const vkz::Memory* vtxAttributeMem = vkz::alloc(uint32_t(sizeof(vkz::VertexAttributeDesc) * attributes.size()));
+        memcpy(vtxAttributeMem->data, attributes.data(), sizeof(vkz::VertexAttributeDesc) * attributes.size());
 
         _out.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
         _out.vertexBindingDescriptionCount = (uint32_t)bindings.size();
-        _out.pVertexBindingDescriptions = bindings.data();
+        _out.pVertexBindingDescriptions = (VkVertexInputBindingDescription*)vtxBindingMem->data;
         _out.vertexAttributeDescriptionCount = (uint32_t)attributes.size();
-        _out.pVertexAttributeDescriptions = attributes.data();
+        _out.pVertexAttributeDescriptions = (VkVertexInputAttributeDescription*)vtxAttributeMem->data;
 
         return true;
     }
@@ -998,6 +1015,7 @@ namespace vkz
         , m_pWindow{ nullptr }
         , m_swapchain{}
         , m_gfxFamilyIdx{ VK_QUEUE_FAMILY_IGNORED }
+        , m_cmdList{nullptr}
 #if _DEBUG
         , m_debugCallback{ VK_NULL_HANDLE }
 #endif
@@ -1108,6 +1126,7 @@ namespace vkz
         scratchAlias.size = 128 * 1024 * 1024; // 128M
         m_scratchBuffer = vkz::createBuffer(scratchAlias, m_memProps, m_device, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
         
+        m_cmdList = VKZ_NEW(m_pAllocator, CmdList_vk(m_cmdBuffer, this));
     }
 
     void RHIContext_vk::bake()
@@ -1207,7 +1226,42 @@ namespace vkz
 
     void RHIContext_vk::updateBuffer(BufferHandle _hBuf, const Memory* _mem)
     {
-        uploadBuffer(_hBuf.id, _mem->data, _mem->size);
+        const Buffer_vk& buf = m_bufferContainer.getIdToData(_hBuf.id);
+        uint16_t baseBufId = m_aliasToBaseBuffers.getIdToData(_hBuf.id);
+        const Buffer_vk& baseBuf = m_bufferContainer.getIdToData(baseBufId);
+
+        if (buf.size != _mem->size && _mem->size < baseBuf.size)
+        {
+            m_barrierDispatcher.removeBuffer(buf.buffer);
+            vkz::destroyBuffer(m_device, { buf});
+
+            // recreate buffer
+            BufferAliasInfo info{};
+            info.size = _mem->size;
+            info.bufId = _hBuf.id;
+
+            const BufferCreateInfo& createInfo = m_bufferCreateInfoContainer.getDataRef(_hBuf.id);
+            Buffer_vk newBuf = vkz::createBuffer(info, m_memProps, m_device, getBufferUsageFlags(createInfo.usage), getMemPropFlags(createInfo.memFlags));
+            m_bufferContainer.update_data(_hBuf.id, newBuf);
+
+            ResInteractDesc interact{ createInfo.barrierState };
+            m_barrierDispatcher.addBuffer(
+                newBuf.buffer
+                , { getAccessFlags(interact.access), getPipelineStageFlags(interact.stage) }
+                , newBuf.buffer
+            );
+            
+        }
+
+        const Buffer_vk& mewBuf = m_bufferContainer.getIdToData(_hBuf.id);
+        uploadBuffer(_hBuf.id, _mem->data, _mem->size); 
+    }
+
+    void RHIContext_vk::updateCustomFuncData(const PassHandle _hPass, const Memory* _mem)
+    {
+        assert(_mem != nullptr);
+        PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
+        passInfo.renderFuncData = _mem;
     }
 
     void RHIContext_vk::createShader(MemoryReader& _reader)
@@ -1263,14 +1317,11 @@ namespace vkz
         
         size_t vtxBindingSz = passMeta.vertexBindingNum * sizeof(VertexBindingDesc);
         size_t vtxAttributeSz = passMeta.vertexAttributeNum * sizeof(VertexAttributeDesc);
-        size_t totolSz = vtxBindingSz + vtxAttributeSz;
-        
-        // vertex binding and attribute
-        void* mem = alloc(getAllocator(), totolSz);
-        read(&_reader, mem, (int32_t)totolSz);
 
-        std::vector<VertexBindingDesc> passVertexBinding{ (VertexBindingDesc*)mem, ((VertexBindingDesc*)mem) + passMeta.vertexBindingNum };
-        std::vector<VertexAttributeDesc> passVertexAttribute{ (VertexAttributeDesc*)((char*)mem + vtxBindingSz), ((VertexAttributeDesc*)mem) + passMeta.vertexBindingNum };
+        std::vector<VertexBindingDesc> passVertexBinding(passMeta.vertexBindingNum);
+        read(&_reader, passVertexBinding.data(), (int32_t)vtxBindingSz);
+        std::vector<VertexAttributeDesc> passVertexAttribute(passMeta.vertexAttributeNum);
+        read(&_reader, passVertexAttribute.data(), (int32_t)vtxAttributeSz);
 
         // pipeline spec data
         std::vector<int> pipelineSpecData(passMeta.pipelineSpecNum);
@@ -1385,13 +1436,16 @@ namespace vkz
 
         passInfo.writeDepthId = passMeta.writeDepthId;
 
+        passInfo.renderFunc = passMeta.renderFunc;
+        passInfo.renderFuncData = passMeta.renderFuncData;
+
         // desc part
         passInfo.programId = passMeta.programId;
         passInfo.queue = passMeta.queue;
         passInfo.vertexBindingNum = passMeta.vertexBindingNum;
         passInfo.vertexAttributeNum = passMeta.vertexAttributeNum;
-        passInfo.vertexBindingInfos = passMeta.vertexBindingInfos;
-        passInfo.vertexAttributeInfos = passMeta.vertexAttributeInfos;
+        passInfo.vertexBindings = passMeta.vertexBindings;
+        passInfo.vertexAttributes = passMeta.vertexAttributes;
         passInfo.pipelineSpecNum = passMeta.pipelineSpecNum;
         passInfo.pipelineSpecData = passMeta.pipelineSpecData;
         passInfo.pipelineConfig = passMeta.pipelineConfig;
@@ -1535,6 +1589,8 @@ namespace vkz
             m_aliasToBaseImages.push_back(resArr[ii].imgId, info.imgId);
         }
 
+        m_imageCreateInfoContainer.push_back(info.imgId, info);
+
         const Image_vk& baseImage = getImage(info.imgId);
         for (int ii = 0; ii < info.aliasNum; ++ii)
         {
@@ -1547,6 +1603,10 @@ namespace vkz
             );
         }
 
+        if (info.data != nullptr)
+        {
+            uploadImage(info.imgId, info.data, info.size);
+        }
         VKZ_DELETE_ARRAY(resArr);
     }
 
@@ -1573,6 +1633,8 @@ namespace vkz
 
             m_aliasToBaseBuffers.push_back(resArr[ii].bufId, info.bufId);
         }
+
+        m_bufferCreateInfoContainer.push_back(info.bufId, info);
 
         const Buffer_vk& baseBuffer = getBuffer(info.bufId);
         for (int ii = 0; ii < info.aliasNum; ++ii)
@@ -1721,6 +1783,51 @@ namespace vkz
         VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
         submitInfo.commandBufferCount = 1;
         submitInfo.pCommandBuffers = &m_cmdBuffer;
+        VK_CHECK(vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE));
+
+        VK_CHECK(vkDeviceWaitIdle(m_device));
+    }
+
+    void RHIContext_vk::uploadImage(const uint16_t _imgId, const void* data, size_t size)
+    {
+        assert(size > 0);
+        assert(m_scratchBuffer.data);
+        assert(m_scratchBuffer.size > size);
+
+        memcpy(m_scratchBuffer.data, data, size);
+
+        const Image_vk& image = getImage(_imgId);
+
+        VK_CHECK(vkResetCommandPool(m_device, m_cmdPool, 0));
+
+        VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+        VK_CHECK(vkBeginCommandBuffer(m_cmdBuffer, &beginInfo));
+
+        m_barrierDispatcher.barrier(image.image
+            , image.aspectMask
+            , { VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT }
+        );
+
+        m_barrierDispatcher.dispatch(m_cmdBuffer);
+
+        VkBufferImageCopy region = {};
+        region.imageSubresource.aspectMask = image.aspectMask;
+        region.imageSubresource.layerCount = 1;
+        region.imageExtent.width = image.width;
+        region.imageExtent.height = image.height;
+        region.imageExtent.depth = 1;
+        vkCmdCopyBufferToImage(m_cmdBuffer, m_scratchBuffer.buffer, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
+
+        VK_CHECK(vkEndCommandBuffer(m_cmdBuffer));
+
+        VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &m_cmdBuffer;
+
         VK_CHECK(vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE));
 
         VK_CHECK(vkDeviceWaitIdle(m_device));
@@ -1930,11 +2037,16 @@ namespace vkz
 
     void RHIContext_vk::pushDescriptorSetWithTemplates(const uint16_t _passId)
     {
+        pushDescriptorSetWithTemplates(m_cmdBuffer, { _passId });
+    }
+
+    void RHIContext_vk::pushDescriptorSetWithTemplates(const VkCommandBuffer& _cmdBuf, const uint16_t _passId) const
+    {
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 
         std::vector<std::pair<uint32_t, CombinedResID>> bindingToDescInfo{};
         bindingToDescInfo.insert(end(bindingToDescInfo), begin(passInfo.bindingToResIds), end(passInfo.bindingToResIds));
-        
+
         if (passInfo.queue == PassExeQueue::compute) {
             bindingToDescInfo.insert(end(bindingToDescInfo), begin(passInfo.bindingToColorIds), end(passInfo.bindingToColorIds));
         }
@@ -1943,7 +2055,7 @@ namespace vkz
             return _lhs.first < _rhs.first;
             };
         std::sort(begin(bindingToDescInfo), end(bindingToDescInfo), sortFunc);
-        
+
 
         std::vector<DescriptorInfo> descInfos(bindingToDescInfo.size());
         for (int ii = 0; ii < bindingToDescInfo.size(); ++ii)
@@ -1989,57 +2101,25 @@ namespace vkz
         if (!descInfos.empty())
         {
             const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
-            vkCmdPushDescriptorSetWithTemplateKHR(m_cmdBuffer, prog.updateTemplate, prog.layout, 0, descInfos.data());
+            vkCmdPushDescriptorSetWithTemplateKHR(_cmdBuf, prog.updateTemplate, prog.layout, 0, descInfos.data());
         }
     }
 
-    void RHIContext_vk::pushConstants(const uint16_t _passId)
+    const vkz::Program_vk& RHIContext_vk::getProgram(const PassHandle _hPass) const
     {
-        const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
-        const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
+        assert(m_passContainer.exist(_hPass.id));
+        const PassInfo_vk& passInfo = m_passContainer.getIdToData(_hPass.id);
 
-        uint32_t size = m_constantsMemBlock.getConstantSize({ _passId });
-        const void* pData = m_constantsMemBlock.getConstantData({ _passId });
-
-        if (size > 0 && pData != nullptr)
-        {
-            vkCmdPushConstants(m_cmdBuffer, prog.layout, prog.pushConstantStages, 0, size, pData);
-        }
+        assert(m_programContainer.exist(passInfo.programId));
+        return  m_programContainer.getIdToData(passInfo.programId);
     }
 
-    void RHIContext_vk::exeutePass(const uint16_t _passId)
-    {
-        const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
-
-        if (PassExeQueue::graphics == passInfo.queue)
-        {
-            exeGraphic(_passId);
-        }
-        else if (PassExeQueue::compute == passInfo.queue)
-        {
-            exeCompute(_passId);
-        }
-        else if (PassExeQueue::copy == passInfo.queue)
-        {
-            exeCopy(_passId);
-        }
-        else if (PassExeQueue::fill_buffer == passInfo.queue)
-        {
-            exeFillBuffer(_passId);
-        }
-        else
-        {
-            message(DebugMessageType::error, "not a valid execute queue! where does this pass belong?");
-        }
-    }
-
-    void RHIContext_vk::exeGraphic(const uint16_t _passId)
+    void RHIContext_vk::beginRendering(const VkCommandBuffer& _cmdBuf, const uint16_t _passId) const
     {
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 
         VkClearColorValue color = { 33.f / 255.f, 200.f / 255.f, 242.f / 255.f, 1 };
         VkClearDepthStencilValue depth = { 0.f, 0 };
-
 
         std::vector<VkRenderingAttachmentInfo> colorAttachments(passInfo.writeColors.size());
 
@@ -2079,6 +2159,68 @@ namespace vkz
         renderingInfo.pDepthAttachment = hasDepth ? &depthAttachment : nullptr;
 
         vkCmdBeginRendering(m_cmdBuffer, &renderingInfo);
+    }
+
+    void RHIContext_vk::endRendering(const VkCommandBuffer& _cmdBuf) const
+{
+        vkCmdEndRendering(_cmdBuf);
+    }
+
+    void RHIContext_vk::pushConstants(const uint16_t _passId)
+    {
+        const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
+        const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
+
+        uint32_t size = m_constantsMemBlock.getConstantSize({ _passId });
+        const void* pData = m_constantsMemBlock.getConstantData({ _passId });
+
+        if (size > 0 && pData != nullptr)
+        {
+            vkCmdPushConstants(m_cmdBuffer, prog.layout, prog.pushConstantStages, 0, size, pData);
+        }
+    }
+
+    void RHIContext_vk::exeutePass(const uint16_t _passId)
+    {
+        const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
+
+        if (passInfo.renderFunc != nullptr)
+        {
+            if (PassExeQueue::graphics == passInfo.queue || PassExeQueue::compute == passInfo.queue)
+            {
+                const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
+                vkCmdBindPipeline(m_cmdBuffer, prog.bindPoint, passInfo.pipeline);
+            }
+ 
+            passInfo.renderFunc(*m_cmdList, passInfo.renderFuncData);
+            return;
+        }
+
+        if (PassExeQueue::graphics == passInfo.queue)
+        {
+            exeGraphic(_passId);
+        }
+        else if (PassExeQueue::compute == passInfo.queue)
+        {
+            exeCompute(_passId);
+        }
+        else if (PassExeQueue::copy == passInfo.queue)
+        {
+            exeCopy(_passId);
+        }
+        else if (PassExeQueue::fill_buffer == passInfo.queue)
+        {
+            exeFillBuffer(_passId);
+        }
+        else
+        {
+            message(DebugMessageType::error, "not a valid execute queue! where does this pass belong?");
+        }
+    }
+
+    void RHIContext_vk::exeGraphic(const uint16_t _passId)
+    {
+        beginRendering(m_cmdBuffer, _passId);
 
         // drawcalls
         VkViewport viewport = { 0.f, float(m_swapchain.height), float(m_swapchain.width), -float(m_swapchain.height), 0.f, 1.f };
@@ -2087,6 +2229,7 @@ namespace vkz
         vkCmdSetViewport(m_cmdBuffer, 0, 1, &viewport);
         vkCmdSetScissor(m_cmdBuffer, 0, 1, &scissor);
 
+        const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
         vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, passInfo.pipeline);
 
         pushDescriptorSetWithTemplates(_passId);
@@ -2131,14 +2274,43 @@ namespace vkz
                 , passInfo.indirectMaxDrawCount
                 , passInfo.indirectBufStride);
         }
+        else if (kInvalidHandle != passInfo.indirectCountBufferId)
+        {
+            const Buffer_vk& indirectCountBuffer = getBuffer(passInfo.indirectCountBufferId);
+
+            vkCmdDrawIndirectCount(m_cmdBuffer
+                           , indirectCountBuffer.buffer
+                           , passInfo.indirectCountBufOffset
+                           , indirectCountBuffer.buffer
+                           , passInfo.indirectCountBufOffset
+                           , passInfo.indirectMaxDrawCount
+                           , passInfo.indirectBufStride);
+        }
+        else if (kInvalidHandle != passInfo.indirectBufferId)
+        {
+            const Buffer_vk& indirectBuffer = getBuffer(passInfo.indirectBufferId);
+
+            vkCmdDrawIndirect(m_cmdBuffer
+                           , indirectBuffer.buffer
+                           , passInfo.indirectBufOffset
+                           , passInfo.indirectMaxDrawCount
+                           , passInfo.indirectBufStride);
+        }
+        else if (kInvalidHandle != passInfo.indexBufferId && passInfo.indexCount != 0)
+        {
+            vkCmdDrawIndexed(m_cmdBuffer, passInfo.indexCount, 1, 0, 0, 0);
+        }
+        else if (kInvalidHandle != passInfo.vertexBufferId && passInfo.vertexCount != 0)
+        {
+            vkCmdDraw(m_cmdBuffer, passInfo.vertexCount, 1, 0, 0);
+        }
         else
         {
-            // Not supported yet
-            vkCmdDraw(m_cmdBuffer, 3, 1, 0, 0);
+            // not supported
             assert(0);
         }
 
-        vkCmdEndRendering(m_cmdBuffer);
+        endRendering(m_cmdBuffer);
     }
 
     void RHIContext_vk::exeCompute(const uint16_t _passId)
@@ -2252,6 +2424,18 @@ namespace vkz
                 m_baseImgBarrierStatus.insert({ _baseImg , _barrierState });
             }
         }
+    }
+
+    void BarrierDispatcher::removeBuffer(const VkBuffer _buf)
+    {
+        m_aliasToBaseBuffers.erase(_buf);
+        m_bufBarrierStatus.erase(_buf);
+    }
+
+    void BarrierDispatcher::removeImage(const VkImage _img)
+    {
+        m_aliasToBaseImages.erase(_img);
+        m_imgAspectFlags.erase(_img);
     }
 
     void BarrierDispatcher::addBuffer(const VkBuffer _buf, BarrierState_vk _barrierState, const VkBuffer _baseBuf/* = 0*/)

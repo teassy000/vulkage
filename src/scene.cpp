@@ -110,22 +110,23 @@ void CreateMatrixScene(Scene& scene)
 
 void CreateTenObjScene(Scene& scene)
 {
-    uint32_t drawCount = 10*10; // 500*500
+    uint32_t side = 50;
+    uint32_t drawCount = side * side; // 500*500
     std::vector<MeshDraw> meshDraws(drawCount);
 
     float drawDist = 200;
     srand(42);
     uint32_t meshletVisibilityCount = 0;
-    float basePos = -5.f;
+    float basePos =  ( - (float)side / 2.f);
     for (uint32_t i = 0; i < drawCount; ++i)
     {
         uint32_t meshIdx = rand() % scene.geometry.meshes.size();
         Mesh& mesh = scene.geometry.meshes[meshIdx];
 
         //-- NOTE: simplification for occlusion test
-        meshDraws[i].pos[0] = float(i % 10) + basePos + 1.f;
-        meshDraws[i].pos[1] = -1.f;
-        meshDraws[i].pos[2] = float(i / 10) + basePos + 10.f;
+        meshDraws[i].pos[0] = float(i % side) + basePos + 1.f;
+        meshDraws[i].pos[1] = -10.f;
+        meshDraws[i].pos[2] = float(i / side) - basePos ;
 
         meshDraws[i].scale = 1.f;
 

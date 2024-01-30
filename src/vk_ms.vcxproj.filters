@@ -192,6 +192,10 @@
     <ClCompile Include="vk_swapchain.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="vkz_ui.cpp" />
+    <ClCompile Include="cmd_list_vk.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\externs\fast_obj\fast_obj.h">
@@ -340,6 +344,13 @@
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="util.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="vkz_ui.h" />
+    <ClInclude Include="cmd_list_vk.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="cmd_list.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>

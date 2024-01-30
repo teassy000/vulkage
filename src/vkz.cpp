@@ -238,6 +238,8 @@ namespace vkz
         void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout
             , const ImageHandle _outAlias, const uint32_t _baseMip, const uint32_t _mipLevel);
 
+        void setCustomRenderFunc(const PassHandle _hPass, RenderFuncPtr _func, const Memory* _dataMem);
+
         void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx, const ImageHandle _outAlias);
 
         
@@ -248,6 +250,8 @@ namespace vkz
         void setMultiFrame(BufferHandle _buf);
         
         void setPresentImage(ImageHandle _rt);
+
+        void updateCustomRenderFuncData(const PassHandle _hPass, const Memory* _dataMem);
 
         void updateBuffer(const BufferHandle _hbuf, const Memory* _mem);
 
@@ -800,11 +804,11 @@ namespace vkz
 
             if (0 != passMeta.vertexBindingNum)
             {
-                write(m_fgMemWriter, passMeta.vertexBindingInfos, sizeof(VertexBindingDesc) * passMeta.vertexBindingNum);
+                write(m_fgMemWriter, passMeta.vertexBindings, sizeof(VertexBindingDesc) * passMeta.vertexBindingNum);
             }
             if (0 != passMeta.vertexAttributeNum)
             {
-                write(m_fgMemWriter, passMeta.vertexAttributeInfos, sizeof(VertexAttributeDesc) * passMeta.vertexAttributeNum);
+                write(m_fgMemWriter, passMeta.vertexAttributes, sizeof(VertexAttributeDesc) * passMeta.vertexAttributeNum);
             }
             if (0 != passMeta.pipelineSpecNum)
             {
@@ -918,7 +922,13 @@ namespace vkz
             info.height = meta.height;
             info.depth = meta.depth;
             info.mips = meta.mips;
+            info.size = meta.size;
+            info.data = meta.data;
+
+            info.type = meta.type;
+            info.viewType = meta.viewType;
             info.format = meta.format;
+            info.layout = meta.layout;
             info.arrayLayers = meta.arrayLayers;
             info.usage = meta.usage;
             info.lifetime = meta.lifetime;
@@ -1351,6 +1361,15 @@ namespace vkz
         }
     }
 
+    void Context::setCustomRenderFunc(const PassHandle _hPass, RenderFuncPtr _func, const Memory* _dataMem)
+    {
+        assert(_func != nullptr);
+
+        PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
+        passMeta.renderFunc = _func;
+        passMeta.renderFuncData = makeRef(_dataMem->data, _dataMem->size);
+    }
+
     void Context::setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx, const ImageHandle _outAlias)
     {
         if (isColorAttachment(_hImg) && !availableBinding(m_usedAttchBindPoints, _hPass, _attachmentIdx))
@@ -1453,6 +1472,11 @@ namespace vkz
         m_presentImage = _img;
 
         setRenderGraphDataDirty();
+    }
+
+    void Context::updateCustomRenderFuncData(const PassHandle _hPass, const Memory* _dataMem)
+    {
+        m_rhiContext->updateCustomFuncData(_hPass, _dataMem);
     }
 
     void Context::updateBuffer(const BufferHandle _hbuf, const Memory* _mem)
@@ -1609,7 +1633,7 @@ namespace vkz
         return s_ctx->registBuffer(_name, _desc, _lifetime);
     }
 
-    ImageHandle registTexture(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime /*= ResourceLifetime::single_frame*/, const Memory* _mem /*= nullptr*/)
+    ImageHandle registTexture(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime /*= ResourceLifetime::single_frame*/)
     {
         return s_ctx->registTexture(_name, _desc, _lifetime);
     }
@@ -1695,6 +1719,11 @@ namespace vkz
         ;
     }
 
+    void setCustomRenderFunc(const PassHandle _hPass, RenderFuncPtr _func, const Memory* _dataMem)
+    {
+        s_ctx->setCustomRenderFunc(_hPass, _func, _dataMem);
+    }
+
     void setPresentImage(ImageHandle _rt)
     {
         s_ctx->setPresentImage(_rt);
@@ -1713,6 +1742,12 @@ namespace vkz
     void updateBuffer(const BufferHandle _hbuf, const Memory* _mem)
     {
         s_ctx->updateBuffer(_hbuf, _mem);
+    }
+
+
+    void updateCustomRenderFuncData(const PassHandle _hPass, const Memory* _dataMem)
+    {
+        s_ctx->updateCustomRenderFuncData(_hPass, _dataMem);
     }
 
     const Memory* alloc(uint32_t _sz)

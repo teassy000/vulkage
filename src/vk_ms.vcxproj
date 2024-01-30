@@ -197,6 +197,7 @@
     <ClCompile Include="..\externs\volk\volk.c" />
     <ClCompile Include="alloc.cpp" />
     <ClCompile Include="camera.cpp" />
+    <ClCompile Include="cmd_list_vk.cpp" />
     <ClCompile Include="demo.cpp" />
     <ClCompile Include="device.cpp" />
     <ClCompile Include="framegraph.cpp" />
@@ -204,6 +205,7 @@
     <ClCompile Include="mesh.cpp" />
     <ClCompile Include="rhi_context.cpp" />
     <ClCompile Include="shader_manager.cpp" />
+    <ClCompile Include="vkz_ui.cpp" />
     <ClCompile Include="vk_device.cpp" />
     <ClCompile Include="vk_resource.cpp" />
     <ClCompile Include="rhi_context_vk.cpp" />
@@ -236,11 +238,13 @@
     <ClInclude Include="..\externs\volk\volk.h" />
     <ClInclude Include="alloc.h" />
     <ClInclude Include="camera.h" />
+    <ClInclude Include="cmd_list_vk.h" />
     <ClInclude Include="common.h" />
     <ClInclude Include="config.h" />
     <ClInclude Include="debug.h" />
     <ClInclude Include="demo.h" />
     <ClInclude Include="device.h" />
+    <ClInclude Include="cmd_list.h" />
     <ClInclude Include="framegraph_2.h" />
     <ClInclude Include="handle.h" />
     <ClInclude Include="macro.h" />
@@ -255,6 +259,7 @@
     <ClInclude Include="util.h" />
     <ClInclude Include="vkz_structs.h" />
     <ClInclude Include="vkz_structs_inner.h" />
+    <ClInclude Include="vkz_ui.h" />
     <ClInclude Include="vk_device.h" />
     <ClInclude Include="vk_resource.h" />
     <ClInclude Include="rhi_context_vk.h" />

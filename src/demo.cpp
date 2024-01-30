@@ -4,6 +4,7 @@
 #include <cstddef>
 #include "camera.h"
 #include "debug.h"
+#include "vkz_ui.h"
 
 struct alignas(16) TransformData
 {
@@ -119,6 +120,15 @@ void meshDemo()
 
     vkz::init(config);
 
+    // ui data
+    Input input = {};
+    input.width = (float)config.windowWidth;
+    input.height = (float)config.windowHeight;
+
+    RenderOptionsData renderOptions = {};
+    ProfilingData profiling = {};
+    LogicData logics = {};
+
     // load scene
     Scene scene;
     const char* pathes[] = { "../data/kitten.obj" };
@@ -221,6 +231,7 @@ void meshDemo()
     vkz::ImageHandle color = vkz::registRenderTarget("color", rtDesc, vkz::ResourceLifetime::non_transition);
     vkz::ImageHandle color2 = vkz::alias(color);
     vkz::ImageHandle color3 = vkz::alias(color);
+    vkz::ImageHandle color4 = vkz::alias(color);
 
     vkz::ImageDesc dpDesc;
     dpDesc.depth = 1;
@@ -230,6 +241,7 @@ void meshDemo()
     vkz::ImageHandle depth = vkz::registDepthStencil("depth", dpDesc, vkz::ResourceLifetime::non_transition);
     vkz::ImageHandle depth2 = vkz::alias(depth);
     vkz::ImageHandle depth3 = vkz::alias(depth);
+    vkz::ImageHandle depth4 = vkz::alias(depth);
 
 
     // pyramid passes
@@ -253,7 +265,6 @@ void meshDemo()
     {
         pyramid_aliases[ii] = vkz::alias(pyramid);
     }
-
 
     vkz::PassHandle pass_draw_0;
     {
@@ -553,7 +564,15 @@ void meshDemo()
         }
     }
 
-    vkz::setPresentImage(color3);
+
+    UIRendering ui{};
+    {
+        vkz_prepareUI(ui);
+        vkz::setAttachmentOutput(ui.pass, color3, 0, color4);
+        vkz::setAttachmentOutput(ui.pass, depth3, 0, depth4);
+    }
+
+    vkz::setPresentImage(color4);
 
     vkz::bake();
 
@@ -614,6 +633,10 @@ void meshDemo()
         const vkz::Memory* transMem = vkz::alloc(sizeof(TransformData));
         memcpy_s(transMem->data, transMem->size, &trans, sizeof(TransformData));
         vkz::updateBuffer(transformBuf, transMem);
+
+        // ui
+        vkz_updateImGui(input, renderOptions, profiling, logics);
+        vkz_updateUIRenderData(ui);
 
         vkz::run();
     }

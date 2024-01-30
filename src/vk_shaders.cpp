@@ -486,6 +486,7 @@ namespace vkz
         assert(program.updateTemplate);
 
         program.pushConstantStages = pushConstantStages;
+        program.bindPoint = bindingPoint;
 
         return program;
     }

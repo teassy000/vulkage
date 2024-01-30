@@ -5,6 +5,7 @@
 #include "vkz_structs_inner.h"
 #include "vkz.h"
 #include "config.h"
+#include "memory_operation.h"
 
 namespace vkz
 {
@@ -131,6 +132,8 @@ namespace vkz
         // update settings
         virtual void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ) = 0;
 
+        virtual void updateCustomFuncData(const PassHandle _hPass, const Memory* _mem) = 0;
+
     private:
         virtual void createShader(MemoryReader& reader) = 0;
         virtual void createProgram(MemoryReader& reader) = 0;
@@ -175,7 +178,8 @@ namespace vkz
         void updateUniform(PassHandle _hPass, const Memory* _mem) override {};
         void updateBuffer(BufferHandle _hBuf, const Memory* _mem) override {};
         void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ) override {};
-    
+        
+        void updateCustomFuncData(const PassHandle _hPass, const Memory* _mem) override {};
     private:
         void parseOp();
 
@@ -190,9 +194,10 @@ namespace vkz
 
     protected:
         ConstantsMemoryBlock m_constantsMemBlock;
+        AllocatorI* m_pAllocator;
 
     private:
-        AllocatorI*     m_pAllocator;
+
         MemoryBlockI*   m_pMemBlockBaked;
     };
 

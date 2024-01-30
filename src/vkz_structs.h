@@ -5,11 +5,13 @@
 #include <stdint.h>
 #include "macro.h"
 
+
 namespace vkz
 {
     static const uint16_t kInvalidHandle = UINT16_MAX;
     static const uint32_t kInvalidDescriptorSetIndex = UINT32_MAX;
     static const uint32_t kDescriptorSetBindingDontCare = UINT32_MAX - 1;
+
 
     template <class HandleType>
     struct NO_VTABLE Handle {
@@ -24,6 +26,25 @@ namespace vkz
     bool inline isValid(const Handle<HandleType>& handle) {
         return kInvalidHandle != handle.id;
     }
+
+    using ReleaseFn = void (*)(void* _ptr, void* _userData);
+
+    struct Memory
+    {
+        Memory() = delete;
+
+        uint8_t* data;
+        uint32_t size;
+    };
+
+    using ShaderHandle = Handle<struct ShaderHandleTag>;
+    using ProgramHandle = Handle<struct ProgramHandleTag>;
+    using PipelineHandle = Handle<struct PipelineHandleTag>;
+    using PassHandle = Handle<struct PassHandleTag>;
+
+    using BufferHandle = Handle<struct BufferHandleTag>;
+    using ImageHandle = Handle<struct TextureHandleTag>;
+
 
 
     enum class PassExeQueue : uint16_t
@@ -71,6 +92,10 @@ namespace vkz
         r32_uint,
         r32_sint,
         r32_sfloat,
+
+        r32g32_uint,
+        r32g32_sint,
+        r32g32_sfloat,
         
         b8g8r8a8_snorm,
         b8g8r8a8_unorm,
@@ -175,6 +200,12 @@ namespace vkz
         max,
 
         sampler_reduction_mode_max = 0x7FFFFFFF
+    };
+
+    enum class IndexType
+    {
+        uint16,
+        uint32,
     };
 
     namespace BufferUsageFlagBits
@@ -342,6 +373,26 @@ namespace vkz
         const char* name{ nullptr };
     };
 
+    struct VertexBindingDesc
+    {
+        uint32_t            binding{ 0 };
+        uint32_t            stride{ 0 };
+        VertexInputRate     inputRate{ VertexInputRate::vertex };
+    };
+
+    struct VertexAttributeDesc
+    {
+        uint32_t        location{ 0 };
+        uint32_t        binding{ 0 };
+        ResourceFormat  format{ ResourceFormat::undefined };
+        uint32_t        offset{ 0 };
+
+
+        VertexAttributeDesc() = default;
+        VertexAttributeDesc(uint32_t _location, uint32_t _binding, ResourceFormat _format, uint32_t _offset)
+            : location(_location), binding(_binding), format(_format), offset(_offset) {}
+    };
+
     struct PipelineConfig
     {
         bool enableDepthTest{ true };
@@ -349,11 +400,40 @@ namespace vkz
         CompareOp depthCompOp{ CompareOp::greater };
     };
 
+    struct Viewport {
+        float    x;
+        float    y;
+        float    width;
+        float    height;
+        float    minDepth;
+        float    maxDepth;
+    };
+
+    struct Offset2D 
+    {
+        int32_t    x;
+        int32_t    y;
+    };
+
+    struct Extent2D 
+    {
+        uint32_t    width;
+        uint32_t    height;
+    };
+
+    struct Rect2D 
+    {
+        Offset2D    offset;
+        Extent2D    extent;
+    };
+
     struct PassConfig
     {
         uint32_t threadCountX{ 1 };
         uint32_t threadCountY{ 1 };
         uint32_t threadCountZ{ 1 };
+
+
         
         AttachmentLoadOp depthLoadOp{ AttachmentLoadOp::clear };
         AttachmentStoreOp depthStoreOp{ AttachmentStoreOp::store };
@@ -378,6 +458,9 @@ namespace vkz
         uint16_t arrayLayers{ 1 };
         uint16_t mips{ 1 };
 
+        uint32_t size{ 0 };
+        void* data{ nullptr };
+
         ImageType       type{ ImageType::type_2d };
         ImageViewType   viewType{ ImageViewType::type_2d };
         ImageLayout     layout{ ImageLayout::undefined };
@@ -392,13 +475,14 @@ namespace vkz
 
         uint16_t        vertexBindingNum{0};
         uint16_t        vertexAttributeNum{0};
-        void* vertexBindingInfos{ nullptr };
-        void* vertexAttributeInfos{ nullptr };
+        void* vertexBindings{ nullptr };
+        void* vertexAttributes{ nullptr };
 
         uint32_t        pipelineSpecNum{0}; // each constant is 4 byte
         void*           pipelineSpecData{nullptr};
         PipelineConfig  pipelineConfig{};
         PassConfig      passConfig{};
     };
+
 } // namespace vkz
 #endif // __VKZ_STRUCTS_H__

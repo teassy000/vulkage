@@ -1089,6 +1089,9 @@ namespace vkz
         _bkt.desc.depth = _info.depth;
         _bkt.desc.arrayLayers = _info.arrayLayers;
 
+        _bkt.desc.size = _info.size;
+        _bkt.desc.data = _info.data;
+
         _bkt.desc.type = _info.type;
         _bkt.desc.viewType = _info.viewType;
         _bkt.desc.format = _info.format;
@@ -1372,6 +1375,8 @@ namespace vkz
             info.height = bkt.desc.height;
             info.depth = bkt.desc.depth;
             info.arrayLayers = bkt.desc.arrayLayers;
+            info.data = bkt.desc.data;
+            info.size = bkt.desc.size;
 
             info.type = bkt.desc.type;
             info.viewType = bkt.desc.viewType;

@@ -2,6 +2,7 @@
 #define __VKZ_STRUCTS_INNER_H__
 
 #include "vkz_structs.h"
+#include "cmd_list.h"
 #include "config.h"
 
 namespace vkz
@@ -124,22 +125,6 @@ namespace vkz
         return { 0, kAllMipLevel };
     }
 
-    struct VertexBindingDesc
-    {
-        uint32_t            binding{ 0 };
-        uint32_t            stride{ 0 };
-        VertexInputRate     inputRate{ VertexInputRate::vertex };
-    };
-
-    struct VertexAttributeDesc
-    {
-        uint32_t        location{ 0 };
-        uint32_t        binding{ 0 };
-        uint32_t        offset{ 0 };
-        ResourceFormat  format{ ResourceFormat::undefined };
-    };
-
-
     struct BufferCreateInfo : public BufferDesc
     {
         uint16_t    bufId{ kInvalidHandle };
@@ -212,6 +197,7 @@ namespace vkz
 
     };
 
+    using RenderFuncPtr = void (*)(ICommandList& _cmdList, const Memory* _dataMem);
     struct PassMetaData : public PassDesc
     {
         PassMetaData() = default;
@@ -245,6 +231,9 @@ namespace vkz
         uint32_t    indirectCountBufOffset{ 0 };
         uint32_t    indirectMaxDrawCount{ 0 };
         uint32_t    indirectBufStride{ 0 };
+
+        RenderFuncPtr   renderFunc{ nullptr };
+        const Memory*   renderFuncData{ nullptr };
     };
 
     struct RHIBrief

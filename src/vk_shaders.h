@@ -25,6 +25,7 @@ namespace vkz
         VkDescriptorUpdateTemplate updateTemplate;
 
         VkShaderStageFlags pushConstantStages;
+        VkPipelineBindPoint bindPoint;
     };
 
     struct PipelineConfigs_vk

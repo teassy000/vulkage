@@ -4,36 +4,17 @@
 #include <initializer_list>
 
 #include "vkz_structs.h"
+#include "cmd_list.h"
 
 namespace vkz
 {
-    using ReleaseFn = void (*)(void* _ptr, void* _userData);
-
-    struct Memory
-    {
-        Memory() = delete;
-
-        uint8_t* data;
-        uint32_t size;
-    };
-
-
-    using ShaderHandle = Handle<struct ShaderHandleTag>;
-    using ProgramHandle = Handle<struct ProgramHandleTag>;
-    using PipelineHandle = Handle<struct PipelineHandleTag>;
-    using PassHandle = Handle<struct PassHandleTag>;
-
-    using BufferHandle = Handle<struct BufferHandleTag>;
-    using ImageHandle = Handle<struct TextureHandleTag>;
-
     using ShaderHandleList = std::initializer_list<const ShaderHandle>;
-
     // resource management functions
     ShaderHandle registShader(const char* _name, const char* _path);
     ProgramHandle registProgram(const char* _name, ShaderHandleList _shaders, const uint32_t _sizePushConstants = 0);
 
     BufferHandle registBuffer(const char* _name, const BufferDesc& _desc, const ResourceLifetime _lifetime = ResourceLifetime::transition);
-    ImageHandle registTexture(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime = ResourceLifetime::transition, const Memory* _mem = nullptr);
+    ImageHandle registTexture(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime = ResourceLifetime::transition);
     ImageHandle registRenderTarget(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime = ResourceLifetime::transition);
     ImageHandle registDepthStencil(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime = ResourceLifetime::transition);
 
@@ -51,7 +32,7 @@ namespace vkz
     void bindBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, const BufferHandle _outAlias = {kInvalidHandle});
     void sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, ImageLayout _layout, SamplerReductionMode _reductionMode);
     void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout
-        , const ImageHandle _outAlias = { kInvalidHandle }, const uint32_t _baseMip = 0, const uint32_t _mipLevel = 1); // base mip and mip level means indipendent image view would use
+        , const ImageHandle _outAlias = { kInvalidHandle }, const uint32_t _baseMip = 0, const uint32_t _mipLevel = 1); // _baseMip and _mipLevel used means independent image view would use
 
     void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx, const ImageHandle _outAlias = { kInvalidHandle });
 
@@ -60,7 +41,12 @@ namespace vkz
     void copyBuffer(const PassHandle _hPass, const BufferHandle _hSrc, const BufferHandle _hDst, const uint32_t _size);
     void blitImage(const PassHandle _hPass, const ImageHandle _hSrc, const ImageHandle _hDst);
 
+    using RenderFuncPtr = void (*)(ICommandList& _cmdList, const Memory* _dataMem);
+    void setCustomRenderFunc(const PassHandle _hPass, RenderFuncPtr _func, const Memory* _dataMem);
+
     void setPresentImage(ImageHandle _rt);
+
+    void updateCustomRenderFuncData(const PassHandle _hPass, const Memory* _dataMem);
 
     void updateBuffer(const BufferHandle _buffer, const Memory* _mem);
     void updatePushConstants(const PassHandle _hPass, const Memory* _mem);
