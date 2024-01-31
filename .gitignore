@@ -9,3 +9,5 @@ data/*
 externs/*
 *.vs/*
 out/*
+
+!externs/tinystl
