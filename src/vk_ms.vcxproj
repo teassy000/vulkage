@@ -111,7 +111,7 @@
       <PreprocessorDefinitions>GLM_FORCE_XYZW_ONLY;GLFW_EXPOSE_NATIVE_WIN32;WIN32_LEAN_AND_MEAN;VK_USE_PLATFORM_WIN32_KHR;NOMINMAX;_GLFW_WIN32;_CRT_SECURE_NO_WARNINGS;_DEBUG</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile />
-      <AdditionalIncludeDirectories>../externs/glfw/include;../externs/volk;../externs/meshoptimizer/src;../externs/ligitProfiler;../externs/imgui;../externs/fast_obj;$(VULKAN_SDK)\Include;$(KTX_SDK)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../externs/glfw/include;../externs/volk;../externs/meshoptimizer/src;../externs/ligitProfiler;../externs/imgui;../externs/fast_obj;../externs/tinystl/include;$(VULKAN_SDK)\Include;$(KTX_SDK)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -235,6 +235,18 @@
     <ClInclude Include="..\externs\imgui\imstb_truetype.h" />
     <ClInclude Include="..\externs\ligitProfiler\ProfilerTask.h" />
     <ClInclude Include="..\externs\meshoptimizer\src\meshoptimizer.h" />
+    <ClInclude Include="..\externs\tinystl\include\TINYSTL\allocator.h" />
+    <ClInclude Include="..\externs\tinystl\include\TINYSTL\buffer.h" />
+    <ClInclude Include="..\externs\tinystl\include\TINYSTL\hash.h" />
+    <ClInclude Include="..\externs\tinystl\include\TINYSTL\hash_base.h" />
+    <ClInclude Include="..\externs\tinystl\include\TINYSTL\new.h" />
+    <ClInclude Include="..\externs\tinystl\include\TINYSTL\stddef.h" />
+    <ClInclude Include="..\externs\tinystl\include\TINYSTL\string.h" />
+    <ClInclude Include="..\externs\tinystl\include\TINYSTL\string_view.h" />
+    <ClInclude Include="..\externs\tinystl\include\TINYSTL\traits.h" />
+    <ClInclude Include="..\externs\tinystl\include\TINYSTL\unordered_map.h" />
+    <ClInclude Include="..\externs\tinystl\include\TINYSTL\unordered_set.h" />
+    <ClInclude Include="..\externs\tinystl\include\TINYSTL\vector.h" />
     <ClInclude Include="..\externs\volk\volk.h" />
     <ClInclude Include="alloc.h" />
     <ClInclude Include="camera.h" />

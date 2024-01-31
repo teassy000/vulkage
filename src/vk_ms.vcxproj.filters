@@ -353,6 +353,42 @@
     <ClInclude Include="cmd_list.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="..\externs\tinystl\include\TINYSTL\allocator.h">
+      <Filter>tinystl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\externs\tinystl\include\TINYSTL\buffer.h">
+      <Filter>tinystl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\externs\tinystl\include\TINYSTL\hash.h">
+      <Filter>tinystl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\externs\tinystl\include\TINYSTL\hash_base.h">
+      <Filter>tinystl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\externs\tinystl\include\TINYSTL\new.h">
+      <Filter>tinystl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\externs\tinystl\include\TINYSTL\stddef.h">
+      <Filter>tinystl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\externs\tinystl\include\TINYSTL\string.h">
+      <Filter>tinystl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\externs\tinystl\include\TINYSTL\string_view.h">
+      <Filter>tinystl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\externs\tinystl\include\TINYSTL\traits.h">
+      <Filter>tinystl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\externs\tinystl\include\TINYSTL\unordered_map.h">
+      <Filter>tinystl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\externs\tinystl\include\TINYSTL\unordered_set.h">
+      <Filter>tinystl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\externs\tinystl\include\TINYSTL\vector.h">
+      <Filter>tinystl</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="shaders\mesh.frag.glsl">
@@ -422,6 +458,9 @@
     </Filter>
     <Filter Include="volk">
       <UniqueIdentifier>{441dea57-7170-4f9d-8798-f7affa107243}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tinystl">
+      <UniqueIdentifier>{65cc79df-eb95-4d97-829f-da0ce4228dfd}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
