@@ -112,6 +112,11 @@ void vkz_prepareUI(UIRendering& _ui, float _scale /*= 1.f*/, bool _useChinese /*
     passDesc.vertexAttributeNum = (uint32_t)attributes.size();
     passDesc.vertexAttributes = vtxAttributeMem->data;
     passDesc.pipelineConfig = { true, true, vkz::CompareOp::always };
+    
+    passDesc.passConfig.colorLoadOp = vkz::AttachmentLoadOp::dont_care;
+    passDesc.passConfig.colorStoreOp = vkz::AttachmentStoreOp::store;
+    passDesc.passConfig.depthLoadOp = vkz::AttachmentLoadOp::dont_care;
+    passDesc.passConfig.depthStoreOp = vkz::AttachmentStoreOp::dont_care;
 
     vkz::PassHandle pass = vkz::registPass("ui_pass", passDesc);
 
@@ -184,7 +189,6 @@ void vkz_destroyUIRendering(UIRendering& _ui)
 
     _ui = {};
 }
-
 
 void vkz_updateImGuiIO(const Input& input)
 {

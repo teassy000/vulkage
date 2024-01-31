@@ -1172,7 +1172,7 @@ namespace vkz
             //message(info, "---------- before pass %d ------------------------------", passId);
             m_barrierDispatcher.dispatch(m_cmdBuffer);
 
-            exeutePass(passId);
+            executePass(passId);
 
             flushWriteBarriers(passId);
             
@@ -2180,7 +2180,7 @@ namespace vkz
         }
     }
 
-    void RHIContext_vk::exeutePass(const uint16_t _passId)
+    void RHIContext_vk::executePass(const uint16_t _passId)
     {
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 

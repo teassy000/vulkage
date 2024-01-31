@@ -234,9 +234,7 @@ namespace vkz
         void pushDescriptorSetWithTemplates(const uint16_t _passId);
         void pushConstants(const uint16_t _passId);
 
-        
-
-        void exeutePass(const uint16_t _passId);
+        void executePass(const uint16_t _passId);
         void exeGraphic(const uint16_t _passId);
         void exeCompute(const uint16_t _passId);
         void exeCopy(const uint16_t _passId);
