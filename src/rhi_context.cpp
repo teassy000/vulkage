@@ -115,7 +115,7 @@ namespace vkz
 
     const uint32_t ConstantsMemoryBlock::getConstantSize(const PassHandle _hPass) const
     {
-        const uint16_t idx = getElemIndex(m_passes, _hPass);
+        const uint16_t idx = (uint16_t)getElemIndex(m_passes, _hPass);
         if (kInvalidIndex == idx) {
             return 0;
         }
@@ -125,7 +125,7 @@ namespace vkz
 
     const void* ConstantsMemoryBlock::getConstantData(const PassHandle _hPass) const
     {
-        const uint16_t idx = getElemIndex(m_passes, _hPass);
+        const uint16_t idx = (uint16_t)getElemIndex(m_passes, _hPass);
         if (kInvalidIndex == idx) {
             return nullptr;
         }
@@ -138,7 +138,7 @@ namespace vkz
 
     void ConstantsMemoryBlock::updateConstantData(const PassHandle _hPass, const Memory* _mem)
     {
-        const uint16_t idx = getElemIndex(m_passes, _hPass);
+        const uint16_t idx = (uint16_t)getElemIndex(m_passes, _hPass);
         if (kInvalidIndex == idx) {
             return;
         }

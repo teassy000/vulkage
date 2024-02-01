@@ -69,7 +69,7 @@ namespace vkz
 
         uint32_t idBound = code[3];
 
-        std::vector<Id> ids(idBound);
+        tstl::vector<Id> ids(idBound);
 
         int localSizeIdX = -1;
         int localSizeIdY = -1;
@@ -276,7 +276,7 @@ namespace vkz
         return true;
     }
 
-    static VkSpecializationInfo fillSpecializationInfo(std::vector<VkSpecializationMapEntry>& entries, const std::vector<int>& constants)
+    static VkSpecializationInfo fillSpecializationInfo(tstl::vector<VkSpecializationMapEntry>& entries, const tstl::vector<int>& constants)
     {
         for (size_t i = 0; i < constants.size(); ++i)
             entries.push_back({ uint32_t(i), uint32_t(i * 4), 4 });
@@ -291,14 +291,14 @@ namespace vkz
     }
 
     VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, const VkPipelineRenderingCreateInfo& renderInfo
-        , const std::vector<Shader_vk>& shaders, VkPipelineVertexInputStateCreateInfo* vtxInputState, const std::vector<int> constants /*= {}*/, const PipelineConfigs_vk& pipeConfigs /* = {}*/)
+        , const tstl::vector<Shader_vk>& shaders, VkPipelineVertexInputStateCreateInfo* vtxInputState, const tstl::vector<int> constants /*= {}*/, const PipelineConfigs_vk& pipeConfigs /* = {}*/)
     {
-        std::vector<VkSpecializationMapEntry> specializationEntries;
+        tstl::vector<VkSpecializationMapEntry> specializationEntries;
         VkSpecializationInfo specializationInfo = fillSpecializationInfo(specializationEntries, constants);
 
         VkGraphicsPipelineCreateInfo createInfo = { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
 
-        std::vector<VkPipelineShaderStageCreateInfo> stages;
+        tstl::vector<VkPipelineShaderStageCreateInfo> stages;
         for (const Shader_vk& shader : shaders)
         {
             VkPipelineShaderStageCreateInfo stage = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
@@ -379,11 +379,11 @@ namespace vkz
         return pipeline;
     }
 
-    VkPipeline createComputePipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, const Shader_vk& shader, const std::vector<int> constants/* = {}*/)
+    VkPipeline createComputePipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, const Shader_vk& shader, const tstl::vector<int> constants/* = {}*/)
     {
         assert(shader.stage == VK_SHADER_STAGE_COMPUTE_BIT);
 
-        std::vector<VkSpecializationMapEntry> specializationEntries;
+        tstl::vector<VkSpecializationMapEntry> specializationEntries;
         VkSpecializationInfo specializationInfo = fillSpecializationInfo(specializationEntries, constants);
 
         VkComputePipelineCreateInfo createInfo = { VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
@@ -403,7 +403,7 @@ namespace vkz
         return pipeline;
     }
 
-    static uint32_t gatherResources(const std::vector<Shader_vk>& shaders, VkDescriptorType(&resourceTypes)[32])
+    static uint32_t gatherResources(const tstl::vector<Shader_vk>& shaders, VkDescriptorType(&resourceTypes)[32])
     {
         uint32_t resourceMask = 0;
 
@@ -429,9 +429,9 @@ namespace vkz
         return resourceMask;
     }
 
-    static VkDescriptorUpdateTemplate createDescriptorTemplates(VkDevice device, VkPipelineBindPoint bindingPoint, VkPipelineLayout layout, VkDescriptorSetLayout setLayout, const std::vector<Shader_vk>& shaders)
+    static VkDescriptorUpdateTemplate createDescriptorTemplates(VkDevice device, VkPipelineBindPoint bindingPoint, VkPipelineLayout layout, VkDescriptorSetLayout setLayout, const tstl::vector<Shader_vk>& shaders)
     {
-        std::vector<VkDescriptorUpdateTemplateEntry> entries;
+        tstl::vector<VkDescriptorUpdateTemplateEntry> entries;
 
         VkDescriptorType resourceTypes[32] = {};
         uint32_t resourceMask = gatherResources(shaders, resourceTypes);
@@ -467,7 +467,7 @@ namespace vkz
     }
 
 
-    Program_vk createProgram(VkDevice device, VkPipelineBindPoint bindingPoint, const std::vector<Shader_vk>& shaders, size_t pushConstantSize)
+    Program_vk createProgram(VkDevice device, VkPipelineBindPoint bindingPoint, const tstl::vector<Shader_vk>& shaders, size_t pushConstantSize)
     {
         VkShaderStageFlags pushConstantStages = 0;
         for (const Shader_vk& shader : shaders)
@@ -498,9 +498,9 @@ namespace vkz
         vkDestroyDescriptorSetLayout(device, program.setLayout, 0);
     }
 
-    VkDescriptorSetLayout createSetLayout(VkDevice device, const std::vector<Shader_vk>& shaders)
+    VkDescriptorSetLayout createSetLayout(VkDevice device, const tstl::vector<Shader_vk>& shaders)
     {
-        std::vector<VkDescriptorSetLayoutBinding> setBindings;
+        tstl::vector<VkDescriptorSetLayoutBinding> setBindings;
 
         VkDescriptorType resourceTypes[32] = {};
         uint32_t resourceMask = gatherResources(shaders, resourceTypes);

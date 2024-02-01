@@ -373,7 +373,7 @@ namespace vkz
         }
     }
 
-    VkPipelineBindPoint getBindPoint(const std::vector<Shader_vk>& shaders)
+    VkPipelineBindPoint getBindPoint(const tstl::vector<Shader_vk>& shaders)
     {
         VkShaderStageFlags stages = 0;
         for (const Shader_vk& shader : shaders)
@@ -912,21 +912,21 @@ namespace vkz
         return "UNDEFINED";
     }
 
-    bool getVertexInputState(VkPipelineVertexInputStateCreateInfo& _out, const std::vector<VertexBindingDesc>& _bindings, const std::vector<VertexAttributeDesc>& _attributes)
+    bool getVertexInputState(VkPipelineVertexInputStateCreateInfo& _out, const tstl::vector<VertexBindingDesc>& _bindings, const tstl::vector<VertexAttributeDesc>& _attributes)
     {
         if (_bindings.empty() && _attributes.empty())
         {
             return false;
         }
 
-        std::vector<VkVertexInputBindingDescription> bindings(_bindings.size());
+        tstl::vector<VkVertexInputBindingDescription> bindings(_bindings.size());
         for (uint32_t ii = 0; ii < _bindings.size(); ++ ii)
         {
             const VertexBindingDesc& bind = _bindings[ii];
             bindings[ii] = { bind.binding, bind.stride, getInputRate(bind.inputRate) };
         }
 
-        std::vector<VkVertexInputAttributeDescription> attributes(_attributes.size());
+        tstl::vector<VkVertexInputAttributeDescription> attributes(_attributes.size());
         for (uint32_t ii = 0; ii < _attributes.size(); ++ii)
         {
             const VertexAttributeDesc& attr = _attributes[ii];
@@ -948,7 +948,7 @@ namespace vkz
         return true;
     }
 
-    void enumrateDeviceExtPorps(VkPhysicalDevice physicalDevice, std::vector<VkExtensionProperties>& availableExtensions)
+    void enumrateDeviceExtPorps(VkPhysicalDevice physicalDevice, tstl::vector<VkExtensionProperties>& availableExtensions)
     {
         uint32_t extensionCount = 0;
         vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr);
@@ -956,7 +956,7 @@ namespace vkz
         vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, availableExtensions.data());
     }
 
-    bool checkExtSupportness(const std::vector<VkExtensionProperties>& props, const char* extName, bool print = true)
+    bool checkExtSupportness(const tstl::vector<VkExtensionProperties>& props, const char* extName, bool print = true)
     {
         bool extSupported = false;
         for (const auto& extension : props) {
@@ -1039,7 +1039,7 @@ namespace vkz
 #endif
         createPhysicalDevice();
 
-        std::vector<VkExtensionProperties> supportedExtensions;
+        tstl::vector<VkExtensionProperties> supportedExtensions;
         enumrateDeviceExtPorps(m_phyDevice, supportedExtensions);
 
         m_supportMeshShading = checkExtSupportness(supportedExtensions, VK_EXT_MESH_SHADER_EXTENSION_NAME, false);
@@ -1233,7 +1233,9 @@ namespace vkz
         if (buf.size != _mem->size && _mem->size < baseBuf.size)
         {
             m_barrierDispatcher.removeBuffer(buf.buffer);
-            vkz::destroyBuffer(m_device, { buf});
+
+            tstl::vector<Buffer_vk> buffers(1, buf);
+            vkz::destroyBuffer(m_device, buffers);
 
             // recreate buffer
             BufferAliasInfo info{};
@@ -1288,9 +1290,9 @@ namespace vkz
         void* mem = alloc(getAllocator(), info.shaderNum * sizeof(uint16_t));
         read(&_reader, mem, info.shaderNum * sizeof(uint16_t));
 
-        std::vector<uint16_t> shaderIds((uint16_t*)mem, (uint16_t*)mem + info.shaderNum);
+        tstl::vector<uint16_t> shaderIds((uint16_t*)mem, (uint16_t*)mem + info.shaderNum);
 
-        std::vector<Shader_vk> shaders;
+        tstl::vector<Shader_vk> shaders;
         for (const uint16_t sid : shaderIds)
         {
             shaders.push_back(m_shaderContainer.getIdToData(sid));
@@ -1318,26 +1320,26 @@ namespace vkz
         size_t vtxBindingSz = passMeta.vertexBindingNum * sizeof(VertexBindingDesc);
         size_t vtxAttributeSz = passMeta.vertexAttributeNum * sizeof(VertexAttributeDesc);
 
-        std::vector<VertexBindingDesc> passVertexBinding(passMeta.vertexBindingNum);
+        tstl::vector<VertexBindingDesc> passVertexBinding(passMeta.vertexBindingNum);
         read(&_reader, passVertexBinding.data(), (int32_t)vtxBindingSz);
-        std::vector<VertexAttributeDesc> passVertexAttribute(passMeta.vertexAttributeNum);
+        tstl::vector<VertexAttributeDesc> passVertexAttribute(passMeta.vertexAttributeNum);
         read(&_reader, passVertexAttribute.data(), (int32_t)vtxAttributeSz);
 
         // pipeline spec data
-        std::vector<int> pipelineSpecData(passMeta.pipelineSpecNum);
+        tstl::vector<int> pipelineSpecData(passMeta.pipelineSpecNum);
         read(&_reader, pipelineSpecData.data(), passMeta.pipelineSpecNum * sizeof(int));
 
         // r/w resources
-        std::vector<uint16_t> writeImageIds(passMeta.writeImageNum);
+        tstl::vector<uint16_t> writeImageIds(passMeta.writeImageNum);
         read(&_reader, writeImageIds.data(), passMeta.writeImageNum * sizeof(uint16_t));
 
-        std::vector<uint16_t> readImageIds(passMeta.readImageNum);
+        tstl::vector<uint16_t> readImageIds(passMeta.readImageNum);
         read(&_reader, readImageIds.data(), passMeta.readImageNum * sizeof(uint16_t));
 
-        std::vector<uint16_t> readBufferIds(passMeta.readBufferNum);
+        tstl::vector<uint16_t> readBufferIds(passMeta.readBufferNum);
         read(&_reader, readBufferIds.data(), passMeta.readBufferNum * sizeof(uint16_t));
         
-        std::vector<uint16_t> writeBufferIds(passMeta.writeBufferNum);
+        tstl::vector<uint16_t> writeBufferIds(passMeta.writeBufferNum);
         read(&_reader, writeBufferIds.data(), passMeta.writeBufferNum * sizeof(uint16_t));
 
         const size_t interactSz =
@@ -1346,26 +1348,26 @@ namespace vkz
             passMeta.readBufferNum +
             passMeta.writeBufferNum;
 
-        std::vector<ResInteractDesc> interacts(interactSz);
+        tstl::vector<ResInteractDesc> interacts(interactSz);
         read(&_reader, interacts.data(), (uint32_t)(interactSz * sizeof(ResInteractDesc)));
 
         // samplers
-        std::vector<uint16_t> sampleImageIds(passMeta.sampleImageNum);
-        std::vector<uint16_t> samplerIds(passMeta.sampleImageNum);
+        tstl::vector<uint16_t> sampleImageIds(passMeta.sampleImageNum);
+        tstl::vector<uint16_t> samplerIds(passMeta.sampleImageNum);
         read(&_reader, sampleImageIds.data(), passMeta.sampleImageNum * sizeof(uint16_t));
         read(&_reader, samplerIds.data(), passMeta.sampleImageNum * sizeof(uint16_t));
 
         // specific image views
-        std::vector<uint16_t> specViewImgIds(passMeta.specImageViewNum);
-        std::vector<SpecificImageViewInfo> specViewInfos(passMeta.specImageViewNum);
+        tstl::vector<uint16_t> specViewImgIds(passMeta.specImageViewNum);
+        tstl::vector<SpecificImageViewInfo> specViewInfos(passMeta.specImageViewNum);
         read(&_reader, specViewImgIds.data(), passMeta.specImageViewNum * sizeof(uint16_t));
         read(&_reader, specViewInfos.data(), passMeta.specImageViewNum * sizeof(SpecificImageViewInfo));
 
         // write op aliases
-        std::vector<CombinedResID> writeOpAliasInIds(passMeta.writeBufAliasNum + passMeta.writeImgAliasNum);
+        tstl::vector<CombinedResID> writeOpAliasInIds(passMeta.writeBufAliasNum + passMeta.writeImgAliasNum);
         read(&_reader, writeOpAliasInIds.data(), (passMeta.writeBufAliasNum + passMeta.writeImgAliasNum) * sizeof(CombinedResID));
 
-        std::vector<CombinedResID> writeOpAliasOutIds(passMeta.writeBufAliasNum + passMeta.writeImgAliasNum);
+        tstl::vector<CombinedResID> writeOpAliasOutIds(passMeta.writeBufAliasNum + passMeta.writeImgAliasNum);
         read(&_reader, writeOpAliasOutIds.data(), (passMeta.writeBufAliasNum + passMeta.writeImgAliasNum) * sizeof(CombinedResID));
 
 
@@ -1375,7 +1377,7 @@ namespace vkz
             // create pipeline
             const uint16_t progIdx = (uint16_t)m_programContainer.getIndex(passMeta.programId);
             const Program_vk& program = m_programContainer.getIdToData(passMeta.programId);
-            const std::vector<uint16_t>& shaderIds = m_programShaderIds[progIdx];
+            const tstl::vector<uint16_t>& shaderIds = m_programShaderIds[progIdx];
 
             uint32_t depthNum = (passMeta.writeDepthId == kInvalidHandle) ? 0 : 1;
 
@@ -1384,7 +1386,7 @@ namespace vkz
             renderInfo.pColorAttachmentFormats = &m_imageFormat;
             renderInfo.depthAttachmentFormat = m_depthFormat;
 
-            std::vector< Shader_vk> shaders;
+            tstl::vector< Shader_vk> shaders;
             for (const uint16_t sid : shaderIds)
             {
                 shaders.push_back(m_shaderContainer.getIdToData(sid));
@@ -1404,9 +1406,9 @@ namespace vkz
             // create pipeline
             const uint16_t progIdx = (uint16_t)m_programContainer.getIndex(passMeta.programId);
             const Program_vk& program = m_programContainer.getIdToData(passMeta.programId);
-            const std::vector<uint16_t>& shaderIds = m_programShaderIds[progIdx];
+            const tstl::vector<uint16_t>& shaderIds = m_programShaderIds[progIdx];
 
-            std::vector< Shader_vk> shaders;
+            tstl::vector< Shader_vk> shaders;
             for (const uint16_t sid : shaderIds)
             {
                 shaders.push_back(m_shaderContainer.getIdToData(sid));
@@ -1464,9 +1466,9 @@ namespace vkz
 
         size_t offset = 0; // the depth is the first one
         auto preparePassBarriers = [&interacts, &offset, getBarrierState](
-              const std::vector<uint16_t>& _ids
+              const tstl::vector<uint16_t>& _ids
             , UniDataContainer< uint16_t, BarrierState_vk>& _container
-            , std::vector<std::pair<uint32_t, CombinedResID>>& _bindings
+            , tstl::vector<std::pair<uint32_t, CombinedResID>>& _bindings
             , const ResourceType _type
             ) {
                 for (uint32_t ii = 0; ii < _ids.size(); ++ii)
@@ -1488,7 +1490,7 @@ namespace vkz
                     if (it == _bindings.end())
                     {
                         CombinedResID combined{ _ids[ii], _type };
-                        _bindings.emplace_back(bindPoint, combined);
+                        _bindings.push_back({ bindPoint, combined });
                     }
                     else
                     {
@@ -1500,12 +1502,12 @@ namespace vkz
                 offset += _ids.size();
             };
 
-        uint32_t depthIdx = getElemIndex(writeImageIds, passInfo.writeDepthId);
+        const size_t depthIdx = getElemIndex(writeImageIds, passInfo.writeDepthId);
         if (depthIdx != kInvalidIndex)
         {
             passInfo.writeDepth = std::make_pair(passInfo.writeDepthId, getBarrierState(interacts[depthIdx]));
-            writeImageIds.erase(begin(writeImageIds) + depthIdx);
-            interacts.erase(begin(interacts) + depthIdx);
+            writeImageIds.erase(writeImageIds.begin() + depthIdx);
+            interacts.erase(interacts.begin() + depthIdx);
         }
 
         preparePassBarriers(writeImageIds, passInfo.writeColors, passInfo.bindingToColorIds, ResourceType::image);
@@ -1564,7 +1566,7 @@ namespace vkz
         read(&_reader, resArr, sizeof(ImageAliasInfo) * info.aliasNum);
 
         // so the res handle should map to the real buffer array
-        std::vector<ImageAliasInfo> infoList(resArr, resArr + info.aliasNum);
+        tstl::vector<ImageAliasInfo> infoList(resArr, resArr + info.aliasNum);
 
         ImgInitProps_vk initPorps{};
         initPorps.level = info.mips;
@@ -1578,7 +1580,7 @@ namespace vkz
         initPorps.viewType = getImageViewType( info.viewType);
         initPorps.aspectMask = getImageAspectFlags(info.aspectFlags);
 
-        std::vector<Image_vk> images;
+        tstl::vector<Image_vk> images;
         vkz::createImage(images, infoList, m_device, m_memProps, initPorps);
 
         assert(images.size() == info.aliasNum);
@@ -1619,9 +1621,9 @@ namespace vkz
         read(&_reader, resArr, sizeof(BufferAliasInfo) * info.aliasNum);
 
         // so the res handle should map to the real buffer array
-        std::vector<BufferAliasInfo> infoList(resArr, resArr + info.aliasNum);
+        tstl::vector<BufferAliasInfo> infoList(resArr, resArr + info.aliasNum);
 
-        std::vector<Buffer_vk> buffers;
+        tstl::vector<Buffer_vk> buffers;
         vkz::createBuffer(buffers, infoList, m_memProps, m_device, getBufferUsageFlags(info.usage), getMemPropFlags(info.memFlags));
 
         assert(buffers.size() == info.aliasNum);
@@ -2044,7 +2046,7 @@ namespace vkz
     {
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 
-        std::vector<std::pair<uint32_t, CombinedResID>> bindingToDescInfo{};
+        tstl::vector<std::pair<uint32_t, CombinedResID>> bindingToDescInfo{};
         bindingToDescInfo.insert(end(bindingToDescInfo), begin(passInfo.bindingToResIds), end(passInfo.bindingToResIds));
 
         if (passInfo.queue == PassExeQueue::compute) {
@@ -2057,7 +2059,7 @@ namespace vkz
         std::sort(begin(bindingToDescInfo), end(bindingToDescInfo), sortFunc);
 
 
-        std::vector<DescriptorInfo> descInfos(bindingToDescInfo.size());
+        tstl::vector<DescriptorInfo> descInfos(bindingToDescInfo.size());
         for (int ii = 0; ii < bindingToDescInfo.size(); ++ii)
         {
             assert(bindingToDescInfo[ii].first == ii);
@@ -2121,7 +2123,7 @@ namespace vkz
         VkClearColorValue color = { 33.f / 255.f, 200.f / 255.f, 242.f / 255.f, 1 };
         VkClearDepthStencilValue depth = { 0.f, 0 };
 
-        std::vector<VkRenderingAttachmentInfo> colorAttachments(passInfo.writeColors.size());
+        tstl::vector<VkRenderingAttachmentInfo> colorAttachments(passInfo.writeColors.size());
 
         assert(passInfo.bindingToColorIds.size() == passInfo.writeColors.size());
         for (int ii = 0; ii < passInfo.writeColors.size(); ++ii)
@@ -2324,7 +2326,7 @@ namespace vkz
 
         // get the dispatch size
         const uint16_t progIdx = (uint16_t)m_programContainer.getIndex(passInfo.programId);
-        const std::vector<uint16_t>& shaderIds = m_programShaderIds[progIdx];
+        const tstl::vector<uint16_t>& shaderIds = m_programShaderIds[progIdx];
         assert(shaderIds.size() == 1);
         const Shader_vk& shader = m_shaderContainer.getIdToData(shaderIds[0]);
         
@@ -2458,7 +2460,7 @@ namespace vkz
     {
         assert(m_bufBarrierStatus.find(_buf) != end(m_bufBarrierStatus));
 
-        uint16_t idx = getElemIndex(m_dispatchBuffers, _buf);
+        const size_t idx = getElemIndex(m_dispatchBuffers, _buf);
         if (kInvalidHandle == idx)
         {
             m_dispatchBuffers.emplace_back(_buf);
@@ -2466,7 +2468,7 @@ namespace vkz
             const BarrierState_vk src = m_bufBarrierStatus.at(_buf);
             m_srcBufBarriers.emplace_back(src);
 
-            m_dstBufBarriers.emplace_back( _dst.accessMask , _dst.stageMask );
+            m_dstBufBarriers.push_back({ _dst.accessMask , _dst.stageMask });
         }
         else
         {
@@ -2481,7 +2483,7 @@ namespace vkz
         assert(m_imgAspectFlags.find(_img) != end(m_imgAspectFlags));
         assert(m_imgBarrierStatus.find(_img) != end(m_imgBarrierStatus));
 
-        uint16_t idx = getElemIndex(m_dispatchImages, _img);
+        const size_t idx = getElemIndex(m_dispatchImages, _img);
 
         if (kInvalidHandle == idx)
         {
@@ -2492,7 +2494,7 @@ namespace vkz
             BarrierState_vk src = m_imgBarrierStatus.at(_img);
             m_srcImgBarriers.emplace_back(src);
 
-            m_dstImgBarriers.emplace_back(_dst.accessMask, _dst.imgLayout, _dst.stageMask);
+            m_dstImgBarriers.push_back({ _dst.accessMask, _dst.imgLayout, _dst.stageMask });
         }
         else
         {
@@ -2512,7 +2514,7 @@ namespace vkz
             return;
         }
 
-        std::vector<VkImageMemoryBarrier2> imgBarriers;
+        tstl::vector<VkImageMemoryBarrier2> imgBarriers;
         for (uint32_t ii = 0; ii < m_dispatchImages.size(); ++ii)
         {
             const VkImage& img = m_dispatchImages[ii];
@@ -2538,7 +2540,7 @@ namespace vkz
             }
         }
 
-        std::vector<VkBufferMemoryBarrier2> bufBarriers;
+        tstl::vector<VkBufferMemoryBarrier2> bufBarriers;
         for (uint32_t ii = 0; ii < m_dispatchBuffers.size(); ++ii)
         {
             const VkBuffer& buf = m_dispatchBuffers[ii];
@@ -2569,7 +2571,7 @@ namespace vkz
 
     const VkImageLayout BarrierDispatcher::getDstImageLayout(const VkImage _img) const
     {
-        const uint16_t idx = getElemIndex(m_dispatchImages, _img);
+        const size_t idx = getElemIndex(m_dispatchImages, _img);
         if (kInvalidIndex != idx)
         {
             return m_dstImgBarriers[idx].imgLayout;

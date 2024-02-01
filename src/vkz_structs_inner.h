@@ -21,6 +21,11 @@ namespace vkz
         CombinedResID() = default;
         CombinedResID(uint16_t id, ResourceType type) : id(id), type(type) {}
 
+        operator size_t() const
+        {
+            return (size_t)type << 16 | id;
+        }
+
         bool operator == (const CombinedResID& rhs) const {
             return id == rhs.id && type == rhs.type;
         }

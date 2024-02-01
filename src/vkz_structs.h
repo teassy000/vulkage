@@ -20,6 +20,10 @@ namespace vkz
         bool operator == (const Handle<HandleType>& rhs) const {
             return id == rhs.id;
         }
+
+        bool operator < (const Handle<HandleType>& rhs) const {
+            return id < rhs.id;
+        }
     };
 
     template <class HandleType>

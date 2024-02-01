@@ -118,8 +118,8 @@ namespace vkz
         CombinedResID  oneOpWriteRes;
 
         // bindings
-        std::vector<std::pair<uint32_t, CombinedResID>> bindingToColorIds;
-        std::vector<std::pair<uint32_t, CombinedResID>> bindingToResIds;
+        tstl::vector<std::pair<uint32_t, CombinedResID>> bindingToColorIds;
+        tstl::vector<std::pair<uint32_t, CombinedResID>> bindingToResIds;
 
         PassConfig config{};
     };
@@ -147,14 +147,14 @@ namespace vkz
     private:
         void clear();
 
-        std::vector<VkImage> m_dispatchImages;
-        std::vector<ImageAspectFlags> m_imgAspects;
-        std::vector<BarrierState_vk> m_srcImgBarriers;
-        std::vector<BarrierState_vk> m_dstImgBarriers;
+        tstl::vector<VkImage> m_dispatchImages;
+        tstl::vector<ImageAspectFlags> m_imgAspects;
+        tstl::vector<BarrierState_vk> m_srcImgBarriers;
+        tstl::vector<BarrierState_vk> m_dstImgBarriers;
         
-        std::vector<VkBuffer> m_dispatchBuffers;
-        std::vector<BarrierState_vk> m_srcBufBarriers;
-        std::vector<BarrierState_vk> m_dstBufBarriers;
+        tstl::vector<VkBuffer> m_dispatchBuffers;
+        tstl::vector<BarrierState_vk> m_srcBufBarriers;
+        tstl::vector<BarrierState_vk> m_dstBufBarriers;
 
         std::unordered_map<VkImage, VkImage> m_aliasToBaseImages;
         std::unordered_map<VkBuffer, VkBuffer> m_aliasToBaseBuffers;
@@ -276,8 +276,8 @@ namespace vkz
 
         Buffer_vk m_scratchBuffer;
 
-        std::vector<std::vector<uint16_t>> m_programShaderIds;
-        std::vector<uint32_t>           m_progThreadCount;
+        tstl::vector<tstl::vector<uint16_t>> m_programShaderIds;
+        tstl::vector<uint32_t>           m_progThreadCount;
 
         UniDataContainer< uint16_t, uint16_t> m_aliasToBaseImages;
 

@@ -2,32 +2,43 @@
 #define __VKZ_UTIL_H__
 
 #include <assert.h>
+#include <TINYSTL/vector.h>
 #include <vector>
 
+namespace tstl = tinystl;
 
 namespace vkz
 {
     constexpr uint16_t kInvalidIndex = 0xffff;
+
     template<typename T>
-    const uint16_t getElemIndex(const std::vector<T>& _vec, const T _data)
+    const size_t linearSearch(const tstl::vector<T>& _vec, const T _data)
     {
-        auto it = std::find(begin(_vec), end(_vec), _data);
-        if (it == end(_vec))
+        for (size_t i = 0; i < _vec.size(); ++i)
         {
-            return kInvalidIndex;
+            if (_vec[i] == _data)
+            {
+                return i;
+            }
         }
 
-        return (uint16_t)std::distance(begin(_vec), it);
+        return kInvalidIndex;
     }
 
     template<typename T>
-    const uint16_t push_back_unique(std::vector<T>& _vec, const T _data)
+    const size_t getElemIndex(const tstl::vector<T>& _vec, const T _data)
     {
-        uint16_t idx = getElemIndex(_vec, _data);
+        return linearSearch(_vec, _data);
+    }
+
+    template<typename T>
+    const size_t push_back_unique(tstl::vector<T>& _vec, const T _data)
+    {
+        size_t idx = getElemIndex(_vec, _data);
 
         if (kInvalidIndex == idx)
         {
-            idx = (uint16_t)_vec.size();
+            idx = _vec.size();
             _vec.push_back(_data);
         }
 
@@ -110,8 +121,8 @@ namespace vkz
             return indexToData.data();
         }
     private:
-        std::vector<IdType> ids;
-        std::vector<DataType> indexToData;
+        tstl::vector<IdType> ids;
+        tstl::vector<DataType> indexToData;
     };
 }
 

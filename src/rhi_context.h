@@ -2,10 +2,13 @@
 #define __VKZ_RES_CREATOR_H__
 
 #include <stdint.h>
+#include <TINYSTL/vector.h>
+
 #include "vkz_structs_inner.h"
 #include "vkz.h"
 #include "config.h"
 #include "memory_operation.h"
+#include "util.h"
 
 namespace vkz
 {
@@ -68,8 +71,8 @@ namespace vkz
         AllocatorI* m_pAllocator;
         MemoryBlockI* m_pUniformData;
 
-        std::vector<PassHandle> m_passes;
-        std::vector<UniformBuffer> m_uniforms;
+        tstl::vector<PassHandle> m_passes;
+        tstl::vector<UniformBuffer> m_uniforms;
     };
 
     struct Constants
@@ -112,8 +115,8 @@ namespace vkz
         MemoryBlockI* m_pConstantData;
         MemoryWriter* m_pWriter;
 
-        std::vector<PassHandle> m_passes;
-        std::vector<Constants> m_constants;
+        tstl::vector<PassHandle> m_passes;
+        tstl::vector<Constants> m_constants;
     };
 
 

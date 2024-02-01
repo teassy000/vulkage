@@ -198,31 +198,31 @@ namespace vkz
 
         // write image
         // include color attachment and depth stencil attachment
-        std::vector<PassResInteract> writeImgVec(passMeta.writeImageNum);
+        tstl::vector<PassResInteract> writeImgVec(passMeta.writeImageNum);
         read(&_reader, writeImgVec.data(), sizeof(PassResInteract) * passMeta.writeImageNum);
         passMeta.writeImageNum = writeResource(writeImgVec, passMeta.passId, ResourceType::image);
 
         // read image
-        std::vector<PassResInteract> readImgVec(passMeta.readImageNum);
+        tstl::vector<PassResInteract> readImgVec(passMeta.readImageNum);
         read(&_reader, readImgVec.data(), sizeof(PassResInteract) * passMeta.readImageNum);
         passMeta.readImageNum = readResource(readImgVec, passMeta.passId, ResourceType::image);
 
         // write buffer
-        std::vector<PassResInteract> writeBufVec(passMeta.writeBufferNum);
+        tstl::vector<PassResInteract> writeBufVec(passMeta.writeBufferNum);
         read(&_reader, writeBufVec.data(), sizeof(PassResInteract) * passMeta.writeBufferNum);
         passMeta.writeBufferNum = writeResource(writeBufVec, passMeta.passId, ResourceType::buffer);
 
         // read buffer
-        std::vector<PassResInteract> readBufVec(passMeta.readBufferNum);
+        tstl::vector<PassResInteract> readBufVec(passMeta.readBufferNum);
         read(&_reader, readBufVec.data(), sizeof(PassResInteract) * passMeta.readBufferNum);
         passMeta.readBufferNum = readResource(readBufVec, passMeta.passId, ResourceType::buffer);
 
         // write resource alias
-        std::vector<WriteOperationAlias> writeImgAliasVec(passMeta.writeImgAliasNum);
+        tstl::vector<WriteOperationAlias> writeImgAliasVec(passMeta.writeImgAliasNum);
         read(&_reader, writeImgAliasVec.data(), sizeof(WriteOperationAlias) * passMeta.writeImgAliasNum);
         passMeta.writeImgAliasNum = writeResAlias(writeImgAliasVec, passMeta.passId, ResourceType::image);
 
-        std::vector<WriteOperationAlias> writeBufAliasVec(passMeta.writeBufAliasNum);
+        tstl::vector<WriteOperationAlias> writeBufAliasVec(passMeta.writeBufAliasNum);
         read(&_reader, writeBufAliasVec.data(), sizeof(WriteOperationAlias) * passMeta.writeBufAliasNum);
         passMeta.writeBufAliasNum = writeResAlias(writeBufAliasVec, passMeta.passId, ResourceType::buffer);
 
@@ -335,9 +335,9 @@ namespace vkz
         return retVar;
     }
 
-    uint32_t Framegraph2::readResource(const std::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type)
+    uint32_t Framegraph2::readResource(const tstl::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type)
     {
-        uint16_t hPassIdx = getElemIndex(m_hPass, { _passId });
+        const size_t hPassIdx = getElemIndex(m_hPass, { _passId });
         assert(hPassIdx != kInvalidIndex);
 
         uint32_t actualSize = 0;
@@ -351,17 +351,18 @@ namespace vkz
 
             CombinedResID plainId{ resId, _type };
 
-            if (m_pass_rw_res[hPassIdx].readInteracts.exist(plainId))
-            {
-                const ResInteractDesc& orig = m_pass_rw_res[hPassIdx].readInteracts.getIdToData(plainId);
 
-                interact = mergeIfNoConflict(orig, interact);
-                m_pass_rw_res[hPassIdx].readInteracts.update_data(plainId, interact);
+            auto existent = m_pass_rw_res[hPassIdx].readInteractMap.find(plainId);
+            if (existent != m_pass_rw_res[hPassIdx].readInteractMap.end())
+            {
+                // update the existing interaction
+                ResInteractDesc& orig = existent->second;
+                orig = mergeIfNoConflict(orig, interact);
             }
             else
             {
-                m_pass_rw_res[hPassIdx].readInteracts.push_back(plainId, interact);
-                m_pass_rw_res[hPassIdx].readCombinedRes.push_back(plainId);
+                m_pass_rw_res[hPassIdx].readInteractMap.insert({ plainId, interact });
+                m_pass_rw_res[hPassIdx].readCombinedRes.insert(plainId);
                 actualSize++;
             }
 
@@ -372,19 +373,14 @@ namespace vkz
             }
         }
 
-        // make sure vec elements are unique
-        std::vector<CombinedResID>& readVecRef = m_pass_rw_res[hPassIdx].readCombinedRes;
-        std::sort(readVecRef.begin(), readVecRef.end());
-        readVecRef.erase(std::unique(readVecRef.begin(), readVecRef.end()), readVecRef.end());
-
-        assert(readVecRef.size() == m_pass_rw_res[hPassIdx].readInteracts.size());
+        assert(m_pass_rw_res[hPassIdx].readCombinedRes.size() == m_pass_rw_res[hPassIdx].readInteractMap.size());
 
         return actualSize;
     }
 
-    uint32_t Framegraph2::writeResource(const std::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type)
+    uint32_t Framegraph2::writeResource(const tstl::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type)
     {
-        uint16_t hPassIdx = getElemIndex(m_hPass, { _passId });
+        const size_t hPassIdx = getElemIndex(m_hPass, { _passId });
         assert(hPassIdx != kInvalidIndex);
 
         uint32_t actualSize = 0;
@@ -398,19 +394,17 @@ namespace vkz
 
             CombinedResID plainId{ resId, _type };
 
-            if (m_pass_rw_res[hPassIdx].writeInteracts.exist(plainId))
+            auto existent = m_pass_rw_res[hPassIdx].writeInteractMap.find(plainId);
+            if (existent != m_pass_rw_res[hPassIdx].writeInteractMap.end())
             {
-                const ResInteractDesc& orig = m_pass_rw_res[hPassIdx].writeInteracts.getIdToData(plainId);
-
-                interact = mergeIfNoConflict(orig, interact);
-                m_pass_rw_res[hPassIdx].writeInteracts.update_data(plainId, interact);
+                // update the existing interaction
+                ResInteractDesc& orig = existent->second;
+                orig = mergeIfNoConflict(orig, interact);
             }
             else
             {
-                m_pass_rw_res[hPassIdx].writeInteracts.push_back(plainId, interact);
-
-                m_pass_rw_res[hPassIdx].writeCombinedRes.push_back(plainId);
-
+                m_pass_rw_res[hPassIdx].writeInteractMap.insert({ plainId, interact });
+                m_pass_rw_res[hPassIdx].writeCombinedRes.insert(plainId);
                 actualSize++;
             }
 
@@ -427,19 +421,14 @@ namespace vkz
             }
         }
 
-        // make sure vec elements are unique
-        std::vector<CombinedResID>& writeVecRef = m_pass_rw_res[hPassIdx].writeCombinedRes;
-        std::sort(writeVecRef.begin(), writeVecRef.end());
-        writeVecRef.erase(std::unique(writeVecRef.begin(), writeVecRef.end()), writeVecRef.end());
-
-        assert(writeVecRef.size() == m_pass_rw_res[hPassIdx].writeInteracts.size());
+        assert(m_pass_rw_res[hPassIdx].writeCombinedRes.size() == m_pass_rw_res[hPassIdx].writeInteractMap.size());
 
         return actualSize;
     }
 
-    uint32_t Framegraph2::writeResAlias(const std::vector<WriteOperationAlias>& _aliasMapVec, const uint16_t _passId, const ResourceType _type)
+    uint32_t Framegraph2::writeResAlias(const tstl::vector<WriteOperationAlias>& _aliasMapVec, const uint16_t _passId, const ResourceType _type)
     {
-        uint16_t hPassIdx = getElemIndex(m_hPass, { _passId });
+        const size_t hPassIdx =getElemIndex(m_hPass, { _passId });
         assert(hPassIdx != kInvalidIndex);
 
         uint32_t actualSize = 0;
@@ -470,14 +459,14 @@ namespace vkz
         read(&_reader, mem, info.aliasNum * sizeof(uint16_t));
 
         CombinedResID combinedBaseIdx{ info.resBase, _type };
-        uint16_t idx = getElemIndex(m_combinedForceAlias_base, combinedBaseIdx);
+        size_t idx = getElemIndex(m_combinedForceAlias_base, combinedBaseIdx);
         if (kInvalidIndex == idx)
         {
             m_combinedForceAlias_base.push_back(combinedBaseIdx);
-            std::vector<CombinedResID> aliasVec({ combinedBaseIdx }); // store base resource into the list
+            tstl::vector<CombinedResID> aliasVec({ 1, combinedBaseIdx }); // store base resource into the list
 
             m_combinedForceAlias.push_back(aliasVec);
-            idx = (uint16_t)m_combinedForceAlias.size() - 1;
+            idx = m_combinedForceAlias.size() - 1;
         }
 
         for (uint16_t ii = 0; ii < info.aliasNum; ++ii)
@@ -492,11 +481,8 @@ namespace vkz
 
     void Framegraph2::buildGraph()
     {
-        // make a plain table that can find producer of a resource easily.
-        std::vector<CombinedResID> linear_writeResCID;
-        std::vector<uint16_t> linear_writePassIdx;
+        tstl::unordered_map<CombinedResID, uint16_t> linear_writeResPassIdxMap;
 
-        uint16_t aliasOutCount = 0;
         std::set<CombinedResID> writeOpInSetO{};
         for (uint16_t ii = 0; ii < m_hPass.size(); ++ii)
         {
@@ -511,8 +497,7 @@ namespace vkz
 
                 writeOpInSet.insert(writeOpIn);
 
-                linear_writeResCID.push_back(writeOpOut);
-                linear_writePassIdx.push_back(ii); // write by current pass
+                linear_writeResPassIdxMap.insert({ writeOpOut , ii });
             }
 
             for (const CombinedResID combinedRes : rwRes.writeCombinedRes)
@@ -523,15 +508,13 @@ namespace vkz
             }
         }
 
-        message(info, "aliasOutCount: %d", aliasOutCount);
-
-        // set final pass
-        for (size_t ii = 0; ii < linear_writeResCID.size(); ++ii)
+        for (auto resPassPair : linear_writeResPassIdxMap)
         {
-            CombinedResID cid = linear_writeResCID[ii];
+            CombinedResID cid = resPassPair.first;
+            uint16_t passIdx = resPassPair.second;
+
             if (cid == m_combinedPresentImage)
             {
-                uint16_t passIdx = linear_writePassIdx[ii];
                 m_finalPass = m_hPass[passIdx];
                 break;
             }
@@ -539,9 +522,9 @@ namespace vkz
 
         for (uint16_t ii = 0; ii < m_hPass.size(); ++ii)
         {
-            PassRWResource rwRes = m_pass_rw_res[ii];
+            const PassRWResource rwRes = m_pass_rw_res[ii];
 
-            std::set<CombinedResID> readOrBeforeWriteResSet{};
+            std::set<CombinedResID> resReadInPass{}; // includes two type of resources: 1. read in current pass. 2. resource alias before write.
             
             size_t aliasMapNum = rwRes.writeOpAliasMap.size();
             
@@ -550,23 +533,23 @@ namespace vkz
             {
                 CombinedResID writeOpIn = rwRes.writeOpAliasMap.getIdAt(jj);
 
-                readOrBeforeWriteResSet.insert(writeOpIn);
+                resReadInPass.insert(writeOpIn);
             }
 
             for (CombinedResID plainRes : rwRes.readCombinedRes)
             {
-                readOrBeforeWriteResSet.insert(plainRes);
+                resReadInPass.insert(plainRes);
             }
 
-            for (CombinedResID wirteResIn : readOrBeforeWriteResSet)
+            for (CombinedResID wirteResIn : resReadInPass)
             {
-                uint16_t idx = getElemIndex(linear_writeResCID, wirteResIn);
-                if (kInvalidIndex == idx) {
+                auto it = linear_writeResPassIdxMap.find(wirteResIn);
+                if (it == linear_writeResPassIdxMap.end()) {
                     continue;
                 }
 
                 uint16_t currPassIdx = ii;
-                uint16_t writePassIdx = linear_writePassIdx[idx];
+                uint16_t writePassIdx = it->second;
 
                 m_pass_dependency[currPassIdx].inPassIdxSet.insert(writePassIdx);
                 m_pass_dependency[writePassIdx].outPassIdxSet.insert(currPassIdx);
@@ -578,13 +561,13 @@ namespace vkz
     {
         uint16_t passNum = (uint16_t)m_hPass.size();
 
-        std::vector<bool> visited(passNum, false);
-        std::vector<bool> onStack(passNum, false);
+        tstl::vector<bool> visited(passNum, false);
+        tstl::vector<bool> onStack(passNum, false);
 
         uint16_t finalPassIdx = (uint16_t)getElemIndex(m_hPass, m_finalPass);
         assert(finalPassIdx != kInvalidIndex);
 
-        std::vector<uint16_t> sortedPassIdx;
+        tstl::vector<uint16_t> sortedPassIdx;
         std::stack<uint16_t> passIdxStack;
 
         // start with the final pass
@@ -605,6 +588,7 @@ namespace vkz
             {
                 if (!visited[parentPassIdx])
                 {
+
                     passIdxStack.push(parentPassIdx);
                     onStack[parentPassIdx] = true;
 
@@ -619,8 +603,7 @@ namespace vkz
 
             if (inPassAllVisited)
             {
-                if (kInvalidIndex == getElemIndex(sortedPassIdx, currPassIdx))
-                {
+                if (kInvalidIndex == getElemIndex(sortedPassIdx, currPassIdx)) {
                     sortedPassIdx.push_back(currPassIdx);
                 }
 
@@ -633,15 +616,17 @@ namespace vkz
         m_sortedPassIdx.clear();
 
         // fill the sorted and clipped pass
+        size_t sz = 0;
         for (uint16_t idx : sortedPassIdx)
         {
+            message(info, "sorted pass Idx: %d/%d, Id: %d", idx, sortedPassIdx.size(), m_hPass[idx].id);
             m_sortedPass.push_back(m_hPass[idx]);
         }
         m_sortedPassIdx = sortedPassIdx;
 
     }
 
-    void Framegraph2::buildMaxLevelList(std::vector<uint16_t>& _maxLvLst)
+    void Framegraph2::buildMaxLevelList(tstl::vector<uint16_t>& _maxLvLst)
     {
         for (uint16_t passIdx : m_sortedPassIdx)
         {
@@ -657,14 +642,18 @@ namespace vkz
         }
     }
 
-    void Framegraph2::formatDependency(const std::vector<uint16_t>& _maxLvLst)
+    void Framegraph2::formatDependency(const tstl::vector<uint16_t>& _maxLvLst)
     {
         // initialize the dependency level
-        uint16_t maxLv = *std::max_element(begin(_maxLvLst), end(_maxLvLst));
-        m_passIdxInDpLevels = std::vector<PassInDependLevel>(m_sortedPassIdx.size(), PassInDependLevel{});
+        const uint16_t maxLv = *std::max_element(_maxLvLst.begin(), _maxLvLst.end());
+        m_passIdxInDpLevels = tstl::vector<PassInDependLevel>(m_sortedPassIdx.size(), PassInDependLevel{});
+
+
         for (uint16_t passIdx : m_sortedPassIdx)
         {
-            m_passIdxInDpLevels[passIdx].passInLv = std::vector<std::vector<uint16_t>>(maxLv, std::vector<uint16_t>());
+            m_passIdxInDpLevels[passIdx].passInLv.resize(maxLv);
+
+            m_passIdxInDpLevels[passIdx].plainPassInLevel.resize(m_sortedPassIdx.size() * maxLv);
         }
 
         for (uint16_t passIdx : m_sortedPassIdx)
@@ -682,13 +671,15 @@ namespace vkz
                 const uint16_t currLv = _maxLvLst[currPassIdx];
                 for (const uint16_t inPassIdx : m_pass_dependency[currPassIdx].inPassIdxSet)
                 {
-                    uint16_t idx = getElemIndex(m_passIdxInDpLevels[passIdx].passInLv[baseLv - currLv], inPassIdx);
+                    uint16_t lvDist = baseLv - currLv;
+
+                    const size_t idx = getElemIndex(m_passIdxInDpLevels[passIdx].passInLv[lvDist], inPassIdx);
                     if (currLv - 1 != _maxLvLst[inPassIdx] || kInvalidIndex != idx)
                     {
                         continue;
                     }
 
-                    m_passIdxInDpLevels[passIdx].passInLv[baseLv - currLv].push_back(inPassIdx);
+                    m_passIdxInDpLevels[passIdx].passInLv[lvDist].push_back(inPassIdx);
                 }
 
                 for (const uint16_t inPassIdx : m_pass_dependency[currPassIdx].inPassIdxSet)
@@ -721,7 +712,7 @@ namespace vkz
                     // check if pass in m_passIdxInDLevels can match with m_passIdxInQueue
                     for (uint16_t qIdx = 0; qIdx < m_passIdxInQueue.size(); ++qIdx)
                     {
-                        const uint16_t idx = getElemIndex(m_passIdxInQueue[qIdx], pIdx);
+                        const size_t idx = getElemIndex(m_passIdxInQueue[qIdx], pIdx);
 
                         bool isMatch = 
                                (kInvalidIndex == m_nearestSyncPassIdx[passIdx][qIdx]) // not set yet
@@ -761,35 +752,35 @@ namespace vkz
 
     void Framegraph2::postParse()
     {
-        std::vector<CombinedResID> plainAliasRes;
-        std::vector<uint16_t> plainAliasResIdx;
+        tstl::vector<CombinedResID> plainAliasRes;
+        tstl::vector<uint16_t> plainAliasResIdx;
 
         for (uint16_t ii = 0; ii < m_combinedForceAlias_base.size(); ++ii)
         {
             CombinedResID base = m_combinedForceAlias_base[ii];
 
-            const std::vector<CombinedResID>& aliasVec = m_combinedForceAlias[ii];
+            const tstl::vector<CombinedResID>& aliasVec = m_combinedForceAlias[ii];
 
-            plainAliasRes.insert(end(plainAliasRes), begin(aliasVec), end(aliasVec));
-            plainAliasResIdx.insert(end(plainAliasResIdx), aliasVec.size(), ii);
+            plainAliasRes.insert(plainAliasRes.end(), aliasVec.begin(), aliasVec.end());
 
             for (CombinedResID alias : aliasVec)
             {
+                plainAliasResIdx.push_back(ii);
                 m_plainResAliasToBase.push_back(alias, base);
             }
         }
 
-        std::vector<CombinedResID> fullMultiFrameRes = m_multiFrame_resList;
+        tstl::vector<CombinedResID> fullMultiFrameRes = m_multiFrame_resList;
         for (const CombinedResID cid : m_multiFrame_resList)
         {
-            const uint16_t idx = getElemIndex(plainAliasRes, cid);
+            const size_t idx = getElemIndex(plainAliasRes, cid);
             if (kInvalidHandle == idx)
             {
                 continue;
             }
 
             const uint16_t alisIdx = plainAliasResIdx[idx];
-            const std::vector<CombinedResID>& aliasVec = m_combinedForceAlias[alisIdx];
+            const tstl::vector<CombinedResID>& aliasVec = m_combinedForceAlias[alisIdx];
             for (CombinedResID alias : aliasVec)
             {
                 push_back_unique(fullMultiFrameRes, alias);
@@ -801,10 +792,10 @@ namespace vkz
 
     void Framegraph2::buildResLifetime()
     {
-        std::vector<CombinedResID> resInUseUniList;
-        std::vector<CombinedResID> resToOptmUniList; // all used resources except: force alias, multi-frame, read-only
-        std::vector<CombinedResID> readResUniList;
-        std::vector<CombinedResID> writeResUniList;
+        tstl::vector<CombinedResID> resInUseUniList;
+        tstl::vector<CombinedResID> resToOptmUniList; // all used resources except: force alias, multi-frame, read-only
+        tstl::vector<CombinedResID> readResUniList;
+        tstl::vector<CombinedResID> writeResUniList;
         
         for (const uint16_t pIdx : m_sortedPassIdx)
         {
@@ -836,8 +827,7 @@ namespace vkz
             }
         }
 
-        std::vector<std::vector<uint16_t>> resToOptmPassIdxByOrder; // share the same idx with resToOptmUniList
-        resToOptmPassIdxByOrder.assign(resToOptmUniList.size(), std::vector<uint16_t>());
+        tstl::vector<tstl::vector<uint16_t>> resToOptmPassIdxByOrder(resToOptmUniList.size(), tstl::vector<uint16_t>()); // share the same idx with resToOptmUniList
         for(uint16_t ii = 0; ii < m_sortedPassIdx.size(); ++ii)
         {
             const uint16_t pIdx = m_sortedPassIdx[ii];
@@ -845,13 +835,13 @@ namespace vkz
 
             for (const CombinedResID combRes : rwRes.writeCombinedRes)
             {
-                uint16_t usedIdx = getElemIndex(resToOptmUniList, combRes);
+                const size_t usedIdx = getElemIndex(resToOptmUniList, combRes);
                 resToOptmPassIdxByOrder[usedIdx].push_back(ii); // store the idx in ordered pass
             }
 
             for (const CombinedResID combRes : rwRes.readCombinedRes)
             {
-                uint16_t usedIdx = getElemIndex(resToOptmUniList, combRes);
+                const size_t usedIdx = getElemIndex(resToOptmUniList, combRes);
                 resToOptmPassIdxByOrder[usedIdx].push_back(ii); // store the idx in ordered pass
             }
 
@@ -859,12 +849,12 @@ namespace vkz
             for (uint32_t alisMapIdx = 0; alisMapIdx < aliasMapNum; ++alisMapIdx)
             {
                 CombinedResID writeOpOut = rwRes.writeOpAliasMap.getDataAt(alisMapIdx);
-                uint16_t usedIdx = getElemIndex(resToOptmUniList, writeOpOut);
+                const size_t usedIdx = getElemIndex(resToOptmUniList, writeOpOut);
                 resToOptmPassIdxByOrder[usedIdx].push_back(ii); // store the idx in ordered pass
             }
         }
 
-        std::vector<CombinedResID> readonlyResUniList;
+        tstl::vector<CombinedResID> readonlyResUniList;
         for (const CombinedResID readRes : readResUniList)
         {
             // not found in writeResUniList: no one write to it
@@ -884,7 +874,7 @@ namespace vkz
         }
 
 
-        std::vector<CombinedResID> multiframeResUniList;
+        tstl::vector<CombinedResID> multiframeResUniList;
         for (const CombinedResID multiFrameRes : m_multiFrame_resList)
         {
             // not in use 
@@ -906,7 +896,7 @@ namespace vkz
         {
             // find current id in resToOptmUniList
             const CombinedResID plainAlias = m_plainResAliasToBase.getIdAt(ii);
-            uint16_t idx = getElemIndex(resToOptmUniList, plainAlias);
+            const size_t idx = getElemIndex(resToOptmUniList, plainAlias);
             if (kInvalidIndex == idx) {
                 continue;
             }
@@ -918,7 +908,7 @@ namespace vkz
         // remove read-only resource from resToOptmUniList
         for (const CombinedResID readonlyRes : readonlyResUniList)
         {
-            uint16_t idx = getElemIndex(resToOptmUniList, readonlyRes);
+            const size_t idx = getElemIndex(resToOptmUniList, readonlyRes);
             if (kInvalidIndex == idx) {
                 continue;
             }
@@ -930,7 +920,7 @@ namespace vkz
         // remove multi-frame resource from resToOptmUniList
         for (const CombinedResID multiFrameRes : multiframeResUniList)
         {
-            uint16_t idx = getElemIndex(resToOptmUniList, multiFrameRes);
+            const size_t idx = getElemIndex(resToOptmUniList, multiFrameRes);
             if (kInvalidIndex == idx) {
                 continue;
             }
@@ -940,14 +930,14 @@ namespace vkz
 
         assert(resToOptmPassIdxByOrder.size() == resToOptmUniList.size());
 
-        std::vector < ResLifetime > resLifeTime;
+        tstl::vector < ResLifetime > resLifeTime;
         // only transient resource would be in the lifetime list
-        for (const std::vector<uint16_t> & passIdxByOrder : resToOptmPassIdxByOrder)
+        for (const tstl::vector<uint16_t> & passIdxByOrder : resToOptmPassIdxByOrder)
         {
             assert(!passIdxByOrder.empty());
 
-            uint16_t maxIdx = *std::max_element(begin(passIdxByOrder), end(passIdxByOrder));
-            uint16_t minIdx = *std::min_element(begin(passIdxByOrder), end(passIdxByOrder));
+            uint16_t maxIdx = *std::max_element(passIdxByOrder.begin(), passIdxByOrder.end());
+            uint16_t minIdx = *std::min_element(passIdxByOrder.begin(), passIdxByOrder.end());
 
             resLifeTime.push_back({ minIdx, maxIdx });
         }
@@ -963,8 +953,8 @@ namespace vkz
 
     void Framegraph2::fillBucketForceAlias()
     {
-        std::vector<CombinedResID> actualAliasBase;
-        std::vector<std::vector<CombinedResID>> actualAlias;
+        tstl::vector<CombinedResID> actualAliasBase;
+        tstl::vector<tstl::vector<CombinedResID>> actualAlias;
         for (const CombinedResID combRes : m_resInUseUniList)
         {
             if (!m_plainResAliasToBase.exist(combRes))
@@ -974,7 +964,7 @@ namespace vkz
 
             CombinedResID base2 = m_plainResAliasToBase.getIdToData(combRes);
 
-            uint16_t usedBaseIdx = push_back_unique(actualAliasBase, base2);
+            const size_t usedBaseIdx = push_back_unique(actualAliasBase, base2);
             if (actualAlias.size() == usedBaseIdx) // if it's new one
             {
                 actualAlias.emplace_back();
@@ -987,7 +977,7 @@ namespace vkz
         for (uint16_t ii = 0; ii < actualAliasBase.size(); ++ii)
         {
             const CombinedResID base = actualAliasBase[ii];
-            const std::vector<CombinedResID>& aliasVec = actualAlias[ii];
+            const tstl::vector<CombinedResID>& aliasVec = actualAlias[ii];
 
             // buffers
             if (isBuffer(base)) 
@@ -1021,7 +1011,7 @@ namespace vkz
                 const BufRegisterInfo info = m_sparse_buf_info[cid.id];
 
                 BufBucket bucket;
-                createBufBkt(bucket, info, {cid});
+                createBufBkt(bucket, info, { 1, cid });
                 m_bufBuckets.push_back(bucket);
             }
 
@@ -1031,7 +1021,7 @@ namespace vkz
                 const ImgRegisterInfo info = m_sparse_img_info[cid.id];
 
                 ImgBucket bucket;
-                createImgBkt(bucket, info, {cid});
+                createImgBkt(bucket, info, {1, cid});
                 m_imgBuckets.push_back(bucket);
             }
         }
@@ -1047,7 +1037,7 @@ namespace vkz
                 const BufRegisterInfo info = m_sparse_buf_info[cid.id];
 
                 BufBucket bucket;
-                createBufBkt(bucket, info, { cid });
+                createBufBkt(bucket, info, { 1, cid });
                 m_bufBuckets.push_back(bucket);
             }
 
@@ -1057,13 +1047,13 @@ namespace vkz
                 const ImgRegisterInfo info = m_sparse_img_info[cid.id];
 
                 ImgBucket bucket;
-                createImgBkt(bucket, info, { cid });
+                createImgBkt(bucket, info, { 1, cid });
                 m_imgBuckets.push_back(bucket);
             }
         }
     }
 
-    void Framegraph2::createBufBkt(BufBucket& _bkt, const BufRegisterInfo& _info, const std::vector<CombinedResID>& _reses, const bool _forceAliased /*= false*/)
+    void Framegraph2::createBufBkt(BufBucket& _bkt, const BufRegisterInfo& _info, const tstl::vector<CombinedResID>& _reses, const bool _forceAliased /*= false*/)
     {
         assert(!_reses.empty());
 
@@ -1079,7 +1069,7 @@ namespace vkz
         _bkt.forceAliased = _forceAliased;
     }
 
-    void Framegraph2::createImgBkt(ImgBucket& _bkt, const ImgRegisterInfo& _info, const std::vector<CombinedResID>& _reses, const bool _forceAliased /*= false*/)
+    void Framegraph2::createImgBkt(ImgBucket& _bkt, const ImgRegisterInfo& _info, const tstl::vector<CombinedResID>& _reses, const bool _forceAliased /*= false*/)
     {
         assert(!_reses.empty());
 
@@ -1105,18 +1095,18 @@ namespace vkz
         _bkt.forceAliased = _forceAliased;
     }
 
-    void Framegraph2::aliasBuffers(std::vector<BufBucket>& _buckets, const std::vector<uint16_t>& _sortedBufList)
+    void Framegraph2::aliasBuffers(tstl::vector<BufBucket>& _buckets, const tstl::vector<uint16_t>& _sortedBufList)
     {
-        std::vector<uint16_t> restRes = _sortedBufList;
+        tstl::vector<uint16_t> restRes = _sortedBufList;
 
-        std::vector<std::vector<CombinedResID>> resInLevel{{}};
+        tstl::vector<tstl::vector<CombinedResID>> resInLevel{{}};
 
         if (restRes.empty()) {
             return;
         }
 
         // now process normal alias resources
-        std::vector<BufBucket> buckets;
+        tstl::vector<BufBucket> buckets;
         while (!restRes.empty())
         {
             uint16_t baseRes = *restRes.begin();
@@ -1138,11 +1128,11 @@ namespace vkz
 
                 for (CombinedResID res : bkt.reses)
                 {
-                    uint16_t idx = getElemIndex(restRes, res.id);
+                    const size_t idx = getElemIndex(restRes, res.id);
                     if(kInvalidIndex == idx)
                         continue;
 
-                    restRes.erase(begin(restRes) + idx);
+                    restRes.erase(restRes.begin() + idx);
                 }
                 aliased = true;
                 break;
@@ -1156,10 +1146,10 @@ namespace vkz
             // no suitable bucket found, create a new one
             BufBucket bucket;
             const BufRegisterInfo& info = m_sparse_buf_info[baseRes];
-            createBufBkt(bucket, info, { baseCid });
+            createBufBkt(bucket, info, { 1, baseCid });
             buckets.push_back(bucket);
 
-            restRes.erase(begin(restRes));
+            restRes.erase(restRes.begin());
 
             resInLevel.clear();
             resInLevel.emplace_back();
@@ -1168,18 +1158,18 @@ namespace vkz
         _buckets = _buckets;
     }
 
-    void Framegraph2::aliasImages(std::vector<ImgBucket>& _buckets,const std::vector< ImgRegisterInfo >& _infos, const std::vector<uint16_t>& _sortedTexList, const ResourceType _type)
+    void Framegraph2::aliasImages(tstl::vector<ImgBucket>& _buckets,const tstl::vector< ImgRegisterInfo >& _infos, const tstl::vector<uint16_t>& _sortedTexList, const ResourceType _type)
     {
-        std::vector<uint16_t> restRes = _sortedTexList;
+        tstl::vector<uint16_t> restRes = _sortedTexList;
 
-        std::vector<std::vector<CombinedResID>> resInLevel{{}};
+        tstl::vector<tstl::vector<CombinedResID>> resInLevel{{}};
 
         if (restRes.empty()) {
             return;
         }
 
         // now process normal alias resources
-        std::vector<ImgBucket> buckets;
+        tstl::vector<ImgBucket> buckets;
         while (!restRes.empty())
         {
             uint16_t baseRes = *restRes.begin();
@@ -1203,11 +1193,11 @@ namespace vkz
 
                 for (CombinedResID res : bkt.reses)
                 {
-                    uint16_t idx = getElemIndex(restRes, res.id);
+                    const size_t idx = getElemIndex(restRes, res.id);
                     if (kInvalidIndex == idx)
                         continue;
 
-                    restRes.erase(begin(restRes) + idx);
+                    restRes.erase(restRes.begin() + idx);
                 }
 
                 break;
@@ -1221,22 +1211,22 @@ namespace vkz
             // no suitable bucket found, create a new one
             ImgBucket bucket;
             const ImgRegisterInfo& info = _infos[baseRes];
-            createImgBkt(bucket, info, { baseCid });
+            createImgBkt(bucket, info, { 1, baseCid });
             buckets.push_back(bucket);
 
-            restRes.erase(begin(restRes));
+            restRes.erase(restRes.begin());
 
             resInLevel.clear();
             resInLevel.emplace_back();
         }
 
-        _buckets.insert(end(_buckets), begin(buckets), end(buckets));
+        _buckets.insert(_buckets.end(), buckets.begin(), buckets.end());
     }
 
     void Framegraph2::fillBufferBuckets()
     {
         // sort the resource by size
-        std::vector<uint16_t> sortedBufIdx;
+        tstl::vector<uint16_t> sortedBufIdx;
         for (const CombinedResID& crid : m_resToOptmUniList)
         {
             if (!isBuffer(crid)) {
@@ -1245,21 +1235,21 @@ namespace vkz
             sortedBufIdx.push_back(crid.id);
         }
 
-        std::sort(begin(sortedBufIdx), end(sortedBufIdx), [&](uint16_t _l, uint16_t _r) {
+        std::sort(sortedBufIdx.begin(), sortedBufIdx.end(), [&](uint16_t _l, uint16_t _r) {
             return m_sparse_buf_info[_l].size > m_sparse_buf_info[_r].size;
         });
 
-        std::vector<BufBucket> buckets;
+        tstl::vector<BufBucket> buckets;
         aliasBuffers(buckets,sortedBufIdx);
 
-        m_bufBuckets.insert(end(m_bufBuckets), begin(buckets), end(buckets));
+        m_bufBuckets.insert(m_bufBuckets.end(), buckets.begin(), buckets.end());
     }
 
     void Framegraph2::fillImageBuckets()
     {
         const ResourceType type = ResourceType::image;
 
-        std::vector<uint16_t> sortedTexIdx;
+        tstl::vector<uint16_t> sortedTexIdx;
         for (const CombinedResID& crid : m_resToOptmUniList)
         {
             if (!(isImage(crid))) {
@@ -1268,7 +1258,7 @@ namespace vkz
             sortedTexIdx.push_back(crid.id);
         }
 
-        std::sort(begin(sortedTexIdx), end(sortedTexIdx), [&](uint16_t _l, uint16_t _r) {
+        std::sort(sortedTexIdx.begin(), sortedTexIdx.end(), [&](uint16_t _l, uint16_t _r) {
             ImgRegisterInfo info_l = m_sparse_img_info[_l];
             ImgRegisterInfo info_r = m_sparse_img_info[_r];
 
@@ -1278,16 +1268,16 @@ namespace vkz
             return size_l > size_r;
         });
 
-        std::vector<ImgBucket> buckets;
+        tstl::vector<ImgBucket> buckets;
         aliasImages(buckets, m_sparse_img_info, sortedTexIdx, type);
 
-        m_imgBuckets.insert(end(m_imgBuckets), begin(buckets), end(buckets));
+        m_imgBuckets.insert(m_imgBuckets.end(), buckets.begin(), buckets.end());
     }
 
     void Framegraph2::optimizeSync()
     {
         // calc max level list
-        std::vector<uint16_t> maxLvLst(m_sortedPassIdx.size(), 0);
+        tstl::vector<uint16_t> maxLvLst(m_sortedPassIdx.size(), 0);
         buildMaxLevelList(maxLvLst);
 
         // build dependency level
@@ -1345,7 +1335,7 @@ namespace vkz
                 assert(info.data == nullptr);
             }
 
-            std::vector<BufferAliasInfo> aliasInfo;
+            tstl::vector<BufferAliasInfo> aliasInfo;
             for (const CombinedResID cid : bkt.reses)
             {
                 BufferAliasInfo alias;
@@ -1391,7 +1381,7 @@ namespace vkz
 
             write(&m_rhiMemWriter, info);
 
-            std::vector<ImageAliasInfo> aliasInfo;
+            tstl::vector<ImageAliasInfo> aliasInfo;
             for (const CombinedResID cid : bkt.reses)
             {
                 ImageAliasInfo alias;
@@ -1407,8 +1397,8 @@ namespace vkz
 
     void Framegraph2::createShaders()
     {
-        std::vector<ProgramHandle> usedProgram{};
-        std::vector<ShaderHandle> usedShaders{};
+        tstl::vector<ProgramHandle> usedProgram{};
+        tstl::vector<ShaderHandle> usedShaders{};
         for ( PassHandle pass : m_sortedPass)
         {
             const PassMetaData& passMeta = m_sparse_pass_meta[pass.id];
@@ -1481,7 +1471,7 @@ namespace vkz
         std::set<uint16_t> usedSamplers{};
         for (PassHandle pass : m_sortedPass)
         {
-            uint16_t passIdx = getElemIndex(m_hPass, pass);
+            const size_t passIdx = getElemIndex(m_hPass, pass);
             const PassRWResource& rwRes = m_pass_rw_res[passIdx];
 
             uint32_t usedSamplerCount = (uint32_t)rwRes.imageSamplerMap.size();
@@ -1506,26 +1496,26 @@ namespace vkz
 
     void Framegraph2::createPasses()
     {
-        std::vector<PassMetaData> passMetaDataVec{};
-        std::vector<std::vector<VertexBindingDesc>> passVertexBinding(m_sortedPass.size());
-        std::vector<std::vector<VertexAttributeDesc>> passVertexAttribute(m_sortedPass.size());
-        std::vector<std::vector<int>> passPipelineSpecData(m_sortedPass.size());
+        tstl::vector<PassMetaData> passMetaDataVec{};
+        tstl::vector<tstl::vector<VertexBindingDesc>> passVertexBinding(m_sortedPass.size());
+        tstl::vector<tstl::vector<VertexAttributeDesc>> passVertexAttribute(m_sortedPass.size());
+        tstl::vector<tstl::vector<int>> passPipelineSpecData(m_sortedPass.size());
 
-        std::vector<std::pair<ImageHandle, ResInteractDesc>> writeDSPair(m_sortedPass.size());
-        std::vector<UniDataContainer< ImageHandle, ResInteractDesc> > writeImageVec(m_sortedPass.size());
-        std::vector<UniDataContainer< ImageHandle, ResInteractDesc> > readImageVec(m_sortedPass.size());
+        tstl::vector<std::pair<ImageHandle, ResInteractDesc>> writeDSPair(m_sortedPass.size());
+        tstl::vector<UniDataContainer< ImageHandle, ResInteractDesc> > writeImageVec(m_sortedPass.size());
+        tstl::vector<UniDataContainer< ImageHandle, ResInteractDesc> > readImageVec(m_sortedPass.size());
 
-        std::vector<UniDataContainer< BufferHandle, ResInteractDesc> > readBufferVec(m_sortedPass.size());
-        std::vector<UniDataContainer< BufferHandle, ResInteractDesc> > writeBufferVec(m_sortedPass.size());
-        std::vector<UniDataContainer< ImageHandle, SamplerHandle> > imageSamplerVec(m_sortedPass.size());
-        std::vector<UniDataContainer< ImageHandle, SpecificImageViewInfo> > imageSpecViewVec(m_sortedPass.size());
-        std::vector< UniDataContainer<CombinedResID, CombinedResID> >  writeOpAliasMapVec(m_sortedPass.size());
+        tstl::vector<UniDataContainer< BufferHandle, ResInteractDesc> > readBufferVec(m_sortedPass.size());
+        tstl::vector<UniDataContainer< BufferHandle, ResInteractDesc> > writeBufferVec(m_sortedPass.size());
+        tstl::vector<UniDataContainer< ImageHandle, SamplerHandle> > imageSamplerVec(m_sortedPass.size());
+        tstl::vector<UniDataContainer< ImageHandle, SpecificImageViewInfo> > imageSpecViewVec(m_sortedPass.size());
+        tstl::vector< UniDataContainer<CombinedResID, CombinedResID> >  writeOpAliasMapVec(m_sortedPass.size());
 
         
         for (uint32_t ii = 0; ii < m_sortedPass.size(); ++ii)
         {
             PassHandle pass = m_sortedPass[ii];
-            uint16_t passIdx = getElemIndex(m_hPass, pass);
+            const size_t passIdx = getElemIndex(m_hPass, pass);
             const PassMetaData& passMeta = m_sparse_pass_meta[pass.id];
             assert(pass.id == passMeta.passId);
 
@@ -1552,26 +1542,29 @@ namespace vkz
                 // set write resources
                 for (const CombinedResID writeRes : rwRes.writeCombinedRes)
                 {
+                    auto writeInteractPair = rwRes.writeInteractMap.find(writeRes);
+                    assert(writeInteractPair != rwRes.writeInteractMap.end());
+
                     if (isDepthStencil(writeRes)) {
 
                         assert(writeDS.first.id == kInvalidHandle);
                         writeDS.first = { writeRes.id };
-                        writeDS.second = rwRes.writeInteracts.getIdToData(writeRes);
+                        writeDS.second = writeInteractPair->second;
                         
-                        writeColor.push_back({ writeRes.id }, rwRes.writeInteracts.getIdToData(writeRes));
+                        writeColor.push_back({ writeRes.id }, writeInteractPair->second);
                     }
                     else if (isColorAttachment(writeRes))
                     {
-                        writeColor.push_back({ writeRes.id }, rwRes.writeInteracts.getIdToData(writeRes));
+                        writeColor.push_back({ writeRes.id }, writeInteractPair->second);
                     }
                     else if (isNormalImage(writeRes)
                         && (passMeta.queue == PassExeQueue::compute || passMeta.queue == PassExeQueue::copy))
                     {
-                        writeColor.push_back({ writeRes.id }, rwRes.writeInteracts.getIdToData(writeRes));
+                        writeColor.push_back({ writeRes.id }, writeInteractPair->second);
                     }
                     else if (isBuffer(writeRes))
                     {
-                        writeBuf.push_back({ writeRes.id }, rwRes.writeInteracts.getIdToData(writeRes));
+                        writeBuf.push_back({ writeRes.id }, writeInteractPair->second);
                     }
                     else
                     {
@@ -1582,16 +1575,19 @@ namespace vkz
                 // set read resources
                 for (const CombinedResID readRes : rwRes.readCombinedRes)
                 {
+                    auto readInteractPair = rwRes.readInteractMap.find(readRes);
+                    assert(readInteractPair != rwRes.readInteractMap.end());
+
                     if (  isColorAttachment(readRes) 
                         || isDepthStencil(readRes)
                         || isNormalImage(readRes))
                     {
-                        readImg.push_back({ readRes.id }, rwRes.readInteracts.getIdToData(readRes));
+                        readImg.push_back({ readRes.id }, readInteractPair->second);
                     }
                     else if (isBuffer(readRes))
                     {
                         assert(!readBuf.exist({ readRes.id }));
-                        readBuf.push_back({ readRes.id }, rwRes.readInteracts.getIdToData(readRes));
+                        readBuf.push_back({ readRes.id }, readInteractPair->second);
                     }
                 }
 
@@ -1637,7 +1633,7 @@ namespace vkz
             const PassMetaDataRef& createDataRef = m_sparse_pass_data_ref[pass.id];
 
             // vertex binding           
-            std::vector<VertexBindingDesc>& bindingDesc = passVertexBinding[ii];
+            tstl::vector<VertexBindingDesc>& bindingDesc = passVertexBinding[ii];
             for (const uint16_t& bindingIdx : createDataRef.vtxBindingIdxs)
             {
                 bindingDesc.push_back(m_vtxBindingDesc[bindingIdx]);
@@ -1645,7 +1641,7 @@ namespace vkz
             assert(bindingDesc.size() == passMeta.vertexBindingNum);
 
             // vertex attribute
-            std::vector<VertexAttributeDesc>& attributeDesc = passVertexAttribute[ii];
+            tstl::vector<VertexAttributeDesc>& attributeDesc = passVertexAttribute[ii];
             for (const uint16_t& attributeIdx : createDataRef.vtxAttrIdxs)
             {
                 attributeDesc.push_back(m_vtxAttrDesc[attributeIdx]);
@@ -1653,7 +1649,7 @@ namespace vkz
             assert(attributeDesc.size() == passMeta.vertexAttributeNum);
 
             // pipeline constants
-            std::vector<int>& pipelineSpecData = passPipelineSpecData[ii];
+            tstl::vector<int>& pipelineSpecData = passPipelineSpecData[ii];
             for (const uint16_t& pcIdx : createDataRef.pipelineSpecIdxs)
             {
                 pipelineSpecData.push_back(m_pipelineSpecData[pcIdx]);
@@ -1732,7 +1728,7 @@ namespace vkz
         write(&m_rhiMemWriter,  RHIContextOpMagic::end );
     }
 
-    bool Framegraph2::isBufInfoAliasable(uint16_t _idx, const BufBucket& _bucket, const std::vector<CombinedResID> _resInCurrStack) const
+    bool Framegraph2::isBufInfoAliasable(uint16_t _idx, const BufBucket& _bucket, const tstl::vector<CombinedResID> _resInCurrStack) const
     {
         // size check in current stack
         const BufRegisterInfo& info = m_sparse_buf_info[_idx];
@@ -1752,7 +1748,7 @@ namespace vkz
         return bCondMatch;
     }
 
-    bool Framegraph2::isImgInfoAliasable(uint16_t _ImgId, const ImgBucket& _bucket, const std::vector<CombinedResID> _resInCurrStack) const
+    bool Framegraph2::isImgInfoAliasable(uint16_t _ImgId, const ImgBucket& _bucket, const tstl::vector<CombinedResID> _resInCurrStack) const
     {
         bool bCondMatch = true;
 
@@ -1774,16 +1770,16 @@ namespace vkz
         return bCondMatch;
     }
 
-    bool Framegraph2::isStackAliasable(const CombinedResID& _res, const std::vector<CombinedResID>& _reses) const
+    bool Framegraph2::isStackAliasable(const CombinedResID& _res, const tstl::vector<CombinedResID>& _reses) const
     {
         bool bStackMatch = true;
         
         // life time check in entire bucket
-        const uint16_t idx = getElemIndex(m_resToOptmUniList, _res);
+        const size_t idx = getElemIndex(m_resToOptmUniList, _res);
         const ResLifetime& resLifetime = m_resLifeTime[idx];
-        for (const CombinedResID res : _reses)
+        for (const CombinedResID resInStack : _reses)
         {
-            const uint16_t resIdx = getElemIndex(m_resToOptmUniList, res);
+            const size_t resIdx = getElemIndex(m_resToOptmUniList, resInStack);
             const ResLifetime& stackLifetime = m_resLifeTime[resIdx];
 
             // if lifetime overlap with any resource in current bucket, then it's not alias-able
@@ -1793,7 +1789,7 @@ namespace vkz
         return bStackMatch;
     }
 
-    bool Framegraph2::isAliasable(const CombinedResID& _res, const BufBucket& _bucket, const std::vector<CombinedResID>& _resInCurrStack) const
+    bool Framegraph2::isAliasable(const CombinedResID& _res, const BufBucket& _bucket, const tstl::vector<CombinedResID>& _resInCurrStack) const
     {
         // no stack checking for stacks, because each stack only contains 1 resource
         // bool bInfoMatch = isBufInfoAliasable(_res.id, _bucket, _resInCurrStack);
@@ -1804,7 +1800,7 @@ namespace vkz
         return bInfoMatch && bStackMatch;
     }
 
-    bool Framegraph2::isAliasable(const CombinedResID& _res, const ImgBucket& _bucket, const std::vector<CombinedResID>& _resInCurrStack) const
+    bool Framegraph2::isAliasable(const CombinedResID& _res, const ImgBucket& _bucket, const tstl::vector<CombinedResID>& _resInCurrStack) const
     {
         // no stack checking for stacks, because each stack only contains 1 resource
         // bool bInfoMatch = isImgInfoAliasable(_res.id, _bucket, _resInCurrStack);
