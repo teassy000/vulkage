@@ -104,7 +104,7 @@ namespace vkz
     {
         uint32_t propertyCount = 0;
         vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &propertyCount, nullptr);
-        std::vector<VkQueueFamilyProperties> queueFamilyProperties(propertyCount);
+        tinystl::vector<VkQueueFamilyProperties> queueFamilyProperties(propertyCount);
         vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &propertyCount, queueFamilyProperties.data());
 
         VkQueueFlags requiredFlags = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT;
@@ -185,11 +185,9 @@ namespace vkz
         queueInfo.queueCount = 1;
         queueInfo.pQueuePriorities = queueProps;
 
-        std::vector<const char*> extensions =
-        {
-            VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-            VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
-        };
+        tinystl::vector<const char*> extensions;
+        extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+        extensions.push_back(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
 
         if (meshShadingSupported)
         {
@@ -197,6 +195,7 @@ namespace vkz
         }
 
         extensions.push_back(VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME);
+
 
         VkPhysicalDeviceFeatures2 features = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
         features.features.vertexPipelineStoresAndAtomics = true;

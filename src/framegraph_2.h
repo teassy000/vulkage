@@ -2,9 +2,8 @@
 
 #include "memory_operation.h"
 #include "vkz_structs_inner.h"
+#include "common.h"
 #include "util.h"
-#include "TINYSTL/unordered_set.h"
-#include "TINYSTL/unordered_map.h"
 
 namespace vkz
 {
@@ -123,9 +122,9 @@ namespace vkz
     struct PassMetaDataRef
     {
         uint16_t                passRegInfoIdx;
-        tstl::vector<uint16_t>   vtxBindingIdxs;
-        tstl::vector<uint16_t>   vtxAttrIdxs;
-        tstl::vector<int>   pipelineSpecIdxs;
+        stl::vector<uint16_t>   vtxBindingIdxs;
+        stl::vector<uint16_t>   vtxAttrIdxs;
+        stl::vector<int>   pipelineSpecIdxs;
     };
 
     class RHIContext;
@@ -172,17 +171,17 @@ namespace vkz
 
         void registerSampler(MemoryReader& _reader);
 
-        uint32_t readResource(const tstl::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type);
-        uint32_t writeResource(const tstl::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type);
-        uint32_t writeResAlias(const tstl::vector<WriteOperationAlias>& _aliasMapVec, const uint16_t _passId, const ResourceType _type);
+        uint32_t readResource(const stl::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type);
+        uint32_t writeResource(const stl::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type);
+        uint32_t writeResAlias(const stl::vector<WriteOperationAlias>& _aliasMapVec, const uint16_t _passId, const ResourceType _type);
 
         void aliasResForce(MemoryReader& _reader, ResourceType _type);
 
         // =======================================
         void buildGraph();
         void reverseTraversalDFS();
-        void buildMaxLevelList(tstl::vector<uint16_t>& _maxLvLst);
-        void formatDependency(const tstl::vector<uint16_t>& _maxLvLst);
+        void buildMaxLevelList(stl::vector<uint16_t>& _maxLvLst);
+        void formatDependency(const stl::vector<uint16_t>& _maxLvLst);
         void fillNearestSyncPass();
         void optimizeSyncPass();
 
@@ -245,7 +244,7 @@ namespace vkz
             ResInteractDesc    initialBarrierState;
 
             bool            forceAliased{ false };
-            tstl::vector<CombinedResID> reses;
+            stl::vector<CombinedResID> reses;
         };
 
         struct ImgBucket
@@ -259,26 +258,26 @@ namespace vkz
 
             bool        forceAliased{ false };
 
-            tstl::vector<CombinedResID> reses;
+            stl::vector<CombinedResID> reses;
         };
 
-        bool isBufInfoAliasable(uint16_t _idx, const BufBucket& _bucket, const tstl::vector<CombinedResID> _resInCurrStack) const;
-        bool isImgInfoAliasable(uint16_t _idx, const ImgBucket& _bucket, const tstl::vector<CombinedResID> _resInCurrStack) const;
+        bool isBufInfoAliasable(uint16_t _idx, const BufBucket& _bucket, const stl::vector<CombinedResID> _resInCurrStack) const;
+        bool isImgInfoAliasable(uint16_t _idx, const ImgBucket& _bucket, const stl::vector<CombinedResID> _resInCurrStack) const;
 
-        bool isStackAliasable(const CombinedResID& _res, const tstl::vector<CombinedResID>& _reses) const;
+        bool isStackAliasable(const CombinedResID& _res, const stl::vector<CombinedResID>& _reses) const;
 
-        bool isAliasable(const CombinedResID& _res, const BufBucket& _bucket, const tstl::vector<CombinedResID>& _reses) const;
-        bool isAliasable(const CombinedResID& _res, const ImgBucket& _bucket, const tstl::vector<CombinedResID>& _reses) const;
+        bool isAliasable(const CombinedResID& _res, const BufBucket& _bucket, const stl::vector<CombinedResID>& _reses) const;
+        bool isAliasable(const CombinedResID& _res, const ImgBucket& _bucket, const stl::vector<CombinedResID>& _reses) const;
 
         void fillBucketForceAlias();
         void fillBucketReadonly();
         void fillBucketMultiFrame();
 
-        void createBufBkt(BufBucket& _bkt, const BufRegisterInfo& _info, const tstl::vector<CombinedResID>& _res, const bool _forceAliased = false);
-        void createImgBkt(ImgBucket& _bkt, const ImgRegisterInfo& _info, const tstl::vector<CombinedResID>& _res, const bool _forceAliased = false);
+        void createBufBkt(BufBucket& _bkt, const BufRegisterInfo& _info, const stl::vector<CombinedResID>& _res, const bool _forceAliased = false);
+        void createImgBkt(ImgBucket& _bkt, const ImgRegisterInfo& _info, const stl::vector<CombinedResID>& _res, const bool _forceAliased = false);
 
-        void aliasBuffers(tstl::vector<BufBucket>& _buckets, const tstl::vector<uint16_t>& _sortedBufList);
-        void aliasImages(tstl::vector<ImgBucket>& _buckets, const tstl::vector< ImgRegisterInfo >& _infos, const tstl::vector<uint16_t>& _sortedTexList, const ResourceType _type);
+        void aliasBuffers(stl::vector<BufBucket>& _buckets, const stl::vector<uint16_t>& _sortedBufList);
+        void aliasImages(stl::vector<ImgBucket>& _buckets, const stl::vector< ImgRegisterInfo >& _infos, const stl::vector<uint16_t>& _sortedTexList, const ResourceType _type);
 
         void fillBufferBuckets();
         void fillImageBuckets();
@@ -286,11 +285,11 @@ namespace vkz
         // for sort
         struct PassRWResource
         {
-            tstl::unordered_map<CombinedResID, ResInteractDesc> readInteractMap;
-            tstl::unordered_map<CombinedResID, ResInteractDesc> writeInteractMap;
+            stl::unordered_map<CombinedResID, ResInteractDesc> readInteractMap;
+            stl::unordered_map<CombinedResID, ResInteractDesc> writeInteractMap;
 
-            tstl::unordered_set<CombinedResID> readCombinedRes;
-            tstl::unordered_set<CombinedResID> writeCombinedRes;
+            stl::unordered_set<CombinedResID> readCombinedRes;
+            stl::unordered_set<CombinedResID> writeCombinedRes;
 
             UniDataContainer<CombinedResID, CombinedResID> writeOpAliasMap;
 
@@ -307,14 +306,14 @@ namespace vkz
         // for optimize
         struct PassInDependLevel
         {
-            tstl::vector<tstl::vector<uint16_t>> passInLv;
+            stl::vector<stl::vector<uint16_t>> passInLv;
 
-            tstl::vector<uint16_t> plainPassInLevel;
+            stl::vector<uint16_t> plainPassInLevel;
         };
 
         struct PassToSync
         {
-            tstl::vector<uint16_t> passToSync;
+            stl::vector<uint16_t> passToSync;
         };
 
         struct ResLifetime
@@ -333,66 +332,66 @@ namespace vkz
         CombinedResID  m_combinedPresentImage;
         PassHandle     m_finalPass{kInvalidHandle};
 
-        tstl::vector< ShaderHandle >     m_hShader;
-        tstl::vector< ProgramHandle >    m_hProgram;
-        tstl::vector< PassHandle >      m_hPass;
-        tstl::vector< BufferHandle >     m_hBuf;
-        tstl::vector< ImageHandle >      m_hTex;
-        tstl::vector< SamplerHandle >    m_hSampler;
+        stl::vector< ShaderHandle >     m_hShader;
+        stl::vector< ProgramHandle >    m_hProgram;
+        stl::vector< PassHandle >      m_hPass;
+        stl::vector< BufferHandle >     m_hBuf;
+        stl::vector< ImageHandle >      m_hTex;
+        stl::vector< SamplerHandle >    m_hSampler;
 
-        tstl::vector< ShaderInfo >       m_sparse_shader_info;
-        tstl::vector< ProgramInfo>       m_sparse_program_info;
-        tstl::vector< PassMetaData >     m_sparse_pass_meta;
-        tstl::vector< BufRegisterInfo >  m_sparse_buf_info;
-        tstl::vector< ImgRegisterInfo >  m_sparse_img_info;
-        tstl::vector< PassMetaDataRef>   m_sparse_pass_data_ref;
-        tstl::vector< SamplerMetaData >  m_sparse_sampler_meta;
+        stl::vector< ShaderInfo >       m_sparse_shader_info;
+        stl::vector< ProgramInfo>       m_sparse_program_info;
+        stl::vector< PassMetaData >     m_sparse_pass_meta;
+        stl::vector< BufRegisterInfo >  m_sparse_buf_info;
+        stl::vector< ImgRegisterInfo >  m_sparse_img_info;
+        stl::vector< PassMetaDataRef>   m_sparse_pass_data_ref;
+        stl::vector< SamplerMetaData >  m_sparse_sampler_meta;
         
-        tstl::vector< std::string>           m_shader_path;
+        stl::vector< std::string>           m_shader_path;
 
-        tstl::vector< CombinedResID>         m_combinedResId;
+        stl::vector< CombinedResID>         m_combinedResId;
 
-        tstl::vector< VertexBindingDesc>     m_vtxBindingDesc;
-        tstl::vector< VertexAttributeDesc>   m_vtxAttrDesc;
-        tstl::vector< int>                   m_pipelineSpecData;
+        stl::vector< VertexBindingDesc>     m_vtxBindingDesc;
+        stl::vector< VertexAttributeDesc>   m_vtxAttrDesc;
+        stl::vector< int>                   m_pipelineSpecData;
 
-        tstl::vector< PassRWResource>                m_pass_rw_res;
-        tstl::vector< PassDependency>                m_pass_dependency;
-        tstl::vector< CombinedResID>                 m_combinedForceAlias_base;
-        tstl::vector< tstl::vector<CombinedResID>>    m_combinedForceAlias;
+        stl::vector< PassRWResource>                m_pass_rw_res;
+        stl::vector< PassDependency>                m_pass_dependency;
+        stl::vector< CombinedResID>                 m_combinedForceAlias_base;
+        stl::vector< stl::vector<CombinedResID>>    m_combinedForceAlias;
 
         // sorted and cut passes
-        tstl::vector< PassHandle>    m_sortedPass;
-        tstl::vector< uint16_t>      m_sortedPassIdx;
+        stl::vector< PassHandle>    m_sortedPass;
+        stl::vector< uint16_t>      m_sortedPassIdx;
 
-        tstl::vector< PassInDependLevel>          m_passIdxInDpLevels;
+        stl::vector< PassInDependLevel>          m_passIdxInDpLevels;
 
-        tstl::vector< tstl::vector<uint16_t>>      m_passIdxToSync;
+        stl::vector< stl::vector<uint16_t>>      m_passIdxToSync;
 
         // =====================
         // lv0: each queue
         // lv1: passes in queue
-        std::array< tstl::vector<uint16_t>, (uint16_t)PassExeQueue::count >    m_passIdxInQueue; 
+        std::array< stl::vector<uint16_t>, (uint16_t)PassExeQueue::count >    m_passIdxInQueue; 
 
         // =====================
         // lv0 index: each pass would use
         // lv1 index: one pass in each queue
-        tstl::vector< std::array<uint16_t, (uint16_t)PassExeQueue::count> >    m_nearestSyncPassIdx;
+        stl::vector< std::array<uint16_t, (uint16_t)PassExeQueue::count> >    m_nearestSyncPassIdx;
 
-        tstl::vector< CombinedResID>     m_multiFrame_resList;
+        stl::vector< CombinedResID>     m_multiFrame_resList;
 
 
-        tstl::vector< CombinedResID>     m_resInUseUniList;
-        tstl::vector< CombinedResID>     m_resToOptmUniList;
-        tstl::vector< CombinedResID>     m_resInUseReadonlyList;
-        tstl::vector< CombinedResID>     m_resInUseMultiframeList;
+        stl::vector< CombinedResID>     m_resInUseUniList;
+        stl::vector< CombinedResID>     m_resToOptmUniList;
+        stl::vector< CombinedResID>     m_resInUseReadonlyList;
+        stl::vector< CombinedResID>     m_resInUseMultiframeList;
 
-        tstl::vector< ResLifetime>       m_resLifeTime;
+        stl::vector< ResLifetime>       m_resLifeTime;
 
         UniDataContainer< CombinedResID, CombinedResID> m_plainResAliasToBase;
 
-        tstl::vector< BufBucket>          m_bufBuckets;
-        tstl::vector< ImgBucket>          m_imgBuckets;
+        stl::vector< BufBucket>          m_bufBuckets;
+        stl::vector< ImgBucket>          m_imgBuckets;
     };
 
 

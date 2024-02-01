@@ -19,7 +19,7 @@ namespace vkz
 
     void CmdList_vk::setViewPort(uint32_t _firstViewport, uint32_t _viewportCount, const Viewport* _pViewports)
     {
-        std::vector<VkViewport> viewports(_viewportCount);
+        stl::vector<VkViewport> viewports(_viewportCount);
         for (uint32_t ii = 0; ii < _viewportCount; ++ii)
         {
             viewports[ii] = { _pViewports[ii].x, _pViewports[ii].y, _pViewports[ii].width, _pViewports[ii].height, _pViewports[ii].minDepth, _pViewports[ii].maxDepth };
@@ -30,7 +30,7 @@ namespace vkz
 
     void CmdList_vk::setScissorRect(uint32_t _firstScissor, uint32_t _scissorCount, const Rect2D* _pScissors)
     {
-        std::vector<VkRect2D> scissors(_scissorCount);
+        stl::vector<VkRect2D> scissors(_scissorCount);
         for (uint32_t ii = 0; ii < _scissorCount; ++ii)
         {
             scissors[ii] = { { _pScissors[ii].offset.x, _pScissors[ii].offset.y }, { _pScissors[ii].extent.width, _pScissors[ii].extent.height } };
@@ -59,14 +59,14 @@ namespace vkz
     void CmdList_vk::bindVertexBuffer(uint32_t _firstBinding, uint32_t _bindingCount, const BufferHandle* _pBuffers, const uint64_t* _pOffsets)
     {
         // get buffers
-        std::vector<VkBuffer> buffers(_bindingCount);
+        stl::vector<VkBuffer> buffers(_bindingCount);
         for (uint32_t ii = 0; ii < _bindingCount; ++ii)
         {
             buffers[ii] = m_pCtx->getVkBuffer(_pBuffers[ii]);
         }
 
         // get offsets
-        std::vector<VkDeviceSize> offsets(_bindingCount);
+        stl::vector<VkDeviceSize> offsets(_bindingCount);
         for (uint32_t ii = 0; ii < _bindingCount; ++ii)
         {
             offsets[ii] = _pOffsets[ii];

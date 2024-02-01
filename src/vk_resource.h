@@ -1,9 +1,7 @@
 #pragma once
 
 #include "vkz_structs_inner.h"
-#include "TINYSTL/vector.h"
 
-namespace tstl = tinystl;
 namespace vkz
 {
 
@@ -19,14 +17,14 @@ namespace vkz
     };
 
     Buffer_vk createBuffer(const BufferAliasInfo& info, const VkPhysicalDeviceMemoryProperties& _memProps, VkDevice _device, VkBufferUsageFlags _usage, VkMemoryPropertyFlags _memFlags);
-    void createBuffer(tstl::vector<Buffer_vk>& _results, const tstl::vector<BufferAliasInfo> _infos, const VkPhysicalDeviceMemoryProperties& _memProps, VkDevice _device, VkBufferUsageFlags _usage, VkMemoryPropertyFlags _memFlags);
+    void createBuffer(stl::vector<Buffer_vk>& _results, const stl::vector<BufferAliasInfo> _infos, const VkPhysicalDeviceMemoryProperties& _memProps, VkDevice _device, VkBufferUsageFlags _usage, VkMemoryPropertyFlags _memFlags);
 
     void uploadBuffer(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer cmdBuffer, VkQueue queue, const Buffer_vk& buffer, const Buffer_vk& scratch, const void* data, size_t size);
     void fillBuffer(VkDevice _device, VkCommandPool _cmdPool, VkCommandBuffer _cmdBuffer, VkQueue _queue, const Buffer_vk& _buffer, uint32_t _value, size_t _size);
     void flushBuffer(VkDevice device, const Buffer_vk& buffer, uint32_t offset = 0);
 
     // destroy a list of buffers, which shares the same memory
-    void destroyBuffer(const VkDevice _device, const tstl::vector<Buffer_vk>& _buffers);
+    void destroyBuffer(const VkDevice _device, const stl::vector<Buffer_vk>& _buffers);
 
     VkBufferMemoryBarrier2 bufferBarrier(VkBuffer buffer, VkAccessFlags2 srcAccessMask, VkPipelineStageFlags2 srcStage, VkAccessFlags2 dstAccessMask, VkPipelineStageFlags2 dstStage);
 
@@ -67,10 +65,10 @@ namespace vkz
     };
 
     Image_vk createImage(const ImageAliasInfo& info, const VkDevice _device, const VkPhysicalDeviceMemoryProperties& _memProps, const ImgInitProps_vk& _initProps);
-    void createImage(tstl::vector<Image_vk>& _results, const tstl::vector<ImageAliasInfo>& _infos, const VkDevice _device, const VkPhysicalDeviceMemoryProperties& _memProps, const ImgInitProps_vk& _initProps);
+    void createImage(stl::vector<Image_vk>& _results, const stl::vector<ImageAliasInfo>& _infos, const VkDevice _device, const VkPhysicalDeviceMemoryProperties& _memProps, const ImgInitProps_vk& _initProps);
     void uploadImage(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer cmdBuffer, VkQueue queue, const Image_vk& image, const Buffer_vk& scratch, const void* data, size_t size, VkImageLayout layout, const uint32_t regionCount = 1, uint32_t mipLevels = 1);
     // destroy a list of buffers, which shares the same memory
-    void destroyImage(const VkDevice _device, const tstl::vector<Image_vk>& _images);
+    void destroyImage(const VkDevice _device, const stl::vector<Image_vk>& _images);
 
 
     VkImageView createImageView(VkDevice device, VkImage image, VkFormat format, uint32_t baseMipLevel, uint32_t levelCount, VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D);

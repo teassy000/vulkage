@@ -297,20 +297,20 @@ namespace vkz
         UniDataContainer<SamplerHandle, SamplerDesc> m_samplerDescs;
 
         // alias
-        UniDataContainer<BufferHandle, std::vector<BufferHandle>> m_aliasBuffers;
-        UniDataContainer<ImageHandle, std::vector<ImageHandle>> m_aliasImages;
+        UniDataContainer<BufferHandle, stl::vector<BufferHandle>> m_aliasBuffers;
+        UniDataContainer<ImageHandle, stl::vector<ImageHandle>> m_aliasImages;
 
         // read/write resources
-        UniDataContainer<PassHandle, std::vector<PassResInteract>> m_readBuffers;
-        UniDataContainer<PassHandle, std::vector<PassResInteract>> m_writeBuffers;
-        UniDataContainer<PassHandle, std::vector<PassResInteract>> m_readImages;
-        UniDataContainer<PassHandle, std::vector<PassResInteract>> m_writeImages;
-        UniDataContainer<PassHandle, std::vector<WriteOperationAlias>> m_implicitOutBufferAliases; // add a dependency line to the write resource
-        UniDataContainer<PassHandle, std::vector<WriteOperationAlias>> m_implicitOutImageAliases; // add a dependency line to the write resource
+        UniDataContainer<PassHandle, stl::vector<PassResInteract>> m_readBuffers;
+        UniDataContainer<PassHandle, stl::vector<PassResInteract>> m_writeBuffers;
+        UniDataContainer<PassHandle, stl::vector<PassResInteract>> m_readImages;
+        UniDataContainer<PassHandle, stl::vector<PassResInteract>> m_writeImages;
+        UniDataContainer<PassHandle, stl::vector<WriteOperationAlias>> m_implicitOutBufferAliases; // add a dependency line to the write resource
+        UniDataContainer<PassHandle, stl::vector<WriteOperationAlias>> m_implicitOutImageAliases; // add a dependency line to the write resource
 
         // binding
-        UniDataContainer<PassHandle, std::vector<uint32_t>> m_usedBindPoints;
-        UniDataContainer<PassHandle, std::vector<uint32_t>> m_usedAttchBindPoints;
+        UniDataContainer<PassHandle, stl::vector<uint32_t>> m_usedBindPoints;
+        UniDataContainer<PassHandle, stl::vector<uint32_t>> m_usedAttchBindPoints;
 
         // push constants
         UniDataContainer<ProgramHandle, void *> m_pushConstants;
@@ -402,7 +402,7 @@ namespace vkz
 
         if (m_aliasBuffers.exist(_hBase))
         {
-            const std::vector<BufferHandle>& aliasVec = m_aliasBuffers.getIdToData(_hBase);
+            const stl::vector<BufferHandle>& aliasVec = m_aliasBuffers.getIdToData(_hBase);
             for (const BufferHandle& alias : aliasVec)
             {
                 if ( alias == _hAlias)
@@ -422,7 +422,7 @@ namespace vkz
 
         if (m_aliasImages.exist(_hBase))
         {
-            const std::vector<ImageHandle>& aliasVec = m_aliasImages.getIdToData(_hBase);
+            const stl::vector<ImageHandle>& aliasVec = m_aliasImages.getIdToData(_hBase);
             for (const ImageHandle& alias : aliasVec)
             {
                 if (alias == _hAlias)
@@ -778,7 +778,7 @@ namespace vkz
         for (uint16_t ii = 0; ii < passCount; ++ii)
         {
             auto getResInteractNum = [](
-                const UniDataContainer<PassHandle, std::vector<PassResInteract>>& __cont
+                const UniDataContainer<PassHandle, stl::vector<PassResInteract>>& __cont
                 , const PassHandle __pass) -> uint32_t
             {
                 if (__cont.exist(__pass)) {
@@ -951,9 +951,7 @@ namespace vkz
         for (uint16_t ii = 0; ii < m_aliasBuffers.size(); ++ii)
         {
             BufferHandle buf = m_aliasBuffers.getIdAt(ii);
-            const std::vector<BufferHandle>& aliasVec = m_aliasBuffers.getIdToData(buf);
-            const std::vector<BufferHandle>& aliasData = m_aliasBuffers.getDataAt(ii);
-            assert(aliasVec == aliasData);
+            const stl::vector<BufferHandle>& aliasVec = m_aliasBuffers.getIdToData(buf);
 
             if (aliasVec.empty())
             {
@@ -981,7 +979,7 @@ namespace vkz
         for (uint16_t ii = 0; ii < m_aliasImages.size(); ++ii)
         {
             ImageHandle img  = m_aliasImages.getIdAt(ii);
-            const std::vector<ImageHandle>& aliasVec = m_aliasImages.getIdToData(img);
+            const stl::vector<ImageHandle>& aliasVec = m_aliasImages.getIdToData(img);
 
             if (aliasVec.empty())
             {
@@ -1031,12 +1029,12 @@ namespace vkz
 
         if (m_aliasBuffers.exist(_baseBuf)) 
         {
-            std::vector<BufferHandle>& aliasVecRef = m_aliasBuffers.getDataRef(_baseBuf);
+            stl::vector<BufferHandle>& aliasVecRef = m_aliasBuffers.getDataRef(_baseBuf);
             aliasVecRef.emplace_back(BufferHandle{ aliasId });
         }
         else 
         {
-            std::vector<BufferHandle> aliasVec{};
+            stl::vector<BufferHandle> aliasVec{};
             //aliasVec.push_back(_baseBuf); // first one is the base
             aliasVec.emplace_back(BufferHandle{ aliasId });
 
@@ -1058,12 +1056,12 @@ namespace vkz
 
         if (m_aliasImages.exist(_baseImg))
         {
-            std::vector<ImageHandle>& aliasVecRef = m_aliasImages.getDataRef(_baseImg);
+            stl::vector<ImageHandle>& aliasVecRef = m_aliasImages.getDataRef(_baseImg);
             aliasVecRef.emplace_back(ImageHandle{ aliasId });
         }
         else
         {
-            std::vector<ImageHandle> aliasVec{};
+            stl::vector<ImageHandle> aliasVec{};
             //aliasVec.push_back(_baseImg);
             aliasVec.emplace_back(ImageHandle{ aliasId });
 
@@ -1079,12 +1077,12 @@ namespace vkz
         return { aliasId };
     }
 
-    uint32_t availableBinding(UniDataContainer<PassHandle, std::vector<uint32_t>>& _container, const PassHandle _hPass, const uint32_t _binding)
+    uint32_t availableBinding(UniDataContainer<PassHandle, stl::vector<uint32_t>>& _container, const PassHandle _hPass, const uint32_t _binding)
     {
         bool conflict = false;
         if (_container.exist(_hPass))
         {
-            const std::vector<uint32_t>& bindingVec = _container.getDataRef(_hPass);
+            const stl::vector<uint32_t>& bindingVec = _container.getDataRef(_hPass);
             for (const uint32_t& binding : bindingVec)
             {
                 if (binding == _binding)
@@ -1095,7 +1093,7 @@ namespace vkz
         }
         else
         {
-            std::vector<uint32_t> bindingVec{};
+            stl::vector<uint32_t> bindingVec{};
             bindingVec.emplace_back(_binding);
             _container.push_back({ _hPass }, bindingVec);
         }
@@ -1103,7 +1101,7 @@ namespace vkz
         return !conflict;
     }
 
-    uint32_t insertResInteract(UniDataContainer<PassHandle, std::vector<PassResInteract>>& _container
+    uint32_t insertResInteract(UniDataContainer<PassHandle, stl::vector<PassResInteract>>& _container
         , const PassHandle _hPass, const uint16_t _resId, const SamplerHandle _hSampler, const ResInteractDesc& _interact
         , const SpecificImageViewInfo& _specImgViewInfo
         )
@@ -1120,14 +1118,14 @@ namespace vkz
 
         if (_container.exist(_hPass))
         {
-            std::vector<PassResInteract>& prInteractVec = _container.getDataRef(_hPass);
+            stl::vector<PassResInteract>& prInteractVec = _container.getDataRef(_hPass);
             prInteractVec.emplace_back(pri);
 
             vecSize = (uint32_t)prInteractVec.size();
         }
         else
         {
-            std::vector<PassResInteract> prInteractVec{};
+            stl::vector<PassResInteract> prInteractVec{};
             prInteractVec.emplace_back(pri);
             _container.push_back({ _hPass }, prInteractVec);
 
@@ -1138,28 +1136,28 @@ namespace vkz
     }
     
 
-    uint32_t insertResInteract(UniDataContainer<PassHandle, std::vector<PassResInteract>>& _container
+    uint32_t insertResInteract(UniDataContainer<PassHandle, stl::vector<PassResInteract>>& _container
         , const PassHandle _hPass, const uint16_t _resId, const SamplerHandle _hSampler, const ResInteractDesc& _interact
         )
     {
         return insertResInteract(_container, _hPass, _resId, _hSampler, _interact, defaultSpecificImageViewInfo());
     }
 
-    uint32_t insertWriteResAlias(UniDataContainer<PassHandle, std::vector<WriteOperationAlias>>& _container, const PassHandle _hPass, const uint16_t _resIn, const uint16_t _resOut)
+    uint32_t insertWriteResAlias(UniDataContainer<PassHandle, stl::vector<WriteOperationAlias>>& _container, const PassHandle _hPass, const uint16_t _resIn, const uint16_t _resOut)
     {
         uint32_t vecSize = 0u;
 
         if (_container.exist(_hPass))
         {
-            std::vector<WriteOperationAlias>& aliasVec = _container.getDataRef(_hPass);
-            aliasVec.emplace_back(_resIn, _resOut);
+            stl::vector<WriteOperationAlias>& aliasVec = _container.getDataRef(_hPass);
+            aliasVec.emplace_back(WriteOperationAlias{ _resIn, _resOut });
 
             vecSize = (uint32_t)aliasVec.size();
         }
         else
         {
-            std::vector<WriteOperationAlias> aliasVec{};
-            aliasVec.emplace_back(_resIn, _resOut);
+            stl::vector<WriteOperationAlias> aliasVec{};
+            aliasVec.emplace_back(WriteOperationAlias{ _resIn, _resOut });
             _container.push_back({ _hPass }, aliasVec);
 
             vecSize = (uint32_t)aliasVec.size();

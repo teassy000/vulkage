@@ -8,6 +8,8 @@
 #include "vkz_ui.h"
 #include "memory_operation.h"
 
+namespace tstl = tinystl;
+
 constexpr uint32_t kInitialVertexBufferSize = 1024 * 1024; // 1MB
 constexpr uint32_t kInitialIndexBufferSize = 1024 * 1024; // 1MB
 
@@ -86,30 +88,32 @@ void vkz_prepareUI(UIRendering& _ui, float _scale /*= 1.f*/, bool _useChinese /*
 
     vkz::ProgramHandle program = vkz::registProgram("ui.program", { vs, fs }, sizeof(PushConstBlock));
 
-    std::vector<vkz::VertexBindingDesc> bindings =
+//    stl::vector<vkz::VertexBindingDesc> bindings =
+
+    vkz::VertexBindingDesc bindings[] =
     {
         {0, sizeof(ImDrawVert), vkz::VertexInputRate::vertex},
     };
 
-    std::vector<vkz::VertexAttributeDesc> attributes =
+    vkz::VertexAttributeDesc attributes[] =
     {
         {0, 0, vkz::ResourceFormat::r32g32_sfloat, offsetof(ImDrawVert, pos)},
         {1, 0, vkz::ResourceFormat::r32g32_sfloat, offsetof(ImDrawVert, uv)},
         {2, 0, vkz::ResourceFormat::r8g8b8a8_unorm, offsetof(ImDrawVert, col)},
     };
 
-    const vkz::Memory* vtxBindingMem = vkz::alloc(uint32_t(sizeof(vkz::VertexBindingDesc) * bindings.size()));
-    memcpy(vtxBindingMem->data, bindings.data(), sizeof(vkz::VertexBindingDesc) * bindings.size());
+    const vkz::Memory* vtxBindingMem = vkz::alloc(uint32_t(sizeof(vkz::VertexBindingDesc) * COUNTOF(bindings)));
+    memcpy(vtxBindingMem->data, bindings, sizeof(vkz::VertexBindingDesc) * COUNTOF(bindings));
 
-    const vkz::Memory* vtxAttributeMem = vkz::alloc(uint32_t(sizeof(vkz::VertexAttributeDesc) * attributes.size()));
-    memcpy(vtxAttributeMem->data, attributes.data(), sizeof(vkz::VertexAttributeDesc) * attributes.size());
+    const vkz::Memory* vtxAttributeMem = vkz::alloc(uint32_t(sizeof(vkz::VertexAttributeDesc) * COUNTOF(attributes)));
+    memcpy(vtxAttributeMem->data, attributes, sizeof(vkz::VertexAttributeDesc) * COUNTOF(attributes));
 
     vkz::PassDesc passDesc;
     passDesc.programId = program.id;
     passDesc.queue = vkz::PassExeQueue::graphics;
-    passDesc.vertexBindingNum = (uint32_t)bindings.size();
+    passDesc.vertexBindingNum = (uint32_t)COUNTOF(bindings);
     passDesc.vertexBindings = vtxBindingMem->data;
-    passDesc.vertexAttributeNum = (uint32_t)attributes.size();
+    passDesc.vertexAttributeNum = (uint32_t)COUNTOF(attributes);
     passDesc.vertexAttributes = vtxAttributeMem->data;
     passDesc.pipelineConfig = { true, true, vkz::CompareOp::always };
     

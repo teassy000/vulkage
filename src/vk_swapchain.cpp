@@ -28,7 +28,7 @@ namespace vkz
 
     VkFormat getSwapchainFormat(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface)
     {
-        std::vector<VkSurfaceFormatKHR> formats;
+        stl::vector<VkSurfaceFormatKHR> formats;
         uint32_t formatCount = 0;
         vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, nullptr);
         formats.resize(formatCount);
@@ -50,7 +50,7 @@ namespace vkz
 
     VkPresentModeKHR getSwapchainPresentMode(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface)
     {
-        std::vector<VkPresentModeKHR> presentModes(32);
+        stl::vector<VkPresentModeKHR> presentModes(32);
         uint32_t presentModeCount = 32;
         VK_CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModeCount, presentModes.data()));
 
@@ -150,14 +150,14 @@ namespace vkz
         VkSwapchainKHR swapchain = createSwapchain(device, surface, surfaceCaps, familyIndex, format, oldSwapchain, presentMode);
         assert(swapchain);
 
-        std::vector<VkImage> images(16);
+        stl::vector<VkImage> images(16);
         uint32_t imageCount = 16;
         VK_CHECK(vkGetSwapchainImagesKHR(device, swapchain, &imageCount, images.data()));
+        
+        images.resize(imageCount);
 
         result.swapchain = swapchain;
-
         result.images = images;
-
         result.width = width;
         result.height = height;
         result.imageCount = imageCount;

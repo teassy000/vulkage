@@ -42,7 +42,7 @@ namespace vkz
         return ~0u;
     }
 
-    void createBuffer(tstl::vector<Buffer_vk>& _results, const tstl::vector<BufferAliasInfo> _infos, const VkPhysicalDeviceMemoryProperties& _memProps
+    void createBuffer(stl::vector<Buffer_vk>& _results, const stl::vector<BufferAliasInfo> _infos, const VkPhysicalDeviceMemoryProperties& _memProps
             , const VkDevice _device, const VkBufferUsageFlags _usage, const VkMemoryPropertyFlags _memFlags)
     {
         if (_infos.empty())
@@ -53,7 +53,7 @@ namespace vkz
         assert(_results.empty());
         
         uint32_t size = (uint32_t)_infos.size();
-        tstl::vector<Buffer_vk> results(size);
+        stl::vector<Buffer_vk> results(size);
 
         for (uint32_t ii = 0; ii < size; ++ii)
         {
@@ -107,8 +107,8 @@ namespace vkz
 
     Buffer_vk createBuffer(const BufferAliasInfo& info, const VkPhysicalDeviceMemoryProperties& _memProps, VkDevice _device, VkBufferUsageFlags _usage, VkMemoryPropertyFlags _memFlags)
     {
-        tstl::vector<Buffer_vk> results;
-        tstl::vector<BufferAliasInfo> infos{1, info };
+        stl::vector<Buffer_vk> results;
+        stl::vector<BufferAliasInfo> infos{1, info };
         createBuffer(results, infos, _memProps, _device, _usage, _memFlags);
 
         return results[0];
@@ -191,7 +191,7 @@ namespace vkz
         VK_CHECK(vkFlushMappedMemoryRanges(device, 1, &range));
     }
 
-    void destroyBuffer(const VkDevice _device, const tstl::vector<Buffer_vk>& _buffers)
+    void destroyBuffer(const VkDevice _device, const stl::vector<Buffer_vk>& _buffers)
     {
         assert(!_buffers.empty());
         
@@ -224,7 +224,7 @@ namespace vkz
     }
 
 
-    void createImage(tstl::vector<Image_vk>& _results, const tstl::vector<ImageAliasInfo>& _infos, const VkDevice _device, const VkPhysicalDeviceMemoryProperties& _memProps, const ImgInitProps_vk& _initProps)
+    void createImage(stl::vector<Image_vk>& _results, const stl::vector<ImageAliasInfo>& _infos, const VkDevice _device, const VkPhysicalDeviceMemoryProperties& _memProps, const ImgInitProps_vk& _initProps)
     {
         if (_infos.empty())
         {
@@ -234,7 +234,7 @@ namespace vkz
         assert(_results.empty());
 
         uint32_t num = (uint32_t)_infos.size();
-        tstl::vector<Image_vk> results(num);
+        stl::vector<Image_vk> results(num);
 
         VkImageCreateInfo createInfo = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
 
@@ -302,7 +302,7 @@ namespace vkz
 
     vkz::Image_vk createImage(const ImageAliasInfo& _info, const VkDevice _device, const VkPhysicalDeviceMemoryProperties& _memProps, const ImgInitProps_vk& _initProps)
     {
-        tstl::vector<Image_vk> results;
+        stl::vector<Image_vk> results;
         createImage(results, {1, _info}, _device, _memProps, _initProps);
         assert(!results.empty());
 
@@ -347,7 +347,7 @@ namespace vkz
         vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, copyBarrier);
 
 
-        tstl::vector<VkBufferImageCopy> regions;
+        stl::vector<VkBufferImageCopy> regions;
         for (uint32_t face = 0; face < regionCount; ++face)
         {
             for (uint32_t level = 0; level < mipLevels; ++level)
@@ -390,7 +390,7 @@ namespace vkz
         VK_CHECK(vkDeviceWaitIdle(device));
     }
 
-    void destroyImage(const VkDevice _device, const tstl::vector<Image_vk>& _images)
+    void destroyImage(const VkDevice _device, const stl::vector<Image_vk>& _images)
     {
         assert(!_images.empty());
 

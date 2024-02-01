@@ -1,8 +1,5 @@
 #pragma once
-
-#include "TINYSTL/vector.h"
-
-namespace tstl = tinystl;
+#include "common.h"
 
 namespace vkz
 {
@@ -42,13 +39,13 @@ namespace vkz
     bool loadShader(Shader_vk& shader, VkDevice device, const char* path);
 
     VkPipeline createGraphicsPipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, const VkPipelineRenderingCreateInfo& renderInfo
-        , const tstl::vector<Shader_vk>& shaders, VkPipelineVertexInputStateCreateInfo* vtxInputState, const tstl::vector<int> constants = {}, const PipelineConfigs_vk& pipeConfigs = {});
-    VkPipeline createComputePipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, const Shader_vk& shader, const tstl::vector<int> constants = {});
+        , const stl::vector<Shader_vk>& shaders, VkPipelineVertexInputStateCreateInfo* vtxInputState, const stl::vector<int> constants = {}, const PipelineConfigs_vk& pipeConfigs = {});
+    VkPipeline createComputePipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, const Shader_vk& shader, const stl::vector<int> constants = {});
 
-    VkDescriptorSetLayout createSetLayout(VkDevice device, const tstl::vector<Shader_vk>& shaders);
+    VkDescriptorSetLayout createSetLayout(VkDevice device, const stl::vector<Shader_vk>& shaders);
     VkPipelineLayout createPipelineLayout(VkDevice device, VkDescriptorSetLayout outSetLayout, VkShaderStageFlags pushConstantStages, size_t pushConstantSize);
 
-    Program_vk createProgram(VkDevice device, VkPipelineBindPoint bindingPoint, const tstl::vector<Shader_vk>& shaders, size_t pushConstantSize = 0);
+    Program_vk createProgram(VkDevice device, VkPipelineBindPoint bindingPoint, const stl::vector<Shader_vk>& shaders, size_t pushConstantSize = 0);
     void destroyProgram(VkDevice device, const Program_vk& program);
 
     inline uint32_t calcGroupCount(uint32_t threadCount, uint32_t localSize)

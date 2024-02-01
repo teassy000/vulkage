@@ -13,7 +13,7 @@ namespace vkz
     {
         VkSwapchainKHR swapchain;
 
-        std::vector<VkImage> images;
+        stl::vector<VkImage> images;
 
         uint32_t width, height;
         uint32_t imageCount;

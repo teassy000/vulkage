@@ -2,17 +2,15 @@
 #define __VKZ_UTIL_H__
 
 #include <assert.h>
-#include <TINYSTL/vector.h>
-#include <vector>
+#include "common.h"
 
-namespace tstl = tinystl;
 
 namespace vkz
 {
     constexpr uint16_t kInvalidIndex = 0xffff;
 
     template<typename T>
-    const size_t linearSearch(const tstl::vector<T>& _vec, const T _data)
+    const size_t linearSearch(const stl::vector<T>& _vec, const T _data)
     {
         for (size_t i = 0; i < _vec.size(); ++i)
         {
@@ -26,13 +24,13 @@ namespace vkz
     }
 
     template<typename T>
-    const size_t getElemIndex(const tstl::vector<T>& _vec, const T _data)
+    const size_t getElemIndex(const stl::vector<T>& _vec, const T _data)
     {
         return linearSearch(_vec, _data);
     }
 
     template<typename T>
-    const size_t push_back_unique(tstl::vector<T>& _vec, const T _data)
+    const size_t push_back_unique(stl::vector<T>& _vec, const T _data)
     {
         size_t idx = getElemIndex(_vec, _data);
 
@@ -121,8 +119,8 @@ namespace vkz
             return indexToData.data();
         }
     private:
-        tstl::vector<IdType> ids;
-        tstl::vector<DataType> indexToData;
+        stl::vector<IdType> ids;
+        stl::vector<DataType> indexToData;
     };
 }
 

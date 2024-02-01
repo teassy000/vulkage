@@ -198,31 +198,31 @@ namespace vkz
 
         // write image
         // include color attachment and depth stencil attachment
-        tstl::vector<PassResInteract> writeImgVec(passMeta.writeImageNum);
+        stl::vector<PassResInteract> writeImgVec(passMeta.writeImageNum);
         read(&_reader, writeImgVec.data(), sizeof(PassResInteract) * passMeta.writeImageNum);
         passMeta.writeImageNum = writeResource(writeImgVec, passMeta.passId, ResourceType::image);
 
         // read image
-        tstl::vector<PassResInteract> readImgVec(passMeta.readImageNum);
+        stl::vector<PassResInteract> readImgVec(passMeta.readImageNum);
         read(&_reader, readImgVec.data(), sizeof(PassResInteract) * passMeta.readImageNum);
         passMeta.readImageNum = readResource(readImgVec, passMeta.passId, ResourceType::image);
 
         // write buffer
-        tstl::vector<PassResInteract> writeBufVec(passMeta.writeBufferNum);
+        stl::vector<PassResInteract> writeBufVec(passMeta.writeBufferNum);
         read(&_reader, writeBufVec.data(), sizeof(PassResInteract) * passMeta.writeBufferNum);
         passMeta.writeBufferNum = writeResource(writeBufVec, passMeta.passId, ResourceType::buffer);
 
         // read buffer
-        tstl::vector<PassResInteract> readBufVec(passMeta.readBufferNum);
+        stl::vector<PassResInteract> readBufVec(passMeta.readBufferNum);
         read(&_reader, readBufVec.data(), sizeof(PassResInteract) * passMeta.readBufferNum);
         passMeta.readBufferNum = readResource(readBufVec, passMeta.passId, ResourceType::buffer);
 
         // write resource alias
-        tstl::vector<WriteOperationAlias> writeImgAliasVec(passMeta.writeImgAliasNum);
+        stl::vector<WriteOperationAlias> writeImgAliasVec(passMeta.writeImgAliasNum);
         read(&_reader, writeImgAliasVec.data(), sizeof(WriteOperationAlias) * passMeta.writeImgAliasNum);
         passMeta.writeImgAliasNum = writeResAlias(writeImgAliasVec, passMeta.passId, ResourceType::image);
 
-        tstl::vector<WriteOperationAlias> writeBufAliasVec(passMeta.writeBufAliasNum);
+        stl::vector<WriteOperationAlias> writeBufAliasVec(passMeta.writeBufAliasNum);
         read(&_reader, writeBufAliasVec.data(), sizeof(WriteOperationAlias) * passMeta.writeBufAliasNum);
         passMeta.writeBufAliasNum = writeResAlias(writeBufAliasVec, passMeta.passId, ResourceType::buffer);
 
@@ -335,7 +335,7 @@ namespace vkz
         return retVar;
     }
 
-    uint32_t Framegraph2::readResource(const tstl::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type)
+    uint32_t Framegraph2::readResource(const stl::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type)
     {
         const size_t hPassIdx = getElemIndex(m_hPass, { _passId });
         assert(hPassIdx != kInvalidIndex);
@@ -378,7 +378,7 @@ namespace vkz
         return actualSize;
     }
 
-    uint32_t Framegraph2::writeResource(const tstl::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type)
+    uint32_t Framegraph2::writeResource(const stl::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type)
     {
         const size_t hPassIdx = getElemIndex(m_hPass, { _passId });
         assert(hPassIdx != kInvalidIndex);
@@ -426,7 +426,7 @@ namespace vkz
         return actualSize;
     }
 
-    uint32_t Framegraph2::writeResAlias(const tstl::vector<WriteOperationAlias>& _aliasMapVec, const uint16_t _passId, const ResourceType _type)
+    uint32_t Framegraph2::writeResAlias(const stl::vector<WriteOperationAlias>& _aliasMapVec, const uint16_t _passId, const ResourceType _type)
     {
         const size_t hPassIdx =getElemIndex(m_hPass, { _passId });
         assert(hPassIdx != kInvalidIndex);
@@ -463,7 +463,7 @@ namespace vkz
         if (kInvalidIndex == idx)
         {
             m_combinedForceAlias_base.push_back(combinedBaseIdx);
-            tstl::vector<CombinedResID> aliasVec({ 1, combinedBaseIdx }); // store base resource into the list
+            stl::vector<CombinedResID> aliasVec({ 1, combinedBaseIdx }); // store base resource into the list
 
             m_combinedForceAlias.push_back(aliasVec);
             idx = m_combinedForceAlias.size() - 1;
@@ -481,7 +481,7 @@ namespace vkz
 
     void Framegraph2::buildGraph()
     {
-        tstl::unordered_map<CombinedResID, uint16_t> linear_writeResPassIdxMap;
+        stl::unordered_map<CombinedResID, uint16_t> linear_writeResPassIdxMap;
 
         std::set<CombinedResID> writeOpInSetO{};
         for (uint16_t ii = 0; ii < m_hPass.size(); ++ii)
@@ -561,13 +561,13 @@ namespace vkz
     {
         uint16_t passNum = (uint16_t)m_hPass.size();
 
-        tstl::vector<bool> visited(passNum, false);
-        tstl::vector<bool> onStack(passNum, false);
+        stl::vector<bool> visited(passNum, false);
+        stl::vector<bool> onStack(passNum, false);
 
         uint16_t finalPassIdx = (uint16_t)getElemIndex(m_hPass, m_finalPass);
         assert(finalPassIdx != kInvalidIndex);
 
-        tstl::vector<uint16_t> sortedPassIdx;
+        stl::vector<uint16_t> sortedPassIdx;
         std::stack<uint16_t> passIdxStack;
 
         // start with the final pass
@@ -626,7 +626,7 @@ namespace vkz
 
     }
 
-    void Framegraph2::buildMaxLevelList(tstl::vector<uint16_t>& _maxLvLst)
+    void Framegraph2::buildMaxLevelList(stl::vector<uint16_t>& _maxLvLst)
     {
         for (uint16_t passIdx : m_sortedPassIdx)
         {
@@ -642,11 +642,11 @@ namespace vkz
         }
     }
 
-    void Framegraph2::formatDependency(const tstl::vector<uint16_t>& _maxLvLst)
+    void Framegraph2::formatDependency(const stl::vector<uint16_t>& _maxLvLst)
     {
         // initialize the dependency level
         const uint16_t maxLv = *std::max_element(_maxLvLst.begin(), _maxLvLst.end());
-        m_passIdxInDpLevels = tstl::vector<PassInDependLevel>(m_sortedPassIdx.size(), PassInDependLevel{});
+        m_passIdxInDpLevels = stl::vector<PassInDependLevel>(m_sortedPassIdx.size(), PassInDependLevel{});
 
 
         for (uint16_t passIdx : m_sortedPassIdx)
@@ -752,14 +752,14 @@ namespace vkz
 
     void Framegraph2::postParse()
     {
-        tstl::vector<CombinedResID> plainAliasRes;
-        tstl::vector<uint16_t> plainAliasResIdx;
+        stl::vector<CombinedResID> plainAliasRes;
+        stl::vector<uint16_t> plainAliasResIdx;
 
         for (uint16_t ii = 0; ii < m_combinedForceAlias_base.size(); ++ii)
         {
             CombinedResID base = m_combinedForceAlias_base[ii];
 
-            const tstl::vector<CombinedResID>& aliasVec = m_combinedForceAlias[ii];
+            const stl::vector<CombinedResID>& aliasVec = m_combinedForceAlias[ii];
 
             plainAliasRes.insert(plainAliasRes.end(), aliasVec.begin(), aliasVec.end());
 
@@ -770,7 +770,7 @@ namespace vkz
             }
         }
 
-        tstl::vector<CombinedResID> fullMultiFrameRes = m_multiFrame_resList;
+        stl::vector<CombinedResID> fullMultiFrameRes = m_multiFrame_resList;
         for (const CombinedResID cid : m_multiFrame_resList)
         {
             const size_t idx = getElemIndex(plainAliasRes, cid);
@@ -780,7 +780,7 @@ namespace vkz
             }
 
             const uint16_t alisIdx = plainAliasResIdx[idx];
-            const tstl::vector<CombinedResID>& aliasVec = m_combinedForceAlias[alisIdx];
+            const stl::vector<CombinedResID>& aliasVec = m_combinedForceAlias[alisIdx];
             for (CombinedResID alias : aliasVec)
             {
                 push_back_unique(fullMultiFrameRes, alias);
@@ -792,10 +792,10 @@ namespace vkz
 
     void Framegraph2::buildResLifetime()
     {
-        tstl::vector<CombinedResID> resInUseUniList;
-        tstl::vector<CombinedResID> resToOptmUniList; // all used resources except: force alias, multi-frame, read-only
-        tstl::vector<CombinedResID> readResUniList;
-        tstl::vector<CombinedResID> writeResUniList;
+        stl::vector<CombinedResID> resInUseUniList;
+        stl::vector<CombinedResID> resToOptmUniList; // all used resources except: force alias, multi-frame, read-only
+        stl::vector<CombinedResID> readResUniList;
+        stl::vector<CombinedResID> writeResUniList;
         
         for (const uint16_t pIdx : m_sortedPassIdx)
         {
@@ -827,7 +827,7 @@ namespace vkz
             }
         }
 
-        tstl::vector<tstl::vector<uint16_t>> resToOptmPassIdxByOrder(resToOptmUniList.size(), tstl::vector<uint16_t>()); // share the same idx with resToOptmUniList
+        stl::vector<stl::vector<uint16_t>> resToOptmPassIdxByOrder(resToOptmUniList.size(), stl::vector<uint16_t>()); // share the same idx with resToOptmUniList
         for(uint16_t ii = 0; ii < m_sortedPassIdx.size(); ++ii)
         {
             const uint16_t pIdx = m_sortedPassIdx[ii];
@@ -854,7 +854,7 @@ namespace vkz
             }
         }
 
-        tstl::vector<CombinedResID> readonlyResUniList;
+        stl::vector<CombinedResID> readonlyResUniList;
         for (const CombinedResID readRes : readResUniList)
         {
             // not found in writeResUniList: no one write to it
@@ -874,7 +874,7 @@ namespace vkz
         }
 
 
-        tstl::vector<CombinedResID> multiframeResUniList;
+        stl::vector<CombinedResID> multiframeResUniList;
         for (const CombinedResID multiFrameRes : m_multiFrame_resList)
         {
             // not in use 
@@ -930,9 +930,9 @@ namespace vkz
 
         assert(resToOptmPassIdxByOrder.size() == resToOptmUniList.size());
 
-        tstl::vector < ResLifetime > resLifeTime;
+        stl::vector < ResLifetime > resLifeTime;
         // only transient resource would be in the lifetime list
-        for (const tstl::vector<uint16_t> & passIdxByOrder : resToOptmPassIdxByOrder)
+        for (const stl::vector<uint16_t> & passIdxByOrder : resToOptmPassIdxByOrder)
         {
             assert(!passIdxByOrder.empty());
 
@@ -953,8 +953,8 @@ namespace vkz
 
     void Framegraph2::fillBucketForceAlias()
     {
-        tstl::vector<CombinedResID> actualAliasBase;
-        tstl::vector<tstl::vector<CombinedResID>> actualAlias;
+        stl::vector<CombinedResID> actualAliasBase;
+        stl::vector<stl::vector<CombinedResID>> actualAlias;
         for (const CombinedResID combRes : m_resInUseUniList)
         {
             if (!m_plainResAliasToBase.exist(combRes))
@@ -977,7 +977,7 @@ namespace vkz
         for (uint16_t ii = 0; ii < actualAliasBase.size(); ++ii)
         {
             const CombinedResID base = actualAliasBase[ii];
-            const tstl::vector<CombinedResID>& aliasVec = actualAlias[ii];
+            const stl::vector<CombinedResID>& aliasVec = actualAlias[ii];
 
             // buffers
             if (isBuffer(base)) 
@@ -1053,7 +1053,7 @@ namespace vkz
         }
     }
 
-    void Framegraph2::createBufBkt(BufBucket& _bkt, const BufRegisterInfo& _info, const tstl::vector<CombinedResID>& _reses, const bool _forceAliased /*= false*/)
+    void Framegraph2::createBufBkt(BufBucket& _bkt, const BufRegisterInfo& _info, const stl::vector<CombinedResID>& _reses, const bool _forceAliased /*= false*/)
     {
         assert(!_reses.empty());
 
@@ -1069,7 +1069,7 @@ namespace vkz
         _bkt.forceAliased = _forceAliased;
     }
 
-    void Framegraph2::createImgBkt(ImgBucket& _bkt, const ImgRegisterInfo& _info, const tstl::vector<CombinedResID>& _reses, const bool _forceAliased /*= false*/)
+    void Framegraph2::createImgBkt(ImgBucket& _bkt, const ImgRegisterInfo& _info, const stl::vector<CombinedResID>& _reses, const bool _forceAliased /*= false*/)
     {
         assert(!_reses.empty());
 
@@ -1095,18 +1095,18 @@ namespace vkz
         _bkt.forceAliased = _forceAliased;
     }
 
-    void Framegraph2::aliasBuffers(tstl::vector<BufBucket>& _buckets, const tstl::vector<uint16_t>& _sortedBufList)
+    void Framegraph2::aliasBuffers(stl::vector<BufBucket>& _buckets, const stl::vector<uint16_t>& _sortedBufList)
     {
-        tstl::vector<uint16_t> restRes = _sortedBufList;
+        stl::vector<uint16_t> restRes = _sortedBufList;
 
-        tstl::vector<tstl::vector<CombinedResID>> resInLevel{{}};
+        stl::vector<stl::vector<CombinedResID>> resInLevel{{}};
 
         if (restRes.empty()) {
             return;
         }
 
         // now process normal alias resources
-        tstl::vector<BufBucket> buckets;
+        stl::vector<BufBucket> buckets;
         while (!restRes.empty())
         {
             uint16_t baseRes = *restRes.begin();
@@ -1158,18 +1158,18 @@ namespace vkz
         _buckets = _buckets;
     }
 
-    void Framegraph2::aliasImages(tstl::vector<ImgBucket>& _buckets,const tstl::vector< ImgRegisterInfo >& _infos, const tstl::vector<uint16_t>& _sortedTexList, const ResourceType _type)
+    void Framegraph2::aliasImages(stl::vector<ImgBucket>& _buckets,const stl::vector< ImgRegisterInfo >& _infos, const stl::vector<uint16_t>& _sortedTexList, const ResourceType _type)
     {
-        tstl::vector<uint16_t> restRes = _sortedTexList;
+        stl::vector<uint16_t> restRes = _sortedTexList;
 
-        tstl::vector<tstl::vector<CombinedResID>> resInLevel{{}};
+        stl::vector<stl::vector<CombinedResID>> resInLevel{{}};
 
         if (restRes.empty()) {
             return;
         }
 
         // now process normal alias resources
-        tstl::vector<ImgBucket> buckets;
+        stl::vector<ImgBucket> buckets;
         while (!restRes.empty())
         {
             uint16_t baseRes = *restRes.begin();
@@ -1226,7 +1226,7 @@ namespace vkz
     void Framegraph2::fillBufferBuckets()
     {
         // sort the resource by size
-        tstl::vector<uint16_t> sortedBufIdx;
+        stl::vector<uint16_t> sortedBufIdx;
         for (const CombinedResID& crid : m_resToOptmUniList)
         {
             if (!isBuffer(crid)) {
@@ -1239,7 +1239,7 @@ namespace vkz
             return m_sparse_buf_info[_l].size > m_sparse_buf_info[_r].size;
         });
 
-        tstl::vector<BufBucket> buckets;
+        stl::vector<BufBucket> buckets;
         aliasBuffers(buckets,sortedBufIdx);
 
         m_bufBuckets.insert(m_bufBuckets.end(), buckets.begin(), buckets.end());
@@ -1249,7 +1249,7 @@ namespace vkz
     {
         const ResourceType type = ResourceType::image;
 
-        tstl::vector<uint16_t> sortedTexIdx;
+        stl::vector<uint16_t> sortedTexIdx;
         for (const CombinedResID& crid : m_resToOptmUniList)
         {
             if (!(isImage(crid))) {
@@ -1268,7 +1268,7 @@ namespace vkz
             return size_l > size_r;
         });
 
-        tstl::vector<ImgBucket> buckets;
+        stl::vector<ImgBucket> buckets;
         aliasImages(buckets, m_sparse_img_info, sortedTexIdx, type);
 
         m_imgBuckets.insert(m_imgBuckets.end(), buckets.begin(), buckets.end());
@@ -1277,7 +1277,7 @@ namespace vkz
     void Framegraph2::optimizeSync()
     {
         // calc max level list
-        tstl::vector<uint16_t> maxLvLst(m_sortedPassIdx.size(), 0);
+        stl::vector<uint16_t> maxLvLst(m_sortedPassIdx.size(), 0);
         buildMaxLevelList(maxLvLst);
 
         // build dependency level
@@ -1335,7 +1335,7 @@ namespace vkz
                 assert(info.data == nullptr);
             }
 
-            tstl::vector<BufferAliasInfo> aliasInfo;
+            stl::vector<BufferAliasInfo> aliasInfo;
             for (const CombinedResID cid : bkt.reses)
             {
                 BufferAliasInfo alias;
@@ -1381,7 +1381,7 @@ namespace vkz
 
             write(&m_rhiMemWriter, info);
 
-            tstl::vector<ImageAliasInfo> aliasInfo;
+            stl::vector<ImageAliasInfo> aliasInfo;
             for (const CombinedResID cid : bkt.reses)
             {
                 ImageAliasInfo alias;
@@ -1397,8 +1397,8 @@ namespace vkz
 
     void Framegraph2::createShaders()
     {
-        tstl::vector<ProgramHandle> usedProgram{};
-        tstl::vector<ShaderHandle> usedShaders{};
+        stl::vector<ProgramHandle> usedProgram{};
+        stl::vector<ShaderHandle> usedShaders{};
         for ( PassHandle pass : m_sortedPass)
         {
             const PassMetaData& passMeta = m_sparse_pass_meta[pass.id];
@@ -1496,20 +1496,20 @@ namespace vkz
 
     void Framegraph2::createPasses()
     {
-        tstl::vector<PassMetaData> passMetaDataVec{};
-        tstl::vector<tstl::vector<VertexBindingDesc>> passVertexBinding(m_sortedPass.size());
-        tstl::vector<tstl::vector<VertexAttributeDesc>> passVertexAttribute(m_sortedPass.size());
-        tstl::vector<tstl::vector<int>> passPipelineSpecData(m_sortedPass.size());
+        stl::vector<PassMetaData> passMetaDataVec{};
+        stl::vector<stl::vector<VertexBindingDesc>> passVertexBinding(m_sortedPass.size());
+        stl::vector<stl::vector<VertexAttributeDesc>> passVertexAttribute(m_sortedPass.size());
+        stl::vector<stl::vector<int>> passPipelineSpecData(m_sortedPass.size());
 
-        tstl::vector<std::pair<ImageHandle, ResInteractDesc>> writeDSPair(m_sortedPass.size());
-        tstl::vector<UniDataContainer< ImageHandle, ResInteractDesc> > writeImageVec(m_sortedPass.size());
-        tstl::vector<UniDataContainer< ImageHandle, ResInteractDesc> > readImageVec(m_sortedPass.size());
+        stl::vector<std::pair<ImageHandle, ResInteractDesc>> writeDSPair(m_sortedPass.size());
+        stl::vector<UniDataContainer< ImageHandle, ResInteractDesc> > writeImageVec(m_sortedPass.size());
+        stl::vector<UniDataContainer< ImageHandle, ResInteractDesc> > readImageVec(m_sortedPass.size());
 
-        tstl::vector<UniDataContainer< BufferHandle, ResInteractDesc> > readBufferVec(m_sortedPass.size());
-        tstl::vector<UniDataContainer< BufferHandle, ResInteractDesc> > writeBufferVec(m_sortedPass.size());
-        tstl::vector<UniDataContainer< ImageHandle, SamplerHandle> > imageSamplerVec(m_sortedPass.size());
-        tstl::vector<UniDataContainer< ImageHandle, SpecificImageViewInfo> > imageSpecViewVec(m_sortedPass.size());
-        tstl::vector< UniDataContainer<CombinedResID, CombinedResID> >  writeOpAliasMapVec(m_sortedPass.size());
+        stl::vector<UniDataContainer< BufferHandle, ResInteractDesc> > readBufferVec(m_sortedPass.size());
+        stl::vector<UniDataContainer< BufferHandle, ResInteractDesc> > writeBufferVec(m_sortedPass.size());
+        stl::vector<UniDataContainer< ImageHandle, SamplerHandle> > imageSamplerVec(m_sortedPass.size());
+        stl::vector<UniDataContainer< ImageHandle, SpecificImageViewInfo> > imageSpecViewVec(m_sortedPass.size());
+        stl::vector< UniDataContainer<CombinedResID, CombinedResID> >  writeOpAliasMapVec(m_sortedPass.size());
 
         
         for (uint32_t ii = 0; ii < m_sortedPass.size(); ++ii)
@@ -1633,7 +1633,7 @@ namespace vkz
             const PassMetaDataRef& createDataRef = m_sparse_pass_data_ref[pass.id];
 
             // vertex binding           
-            tstl::vector<VertexBindingDesc>& bindingDesc = passVertexBinding[ii];
+            stl::vector<VertexBindingDesc>& bindingDesc = passVertexBinding[ii];
             for (const uint16_t& bindingIdx : createDataRef.vtxBindingIdxs)
             {
                 bindingDesc.push_back(m_vtxBindingDesc[bindingIdx]);
@@ -1641,7 +1641,7 @@ namespace vkz
             assert(bindingDesc.size() == passMeta.vertexBindingNum);
 
             // vertex attribute
-            tstl::vector<VertexAttributeDesc>& attributeDesc = passVertexAttribute[ii];
+            stl::vector<VertexAttributeDesc>& attributeDesc = passVertexAttribute[ii];
             for (const uint16_t& attributeIdx : createDataRef.vtxAttrIdxs)
             {
                 attributeDesc.push_back(m_vtxAttrDesc[attributeIdx]);
@@ -1649,7 +1649,7 @@ namespace vkz
             assert(attributeDesc.size() == passMeta.vertexAttributeNum);
 
             // pipeline constants
-            tstl::vector<int>& pipelineSpecData = passPipelineSpecData[ii];
+            stl::vector<int>& pipelineSpecData = passPipelineSpecData[ii];
             for (const uint16_t& pcIdx : createDataRef.pipelineSpecIdxs)
             {
                 pipelineSpecData.push_back(m_pipelineSpecData[pcIdx]);
@@ -1728,7 +1728,7 @@ namespace vkz
         write(&m_rhiMemWriter,  RHIContextOpMagic::end );
     }
 
-    bool Framegraph2::isBufInfoAliasable(uint16_t _idx, const BufBucket& _bucket, const tstl::vector<CombinedResID> _resInCurrStack) const
+    bool Framegraph2::isBufInfoAliasable(uint16_t _idx, const BufBucket& _bucket, const stl::vector<CombinedResID> _resInCurrStack) const
     {
         // size check in current stack
         const BufRegisterInfo& info = m_sparse_buf_info[_idx];
@@ -1748,7 +1748,7 @@ namespace vkz
         return bCondMatch;
     }
 
-    bool Framegraph2::isImgInfoAliasable(uint16_t _ImgId, const ImgBucket& _bucket, const tstl::vector<CombinedResID> _resInCurrStack) const
+    bool Framegraph2::isImgInfoAliasable(uint16_t _ImgId, const ImgBucket& _bucket, const stl::vector<CombinedResID> _resInCurrStack) const
     {
         bool bCondMatch = true;
 
@@ -1770,7 +1770,7 @@ namespace vkz
         return bCondMatch;
     }
 
-    bool Framegraph2::isStackAliasable(const CombinedResID& _res, const tstl::vector<CombinedResID>& _reses) const
+    bool Framegraph2::isStackAliasable(const CombinedResID& _res, const stl::vector<CombinedResID>& _reses) const
     {
         bool bStackMatch = true;
         
@@ -1789,7 +1789,7 @@ namespace vkz
         return bStackMatch;
     }
 
-    bool Framegraph2::isAliasable(const CombinedResID& _res, const BufBucket& _bucket, const tstl::vector<CombinedResID>& _resInCurrStack) const
+    bool Framegraph2::isAliasable(const CombinedResID& _res, const BufBucket& _bucket, const stl::vector<CombinedResID>& _resInCurrStack) const
     {
         // no stack checking for stacks, because each stack only contains 1 resource
         // bool bInfoMatch = isBufInfoAliasable(_res.id, _bucket, _resInCurrStack);
@@ -1800,7 +1800,7 @@ namespace vkz
         return bInfoMatch && bStackMatch;
     }
 
-    bool Framegraph2::isAliasable(const CombinedResID& _res, const ImgBucket& _bucket, const tstl::vector<CombinedResID>& _resInCurrStack) const
+    bool Framegraph2::isAliasable(const CombinedResID& _res, const ImgBucket& _bucket, const stl::vector<CombinedResID>& _resInCurrStack) const
     {
         // no stack checking for stacks, because each stack only contains 1 resource
         // bool bInfoMatch = isImgInfoAliasable(_res.id, _bucket, _resInCurrStack);
