@@ -102,7 +102,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>GLM_FORCE_XYZW_ONLY;GLFW_EXPOSE_NATIVE_WIN32;WIN32_LEAN_AND_MEAN;VK_USE_PLATFORM_WIN32_KHR;NOMINMAX;_GLFW_WIN32;_CRT_SECURE_NO_WARNINGS;_DEBUG;TRACY_ENABLE</PreprocessorDefinitions>
+      <PreprocessorDefinitions>GLM_FORCE_XYZW_ONLY;GLFW_EXPOSE_NATIVE_WIN32;WIN32_LEAN_AND_MEAN;VK_USE_PLATFORM_WIN32_KHR;NOMINMAX;_GLFW_WIN32;_CRT_SECURE_NO_WARNINGS;_DEBUG;TRACY_ENABLE;TRACY_ON_DEMAND</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
@@ -153,7 +153,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>GLM_FORCE_XYZW_ONLY;GLFW_EXPOSE_NATIVE_WIN32;WIN32_LEAN_AND_MEAN;VK_USE_PLATFORM_WIN32_KHR;NOMINMAX;_GLFW_WIN32;_CRT_SECURE_NO_WARNINGS;NDEBUG;TRACY_ENABLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>GLM_FORCE_XYZW_ONLY;GLFW_EXPOSE_NATIVE_WIN32;WIN32_LEAN_AND_MEAN;VK_USE_PLATFORM_WIN32_KHR;NOMINMAX;_GLFW_WIN32;_CRT_SECURE_NO_WARNINGS;NDEBUG;TRACY_ENABLE;TRACY_ON_DEMAND;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>

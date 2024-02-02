@@ -97,7 +97,8 @@ namespace vkz
         WriteOperationAlias() = default;
 
         WriteOperationAlias(uint16_t _resIn, uint16_t _resOut)
-            : writeOpIn(_resIn), writeOpOut(_resOut) 
+            : writeOpIn(_resIn)
+            , writeOpOut(_resOut) 
         {}
 
         inline bool operator == (const WriteOperationAlias& rhs) const {
@@ -219,10 +220,10 @@ namespace vkz
 
         uint16_t    writeDepthId{ kInvalidHandle };
 
-        uint16_t    writeImageNum{ 0 };
         uint16_t    readImageNum{ 0 };
-
         uint16_t    readBufferNum{ 0 };
+
+        uint16_t    writeImageNum{ 0 };
         uint16_t    writeBufferNum{ 0 };
 
         uint16_t    writeBufAliasNum{ 0 };
