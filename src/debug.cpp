@@ -10,8 +10,11 @@
 #endif
 
 namespace vkz {
+
+
     void message(DebugMessageType type, const char* format, ...)
     {
+#ifdef _DEBUG
         // parsing args
         va_list args;
         va_start(args, format);
@@ -33,9 +36,11 @@ namespace vkz {
 
 #ifdef _WIN32
         OutputDebugStringA(out);
-#endif
+#endif // _WIN32
 
         assert(type < DebugMessageType::error);
+#endif //_DEBUG
     }
-}
+
+} // namespace vkz
 

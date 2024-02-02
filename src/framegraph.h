@@ -7,6 +7,8 @@ namespace vkz
     const uint32_t invalidPassID = ~0u;
     const uint32_t invalidID = ~0u;
 
+    typedef std::initializer_list<uint32_t> ResourceIDs;
+
 
     enum class RenderPassExeQueue : uint32_t
     {

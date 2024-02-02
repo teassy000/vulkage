@@ -28,5 +28,4 @@
 
 const uint32_t invalidID = UINT32_MAX;
 
-typedef std::initializer_list<uint32_t> ResourceIDs;
 namespace stl = tinystl;

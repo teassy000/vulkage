@@ -134,7 +134,7 @@
       <PreprocessorDefinitions>GLM_FORCE_XYZW_ONLY;GLFW_EXPOSE_NATIVE_WIN32;WIN32_LEAN_AND_MEAN;VK_USE_PLATFORM_WIN32_KHR;NOMINMAX;_GLFW_WIN32;_CRT_SECURE_NO_WARNINGS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile />
-      <AdditionalIncludeDirectories>../externs/glfw/include;../externs/volk;../externs/meshoptimizer/src;../externs/ligitProfiler;../externs/imgui;../externs/fast_obj;$(VULKAN_SDK)\Include;$(KTX_SDK)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../externs/glfw/include;../externs/volk;../externs/meshoptimizer/src;../externs/ligitProfiler;../externs/imgui;../externs/fast_obj;../externs/tinystl/include;$(VULKAN_SDK)\Include;$(KTX_SDK)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Full</Optimization>
     </ClCompile>
     <Link>
