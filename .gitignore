@@ -6,8 +6,9 @@ src/*.db
 src/shaders/*.spv
 src/imgui.ini
 data/*
-externs/*
 *.vs/*
 out/*
+externs/glfw/*
+
 
 !externs/tinystl
