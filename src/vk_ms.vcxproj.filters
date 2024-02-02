@@ -196,6 +196,7 @@
     <ClCompile Include="cmd_list_vk.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="vkz_pyramid.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\externs\fast_obj\fast_obj.h">
@@ -389,6 +390,7 @@
     <ClInclude Include="..\externs\tinystl\include\TINYSTL\vector.h">
       <Filter>tinystl</Filter>
     </ClInclude>
+    <ClInclude Include="vkz_pyramid.h" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="shaders\mesh.frag.glsl">

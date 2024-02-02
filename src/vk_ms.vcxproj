@@ -205,6 +205,7 @@
     <ClCompile Include="mesh.cpp" />
     <ClCompile Include="rhi_context.cpp" />
     <ClCompile Include="shader_manager.cpp" />
+    <ClCompile Include="vkz_pyramid.cpp" />
     <ClCompile Include="vkz_ui.cpp" />
     <ClCompile Include="vk_device.cpp" />
     <ClCompile Include="vk_resource.cpp" />
@@ -269,6 +270,7 @@
     <ClInclude Include="rhi_context.h" />
     <ClInclude Include="shader_manager.h" />
     <ClInclude Include="util.h" />
+    <ClInclude Include="vkz_pyramid.h" />
     <ClInclude Include="vkz_structs.h" />
     <ClInclude Include="vkz_structs_inner.h" />
     <ClInclude Include="vkz_ui.h" />

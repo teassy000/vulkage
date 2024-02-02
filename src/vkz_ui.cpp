@@ -88,8 +88,6 @@ void vkz_prepareUI(UIRendering& _ui, float _scale /*= 1.f*/, bool _useChinese /*
 
     vkz::ProgramHandle program = vkz::registProgram("ui.program", { vs, fs }, sizeof(PushConstBlock));
 
-//    stl::vector<vkz::VertexBindingDesc> bindings =
-
     vkz::VertexBindingDesc bindings[] =
     {
         {0, sizeof(ImDrawVert), vkz::VertexInputRate::vertex},
