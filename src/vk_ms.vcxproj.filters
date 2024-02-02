@@ -197,6 +197,9 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="vkz_pyramid.cpp" />
+    <ClCompile Include="..\externs\tracy\public\TracyClient.cpp">
+      <Filter>tracy</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\externs\fast_obj\fast_obj.h">
@@ -463,6 +466,9 @@
     </Filter>
     <Filter Include="tinystl">
       <UniqueIdentifier>{65cc79df-eb95-4d97-829f-da0ce4228dfd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tracy">
+      <UniqueIdentifier>{76bf0d40-85f5-498f-9721-5e13fe9f8e4a}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
