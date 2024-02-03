@@ -2,6 +2,8 @@
 #include "common.h"
 #include "alloc.h"
 
+#include "profiler.h"
+
 
 
 namespace vkz
@@ -24,6 +26,7 @@ namespace vkz
         {
             if (nullptr != _ptr)
             {
+                VKZ_ProfFree(_ptr);
                 if (kDefaultAlign >= _align)
                 {
                     ::free(_ptr);
@@ -32,25 +35,41 @@ namespace vkz
                 {
                     ::_aligned_free(_ptr);
                 }
+
             }
 
             return nullptr;
         }
-        else if (nullptr == _ptr)
+        
+        if (nullptr == _ptr)
         {
+            void* ret = nullptr;
             if (kDefaultAlign >= _align)
             {
-                return ::malloc(_sz);
+                ret = ::malloc(_sz);
+
             }
-            return _aligned_malloc(_sz, _align);
+            else
+            {
+                ret = _aligned_malloc(_sz, _align);
+            }
+
+            VKZ_ProfAlloc(ret, _sz);
+            return ret;
         }
 
         if (kDefaultAlign >= _align)
         {
-            return ::realloc(_ptr, _sz);
+            VKZ_ProfFree(_ptr);
+            void* ret = ::realloc(_ptr, _sz);
+            VKZ_ProfAlloc(ret, _sz);
+            return ret;
         }
 
-        return _aligned_realloc(_ptr, _sz, _align);
+        VKZ_ProfFree(_ptr);
+        void* ret = _aligned_realloc(_ptr, _sz, _align);
+        VKZ_ProfAlloc(ret, _sz);
+        return ret;
     }
 
 }

@@ -39,11 +39,11 @@ namespace vkz
         vkCmdSetScissor(m_cmdBuf, _firstScissor, _scissorCount, scissors.data());
     }
 
-    void CmdList_vk::pushConstants(const PassHandle _hPass, const Memory* _mem)
+    void CmdList_vk::pushConstants(const PassHandle _hPass, const void* _data, uint32_t _size)
     {
         const Program_vk& prog = m_pCtx->getProgram(_hPass);
 
-        vkCmdPushConstants(m_cmdBuf, prog.layout, prog.pushConstantStages, 0, _mem->size, _mem->data);
+        vkCmdPushConstants(m_cmdBuf, prog.layout, prog.pushConstantStages, 0, _size, _data);
     }
 
     void CmdList_vk::pushDescriptorSets(const PassHandle _pass)

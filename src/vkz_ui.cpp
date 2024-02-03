@@ -13,9 +13,9 @@ namespace tstl = tinystl;
 constexpr uint32_t kInitialVertexBufferSize = 1024 * 1024; // 1MB
 constexpr uint32_t kInitialIndexBufferSize = 1024 * 1024; // 1MB
 
-void vkz_renderFunc(vkz::ICommandList& _cmdList, const vkz::Memory* _dataMem)
+void vkz_renderFunc(vkz::ICommandList& _cmdList, const void* _data, uint32_t _size)
 {
-    vkz::MemoryReader reader(_dataMem->data, _dataMem->size);
+    vkz::MemoryReader reader(_data, _size);
 
     UIRendering ui{};
     vkz::read(&reader, ui);
@@ -43,10 +43,8 @@ void vkz_renderFunc(vkz::ICommandList& _cmdList, const vkz::Memory* _dataMem)
     pushConstBlock.scale = { 2.f / io.DisplaySize.x, 2.f / io.DisplaySize.y };
     pushConstBlock.translate = { -1.f, -1.f };
 
-    const vkz::Memory* mem = vkz::alloc(sizeof(PushConstBlock));
-    memcpy(mem->data, &pushConstBlock, sizeof(PushConstBlock));
+    _cmdList.pushConstants(ui.pass, &pushConstBlock, sizeof(PushConstBlock));
 
-    _cmdList.pushConstants(ui.pass, mem);
     _cmdList.pushDescriptorSets(ui.pass);
 
     int32_t vtxOffset = 0;

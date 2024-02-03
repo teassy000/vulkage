@@ -19,7 +19,7 @@ namespace vkz
 
         void setViewPort(uint32_t _firstViewport, uint32_t _viewportCount, const Viewport* _pViewports) override;
         void setScissorRect(uint32_t _firstScissor, uint32_t _scissorCount, const Rect2D* _pScissors) override;
-        void pushConstants(const PassHandle _hPass, const Memory* _mem) override;
+        void pushConstants(const PassHandle _hPass, const void* _data, uint32_t _size) override;
         void pushDescriptorSets(const PassHandle _pass) override;
 
         void sampleImage(ImageHandle _hImg, uint32_t _binding, SamplerReductionMode _reductionMode) override;

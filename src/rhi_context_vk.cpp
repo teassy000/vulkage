@@ -1224,13 +1224,13 @@ namespace vkz
         passInfo.config.threadCountZ = _threadCountZ;
     }
 
-    void RHIContext_vk::updateBuffer(BufferHandle _hBuf, const Memory* _mem)
+    void RHIContext_vk::updateBuffer(BufferHandle _hBuf, const void* _data, uint32_t _size)
     {
         const Buffer_vk& buf = m_bufferContainer.getIdToData(_hBuf.id);
         uint16_t baseBufId = m_aliasToBaseBuffers.getIdToData(_hBuf.id);
         const Buffer_vk& baseBuf = m_bufferContainer.getIdToData(baseBufId);
 
-        if (buf.size != _mem->size && _mem->size < baseBuf.size)
+        if (buf.size != _size && _size < baseBuf.size)
         {
             m_barrierDispatcher.removeBuffer(buf.buffer);
 
@@ -1239,7 +1239,7 @@ namespace vkz
 
             // recreate buffer
             BufferAliasInfo info{};
-            info.size = _mem->size;
+            info.size = _size;
             info.bufId = _hBuf.id;
 
             const BufferCreateInfo& createInfo = m_bufferCreateInfoContainer.getDataRef(_hBuf.id);
@@ -1252,18 +1252,27 @@ namespace vkz
                 , { getAccessFlags(interact.access), getPipelineStageFlags(interact.stage) }
                 , newBuf.buffer
             );
-            
         }
 
         const Buffer_vk& mewBuf = m_bufferContainer.getIdToData(_hBuf.id);
-        uploadBuffer(_hBuf.id, _mem->data, _mem->size); 
+        uploadBuffer(_hBuf.id, _data, _size);
     }
 
-    void RHIContext_vk::updateCustomFuncData(const PassHandle _hPass, const Memory* _mem)
+    void RHIContext_vk::updateCustomFuncData(const PassHandle _hPass, const void* _data, uint32_t _size)
     {
         assert(_mem != nullptr);
         PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
-        passInfo.renderFuncData = _mem;
+        
+        if (nullptr != passInfo.renderFuncDataPtr)
+        {
+            free(getAllocator(), passInfo.renderFuncDataPtr);
+        }
+
+        void * mem = alloc(getAllocator(), _size);
+        memcpy(mem, _data, _size);
+
+        passInfo.renderFuncDataPtr = mem;
+        passInfo.renderFuncDataSize = _size;
     }
 
     void RHIContext_vk::createShader(MemoryReader& _reader)
@@ -1287,10 +1296,8 @@ namespace vkz
         ProgramCreateInfo info;
         read(&_reader, info);
 
-        void* mem = alloc(getAllocator(), info.shaderNum * sizeof(uint16_t));
-        read(&_reader, mem, info.shaderNum * sizeof(uint16_t));
-
-        stl::vector<uint16_t> shaderIds((uint16_t*)mem, (uint16_t*)mem + info.shaderNum);
+        stl::vector<uint16_t> shaderIds(info.shaderNum);
+        read(&_reader, shaderIds.data(), info.shaderNum * sizeof(uint16_t));
 
         stl::vector<Shader_vk> shaders;
         for (const uint16_t sid : shaderIds)
@@ -1301,10 +1308,7 @@ namespace vkz
         VkPipelineBindPoint bindPoint = getBindPoint(shaders);
         Program_vk prog = vkz::createProgram(m_device, bindPoint, shaders, info.sizePushConstants);
 
-
-        const Memory* constantMem = alloc(info.sizePushConstants);
-        memcpy(constantMem->data, info.pPushConstants, info.sizePushConstants);
-        m_constantsMemBlock.addConstant({ info.progId }, constantMem);
+        m_constantsMemBlock.addConstant({ info.progId }, info.pPushConstants, info.sizePushConstants);
 
         m_programContainer.push_back(info.progId, prog);
         m_programShaderIds.emplace_back(shaderIds);
@@ -1439,7 +1443,8 @@ namespace vkz
         passInfo.writeDepthId = passMeta.writeDepthId;
 
         passInfo.renderFunc = passMeta.renderFunc;
-        passInfo.renderFuncData = passMeta.renderFuncData;
+        passInfo.renderFuncDataPtr = passMeta.renderFuncDataPtr;
+        passInfo.renderFuncDataSize = passMeta.renderFuncDataSize;
 
         // desc part
         passInfo.programId = passMeta.programId;
@@ -1723,7 +1728,7 @@ namespace vkz
         }
     }
 
-    void RHIContext_vk::uploadBuffer(const uint16_t _bufId, const void* data, size_t size)
+    void RHIContext_vk::uploadBuffer(const uint16_t _bufId, const void* data, uint32_t size)
     {
         assert(size > 0);
         assert(m_scratchBuffer.data);
@@ -1760,7 +1765,7 @@ namespace vkz
         VK_CHECK(vkDeviceWaitIdle(m_device));
     }
 
-    void RHIContext_vk::fillBuffer(const uint16_t _bufId, const uint32_t _value, size_t _size)
+    void RHIContext_vk::fillBuffer(const uint16_t _bufId, const uint32_t _value, uint32_t _size)
     {
         assert(_size > 0);
 
@@ -1790,7 +1795,7 @@ namespace vkz
         VK_CHECK(vkDeviceWaitIdle(m_device));
     }
 
-    void RHIContext_vk::uploadImage(const uint16_t _imgId, const void* data, size_t size)
+    void RHIContext_vk::uploadImage(const uint16_t _imgId, const void* data, uint32_t size)
     {
         assert(size > 0);
         assert(m_scratchBuffer.data);
@@ -2194,7 +2199,7 @@ namespace vkz
                 vkCmdBindPipeline(m_cmdBuffer, prog.bindPoint, passInfo.pipeline);
             }
  
-            passInfo.renderFunc(*m_cmdList, passInfo.renderFuncData);
+            passInfo.renderFunc(*m_cmdList, passInfo.renderFuncDataPtr, passInfo.renderFuncDataSize);
             return;
         }
 

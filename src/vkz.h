@@ -41,7 +41,7 @@ namespace vkz
     void copyBuffer(const PassHandle _hPass, const BufferHandle _hSrc, const BufferHandle _hDst, const uint32_t _size);
     void blitImage(const PassHandle _hPass, const ImageHandle _hSrc, const ImageHandle _hDst);
 
-    using RenderFuncPtr = void (*)(ICommandList& _cmdList, const Memory* _dataMem);
+    using RenderFuncPtr = void (*)(ICommandList& _cmdList, const void* _data, uint32_t size);
     void setCustomRenderFunc(const PassHandle _hPass, RenderFuncPtr _func, const Memory* _dataMem);
 
     void setPresentImage(ImageHandle _rt);

@@ -495,6 +495,7 @@ namespace vkz
         desc.sizePushConstants = _sizePushConstants;
         desc.pPushConstants = pushConstants;
         memcpy_s(desc.shaderIds, COUNTOF(desc.shaderIds), _mem->data, _mem->size);
+        release(_mem);
         m_programDescs.push_back({ idx }, desc);
         m_pushConstants.push_back({ idx }, pushConstants);
 
@@ -570,8 +571,6 @@ namespace vkz
 
         ImageMetaData meta = _desc;
         meta.imgId = idx;
-        meta.format = _desc.format;
-        meta.usage = _desc.usage;
         meta.aspectFlags = ImageAspectFlagBits::color;
         meta.lifetime = _lifetime;
 
@@ -1363,9 +1362,15 @@ namespace vkz
     {
         assert(_func != nullptr);
 
+        void * mem = alloc(getAllocator(), _dataMem->size);
+        memcpy(mem, _dataMem->data, _dataMem->size);
+
         PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
         passMeta.renderFunc = _func;
-        passMeta.renderFuncData = makeRef(_dataMem->data, _dataMem->size);
+        passMeta.renderFuncDataPtr = mem;
+        passMeta.renderFuncDataSize = _dataMem->size;
+
+        release(_dataMem);
     }
 
     void Context::setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx, const ImageHandle _outAlias)
@@ -1474,7 +1479,8 @@ namespace vkz
 
     void Context::updateCustomRenderFuncData(const PassHandle _hPass, const Memory* _dataMem)
     {
-        m_rhiContext->updateCustomFuncData(_hPass, _dataMem);
+        m_rhiContext->updateCustomFuncData(_hPass, _dataMem->data, _dataMem->size);
+        release(_dataMem);
     }
 
     void Context::updateBuffer(const BufferHandle _hbuf, const Memory* _mem)
@@ -1484,7 +1490,8 @@ namespace vkz
             return;
         }
 
-        m_rhiContext->updateBuffer(_hbuf, _mem);
+        m_rhiContext->updateBuffer(_hbuf, _mem->data, _mem->size);
+        release(_mem);
     }
 
     void Context::updatePushConstants(const PassHandle _hPass, const Memory* _mem)
@@ -1495,7 +1502,8 @@ namespace vkz
             return;
         }
 
-        m_rhiContext->updatePushConstants(_hPass, _mem);
+        m_rhiContext->updatePushConstants(_hPass, _mem->data, _mem->size);
+        release(_mem);
     }
 
     void Context::updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ)
@@ -1729,6 +1737,7 @@ namespace vkz
     
     void updatePushConstants(const PassHandle _hPass, const Memory* _mem)
     {
+
         s_ctx->updatePushConstants(_hPass, _mem);
     }
 

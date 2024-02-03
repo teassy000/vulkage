@@ -394,6 +394,15 @@
       <Filter>tinystl</Filter>
     </ClInclude>
     <ClInclude Include="vkz_pyramid.h" />
+    <ClInclude Include="..\externs\tracy\public\tracy\Tracy.hpp">
+      <Filter>tracy</Filter>
+    </ClInclude>
+    <ClInclude Include="..\externs\tracy\public\tracy\TracyVulkan.hpp">
+      <Filter>tracy</Filter>
+    </ClInclude>
+    <ClInclude Include="profiler.h">
+      <Filter>src</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="shaders\mesh.frag.glsl">

@@ -57,14 +57,14 @@ namespace vkz
 
         inline MemoryBlockI* getMemoryBlock() const { return m_pUniformData; }
 
-        inline void addUniform(const UniformBuffer& _uniform, const Memory* _mem)
+        inline void addUniform(const UniformBuffer& _uniform, const void* _data, uint32_t _size)
         {
             m_passes.push_back({ _uniform.passId });
             m_uniforms.push_back(_uniform);
         }
 
         const void* getUniformData(const PassHandle _hPass);
-        void updateUniformData(const PassHandle _hPass, const Memory* _mem);
+        void updateUniformData(const PassHandle _hPass, const void* _data, uint32_t _size);
 
     private:
         AllocatorI* m_pAllocator;
@@ -103,11 +103,11 @@ namespace vkz
 
         inline MemoryBlockI* getMemoryBlock() const { return m_pConstantData; }
 
-        void addConstant(const PassHandle _hPass, const Memory* _mem);
+        void addConstant(const PassHandle _hPass, const void* _data, uint32_t _size);
 
         const uint32_t getConstantSize(const PassHandle _hPass) const;
         const void* getConstantData(const PassHandle _hPass) const;
-        void updateConstantData(const PassHandle _hPass, const Memory* _mem);
+        void updateConstantData(const PassHandle _hPass, const void* _data, uint32_t _size);
 
     private:
         AllocatorI* m_pAllocator;
@@ -127,14 +127,14 @@ namespace vkz
         virtual bool render() = 0;
 
         // update resources
-        virtual void updatePushConstants(PassHandle _hPass, const Memory* _mem) = 0;
-        virtual void updateUniform(PassHandle _hPass, const Memory* _mem) = 0;
-        virtual void updateBuffer(BufferHandle _hBuf, const Memory* _mem) = 0;
+        virtual void updatePushConstants(PassHandle _hPass, const void* _data, uint32_t _size) = 0;
+        virtual void updateUniform(PassHandle _hPass, const void* _data, uint32_t _size) = 0;
+        virtual void updateBuffer(BufferHandle _hBuf, const void* _data, uint32_t _size) = 0;
 
         // update settings
         virtual void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ) = 0;
 
-        virtual void updateCustomFuncData(const PassHandle _hPass, const Memory* _mem) = 0;
+        virtual void updateCustomFuncData(const PassHandle _hPass, const void* _data, uint32_t _size) = 0;
 
     private:
         virtual void createShader(MemoryReader& reader) = 0;
@@ -173,15 +173,15 @@ namespace vkz
         bool render() override { return false; };
 
         // add
-        void addPushConstants(const PassHandle _hPass, const Memory* _mem);
+        void addPushConstants(const PassHandle _hPass, const void* _data, uint32_t _size);
 
         // update 
-        void updatePushConstants(PassHandle _hPass, const Memory* _mem) override;
-        void updateUniform(PassHandle _hPass, const Memory* _mem) override {};
-        void updateBuffer(BufferHandle _hBuf, const Memory* _mem) override {};
+        void updatePushConstants(PassHandle _hPass, const void* _data, uint32_t _size) override;
+        void updateUniform(PassHandle _hPass, const void* _data, uint32_t _size) override {};
+        void updateBuffer(BufferHandle _hBuf, const void* _data, uint32_t _size) override {};
         void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ) override {};
         
-        void updateCustomFuncData(const PassHandle _hPass, const Memory* _mem) override {};
+        void updateCustomFuncData(const PassHandle _hPass, const void* _data, uint32_t _size) override {};
     private:
         void parseOp();
 

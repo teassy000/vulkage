@@ -92,7 +92,8 @@ namespace vkz
         uint32_t vertexCount{ 0 };
 
         RenderFuncPtr renderFunc{ nullptr };
-        const Memory* renderFuncData{ nullptr };
+        void * renderFuncDataPtr{ nullptr };
+        uint32_t renderFuncDataSize{ 0 };
 
         // barrier status expect in current pass
         std::pair<uint16_t, BarrierState_vk> writeDepth{ kInvalidHandle, {} };
@@ -179,8 +180,8 @@ namespace vkz
         bool render() override;
 
         void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ) override;
-        void updateBuffer(BufferHandle _hBuf, const Memory* _mem) override;
-        void updateCustomFuncData(const PassHandle _hPass, const Memory* _mem) override;
+        void updateBuffer(BufferHandle _hBuf,  const void* _data, uint32_t _size) override;
+        void updateCustomFuncData(const PassHandle _hPass, const void* _data, uint32_t _size) override;
 
         VkBuffer getVkBuffer(const BufferHandle _hBuf) const
         {
@@ -221,9 +222,9 @@ namespace vkz
         // private pass
         // e.g. upload buffer, copy image, etc.
         // 
-        void uploadBuffer(const uint16_t _bufId, const void* data, size_t size);
-        void fillBuffer(const uint16_t _bufId, const uint32_t _value, size_t _size);
-        void uploadImage(const uint16_t _imgId, const void* data, size_t size);
+        void uploadBuffer(const uint16_t _bufId, const void* data, uint32_t size);
+        void fillBuffer(const uint16_t _bufId, const uint32_t _value, uint32_t _size);
+        void uploadImage(const uint16_t _imgId, const void* data, uint32_t size);
 
         // barriers
         void checkUnmatchedBarriers(uint16_t _passId);

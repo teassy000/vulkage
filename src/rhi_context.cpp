@@ -13,14 +13,14 @@ namespace vkz
         parseOp();
     }
 
-    void RHIContext::addPushConstants(const PassHandle _hPass, const Memory* _mem)
+    void RHIContext::addPushConstants(const PassHandle _hPass, const void* _data, uint32_t _size)
     {
-         m_constantsMemBlock.addConstant(_hPass, _mem);
+         m_constantsMemBlock.addConstant(_hPass, _data, _size);
     }
 
-    void RHIContext::updatePushConstants(PassHandle _hPass, const Memory* _mem)
+    void RHIContext::updatePushConstants(PassHandle _hPass, const void* _data, uint32_t _size)
     {
-         m_constantsMemBlock.updateConstantData(_hPass, _mem);
+         m_constantsMemBlock.updateConstantData(_hPass, _data, _size);
     }
 
     void RHIContext::parseOp()
@@ -89,25 +89,24 @@ namespace vkz
         return nullptr;
     }
 
-    void UniformMemoryBlock::updateUniformData(const PassHandle _hPass, const Memory* _mem)
+    void UniformMemoryBlock::updateUniformData(const PassHandle _hPass, const void* _data, uint32_t _size)
     {
         // TODO
     }
 
-    void ConstantsMemoryBlock::addConstant(const PassHandle _hPass, const Memory* _mem)
+    void ConstantsMemoryBlock::addConstant(const PassHandle _hPass, const void* _data, uint32_t _size)
     {
-        if (_mem == nullptr)
+        if (nullptr == _data || 0 == _size )
             return;
 
         int64_t offset = m_pWriter->seek(0, Whence::Current);
 
         Constants constants{ };
         constants.passId = _hPass.id;
-        constants.size = _mem->size;
+        constants.size = _size;
         constants.offset = offset;
 
-
-        write(m_pWriter, _mem->data, _mem->size);
+        write(m_pWriter, _data, _size);
 
         m_passes.push_back(_hPass);
         m_constants.push_back(constants);
@@ -136,18 +135,18 @@ namespace vkz
         return pC;
     }
 
-    void ConstantsMemoryBlock::updateConstantData(const PassHandle _hPass, const Memory* _mem)
+    void ConstantsMemoryBlock::updateConstantData(const PassHandle _hPass, const void* _data, uint32_t _size)
     {
         const uint16_t idx = (uint16_t)getElemIndex(m_passes, _hPass);
         if (kInvalidIndex == idx) {
             return;
         }
-        assert(m_constants[idx].size == _mem->size);
+        assert(m_constants[idx].size == _size);
 
         int64_t currOffset = m_pWriter->seek(0, Whence::Current);
 
         m_pWriter->seek(m_constants[idx].offset, Whence::Begin);
-        write(m_pWriter, _mem->data, _mem->size);
+        write(m_pWriter, _data, _size);
 
         // set back current offset
         m_pWriter->seek(currOffset, Whence::Begin);

@@ -203,7 +203,7 @@ namespace vkz
 
     };
 
-    using RenderFuncPtr = void (*)(ICommandList& _cmdList, const Memory* _dataMem);
+    using RenderFuncPtr = void (*)(ICommandList& _cmdList, const void* _data, uint32_t _size);
     struct PassMetaData : public PassDesc
     {
         PassMetaData() = default;
@@ -239,7 +239,8 @@ namespace vkz
         uint32_t    indirectBufStride{ 0 };
 
         RenderFuncPtr   renderFunc{ nullptr };
-        const Memory*   renderFuncData{ nullptr };
+        void* renderFuncDataPtr{ nullptr };
+        uint32_t renderFuncDataSize{ 0 };
     };
 
     struct RHIBrief

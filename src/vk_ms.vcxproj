@@ -106,7 +106,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>../externs/glfw/include;../externs/volk;../externs/meshoptimizer/src;../externs/ligitProfiler;../externs/imgui;../externs/fast_obj;../externs/tinystl/include;$(VULKAN_SDK)\Include;$(KTX_SDK)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../externs/glfw/include;../externs/volk;../externs/meshoptimizer/src;../externs/ligitProfiler;../externs/imgui;../externs/fast_obj;../externs/tinystl/include;../externs/tracy/public;$(VULKAN_SDK)\Include;$(KTX_SDK)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
@@ -157,7 +157,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>../externs/glfw/include;../externs/volk;../externs/meshoptimizer/src;../externs/ligitProfiler;../externs/imgui;../externs/fast_obj;../externs/tinystl/include;$(VULKAN_SDK)\Include;$(KTX_SDK)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../externs/glfw/include;../externs/volk;../externs/meshoptimizer/src;../externs/ligitProfiler;../externs/imgui;../externs/fast_obj;../externs/tinystl/include;../externs/tracy/public;$(VULKAN_SDK)\Include;$(KTX_SDK)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Full</Optimization>
     </ClCompile>
     <Link>
@@ -272,6 +272,8 @@
     <ClInclude Include="..\externs\tinystl\include\TINYSTL\unordered_map.h" />
     <ClInclude Include="..\externs\tinystl\include\TINYSTL\unordered_set.h" />
     <ClInclude Include="..\externs\tinystl\include\TINYSTL\vector.h" />
+    <ClInclude Include="..\externs\tracy\public\tracy\Tracy.hpp" />
+    <ClInclude Include="..\externs\tracy\public\tracy\TracyVulkan.hpp" />
     <ClInclude Include="..\externs\volk\volk.h" />
     <ClInclude Include="alloc.h" />
     <ClInclude Include="camera.h" />
@@ -291,6 +293,7 @@
     <ClInclude Include="framegraph.h" />
     <ClInclude Include="name.h" />
     <ClInclude Include="pass.h" />
+    <ClInclude Include="profiler.h" />
     <ClInclude Include="rhi_context.h" />
     <ClInclude Include="shader_manager.h" />
     <ClInclude Include="util.h" />
@@ -464,6 +467,8 @@
       <FileType>Document</FileType>
       <Command Condition="'$(Configuration)|$(Platform)'=='debug|x64'">$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders\%(outputpath)\%(Filename).spv</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='debug_profiling|x64'">$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders\%(outputpath)\%(Filename).spv</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='release|x64'">$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders\%(outputpath)\%(Filename).spv</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='release_profiling|x64'">$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders\%(outputpath)\%(Filename).spv</Command>
     </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

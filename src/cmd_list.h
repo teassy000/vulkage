@@ -11,7 +11,7 @@ namespace vkz
     public:
         virtual void setViewPort(uint32_t _firstViewport, uint32_t _viewportCount, const Viewport* _pViewports) = 0;
         virtual void setScissorRect(uint32_t _firstScissor, uint32_t _scissorCount, const Rect2D* _pScissors) = 0;
-        virtual void pushConstants(const PassHandle _hPass, const Memory* _mem) = 0;
+        virtual void pushConstants(const PassHandle _hPass, const void* _data, uint32_t _size) = 0;
         virtual void pushDescriptorSets(const PassHandle _pass) = 0;
         virtual void sampleImage(ImageHandle _hImg, uint32_t _binding, SamplerReductionMode _reductionMode) = 0;
 

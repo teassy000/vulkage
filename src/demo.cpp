@@ -1,3 +1,5 @@
+#include "profiler.h"
+
 #include "vkz.h"
 #include "mesh.h"
 #include "scene.h"
@@ -576,6 +578,14 @@ void meshDemo()
 
     vkz::bake();
 
+    // data used in loop
+    const vkz::Memory* memDrawCull = vkz::alloc(sizeof(MeshDrawCullVKZ));
+    const vkz::Memory* memGlobal = vkz::alloc(sizeof(GlobalsVKZ));
+    const vkz::Memory* memTransform = vkz::alloc(sizeof(TransformData));
+
+    MeshDrawCullVKZ drawCull = {};
+    GlobalsVKZ globals = {};
+
     while (!vkz::shouldClose())
     {
         float znear = .1f;
@@ -584,7 +594,6 @@ void meshDemo()
         vec4 frustumX = normalizePlane2(projectionT[3] - projectionT[0]);
         vec4 frustumY = normalizePlane2(projectionT[3] - projectionT[1]);
 
-        MeshDrawCullVKZ drawCull = {};
         drawCull.P00 = projection[0][0];
         drawCull.P11 = projection[1][1];
         drawCull.zfar = 10000.f;//scene.drawDistance;
@@ -599,13 +608,10 @@ void meshDemo()
         drawCull.enableLod = 0;
         drawCull.enableOcclusion = 1;
         drawCull.enableMeshletOcclusion = 0;
+        memcpy_s(memDrawCull->data, memDrawCull->size, &drawCull, sizeof(MeshDrawCullVKZ));
+        vkz::updatePushConstants(pass_cull_0, vkz::copy(memDrawCull));
+        vkz::updatePushConstants(pass_cull_1, vkz::copy(memDrawCull));
 
-        const vkz::Memory* pConst = vkz::alloc(sizeof(MeshDrawCullVKZ));
-        memcpy_s(pConst->data, pConst->size, &drawCull, sizeof(MeshDrawCullVKZ));
-        vkz::updatePushConstants(pass_cull_0, pConst);
-        vkz::updatePushConstants(pass_cull_1, pConst);
-
-        GlobalsVKZ globals = {};
         globals.projection = projection;
         globals.zfar = scene.drawDistance;
         globals.znear = znear;
@@ -617,28 +623,26 @@ void meshDemo()
         globals.pyramidHeight = (float)pyramidLevelHeight;
         globals.screenWidth = (float)config.windowWidth;
         globals.screenHeight = (float)config.windowHeight;
-        globals.enableMeshletOcclusion = 0;
-
-        const vkz::Memory* pConst2 = vkz::alloc(sizeof(GlobalsVKZ));
-        memcpy_s(pConst2->data, pConst2->size, &globals, sizeof(GlobalsVKZ));
-        vkz::updatePushConstants(pass_draw_0, pConst2);
-        vkz::updatePushConstants(pass_draw_1, pConst2);
+        globals.enableMeshletOcclusion = 0;  
+        memcpy_s(memGlobal->data, memGlobal->size, &globals, sizeof(GlobalsVKZ));
+        vkz::updatePushConstants(pass_draw_0, vkz::copy(memGlobal));
+        vkz::updatePushConstants(pass_draw_1, vkz::copy(memGlobal));
 
         vkz::updateThreadCount(pass_cull_0, (uint32_t)scene.meshDraws.size(), 1, 1);
 
         trans.view = view;
         trans.proj = projection;
         trans.cameraPos = vec3{0.f, 4.f, 0.f};
-
-        const vkz::Memory* transMem = vkz::alloc(sizeof(TransformData));
-        memcpy_s(transMem->data, transMem->size, &trans, sizeof(TransformData));
-        vkz::updateBuffer(transformBuf, transMem);
+        memcpy_s(memTransform->data, memTransform->size, &trans, sizeof(TransformData));
+        vkz::updateBuffer(transformBuf, vkz::copy(memTransform));
 
         // ui
         vkz_updateImGui(input, renderOptions, profiling, logics);
         vkz_updateUIRenderData(ui);
 
         vkz::run();
+
+        VKZ_FrameMark;
     }
 
     vkz::shutdown();
