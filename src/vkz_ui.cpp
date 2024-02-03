@@ -1,11 +1,11 @@
 #include "common.h"
 #include "imgui.h"
-#include "resources.h"
-#include "shaders.h"
+
 #include "glm/glm.hpp"
 
 #include "uidata.h"
 #include "vkz_ui.h"
+
 #include "memory_operation.h"
 
 namespace tstl = tinystl;
@@ -15,6 +15,8 @@ constexpr uint32_t kInitialIndexBufferSize = 1024 * 1024; // 1MB
 
 void vkz_renderFunc(vkz::ICommandList& _cmdList, const void* _data, uint32_t _size)
 {
+    VKZ_ZoneScoped;
+
     vkz::MemoryReader reader(_data, _size);
 
     UIRendering ui{};
@@ -76,6 +78,8 @@ void vkz_renderFunc(vkz::ICommandList& _cmdList, const void* _data, uint32_t _si
 
 void vkz_prepareUI(UIRendering& _ui, float _scale /*= 1.f*/, bool _useChinese /*= false*/)
 {
+    VKZ_ZoneScoped;
+
     ImGui::CreateContext();
 
     ImGuiIO& io = ImGui::GetIO();
@@ -183,6 +187,8 @@ void vkz_prepareUI(UIRendering& _ui, float _scale /*= 1.f*/, bool _useChinese /*
 
 void vkz_destroyUIRendering(UIRendering& _ui)
 {
+    VKZ_ZoneScoped;
+
     if (ImGui::GetCurrentContext()) {
         ImGui::DestroyContext();
     }
@@ -192,6 +198,8 @@ void vkz_destroyUIRendering(UIRendering& _ui)
 
 void vkz_updateImGuiIO(const Input& input)
 {
+    VKZ_ZoneScoped;
+
     ImGuiIO& io = ImGui::GetIO();
 
     io.DisplaySize = ImVec2((float)input.width, (float)input.height);
@@ -204,6 +212,8 @@ void vkz_updateImGuiIO(const Input& input)
 
 void vkz_updateImGuiContent(RenderOptionsData& _rod, const ProfilingData& _pd, const LogicData& _ld)
 {
+    VKZ_ZoneScoped;
+
     ImGui::NewFrame();
     ImGui::SetNextWindowSize({ 400, 450 }, ImGuiCond_FirstUseEver);
     ImGui::Begin("info:");
@@ -261,6 +271,8 @@ void vkz_updateImGuiContent(RenderOptionsData& _rod, const ProfilingData& _pd, c
 
 void vkz_updateImGui(const Input& input, RenderOptionsData& rd, const ProfilingData& pd, const LogicData& ld)
 {
+    VKZ_ZoneScoped;
+
     vkz_updateImGuiIO(input);
 
     vkz_updateImGuiContent(rd, pd, ld);
@@ -270,6 +282,8 @@ void vkz_updateImGui(const Input& input, RenderOptionsData& rd, const ProfilingD
 
 void vkz_updateUIRenderData(UIRendering& _ui)
 {
+    VKZ_ZoneScoped;
+
     ImDrawData* imDrawData = ImGui::GetDrawData();
 
     if (!imDrawData) {
@@ -287,27 +301,30 @@ void vkz_updateUIRenderData(UIRendering& _ui)
     ibSize += (0x40 - (ibSize % 0x40));
 
     assert((vbSize % 0x40 == 0) && (ibSize % 0x40 == 0));
+    if ( _ui.vtxCount != imDrawData->TotalVtxCount
+         || _ui.idxCount != imDrawData->TotalIdxCount) 
+    {
+        const vkz::Memory* vbMem = vkz::alloc((uint32_t)vbSize);
+        const vkz::Memory* ibMem = vkz::alloc((uint32_t)ibSize);
 
-    const vkz::Memory* vbMem = vkz::alloc((uint32_t)vbSize);
-    const vkz::Memory* ibMem = vkz::alloc((uint32_t)ibSize);
+        uint32_t vbOffset = 0;
+        uint32_t ibOffset = 0;
+        for (int32_t ii = 0; ii < imDrawData->CmdListsCount; ++ii) {
+            const ImDrawList* imCmdList = imDrawData->CmdLists[ii];
+            memcpy(vbMem->data + vbOffset, imCmdList->VtxBuffer.Data, imCmdList->VtxBuffer.Size * sizeof(ImDrawVert));
+            memcpy(ibMem->data + ibOffset, imCmdList->IdxBuffer.Data, imCmdList->IdxBuffer.Size * sizeof(ImDrawIdx));
+            vbOffset += imCmdList->VtxBuffer.Size * sizeof(ImDrawVert);
+            ibOffset += imCmdList->IdxBuffer.Size * sizeof(ImDrawIdx);
+        }
 
-    uint32_t vbOffset = 0;
-    uint32_t ibOffset = 0;
-    for (int32_t i = 0; i < imDrawData->CmdListsCount; ++i) {
-        const ImDrawList* imCmdList = imDrawData->CmdLists[i];
-        memcpy(vbMem->data + vbOffset, imCmdList->VtxBuffer.Data, imCmdList->VtxBuffer.Size * sizeof(ImDrawVert));
-        memcpy(ibMem->data + ibOffset, imCmdList->IdxBuffer.Data, imCmdList->IdxBuffer.Size * sizeof(ImDrawIdx));
-        vbOffset += imCmdList->VtxBuffer.Size * sizeof(ImDrawVert);
-        ibOffset += imCmdList->IdxBuffer.Size * sizeof(ImDrawIdx);
-    }
+        if (_ui.vtxCount != imDrawData->TotalVtxCount) {
+            vkz::updateBuffer(_ui.vb, vbMem);
+            _ui.vtxCount = imDrawData->TotalVtxCount;
+        }
 
-    if (_ui.vtxCount != imDrawData->TotalVtxCount) {
-        vkz::updateBuffer(_ui.vb, vbMem);
-        _ui.vtxCount = imDrawData->TotalVtxCount;
-    }
-
-    if (_ui.idxCount != imDrawData->TotalIdxCount) {
-        vkz::updateBuffer(_ui.ib, ibMem);
-        _ui.idxCount = imDrawData->TotalIdxCount;
+        if (_ui.idxCount != imDrawData->TotalIdxCount) {
+            vkz::updateBuffer(_ui.ib, ibMem);
+            _ui.idxCount = imDrawData->TotalIdxCount;
+        }
     }
 }

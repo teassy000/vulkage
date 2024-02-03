@@ -1,7 +1,6 @@
 #include "common.h"
 #include "macro.h"
 
-
 #include "config.h"
 #include "vkz.h"
 #include "util.h"
@@ -1020,16 +1019,19 @@ namespace vkz
         , m_debugCallback{ VK_NULL_HANDLE }
 #endif
     {
+        VKZ_ZoneScoped;
         init(_config, _wnd);
     }
 
     RHIContext_vk::~RHIContext_vk()
     {
-
+        VKZ_ZoneScoped;
     }
 
     void RHIContext_vk::init(RHI_Config _config, void* _wnd)
     {
+        VKZ_ZoneScoped;
+
         VK_CHECK(volkInitialize());
 
         this->createInstance();
@@ -1131,12 +1133,16 @@ namespace vkz
 
     void RHIContext_vk::bake()
     {
+        VKZ_ZoneScoped;
+
         RHIContext::bake();
         createSpecificImageViews();
     }
 
     bool RHIContext_vk::render()
     {
+        VKZ_ZoneScoped;
+
         if (m_passContainer.size() < 1)
         {
             message(DebugMessageType::error, "no pass needs to execute in context!");
@@ -1214,6 +1220,8 @@ namespace vkz
 
     void RHIContext_vk::updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ)
     {
+        VKZ_ZoneScoped;
+
         assert(_threadCountX > 0);
         assert(_threadCountY > 0);
         assert(_threadCountZ > 0);
@@ -1226,6 +1234,8 @@ namespace vkz
 
     void RHIContext_vk::updateBuffer(BufferHandle _hBuf, const void* _data, uint32_t _size)
     {
+        VKZ_ZoneScoped;
+
         const Buffer_vk& buf = m_bufferContainer.getIdToData(_hBuf.id);
         uint16_t baseBufId = m_aliasToBaseBuffers.getIdToData(_hBuf.id);
         const Buffer_vk& baseBuf = m_bufferContainer.getIdToData(baseBufId);
@@ -1260,6 +1270,8 @@ namespace vkz
 
     void RHIContext_vk::updateCustomFuncData(const PassHandle _hPass, const void* _data, uint32_t _size)
     {
+        VKZ_ZoneScoped;
+
         assert(_mem != nullptr);
         PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
         
@@ -1277,6 +1289,8 @@ namespace vkz
 
     void RHIContext_vk::createShader(MemoryReader& _reader)
     {
+        VKZ_ZoneScoped;
+
         ShaderCreateInfo info;
         read(&_reader, info);
 
@@ -1293,6 +1307,8 @@ namespace vkz
 
     void RHIContext_vk::createProgram(MemoryReader& _reader)
     {
+        VKZ_ZoneScoped;
+
         ProgramCreateInfo info;
         read(&_reader, info);
 
@@ -1318,6 +1334,8 @@ namespace vkz
 
     void RHIContext_vk::createPass(MemoryReader& _reader)
     {
+        VKZ_ZoneScoped;
+
         PassMetaData passMeta;
         read(&_reader, passMeta);
         
@@ -1564,6 +1582,8 @@ namespace vkz
 
     void RHIContext_vk::createImage(MemoryReader& _reader)
     {
+        VKZ_ZoneScoped;
+
         ImageCreateInfo info;
         read(&_reader, info);
 
@@ -1619,6 +1639,8 @@ namespace vkz
 
     void RHIContext_vk::createBuffer(MemoryReader& _reader)
     {
+        VKZ_ZoneScoped;
+
         BufferCreateInfo info;
         read(&_reader, info);
 
@@ -1668,6 +1690,8 @@ namespace vkz
 
     void RHIContext_vk::createSampler(MemoryReader& _reader)
     {
+        VKZ_ZoneScoped;
+
         SamplerMetaData meta;
         read(&_reader, meta);
 
@@ -1679,6 +1703,8 @@ namespace vkz
 
     void RHIContext_vk::setBrief(MemoryReader& _reader)
     {
+        VKZ_ZoneScoped;
+
         RHIBrief brief;
         read(&_reader, brief);
 
@@ -1687,6 +1713,8 @@ namespace vkz
 
     void RHIContext_vk::createInstance()
     {
+        VKZ_ZoneScoped;
+
         m_instance = vkz::createInstance();
         assert(m_instance);
 
@@ -1730,6 +1758,8 @@ namespace vkz
 
     void RHIContext_vk::uploadBuffer(const uint16_t _bufId, const void* data, uint32_t size)
     {
+        VKZ_ZoneScoped;
+
         assert(size > 0);
         assert(m_scratchBuffer.data);
         assert(m_scratchBuffer.size > size);
@@ -1767,6 +1797,8 @@ namespace vkz
 
     void RHIContext_vk::fillBuffer(const uint16_t _bufId, const uint32_t _value, uint32_t _size)
     {
+        VKZ_ZoneScoped;
+
         assert(_size > 0);
 
         const Buffer_vk& buf = getBuffer(_bufId);
@@ -1797,6 +1829,8 @@ namespace vkz
 
     void RHIContext_vk::uploadImage(const uint16_t _imgId, const void* data, uint32_t size)
     {
+        VKZ_ZoneScoped;
+
         assert(size > 0);
         assert(m_scratchBuffer.data);
         assert(m_scratchBuffer.size > size);
@@ -1842,6 +1876,8 @@ namespace vkz
 
     void RHIContext_vk::checkUnmatchedBarriers(uint16_t _passId)
     {
+        VKZ_ZoneScoped;
+
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 
         // flush in out resources
@@ -1945,6 +1981,8 @@ namespace vkz
 
     void RHIContext_vk::createBarriers(uint16_t _passId)
     {
+        VKZ_ZoneScoped;
+
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 
         // write depth
@@ -2005,6 +2043,8 @@ namespace vkz
 
     void RHIContext_vk::flushWriteBarriers(uint16_t _passId)
     {
+        VKZ_ZoneScoped;
+
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 
         // flush in out resources
@@ -2044,11 +2084,15 @@ namespace vkz
 
     void RHIContext_vk::pushDescriptorSetWithTemplates(const uint16_t _passId)
     {
+        VKZ_ZoneScoped;
+
         pushDescriptorSetWithTemplates(m_cmdBuffer, { _passId });
     }
 
     void RHIContext_vk::pushDescriptorSetWithTemplates(const VkCommandBuffer& _cmdBuf, const uint16_t _passId) const
     {
+        VKZ_ZoneScoped;
+
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 
         stl::vector<std::pair<uint32_t, CombinedResID>> bindingToDescInfo{};
@@ -2114,6 +2158,8 @@ namespace vkz
 
     const vkz::Program_vk& RHIContext_vk::getProgram(const PassHandle _hPass) const
     {
+        VKZ_ZoneScoped;
+
         assert(m_passContainer.exist(_hPass.id));
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_hPass.id);
 
@@ -2123,6 +2169,8 @@ namespace vkz
 
     void RHIContext_vk::beginRendering(const VkCommandBuffer& _cmdBuf, const uint16_t _passId) const
     {
+        VKZ_ZoneScoped;
+
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 
         VkClearColorValue color = { 33.f / 255.f, 200.f / 255.f, 242.f / 255.f, 1 };
@@ -2169,12 +2217,16 @@ namespace vkz
     }
 
     void RHIContext_vk::endRendering(const VkCommandBuffer& _cmdBuf) const
-{
+    {
+        VKZ_ZoneScoped;
+
         vkCmdEndRendering(_cmdBuf);
     }
 
     void RHIContext_vk::pushConstants(const uint16_t _passId)
     {
+        VKZ_ZoneScoped;
+
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
         const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
 
@@ -2189,6 +2241,8 @@ namespace vkz
 
     void RHIContext_vk::executePass(const uint16_t _passId)
     {
+        VKZ_ZoneScoped;
+
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 
         if (passInfo.renderFunc != nullptr)
@@ -2227,6 +2281,8 @@ namespace vkz
 
     void RHIContext_vk::exeGraphic(const uint16_t _passId)
     {
+        VKZ_ZoneScoped;
+
         beginRendering(m_cmdBuffer, _passId);
 
         // drawcalls
@@ -2322,6 +2378,8 @@ namespace vkz
 
     void RHIContext_vk::exeCompute(const uint16_t _passId)
     {
+        VKZ_ZoneScoped;
+
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 
         vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, passInfo.pipeline);
@@ -2354,6 +2412,8 @@ namespace vkz
 
     void RHIContext_vk::exeFillBuffer(const uint16_t _passId)
     {
+        VKZ_ZoneScoped;
+
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
         CombinedResID res = passInfo.oneOpWriteRes;
         const Buffer_vk& buf = getBuffer(res.id);
@@ -2363,6 +2423,8 @@ namespace vkz
 
     void RHIContext_vk::copyToSwapchain(uint32_t _swapImgIdx)
     {
+        VKZ_ZoneScoped;
+
         if (!m_imageContainer.exist(m_brief.presentImageId))
         {
             message(DebugMessageType::error, "Does the presentImageId set correctly?");
@@ -2416,6 +2478,8 @@ namespace vkz
 
     void BarrierDispatcher::addImage(const VkImage _img, const ImageAspectFlags _aspect, BarrierState_vk _barrierState, const VkImage _baseImg/* = 0*/)
     {
+        VKZ_ZoneScoped;
+
         assert(m_imgAspectFlags.find(_img) == end(m_imgAspectFlags));
         assert(m_imgBarrierStatus.find(_img) == end(m_imgBarrierStatus));
 
@@ -2435,18 +2499,24 @@ namespace vkz
 
     void BarrierDispatcher::removeBuffer(const VkBuffer _buf)
     {
+        VKZ_ZoneScoped;
+
         m_aliasToBaseBuffers.erase(_buf);
         m_bufBarrierStatus.erase(_buf);
     }
 
     void BarrierDispatcher::removeImage(const VkImage _img)
     {
+        VKZ_ZoneScoped;
+
         m_aliasToBaseImages.erase(_img);
         m_imgAspectFlags.erase(_img);
     }
 
     void BarrierDispatcher::addBuffer(const VkBuffer _buf, BarrierState_vk _barrierState, const VkBuffer _baseBuf/* = 0*/)
     {
+        VKZ_ZoneScoped;
+
         assert(m_bufBarrierStatus.find(_buf) == end(m_bufBarrierStatus));
 
         m_bufBarrierStatus.insert({ _buf , _barrierState });
@@ -2463,6 +2533,8 @@ namespace vkz
 
     void BarrierDispatcher::barrier(const VkBuffer _buf, const BarrierState_vk& _dst)
     {
+        VKZ_ZoneScoped;
+
         assert(m_bufBarrierStatus.find(_buf) != end(m_bufBarrierStatus));
 
         const size_t idx = getElemIndex(m_dispatchBuffers, _buf);
@@ -2485,6 +2557,8 @@ namespace vkz
 
     void BarrierDispatcher::barrier(const VkImage _img, VkImageAspectFlags _aspect, const BarrierState_vk& _dst)
     {
+        VKZ_ZoneScoped;
+
         assert(m_imgAspectFlags.find(_img) != end(m_imgAspectFlags));
         assert(m_imgBarrierStatus.find(_img) != end(m_imgBarrierStatus));
 
@@ -2514,6 +2588,8 @@ namespace vkz
 
     void BarrierDispatcher::dispatch(const VkCommandBuffer& _cmdBuffer)
     {
+        VKZ_ZoneScoped;
+
         if(m_dispatchBuffers.empty() && m_dispatchImages.empty())
         {
             return;
@@ -2576,6 +2652,8 @@ namespace vkz
 
     const VkImageLayout BarrierDispatcher::getDstImageLayout(const VkImage _img) const
     {
+        VKZ_ZoneScoped;
+
         const size_t idx = getElemIndex(m_dispatchImages, _img);
         if (kInvalidIndex != idx)
         {
@@ -2588,26 +2666,36 @@ namespace vkz
 
     const BarrierState_vk BarrierDispatcher::getBarrierState(const VkImage _img) const
     {
+        VKZ_ZoneScoped;
+
         return m_imgBarrierStatus.at(_img);
     }
 
     const BarrierState_vk BarrierDispatcher::getBarrierState(const VkBuffer _buf) const
     {
+        VKZ_ZoneScoped;
+
         return m_bufBarrierStatus.at(_buf);
     }
 
     const BarrierState_vk BarrierDispatcher::getBaseBarrierState(const VkImage _img) const
     {
+        VKZ_ZoneScoped;
+
         return m_baseImgBarrierStatus.at(_img);
     }
 
     const BarrierState_vk BarrierDispatcher::getBaseBarrierState(const VkBuffer _buf) const
     {
+        VKZ_ZoneScoped;
+
         return m_baseBufBarrierStatus.at(_buf);
     }
 
     void BarrierDispatcher::clear()
     {
+        VKZ_ZoneScoped;
+
         m_dispatchImages.clear();
         m_imgAspects.clear();
         m_srcImgBarriers.clear();

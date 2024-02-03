@@ -15,6 +15,7 @@
 #include <TINYSTL/unordered_map.h>
 
 #include <stdint.h>
+#include "profiler.h"
 
 #define VK_CHECK(call) \
 	do{ \

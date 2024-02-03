@@ -2,10 +2,6 @@
 #include "common.h"
 #include "alloc.h"
 
-#include "profiler.h"
-
-
-
 namespace vkz
 {
     constexpr unsigned int kDefaultAlign = 8;

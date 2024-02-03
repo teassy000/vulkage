@@ -242,10 +242,8 @@ namespace vkz
 
         void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx, const ImageHandle _outAlias);
 
-        
         void fillBuffer(const PassHandle _hPass, const BufferHandle _hBuf, const uint32_t _offset, const uint32_t _size, const uint32_t _value, const BufferHandle _outAlias);
 
-        // new
         void setMultiFrame(ImageHandle _img);
         void setMultiFrame(BufferHandle _buf);
         
