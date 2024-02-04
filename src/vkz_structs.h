@@ -1,10 +1,7 @@
-#ifndef __VKZ_STRUCTS_H__
-#define __VKZ_STRUCTS_H__
-
+#pragma once
 
 #include <stdint.h>
 #include "macro.h"
-
 
 namespace vkz
 {
@@ -123,15 +120,15 @@ namespace vkz
 
     enum class ResourceLifetime : uint8_t
     {
-        none = 0,
+        none,
         transition,
         non_transition,
         count,
     };
 
     enum class VertexInputRate {
-        vertex = 0,
-        instance = 1,
+        vertex,
+        instance,
         input_rate_max = 0x7FFFFFFF
     };
 
@@ -487,4 +484,3 @@ namespace vkz
     };
 
 } // namespace vkz
-#endif // __VKZ_STRUCTS_H__

@@ -1,5 +1,5 @@
 
-#ifndef VKZ_MEMORY_OPERATION_H
+#ifndef __VKZ_MEMORY_OPERATION_INL__
 # error "must include from memory_operation.h"
 #endif
 

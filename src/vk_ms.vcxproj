@@ -228,7 +228,6 @@
     <ClCompile Include="framegraph_2.cpp" />
     <ClCompile Include="mesh.cpp" />
     <ClCompile Include="rhi_context.cpp" />
-    <ClCompile Include="shader_manager.cpp" />
     <ClCompile Include="vkz_pyramid.cpp" />
     <ClCompile Include="vkz_ui.cpp" />
     <ClCompile Include="vk_device.cpp" />
@@ -278,6 +277,7 @@
     <ClInclude Include="alloc.h" />
     <ClInclude Include="camera.h" />
     <ClInclude Include="cmd_list_vk.h" />
+    <ClInclude Include="colors.h" />
     <ClInclude Include="common.h" />
     <ClInclude Include="config.h" />
     <ClInclude Include="debug.h" />
@@ -292,10 +292,8 @@
     <ClInclude Include="mesh.h" />
     <ClInclude Include="framegraph.h" />
     <ClInclude Include="name.h" />
-    <ClInclude Include="pass.h" />
     <ClInclude Include="profiler.h" />
     <ClInclude Include="rhi_context.h" />
-    <ClInclude Include="shader_manager.h" />
     <ClInclude Include="util.h" />
     <ClInclude Include="vkz_pyramid.h" />
     <ClInclude Include="vkz_structs.h" />

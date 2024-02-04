@@ -1,5 +1,4 @@
-#ifndef __CMD_LIST_H__
-#define __CMD_LIST_H__
+#pragma once
 
 #include "cmd_list.h"
 #include "volk.h"
@@ -55,5 +54,3 @@ namespace vkz
         const RHIContext_vk* m_pCtx{ nullptr };
     };
 }
-
-#endif

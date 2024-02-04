@@ -1,5 +1,4 @@
-#ifndef __VKZ_UTIL_H__
-#define __VKZ_UTIL_H__
+#pragma once
 
 #include <assert.h>
 #include "common.h"
@@ -123,5 +122,3 @@ namespace vkz
         stl::vector<DataType> indexToData;
     };
 }
-
-#endif // __VKZ_UTIL_H__

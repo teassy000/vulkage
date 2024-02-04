@@ -1,5 +1,5 @@
-#ifndef __VKZ_DEBUG_H__
-#define __VKZ_DEBUG_H__
+#pragma once
+
 namespace vkz
 {
     enum DebugMessageType
@@ -13,11 +13,6 @@ namespace vkz
     void message(DebugMessageType type, const char* format, ...);
 #else
     void message(DebugMessageType type, const char* format, ...);
-#endif // DEBUG
+#endif // _DEBUG
 
 }
-
-#endif // __VKZ_DEBUG_H__
-
-
-

@@ -183,9 +183,6 @@
     <ClCompile Include="vk_shaders.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="shader_manager.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
     <ClCompile Include="vk_device.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -329,16 +326,10 @@
     <ClInclude Include="vk_shaders.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="shader_manager.h">
-      <Filter>src</Filter>
-    </ClInclude>
     <ClInclude Include="vkz_structs.h">
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="vkz_structs_inner.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="pass.h">
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="vk_device.h">
@@ -401,6 +392,9 @@
       <Filter>tracy</Filter>
     </ClInclude>
     <ClInclude Include="profiler.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="colors.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>

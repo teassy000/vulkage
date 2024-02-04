@@ -15,7 +15,7 @@ constexpr uint32_t kInitialIndexBufferSize = 1024 * 1024; // 1MB
 
 void vkz_renderFunc(vkz::ICommandList& _cmdList, const void* _data, uint32_t _size)
 {
-    VKZ_ZoneScoped;
+    VKZ_ZoneScopedC(vkz::Color::cyan);
 
     vkz::MemoryReader reader(_data, _size);
 
@@ -78,7 +78,7 @@ void vkz_renderFunc(vkz::ICommandList& _cmdList, const void* _data, uint32_t _si
 
 void vkz_prepareUI(UIRendering& _ui, float _scale /*= 1.f*/, bool _useChinese /*= false*/)
 {
-    VKZ_ZoneScoped;
+    VKZ_ZoneScopedC(vkz::Color::blue);
 
     ImGui::CreateContext();
 
@@ -187,7 +187,7 @@ void vkz_prepareUI(UIRendering& _ui, float _scale /*= 1.f*/, bool _useChinese /*
 
 void vkz_destroyUIRendering(UIRendering& _ui)
 {
-    VKZ_ZoneScoped;
+    VKZ_ZoneScopedC(vkz::Color::blue);;
 
     if (ImGui::GetCurrentContext()) {
         ImGui::DestroyContext();
@@ -198,7 +198,7 @@ void vkz_destroyUIRendering(UIRendering& _ui)
 
 void vkz_updateImGuiIO(const Input& input)
 {
-    VKZ_ZoneScoped;
+    VKZ_ZoneScopedC(vkz::Color::blue);;
 
     ImGuiIO& io = ImGui::GetIO();
 
@@ -212,7 +212,7 @@ void vkz_updateImGuiIO(const Input& input)
 
 void vkz_updateImGuiContent(RenderOptionsData& _rod, const ProfilingData& _pd, const LogicData& _ld)
 {
-    VKZ_ZoneScoped;
+    VKZ_ZoneScopedC(vkz::Color::blue);;
 
     ImGui::NewFrame();
     ImGui::SetNextWindowSize({ 400, 450 }, ImGuiCond_FirstUseEver);
@@ -266,12 +266,11 @@ void vkz_updateImGuiContent(RenderOptionsData& _rod, const ProfilingData& _pd, c
     }
 
     ImGui::End();
-
 }
 
 void vkz_updateImGui(const Input& input, RenderOptionsData& rd, const ProfilingData& pd, const LogicData& ld)
 {
-    VKZ_ZoneScoped;
+    VKZ_ZoneScopedC(vkz::Color::blue);;
 
     vkz_updateImGuiIO(input);
 
@@ -282,7 +281,7 @@ void vkz_updateImGui(const Input& input, RenderOptionsData& rd, const ProfilingD
 
 void vkz_updateUIRenderData(UIRendering& _ui)
 {
-    VKZ_ZoneScoped;
+    VKZ_ZoneScopedC(vkz::Color::blue);;
 
     ImDrawData* imDrawData = ImGui::GetDrawData();
 

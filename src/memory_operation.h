@@ -1,5 +1,5 @@
-#ifndef VKZ_MEMORY_OPERATION_H
-#define VKZ_MEMORY_OPERATION_H
+#pragma once
+
 // from bgfx, with modifications
 
 #include "alloc.h"
@@ -178,6 +178,5 @@ namespace vkz
 
 } // namespace vkz
 
+#define __VKZ_MEMORY_OPERATION_INL__
 #include "memory_operation.inl"
-
-#endif // VKZ_MEMORY_OPERATION_H

@@ -1,5 +1,4 @@
-#ifndef __VKZ_RES_CREATOR_H__
-#define __VKZ_RES_CREATOR_H__
+#pragma once
 
 #include <stdint.h>
 
@@ -204,5 +203,3 @@ namespace vkz
     };
 
 } // namespace vkz
-
-#endif // __VKZ_RES_CREATOR_H__

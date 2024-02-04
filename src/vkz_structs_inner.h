@@ -1,5 +1,4 @@
-#ifndef __VKZ_STRUCTS_INNER_H__
-#define __VKZ_STRUCTS_INNER_H__
+#pragma once
 
 #include "vkz_structs.h"
 #include "cmd_list.h"
@@ -255,5 +254,3 @@ namespace vkz
         uint32_t windowHeight{0};
     };
 } // namespace vkz
-
-#endif // __VKZ_STRUCTS_INNER_H__

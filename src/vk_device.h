@@ -1,5 +1,4 @@
-#ifndef __VKZ_VK_DEVICE_H__
-#define __VKZ_VK_DEVICE_H__
+#pragma once
 
 #include "common.h"
 
@@ -16,5 +15,3 @@ namespace vkz
 
     VkDevice createDevice(VkInstance instance, VkPhysicalDevice physicalDevice, uint32_t familyIndex, bool meshShadingSupported);
 } // namespace vkz
-
-#endif // __VKZ_VK_DEVICE_H__

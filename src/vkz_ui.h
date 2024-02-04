@@ -1,6 +1,4 @@
-#ifndef __VKZ_UI_H__
-#define __VKZ_UI_H__
-
+#pragma once
 
 #include "vkz.h"
 #include "uidata.h"
@@ -50,5 +48,3 @@ void vkz_destroyUIRendering(UIRendering& ui);
 void vkz_updateImGui(const Input& input, RenderOptionsData& rd, const ProfilingData& pd, const LogicData& ld);
 
 void vkz_updateUIRenderData(UIRendering& ui);
-
-#endif // __VKZ_UI_H__

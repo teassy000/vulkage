@@ -1,5 +1,4 @@
-#ifndef __VKZ_VK_SWAPCHAIN_H__
-#define __VKZ_VK_SWAPCHAIN_H__
+#pragma once
 
 #include "common.h"
 
@@ -38,5 +37,3 @@ namespace vkz
     VkFramebuffer createFramebuffer(VkDevice device, VkRenderPass renderPass, VkImageView colorView, VkImageView depthView, uint32_t width, uint32_t height);
 
 } // namespace vkz
-
-#endif //__VKZ_VK_SWAPCHAIN_H__

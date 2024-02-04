@@ -1,5 +1,4 @@
-#ifndef __DRAW_COMMAND_LIST_H__
-#define __DRAW_COMMAND_LIST_H__
+#pragma once
 
 #include "vkz_structs.h"
 
@@ -44,5 +43,3 @@ namespace vkz
     };
 };
 
-
-#endif // !__DRAW_COMMAND_LIST_H__

@@ -1,9 +1,9 @@
-#ifndef __PROFILER_H__
-#define __PROFILER_H__
+#pragma once
 
 #ifdef TRACY_ENABLE
 
 #include <tracy/Tracy.hpp>
+#include "colors.h"
 
 
 #define VKZ_ProfAlloc(_ptr, _size) TracyAlloc(_ptr, _size)
@@ -27,6 +27,3 @@
 #define VKZ_ZoneScopedC(x)
 
 #endif // TRACY_ENABLE
-
-
-#endif // __PROFILER_H__

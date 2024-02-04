@@ -1,5 +1,4 @@
-#ifndef __VKZ_PYRAMID_H__
-#define __VKZ_PYRAMID_H__
+#pragma once
 
 #include "vkz.h"
 
@@ -35,4 +34,3 @@ void preparePyramid(
     , SpecImageViewConfig* _specImageViewConfigs
     , uint32_t _specImageViewConfigCount
 );
-#endif // __VKZ_PYRAMID_H__
