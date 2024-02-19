@@ -221,6 +221,8 @@ namespace vkz
         ImageHandle registRenderTarget(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime);
         ImageHandle registDepthStencil(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime);
 
+        ImageViewHandle registImageView(const char* _name, const ImageHandle _hImg, const uint32_t _baseMip, const uint32_t _mipLevel);
+
         SamplerHandle requestSampler(const SamplerDesc& _desc);
 
         BufferHandle aliasBuffer(const BufferHandle _baseBuf);
@@ -234,9 +236,9 @@ namespace vkz
         void setIndirectCountBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset);
 
         void bindBuffer(PassHandle _hPass, BufferHandle _buf, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, const BufferHandle _outAlias);
-        void sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, ImageLayout _layout, SamplerReductionMode _reductionMode);
+        SamplerHandle sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, ImageLayout _layout, SamplerReductionMode _reductionMode);
         void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout
-            , const ImageHandle _outAlias, const uint32_t _baseMip, const uint32_t _mipLevel);
+            , const ImageHandle _outAlias, const ImageViewHandle _hImgView);
 
         void setCustomRenderFunc(const PassHandle _hPass, RenderFuncPtr _func, const Memory* _dataMem);
 
@@ -282,6 +284,7 @@ namespace vkz
         HandleArrayT<kMaxNumOfPassHandle> m_passHandles;
         HandleArrayT<kMaxNumOfBufferHandle> m_bufferHandles;
         HandleArrayT<kMaxNumOfImageHandle> m_imageHandles;
+        HandleArrayT<kMaxNumOfImageViewHandle> m_imageViewHandles;
         HandleArrayT<kMaxNumOfSamplerHandle> m_samplerHandles;
         
         ImageHandle m_presentImage{kInvalidHandle};
@@ -293,6 +296,7 @@ namespace vkz
         UniDataContainer<ImageHandle, ImageMetaData> m_imageMetas;
         UniDataContainer<PassHandle, PassMetaData> m_passMetas;
         UniDataContainer<SamplerHandle, SamplerDesc> m_samplerDescs;
+        UniDataContainer<ImageViewHandle, ImageViewDesc> m_imageViewDesc;
 
         // alias
         UniDataContainer<BufferHandle, stl::vector<BufferHandle>> m_aliasBuffers;
@@ -485,17 +489,13 @@ namespace vkz
             return ProgramHandle{ kInvalidHandle };
         }
 
-        void* pushConstants = alloc(m_pAllocator, _sizePushConstants);
-
         ProgramDesc desc{};
         desc.progId = idx;
         desc.shaderNum = _shaderNum;
         desc.sizePushConstants = _sizePushConstants;
-        desc.pPushConstants = pushConstants;
         memcpy_s(desc.shaderIds, COUNTOF(desc.shaderIds), _mem->data, _mem->size);
         release(_mem);
         m_programDescs.push_back({ idx }, desc);
-        m_pushConstants.push_back({ idx }, pushConstants);
 
         setRenderGraphDataDirty();
 
@@ -661,6 +661,27 @@ namespace vkz
         return handle;
     }
 
+    vkz::ImageViewHandle Context::registImageView(const char* _name, const ImageHandle _hImg, const uint32_t _baseMip, const uint32_t _mipLevel)
+    {
+        uint16_t idx = m_imageViewHandles.alloc();
+
+        ImageViewHandle handle { idx };
+
+        // check if pass is valid
+        if (!isValid(handle))
+        {
+            message(error, "create BufferHandle failed!");
+            return ImageViewHandle{ kInvalidHandle };
+        }
+
+        ImageViewDesc desc{ _hImg.id, _baseMip, _mipLevel };
+        m_imageViewDesc.push_back({ idx }, desc);
+
+        setRenderGraphDataDirty();
+
+        return handle;
+    }
+
     SamplerHandle Context::requestSampler(const SamplerDesc& _desc)
     {
         // find if the sampler already exist
@@ -757,7 +778,6 @@ namespace vkz
             ProgramRegisterInfo info;
             info.progId = desc.progId;
             info.sizePushConstants = desc.sizePushConstants;
-            info.pPushConstants = desc.pPushConstants;
             info.shaderNum = desc.shaderNum;
             write(m_fgMemWriter, info);
 
@@ -1100,7 +1120,7 @@ namespace vkz
 
     uint32_t insertResInteract(UniDataContainer<PassHandle, stl::vector<PassResInteract>>& _container
         , const PassHandle _hPass, const uint16_t _resId, const SamplerHandle _hSampler, const ResInteractDesc& _interact
-        , const SpecificImageViewInfo& _specImgViewInfo
+        , const ImageViewDesc& _specImgViewInfo
         )
     {
         uint32_t vecSize = 0u;
@@ -1137,7 +1157,7 @@ namespace vkz
         , const PassHandle _hPass, const uint16_t _resId, const SamplerHandle _hSampler, const ResInteractDesc& _interact
         )
     {
-        return insertResInteract(_container, _hPass, _resId, _hSampler, _interact, defaultSpecificImageViewInfo());
+        return insertResInteract(_container, _hPass, _resId, _hSampler, _interact, defaultImageView({ _resId }));
     }
 
     uint32_t insertWriteResAlias(UniDataContainer<PassHandle, stl::vector<WriteOperationAlias>>& _container, const PassHandle _hPass, const uint16_t _resIn, const uint16_t _resOut)
@@ -1265,12 +1285,12 @@ namespace vkz
         }
     }
 
-    void Context::sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, ImageLayout _layout, SamplerReductionMode _reductionMode)
+    SamplerHandle Context::sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, ImageLayout _layout, SamplerReductionMode _reductionMode)
     {
         if (!availableBinding(m_usedBindPoints, _hPass, _binding))
         {
             message(DebugMessageType::error, "trying to binding the same point: %d", _binding);
-            return;
+            return { kInvalidHandle };
         }
 
         // get the sampler id
@@ -1289,10 +1309,12 @@ namespace vkz
         passMeta.readImageNum = insertResInteract(m_readImages, _hPass, _hImg.id, sampler, interact);
         passMeta.sampleImageNum++; // Note: is this the only way to read texture?
         setRenderGraphDataDirty();
+
+        return sampler;
     }
 
     void Context::bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout
-        , const ImageHandle _outAlias, const uint32_t _baseMip, const uint32_t _mipLevel)
+        , const ImageHandle _outAlias, const ImageViewHandle _hImgView)
     {
         if (!availableBinding(m_usedBindPoints, _hPass, _binding))
         {
@@ -1340,7 +1362,9 @@ namespace vkz
             }
             else if (isCompute(_hPass) && isNormalImage(_hImg))
             {
-                passMeta.writeImageNum = insertResInteract(m_writeImages, _hPass, _hImg.id, { kInvalidHandle }, interact, { _baseMip, _mipLevel });
+                const ImageViewDesc& imgViewDesc = isValid(_hImgView) ? m_imageViewDesc.getIdToData(_hImgView) : defaultImageView(_hImg);
+
+                passMeta.writeImageNum = insertResInteract(m_writeImages, _hPass, _hImg.id, { kInvalidHandle }, interact, imgViewDesc);
                 passMeta.specImageViewNum++;
                 passMeta.writeImgAliasNum = insertWriteResAlias(m_implicitOutImageAliases, _hPass, _hImg.id, _outAlias.id);
 
@@ -1652,6 +1676,11 @@ namespace vkz
         return s_ctx->registDepthStencil(_name, _desc, _lifetime);
     }
 
+    vkz::ImageViewHandle registImageView(const char* _name, const ImageHandle _hImg, const uint32_t _baseMip, const uint32_t _mipLevel)
+    {
+        return s_ctx->registImageView(_name, _hImg, _baseMip, _mipLevel);
+    }
+
     PassHandle registPass(const char* _name, PassDesc _desc)
     {
         return s_ctx->registPass(_name, _desc);
@@ -1692,15 +1721,15 @@ namespace vkz
         s_ctx->bindBuffer(_hPass, _hBuf, _binding, _stage, _access, _outAlias);
     }
 
-    void sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, ImageLayout _layout, SamplerReductionMode _reductionMode)
+    SamplerHandle sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, ImageLayout _layout, SamplerReductionMode _reductionMode)
     {
-        s_ctx->sampleImage(_hPass, _hImg, _binding, _stage, _layout, _reductionMode);
+        return s_ctx->sampleImage(_hPass, _hImg, _binding, _stage, _layout, _reductionMode);
     }
 
     void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout
-        , const ImageHandle _outAlias /*= {kInvalidHandle}*/, const uint32_t _baseMip/* = 0 */, const uint32_t _mipLevel/* = 1 */)
+        , const ImageHandle _outAlias /*= {kInvalidHandle}*/, const ImageViewHandle _hImgView/* = {kInvalidHandle}*/)
     {
-        s_ctx->bindImage(_hPass, _hImg, _binding, _stage, _access, _layout, _outAlias, _baseMip, _mipLevel);
+        s_ctx->bindImage(_hPass, _hImg, _binding, _stage, _access, _layout, _outAlias, _hImgView);
     }
 
     void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx, const ImageHandle _outAlias)
@@ -1735,7 +1764,6 @@ namespace vkz
     
     void updatePushConstants(const PassHandle _hPass, const Memory* _mem)
     {
-
         s_ctx->updatePushConstants(_hPass, _mem);
     }
 

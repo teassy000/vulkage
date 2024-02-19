@@ -81,7 +81,7 @@ namespace vkz
         uint16_t    samplerId;
 
         // for specific image view creation
-        SpecificImageViewInfo   specImgViewInfo;
+        ImageViewDesc   specImgViewInfo;
 
         ResInteractDesc interact;
     };
@@ -294,7 +294,7 @@ namespace vkz
             UniDataContainer<CombinedResID, CombinedResID> writeOpAliasMap;
 
             UniDataContainer<CombinedResID, uint16_t> imageSamplerMap;
-            UniDataContainer<CombinedResID, SpecificImageViewInfo> specImgViewMap;
+            UniDataContainer<CombinedResID, ImageViewDesc> specImgViewMap;
         };
 
         struct PassDependency

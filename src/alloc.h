@@ -2,6 +2,8 @@
 
 #include "macro.h"
 
+#include <glm/common.hpp> // for glm::max
+
 
 #define VKZ_NEW(_allocator, _type)                 VKZ_PLACEMENT_NEW(vkz::alloc(_allocator, sizeof(_type) ), _type)
 #define VKZ_ALIGNED_NEW(_allocator, _type, _align) VKZ_PLACEMENT_NEW(vkz::alloc(_allocator, sizeof(_type), _align), _type)
@@ -124,7 +126,7 @@ namespace vkz
 
     inline void* alignedAlloc(AllocatorI* _allocator, size_t _sz, size_t _align)
     {
-        const size_t align = std::max(_align, sizeof(uint32_t));
+        const size_t align = glm::max(_align, sizeof(uint32_t));
         const size_t total = _sz + align;
         uint8_t* ptr = (uint8_t*)alloc(_allocator, total, 0);
         uint8_t* aligned = (uint8_t*)alignPtr(ptr, sizeof(uint32_t), align);

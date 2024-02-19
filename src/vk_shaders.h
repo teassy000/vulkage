@@ -27,6 +27,8 @@ namespace vkz
 
         VkShaderStageFlags pushConstantStages;
         VkPipelineBindPoint bindPoint;
+
+        uint32_t pushConstantSize;
     };
 
     struct PipelineConfigs_vk
@@ -45,7 +47,7 @@ namespace vkz
     VkDescriptorSetLayout createSetLayout(VkDevice device, const stl::vector<Shader_vk>& shaders);
     VkPipelineLayout createPipelineLayout(VkDevice device, VkDescriptorSetLayout outSetLayout, VkShaderStageFlags pushConstantStages, size_t pushConstantSize);
 
-    Program_vk createProgram(VkDevice device, VkPipelineBindPoint bindingPoint, const stl::vector<Shader_vk>& shaders, size_t pushConstantSize = 0);
+    Program_vk createProgram(VkDevice device, VkPipelineBindPoint bindingPoint, const stl::vector<Shader_vk>& shaders, uint32_t pushConstantSize = 0);
     void destroyProgram(VkDevice device, const Program_vk& program);
 
     inline uint32_t calcGroupCount(uint32_t threadCount, uint32_t localSize)

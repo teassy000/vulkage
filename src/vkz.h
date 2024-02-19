@@ -9,6 +9,7 @@
 namespace vkz
 {
     using ShaderHandleList = std::initializer_list<const ShaderHandle>;
+    
     // resource management functions
     ShaderHandle registShader(const char* _name, const char* _path);
     ProgramHandle registProgram(const char* _name, ShaderHandleList _shaders, const uint32_t _sizePushConstants = 0);
@@ -17,6 +18,8 @@ namespace vkz
     ImageHandle registTexture(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime = ResourceLifetime::transition);
     ImageHandle registRenderTarget(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime = ResourceLifetime::transition);
     ImageHandle registDepthStencil(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime = ResourceLifetime::transition);
+
+    ImageViewHandle registImageView(const char* _name, const ImageHandle _hImg, const uint32_t _baseMip, const uint32_t _mipLevel);
 
     PassHandle registPass(const char* _name, PassDesc _desc);
 
@@ -30,9 +33,10 @@ namespace vkz
     void setIndirectCountBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset);
 
     void bindBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, const BufferHandle _outAlias = {kInvalidHandle});
-    void sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, ImageLayout _layout, SamplerReductionMode _reductionMode);
     void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout
-        , const ImageHandle _outAlias = { kInvalidHandle }, const uint32_t _baseMip = 0, const uint32_t _mipLevel = 1); // _baseMip and _mipLevel used means independent image view would use
+        , const ImageHandle _outAlias = { kInvalidHandle }, const ImageViewHandle _hImgView = {kInvalidHandle});
+
+    SamplerHandle sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, ImageLayout _layout, SamplerReductionMode _reductionMode);
 
     void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx, const ImageHandle _outAlias = { kInvalidHandle });
 

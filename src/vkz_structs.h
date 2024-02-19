@@ -46,7 +46,8 @@ namespace vkz
     using BufferHandle = Handle<struct BufferHandleTag>;
     using ImageHandle = Handle<struct TextureHandleTag>;
 
-
+    using ImageViewHandle = Handle<struct ImageViewHandleTag>; 
+    using SamplerHandle = Handle<struct SamplerHandleTag>;
 
     enum class PassExeQueue : uint16_t
     {
@@ -365,6 +366,12 @@ namespace vkz
         store,
         dont_care,
         attachement_store_op_max = 0x7fffffff,
+    };
+
+    enum class ResourceType : uint16_t
+    {
+        buffer,
+        image,
     };
 
     struct VKZInitConfig

@@ -251,12 +251,12 @@ void meshDemo()
     uint32_t pyramidLevel = calculateMipLevelCount2(pyramidLevelWidth, pyramidLevelHeight);
 
     vkz::ImageDesc pyDesc;
-    pyDesc.width = previousPow2_new(config.windowWidth);
-    pyDesc.height = previousPow2_new(config.windowHeight);
+    pyDesc.width = pyramidLevelWidth;
+    pyDesc.height = pyramidLevelHeight;
     pyDesc.format = vkz::ResourceFormat::r32_sfloat;
     pyDesc.depth = 1;
     pyDesc.arrayLayers = 1;
-    pyDesc.mips = calculateMipLevelCount_new(config.windowWidth, config.windowHeight);;
+    pyDesc.mips = pyramidLevel;
     pyDesc.usage = vkz::ImageUsageFlagBits::transfer_src | vkz::ImageUsageFlagBits::sampled | vkz::ImageUsageFlagBits::storage;
     vkz::ImageHandle pyramid = vkz::registTexture("pyramid", pyDesc, vkz::ResourceLifetime::non_transition);
 
@@ -550,14 +550,15 @@ void meshDemo()
                 vkz::message(vkz::DebugMessageType::info, "used idx slot 0: %d", pyramid_aliases[aliasIdx]);
             }
 
+            vkz::ImageViewHandle iv = vkz::registImageView("", pyramid_aliases[aliasIdx + 1], ii, 1);
+
             vkz::bindImage(pyramid_pass, pyramid_aliases[aliasIdx + 1]
                 , 1
                 , vkz::PipelineStageFlagBits::compute_shader
                 , vkz::AccessFlagBits::shader_write
                 , vkz::ImageLayout::general
                 , pyramid_aliases[aliasIdx + 2]
-                , ii
-                , 1
+                , iv
             );
 
             vkz::message(vkz::DebugMessageType::info, "used idx slot 1: %d", pyramid_aliases[aliasIdx + 1]);
@@ -581,17 +582,18 @@ void meshDemo()
     const vkz::Memory* memDrawCull = vkz::alloc(sizeof(MeshDrawCullVKZ));
     const vkz::Memory* memGlobal = vkz::alloc(sizeof(GlobalsVKZ));
     const vkz::Memory* memTransform = vkz::alloc(sizeof(TransformData));
+    const vkz::Memory* memPyramidWndSz = vkz::alloc(sizeof(vec2));
 
     MeshDrawCullVKZ drawCull = {};
     GlobalsVKZ globals = {};
 
     while (!vkz::shouldClose())
     {
-        float znear = .1f;
-        mat4 projection = perspectiveProjection2(glm::radians(70.f), (float)config.windowWidth / (float)config.windowHeight, znear);
-        mat4 projectionT = glm::transpose(projection);
-        vec4 frustumX = normalizePlane2(projectionT[3] - projectionT[0]);
-        vec4 frustumY = normalizePlane2(projectionT[3] - projectionT[1]);
+        znear = .1f;
+        projection = perspectiveProjection2(glm::radians(70.f), (float)config.windowWidth / (float)config.windowHeight, znear);
+        projectionT = glm::transpose(projection);
+        frustumX = normalizePlane2(projectionT[3] - projectionT[0]);
+        frustumY = normalizePlane2(projectionT[3] - projectionT[1]);
 
         drawCull.P00 = projection[0][0];
         drawCull.P11 = projection[1][1];
@@ -627,11 +629,20 @@ void meshDemo()
         vkz::updatePushConstants(pass_draw_0, vkz::copy(memGlobal));
         vkz::updatePushConstants(pass_draw_1, vkz::copy(memGlobal));
 
+        // update pyramid 
+        for (uint32_t ii = 0; ii < pyramidLevel; ++ii)
+        {
+            memcpy_s(memPyramidWndSz->data, memPyramidWndSz->size, &imageSizes[ii], sizeof(vec2));
+            vkz::updatePushConstants(pass_pys[ii], vkz::copy(memPyramidWndSz));
+        }
+        
         vkz::updateThreadCount(pass_cull_0, (uint32_t)scene.meshDraws.size(), 1, 1);
 
-        trans.view = view;
+        freeCamera.pos = vec3{ 0.f, 4.f, 0.f };
+
+        trans.view = freeCameraGetViewMatrix(freeCamera);
         trans.proj = projection;
-        trans.cameraPos = vec3{0.f, 4.f, 0.f};
+        trans.cameraPos = freeCamera.pos;
         memcpy_s(memTransform->data, memTransform->size, &trans, sizeof(TransformData));
         vkz::updateBuffer(transformBuf, vkz::copy(memTransform));
 

@@ -1272,7 +1272,7 @@ namespace vkz
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
-        assert(_mem != nullptr);
+        assert(_data != nullptr);
         PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
         
         if (nullptr != passInfo.renderFuncDataPtr)
@@ -1323,8 +1323,6 @@ namespace vkz
 
         VkPipelineBindPoint bindPoint = getBindPoint(shaders);
         Program_vk prog = vkz::createProgram(m_device, bindPoint, shaders, info.sizePushConstants);
-
-        m_constantsMemBlock.addConstant({ info.progId }, info.pPushConstants, info.sizePushConstants);
 
         m_programContainer.push_back(info.progId, prog);
         m_programShaderIds.emplace_back(shaderIds);
@@ -1381,9 +1379,9 @@ namespace vkz
 
         // specific image views
         stl::vector<uint16_t> specViewImgIds(passMeta.specImageViewNum);
-        stl::vector<SpecificImageViewInfo> specViewInfos(passMeta.specImageViewNum);
+        stl::vector<ImageViewDesc> specViewInfos(passMeta.specImageViewNum);
         read(&_reader, specViewImgIds.data(), passMeta.specImageViewNum * sizeof(uint16_t));
-        read(&_reader, specViewInfos.data(), passMeta.specImageViewNum * sizeof(SpecificImageViewInfo));
+        read(&_reader, specViewInfos.data(), passMeta.specImageViewNum * sizeof(ImageViewDesc));
 
         // write op aliases
         stl::vector<CombinedResID> writeOpAliasInIds(passMeta.writeBufAliasNum + passMeta.writeImgAliasNum);
@@ -1557,6 +1555,14 @@ namespace vkz
         for (uint16_t ii = 0; ii < passMeta.specImageViewNum; ++ii)
         {
             passInfo.imageToSpecificImageViews.push_back(specViewImgIds[ii], specViewInfos[ii]);
+        }
+
+        // push constants
+        if (passInfo.queue == PassExeQueue::graphics
+            || passInfo.queue == PassExeQueue::compute)
+        {
+            const Program_vk& prog = m_programContainer.getIdToData(passMeta.programId);
+            m_constantsMemBlock.addConstant({ passInfo.passId }, prog.pushConstantSize);
         }
 
         // one-operation passes
@@ -1746,7 +1752,7 @@ namespace vkz
             for (size_t jj = 0; jj < passInfo.imageToSpecificImageViews.size(); ++jj)
             {
                 const uint16_t imgId = passInfo.imageToSpecificImageViews.getIdAt(jj);
-                const SpecificImageViewInfo& info = passInfo.imageToSpecificImageViews.getDataAt(jj);
+                const ImageViewDesc& info = passInfo.imageToSpecificImageViews.getDataAt(jj);
 
                 const Image_vk& image = getImage(imgId);
 
@@ -2156,6 +2162,13 @@ namespace vkz
         }
     }
 
+    const vkz::Shader_vk& RHIContext_vk::getShader(const ShaderHandle _hShader) const
+    {
+        VKZ_ZoneScopedC(Color::indian_red);
+
+        return m_shaderContainer.getIdToData(_hShader.id);
+    }
+
     const vkz::Program_vk& RHIContext_vk::getProgram(const PassHandle _hPass) const
     {
         VKZ_ZoneScopedC(Color::indian_red);
@@ -2221,6 +2234,28 @@ namespace vkz
         VKZ_ZoneScopedC(Color::indian_red);
 
         vkCmdEndRendering(_cmdBuf);
+    }
+
+    const DescriptorInfo RHIContext_vk::getImageDescInfo(const ImageHandle _hImg, const SamplerHandle _hSampler) const
+    {
+        VKZ_ZoneScopedC(Color::indian_red);
+
+        VkSampler sampler = sampler = m_samplerContainer.getIdToData(_hSampler.id);
+        
+        const Image_vk& img = getImage(_hImg.id);
+        VkImageView view = img.imageView;
+        VkImageLayout layout = m_barrierDispatcher.getDstImageLayout(img.image);
+        
+        return { sampler, view, layout };
+    }
+
+    const DescriptorInfo RHIContext_vk::getBufferDescInfo(const BufferHandle _hBuf) const
+    {
+        VKZ_ZoneScopedC(Color::indian_red);
+
+        const Buffer_vk& buf = getBuffer(_hBuf.id);
+
+        return { buf.buffer };
     }
 
     void RHIContext_vk::pushConstants(const uint16_t _passId)

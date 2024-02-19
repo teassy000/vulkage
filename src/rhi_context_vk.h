@@ -106,7 +106,7 @@ namespace vkz
         UniDataContainer<uint16_t, uint16_t>    imageToSamplerIds;
 
         // specific image views
-        UniDataContainer<uint16_t, SpecificImageViewInfo> imageToSpecificImageViews;
+        UniDataContainer<uint16_t, ImageViewDesc> imageToSpecificImageViews;
         UniDataContainer<uint16_t, VkImageView> imageToImageViews;
 
         // write op base to alias
@@ -198,10 +198,14 @@ namespace vkz
         
         void pushDescriptorSetWithTemplates(const VkCommandBuffer& _cmdBuf, const uint16_t _passId) const;
 
+        const Shader_vk& getShader(const ShaderHandle _hShader) const;
         const Program_vk& getProgram(const PassHandle _hPass) const;
 
         void beginRendering(const VkCommandBuffer& _cmdBuf, const uint16_t _passId) const;
         void endRendering(const VkCommandBuffer& _cmdBuf) const;
+
+        const DescriptorInfo getImageDescInfo(const ImageHandle _hImg, const SamplerHandle _hSampler) const;
+        const DescriptorInfo getBufferDescInfo(const BufferHandle _hBuf) const;
 
 
     private:

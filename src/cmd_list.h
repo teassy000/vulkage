@@ -4,14 +4,14 @@
 
 namespace vkz
 {
-
     class ICommandList
     {
     public:
         virtual void setViewPort(uint32_t _firstViewport, uint32_t _viewportCount, const Viewport* _pViewports) = 0;
         virtual void setScissorRect(uint32_t _firstScissor, uint32_t _scissorCount, const Rect2D* _pScissors) = 0;
         virtual void pushConstants(const PassHandle _hPass, const void* _data, uint32_t _size) = 0;
-        virtual void pushDescriptorSets(const PassHandle _pass) = 0;
+        virtual void pushDescriptorSets(const PassHandle _hPass) = 0;
+        virtual void pushDescriptorSetWithTemplate(const PassHandle _hPass, const uint16_t* _resIds, uint32_t _count, const ResourceType* _types, const SamplerHandle* _samplerIds) = 0;
         virtual void sampleImage(ImageHandle _hImg, uint32_t _binding, SamplerReductionMode _reductionMode) = 0;
 
         // resource binding
@@ -25,7 +25,7 @@ namespace vkz
         virtual void copyImage() = 0;
 
         // compute
-        virtual void dispatch(uint32_t _groupX, uint32_t _groupY, uint32_t _groupZ) = 0;
+        virtual void dispatch(const ShaderHandle _hShader, uint32_t _groupX, uint32_t _groupY, uint32_t _groupZ) = 0;
         
         // rendering
         virtual void beginRendering(PassHandle _hPass) = 0;

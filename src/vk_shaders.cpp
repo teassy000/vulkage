@@ -467,7 +467,7 @@ namespace vkz
     }
 
 
-    Program_vk createProgram(VkDevice device, VkPipelineBindPoint bindingPoint, const stl::vector<Shader_vk>& shaders, size_t pushConstantSize)
+    Program_vk createProgram(VkDevice device, VkPipelineBindPoint bindingPoint, const stl::vector<Shader_vk>& shaders, uint32_t pushConstantSize)
     {
         VkShaderStageFlags pushConstantStages = 0;
         for (const Shader_vk& shader : shaders)
@@ -487,6 +487,7 @@ namespace vkz
 
         program.pushConstantStages = pushConstantStages;
         program.bindPoint = bindingPoint;
+        program.pushConstantSize = pushConstantSize;
 
         return program;
     }

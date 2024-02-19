@@ -46,14 +46,37 @@ namespace vkz
         vkCmdPushConstants(m_cmdBuf, prog.layout, prog.pushConstantStages, 0, _size, _data);
     }
 
-    void CmdList_vk::pushDescriptorSets(const PassHandle _pass)
+    void CmdList_vk::pushDescriptorSets(const PassHandle _hPass)
     {
-        m_pCtx->pushDescriptorSetWithTemplates(m_cmdBuf, _pass.id);
+        m_pCtx->pushDescriptorSetWithTemplates(m_cmdBuf, _hPass.id);
+    }
+
+    void CmdList_vk::pushDescriptorSetWithTemplate(const PassHandle _hPass, const uint16_t* _resIds, uint32_t _count, const ResourceType* _types, const SamplerHandle* _samplerIds)
+    {
+        const Program_vk& prog = m_pCtx->getProgram(_hPass);
+        stl::vector<DescriptorInfo> descInfos(_count);
+        for (uint32_t ii = 0; ii < _count; ++ii)
+        {
+            if (_types[ii] == ResourceType::image)
+            {
+                descInfos[ii] = m_pCtx->getImageDescInfo({ _resIds[ii] }, { _samplerIds[ii] });
+            }
+            else if (_types[ii] == ResourceType::buffer)
+            {
+                descInfos[ii] = m_pCtx->getBufferDescInfo({ _resIds[ii] });
+            }
+            else
+            {
+                message(DebugMessageType::error, "not a valid resource type!");
+            }
+        }
+
+        vkCmdPushDescriptorSetWithTemplateKHR(m_cmdBuf, prog.updateTemplate, prog.layout, 0, descInfos.data());
     }
 
     void CmdList_vk::sampleImage(ImageHandle _hImg, uint32_t _binding, SamplerReductionMode _reductionMode)
     {
-
+        const VkImage& img = m_pCtx->getVkImage(_hImg);
     }
 
     void CmdList_vk::bindVertexBuffer(uint32_t _firstBinding, uint32_t _bindingCount, const BufferHandle* _pBuffers, const uint64_t* _pOffsets)
@@ -103,9 +126,15 @@ namespace vkz
 
     }
 
-    void CmdList_vk::dispatch(uint32_t _groupX, uint32_t _groupY, uint32_t _groupZ)
+    void CmdList_vk::dispatch(const ShaderHandle _hShader, uint32_t _groupX, uint32_t _groupY, uint32_t _groupZ)
     {
-        vkCmdDispatch(m_cmdBuf, _groupX, _groupY, _groupZ);
+        const Shader_vk& shader = m_pCtx->getShader(_hShader);
+
+        vkCmdDispatch(m_cmdBuf
+            , calcGroupCount(_groupX, shader.localSizeX)
+            , calcGroupCount(_groupY, shader.localSizeY)
+            , calcGroupCount(_groupZ, shader.localSizeZ)
+        );
     }
 
     void CmdList_vk::beginRendering(PassHandle _hPass)

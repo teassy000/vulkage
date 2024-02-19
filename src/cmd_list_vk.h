@@ -21,6 +21,8 @@ namespace vkz
         void pushConstants(const PassHandle _hPass, const void* _data, uint32_t _size) override;
         void pushDescriptorSets(const PassHandle _pass) override;
 
+        void pushDescriptorSetWithTemplate(const PassHandle _hPass, const uint16_t* _resIds, uint32_t _count, const ResourceType* _types, const SamplerHandle* _samplerIds) override;
+
         void sampleImage(ImageHandle _hImg, uint32_t _binding, SamplerReductionMode _reductionMode) override;
 
         // resource binding
@@ -34,7 +36,7 @@ namespace vkz
         void copyImage() override;
 
         // compute
-        void dispatch(uint32_t _groupX, uint32_t _groupY, uint32_t _groupZ) override;
+        void dispatch(const ShaderHandle _hPass, uint32_t _groupX, uint32_t _groupY, uint32_t _groupZ) override;
 
         // rendering
         void beginRendering(PassHandle _hPass) override;

@@ -102,7 +102,7 @@ namespace vkz
 
         inline MemoryBlockI* getMemoryBlock() const { return m_pConstantData; }
 
-        void addConstant(const PassHandle _hPass, const void* _data, uint32_t _size);
+        void addConstant(const PassHandle _hPass, uint32_t _size);
 
         const uint32_t getConstantSize(const PassHandle _hPass) const;
         const void* getConstantData(const PassHandle _hPass) const;
@@ -170,9 +170,6 @@ namespace vkz
 
         void bake() override;
         bool render() override { return false; };
-
-        // add
-        void addPushConstants(const PassHandle _hPass, const void* _data, uint32_t _size);
 
         // update 
         void updatePushConstants(PassHandle _hPass, const void* _data, uint32_t _size) override;

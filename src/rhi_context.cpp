@@ -13,11 +13,6 @@ namespace vkz
         parseOp();
     }
 
-    void RHIContext::addPushConstants(const PassHandle _hPass, const void* _data, uint32_t _size)
-    {
-         m_constantsMemBlock.addConstant(_hPass, _data, _size);
-    }
-
     void RHIContext::updatePushConstants(PassHandle _hPass, const void* _data, uint32_t _size)
     {
          m_constantsMemBlock.updateConstantData(_hPass, _data, _size);
@@ -94,9 +89,9 @@ namespace vkz
         // TODO
     }
 
-    void ConstantsMemoryBlock::addConstant(const PassHandle _hPass, const void* _data, uint32_t _size)
+    void ConstantsMemoryBlock::addConstant(const PassHandle _hPass, uint32_t _size)
     {
-        if (nullptr == _data || 0 == _size )
+        if (0 == _size )
             return;
 
         int64_t offset = m_pWriter->seek(0, Whence::Current);
@@ -106,7 +101,10 @@ namespace vkz
         constants.size = _size;
         constants.offset = offset;
 
-        write(m_pWriter, _data, _size);
+        if (m_pConstantData->size() <= offset + _size)
+        {
+            m_pConstantData->expand(m_pConstantData->size()); // double current size
+        }
 
         m_passes.push_back(_hPass);
         m_constants.push_back(constants);

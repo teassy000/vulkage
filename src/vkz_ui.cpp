@@ -13,7 +13,7 @@ namespace tstl = tinystl;
 constexpr uint32_t kInitialVertexBufferSize = 1024 * 1024; // 1MB
 constexpr uint32_t kInitialIndexBufferSize = 1024 * 1024; // 1MB
 
-void vkz_renderFunc(vkz::ICommandList& _cmdList, const void* _data, uint32_t _size)
+void ui_renderFunc(vkz::ICommandList& _cmdList, const void* _data, uint32_t _size)
 {
     VKZ_ZoneScopedC(vkz::Color::cyan);
 
@@ -182,7 +182,7 @@ void vkz_prepareUI(UIRendering& _ui, float _scale /*= 1.f*/, bool _useChinese /*
         , vkz::SamplerReductionMode::weighted_average
     );
 
-    vkz::setCustomRenderFunc(pass, vkz_renderFunc, mem);
+    vkz::setCustomRenderFunc(pass, ui_renderFunc, mem);
 }
 
 void vkz_destroyUIRendering(UIRendering& _ui)

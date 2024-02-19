@@ -410,7 +410,7 @@ namespace vkz
 
             if (isImage(plainId))
             {
-                if (prInteract.specImgViewInfo == defaultSpecificImageViewInfo())
+                if (prInteract.specImgViewInfo == defaultImageView({ plainId.id }))
                 {
                     message(DebugMessageType::info, "specific image view is default, will not set!");
                 }
@@ -1452,7 +1452,6 @@ namespace vkz
             createInfo.progId = info.regInfo.progId;
             createInfo.shaderNum = info.regInfo.shaderNum;
             createInfo.sizePushConstants = info.regInfo.sizePushConstants;
-            createInfo.pPushConstants = info.regInfo.pPushConstants;
 
             RHIContextOpMagic magic{ RHIContextOpMagic::create_program };
 
@@ -1508,7 +1507,7 @@ namespace vkz
         stl::vector<UniDataContainer< BufferHandle, ResInteractDesc> > readBufferVec(m_sortedPass.size());
         stl::vector<UniDataContainer< BufferHandle, ResInteractDesc> > writeBufferVec(m_sortedPass.size());
         stl::vector<UniDataContainer< ImageHandle, SamplerHandle> > imageSamplerVec(m_sortedPass.size());
-        stl::vector<UniDataContainer< ImageHandle, SpecificImageViewInfo> > imageSpecViewVec(m_sortedPass.size());
+        stl::vector<UniDataContainer< ImageHandle, ImageViewDesc> > imageSpecViewVec(m_sortedPass.size());
         stl::vector< UniDataContainer<CombinedResID, CombinedResID> >  writeOpAliasMapVec(m_sortedPass.size());
 
         
@@ -1526,7 +1525,7 @@ namespace vkz
             UniDataContainer< BufferHandle, ResInteractDesc>& readBuf = readBufferVec[ii];
             UniDataContainer< BufferHandle, ResInteractDesc>& writeBuf = writeBufferVec[ii];
             UniDataContainer< ImageHandle, SamplerHandle>& imgSamplerMap = imageSamplerVec[ii];
-            UniDataContainer< ImageHandle, SpecificImageViewInfo>& imgSpecViewMap = imageSpecViewVec[ii];
+            UniDataContainer< ImageHandle, ImageViewDesc>& imgSpecViewMap = imageSpecViewVec[ii];
 
             UniDataContainer<CombinedResID, CombinedResID>& writeOpAliasMap = writeOpAliasMapVec[ii];
             {
@@ -1603,7 +1602,7 @@ namespace vkz
                 for (uint32_t ii = 0; ii < usedSpecImgViewNum; ++ii)
                 {
                     const CombinedResID& image = rwRes.specImgViewMap.getIdAt(ii);
-                    const SpecificImageViewInfo& specImgView = rwRes.specImgViewMap.getDataAt(ii);
+                    const ImageViewDesc& specImgView = rwRes.specImgViewMap.getDataAt(ii);
                     imgSpecViewMap.push_back({ image.id }, specImgView);
                 }
 
@@ -1695,7 +1694,7 @@ namespace vkz
 
             // specific image view
             write(&m_rhiMemWriter, (void*)imageSpecViewVec[ii].getIdPtr(), (int32_t)(createInfo.specImageViewNum * sizeof(ImageHandle)));
-            write(&m_rhiMemWriter, (void*)imageSpecViewVec[ii].getDataPtr(), (int32_t)(createInfo.specImageViewNum * sizeof(SpecificImageViewInfo)));
+            write(&m_rhiMemWriter, (void*)imageSpecViewVec[ii].getDataPtr(), (int32_t)(createInfo.specImageViewNum * sizeof(ImageViewDesc)));
 
             // write op alias
             write(&m_rhiMemWriter, (void*)writeOpAliasMapVec[ii].getIdPtr(), (int32_t)(createInfo.writeBufAliasNum + createInfo.writeImgAliasNum) * sizeof(CombinedResID));

@@ -98,7 +98,7 @@ namespace vkz
 
     inline int32_t MemoryReader::read(void* _data, int32_t _size)
     {
-        int32_t size = std::min(_size, int32_t(m_top - m_pos));
+        int32_t size = glm::min(_size, int32_t(m_top - m_pos));
         if (0 < size)
         {
             ::memcpy(_data, &m_data[m_pos], size);
@@ -169,10 +169,10 @@ namespace vkz
         }
 
         int64_t remainder = m_size - m_pos;
-        int32_t size = std::min<uint32_t>(_size, uint32_t(std::min<int64_t>(remainder, INT32_MAX)));
+        int32_t size = glm::min<uint32_t>(_size, uint32_t(glm::min<int64_t>(remainder, INT32_MAX)));
         ::memcpy(&m_data[m_pos], _data, size);
         m_pos += size;
-        m_top = std::max(m_top, m_pos);
+        m_top = glm::max(m_top, m_pos);
 
         return size;
     }

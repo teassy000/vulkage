@@ -6,12 +6,6 @@
 
 namespace vkz
 {
-    enum class ResourceType : uint16_t
-    {
-        buffer = 0,
-        image,
-    };
-
     struct CombinedResID
     {
         uint16_t        id{kInvalidHandle};
@@ -110,24 +104,26 @@ namespace vkz
         }
     };
 
-    struct SpecificImageViewInfo
+    struct ImageViewDesc
     {
+        uint16_t    imgId{ kInvalidHandle };
         uint32_t    baseMip;
         uint32_t    mipLevels;
 
-        inline bool operator == (const SpecificImageViewInfo& rhs) const {
-            return baseMip == rhs.baseMip &&
+        inline bool operator == (const ImageViewDesc& rhs) const {
+            return imgId == rhs.imgId &&
+                baseMip == rhs.baseMip &&
                 mipLevels == rhs.mipLevels;
         }
 
-        inline bool operator != (const SpecificImageViewInfo& rhs) const {
+        inline bool operator != (const ImageViewDesc& rhs) const {
             return !(*this == rhs);
         }
     };
 
-    inline SpecificImageViewInfo defaultSpecificImageViewInfo()
+    inline ImageViewDesc defaultImageView(const ImageHandle _hImg)
     {
-        return { 0, kAllMipLevel };
+        return { _hImg.id, 0, kAllMipLevel };
     }
 
     struct BufferCreateInfo : public BufferDesc
@@ -157,8 +153,6 @@ namespace vkz
     {
         uint16_t    imgId{ kInvalidHandle };
     };
-
-    using SamplerHandle = Handle<struct SamplerHandleTag>;
 
     struct SamplerDesc
     {
@@ -192,7 +186,6 @@ namespace vkz
         uint16_t progId{ kInvalidHandle };
         uint16_t shaderNum{ 0 };
         uint32_t sizePushConstants{ 0 };
-        void* pPushConstants{ nullptr };
 
         uint16_t shaderIds[kMaxNumOfShaderInProgram]{ kInvalidHandle };
     };
