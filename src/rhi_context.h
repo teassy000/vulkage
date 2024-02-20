@@ -87,6 +87,7 @@ namespace vkz
             : m_pAllocator{ _allocator }
             , m_pConstantData{ nullptr }
             , m_pWriter{nullptr}
+            , m_usedSize{0}
         {
             m_pConstantData = VKZ_NEW(m_pAllocator, MemoryBlock(m_pAllocator));
             m_pConstantData->expand(kInitialUniformTotalMemSize);
@@ -115,6 +116,8 @@ namespace vkz
 
         stl::vector<PassHandle> m_passes;
         stl::vector<Constants> m_constants;
+
+        uint32_t m_usedSize;
     };
 
 

@@ -138,7 +138,7 @@ void meshDemo()
 
     // basic data
     FreeCamera freeCamera = {};
-    freeCameraInit(freeCamera, vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 1.0f, 0.0f), 90.0f, 0.0f);
+    freeCameraInit(freeCamera, vec3(0.0f, 2.0f, 0.0f), vec3(0.0f, 1.0f, 0.0f), 90.0f, 0.0f);
 
     float znear = .1f;
     mat4 projection = perspectiveProjection2(glm::radians(70.f), (float)config.windowWidth / (float)config.windowHeight, znear);
@@ -597,7 +597,7 @@ void meshDemo()
 
         drawCull.P00 = projection[0][0];
         drawCull.P11 = projection[1][1];
-        drawCull.zfar = 10000.f;//scene.drawDistance;
+        drawCull.zfar = scene.drawDistance;
         drawCull.znear = znear;
         drawCull.pyramidWidth = (float)pyramidLevelWidth;
         drawCull.pyramidHeight = (float)pyramidLevelHeight;
@@ -638,7 +638,7 @@ void meshDemo()
         
         vkz::updateThreadCount(pass_cull_0, (uint32_t)scene.meshDraws.size(), 1, 1);
 
-        freeCamera.pos = vec3{ 0.f, 4.f, 0.f };
+        freeCamera.pos = vec3{ 0.f, 2.f, 20.f };
 
         trans.view = freeCameraGetViewMatrix(freeCamera);
         trans.proj = projection;
