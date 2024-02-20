@@ -51,7 +51,7 @@ namespace vkz
         m_pCtx->pushDescriptorSetWithTemplates(m_cmdBuf, _hPass.id);
     }
 
-    void CmdList_vk::pushDescriptorSetWithTemplate(const PassHandle _hPass, const uint16_t* _resIds, uint32_t _count, const ResourceType* _types, const SamplerHandle* _samplerIds)
+    void CmdList_vk::pushDescriptorSetWithTemplate(const PassHandle _hPass, const uint16_t* _resIds, uint32_t _count, const ImageViewHandle* _imgViews, const ResourceType* _types, const SamplerHandle* _samplerIds)
     {
         const Program_vk& prog = m_pCtx->getProgram(_hPass);
         stl::vector<DescriptorInfo> descInfos(_count);
@@ -59,7 +59,7 @@ namespace vkz
         {
             if (_types[ii] == ResourceType::image)
             {
-                descInfos[ii] = m_pCtx->getImageDescInfo({ _resIds[ii] }, { _samplerIds[ii] });
+                descInfos[ii] = m_pCtx->getImageDescInfo({ _resIds[ii] },  _imgViews[ii], _samplerIds[ii]);
             }
             else if (_types[ii] == ResourceType::buffer)
             {
@@ -174,12 +174,17 @@ namespace vkz
 
     void CmdList_vk::barrier(BufferHandle _hBuf, AccessFlags _access, PipelineStageFlags _stage)
     {
-
+        m_pCtx->barrier(_hBuf, _access, _stage);
     }
 
     void CmdList_vk::barrier(ImageHandle _hImg, AccessFlags _access, ImageLayout _layout, PipelineStageFlags _stage)
     {
+        m_pCtx->barrier(_hImg, _access, _layout, _stage);
+    }
 
+    void CmdList_vk::dispatchBarriers()
+    {
+        m_pCtx->dispatchBarriers();
     }
 
 }

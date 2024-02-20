@@ -1,4 +1,4 @@
-#define TASKGP_SIZE 128 
+#define TASKGP_SIZE 64 
 #define MESHGP_SIZE 64
 
 #define DEBUG_MESHLET 1

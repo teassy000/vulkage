@@ -142,12 +142,8 @@ namespace vkz
         }
         assert(m_constants[idx].size == _size);
 
-        //int64_t currOffset = m_pWriter->seek(0, Whence::Current);
         m_pWriter->seek(m_constants[idx].offset, Whence::Begin);
         write(m_pWriter, _data, _size);
-
-        // set back current offset
-        //m_pWriter->seek(currOffset, Whence::Begin);
     }
 
 }

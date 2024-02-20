@@ -1136,7 +1136,6 @@ namespace vkz
         VKZ_ZoneScopedC(Color::indian_red);
 
         RHIContext::bake();
-        createSpecificImageViews();
     }
 
     bool RHIContext_vk::render()
@@ -1377,12 +1376,6 @@ namespace vkz
         read(&_reader, sampleImageIds.data(), passMeta.sampleImageNum * sizeof(uint16_t));
         read(&_reader, samplerIds.data(), passMeta.sampleImageNum * sizeof(uint16_t));
 
-        // specific image views
-        stl::vector<uint16_t> specViewImgIds(passMeta.specImageViewNum);
-        stl::vector<ImageViewDesc> specViewInfos(passMeta.specImageViewNum);
-        read(&_reader, specViewImgIds.data(), passMeta.specImageViewNum * sizeof(uint16_t));
-        read(&_reader, specViewInfos.data(), passMeta.specImageViewNum * sizeof(ImageViewDesc));
-
         // write op aliases
         stl::vector<CombinedResID> writeOpAliasInIds(passMeta.writeBufAliasNum + passMeta.writeImgAliasNum);
         read(&_reader, writeOpAliasInIds.data(), (passMeta.writeBufAliasNum + passMeta.writeImgAliasNum) * sizeof(CombinedResID));
@@ -1551,12 +1544,6 @@ namespace vkz
             passInfo.imageToSamplerIds.push_back(sampleImageIds[ii], samplerIds[ii]);
         }
 
-        // specific image views
-        for (uint16_t ii = 0; ii < passMeta.specImageViewNum; ++ii)
-        {
-            passInfo.imageToSpecificImageViews.push_back(specViewImgIds[ii], specViewInfos[ii]);
-        }
-
         // push constants
         if (passInfo.queue == PassExeQueue::graphics
             || passInfo.queue == PassExeQueue::compute)
@@ -1600,7 +1587,7 @@ namespace vkz
         stl::vector<ImageAliasInfo> infoList(resArr, resArr + info.aliasNum);
 
         ImgInitProps_vk initPorps{};
-        initPorps.level = info.mips;
+        initPorps.level = info.mipLevels;
         initPorps.width = info.width;
         initPorps.height = info.height;
         initPorps.depth = info.depth;
@@ -1625,6 +1612,15 @@ namespace vkz
         m_imageCreateInfoContainer.push_back(info.imgId, info);
 
         const Image_vk& baseImage = getImage(info.imgId);
+        for (uint32_t ii = 0; ii < info.viewCount; ++ii)
+        {
+            const ImageViewHandle imgView = info.mipViews[ii];
+            const ImageViewDesc& viewDesc = m_imageViewDescContainer.getIdToData(imgView.id);
+
+            VkImageView view_vk = vkz::createImageView(m_device, baseImage.image, baseImage.format, viewDesc.baseMip, viewDesc.mipLevels);
+            m_imageViewContainer.push_back(imgView.id, view_vk);
+        }
+
         for (int ii = 0; ii < info.aliasNum; ++ii)
         {
             ResInteractDesc interact{ info.barrierState };
@@ -1707,6 +1703,17 @@ namespace vkz
         m_samplerContainer.push_back(meta.samplerId, sampler);
     }
 
+    void RHIContext_vk::createImageView(MemoryReader& _reader)
+    {
+        VKZ_ZoneScopedC(Color::indian_red);
+
+        ImageViewDesc desc;
+        read(&_reader, desc);
+
+        // only store the descriptor, will do the real creation in image creation
+        m_imageViewDescContainer.push_back(desc.imgViewId, desc);
+    }
+
     void RHIContext_vk::setBrief(MemoryReader& _reader)
     {
         VKZ_ZoneScopedC(Color::indian_red);
@@ -1735,31 +1742,6 @@ namespace vkz
 
         m_phyDevice = vkz::pickPhysicalDevice(physicalDevices, deviceCount);
         assert(m_phyDevice);
-    }
-
-    void RHIContext_vk::createSpecificImageViews()
-    {
-        for (size_t ii = 0; ii < m_passContainer.size(); ++ii)
-        {
-            uint16_t passId = m_passContainer.getIdAt(ii);
-            PassInfo_vk& passInfo = m_passContainer.getDataRef(passId);
-
-            if (passInfo.queue != PassExeQueue::compute)
-            {
-                continue;
-            }
-
-            for (size_t jj = 0; jj < passInfo.imageToSpecificImageViews.size(); ++jj)
-            {
-                const uint16_t imgId = passInfo.imageToSpecificImageViews.getIdAt(jj);
-                const ImageViewDesc& info = passInfo.imageToSpecificImageViews.getDataAt(jj);
-
-                const Image_vk& image = getImage(imgId);
-
-                VkImageView imageView = vkz::createImageView(m_device, image.image, image.format, info.baseMip, info.mipLevels);
-                passInfo.imageToImageViews.push_back(imgId, imageView);
-            }
-        }
     }
 
     void RHIContext_vk::uploadBuffer(const uint16_t _bufId, const void* data, uint32_t size)
@@ -2132,13 +2114,7 @@ namespace vkz
                     sampler = m_samplerContainer.getIdToData(samplerId);
                 }
 
-                VkImageView view = img.imageView;
-                if (passInfo.writeColors.exist(resId.id)
-                    && passInfo.imageToImageViews.exist(resId.id))
-                {
-                    view = passInfo.imageToImageViews.getIdToData(resId.id);
-                }
-
+                VkImageView view = img.defalutImgView;
                 VkImageLayout layout = m_barrierDispatcher.getDstImageLayout(img.image);
                 DescriptorInfo info{ sampler, view, layout };
                 descInfos[ii] = info;
@@ -2202,7 +2178,7 @@ namespace vkz
             colorAttachments[ii].loadOp = getAttachmentLoadOp(passInfo.config.colorLoadOp);
             colorAttachments[ii].storeOp = getAttachmentStoreOp(passInfo.config.colorStoreOp);
             colorAttachments[ii].imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
-            colorAttachments[ii].imageView = colorTarget.imageView;
+            colorAttachments[ii].imageView = colorTarget.defalutImgView;
         }
 
         bool hasDepth = (passInfo.writeDepthId != kInvalidHandle);
@@ -2215,7 +2191,7 @@ namespace vkz
             depthAttachment.loadOp = getAttachmentLoadOp(passInfo.config.depthLoadOp);
             depthAttachment.storeOp = getAttachmentStoreOp(passInfo.config.depthStoreOp);
             depthAttachment.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
-            depthAttachment.imageView = depthTarget.imageView;
+            depthAttachment.imageView = depthTarget.defalutImgView;
         }
 
         VkRenderingInfo renderingInfo = { VK_STRUCTURE_TYPE_RENDERING_INFO };
@@ -2236,14 +2212,14 @@ namespace vkz
         vkCmdEndRendering(_cmdBuf);
     }
 
-    const DescriptorInfo RHIContext_vk::getImageDescInfo(const ImageHandle _hImg, const SamplerHandle _hSampler) const
+    const DescriptorInfo RHIContext_vk::getImageDescInfo(const ImageHandle _hImg, const ImageViewHandle _hImgView, const SamplerHandle _hSampler) const
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
         VkSampler sampler = sampler = m_samplerContainer.getIdToData(_hSampler.id);
         
         const Image_vk& img = getImage(_hImg.id);
-        VkImageView view = img.imageView;
+        VkImageView view = img.defalutImgView;
         VkImageLayout layout = m_barrierDispatcher.getDstImageLayout(img.image);
         
         return { sampler, view, layout };
@@ -2256,6 +2232,30 @@ namespace vkz
         const Buffer_vk& buf = getBuffer(_hBuf.id);
 
         return { buf.buffer };
+    }
+
+    void RHIContext_vk::barrier(BufferHandle _hBuf, AccessFlags _access, PipelineStageFlags _stage)
+    {
+        const Buffer_vk& buf = getBuffer(_hBuf.id);
+        m_barrierDispatcher.barrier(
+            buf.buffer
+            , { getAccessFlags(_access), getPipelineStageFlags(_stage) }
+        );
+    }
+
+    void RHIContext_vk::barrier(ImageHandle _hImg, AccessFlags _access, ImageLayout _layout, PipelineStageFlags _stage)
+    {
+        const Image_vk& img = getImage(_hImg.id);
+        m_barrierDispatcher.barrier(
+            img.image
+            , img.aspectMask
+            , { getAccessFlags(_access), getImageLayout(_layout), getPipelineStageFlags(_stage) }
+        );
+    }
+
+    void RHIContext_vk::dispatchBarriers()
+    {
+        m_barrierDispatcher.dispatch(m_cmdBuffer);
     }
 
     void RHIContext_vk::pushConstants(const uint16_t _passId)

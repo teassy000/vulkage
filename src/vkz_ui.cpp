@@ -8,8 +8,6 @@
 
 #include "memory_operation.h"
 
-namespace tstl = tinystl;
-
 constexpr uint32_t kInitialVertexBufferSize = 1024 * 1024; // 1MB
 constexpr uint32_t kInitialIndexBufferSize = 1024 * 1024; // 1MB
 
@@ -143,7 +141,7 @@ void vkz_prepareUI(UIRendering& _ui, float _scale /*= 1.f*/, bool _useChinese /*
     vkz::ImageDesc imageDesc{};
     imageDesc.width = width;
     imageDesc.height = height;
-    imageDesc.mips = 1;
+    imageDesc.mipLevels = 1;
     imageDesc.format = vkz::ResourceFormat::r8g8b8a8_unorm;
     imageDesc.usage = vkz::ImageUsageFlagBits::sampled | vkz::ImageUsageFlagBits::transfer_dst;
     imageDesc.size = fontImgMem->size;

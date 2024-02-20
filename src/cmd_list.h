@@ -11,7 +11,7 @@ namespace vkz
         virtual void setScissorRect(uint32_t _firstScissor, uint32_t _scissorCount, const Rect2D* _pScissors) = 0;
         virtual void pushConstants(const PassHandle _hPass, const void* _data, uint32_t _size) = 0;
         virtual void pushDescriptorSets(const PassHandle _hPass) = 0;
-        virtual void pushDescriptorSetWithTemplate(const PassHandle _hPass, const uint16_t* _resIds, uint32_t _count, const ResourceType* _types, const SamplerHandle* _samplerIds) = 0;
+        virtual void pushDescriptorSetWithTemplate(const PassHandle _hPass, const uint16_t* _resIds, uint32_t _count, const ImageViewHandle* _imgViews, const ResourceType* _types, const SamplerHandle* _samplerIds) = 0;
         virtual void sampleImage(ImageHandle _hImg, uint32_t _binding, SamplerReductionMode _reductionMode) = 0;
 
         // resource binding
@@ -40,6 +40,7 @@ namespace vkz
         // barrier
         virtual void barrier(BufferHandle _hBuf , AccessFlags _access, PipelineStageFlags _stage) = 0;
         virtual void barrier(ImageHandle _hImg, AccessFlags _access, ImageLayout _layout, PipelineStageFlags _stage) = 0;
+        virtual void dispatchBarriers() = 0;
     };
 };
 

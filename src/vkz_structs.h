@@ -2,12 +2,14 @@
 
 #include <stdint.h>
 #include "macro.h"
+#include "config.h"
 
 namespace vkz
 {
     static const uint16_t kInvalidHandle = UINT16_MAX;
     static const uint32_t kInvalidDescriptorSetIndex = UINT32_MAX;
     static const uint32_t kDescriptorSetBindingDontCare = UINT32_MAX - 1;
+
 
 
     template <class HandleType>
@@ -462,7 +464,7 @@ namespace vkz
         uint32_t height{ 0 };
         uint32_t depth{ 1 };
         uint16_t arrayLayers{ 1 };
-        uint16_t mips{ 1 };
+        uint16_t mipLevels{ 1 };
 
         uint32_t size{ 0 };
         void* data{ nullptr };
@@ -472,6 +474,9 @@ namespace vkz
         ImageLayout     layout{ ImageLayout::undefined };
         ResourceFormat  format{ ResourceFormat::undefined };
         ImageUsageFlags usage{ ImageUsageFlagBits::color_attachment };
+
+        uint32_t        viewCount{ 0 };
+        ImageViewHandle mipViews[kMaxNumOfImageMipLevel]{ kInvalidHandle };
     };
 
     struct PassDesc

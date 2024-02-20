@@ -54,12 +54,12 @@ namespace vkz
             bool finished = false;
             switch (magic)
             {
-                // Brief
+            // Brief
             case MagicTag::set_brief: {
                 setBrief(reader);
                 break;
             }
-                                    // Register
+            // Register
             case MagicTag::register_shader: {
                 registerShader(reader);
                 break;
@@ -82,6 +82,10 @@ namespace vkz
             }
             case MagicTag::register_sampler: {
                 registerSampler(reader);
+                break;
+            }
+            case MagicTag::register_image_view: {
+                registerImageView(reader);
                 break;
             }
             // Alias
@@ -125,6 +129,7 @@ namespace vkz
         m_sparse_buf_info.resize(brief.bufNum);
         m_sparse_img_info.resize(brief.imgNum);
         m_sparse_sampler_meta.resize(brief.samplerNum);
+        m_sparse_img_view_desc.resize(brief.imgViewNum);
 
         m_sparse_pass_data_ref.resize(brief.passNum);
 
@@ -283,6 +288,15 @@ namespace vkz
         m_sparse_sampler_meta[meta.samplerId] = meta;
     }
 
+    void Framegraph2::registerImageView(MemoryReader& _reader)
+    {
+        ImageViewDesc meta;
+        read(&_reader, meta);
+
+        m_hImgView.push_back({ meta.imgViewId });
+        m_sparse_img_view_desc[meta.imgViewId] = meta;
+    }
+
     const ResInteractDesc merge(const ResInteractDesc& _desc0, const ResInteractDesc& _desc1)
     {
         ResInteractDesc desc = _desc0;
@@ -406,18 +420,6 @@ namespace vkz
                 m_pass_rw_res[hPassIdx].writeInteractMap.insert({ plainId, interact });
                 m_pass_rw_res[hPassIdx].writeCombinedRes.insert(plainId);
                 actualSize++;
-            }
-
-            if (isImage(plainId))
-            {
-                if (prInteract.specImgViewInfo == defaultImageView({ plainId.id }))
-                {
-                    message(DebugMessageType::info, "specific image view is default, will not set!");
-                }
-                else
-                {
-                    m_pass_rw_res[hPassIdx].specImgViewMap.push_back(plainId, prInteract.specImgViewInfo);
-                }
             }
         }
 
@@ -1073,7 +1075,7 @@ namespace vkz
     {
         assert(!_reses.empty());
 
-        _bkt.desc.mips = _info.mips;
+        _bkt.desc.mipLevels = _info.mipLevels;
         _bkt.desc.width = _info.width;
         _bkt.desc.height = _info.height;
         _bkt.desc.depth = _info.depth;
@@ -1262,8 +1264,8 @@ namespace vkz
             ImgRegisterInfo info_l = m_sparse_img_info[_l];
             ImgRegisterInfo info_r = m_sparse_img_info[_r];
 
-            size_t size_l = info_l.width * info_l.height * info_l.depth * info_l.mips * info_l.bpp;
-            size_t size_r = info_r.width * info_r.height * info_r.depth * info_r.mips * info_r.bpp;
+            size_t size_l = info_l.width * info_l.height * info_l.depth * info_l.mipLevels * info_l.bpp;
+            size_t size_r = info_r.width * info_r.height * info_r.depth * info_r.mipLevels * info_r.bpp;
 
             return size_l > size_r;
         });
@@ -1352,6 +1354,34 @@ namespace vkz
 
     void Framegraph2::createImages()
     {
+        // setup image view metas
+        stl::vector<ImageViewDesc> imgViewDescs{};
+        imgViewDescs.reserve(m_sparse_img_view_desc.size());
+        for (const ImgBucket& bkt : m_imgBuckets)
+        {
+            for (const CombinedResID cid : bkt.reses)
+            {
+                const ImgRegisterInfo& info = m_sparse_img_info[cid.id];
+
+                for (uint32_t ii = 0 ; ii < info.viewCount; ++ii )
+                {
+                    imgViewDescs.push_back(m_sparse_img_view_desc[info.mipViews[ii].id]);
+                }
+            }
+        }
+
+        for (ImageViewDesc desc : imgViewDescs)
+        {
+            RHIContextOpMagic magic{ RHIContextOpMagic::create_image_view };
+
+            write(&m_rhiMemWriter, magic);
+
+            write(&m_rhiMemWriter, desc);
+
+            write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end);
+        }
+
+
         for (const ImgBucket& bkt : m_imgBuckets)
         {
             RHIContextOpMagic magic{ RHIContextOpMagic::create_image };
@@ -1360,7 +1390,7 @@ namespace vkz
 
             ImageCreateInfo info;
             info.imgId = bkt.baseImgId;
-            info.mips = bkt.desc.mips;
+            info.mipLevels = bkt.desc.mipLevels;
             info.width = bkt.desc.width;
             info.height = bkt.desc.height;
             info.depth = bkt.desc.depth;
@@ -1692,10 +1722,6 @@ namespace vkz
             write(&m_rhiMemWriter, (void*)imageSamplerVec[ii].getIdPtr(), (int32_t)(createInfo.sampleImageNum * sizeof(ImageHandle)));
             write(&m_rhiMemWriter, (void*)imageSamplerVec[ii].getDataPtr(), (int32_t)(createInfo.sampleImageNum * sizeof(SamplerHandle)));
 
-            // specific image view
-            write(&m_rhiMemWriter, (void*)imageSpecViewVec[ii].getIdPtr(), (int32_t)(createInfo.specImageViewNum * sizeof(ImageHandle)));
-            write(&m_rhiMemWriter, (void*)imageSpecViewVec[ii].getDataPtr(), (int32_t)(createInfo.specImageViewNum * sizeof(ImageViewDesc)));
-
             // write op alias
             write(&m_rhiMemWriter, (void*)writeOpAliasMapVec[ii].getIdPtr(), (int32_t)(createInfo.writeBufAliasNum + createInfo.writeImgAliasNum) * sizeof(CombinedResID));
             write(&m_rhiMemWriter, (void*)writeOpAliasMapVec[ii].getDataPtr(), (int32_t)(createInfo.writeBufAliasNum + createInfo.writeImgAliasNum) * sizeof(CombinedResID));
@@ -1757,7 +1783,7 @@ namespace vkz
         {
             const ImgRegisterInfo& stackInfo = m_sparse_img_info[res.id];
 
-            bCondMatch &= (info.mips == stackInfo.mips);
+            bCondMatch &= (info.mipLevels == stackInfo.mipLevels);
             bCondMatch &= (info.width == stackInfo.width && info.height == stackInfo.height && info.depth == stackInfo.depth);
             bCondMatch &= (info.arrayLayers == stackInfo.arrayLayers);
             bCondMatch &= (info.format == stackInfo.format);

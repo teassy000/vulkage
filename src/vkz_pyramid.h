@@ -1,13 +1,8 @@
 #pragma once
 
 #include "vkz.h"
+#include "config.h"
 
-struct SpecImageViewConfig
-{
-    vkz::ImageHandle image;
-    uint32_t baseMipLevel;
-    uint32_t levels;
-};
 
 struct PyramidRendering {
     vkz::ImageHandle inDepth{ vkz::kInvalidHandle };
@@ -23,21 +18,15 @@ struct PyramidRendering {
     uint32_t width;
     uint32_t height;
     uint32_t levels;
-
-    SpecImageViewConfig* specImageViewConfigs;
-    uint32_t specImageViewConfigCount;
+    
+    vkz::ImageViewHandle imgMips[vkz::kMaxNumOfImageMipLevel]{ vkz::kInvalidHandle }; // [levels]
 };
 
-void preparePyramid(
+vkz::ImageHandle preparePyramid(
     PyramidRendering& _pyramid
     , uint32_t _width
     , uint32_t _height
-    , uint32_t _levels
-    , SpecImageViewConfig* _specImageViewConfigs
-    , uint32_t _specImageViewConfigCount
-);
-
-void setPyramidDependency(
-    PyramidRendering& _pyramid
     , const vkz::ImageHandle _inDepth
 );
+
+

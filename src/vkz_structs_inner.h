@@ -47,6 +47,7 @@ namespace vkz
 
         uint16_t    bpp{ 4u };
 
+
         ResourceLifetime    lifetime{ ResourceLifetime::transition };
         ImageAspectFlags    aspectFlags{ 0 };
     };
@@ -107,6 +108,7 @@ namespace vkz
     struct ImageViewDesc
     {
         uint16_t    imgId{ kInvalidHandle };
+        uint16_t    imgViewId{ kInvalidHandle };
         uint32_t    baseMip;
         uint32_t    mipLevels;
 

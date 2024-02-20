@@ -105,10 +105,6 @@ namespace vkz
         // samplers for image
         UniDataContainer<uint16_t, uint16_t>    imageToSamplerIds;
 
-        // specific image views
-        UniDataContainer<uint16_t, ImageViewDesc> imageToSpecificImageViews;
-        UniDataContainer<uint16_t, VkImageView> imageToImageViews;
-
         // write op base to alias
         UniDataContainer<CombinedResID, CombinedResID> writeOpInToOut;
 
@@ -204,9 +200,13 @@ namespace vkz
         void beginRendering(const VkCommandBuffer& _cmdBuf, const uint16_t _passId) const;
         void endRendering(const VkCommandBuffer& _cmdBuf) const;
 
-        const DescriptorInfo getImageDescInfo(const ImageHandle _hImg, const SamplerHandle _hSampler) const;
+        const DescriptorInfo getImageDescInfo(const ImageHandle _hImg, const ImageViewHandle _hImgView, const SamplerHandle _hSampler) const;
         const DescriptorInfo getBufferDescInfo(const BufferHandle _hBuf) const;
 
+        // barriers
+        void barrier(BufferHandle _hBuf, AccessFlags _access, PipelineStageFlags _stage);
+        void barrier(ImageHandle _hImg, AccessFlags _access, ImageLayout _layout, PipelineStageFlags _stage);
+        void dispatchBarriers();
 
     private:
         void createShader(MemoryReader& _reader) override;
@@ -215,13 +215,12 @@ namespace vkz
         void createImage(MemoryReader& _reader) override;
         void createBuffer(MemoryReader& _reader) override;
         void createSampler(MemoryReader& _reader) override;
+        void createImageView(MemoryReader& _reader) override;
         void setBrief(MemoryReader& _reader) override;
 
     private:
         void createInstance();
         void createPhysicalDevice();
-        
-        void createSpecificImageViews();
 
         // private pass
         // e.g. upload buffer, copy image, etc.
@@ -275,7 +274,9 @@ namespace vkz
         UniDataContainer<uint16_t, Program_vk> m_programContainer;
         UniDataContainer<uint16_t, PassInfo_vk> m_passContainer;
         UniDataContainer<uint16_t, VkSampler> m_samplerContainer;
+        UniDataContainer<uint16_t, VkImageView> m_imageViewContainer;
 
+        UniDataContainer<uint16_t, ImageViewDesc> m_imageViewDescContainer;
         UniDataContainer<uint16_t, BufferCreateInfo> m_bufferCreateInfoContainer;
         UniDataContainer<uint16_t, ImageCreateInfo> m_imageCreateInfoContainer;
 

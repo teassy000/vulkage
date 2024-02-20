@@ -10,7 +10,7 @@ namespace vkz
     class CmdList_vk : public ICommandList
     {
     public:
-        CmdList_vk(VkCommandBuffer& _vkCmdBuf, const RHIContext_vk* _pCtx)
+        CmdList_vk(VkCommandBuffer& _vkCmdBuf, RHIContext_vk* _pCtx)
             : m_cmdBuf{ _vkCmdBuf }
             , m_pCtx{ _pCtx }
         {
@@ -21,7 +21,7 @@ namespace vkz
         void pushConstants(const PassHandle _hPass, const void* _data, uint32_t _size) override;
         void pushDescriptorSets(const PassHandle _pass) override;
 
-        void pushDescriptorSetWithTemplate(const PassHandle _hPass, const uint16_t* _resIds, uint32_t _count, const ResourceType* _types, const SamplerHandle* _samplerIds) override;
+        void pushDescriptorSetWithTemplate(const PassHandle _hPass, const uint16_t* _resIds, uint32_t _count, const ImageViewHandle* _imgViews, const ResourceType* _types, const SamplerHandle* _samplerIds) override;
 
         void sampleImage(ImageHandle _hImg, uint32_t _binding, SamplerReductionMode _reductionMode) override;
 
@@ -51,8 +51,9 @@ namespace vkz
         // barrier
         void barrier(BufferHandle _hBuf, AccessFlags _access, PipelineStageFlags _stage) override;
         void barrier(ImageHandle _hImg, AccessFlags _access, ImageLayout _layout, PipelineStageFlags _stage) override;
+        void dispatchBarriers() override;
     private:
         VkCommandBuffer m_cmdBuf{ VK_NULL_HANDLE };
-        const RHIContext_vk* m_pCtx{ nullptr };
+        RHIContext_vk* m_pCtx{ nullptr };
     };
 }

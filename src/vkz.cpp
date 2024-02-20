@@ -531,7 +531,6 @@ namespace vkz
 
         BufferHandle handle = BufferHandle{ idx };
 
-        // check if pass is valid
         if (!isValid(handle))
         {
             message(error, "create BufferHandle failed!");
@@ -560,7 +559,6 @@ namespace vkz
 
         ImageHandle handle = ImageHandle{ idx };
 
-        // check if pass is valid
         if (!isValid(handle))
         {
             message(error, "create ImageHandle failed!");
@@ -585,7 +583,6 @@ namespace vkz
 
         ImageHandle handle = ImageHandle{ idx };
 
-        // check if pass is valid
         if (!isValid(handle))
         {
             message(error, "create ImageHandle failed!");
@@ -631,7 +628,7 @@ namespace vkz
             message(warning, "no need to set width and height for depth stencil, will use render size instead");
         }
 
-        // check if pass is valid
+        // check if img is valid
         if (!isValid(handle))
         {
             message(error, "create ImageHandle failed!");
@@ -663,19 +660,34 @@ namespace vkz
 
     vkz::ImageViewHandle Context::registImageView(const char* _name, const ImageHandle _hImg, const uint32_t _baseMip, const uint32_t _mipLevel)
     {
-        uint16_t idx = m_imageViewHandles.alloc();
-
-        ImageViewHandle handle { idx };
-
-        // check if pass is valid
-        if (!isValid(handle))
+        if (!isValid(_hImg))
         {
-            message(error, "create BufferHandle failed!");
+            message(error, "_hImg must be valid to create image view");
             return ImageViewHandle{ kInvalidHandle };
         }
 
-        ImageViewDesc desc{ _hImg.id, _baseMip, _mipLevel };
+        uint16_t idx = m_imageViewHandles.alloc();
+        ImageViewHandle handle { idx };
+        // check if img view is valid
+        if (!isValid(handle))
+        {
+            message(error, "create ImageViewHandle failed!");
+            return ImageViewHandle{ kInvalidHandle };
+        }
+
+        ImageViewDesc desc{ _hImg.id, idx, _baseMip, _mipLevel };
         m_imageViewDesc.push_back({ idx }, desc);
+
+
+        ImageMetaData& imgMeta = m_imageMetas.getDataRef(_hImg);
+        if (imgMeta.viewCount >= kMaxNumOfImageMipLevel)
+        {
+            message(error, "too many mip views for image!");
+            return ImageViewHandle{ kInvalidHandle };
+        }
+
+        imgMeta.mipViews[imgMeta.viewCount] = handle;
+
 
         setRenderGraphDataDirty();
 
@@ -728,6 +740,7 @@ namespace vkz
         brief.shaderNum = m_shaderHandles.getNumHandles();
         brief.programNum = m_programHandles.getNumHandles();
         brief.samplerNum = m_samplerHandles.getNumHandles();
+        brief.imgViewNum = m_imageViewHandles.getNumHandles();
 
         brief.presentImage = m_presentImage.id;
 
@@ -938,7 +951,7 @@ namespace vkz
             info.width = meta.width;
             info.height = meta.height;
             info.depth = meta.depth;
-            info.mips = meta.mips;
+            info.mipLevels = meta.mipLevels;
             info.size = meta.size;
             info.data = meta.data;
 
@@ -956,7 +969,27 @@ namespace vkz
             info.initialState.layout = ImageLayout::undefined;
             info.initialState.stage = PipelineStageFlagBits::none;
 
+            for (uint32_t mipIdx = 0; mipIdx < kMaxNumOfImageMipLevel; ++ mipIdx)
+            {
+                info.mipViews[mipIdx] = meta.mipViews[mipIdx];
+            }
+
             write(m_fgMemWriter, info);
+
+            write(m_fgMemWriter, MagicTag::magic_body_end);
+        }
+
+        uint16_t imgViewCount = m_imageViewHandles.getNumHandles();
+
+        for (uint16_t ii = 0; ii < imgViewCount; ++ ii)
+        {
+            ImageViewHandle imgView { (m_imageViewHandles.getHandleAt(ii)) };
+            const ImageViewDesc& desc = m_imageViewDesc.getIdToData(imgView);
+
+            // frame graph data
+            write(m_fgMemWriter, MagicTag::register_image_view);
+
+            write(m_fgMemWriter, desc);
 
             write(m_fgMemWriter, MagicTag::magic_body_end);
         }
@@ -1120,8 +1153,7 @@ namespace vkz
 
     uint32_t insertResInteract(UniDataContainer<PassHandle, stl::vector<PassResInteract>>& _container
         , const PassHandle _hPass, const uint16_t _resId, const SamplerHandle _hSampler, const ResInteractDesc& _interact
-        , const ImageViewDesc& _specImgViewInfo
-        )
+    )
     {
         uint32_t vecSize = 0u;
 
@@ -1130,8 +1162,6 @@ namespace vkz
         pri.resId = _resId;
         pri.interact = _interact;
         pri.samplerId = _hSampler.id;
-        pri.specImgViewInfo = _specImgViewInfo;
-
 
         if (_container.exist(_hPass))
         {
@@ -1152,13 +1182,14 @@ namespace vkz
         return vecSize;
     }
     
-
+    /*
     uint32_t insertResInteract(UniDataContainer<PassHandle, stl::vector<PassResInteract>>& _container
         , const PassHandle _hPass, const uint16_t _resId, const SamplerHandle _hSampler, const ResInteractDesc& _interact
         )
     {
-        return insertResInteract(_container, _hPass, _resId, _hSampler, _interact, defaultImageView({ _resId }));
+        return insertResInteract(_container, _hPass, _resId, _hSampler, _interact);
     }
+    */
 
     uint32_t insertWriteResAlias(UniDataContainer<PassHandle, stl::vector<WriteOperationAlias>>& _container, const PassHandle _hPass, const uint16_t _resIn, const uint16_t _resOut)
     {
@@ -1364,8 +1395,7 @@ namespace vkz
             {
                 const ImageViewDesc& imgViewDesc = isValid(_hImgView) ? m_imageViewDesc.getIdToData(_hImgView) : defaultImageView(_hImg);
 
-                passMeta.writeImageNum = insertResInteract(m_writeImages, _hPass, _hImg.id, { kInvalidHandle }, interact, imgViewDesc);
-                passMeta.specImageViewNum++;
+                passMeta.writeImageNum = insertResInteract(m_writeImages, _hPass, _hImg.id, { kInvalidHandle }, interact);
                 passMeta.writeImgAliasNum = insertWriteResAlias(m_implicitOutImageAliases, _hPass, _hImg.id, _outAlias.id);
 
                 assert(passMeta.writeImageNum == passMeta.writeImgAliasNum);

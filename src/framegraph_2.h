@@ -21,6 +21,7 @@ namespace vkz
         register_pass,
         register_buffer,
         register_image,
+        register_image_view,
         register_sampler,
 
         force_alias_buffer,
@@ -38,6 +39,7 @@ namespace vkz
         uint32_t    bufNum;
         uint32_t    imgNum;
         uint32_t    samplerNum;
+        uint32_t    imgViewNum;
 
         uint16_t    presentImage;
     };
@@ -79,9 +81,6 @@ namespace vkz
         uint16_t    passId;
         uint16_t    resId;
         uint16_t    samplerId;
-
-        // for specific image view creation
-        ImageViewDesc   specImgViewInfo;
 
         ResInteractDesc interact;
     };
@@ -170,6 +169,7 @@ namespace vkz
         void registerImage(MemoryReader& _reader);
 
         void registerSampler(MemoryReader& _reader);
+        void registerImageView(MemoryReader& _reader);
 
         uint32_t readResource(const stl::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type);
         uint32_t writeResource(const stl::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type);
@@ -334,10 +334,11 @@ namespace vkz
 
         stl::vector< ShaderHandle >     m_hShader;
         stl::vector< ProgramHandle >    m_hProgram;
-        stl::vector< PassHandle >      m_hPass;
+        stl::vector< PassHandle >       m_hPass;
         stl::vector< BufferHandle >     m_hBuf;
         stl::vector< ImageHandle >      m_hTex;
         stl::vector< SamplerHandle >    m_hSampler;
+        stl::vector< ImageViewHandle>   m_hImgView;
 
         stl::vector< ShaderInfo >       m_sparse_shader_info;
         stl::vector< ProgramInfo>       m_sparse_program_info;
@@ -346,6 +347,7 @@ namespace vkz
         stl::vector< ImgRegisterInfo >  m_sparse_img_info;
         stl::vector< PassMetaDataRef>   m_sparse_pass_data_ref;
         stl::vector< SamplerMetaData >  m_sparse_sampler_meta;
+        stl::vector< ImageViewDesc >    m_sparse_img_view_desc;
         
         stl::vector< std::string>           m_shader_path;
 

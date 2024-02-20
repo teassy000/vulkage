@@ -6,6 +6,7 @@
 #include "camera.h"
 #include "debug.h"
 #include "vkz_ui.h"
+#include "vkz_pyramid.h"
 
 struct alignas(16) TransformData
 {
@@ -227,7 +228,7 @@ void meshDemo()
     vkz::ImageDesc rtDesc;
     rtDesc.depth = 1;
     rtDesc.arrayLayers = 1;
-    rtDesc.mips = 1;
+    rtDesc.mipLevels = 1;
     rtDesc.usage = vkz::ImageUsageFlagBits::transfer_src;
     vkz::ImageHandle color = vkz::registRenderTarget("color", rtDesc, vkz::ResourceLifetime::non_transition);
     vkz::ImageHandle color2 = vkz::alias(color);
@@ -237,7 +238,7 @@ void meshDemo()
     vkz::ImageDesc dpDesc;
     dpDesc.depth = 1;
     dpDesc.arrayLayers = 1;
-    dpDesc.mips = 1;
+    dpDesc.mipLevels = 1;
     dpDesc.usage = vkz::ImageUsageFlagBits::transfer_src | vkz::ImageUsageFlagBits::sampled;
     vkz::ImageHandle depth = vkz::registDepthStencil("depth", dpDesc, vkz::ResourceLifetime::non_transition);
     vkz::ImageHandle depth2 = vkz::alias(depth);
@@ -250,22 +251,9 @@ void meshDemo()
     uint32_t pyramidLevelHeight = previousPow2_new(config.windowHeight);
     uint32_t pyramidLevel = calculateMipLevelCount2(pyramidLevelWidth, pyramidLevelHeight);
 
-    vkz::ImageDesc pyDesc;
-    pyDesc.width = pyramidLevelWidth;
-    pyDesc.height = pyramidLevelHeight;
-    pyDesc.format = vkz::ResourceFormat::r32_sfloat;
-    pyDesc.depth = 1;
-    pyDesc.arrayLayers = 1;
-    pyDesc.mips = pyramidLevel;
-    pyDesc.usage = vkz::ImageUsageFlagBits::transfer_src | vkz::ImageUsageFlagBits::sampled | vkz::ImageUsageFlagBits::storage;
-    vkz::ImageHandle pyramid = vkz::registTexture("pyramid", pyDesc, vkz::ResourceLifetime::non_transition);
 
-    uint32_t pyramidAliasCount = pyramidLevel * 2;
-    std::vector<vkz::ImageHandle> pyramid_aliases(pyramidAliasCount);
-    for (uint32_t ii = 0; ii < pyramidAliasCount; ++ii)
-    {
-        pyramid_aliases[ii] = vkz::alias(pyramid);
-    }
+    PyramidRendering pyRendering{};
+    vkz::ImageHandle pyOut = preparePyramid(pyRendering, config.windowWidth, config.windowHeight, depth2);
 
     vkz::PassHandle pass_draw_0;
     {
@@ -367,7 +355,7 @@ void meshDemo()
             , vkz::AccessFlagBits::shader_read | vkz::AccessFlagBits::shader_write
             , meshDrawVisBuf2);
 
-        vkz::sampleImage(pass_cull_0, pyramid
+        vkz::sampleImage(pass_cull_0, pyRendering.image
             , 6
             , vkz::PipelineStageFlagBits::compute_shader
             , vkz::ImageLayout::general
@@ -428,7 +416,7 @@ void meshDemo()
             , vkz::AccessFlagBits::shader_read | vkz::AccessFlagBits::shader_write
             , meshDrawVisBuf3);
 
-        vkz::sampleImage(pass_cull_1, pyramid_aliases[pyramidAliasCount - 1]
+        vkz::sampleImage(pass_cull_1, pyOut
             , 6
             , vkz::PipelineStageFlagBits::compute_shader
             , vkz::ImageLayout::general
@@ -509,70 +497,15 @@ void meshDemo()
         vkz::fillBuffer(pass_fill_dccb_late, meshDrawCmdCountBuf3, 0, sizeof(uint32_t), 0, meshDrawCmdCountBuf4);
     }
 
-    std::vector<glm::vec2> imageSizes(pyramidLevel);
-    std::vector<vkz::PassHandle> pass_pys(pyramidLevel);
-    {
-        vkz::ShaderHandle cs = vkz::registShader("pyramid_shader", "shaders/depthpyramid.comp.spv");
-        vkz::ProgramHandle csProgram = vkz::registProgram("pyramid_prog", { cs }, sizeof(glm::vec2));
-
-        for (uint32_t ii = 0; ii < pyramidLevel; ++ii)
-        {
-            uint32_t levelWidth = glm::max(1u, pyramidLevelWidth >> ii);
-            uint32_t levelHeight = glm::max(1u, pyramidLevelHeight >> ii);
-
-            imageSizes[ii] = glm::vec2(levelWidth, levelHeight);
-
-            vkz::PassDesc passDesc;
-            passDesc.programId = csProgram.id;
-            passDesc.queue = vkz::PassExeQueue::compute;
-            passDesc.passConfig.threadCountX = levelWidth;
-            passDesc.passConfig.threadCountY = levelHeight;
-
-            vkz::PassHandle pyramid_pass = vkz::registPass("pyramid_pass", passDesc);
-            pass_pys[ii] = pyramid_pass;
-
-            int32_t aliasIdx =  ii * 2 - 1;
-            
-            if (ii == 0) {
-                vkz::sampleImage(pyramid_pass, depth2
-                    , 0
-                    , vkz::PipelineStageFlagBits::compute_shader
-                    , vkz::ImageLayout::shader_read_only_optimal
-                    , vkz::SamplerReductionMode::weighted_average);
-            }
-            else {
-                vkz::sampleImage(pyramid_pass, pyramid_aliases[aliasIdx]
-                    , 0
-                    , vkz::PipelineStageFlagBits::compute_shader
-                    , vkz::ImageLayout::general
-                    , vkz::SamplerReductionMode::weighted_average);
-
-                vkz::message(vkz::DebugMessageType::info, "used idx slot 0: %d", pyramid_aliases[aliasIdx]);
-            }
-
-            vkz::ImageViewHandle iv = vkz::registImageView("", pyramid_aliases[aliasIdx + 1], ii, 1);
-
-            vkz::bindImage(pyramid_pass, pyramid_aliases[aliasIdx + 1]
-                , 1
-                , vkz::PipelineStageFlagBits::compute_shader
-                , vkz::AccessFlagBits::shader_write
-                , vkz::ImageLayout::general
-                , pyramid_aliases[aliasIdx + 2]
-                , iv
-            );
-
-            vkz::message(vkz::DebugMessageType::info, "used idx slot 1: %d", pyramid_aliases[aliasIdx + 1]);
-            vkz::message(vkz::DebugMessageType::info, "used idx slot 1: %d", pyramid_aliases[aliasIdx + 2]);
-        }
-    }
-
-
     UIRendering ui{};
     {
         vkz_prepareUI(ui);
         vkz::setAttachmentOutput(ui.pass, color3, 0, color4);
         vkz::setAttachmentOutput(ui.pass, depth3, 0, depth4);
     }
+
+    vkz::PassHandle pass_py = pyRendering.pass;
+    vkz::PassHandle pass_ui = ui.pass;
 
     vkz::setPresentImage(color4);
 
@@ -607,7 +540,7 @@ void meshDemo()
         drawCull.frustum[3] = frustumY.z;
         drawCull.enableCull = 1;
         drawCull.enableLod = 0;
-        drawCull.enableOcclusion = 1;
+        drawCull.enableOcclusion = 0;
         drawCull.enableMeshletOcclusion = 0;
         memcpy_s(memDrawCull->data, memDrawCull->size, &drawCull, sizeof(MeshDrawCullVKZ));
         vkz::updatePushConstants(pass_cull_0, vkz::copy(memDrawCull));
@@ -628,15 +561,9 @@ void meshDemo()
         memcpy_s(memGlobal->data, memGlobal->size, &globals, sizeof(GlobalsVKZ));
         vkz::updatePushConstants(pass_draw_0, vkz::copy(memGlobal));
         vkz::updatePushConstants(pass_draw_1, vkz::copy(memGlobal));
-
-        // update pyramid 
-        for (uint32_t ii = 0; ii < pyramidLevel; ++ii)
-        {
-            memcpy_s(memPyramidWndSz->data, memPyramidWndSz->size, &imageSizes[ii], sizeof(vec2));
-            vkz::updatePushConstants(pass_pys[ii], vkz::copy(memPyramidWndSz));
-        }
         
         vkz::updateThreadCount(pass_cull_0, (uint32_t)scene.meshDraws.size(), 1, 1);
+        vkz::updateThreadCount(pass_cull_1, (uint32_t)scene.meshDraws.size(), 1, 1);
 
         freeCamera.pos = vec3{ 0.f, 2.f, 20.f };
 

@@ -34,7 +34,7 @@ namespace vkz
         uint16_t resId;
 
         VkImage image;
-        VkImageView imageView;
+        VkImageView defalutImgView;
         VkDeviceMemory memory;
         VkImageAspectFlags  aspectMask;
         VkFormat            format;

@@ -287,7 +287,7 @@ namespace vkz
 
             img.ID = hash32(img.image);
             img.resId = _infos[ii].imgId;
-            img.imageView = createImageView(_device, img.image, _initProps.format, 0, _initProps.level, _initProps.viewType); // ImageView bind to the image handle it self, should create a new one for alias
+            img.defalutImgView = createImageView(_device, img.image, _initProps.format, 0, _initProps.level, _initProps.viewType); // ImageView bind to the image handle it self, should create a new one for alias
             img.memory = memory;
 
             img.width = _initProps.width;
@@ -402,7 +402,7 @@ namespace vkz
 
         for (const Image_vk& img : _images)
         {
-            vkDestroyImageView(_device, img.imageView, nullptr);
+            vkDestroyImageView(_device, img.defalutImgView, nullptr);
             vkDestroyImage(_device, img.image, nullptr);
         }
     }
