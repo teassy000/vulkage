@@ -42,7 +42,6 @@ namespace vkz
 
     using ShaderHandle = Handle<struct ShaderHandleTag>;
     using ProgramHandle = Handle<struct ProgramHandleTag>;
-    using PipelineHandle = Handle<struct PipelineHandleTag>;
     using PassHandle = Handle<struct PassHandleTag>;
 
     using BufferHandle = Handle<struct BufferHandleTag>;

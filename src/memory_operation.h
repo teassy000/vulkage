@@ -1,6 +1,6 @@
 #pragma once
 
-// from bgfx, with modifications
+// copy from bgfx, with modifications
 
 #include "alloc.h"
 

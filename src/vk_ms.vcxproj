@@ -294,6 +294,7 @@
     <ClInclude Include="name.h" />
     <ClInclude Include="profiler.h" />
     <ClInclude Include="rhi_context.h" />
+    <ClInclude Include="string.h" />
     <ClInclude Include="util.h" />
     <ClInclude Include="vkz_pyramid.h" />
     <ClInclude Include="vkz_structs.h" />
@@ -468,6 +469,7 @@
       <Command Condition="'$(Configuration)|$(Platform)'=='release|x64'">$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders\%(outputpath)\%(Filename).spv</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='release_profiling|x64'">$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders\%(outputpath)\%(Filename).spv</Command>
     </CustomBuild>
+    <None Include="string.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

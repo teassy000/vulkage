@@ -338,6 +338,9 @@ namespace vkz
 
         AllocatorI* m_pAllocator{ nullptr };
 
+        // name manager
+        NameManager* m_nameManager{ nullptr };
+
         // glfw
         char m_windowTitle[256];
         GLFWManager m_glfwManager;
@@ -472,6 +475,8 @@ namespace vkz
 
         m_shaderDescs.push_back({ idx }, _path);
         
+        setName(m_nameManager, _name, strlen(_name), handle);
+
         setRenderGraphDataDirty();
 
         return handle;
@@ -497,6 +502,8 @@ namespace vkz
         release(_mem);
         m_programDescs.push_back({ idx }, desc);
 
+        setName(m_nameManager, _name, strlen(_name), handle);
+
         setRenderGraphDataDirty();
 
         return handle;
@@ -519,6 +526,8 @@ namespace vkz
         m_passMetas.push_back({ idx }, meta);
 
         m_oneOpPassTouched.push_back({ idx }, kUnTouched);
+
+        setName(m_nameManager, _name, strlen(_name), handle);
 
         setRenderGraphDataDirty();
 
@@ -548,6 +557,8 @@ namespace vkz
 
         m_bufferMetas.push_back({ idx }, meta);
 
+        setName(m_nameManager, _name, strlen(_name), handle);
+
         setRenderGraphDataDirty();
 
         return handle;
@@ -571,6 +582,8 @@ namespace vkz
         meta.lifetime = _lifetime;
 
         m_imageMetas.push_back({ idx }, meta);
+
+        setName(m_nameManager, _name, strlen(_name), handle);
 
         setRenderGraphDataDirty();
 
@@ -611,6 +624,8 @@ namespace vkz
         meta.lifetime = _lifetime;
 
         m_imageMetas.push_back({ idx }, meta);
+
+        setName(m_nameManager, _name, strlen(_name), handle);
 
         setRenderGraphDataDirty();
 
@@ -653,6 +668,8 @@ namespace vkz
 
         m_imageMetas.push_back({ idx }, meta);
 
+        setName(m_nameManager, _name, strlen(_name), handle);
+
         setRenderGraphDataDirty();
 
         return handle;
@@ -688,6 +705,7 @@ namespace vkz
 
         imgMeta.mipViews[imgMeta.viewCount] = handle;
 
+        setName(m_nameManager, _name, strlen(_name), handle);
 
         setRenderGraphDataDirty();
 
@@ -1339,6 +1357,7 @@ namespace vkz
         PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
         passMeta.readImageNum = insertResInteract(m_readImages, _hPass, _hImg.id, sampler, interact);
         passMeta.sampleImageNum++; // Note: is this the only way to read texture?
+
         setRenderGraphDataDirty();
 
         return sampler;
@@ -1597,6 +1616,8 @@ namespace vkz
         m_pFgMemBlock = m_frameGraph->getMemoryBlock();
         m_fgMemWriter = VKZ_NEW(m_pAllocator, MemoryWriter(m_pFgMemBlock));
 
+        m_nameManager = VKZ_NEW(m_pAllocator, NameManager);
+
         setRenderGraphDataDirty();
     }
 
@@ -1654,9 +1675,11 @@ namespace vkz
 
     void Context::shutdown()
     {
+        deleteObject(m_pAllocator, m_nameManager);
         deleteObject(m_pAllocator, m_frameGraph);
         deleteObject(m_pAllocator, m_rhiContext);
         deleteObject(m_pAllocator, m_fgMemWriter);
+
 
         m_pFgMemBlock = nullptr;
         m_pAllocator = nullptr;

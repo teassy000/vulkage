@@ -1537,7 +1537,6 @@ namespace vkz
         stl::vector<UniDataContainer< BufferHandle, ResInteractDesc> > readBufferVec(m_sortedPass.size());
         stl::vector<UniDataContainer< BufferHandle, ResInteractDesc> > writeBufferVec(m_sortedPass.size());
         stl::vector<UniDataContainer< ImageHandle, SamplerHandle> > imageSamplerVec(m_sortedPass.size());
-        stl::vector<UniDataContainer< ImageHandle, ImageViewDesc> > imageSpecViewVec(m_sortedPass.size());
         stl::vector< UniDataContainer<CombinedResID, CombinedResID> >  writeOpAliasMapVec(m_sortedPass.size());
 
         
@@ -1555,7 +1554,6 @@ namespace vkz
             UniDataContainer< BufferHandle, ResInteractDesc>& readBuf = readBufferVec[ii];
             UniDataContainer< BufferHandle, ResInteractDesc>& writeBuf = writeBufferVec[ii];
             UniDataContainer< ImageHandle, SamplerHandle>& imgSamplerMap = imageSamplerVec[ii];
-            UniDataContainer< ImageHandle, ImageViewDesc>& imgSpecViewMap = imageSpecViewVec[ii];
 
             UniDataContainer<CombinedResID, CombinedResID>& writeOpAliasMap = writeOpAliasMapVec[ii];
             {
@@ -1565,7 +1563,6 @@ namespace vkz
                 readBuf.clear();
                 writeBuf.clear();
                 imgSamplerMap.clear();
-                imgSpecViewMap.clear();
 
                 const PassRWResource& rwRes = m_pass_rw_res[passIdx];
                 // set write resources
@@ -1628,14 +1625,6 @@ namespace vkz
                     imgSamplerMap.push_back({ image.id }, {samplerId });
                 }
 
-                uint32_t usedSpecImgViewNum = (uint32_t)rwRes.specImgViewMap.size();
-                for (uint32_t ii = 0; ii < usedSpecImgViewNum; ++ii)
-                {
-                    const CombinedResID& image = rwRes.specImgViewMap.getIdAt(ii);
-                    const ImageViewDesc& specImgView = rwRes.specImgViewMap.getDataAt(ii);
-                    imgSpecViewMap.push_back({ image.id }, specImgView);
-                }
-
                 // write operation out aliases
                 uint32_t aliasMapNum = (uint32_t)rwRes.writeOpAliasMap.size();
                 for (uint32_t ii = 0; ii < aliasMapNum; ++ii)
@@ -1654,7 +1643,6 @@ namespace vkz
             assert((uint16_t)readBuf.size() == passMeta.readBufferNum);
             assert((uint16_t)writeBuf.size() == passMeta.writeBufferNum);
             assert((uint16_t)imgSamplerMap.size() == passMeta.sampleImageNum);
-            assert((uint16_t)imgSpecViewMap.size() == passMeta.specImageViewNum);
             assert((uint16_t)writeOpAliasMap.size() == (passMeta.writeBufAliasNum + passMeta.writeImgAliasNum));
 
             passMetaDataVec.emplace_back(passMeta);

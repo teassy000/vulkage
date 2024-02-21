@@ -14,6 +14,8 @@ namespace vkz
         CombinedResID() = default;
         CombinedResID(uint16_t id, ResourceType type) : id(id), type(type) {}
 
+        // for tinystl::hash(const T& value)
+        // which requires to cast to size_t
         operator size_t() const
         {
             return (size_t)type << 16 | id;

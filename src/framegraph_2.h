@@ -294,7 +294,6 @@ namespace vkz
             UniDataContainer<CombinedResID, CombinedResID> writeOpAliasMap;
 
             UniDataContainer<CombinedResID, uint16_t> imageSamplerMap;
-            UniDataContainer<CombinedResID, ImageViewDesc> specImgViewMap;
         };
 
         struct PassDependency

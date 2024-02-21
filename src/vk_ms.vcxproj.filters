@@ -397,6 +397,9 @@
     <ClInclude Include="colors.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="string.h">
+      <Filter>src</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="shaders\mesh.frag.glsl">
@@ -476,6 +479,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="memory_operation.inl">
+      <Filter>src</Filter>
+    </None>
+    <None Include="string.inl">
       <Filter>src</Filter>
     </None>
   </ItemGroup>

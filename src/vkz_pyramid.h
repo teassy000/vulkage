@@ -29,4 +29,3 @@ vkz::ImageHandle preparePyramid(
     , const vkz::ImageHandle _inDepth
 );
 
-
