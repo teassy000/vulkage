@@ -173,13 +173,18 @@ namespace vkz
 
         uint32_t readResource(const stl::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type);
         uint32_t writeResource(const stl::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type);
-        uint32_t writeResAlias(const stl::vector<WriteOperationAlias>& _aliasMapVec, const uint16_t _passId, const ResourceType _type);
+        uint32_t writeResForceAlias(const stl::vector<WriteOperationAlias>& _aliasMapVec, const uint16_t _passId, const ResourceType _type);
 
         void aliasResForce(MemoryReader& _reader, ResourceType _type);
 
+        bool isForceAliased(const CombinedResID& _res_0, const CombinedResID _res_1) const;
         // =======================================
         void buildGraph();
-        void reverseTraversalDFS();
+        void calcPriority();
+        void calcCombinations(stl::vector<stl::vector<uint16_t>>& _vecs, const stl::vector<uint16_t>& _inVec);
+        uint16_t findCommonParent(const uint16_t _a, uint16_t _b, const stl::unordered_map<uint16_t, uint16_t>& _sortedParentMap, const uint16_t _root);
+        uint16_t validateSortedPasses(const stl::vector<uint16_t>& _sortedPassIdxes, const stl::unordered_map<uint16_t, uint16_t>& _sortedParentMap);
+        void reverseTraversalDFSWithBackTrack();
         void buildMaxLevelList(stl::vector<uint16_t>& _maxLvLst);
         void formatDependency(const stl::vector<uint16_t>& _maxLvLst);
         void fillNearestSyncPass();
@@ -291,7 +296,7 @@ namespace vkz
             stl::unordered_set<CombinedResID> readCombinedRes;
             stl::unordered_set<CombinedResID> writeCombinedRes;
 
-            UniDataContainer<CombinedResID, CombinedResID> writeOpAliasMap;
+            UniDataContainer<CombinedResID, CombinedResID> writeOpForcedAliasMap;
 
             UniDataContainer<CombinedResID, uint16_t> imageSamplerMap;
         };
@@ -360,6 +365,7 @@ namespace vkz
         stl::vector< PassDependency>                m_pass_dependency;
         stl::vector< CombinedResID>                 m_combinedForceAlias_base;
         stl::vector< stl::vector<CombinedResID>>    m_combinedForceAlias;
+        stl::unordered_map<CombinedResID, CombinedResID> m_forceAliasMapToBase;
 
         // sorted and cut passes
         stl::vector< PassHandle>    m_sortedPass;

@@ -307,8 +307,8 @@ namespace vkz
         UniDataContainer<PassHandle, stl::vector<PassResInteract>> m_writeBuffers;
         UniDataContainer<PassHandle, stl::vector<PassResInteract>> m_readImages;
         UniDataContainer<PassHandle, stl::vector<PassResInteract>> m_writeImages;
-        UniDataContainer<PassHandle, stl::vector<WriteOperationAlias>> m_implicitOutBufferAliases; // add a dependency line to the write resource
-        UniDataContainer<PassHandle, stl::vector<WriteOperationAlias>> m_implicitOutImageAliases; // add a dependency line to the write resource
+        UniDataContainer<PassHandle, stl::vector<WriteOperationAlias>> m_writeForcedBufferAliases; // add a dependency line to the write resource
+        UniDataContainer<PassHandle, stl::vector<WriteOperationAlias>> m_writeForcedImageAliases; // add a dependency line to the write resource
 
         // binding
         UniDataContainer<PassHandle, stl::vector<uint32_t>> m_usedBindPoints;
@@ -897,12 +897,12 @@ namespace vkz
                     , (uint32_t)(sizeof(PassResInteract) * getResInteractNum(m_readBuffers, pass)));
             }
 
-            // implicit alias
+            // wirte res forced alias
             if (0 != passMeta.writeImgAliasNum)
             {
                 write(
                     m_fgMemWriter
-                    , (const void*)m_implicitOutImageAliases.getIdToData(pass).data()
+                    , (const void*)m_writeForcedImageAliases.getIdToData(pass).data()
                     , (uint32_t)(sizeof(WriteOperationAlias) * passMeta.writeImgAliasNum));
             }
 
@@ -910,7 +910,7 @@ namespace vkz
             {
                 write(
                     m_fgMemWriter
-                    , (const void*)m_implicitOutBufferAliases.getIdToData(pass).data()
+                    , (const void*)m_writeForcedBufferAliases.getIdToData(pass).data()
                     , (uint32_t)(sizeof(WriteOperationAlias) * passMeta.writeBufAliasNum));
             }
 
@@ -1327,7 +1327,7 @@ namespace vkz
             }
 
             passMeta.writeBufferNum = insertResInteract(m_writeBuffers, _hPass, _buf.id, {kInvalidHandle}, interact);
-            passMeta.writeBufAliasNum = insertWriteResAlias(m_implicitOutBufferAliases, _hPass, _buf.id, _outAlias.id);
+            passMeta.writeBufAliasNum = insertWriteResAlias(m_writeForcedBufferAliases, _hPass, _buf.id, _outAlias.id);
 
             assert(passMeta.writeBufferNum == passMeta.writeBufAliasNum);
             setRenderGraphDataDirty();
@@ -1415,7 +1415,7 @@ namespace vkz
                 const ImageViewDesc& imgViewDesc = isValid(_hImgView) ? m_imageViewDesc.getIdToData(_hImgView) : defaultImageView(_hImg);
 
                 passMeta.writeImageNum = insertResInteract(m_writeImages, _hPass, _hImg.id, { kInvalidHandle }, interact);
-                passMeta.writeImgAliasNum = insertWriteResAlias(m_implicitOutImageAliases, _hPass, _hImg.id, _outAlias.id);
+                passMeta.writeImgAliasNum = insertWriteResAlias(m_writeForcedImageAliases, _hPass, _hImg.id, _outAlias.id);
 
                 assert(passMeta.writeImageNum == passMeta.writeImgAliasNum);
 
@@ -1482,7 +1482,7 @@ namespace vkz
         }
 
         passMeta.writeImageNum = insertResInteract(m_writeImages, _hPass, _hImg.id, { kInvalidHandle }, interact);
-        passMeta.writeImgAliasNum = insertWriteResAlias(m_implicitOutImageAliases, _hPass, _hImg.id, _outAlias.id);
+        passMeta.writeImgAliasNum = insertWriteResAlias(m_writeForcedImageAliases, _hPass, _hImg.id, _outAlias.id);
         assert(passMeta.writeImageNum == passMeta.writeImgAliasNum);
 
         setRenderGraphDataDirty();
@@ -1514,7 +1514,7 @@ namespace vkz
         interact.access = AccessFlagBits::transfer_write;
 
         passMeta.writeBufferNum = insertResInteract(m_writeBuffers, _hPass, _hBuf.id, { kInvalidHandle }, interact);
-        passMeta.writeBufAliasNum = insertWriteResAlias(m_implicitOutBufferAliases, _hPass, _hBuf.id, _outAlias.id);
+        passMeta.writeBufAliasNum = insertWriteResAlias(m_writeForcedBufferAliases, _hPass, _hBuf.id, _outAlias.id);
         assert(passMeta.writeBufferNum == passMeta.writeBufAliasNum);
 
         m_oneOpPassTouched.update_data(_hPass, kTouched);

@@ -31,7 +31,7 @@ namespace vkz
         buildGraph();
 
         // sort and cut
-        reverseTraversalDFS();
+        reverseTraversalDFSWithBackTrack();
 
         // optimize
         optimizeSync();
@@ -225,11 +225,11 @@ namespace vkz
         // write resource alias
         stl::vector<WriteOperationAlias> writeImgAliasVec(passMeta.writeImgAliasNum);
         read(&_reader, writeImgAliasVec.data(), sizeof(WriteOperationAlias) * passMeta.writeImgAliasNum);
-        passMeta.writeImgAliasNum = writeResAlias(writeImgAliasVec, passMeta.passId, ResourceType::image);
+        passMeta.writeImgAliasNum = writeResForceAlias(writeImgAliasVec, passMeta.passId, ResourceType::image);
 
         stl::vector<WriteOperationAlias> writeBufAliasVec(passMeta.writeBufAliasNum);
         read(&_reader, writeBufAliasVec.data(), sizeof(WriteOperationAlias) * passMeta.writeBufAliasNum);
-        passMeta.writeBufAliasNum = writeResAlias(writeBufAliasVec, passMeta.passId, ResourceType::buffer);
+        passMeta.writeBufAliasNum = writeResForceAlias(writeBufAliasVec, passMeta.passId, ResourceType::buffer);
 
         // fill pass idx in queue
         uint16_t qIdx = (uint16_t)passMeta.queue;
@@ -428,7 +428,7 @@ namespace vkz
         return actualSize;
     }
 
-    uint32_t Framegraph2::writeResAlias(const stl::vector<WriteOperationAlias>& _aliasMapVec, const uint16_t _passId, const ResourceType _type)
+    uint32_t Framegraph2::writeResForceAlias(const stl::vector<WriteOperationAlias>& _aliasMapVec, const uint16_t _passId, const ResourceType _type)
     {
         const size_t hPassIdx =getElemIndex(m_hPass, { _passId });
         assert(hPassIdx != kInvalidIndex);
@@ -439,13 +439,13 @@ namespace vkz
             CombinedResID basdCombined{ wra.writeOpIn, _type };
             CombinedResID aliasCombined{ wra.writeOpOut, _type };
 
-            if (m_pass_rw_res[hPassIdx].writeOpAliasMap.exist(basdCombined))
+            if (m_pass_rw_res[hPassIdx].writeOpForcedAliasMap.exist(basdCombined))
             {
                 message(error, "write to same resource in same pass multiple times!");
                 continue;
             }
 
-            m_pass_rw_res[hPassIdx].writeOpAliasMap.push_back(basdCombined, aliasCombined);
+            m_pass_rw_res[hPassIdx].writeOpForcedAliasMap.push_back(basdCombined, aliasCombined);
             actualSize++;
         }
 
@@ -476,9 +476,19 @@ namespace vkz
             uint16_t resId = *((uint16_t*)mem + ii);
             CombinedResID combinedId{resId, _type};
             push_back_unique(m_combinedForceAlias[idx], combinedId);
+
+            m_forceAliasMapToBase.insert({ combinedId, combinedBaseIdx });
         }
 
         free(m_pAllocator, mem);
+    }
+
+    bool Framegraph2::isForceAliased(const CombinedResID& _res_0, const CombinedResID _res_1) const
+    {
+        const CombinedResID base_0 = m_forceAliasMapToBase.find(_res_0)->second;
+        const CombinedResID base_1 = m_forceAliasMapToBase.find(_res_1)->second;
+
+        return base_0 == base_1;
     }
 
     void Framegraph2::buildGraph()
@@ -491,11 +501,11 @@ namespace vkz
             PassRWResource rwRes = m_pass_rw_res[ii];
             std::set<CombinedResID> writeOpInSet{};
 
-            size_t aliasMapNum = rwRes.writeOpAliasMap.size();
+            size_t aliasMapNum = rwRes.writeOpForcedAliasMap.size();
             for (uint32_t jj = 0; jj < aliasMapNum; ++jj)
             {
-                CombinedResID writeOpIn = rwRes.writeOpAliasMap.getIdAt(jj);
-                CombinedResID writeOpOut = rwRes.writeOpAliasMap.getDataAt(jj);
+                CombinedResID writeOpIn = rwRes.writeOpForcedAliasMap.getIdAt(jj);
+                CombinedResID writeOpOut = rwRes.writeOpForcedAliasMap.getDataAt(jj);
 
                 writeOpInSet.insert(writeOpIn);
 
@@ -510,7 +520,7 @@ namespace vkz
             }
         }
 
-        for (auto resPassPair : linear_writeResPassIdxMap)
+        for (const auto& resPassPair : linear_writeResPassIdxMap)
         {
             CombinedResID cid = resPassPair.first;
             uint16_t passIdx = resPassPair.second;
@@ -528,12 +538,12 @@ namespace vkz
 
             std::set<CombinedResID> resReadInPass{}; // includes two type of resources: 1. read in current pass. 2. resource alias before write.
             
-            size_t aliasMapNum = rwRes.writeOpAliasMap.size();
+            size_t aliasMapNum = rwRes.writeOpForcedAliasMap.size();
             
             // writeOpIn is not in the readCombinedRes, should affect the graph here
             for (uint32_t jj = 0; jj < aliasMapNum; ++jj)
             {
-                CombinedResID writeOpIn = rwRes.writeOpAliasMap.getIdAt(jj);
+                CombinedResID writeOpIn = rwRes.writeOpForcedAliasMap.getIdAt(jj);
 
                 resReadInPass.insert(writeOpIn);
             }
@@ -543,9 +553,9 @@ namespace vkz
                 resReadInPass.insert(plainRes);
             }
 
-            for (CombinedResID wirteResIn : resReadInPass)
+            for (CombinedResID resReadIn : resReadInPass)
             {
-                auto it = linear_writeResPassIdxMap.find(wirteResIn);
+                auto it = linear_writeResPassIdxMap.find(resReadIn);
                 if (it == linear_writeResPassIdxMap.end()) {
                     continue;
                 }
@@ -559,73 +569,270 @@ namespace vkz
         }
     }
 
-    void Framegraph2::reverseTraversalDFS()
+    void Framegraph2::calcPriority()
     {
         uint16_t passNum = (uint16_t)m_hPass.size();
 
-        stl::vector<bool> visited(passNum, false);
-        stl::vector<bool> onStack(passNum, false);
-
-        uint16_t finalPassIdx = (uint16_t)getElemIndex(m_hPass, m_finalPass);
-        assert(finalPassIdx != kInvalidIndex);
-
-        stl::vector<uint16_t> sortedPassIdx;
-        std::stack<uint16_t> passIdxStack;
-
-        // start with the final pass
-        passIdxStack.push(finalPassIdx);
-
-        while (!passIdxStack.empty())
+        for (uint16_t ii = 0; ii < passNum; ++ ii)
         {
-            uint16_t currPassIdx = passIdxStack.top();
+            PassDependency passDep = m_pass_dependency[ii];
+        }
+    }
 
-            visited[currPassIdx] = true;
-            onStack[currPassIdx] = true;
+    void Framegraph2::calcCombinations(stl::vector<stl::vector<uint16_t>>& _vecs, const stl::vector<uint16_t>& _inVec)
+    {
+        uint16_t n = (uint16_t)_inVec.size();
+        stl::vector<uint16_t> indices(n, 0);
+        stl::vector<uint16_t> nums (_inVec);
 
-            PassDependency passDep = m_pass_dependency[currPassIdx];
+        std::sort(nums.begin(), nums.end());
+        _vecs.push_back(nums);  // add the sorted one as first
 
-            bool inPassAllVisited = true;
-
-            for (uint16_t parentPassIdx : passDep.inPassIdxSet)
-            {
-                if (!visited[parentPassIdx])
-                {
-
-                    passIdxStack.push(parentPassIdx);
-                    onStack[parentPassIdx] = true;
-
-                    inPassAllVisited = false;
+        uint16_t i = 0;
+        while (i < n) {
+            if (indices[i] < i) {
+                if (i % 2 == 0) {
+                    std::swap(nums[0], nums[i]);
                 }
-                else if (onStack[parentPassIdx])
+                else {
+                    std::swap(nums[indices[i]], nums[i]);
+                }
+                _vecs.push_back(nums);
+
+                indices[i]++;
+                i = 0;
+            }
+            else {
+                indices[i] = 0;
+                i++;
+            }
+        }
+
+        for (const stl::vector<uint16_t>& orders : _vecs)
+        {
+            message(info, "combs ======");
+            for (uint16_t id : orders)
+            {
+                message(info, "%d", id);
+            }
+        }
+    }
+
+    uint16_t Framegraph2::findCommonParent(const uint16_t _a, uint16_t _b, const stl::unordered_map<uint16_t, uint16_t>& _sortedParentMap, const uint16_t _root)
+    {
+        uint16_t commonNode = _root;
+
+
+        uint16_t bp = 0;
+
+        stl::unordered_set<uint16_t> apSet;
+        uint16_t curr = _a;
+        while (curr != _root)
+        {
+            curr =  _sortedParentMap.find(curr)->second;
+            apSet.insert(curr);
+        }
+
+        curr = _b;
+        while (curr != _root)
+        {
+            curr = _sortedParentMap.find(curr)->second;
+            if (apSet.find(curr) != apSet.end())
+            {
+                commonNode = curr;
+                break;
+            }
+        }
+
+        message(info, "%d, %d shares the common parent node: %d", _a, _b, commonNode);
+
+        return commonNode;
+    }
+
+    uint16_t Framegraph2::validateSortedPasses(const stl::vector<uint16_t>& _sortedPassIdxes, const stl::unordered_map<uint16_t, uint16_t>& _sortedParentMap)
+    {
+
+        for (uint16_t idx : _sortedPassIdxes)
+        {
+            message(info, "sorted pass Idx: %d/%d, Id: %d", idx, _sortedPassIdxes.size(), m_hPass[idx].id);
+        }
+
+        for (const auto& p : _sortedParentMap)
+        {
+            message(info, "sorted Idx: %d/%d", p.first, p.second);
+        }
+
+        stl::unordered_map<CombinedResID, uint16_t> writeResPassIdxMap;
+
+        uint16_t order = 0;
+        for (uint16_t passIdx : _sortedPassIdxes)
+        {
+            PassRWResource rwRes = m_pass_rw_res[passIdx];
+            PassHandle pass = m_hPass[passIdx];
+
+            // check if there any resource is read after a flip executed;
+            // all flip point
+            for (uint16_t ii = 0; ii < rwRes.writeOpForcedAliasMap.size(); ++ii)
+            {
+                CombinedResID writeOpIn = rwRes.writeOpForcedAliasMap.getIdAt(ii);
+
+                message(info, "res : 0x%8x in pass %d", writeOpIn, pass.id);
+
+                writeResPassIdxMap.insert({ writeOpIn, order });
+            }
+            order++;
+        }
+
+        order = 0;
+        uint16_t root = _sortedPassIdxes.back();
+        uint16_t commonNodeIdx = kInvalidIndex;
+        for (uint16_t passIdx : _sortedPassIdxes)
+        {
+            PassRWResource rwRes = m_pass_rw_res[passIdx];
+            PassHandle pass = m_hPass[passIdx];
+
+            for (const CombinedResID& plainRes : rwRes.readCombinedRes)
+            {
+                if (writeResPassIdxMap.find(plainRes) == writeResPassIdxMap.end())
                 {
-                    message(error, "cycle detected!");
-                    return;
+                    continue;
+                }
+                uint16_t writeOrder = writeResPassIdxMap[plainRes];
+                if (writeOrder < order)
+                {
+                    message(warning, "resource 0x%8x in pass %d/%d is written before read @ pass %d/%d!", plainRes, pass.id, order, _sortedPassIdxes[writeOrder], writeOrder);
+                    commonNodeIdx = findCommonParent(passIdx, _sortedPassIdxes[writeOrder], _sortedParentMap, root);
+                }
+            }
+            order++;
+        }
+
+        return commonNodeIdx;
+    }
+
+    uint32_t permutation(uint32_t _v)
+    {
+        uint32_t ret = 1;
+        for (uint32_t ii = 1; ii <= _v; ++ii)
+        {
+            ret *= ii;
+        }
+        return ret;
+    }
+
+    void Framegraph2::reverseTraversalDFSWithBackTrack()
+    {
+        uint16_t passNum = (uint16_t)m_hPass.size();
+        uint16_t commonIdx = kInvalidIndex;
+
+        stl::unordered_map<uint16_t, stl::vector<stl::vector<uint16_t>>> passCombinationMap;
+        stl::unordered_map<uint16_t, uint32_t> passCombinationIdx;
+
+        for (uint16_t ii = 0; ii < passNum; ++ii)
+        {
+            PassDependency passDep = m_pass_dependency[ii];
+
+            stl::vector<uint16_t> inPassIdxVec;
+            for (uint16_t idx : passDep.inPassIdxSet)
+            {
+                inPassIdxVec.push_back(idx);
+            }
+
+            stl::vector<stl::vector<uint16_t>> orders;
+            calcCombinations(orders, inPassIdxVec);
+
+            passCombinationMap.insert({ ii, orders });
+            passCombinationIdx.insert({ ii, 0 });
+
+        }
+
+        while (true)
+        {
+            stl::vector<bool> visited(passNum, false);
+            stl::vector<bool> onStack(passNum, false);
+
+            uint16_t finalPassIdx = (uint16_t)getElemIndex(m_hPass, m_finalPass);
+            assert(finalPassIdx != kInvalidIndex);
+
+            stl::vector<uint16_t> sortedPassIdx;
+            stl::vector<uint16_t> passIdxStack;
+            stl::unordered_map<uint16_t, uint16_t> passIdxToNode;
+
+            // start with the final pass
+            passIdxStack.push_back(finalPassIdx);
+
+            uint16_t levelIndex = 0;
+            while (!passIdxStack.empty())
+            {
+                uint16_t currPassIdx = passIdxStack.back();
+
+                visited[currPassIdx] = true;
+                onStack[currPassIdx] = true;
+
+                PassDependency passDep = m_pass_dependency[currPassIdx];
+
+                bool inPassAllVisited = true;
+                uint32_t combIdx = passCombinationIdx.find(currPassIdx)->second;
+                const stl::vector<uint16_t>& inPassIdxVec = passCombinationMap.find(currPassIdx)->second[combIdx];
+
+                for (uint16_t childPassIdx : inPassIdxVec)
+                {
+                    if (!visited[childPassIdx])
+                    {
+                        passIdxToNode.insert({ childPassIdx, currPassIdx });
+                        passIdxStack.push_back(childPassIdx);
+                        onStack[childPassIdx] = true;
+
+                        inPassAllVisited = false;
+                    }
+                    else if (onStack[childPassIdx])
+                    {
+                        message(error, "cycle detected!");
+                        return;
+                    }
+                }
+
+                if (inPassAllVisited)
+                {
+                    if (kInvalidIndex == getElemIndex(sortedPassIdx, currPassIdx)) {
+                        sortedPassIdx.push_back(currPassIdx);
+                    }
+
+                    passIdxStack.pop_back();
+                    onStack[currPassIdx] = false;
                 }
             }
 
-            if (inPassAllVisited)
-            {
-                if (kInvalidIndex == getElemIndex(sortedPassIdx, currPassIdx)) {
-                    sortedPassIdx.push_back(currPassIdx);
-                }
 
-                passIdxStack.pop();
-                onStack[currPassIdx] = false;
+            commonIdx =  validateSortedPasses(sortedPassIdx, passIdxToNode);
+
+            if (commonIdx == kInvalidIndex)
+            {
+                m_sortedPass.clear();
+                m_sortedPassIdx.clear();
+
+                // fill the sorted and clipped pass
+                for (uint16_t idx : sortedPassIdx)
+                {
+                    m_sortedPass.push_back(m_hPass[idx]);
+                }
+                m_sortedPassIdx = sortedPassIdx;
+
+                break;
+            }
+            else
+            {
+                uint32_t& combIdx = passCombinationIdx.find(commonIdx)->second;
+                combIdx++;
+
+                const stl::vector < stl::vector<uint16_t>>& combs = passCombinationMap.find(commonIdx)->second;
+                if (combIdx >= combs.size())
+                {
+                    message(error, "no valid combination found!");
+                    break;
+                }
             }
         }
-        
-        m_sortedPass.clear();
-        m_sortedPassIdx.clear();
-
-        // fill the sorted and clipped pass
-        size_t sz = 0;
-        for (uint16_t idx : sortedPassIdx)
-        {
-            message(info, "sorted pass Idx: %d/%d, Id: %d", idx, sortedPassIdx.size(), m_hPass[idx].id);
-            m_sortedPass.push_back(m_hPass[idx]);
-        }
-        m_sortedPassIdx = sortedPassIdx;
-
     }
 
     void Framegraph2::buildMaxLevelList(stl::vector<uint16_t>& _maxLvLst)
@@ -637,7 +844,7 @@ namespace vkz
             for (uint16_t inPassIdx : m_pass_dependency[passIdx].inPassIdxSet)
             {
                 uint16_t dd = _maxLvLst[inPassIdx] + 1;
-                maxLv = std::max(maxLv, dd);
+                maxLv = glm::max(maxLv, dd);
             }
 
             _maxLvLst[passIdx] = maxLv;
@@ -723,6 +930,8 @@ namespace vkz
                         // only first met would set the value
                         if ( isMatch) {
                             m_nearestSyncPassIdx[passIdx][qIdx] = pIdx;
+
+                            message(info, "pass %d to queue %d: %d", passIdx, qIdx, pIdx);
                             break;
                         }
                     }
@@ -817,11 +1026,11 @@ namespace vkz
                 push_back_unique(resInUseUniList, combRes);
             }
 
-            size_t aliasMapNum = rwRes.writeOpAliasMap.size();
+            size_t aliasMapNum = rwRes.writeOpForcedAliasMap.size();
             for (uint32_t ii = 0; ii < aliasMapNum; ++ii)
             {
-                CombinedResID writeOpIn = rwRes.writeOpAliasMap.getIdAt(ii);
-                CombinedResID writeOpOut = rwRes.writeOpAliasMap.getDataAt(ii);
+                CombinedResID writeOpIn = rwRes.writeOpForcedAliasMap.getIdAt(ii);
+                CombinedResID writeOpOut = rwRes.writeOpForcedAliasMap.getDataAt(ii);
 
                 push_back_unique(writeResUniList, writeOpOut);
                 push_back_unique(resToOptmUniList, writeOpOut);
@@ -847,10 +1056,10 @@ namespace vkz
                 resToOptmPassIdxByOrder[usedIdx].push_back(ii); // store the idx in ordered pass
             }
 
-            size_t aliasMapNum = rwRes.writeOpAliasMap.size();
+            size_t aliasMapNum = rwRes.writeOpForcedAliasMap.size();
             for (uint32_t alisMapIdx = 0; alisMapIdx < aliasMapNum; ++alisMapIdx)
             {
-                CombinedResID writeOpOut = rwRes.writeOpAliasMap.getDataAt(alisMapIdx);
+                CombinedResID writeOpOut = rwRes.writeOpForcedAliasMap.getDataAt(alisMapIdx);
                 const size_t usedIdx = getElemIndex(resToOptmUniList, writeOpOut);
                 resToOptmPassIdxByOrder[usedIdx].push_back(ii); // store the idx in ordered pass
             }
@@ -1626,11 +1835,11 @@ namespace vkz
                 }
 
                 // write operation out aliases
-                uint32_t aliasMapNum = (uint32_t)rwRes.writeOpAliasMap.size();
+                uint32_t aliasMapNum = (uint32_t)rwRes.writeOpForcedAliasMap.size();
                 for (uint32_t ii = 0; ii < aliasMapNum; ++ii)
                 {
-                    const CombinedResID writeOpIn = rwRes.writeOpAliasMap.getIdAt(ii);
-                    const CombinedResID writeOpOut = rwRes.writeOpAliasMap.getDataAt(ii);
+                    const CombinedResID writeOpIn = rwRes.writeOpForcedAliasMap.getIdAt(ii);
+                    const CombinedResID writeOpOut = rwRes.writeOpForcedAliasMap.getDataAt(ii);
 
                     writeOpAliasMap.push_back(writeOpIn, writeOpOut);
                 }
