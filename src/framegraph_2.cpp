@@ -495,11 +495,11 @@ namespace vkz
     {
         stl::unordered_map<CombinedResID, uint16_t> linear_writeResPassIdxMap;
 
-        std::set<CombinedResID> writeOpInSetO{};
+        stl::unordered_set<CombinedResID> writeOpInSetO{};
         for (uint16_t ii = 0; ii < m_hPass.size(); ++ii)
         {
             PassRWResource rwRes = m_pass_rw_res[ii];
-            std::set<CombinedResID> writeOpInSet{};
+            stl::unordered_set<CombinedResID> writeOpInSet{};
 
             size_t aliasMapNum = rwRes.writeOpForcedAliasMap.size();
             for (uint32_t jj = 0; jj < aliasMapNum; ++jj)
@@ -514,7 +514,7 @@ namespace vkz
 
             for (const CombinedResID combinedRes : rwRes.writeCombinedRes)
             {
-                if(writeOpInSet.find(combinedRes) == end(writeOpInSet)){
+                if(writeOpInSet.find(combinedRes) == writeOpInSet.end()){
                     message(error, "what? there is res written but not added to writeOpInSet? check the vkz part!");
                 }
             }
@@ -536,7 +536,7 @@ namespace vkz
         {
             const PassRWResource rwRes = m_pass_rw_res[ii];
 
-            std::set<CombinedResID> resReadInPass{}; // includes two type of resources: 1. read in current pass. 2. resource alias before write.
+            stl::unordered_set<CombinedResID> resReadInPass{}; // includes two type of resources: 1. read in current pass. 2. resource alias before write.
             
             size_t aliasMapNum = rwRes.writeOpForcedAliasMap.size();
             
@@ -1706,7 +1706,7 @@ namespace vkz
 
     void Framegraph2::createSamplers()
     {
-        std::set<uint16_t> usedSamplers{};
+        stl::unordered_set<uint16_t> usedSamplers{};
         for (PassHandle pass : m_sortedPass)
         {
             const size_t passIdx = getElemIndex(m_hPass, pass);

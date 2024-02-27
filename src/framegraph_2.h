@@ -303,8 +303,8 @@ namespace vkz
 
         struct PassDependency
         {
-            std::set<uint16_t> inPassIdxSet;
-            std::set<uint16_t> outPassIdxSet;
+            stl::unordered_set<uint16_t> inPassIdxSet;
+            stl::unordered_set<uint16_t> outPassIdxSet;
         };
 
         // for optimize
