@@ -190,7 +190,6 @@ namespace vkz
         Swapchain_vk old = result;
         createSwapchain(result, physicalDevice, device, surface, familyIndex, format, old.swapchain);
 
-
         VK_CHECK(vkDeviceWaitIdle(device));
         destroySwapchain(device, old);
 

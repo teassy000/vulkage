@@ -75,18 +75,18 @@ namespace vkz
 
         inline const char* getName(const HandleSignature id);
 
-        void getPrefix(String& _outStr, HandleType _type, bool _isAlias);
+        inline void getPrefix(String& _outStr, HandleType _type, bool _isAlias);
         
     private:
         stl::unordered_map<HandleSignature, String> _idToName;
     };
 
-    NameManager::NameManager()
+    inline NameManager::NameManager()
     {
         _idToName.clear();
     }
 
-    NameManager::~NameManager()
+    inline NameManager::~NameManager()
     {
         _idToName.clear();
     }
@@ -111,7 +111,7 @@ namespace vkz
         return _idToName[id].getCStr();
     }
 
-    void NameManager::getPrefix(String& _inStr , HandleType _type, bool _isAlias)
+    inline void NameManager::getPrefix(String& _inStr , HandleType _type, bool _isAlias)
     {
         if (HandleType::unknown == _type)
         {

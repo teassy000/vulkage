@@ -168,12 +168,14 @@ namespace vkz
     class RHIContext_vk : public RHIContext
     {
     public:
-        RHIContext_vk(AllocatorI* _allocator, RHI_Config _config, void* _wnd);
+        RHIContext_vk(AllocatorI* _allocator, NameManager* _nameManager, RHI_Config _config, void* _wnd);
 
         ~RHIContext_vk() override;
         void init(RHI_Config _config, void* _wnd) override;
         void bake() override;
         bool render() override;
+
+        void resizeBackbuffers(uint32_t _width, uint32_t _height) override;
 
         void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ) override;
         void updateBuffer(BufferHandle _hBuf,  const void* _data, uint32_t _size) override;
@@ -216,11 +218,14 @@ namespace vkz
         void createBuffer(MemoryReader& _reader) override;
         void createSampler(MemoryReader& _reader) override;
         void createImageView(MemoryReader& _reader) override;
+        void setBackBuffers(MemoryReader& _reader) override;
         void setBrief(MemoryReader& _reader) override;
 
     private:
         void createInstance();
         void createPhysicalDevice();
+
+        void recreateBackBuffers();
 
         // private pass
         // e.g. upload buffer, copy image, etc.
@@ -278,7 +283,9 @@ namespace vkz
 
         UniDataContainer<uint16_t, ImageViewDesc> m_imageViewDescContainer;
         UniDataContainer<uint16_t, BufferCreateInfo> m_bufferCreateInfoContainer;
-        UniDataContainer<uint16_t, ImageCreateInfo> m_imageCreateInfoContainer;
+        UniDataContainer<uint16_t, ImageCreateInfo> m_imageInitPropContainer;
+
+        stl::unordered_set<uint16_t> m_backBufferIds;
 
         Buffer_vk m_scratchBuffer;
 
@@ -286,8 +293,16 @@ namespace vkz
         stl::vector<uint32_t>           m_progThreadCount;
 
         UniDataContainer< uint16_t, uint16_t> m_aliasToBaseImages;
-
         UniDataContainer< uint16_t, uint16_t> m_aliasToBaseBuffers;
+
+        stl::unordered_map<uint16_t, uint16_t> m_imgToViewGroupIdx;
+        stl::vector<stl::vector<ImageViewHandle>> m_imgViewGroups;
+
+        stl::unordered_map<uint16_t, uint32_t> m_imgIdToAliasGroupIdx;
+        stl::vector<stl::vector<ImageAliasInfo>> m_imgAliasGroups;
+
+        stl::unordered_map<uint16_t, uint16_t> m_bufIdToAliasGroupIdx;
+        stl::vector<stl::vector<BufferAliasInfo>> m_bufAliasGroups;
 
         RHIBrief m_brief;
 
@@ -310,6 +325,9 @@ namespace vkz
 
         uint32_t m_swapChainImageIndex{0};
 
+        uint32_t m_backBufferWidth;
+        uint32_t m_backBufferHeight;
+
         VkSemaphore m_acquirSemaphore;
         VkSemaphore m_releaseSemaphore;
 
@@ -330,5 +348,6 @@ namespace vkz
 
         // custom command list
         CmdList_vk*  m_cmdList;
+
     };
 } // namespace vkz

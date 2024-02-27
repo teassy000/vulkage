@@ -8,6 +8,7 @@
 #include "rhi_context_vk.h"
 
 #include <algorithm> //sort
+#include "name.h"
 
 
 namespace vkz
@@ -998,8 +999,25 @@ namespace vkz
         return cmdPool;
     }
 
-    RHIContext_vk::RHIContext_vk(AllocatorI* _allocator, RHI_Config _config, void* _wnd)
-        : RHIContext(_allocator)
+    ImgInitProps_vk getImageInitProp(const ImageCreateInfo& info, VkFormat _defaultColorFormat, VkFormat _defaultDepthFormat)
+    {
+        ImgInitProps_vk props{};
+        props.level = info.mipLevels;
+        props.width = info.width;
+        props.height = info.height;
+        props.depth = info.depth;
+        props.format = getValidFormat(info.format, info.usage, _defaultColorFormat, _defaultColorFormat);
+        props.usage = getImageUsageFlags(info.usage);
+        props.type = getImageType(info.type);
+        props.layout = getImageLayout(info.layout);
+        props.viewType = getImageViewType(info.viewType);
+        props.aspectMask = getImageAspectFlags(info.aspectFlags);
+
+        return props;
+    }
+
+    RHIContext_vk::RHIContext_vk(AllocatorI* _allocator, NameManager* _nameManager, RHI_Config _config, void* _wnd)
+        : RHIContext(_allocator, _nameManager)
         , m_instance{ VK_NULL_HANDLE }
         , m_device{ VK_NULL_HANDLE }
         , m_phyDevice{ VK_NULL_HANDLE }
@@ -1155,7 +1173,19 @@ namespace vkz
 
         if(swapchainStatus == SwapchainStatus_vk::resize)
         {
-            // TODO: recreate images
+            // TODO: remove old swapchain images from barriers first
+            assert(0);
+
+            // fill the image to barrier
+            for (uint32_t ii = 0; ii < m_swapchain.imageCount; ++ii)
+            {
+                m_barrierDispatcher.addImage(m_swapchain.images[ii]
+                    , VK_IMAGE_ASPECT_COLOR_BIT
+                    , { 0, VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT }
+                );
+            }
+
+            recreateBackBuffers();
         }
 
         uint32_t imageIndex = 0;
@@ -1217,6 +1247,12 @@ namespace vkz
         return true;
     }
 
+    void RHIContext_vk::resizeBackbuffers(uint32_t _width, uint32_t _height)
+    {
+        m_backBufferWidth = _width;
+        m_backBufferHeight = _height;
+    }
+
     void RHIContext_vk::updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ)
     {
         VKZ_ZoneScopedC(Color::indian_red);
@@ -1276,10 +1312,10 @@ namespace vkz
         
         if (nullptr != passInfo.renderFuncDataPtr)
         {
-            free(getAllocator(), passInfo.renderFuncDataPtr);
+            free(allocator(), passInfo.renderFuncDataPtr);
         }
 
-        void * mem = alloc(getAllocator(), _size);
+        void * mem = alloc(allocator(), _size);
         memcpy(mem, _data, _size);
 
         passInfo.renderFuncDataPtr = mem;
@@ -1580,38 +1616,30 @@ namespace vkz
         ImageCreateInfo info;
         read(&_reader, info);
 
-        ImageAliasInfo* resArr = new ImageAliasInfo[info.aliasNum];
-        read(&_reader, resArr, sizeof(ImageAliasInfo) * info.aliasNum);
+        ImageAliasInfo* resArr = new ImageAliasInfo[info.resCount];
+        read(&_reader, resArr, sizeof(ImageAliasInfo) * info.resCount);
 
         // so the res handle should map to the real buffer array
-        stl::vector<ImageAliasInfo> infoList(resArr, resArr + info.aliasNum);
+        stl::vector<ImageAliasInfo> infoList(resArr, resArr + info.resCount);
 
-        ImgInitProps_vk initPorps{};
-        initPorps.level = info.mipLevels;
-        initPorps.width = info.width;
-        initPorps.height = info.height;
-        initPorps.depth = info.depth;
-        initPorps.format = getValidFormat(info.format, info.usage, m_imageFormat, m_depthFormat);
-        initPorps.usage = getImageUsageFlags(info.usage);
-        initPorps.type = getImageType(info.type);
-        initPorps.layout = getImageLayout(info.layout);
-        initPorps.viewType = getImageViewType( info.viewType);
-        initPorps.aspectMask = getImageAspectFlags(info.aspectFlags);
+        ImgInitProps_vk initPorps = getImageInitProp(info, m_imageFormat, m_depthFormat);
 
         stl::vector<Image_vk> images;
         vkz::createImage(images, infoList, m_device, m_memProps, initPorps);
+        assert(images.size() == info.resCount);
 
-        assert(images.size() == info.aliasNum);
+        m_imageInitPropContainer.push_back(info.imgId, info);
 
-        for (int ii = 0; ii < info.aliasNum; ++ii)
+        for (int ii = 0; ii < info.resCount; ++ii)
         {
             m_imageContainer.push_back(resArr[ii].imgId, images[ii]);
             m_aliasToBaseImages.push_back(resArr[ii].imgId, info.imgId);
+            m_imgIdToAliasGroupIdx.insert({ resArr[ii].imgId, (uint32_t)m_imgAliasGroups.size() });
         }
+        m_imgAliasGroups.emplace_back(infoList);
 
-        m_imageCreateInfoContainer.push_back(info.imgId, info);
 
-        const Image_vk& baseImage = getImage(info.imgId);
+        const Image_vk& baseImage = getImage(info.imgId, true);
         for (uint32_t ii = 0; ii < info.viewCount; ++ii)
         {
             const ImageViewHandle imgView = info.mipViews[ii];
@@ -1621,7 +1649,12 @@ namespace vkz
             m_imageViewContainer.push_back(imgView.id, view_vk);
         }
 
-        for (int ii = 0; ii < info.aliasNum; ++ii)
+        m_imgToViewGroupIdx.insert({ info.imgId, (uint16_t)m_imgViewGroups.size() });
+
+        stl::vector<ImageViewHandle> viewHandles(info.mipViews, info.mipViews + info.viewCount);
+        m_imgViewGroups.push_back(viewHandles);
+
+        for (int ii = 0; ii < info.resCount; ++ii)
         {
             ResInteractDesc interact{ info.barrierState };
 
@@ -1646,29 +1679,31 @@ namespace vkz
         BufferCreateInfo info;
         read(&_reader, info);
 
-        BufferAliasInfo* resArr = new BufferAliasInfo[info.aliasNum];
-        read(&_reader, resArr, sizeof(BufferAliasInfo) * info.aliasNum);
+        BufferAliasInfo* resArr = new BufferAliasInfo[info.resCount];
+        read(&_reader, resArr, sizeof(BufferAliasInfo) * info.resCount);
 
         // so the res handle should map to the real buffer array
-        stl::vector<BufferAliasInfo> infoList(resArr, resArr + info.aliasNum);
+        stl::vector<BufferAliasInfo> infoList(resArr, resArr + info.resCount);
 
         stl::vector<Buffer_vk> buffers;
         vkz::createBuffer(buffers, infoList, m_memProps, m_device, getBufferUsageFlags(info.usage), getMemPropFlags(info.memFlags));
 
-        assert(buffers.size() == info.aliasNum);
+        assert(buffers.size() == info.resCount);
 
-        for (int ii = 0; ii < info.aliasNum; ++ii)
+        for (int ii = 0; ii < info.resCount; ++ii)
         {
             buffers[ii].fillVal = info.fillVal;
             m_bufferContainer.push_back(resArr[ii].bufId, buffers[ii]);
-
             m_aliasToBaseBuffers.push_back(resArr[ii].bufId, info.bufId);
+
+            m_bufIdToAliasGroupIdx.insert({ resArr[ii].bufId, (uint16_t)m_bufAliasGroups.size() });
         }
+        m_bufAliasGroups.emplace_back(infoList);
 
         m_bufferCreateInfoContainer.push_back(info.bufId, info);
 
         const Buffer_vk& baseBuffer = getBuffer(info.bufId);
-        for (int ii = 0; ii < info.aliasNum; ++ii)
+        for (int ii = 0; ii < info.resCount; ++ii)
         {
             ResInteractDesc interact{ info.barrierState };
             m_barrierDispatcher.addBuffer(buffers[ii].buffer
@@ -1714,6 +1749,22 @@ namespace vkz
         m_imageViewDescContainer.push_back(desc.imgViewId, desc);
     }
 
+    void RHIContext_vk::setBackBuffers(MemoryReader& _reader)
+    {
+        VKZ_ZoneScopedC(Color::indian_red);
+
+        uint32_t count;
+        read(&_reader, count);
+
+        stl::vector<uint16_t> ids(count);
+        read(&_reader, ids.data(), count * sizeof(uint16_t));
+
+        for (uint16_t id : ids)
+        {
+            m_backBufferIds.insert(id);
+        }
+    }
+
     void RHIContext_vk::setBrief(MemoryReader& _reader)
     {
         VKZ_ZoneScopedC(Color::indian_red);
@@ -1742,6 +1793,91 @@ namespace vkz
 
         m_phyDevice = vkz::pickPhysicalDevice(physicalDevices, deviceCount);
         assert(m_phyDevice);
+    }
+
+    void RHIContext_vk::recreateBackBuffers()
+    {
+        // destroy images
+        for (uint16_t id : m_backBufferIds)
+        {
+            uint32_t aliasGroupIdx = m_imgIdToAliasGroupIdx.find(id)->second;
+            const stl::vector<ImageAliasInfo>& aliases = m_imgAliasGroups[aliasGroupIdx];
+
+            stl::vector<Image_vk> images;
+            for (ImageAliasInfo aliasInfo : aliases)
+            {
+                images.push_back(m_imageContainer.getIdToData(aliasInfo.imgId));
+            }
+
+            // remove barriers
+            for (const Image_vk& img : images)
+            {
+                m_barrierDispatcher.removeImage(img.image);
+            }
+
+            // destroy Image
+            vkz::destroyImage(m_device, images);
+            
+            // destroy image views
+            uint16_t baseId = m_aliasToBaseImages.getIdToData(id);
+            auto it = m_imgToViewGroupIdx.find(baseId);
+            if (it != m_imgToViewGroupIdx.end())
+            {
+                const stl::vector<ImageViewHandle>& viewHandles = m_imgViewGroups[it->second];
+                for (ImageViewHandle view : viewHandles)
+                {
+                    vkDestroyImageView(m_device, m_imageViewContainer.getIdToData(view.id), nullptr);
+                }
+            }
+        }
+        // create images
+        for (uint16_t id : m_backBufferIds)
+        {
+            uint32_t aliasGroupIdx = m_imgIdToAliasGroupIdx.find(id)->second;
+            const stl::vector<ImageAliasInfo>& aliases = m_imgAliasGroups[aliasGroupIdx];
+
+            uint16_t baseId = m_aliasToBaseImages.getIdToData(id);
+            ImageCreateInfo& createInfo = m_imageInitPropContainer.getDataRef(baseId);
+            createInfo.width = m_swapchain.width;
+            createInfo.height = m_swapchain.height;
+
+            ImgInitProps_vk initPorps = getImageInitProp(createInfo, m_imageFormat, m_depthFormat);
+
+            //image
+            stl::vector<Image_vk> images;
+            vkz::createImage(images, aliases, m_device, m_memProps, initPorps);
+
+            for (uint16_t ii = 0 ; ii < aliases.size(); ++ii)
+            {
+                m_imageContainer.update_data(aliases[ii].imgId, images[ii]);
+            }
+
+            // views
+            const Image_vk& baseImg = m_imageContainer.getIdToData(baseId);
+            auto it = m_imgToViewGroupIdx.find(baseId);
+            if (it != m_imgToViewGroupIdx.end())
+            {
+                const stl::vector<ImageViewHandle>& viewHandles = m_imgViewGroups[it->second];
+
+                for (ImageViewHandle view : viewHandles)
+                {
+                    const ImageViewDesc& viewDesc = m_imageViewDescContainer.getIdToData(view.id);
+                    VkImageView view_vk = vkz::createImageView(m_device, baseImg.image, baseImg.format, viewDesc.baseMip, viewDesc.mipLevels);
+                    m_imageViewContainer.update_data(view.id, view_vk);
+                }
+            }
+
+            for (int ii = 0; ii < aliases.size(); ++ii)
+            {
+                ResInteractDesc interact{ createInfo.barrierState };
+
+                m_barrierDispatcher.addImage(images[ii].image
+                    , getImageAspectFlags(images[ii].aspectMask)
+                    , { getAccessFlags(interact.access), getImageLayout(interact.layout) ,getPipelineStageFlags(interact.stage) }
+                    , baseImg.image
+                );
+            }
+        }
     }
 
     void RHIContext_vk::uploadBuffer(const uint16_t _bufId, const void* data, uint32_t size)

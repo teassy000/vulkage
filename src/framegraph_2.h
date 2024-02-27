@@ -2,6 +2,7 @@
 
 #include "memory_operation.h"
 #include "vkz_structs_inner.h"
+#include "name.h"
 #include "common.h"
 #include "util.h"
 
@@ -23,6 +24,8 @@ namespace vkz
         register_image,
         register_image_view,
         register_sampler,
+
+        store_back_buffer,
 
         force_alias_buffer,
         force_alias_image,
@@ -131,8 +134,9 @@ namespace vkz
     class Framegraph2
     {
     public:
-        Framegraph2(AllocatorI* _allocator, MemoryBlockI* _rhiMem)
+        Framegraph2(AllocatorI* _allocator, NameManager* _nameManager, MemoryBlockI* _rhiMem)
             : m_pAllocator{ _allocator }
+            , m_pNamaManager{ _nameManager }
             , m_pCreatorMemBlock {_rhiMem}
             , m_rhiMemWriter{ _rhiMem }
         { 
@@ -170,6 +174,8 @@ namespace vkz
 
         void registerSampler(MemoryReader& _reader);
         void registerImageView(MemoryReader& _reader);
+
+        void storeBackBuffer(MemoryReader& _reader);
 
         uint32_t readResource(const stl::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type);
         uint32_t writeResource(const stl::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type);
@@ -328,6 +334,7 @@ namespace vkz
 
     private:
         AllocatorI* m_pAllocator;
+        NameManager* m_pNamaManager;
         MemoryBlockI* m_pMemBlock;
 
         MemoryBlockI* m_pCreatorMemBlock;
@@ -352,6 +359,8 @@ namespace vkz
         stl::vector< PassMetaDataRef>   m_sparse_pass_data_ref;
         stl::vector< SamplerMetaData >  m_sparse_sampler_meta;
         stl::vector< ImageViewDesc >    m_sparse_img_view_desc;
+
+        stl::unordered_set< uint16_t >      m_backBufferSet;
         
         stl::vector< std::string>           m_shader_path;
 

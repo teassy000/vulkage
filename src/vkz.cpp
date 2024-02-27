@@ -20,6 +20,7 @@
 namespace vkz
 {
     static AllocatorI* s_allocator = nullptr;
+    static NameManager* s_nameManager = nullptr;
 
     static AllocatorI* getAllocator()
     {
@@ -35,6 +36,18 @@ namespace vkz
     {
         deleteObject(getAllocator(), s_allocator);
     }
+
+    static NameManager* getNameManager()
+    {
+        if (s_nameManager == nullptr)
+        {
+            s_nameManager = VKZ_NEW(getAllocator(), NameManager);
+        }
+
+        return s_nameManager;
+    }
+
+
 
     uint16_t getBytesPerPixel(ResourceFormat _format)
     {
@@ -146,10 +159,13 @@ namespace vkz
         bool shouldClose();
         void update();
         void shutdown();
+        void getWindowSize(uint32_t& _width, uint32_t& _height);
         GLFWwindow* getWindow() { return m_pWindow; }
 
     private:
         GLFWwindow* m_pWindow;
+        uint32_t m_width;
+        uint32_t m_height;
     };
 
     bool GLFWManager::init(uint32_t _w, uint32_t _h, const char* _name)
@@ -161,6 +177,9 @@ namespace vkz
 
         m_pWindow = glfwCreateWindow(_w, _h, _name, nullptr, nullptr);
         assert(m_pWindow);
+
+        m_width = _w;
+        m_height = _h;
 
         /*
         glfwSetKeyCallback(window, keyCallback);
@@ -179,12 +198,20 @@ namespace vkz
     void GLFWManager::update()
     {
         glfwPollEvents();
+        int newWindowWidth = 0, newWindowHeight = 0;
+        glfwGetWindowSize(m_pWindow, &newWindowWidth, &newWindowHeight);
     }
 
     void GLFWManager::shutdown()
     {
         glfwDestroyWindow(m_pWindow);
         glfwTerminate();
+    }
+
+    void GLFWManager::getWindowSize(uint32_t& _width, uint32_t& _height)
+    {
+        _width = m_width;
+        _height = m_height;
     }
 
     constexpr uint8_t kTouched = 1;
@@ -244,6 +271,8 @@ namespace vkz
 
         void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx, const ImageHandle _outAlias);
 
+        void resizeTexture(ImageHandle _hImg, uint32_t _width, uint32_t _height);
+
         void fillBuffer(const PassHandle _hPass, const BufferHandle _hBuf, const uint32_t _offset, const uint32_t _size, const uint32_t _value, const BufferHandle _outAlias);
 
         void setMultiFrame(ImageHandle _img);
@@ -268,11 +297,15 @@ namespace vkz
         void storeImageData();
         void storeAliasData();
         void storeSamplerData();
+        void storeBackBufferData();
 
         void init();
         bool shouldClose();
+
         void run();
         void bake();
+        void getWindowSize(uint32_t& _width, uint32_t _height);
+        void resizeBackBuffer(uint32_t _windth, uint32_t _height);
         void render();
         void shutdown();
 
@@ -310,6 +343,9 @@ namespace vkz
         UniDataContainer<PassHandle, stl::vector<WriteOperationAlias>> m_writeForcedBufferAliases; // add a dependency line to the write resource
         UniDataContainer<PassHandle, stl::vector<WriteOperationAlias>> m_writeForcedImageAliases; // add a dependency line to the write resource
 
+        // back buffers
+        stl::vector<ImageHandle> m_backBuffers;
+
         // binding
         UniDataContainer<PassHandle, stl::vector<uint32_t>> m_usedBindPoints;
         UniDataContainer<PassHandle, stl::vector<uint32_t>> m_usedAttchBindPoints;
@@ -339,7 +375,7 @@ namespace vkz
         AllocatorI* m_pAllocator{ nullptr };
 
         // name manager
-        NameManager* m_nameManager{ nullptr };
+        NameManager* m_pNameManager{ nullptr };
 
         // glfw
         char m_windowTitle[256];
@@ -475,7 +511,7 @@ namespace vkz
 
         m_shaderDescs.push_back({ idx }, _path);
         
-        setName(m_nameManager, _name, strlen(_name), handle);
+        setName(m_pNameManager, _name, strlen(_name), handle);
 
         setRenderGraphDataDirty();
 
@@ -502,7 +538,7 @@ namespace vkz
         release(_mem);
         m_programDescs.push_back({ idx }, desc);
 
-        setName(m_nameManager, _name, strlen(_name), handle);
+        setName(m_pNameManager, _name, strlen(_name), handle);
 
         setRenderGraphDataDirty();
 
@@ -527,7 +563,7 @@ namespace vkz
 
         m_oneOpPassTouched.push_back({ idx }, kUnTouched);
 
-        setName(m_nameManager, _name, strlen(_name), handle);
+        setName(m_pNameManager, _name, strlen(_name), handle);
 
         setRenderGraphDataDirty();
 
@@ -557,7 +593,7 @@ namespace vkz
 
         m_bufferMetas.push_back({ idx }, meta);
 
-        setName(m_nameManager, _name, strlen(_name), handle);
+        setName(m_pNameManager, _name, strlen(_name), handle);
 
         setRenderGraphDataDirty();
 
@@ -583,7 +619,7 @@ namespace vkz
 
         m_imageMetas.push_back({ idx }, meta);
 
-        setName(m_nameManager, _name, strlen(_name), handle);
+        setName(m_pNameManager, _name, strlen(_name), handle);
 
         setRenderGraphDataDirty();
 
@@ -623,9 +659,11 @@ namespace vkz
         meta.aspectFlags = ImageAspectFlagBits::color;
         meta.lifetime = _lifetime;
 
-        m_imageMetas.push_back({ idx }, meta);
+        m_imageMetas.push_back(handle, meta);
 
-        setName(m_nameManager, _name, strlen(_name), handle);
+        m_backBuffers.push_back(handle);
+
+        setName(m_pNameManager, _name, strlen(_name), handle);
 
         setRenderGraphDataDirty();
 
@@ -666,9 +704,11 @@ namespace vkz
         meta.aspectFlags = ImageAspectFlagBits::depth;
         meta.lifetime = _lifetime;
 
-        m_imageMetas.push_back({ idx }, meta);
+        m_imageMetas.push_back(handle, meta);
 
-        setName(m_nameManager, _name, strlen(_name), handle);
+        m_backBuffers.push_back(handle);
+        setName(m_pNameManager, _name, strlen(_name), handle);
+
 
         setRenderGraphDataDirty();
 
@@ -705,7 +745,7 @@ namespace vkz
 
         imgMeta.mipViews[imgMeta.viewCount] = handle;
 
-        setName(m_nameManager, _name, strlen(_name), handle);
+        setName(m_pNameManager, _name, strlen(_name), handle);
 
         setRenderGraphDataDirty();
 
@@ -914,7 +954,6 @@ namespace vkz
                     , (uint32_t)(sizeof(WriteOperationAlias) * passMeta.writeBufAliasNum));
             }
 
-
             write(m_fgMemWriter, MagicTag::magic_body_end);
         }
     }
@@ -1089,6 +1128,18 @@ namespace vkz
 
             write(m_fgMemWriter, MagicTag::magic_body_end);
         }
+    }
+
+    void Context::storeBackBufferData()
+    {
+        for (ImageHandle hImg : m_backBuffers)
+        {
+            MagicTag magic{ MagicTag::store_back_buffer };
+            write(m_fgMemWriter, magic);
+            write(m_fgMemWriter, hImg.id);
+            write(m_fgMemWriter, MagicTag::magic_body_end);
+        }
+
     }
 
     BufferHandle Context::aliasBuffer(const BufferHandle _baseBuf)
@@ -1488,6 +1539,11 @@ namespace vkz
         setRenderGraphDataDirty();
     }
 
+    void Context::resizeTexture(ImageHandle _hImg, uint32_t _width, uint32_t _height)
+    {
+
+    }
+
     void Context::fillBuffer(const PassHandle _hPass, const BufferHandle _hBuf, const uint32_t _offset, const uint32_t _size, const uint32_t _value, const BufferHandle _outAlias)
     {
 
@@ -1600,6 +1656,7 @@ namespace vkz
     void Context::init()
     {
         m_pAllocator = getAllocator();
+        m_pNameManager = getNameManager();
 
         // init glfw
         m_glfwManager.init(m_renderWidth, m_renderHeight, m_windowTitle);
@@ -1609,14 +1666,12 @@ namespace vkz
         RHI_Config rhiConfig{};
         rhiConfig.windowWidth = m_renderWidth;
         rhiConfig.windowHeight = m_renderHeight;
-        m_rhiContext = VKZ_NEW(m_pAllocator, RHIContext_vk(m_pAllocator, rhiConfig, wnd));
+        m_rhiContext = VKZ_NEW(m_pAllocator, RHIContext_vk(m_pAllocator, m_pNameManager, rhiConfig, wnd));
 
-        m_frameGraph = VKZ_NEW(m_pAllocator, Framegraph2(m_pAllocator, m_rhiContext->getMemoryBlock()));
+        m_frameGraph = VKZ_NEW(m_pAllocator, Framegraph2(m_pAllocator, m_pNameManager, m_rhiContext->memoryBlock()));
 
         m_pFgMemBlock = m_frameGraph->getMemoryBlock();
         m_fgMemWriter = VKZ_NEW(m_pAllocator, MemoryWriter(m_pFgMemBlock));
-
-        m_nameManager = VKZ_NEW(m_pAllocator, NameManager);
 
         setRenderGraphDataDirty();
     }
@@ -1668,6 +1723,16 @@ namespace vkz
         m_rhiContext->bake();
     }
 
+    void Context::getWindowSize(uint32_t& _width, uint32_t _height)
+    {
+        m_glfwManager.getWindowSize(_width, _height);
+    }
+
+    void Context::resizeBackBuffer(uint32_t _windth, uint32_t _height)
+    {
+
+    }
+
     void Context::render()
     {
         m_rhiContext->render();
@@ -1675,7 +1740,6 @@ namespace vkz
 
     void Context::shutdown()
     {
-        deleteObject(m_pAllocator, m_nameManager);
         deleteObject(m_pAllocator, m_frameGraph);
         deleteObject(m_pAllocator, m_rhiContext);
         deleteObject(m_pAllocator, m_fgMemWriter);
@@ -1790,6 +1854,12 @@ namespace vkz
         s_ctx->setAttachmentOutput(_hPass, _hImg, _attachmentIdx, _outAlias);
     }
 
+
+    void resizeTexture(ImageHandle _hImg, uint32_t _width, uint32_t _height)
+    {
+        s_ctx->resizeTexture(_hImg, _width, _height);
+    }
+
     void fillBuffer(const PassHandle _hPass, const BufferHandle _hBuf, const uint32_t _offset, const uint32_t _size, const uint32_t _value, const BufferHandle _outAlias)
     {
         s_ctx->fillBuffer(_hPass, _hBuf, _offset, _size, _value, _outAlias);
@@ -1895,6 +1965,16 @@ namespace vkz
     void bake()
     {
         s_ctx->bake();
+    }
+
+    void getWindowSize(uint32_t& _width, uint32_t _height)
+    {
+        s_ctx->getWindowSize(_width, _height);
+    }
+
+    void resizeBackBuffer(uint32_t _width, uint32_t _height)
+    {
+        s_ctx->resizeBackBuffer(_width, _height);
     }
 
     void run()

@@ -1,5 +1,12 @@
 #pragma once
 
+/*
+ * Copyright 2010-2023 Branimir Karadzic. All rights reserved.
+ * License: https://github.com/bkaradzic/bx/blob/master/LICENSE
+ */
+
+// with modifications to fit current porject
+
 #include "common.h"
 #include "alloc.h"
 
@@ -8,21 +15,21 @@ namespace vkz
     class StringView
     {
     public:
-        StringView();
+        inline StringView();
 
-        StringView(const StringView& _other);
+        inline StringView(const StringView& _other);
 
-        StringView(const StringView& _other, int32_t _start, int32_t _len);
+        inline StringView(const StringView& _other, int32_t _start, int32_t _len);
 
-        StringView(const char* _ptr);
+        inline StringView(const char* _ptr);
 
-        StringView(const char* _ptr, int32_t _len);
+        inline StringView(const char* _ptr, int32_t _len);
 
-        StringView(const char* _ptr, const char* _term);
+        inline StringView(const char* _ptr, const char* _term);
 
-        StringView& operator=(const StringView& _other);
+        inline StringView& operator=(const StringView& _other);
 
-        StringView& operator=(const char* _ptr);
+        inline StringView& operator=(const char* _ptr);
 
         inline void set(const char* _ptr);
 

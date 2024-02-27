@@ -1,6 +1,11 @@
 #pragma once
 
-// copy from bgfx, with modifications
+/*
+ * Copyright 2010-2023 Branimir Karadzic. All rights reserved.
+ * License: https://github.com/bkaradzic/bx/blob/master/LICENSE
+ */
+
+ // with modifications to fit current project
 
 #include "alloc.h"
 

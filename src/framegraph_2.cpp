@@ -88,6 +88,11 @@ namespace vkz
                 registerImageView(reader);
                 break;
             }
+            // back-buffers
+            case MagicTag::store_back_buffer: {
+                storeBackBuffer(reader);
+                break;
+            }
             // Alias
             case MagicTag::force_alias_buffer: {
                 aliasResForce(reader, ResourceType::buffer);
@@ -295,6 +300,14 @@ namespace vkz
 
         m_hImgView.push_back({ meta.imgViewId });
         m_sparse_img_view_desc[meta.imgViewId] = meta;
+    }
+
+    void Framegraph2::storeBackBuffer(MemoryReader& _reader)
+    {
+        uint16_t id;
+        read(&_reader, id);
+
+        m_backBufferSet.insert( id );
     }
 
     const ResInteractDesc merge(const ResInteractDesc& _desc0, const ResInteractDesc& _desc1)
@@ -1535,13 +1548,13 @@ namespace vkz
             info.fillVal = bkt.desc.fillVal;
             info.memFlags = bkt.desc.memFlags;
             info.usage = bkt.desc.usage;
-            info.aliasNum = (uint16_t)bkt.reses.size();
+            info.resCount = (uint16_t)bkt.reses.size();
 
             info.barrierState = bkt.initialBarrierState;
 
             write(&m_rhiMemWriter, info);
 
-            if (info.aliasNum > 1)
+            if (info.resCount > 1)
             {
                 assert(info.data == nullptr);
             }
@@ -1565,6 +1578,7 @@ namespace vkz
     {
         // setup image view metas
         stl::vector<ImageViewDesc> imgViewDescs{};
+        stl::vector<uint16_t> backbuffers{};
         imgViewDescs.reserve(m_sparse_img_view_desc.size());
         for (const ImgBucket& bkt : m_imgBuckets)
         {
@@ -1575,6 +1589,12 @@ namespace vkz
                 for (uint32_t ii = 0 ; ii < info.viewCount; ++ii )
                 {
                     imgViewDescs.push_back(m_sparse_img_view_desc[info.mipViews[ii].id]);
+                }
+
+                // if it is back buffer
+                if (m_backBufferSet.find(cid.id) != m_backBufferSet.end() )
+                {
+                    backbuffers.push_back(cid.id);
                 }
             }
         }
@@ -1613,7 +1633,7 @@ namespace vkz
             info.usage = bkt.desc.usage;
             info.layout = bkt.desc.layout;
 
-            info.aliasNum = (uint16_t)bkt.reses.size();
+            info.resCount = (uint16_t)bkt.reses.size();
 
             info.aspectFlags = bkt.aspectFlags;
             info.barrierState = bkt.initialBarrierState;
@@ -1632,6 +1652,19 @@ namespace vkz
 
             write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end);
         }
+
+        if (!backbuffers.empty())
+        {
+            write(&m_rhiMemWriter, RHIContextOpMagic::set_back_buffers);
+
+            uint32_t count = (uint32_t)backbuffers.size();
+            write(&m_rhiMemWriter, count);
+
+            write(&m_rhiMemWriter, (void*)backbuffers.data(), int32_t(sizeof(uint16_t) * backbuffers.size()));
+
+            write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end);
+        }
+
     }
 
     void Framegraph2::createShaders()

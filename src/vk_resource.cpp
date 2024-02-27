@@ -394,8 +394,8 @@ namespace vkz
     {
         assert(!_images.empty());
 
-        // depends on this doc:
-        //    If a memory object is mapped at the time it is freed, it is implicitly unmapped.
+
+        // If a memory object is mapped at the time it is freed, it is implicitly unmapped.
         // https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/vkFreeMemory.html
         Image_vk baseImg = _images[0];
         vkFreeMemory(_device, baseImg.memory, nullptr);

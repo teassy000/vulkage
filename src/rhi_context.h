@@ -5,6 +5,7 @@
 #include "vkz_structs_inner.h"
 #include "vkz.h"
 #include "config.h"
+#include "name.h"
 #include "memory_operation.h"
 #include "util.h"
 
@@ -25,6 +26,8 @@ namespace vkz
         create_sampler,
         create_image_view,
         create_specific_image_view,
+
+        set_back_buffers,
 
         set_brief,
 
@@ -129,6 +132,9 @@ namespace vkz
         virtual void bake() = 0;
         virtual bool render() = 0;
 
+        // swapchain 
+        virtual void resizeBackbuffers(uint32_t _width, uint32_t _height) = 0;
+
         // update resources
         virtual void updatePushConstants(PassHandle _hPass, const void* _data, uint32_t _size) = 0;
         virtual void updateUniform(PassHandle _hPass, const void* _data, uint32_t _size) = 0;
@@ -148,14 +154,16 @@ namespace vkz
         virtual void createSampler(MemoryReader& _reader) = 0;
         virtual void createImageView(MemoryReader& _reader) = 0;
         virtual void createSpecificImageView(MemoryReader& _reader) = 0;
+        virtual void setBackBuffers(MemoryReader& _reader) = 0;
         virtual void setBrief(MemoryReader& reader) = 0;
     };
 
     class RHIContext : public RHIContextI
     {
     public:
-        RHIContext(AllocatorI* _allocator)
+        RHIContext(AllocatorI* _allocator, NameManager* _nameManager)
             : m_pAllocator{ _allocator }
+            , m_pNameManager{ _nameManager }
             , m_pMemBlockBaked{ nullptr }
             , m_constantsMemBlock{ _allocator }
         {
@@ -168,13 +176,15 @@ namespace vkz
             deleteObject(m_pAllocator, m_pMemBlockBaked);
         }
 
-        inline MemoryBlockI* getMemoryBlock() const {return m_pMemBlockBaked;}
-        inline AllocatorI* getAllocator() const { return m_pAllocator; }
+        inline MemoryBlockI* memoryBlock() const {return m_pMemBlockBaked;}
+        inline AllocatorI* allocator() const { return m_pAllocator; }
 
         void init(RHI_Config _config, void* _wnd) override {};
 
         void bake() override;
         bool render() override { return false; };
+
+        void resizeBackbuffers(uint32_t _width, uint32_t _height) override {};
 
         // update 
         void updatePushConstants(PassHandle _hPass, const void* _data, uint32_t _size) override;
@@ -183,6 +193,7 @@ namespace vkz
         void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ) override {};
         
         void updateCustomFuncData(const PassHandle _hPass, const void* _data, uint32_t _size) override {};
+
     private:
         void parseOp();
 
@@ -193,12 +204,13 @@ namespace vkz
         void createBuffer(MemoryReader& reader) override {};
         void createSampler(MemoryReader& _reader) override {};
         void createSpecificImageView(MemoryReader& _reader) override {};
+        void setBackBuffers(MemoryReader& _reader) override {};
         void setBrief(MemoryReader& reader) override {};
 
     protected:
         ConstantsMemoryBlock m_constantsMemBlock;
         AllocatorI* m_pAllocator;
-
+        NameManager* m_pNameManager;
     private:
 
         MemoryBlockI*   m_pMemBlockBaked;

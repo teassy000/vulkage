@@ -40,18 +40,18 @@ namespace vkz
 
     void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx, const ImageHandle _outAlias = { kInvalidHandle });
 
+    void resizeTexture(ImageHandle _hImg, uint32_t _width, uint32_t _height);
+
     // following interface would trigger in a render pass, which means the render-graph would affect.
     void fillBuffer(const PassHandle _hPass, const BufferHandle _hBuf, const uint32_t _offset, const uint32_t _size, const uint32_t _value, const BufferHandle _outAlias);
     void copyBuffer(const PassHandle _hPass, const BufferHandle _hSrc, const BufferHandle _hDst, const uint32_t _size);
     void blitImage(const PassHandle _hPass, const ImageHandle _hSrc, const ImageHandle _hDst);
 
-    using RenderFuncPtr = void (*)(ICommandList& _cmdList, const void* _data, uint32_t size);
+    using RenderFuncPtr = void (*)(CommandListI& _cmdList, const void* _data, uint32_t size);
     void setCustomRenderFunc(const PassHandle _hPass, RenderFuncPtr _func, const Memory* _dataMem);
-
     void setPresentImage(ImageHandle _rt);
 
     void updateCustomRenderFuncData(const PassHandle _hPass, const Memory* _dataMem);
-
     void updateBuffer(const BufferHandle _buffer, const Memory* _mem);
     void updatePushConstants(const PassHandle _hPass, const Memory* _mem);
 
@@ -64,9 +64,11 @@ namespace vkz
     const Memory* makeRef(const void* _data, uint32_t _sz, ReleaseFn _releaseFn = nullptr, void* _userData = nullptr);
 
 
-    // engine basic functions
+    // basic functions
     bool init(vkz::VKZInitConfig _config = {});
     bool shouldClose();
+    void getWindowSize(uint32_t& _width, uint32_t _height);
+    void resizeBackBuffer(uint32_t _width, uint32_t _height);
     void bake();
     void run();
     void shutdown();

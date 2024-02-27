@@ -7,7 +7,7 @@ namespace vkz
 {
     class RHIContext_vk;
 
-    class CmdList_vk : public ICommandList
+    class CmdList_vk : public CommandListI
     {
     public:
         CmdList_vk(VkCommandBuffer& _vkCmdBuf, RHIContext_vk* _pCtx)

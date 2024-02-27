@@ -3,7 +3,7 @@
 #include "profiler.h"
 #include "memory_operation.h"
 
-void pyramid_renderFunc(vkz::ICommandList& _cmdList, const void* _data, uint32_t _size)
+void pyramid_renderFunc(vkz::CommandListI& _cmdList, const void* _data, uint32_t _size)
 {
     VKZ_ZoneScopedC(vkz::Color::cyan);
 

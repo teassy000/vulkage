@@ -46,7 +46,6 @@ namespace vkz
         ImageMetaData(const ImageDesc& desc) : ImageDesc(desc) {}
 
         uint16_t    imgId{ kInvalidHandle };
-
         uint16_t    bpp{ 4u };
 
 
@@ -133,7 +132,7 @@ namespace vkz
     struct BufferCreateInfo : public BufferDesc
     {
         uint16_t    bufId{ kInvalidHandle };
-        uint16_t    aliasNum{ 0 };
+        uint16_t    resCount{ 0 };
 
         ResInteractDesc    barrierState;
     };
@@ -147,7 +146,7 @@ namespace vkz
     struct ImageCreateInfo : public ImageDesc
     {
         uint16_t    imgId{ kInvalidHandle };
-        uint16_t    aliasNum{ 0 };
+        uint16_t    resCount{ 0 };
 
         ImageAspectFlags    aspectFlags;
         ResInteractDesc    barrierState;
@@ -199,7 +198,7 @@ namespace vkz
 
     };
 
-    using RenderFuncPtr = void (*)(ICommandList& _cmdList, const void* _data, uint32_t _size);
+    using RenderFuncPtr = void (*)(CommandListI& _cmdList, const void* _data, uint32_t _size);
     struct PassMetaData : public PassDesc
     {
         PassMetaData() = default;
@@ -226,8 +225,6 @@ namespace vkz
         uint16_t    writeImgAliasNum{ 0 };
 
         uint16_t    sampleImageNum{ 0 };
-
-        uint32_t    specImageViewNum{ 0 }; // count of image view for specific mip levels
 
         uint32_t    indirectBufOffset{ 0 };
         uint32_t    indirectCountBufOffset{ 0 };

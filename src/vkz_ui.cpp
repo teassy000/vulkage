@@ -11,7 +11,7 @@
 constexpr uint32_t kInitialVertexBufferSize = 1024 * 1024; // 1MB
 constexpr uint32_t kInitialIndexBufferSize = 1024 * 1024; // 1MB
 
-void ui_renderFunc(vkz::ICommandList& _cmdList, const void* _data, uint32_t _size)
+void ui_renderFunc(vkz::CommandListI& _cmdList, const void* _data, uint32_t _size)
 {
     VKZ_ZoneScopedC(vkz::Color::cyan);
 

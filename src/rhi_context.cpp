@@ -53,6 +53,9 @@ namespace vkz
             case RHIContextOpMagic::create_specific_image_view:
                 createSpecificImageView(reader);
                 break;
+            case RHIContextOpMagic::set_back_buffers:
+                setBackBuffers(reader);
+                break;
             case RHIContextOpMagic::set_brief:
                 setBrief(reader);
                 break;

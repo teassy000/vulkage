@@ -2,10 +2,15 @@
 #include "common.h"
 #include "vkz.h"
 
+/*
+ * Copyright 2010-2023 Branimir Karadzic. All rights reserved.
+ * License: https://github.com/bkaradzic/bx/blob/master/LICENSE
+ */
+
+ // with modifications to fit current project
+
 namespace vkz
 {
-    // from bgfx, with modifications
-    // use a sparse set to store the handles
     class HandleContainer
     {
     public:
