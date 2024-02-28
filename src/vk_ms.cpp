@@ -1122,7 +1122,7 @@ int main(int argc, const char** argv)
             globals.frustum[2] = frustumY.y;
             globals.frustum[3] = frustumY.z;
             globals.pyramidWidth = (float)pyramidLevelWidth;
-            globals.pyramidHeight = (float)pyramidLevelHeight;
+            globals.pyramidHeight = (float)pyramidLevelHeight;  
             globals.screenWidth = (float)swapchain.width;
             globals.screenHeight = (float)swapchain.height;
             globals.enableMeshletOcclusion = (rod.meshletOcEnabled && rod.ocEnabled && meshShadingSupported && rod.meshShadingEnabled) ? 1 : 0;

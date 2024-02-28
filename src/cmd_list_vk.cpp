@@ -51,19 +51,19 @@ namespace vkz
         m_pCtx->pushDescriptorSetWithTemplates(m_cmdBuf, _hPass.id);
     }
 
-    void CmdList_vk::pushDescriptorSetWithTemplate(const PassHandle _hPass, const uint16_t* _resIds, uint32_t _count, const ImageViewHandle* _imgViews, const ResourceType* _types, const SamplerHandle* _samplerIds)
+    void CmdList_vk::pushDescriptorSetWithTemplate(const PassHandle _hPass, const DescriptorSet* _descSets, uint32_t _count)
     {
         const Program_vk& prog = m_pCtx->getProgram(_hPass);
         stl::vector<DescriptorInfo> descInfos(_count);
         for (uint32_t ii = 0; ii < _count; ++ii)
         {
-            if (_types[ii] == ResourceType::image)
+            if (_descSets[ii].type == ResourceType::image)
             {
-                descInfos[ii] = m_pCtx->getImageDescInfo({ _resIds[ii] },  _imgViews[ii], _samplerIds[ii]);
+                descInfos[ii] = m_pCtx->getImageDescInfo( _descSets[ii].img ,  _descSets[ii].imgView , _descSets[ii].sampler);
             }
-            else if (_types[ii] == ResourceType::buffer)
+            else if (_descSets[ii].type == ResourceType::buffer)
             {
-                descInfos[ii] = m_pCtx->getBufferDescInfo({ _resIds[ii] });
+                descInfos[ii] = m_pCtx->getBufferDescInfo( _descSets[ii].buf );
             }
             else
             {
@@ -170,6 +170,12 @@ namespace vkz
     void CmdList_vk::drawIndexedIndirectCount()
     {
 
+    }
+
+    void CmdList_vk::drawMeshTaskIndirect(BufferHandle _hBuf, uint32_t _offset, uint32_t _drawCount, uint32_t _stride)
+    {
+        VkBuffer buf = m_pCtx->getVkBuffer(_hBuf);
+        vkCmdDrawMeshTasksIndirectEXT(m_cmdBuf, buf, _offset, _drawCount, _stride);
     }
 
     void CmdList_vk::barrier(BufferHandle _hBuf, AccessFlags _access, PipelineStageFlags _stage)

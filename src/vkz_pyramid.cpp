@@ -27,12 +27,14 @@ void pyramid_renderFunc(vkz::CommandListI& _cmdList, const void* _data, uint32_t
 
         vkz::ImageViewHandle srcImgView = ii == 0 ? vkz::ImageViewHandle{vkz::kInvalidHandle} : pyramid.imgMips[ii - 1];
 
-        uint16_t resIds[] = { srcImg.id, pyramid.image.id};
-        vkz::ImageViewHandle imgViews[] = { srcImgView, {vkz::kInvalidHandle} };
-        vkz::ResourceType resTypes[] = { vkz::ResourceType::image, vkz::ResourceType::image };
-        vkz::SamplerHandle samplers[] = { pyramid.sampler, pyramid.sampler };
 
-        _cmdList.pushDescriptorSetWithTemplate(pyramid.pass, resIds, COUNTOF(resIds), imgViews, resTypes, samplers);
+        vkz::CommandListI::DescriptorSet desc[] =
+        {
+            {srcImg, srcImgView, pyramid.sampler},
+            {pyramid.image, pyramid.sampler}
+        };
+
+        _cmdList.pushDescriptorSetWithTemplate(pyramid.pass, desc, COUNTOF(desc));
         _cmdList.dispatch(pyramid.cs, levelWidth, levelHeight, 1);
 
         _cmdList.barrier(pyramid.image, vkz::AccessFlagBits::shader_read, vkz::ImageLayout::general, vkz::PipelineStageFlagBits::compute_shader);

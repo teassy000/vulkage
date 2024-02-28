@@ -371,6 +371,7 @@ namespace vkz
 
     enum class ResourceType : uint16_t
     {
+        undefined,
         buffer,
         image,
     };

@@ -197,6 +197,7 @@
     <ClCompile Include="..\externs\tracy\public\TracyClient.cpp">
       <Filter>tracy</Filter>
     </ClCompile>
+    <ClCompile Include="vkz_mesh_shader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\externs\fast_obj\fast_obj.h">
@@ -400,6 +401,8 @@
     <ClInclude Include="string.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="vkz_mesh_shader.h" />
+    <ClInclude Include="demo_structs.h" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="shaders\mesh.frag.glsl">

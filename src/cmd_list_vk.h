@@ -21,7 +21,7 @@ namespace vkz
         void pushConstants(const PassHandle _hPass, const void* _data, uint32_t _size) override;
         void pushDescriptorSets(const PassHandle _pass) override;
 
-        void pushDescriptorSetWithTemplate(const PassHandle _hPass, const uint16_t* _resIds, uint32_t _count, const ImageViewHandle* _imgViews, const ResourceType* _types, const SamplerHandle* _samplerIds) override;
+        void pushDescriptorSetWithTemplate(const PassHandle _hPass, const DescriptorSet* _descSets, uint32_t _count) override;
 
         void sampleImage(ImageHandle _hImg, uint32_t _binding, SamplerReductionMode _reductionMode) override;
 
@@ -47,6 +47,7 @@ namespace vkz
         void drawIndirect() override;
         void drawIndexedIndirect() override;
         void drawIndexedIndirectCount() override;
+        void drawMeshTaskIndirect(BufferHandle _hBuf, uint32_t _offset, uint32_t _drawCount, uint32_t _stride) override;
 
         // barrier
         void barrier(BufferHandle _hBuf, AccessFlags _access, PipelineStageFlags _stage) override;

@@ -228,6 +228,7 @@
     <ClCompile Include="framegraph_2.cpp" />
     <ClCompile Include="mesh.cpp" />
     <ClCompile Include="rhi_context.cpp" />
+    <ClCompile Include="vkz_mesh_shader.cpp" />
     <ClCompile Include="vkz_pyramid.cpp" />
     <ClCompile Include="vkz_ui.cpp" />
     <ClCompile Include="vk_device.cpp" />
@@ -282,6 +283,7 @@
     <ClInclude Include="config.h" />
     <ClInclude Include="debug.h" />
     <ClInclude Include="demo.h" />
+    <ClInclude Include="demo_structs.h" />
     <ClInclude Include="device.h" />
     <ClInclude Include="cmd_list.h" />
     <ClInclude Include="framegraph_2.h" />
@@ -296,6 +298,7 @@
     <ClInclude Include="rhi_context.h" />
     <ClInclude Include="string.h" />
     <ClInclude Include="util.h" />
+    <ClInclude Include="vkz_mesh_shader.h" />
     <ClInclude Include="vkz_pyramid.h" />
     <ClInclude Include="vkz_structs.h" />
     <ClInclude Include="vkz_structs_inner.h" />

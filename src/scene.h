@@ -1,5 +1,8 @@
 #pragma once
 
+#include "mesh.h"
+#include "math.h"
+
 struct alignas(16) MeshDraw
 {
     vec3 pos;

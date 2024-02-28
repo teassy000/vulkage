@@ -6,12 +6,48 @@ namespace vkz
 {
     class CommandListI
     {
+    public:
+        struct DescriptorSet
+        {
+            union 
+            {
+                BufferHandle buf{kInvalidHandle};
+                ImageHandle img;
+            };
+
+            SamplerHandle sampler{ kInvalidHandle };
+            ImageViewHandle imgView{ kInvalidHandle };
+            ResourceType type{ ResourceType::undefined };
+
+            DescriptorSet(BufferHandle _hBuf)
+            {
+                buf = _hBuf;
+                type = ResourceType::buffer;
+            }
+
+            DescriptorSet(ImageHandle _hImg, ImageViewHandle _hImgView, SamplerHandle _hSampler)
+            {
+                img = _hImg;
+                imgView = _hImgView;
+                type = ResourceType::image;
+                sampler = _hSampler;
+            }
+
+            DescriptorSet(ImageHandle _hImg, SamplerHandle _hSampler)
+            {
+                img = _hImg;
+                sampler = _hSampler;
+                type = ResourceType::image;
+            }
+
+
+        };
     public: 
         virtual void setViewPort(uint32_t _firstViewport, uint32_t _viewportCount, const Viewport* _pViewports) = 0;
         virtual void setScissorRect(uint32_t _firstScissor, uint32_t _scissorCount, const Rect2D* _pScissors) = 0;
         virtual void pushConstants(const PassHandle _hPass, const void* _data, uint32_t _size) = 0;
         virtual void pushDescriptorSets(const PassHandle _hPass) = 0;
-        virtual void pushDescriptorSetWithTemplate(const PassHandle _hPass, const uint16_t* _resIds, uint32_t _count, const ImageViewHandle* _imgViews, const ResourceType* _types, const SamplerHandle* _samplerIds) = 0;
+        virtual void pushDescriptorSetWithTemplate(const PassHandle _hPass, const DescriptorSet* _descSets, uint32_t _count) = 0;
         virtual void sampleImage(ImageHandle _hImg, uint32_t _binding, SamplerReductionMode _reductionMode) = 0;
 
         // resource binding
@@ -36,6 +72,7 @@ namespace vkz
         virtual void drawIndirect() = 0;
         virtual void drawIndexedIndirect() = 0;
         virtual void drawIndexedIndirectCount() = 0;
+        virtual void drawMeshTaskIndirect(BufferHandle _indirectBuffer, uint32_t _offset, uint32_t _count, uint32_t _stride) = 0;
 
         // barrier
         virtual void barrier(BufferHandle _hBuf , AccessFlags _access, PipelineStageFlags _stage) = 0;
