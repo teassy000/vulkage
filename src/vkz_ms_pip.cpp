@@ -15,9 +15,9 @@ void meshShading_renderFunc(vkz::CommandListI& _cmdList, const void* _data, uint
     MeshShading msd;
     vkz::read(&reader, msd);
 
-    _cmdList.barrier(msd.meshDrawCmdCountBuffer, vkz::AccessFlagBits::indirect_command_read, vkz::PipelineStageFlagBits::task_shader);
-    _cmdList.barrier(msd.color, vkz::AccessFlagBits::shader_write, vkz::ImageLayout::color_attachment_optimal, vkz::PipelineStageFlagBits::color_attachment_output);
-    _cmdList.barrier(msd.depth, vkz::AccessFlagBits::shader_write, vkz::ImageLayout::depth_stencil_attachment_optimal, vkz::PipelineStageFlagBits::color_attachment_output);
+    //_cmdList.barrier(msd.meshDrawCmdCountBuffer, vkz::AccessFlagBits::indirect_command_read, vkz::PipelineStageFlagBits::task_shader);
+    _cmdList.barrier(msd.color, vkz::AccessFlagBits::color_attachment_write, vkz::ImageLayout::color_attachment_optimal, vkz::PipelineStageFlagBits::color_attachment_output);
+    _cmdList.barrier(msd.depth, vkz::AccessFlagBits::depth_stencil_attachment_write, vkz::ImageLayout::depth_stencil_attachment_optimal, vkz::PipelineStageFlagBits::late_fragment_tests);
     _cmdList.dispatchBarriers();
 
     _cmdList.beginRendering(msd.pass);
@@ -45,6 +45,12 @@ void meshShading_renderFunc(vkz::CommandListI& _cmdList, const void* _data, uint
     _cmdList.pushDescriptorSetWithTemplate(msd.pass, descs, COUNTOF(descs));
 
     _cmdList.drawMeshTaskIndirect(msd.meshDrawCmdCountBuffer, 4, 1, 0);
+
+    _cmdList.endRendering();
+
+    _cmdList.barrier(msd.meshletVisBufferOutAlias, vkz::AccessFlagBits::shader_write, vkz::PipelineStageFlagBits::mesh_shader);
+    _cmdList.barrier(msd.color, vkz::AccessFlagBits::color_attachment_write, vkz::ImageLayout::color_attachment_optimal, vkz::PipelineStageFlagBits::color_attachment_output);
+    _cmdList.barrier(msd.depth, vkz::AccessFlagBits::depth_stencil_attachment_write, vkz::ImageLayout::depth_stencil_attachment_optimal, vkz::PipelineStageFlagBits::late_fragment_tests);
 }
 
 void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t _width, uint32_t _height, const MeshShadingInitData _initData, bool late /* = false*/)
@@ -126,6 +132,9 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
     vkz::setAttachmentOutput(pass, _initData.depth, 0, depthOutAlias);
 
     // set the data
+    _meshShading.width = _width;
+    _meshShading.height = _height;
+
     _meshShading.taskShader = ts;
     _meshShading.meshShader = ms;
     _meshShading.fragShader = fs;

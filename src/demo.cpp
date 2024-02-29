@@ -32,7 +32,7 @@ void meshDemo()
     // load scene
     Scene scene;
     const char* pathes[] = { "../data/kitten.obj" };
-    bool lmr = loadScene(scene, pathes, COUNTOF(pathes), false);
+    bool lmr = loadScene(scene, pathes, COUNTOF(pathes), true);
     assert(lmr);
 
     // basic data
@@ -234,8 +234,8 @@ void meshDemo()
         msInit.meshletBuffer = meshletBuffer;
         msInit.meshletDataBuffer = meshletDataBuffer;
         msInit.meshDrawBuffer = meshDrawBuf;
-        msInit.meshDrawCmdBuffer = meshDrawCmdBuf;
-        msInit.meshDrawCmdCountBuffer = meshDrawCmdCountBuf;
+        msInit.meshDrawCmdBuffer = meshDrawCmdBuf2;
+        msInit.meshDrawCmdCountBuffer = meshDrawCmdCountBuf3;
         msInit.meshletVisBuffer = meshletVisBuf;
         msInit.transformBuffer = transformBuf;
 
@@ -390,7 +390,7 @@ void meshDemo()
         passDesc.passConfig.colorStoreOp = vkz::AttachmentStoreOp::store;
         passDesc.passConfig.depthLoadOp = vkz::AttachmentLoadOp::dont_care;
         passDesc.passConfig.depthStoreOp = vkz::AttachmentStoreOp::store;
-
+         
 
         pass_draw_1 = vkz::registPass("mesh_pass", passDesc);
 
@@ -433,8 +433,8 @@ void meshDemo()
         msInit.meshletBuffer = meshletBuffer;
         msInit.meshletDataBuffer = meshletDataBuffer;
         msInit.meshDrawBuffer = meshDrawBuf;
-        msInit.meshDrawCmdBuffer = meshDrawCmdBuf;
-        msInit.meshDrawCmdCountBuffer = meshDrawCmdCountBuf;
+        msInit.meshDrawCmdBuffer = meshDrawCmdBuf3;
+        msInit.meshDrawCmdCountBuffer = meshDrawCmdCountBuf5;
         msInit.meshletVisBuffer = meshShading.meshletVisBufferOutAlias;
         msInit.transformBuffer = transformBuf;
 
