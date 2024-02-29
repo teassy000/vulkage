@@ -8,7 +8,7 @@ struct PyramidRendering {
     vkz::ImageHandle inDepth{ vkz::kInvalidHandle };
 
     vkz::ImageHandle image{ vkz::kInvalidHandle };
-    vkz::ImageHandle outAlias{ vkz::kInvalidHandle };
+    vkz::ImageHandle imgOutAlias{ vkz::kInvalidHandle };
     vkz::SamplerHandle sampler{ vkz::kInvalidHandle };
 
     vkz::ProgramHandle program;
@@ -22,10 +22,10 @@ struct PyramidRendering {
     vkz::ImageViewHandle imgMips[vkz::kMaxNumOfImageMipLevel]{ vkz::kInvalidHandle }; // [levels]
 };
 
-vkz::ImageHandle preparePyramid(
+void preparePyramid(
     PyramidRendering& _pyramid
     , uint32_t _width
     , uint32_t _height
-    , const vkz::ImageHandle _inDepth
 );
 
+void setPyramidPassDependency(PyramidRendering& _pyramid, const vkz::ImageHandle _inDepth);

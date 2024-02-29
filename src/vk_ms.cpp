@@ -75,7 +75,6 @@ bool checkExtSupportness(const std::vector<VkExtensionProperties>& props, const 
     bool extSupported = false;
     for (const auto& extension : props) {
         if(strcmp(extension.extensionName, extName) != 0){
-        //if (std::string(extension.extensionName) == extName) {
             extSupported = true;
             break;
         }

@@ -175,6 +175,8 @@ namespace vkz
         void bake() override;
         bool render() override;
 
+        bool checkSupports(VulkanSupportExtension _ext) override;
+
         void resizeBackbuffers(uint32_t _width, uint32_t _height) override;
 
         void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ) override;

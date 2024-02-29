@@ -9,6 +9,8 @@
 namespace vkz
 {
     using ShaderHandleList = std::initializer_list<const ShaderHandle>;
+    // rendering info
+    bool checkSupports(VulkanSupportExtension _ext);
     
     // resource management functions
     ShaderHandle registShader(const char* _name, const char* _path);

@@ -1,5 +1,5 @@
 
-#include "vkz_mesh_shader.h"
+#include "vkz_ms_pip.h"
 #include "demo_structs.h"
 #include "scene.h"
 #include "memory_operation.h"
@@ -15,8 +15,10 @@ void meshShading_renderFunc(vkz::CommandListI& _cmdList, const void* _data, uint
     MeshShading msd;
     vkz::read(&reader, msd);
 
-    _cmdList.barrier(msd.color, vkz::AccessFlagBits::shader_write, vkz::ImageLayout::general, vkz::PipelineStageFlagBits::color_attachment_output);
+    _cmdList.barrier(msd.meshDrawCmdCountBuffer, vkz::AccessFlagBits::indirect_command_read, vkz::PipelineStageFlagBits::task_shader);
+    _cmdList.barrier(msd.color, vkz::AccessFlagBits::shader_write, vkz::ImageLayout::color_attachment_optimal, vkz::PipelineStageFlagBits::color_attachment_output);
     _cmdList.barrier(msd.depth, vkz::AccessFlagBits::shader_write, vkz::ImageLayout::depth_stencil_attachment_optimal, vkz::PipelineStageFlagBits::color_attachment_output);
+    _cmdList.dispatchBarriers();
 
     _cmdList.beginRendering(msd.pass);
 
@@ -25,7 +27,7 @@ void meshShading_renderFunc(vkz::CommandListI& _cmdList, const void* _data, uint
     _cmdList.setViewPort(0, 1, &viewport);
     _cmdList.setScissorRect(0, 1, &scissor);
 
-    //_cmdList.pushConstants(meshShading.pass, &meshShading.width, sizeof(uint32_t));
+    _cmdList.pushConstants(msd.pass, &msd.globals, sizeof(GlobalsVKZ));
 
     vkz::CommandListI::DescriptorSet descs[] = 
     { 
@@ -41,9 +43,11 @@ void meshShading_renderFunc(vkz::CommandListI& _cmdList, const void* _data, uint
     };
 
     _cmdList.pushDescriptorSetWithTemplate(msd.pass, descs, COUNTOF(descs));
+
+    _cmdList.drawMeshTaskIndirect(msd.meshDrawCmdCountBuffer, 4, 1, 0);
 }
 
-void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t _width, uint32_t _height, const MeshShadingInitData _initData)
+void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t _width, uint32_t _height, const MeshShadingInitData _initData, bool late /* = false*/)
 {
     vkz::ShaderHandle ms= vkz::registShader("mesh_shader", "shaders/meshlet.mesh.spv");
     vkz::ShaderHandle ts = vkz::registShader("task_shader", "shaders/meshlet.task.spv");
@@ -58,10 +62,10 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
     desc.pipelineConfig.enableDepthTest = true;
     desc.pipelineConfig.enableDepthWrite = true;
 
-    desc.passConfig.colorLoadOp = vkz::AttachmentLoadOp::dont_care;
+    desc.passConfig.colorLoadOp = late ? vkz::AttachmentLoadOp::dont_care : vkz::AttachmentLoadOp::clear;
     desc.passConfig.colorStoreOp = vkz::AttachmentStoreOp::store;
-    desc.passConfig.depthLoadOp = vkz::AttachmentLoadOp::dont_care;
-    desc.passConfig.depthStoreOp = vkz::AttachmentStoreOp::dont_care;
+    desc.passConfig.depthLoadOp = late ? vkz::AttachmentLoadOp::dont_care : vkz::AttachmentLoadOp::clear;
+    desc.passConfig.depthStoreOp = vkz::AttachmentStoreOp::store;
 
     vkz::PassHandle pass = vkz::registPass("mesh_pass_early", desc);
 
@@ -133,6 +137,7 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
     _meshShading.meshletBuffer = _initData.meshletBuffer;
     _meshShading.meshletDataBuffer = _initData.meshletDataBuffer;
     _meshShading.meshDrawCmdBuffer = _initData.meshDrawCmdBuffer;
+    _meshShading.meshDrawCmdCountBuffer = _initData.meshDrawCmdCountBuffer;
     _meshShading.meshDrawBuffer = _initData.meshDrawBuffer;
     _meshShading.transformBuffer = _initData.transformBuffer;
 
@@ -147,7 +152,7 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
 
     const vkz::Memory* mem = vkz::alloc(sizeof(MeshShading));
     memcpy(mem->data, &_meshShading, mem->size);
-    vkz::setCustomRenderFunc(pass, meshShading_renderFunc, nullptr);
+    vkz::setCustomRenderFunc(pass, meshShading_renderFunc, mem);
 }
 
 void prepareTaskSubmit(TaskSubmit& _taskSubmit, vkz::BufferHandle _drawCmdBuf, vkz::BufferHandle _drawCmdCntBuf)
@@ -182,5 +187,10 @@ void prepareTaskSubmit(TaskSubmit& _taskSubmit, vkz::BufferHandle _drawCmdBuf, v
     _taskSubmit.drawCmdBuffer = _drawCmdBuf;
     _taskSubmit.drawCmdCountBuffer = _drawCmdCntBuf;
     _taskSubmit.drawCmdBufferOutAlias = drawCmdBufferOutAlias;
+}
+
+void updateMeshShadingConstants(MeshShading& _meshShading, const GlobalsVKZ& _globals)
+{
+    _meshShading.globals = _globals;
 }
 

@@ -50,6 +50,21 @@ namespace vkz
     using ImageViewHandle = Handle<struct ImageViewHandleTag>; 
     using SamplerHandle = Handle<struct SamplerHandleTag>;
 
+    enum class VulkanSupportExtension : uint16_t
+    {
+        ext_swapchain,
+        ext_push_descriptor,
+        ext_8bit_storage,
+        ext_16bit_storage,
+        ext_mesh_shader,
+        ext_spirv_1_4,
+        ext_shader_float_controls,
+        ext_shader_draw_parameters,
+        ext_draw_indriect_count,
+        ext_shader_float16_int8,
+        ext_fragment_shading_rate,
+    };
+
     enum class PassExeQueue : uint16_t
     {
         graphics = 0,

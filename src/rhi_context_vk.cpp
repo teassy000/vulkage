@@ -13,6 +13,37 @@
 
 namespace vkz
 {
+    const char* getExtName(VulkanSupportExtension _ext)
+    {
+        switch (_ext)
+        {
+        case vkz::VulkanSupportExtension::ext_swapchain:
+            return VK_KHR_SWAPCHAIN_EXTENSION_NAME;
+        case vkz::VulkanSupportExtension::ext_push_descriptor:
+            return VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME;
+        case vkz::VulkanSupportExtension::ext_8bit_storage:
+            return VK_KHR_8BIT_STORAGE_EXTENSION_NAME;
+        case vkz::VulkanSupportExtension::ext_16bit_storage:
+            return VK_KHR_16BIT_STORAGE_EXTENSION_NAME;
+        case vkz::VulkanSupportExtension::ext_mesh_shader:
+            return VK_EXT_MESH_SHADER_EXTENSION_NAME;
+        case vkz::VulkanSupportExtension::ext_spirv_1_4:
+            return VK_KHR_SPIRV_1_4_EXTENSION_NAME;
+        case vkz::VulkanSupportExtension::ext_shader_float_controls:
+            return VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME;
+        case vkz::VulkanSupportExtension::ext_shader_draw_parameters:
+            return VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME;
+        case vkz::VulkanSupportExtension::ext_draw_indriect_count:
+            return VK_KHR_DRAW_INDIRECT_COUNT_EXTENSION_NAME;
+        case vkz::VulkanSupportExtension::ext_shader_float16_int8:
+            return VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME;
+        case vkz::VulkanSupportExtension::ext_fragment_shading_rate:
+            return VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME;
+        default:
+            return nullptr;
+        }
+    }
+
     VkBufferUsageFlags getBufferUsageFlags(BufferUsageFlags _usageFlags)
     {
         VkBufferUsageFlags usage = 0;
@@ -1245,6 +1276,15 @@ namespace vkz
         VK_CHECK(vkDeviceWaitIdle(m_device)); // TODO: a fence here?
 
         return true;
+    }
+
+    bool RHIContext_vk::checkSupports(VulkanSupportExtension _ext)
+    {
+        const char* extName = getExtName(_ext);
+        stl::vector<VkExtensionProperties> supportedExtensions;
+        enumrateDeviceExtPorps(m_phyDevice, supportedExtensions);
+
+        return checkExtSupportness(supportedExtensions, extName);
     }
 
     void RHIContext_vk::resizeBackbuffers(uint32_t _width, uint32_t _height)

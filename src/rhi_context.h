@@ -131,6 +131,8 @@ namespace vkz
         virtual void init(RHI_Config _config, void* _wnd) = 0;
         virtual void bake() = 0;
         virtual bool render() = 0;
+        // check supports
+        virtual bool checkSupports(VulkanSupportExtension _ext) = 0;
 
         // swapchain 
         virtual void resizeBackbuffers(uint32_t _width, uint32_t _height) = 0;
@@ -182,8 +184,10 @@ namespace vkz
         void init(RHI_Config _config, void* _wnd) override {};
 
         void bake() override;
-        bool render() override { return false; };
+        bool render() override { return false; }
 
+
+        bool checkSupports(VulkanSupportExtension _ext) override { return false; }
         void resizeBackbuffers(uint32_t _width, uint32_t _height) override {};
 
         // update 

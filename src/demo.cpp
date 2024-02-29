@@ -7,6 +7,7 @@
 #include "vkz_ui.h"
 #include "vkz_pyramid.h"
 #include "demo_structs.h"
+#include "vkz_ms_pip.h"
 
 
 void meshDemo()
@@ -16,6 +17,8 @@ void meshDemo()
     config.windowHeight = 1440;
 
     vkz::init(config);
+
+    bool supportMeshShading = vkz::checkSupports(vkz::VulkanSupportExtension::ext_mesh_shader);
 
     // ui data
     Input input = {};
@@ -85,6 +88,7 @@ void meshDemo()
     vkz::BufferHandle meshDrawCmdCountBuf4 = vkz::alias(meshDrawCmdCountBuf);
     vkz::BufferHandle meshDrawCmdCountBuf5 = vkz::alias(meshDrawCmdCountBuf);
 
+
     // mesh draw instance visibility buffer
     vkz::BufferDesc meshDrawVisBufDesc;
     meshDrawVisBufDesc.size = uint32_t(scene.drawCount * sizeof(uint32_t));
@@ -93,6 +97,13 @@ void meshDemo()
     vkz::BufferHandle meshDrawVisBuf = vkz::registBuffer("meshDrawVis", meshDrawVisBufDesc);
     vkz::BufferHandle meshDrawVisBuf2 = vkz::alias(meshDrawVisBuf);
     vkz::BufferHandle meshDrawVisBuf3 = vkz::alias(meshDrawVisBuf);
+
+    // mesh draw instance visibility buffer
+    vkz::BufferDesc meshletVisBufDesc;
+    meshletVisBufDesc.size = (scene.meshletVisibilityCount + 31) / 32 * sizeof(uint32_t);
+    meshletVisBufDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::indirect | vkz::BufferUsageFlagBits::transfer_dst;
+    meshletVisBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
+    vkz::BufferHandle meshletVisBuf = vkz::registBuffer("meshletVis", meshDrawVisBufDesc);
 
     // index buffer
     vkz::BufferDesc idxBufDesc;
@@ -110,8 +121,23 @@ void meshDemo()
     vtxBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
     vkz::BufferHandle vtxBuf = vkz::registBuffer("vtx", vtxBufDesc);
 
+    // meshlet buffer
+    vkz::BufferDesc meshletBufferDesc;
+    meshletBufferDesc.size = (uint32_t)(scene.geometry.meshlets.size() * sizeof(Meshlet));
+    meshletBufferDesc.data = scene.geometry.meshlets.data();
+    meshletBufferDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::transfer_dst;
+    meshletBufferDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
+    vkz::BufferHandle meshletBuffer = vkz::registBuffer("meshlet_buffer", meshletBufferDesc);
+    
+    // meshlet data buffer
+    vkz::BufferDesc meshletDataBufferDesc;
+    meshletDataBufferDesc.size = (uint32_t)(scene.geometry.meshletdata.size() * sizeof(uint32_t));
+    meshletDataBufferDesc.data = scene.geometry.meshletdata.data();
+    meshletDataBufferDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::transfer_dst;
+    meshletDataBufferDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
+    vkz::BufferHandle meshletDataBuffer = vkz::registBuffer("meshlet_data_buffer", meshletDataBufferDesc);
+
     // transform
-    // TODO: requires to upload every frame
     vkz::BufferDesc transformBufDesc;
     transformBufDesc.size = (uint32_t)(sizeof(TransformData));
     transformBufDesc.data = &trans;
@@ -148,9 +174,13 @@ void meshDemo()
 
 
     PyramidRendering pyRendering{};
-    vkz::ImageHandle pyOut = preparePyramid(pyRendering, config.windowWidth, config.windowHeight, depth2);
+    preparePyramid(pyRendering, config.windowWidth, config.windowHeight);
+
+    MeshShading meshShading{};
+    MeshShading meshShadingLate{};
 
     vkz::PassHandle pass_draw_0;
+    if(!supportMeshShading)
     {
         // render shader
         vkz::ShaderHandle vs = vkz::registShader("mesh_vert_shader", "shaders/mesh.vert.spv");
@@ -196,6 +226,29 @@ void meshDemo()
         vkz::setAttachmentOutput(pass_draw_0, color, 0, color2);
         vkz::setAttachmentOutput(pass_draw_0, depth, 0, depth2);
     }
+    else
+    {
+        MeshShadingInitData msInit{};
+        msInit.vtxBuffer = vtxBuf;
+        msInit.meshBuffer = meshBuf;
+        msInit.meshletBuffer = meshletBuffer;
+        msInit.meshletDataBuffer = meshletDataBuffer;
+        msInit.meshDrawBuffer = meshDrawBuf;
+        msInit.meshDrawCmdBuffer = meshDrawCmdBuf;
+        msInit.meshDrawCmdCountBuffer = meshDrawCmdCountBuf;
+        msInit.meshletVisBuffer = meshletVisBuf;
+        msInit.transformBuffer = transformBuf;
+
+        msInit.pyramid = pyRendering.image;
+
+        msInit.color = color;
+        msInit.depth = depth;
+        prepareMeshShading(meshShading, scene, config.windowWidth, config.windowHeight, msInit);
+        pass_draw_0 = meshShading.pass;
+    }
+
+    setPyramidPassDependency(pyRendering, supportMeshShading ? meshShading.depthOutAlias : depth2);
+
 
     vkz::PassHandle pass_cull_0;
     {
@@ -311,7 +364,7 @@ void meshDemo()
             , vkz::AccessFlagBits::shader_read | vkz::AccessFlagBits::shader_write
             , meshDrawVisBuf3);
 
-        vkz::sampleImage(pass_cull_1, pyOut
+        vkz::sampleImage(pass_cull_1, pyRendering.imgOutAlias
             , 6
             , vkz::PipelineStageFlagBits::compute_shader
             , vkz::ImageLayout::general
@@ -319,6 +372,7 @@ void meshDemo()
     }
 
     vkz::PassHandle pass_draw_1;
+    if (!supportMeshShading) 
     {
         // render shader
         vkz::ShaderHandle vs = vkz::registShader("mesh_vert_shader", "shaders/mesh.vert.spv");
@@ -371,6 +425,26 @@ void meshDemo()
         vkz::setAttachmentOutput(pass_draw_1, color2, 0, color3);
         vkz::setAttachmentOutput(pass_draw_1, depth2, 0, depth3);
     }
+    else
+    {
+        MeshShadingInitData msInit{};
+        msInit.vtxBuffer = vtxBuf;
+        msInit.meshBuffer = meshBuf;
+        msInit.meshletBuffer = meshletBuffer;
+        msInit.meshletDataBuffer = meshletDataBuffer;
+        msInit.meshDrawBuffer = meshDrawBuf;
+        msInit.meshDrawCmdBuffer = meshDrawCmdBuf;
+        msInit.meshDrawCmdCountBuffer = meshDrawCmdCountBuf;
+        msInit.meshletVisBuffer = meshShading.meshletVisBufferOutAlias;
+        msInit.transformBuffer = transformBuf;
+
+        msInit.pyramid = pyRendering.imgOutAlias;
+
+        msInit.color = meshShading.colorOutAlias;
+        msInit.depth = meshShading.depthOutAlias;
+        prepareMeshShading(meshShadingLate, scene, config.windowWidth, config.windowHeight, msInit, true);
+        pass_draw_1 = meshShadingLate.pass;
+    }
 
     vkz::PassHandle pass_fill_dccb;
     {
@@ -395,8 +469,18 @@ void meshDemo()
     UIRendering ui{};
     {
         vkz_prepareUI(ui);
-        vkz::setAttachmentOutput(ui.pass, color3, 0, color4);
-        vkz::setAttachmentOutput(ui.pass, depth3, 0, depth4);
+
+        if (!supportMeshShading)
+        {
+            vkz::setAttachmentOutput(ui.pass, color3, 0, color4);
+            vkz::setAttachmentOutput(ui.pass, depth3, 0, depth4);
+        }
+        else
+        {
+            vkz::setAttachmentOutput(ui.pass, meshShadingLate.colorOutAlias, 0, color4);
+            vkz::setAttachmentOutput(ui.pass, meshShadingLate.depthOutAlias, 0, depth4);
+        }
+
     }
 
     vkz::PassHandle pass_py = pyRendering.pass;

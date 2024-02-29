@@ -65,7 +65,7 @@ uint32_t calculateMipLevelCount_py(uint32_t width, uint32_t height)
     return result;
 }
 
-vkz::ImageHandle  preparePyramid(PyramidRendering& _pyramid, uint32_t _width, uint32_t _height, const vkz::ImageHandle _inDepth)
+void preparePyramid(PyramidRendering& _pyramid, uint32_t _width, uint32_t _height)
 {
     uint32_t level_width = previousPow2_py(_width);
     uint32_t level_height = previousPow2_py(_height);
@@ -105,13 +105,16 @@ vkz::ImageHandle  preparePyramid(PyramidRendering& _pyramid, uint32_t _width, ui
     _pyramid.height = level_height;
     _pyramid.levels = levels;
 
-    _pyramid.outAlias = outAlias;
+    _pyramid.imgOutAlias = outAlias;
 
     for (uint32_t ii = 0; ii < levels; ++ii)
     {
         _pyramid.imgMips[ii] = vkz::registImageView("pyramidMips", img, ii, 1);
     }
+}
 
+void setPyramidPassDependency(PyramidRendering& _pyramid, const vkz::ImageHandle _inDepth)
+{
     _pyramid.inDepth = _inDepth;
 
     _pyramid.sampler = vkz::sampleImage(_pyramid.pass, _inDepth
@@ -126,13 +129,11 @@ vkz::ImageHandle  preparePyramid(PyramidRendering& _pyramid, uint32_t _width, ui
         , vkz::PipelineStageFlagBits::compute_shader
         , vkz::AccessFlagBits::shader_write
         , vkz::ImageLayout::general
-        , _pyramid.outAlias
+        , _pyramid.imgOutAlias
     );
 
     const vkz::Memory* mem = vkz::alloc(sizeof(PyramidRendering));
     memcpy(mem->data, &_pyramid, mem->size);
 
-    vkz::setCustomRenderFunc(pass, pyramid_renderFunc, mem);
-
-    return _pyramid.outAlias;
+    vkz::setCustomRenderFunc(_pyramid.pass, pyramid_renderFunc, mem);
 }

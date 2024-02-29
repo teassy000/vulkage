@@ -238,6 +238,8 @@ namespace vkz
         void setRenderSize(uint32_t _width, uint32_t _height);
         void setWindowName(const char* _name);
 
+        bool checkSupports(VulkanSupportExtension _ext);
+
         ShaderHandle registShader(const char* _name, const char* _path);
         ProgramHandle registProgram(const char* _name, const Memory* _shaders, const uint16_t _shaderCount, const uint32_t _sizePushConstants = 0);
 
@@ -495,6 +497,11 @@ namespace vkz
         size_t length = strlen(_name);
         memcpy(m_windowTitle, _name, length);
         m_windowTitle[length] = '\0';
+    }
+
+    bool Context::checkSupports(VulkanSupportExtension _ext)
+    {
+        return m_rhiContext->checkSupports(_ext);
     }
 
     ShaderHandle Context::registShader(const char* _name, const char* _path)
@@ -1753,6 +1760,12 @@ namespace vkz
     static Context* s_ctx = nullptr;
 
 
+    bool checkSupports(VulkanSupportExtension _ext)
+    {
+        return s_ctx->checkSupports(_ext);
+    }
+
+
     ShaderHandle registShader(const char* _name, const char* _path)
     {
         return s_ctx->registShader(_name, _path);
@@ -1853,7 +1866,6 @@ namespace vkz
     {
         s_ctx->setAttachmentOutput(_hPass, _hImg, _attachmentIdx, _outAlias);
     }
-
 
     void resizeTexture(ImageHandle _hImg, uint32_t _width, uint32_t _height)
     {

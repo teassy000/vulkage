@@ -1,5 +1,7 @@
 #pragma once
 
+#include "demo_structs.h"
+#include "scene.h"
 #include "vkz.h"
 
 struct MeshShadingInitData
@@ -8,11 +10,11 @@ struct MeshShadingInitData
     vkz::BufferHandle meshBuffer;
     vkz::BufferHandle meshletBuffer;
     vkz::BufferHandle meshletDataBuffer;
+    vkz::BufferHandle meshDrawBuffer;
 
     vkz::BufferHandle meshDrawCmdBuffer;
-    vkz::BufferHandle meshDrawBuffer;
-    vkz::BufferHandle meshletVisBuffer;
     vkz::BufferHandle meshDrawCmdCountBuffer;
+    vkz::BufferHandle meshletVisBuffer;
 
     vkz::BufferHandle transformBuffer;
 
@@ -37,6 +39,7 @@ struct MeshShading
     vkz::BufferHandle meshletBuffer;
     vkz::BufferHandle meshletDataBuffer;
     vkz::BufferHandle meshDrawCmdBuffer;
+    vkz::BufferHandle meshDrawCmdCountBuffer;
     vkz::BufferHandle meshDrawBuffer;
     vkz::BufferHandle transformBuffer;
     
@@ -60,6 +63,8 @@ struct MeshShading
 
     uint32_t width;
     uint32_t height;
+
+    GlobalsVKZ globals;
 };
 
 struct MeshShadingConfig
@@ -80,6 +85,8 @@ struct TaskSubmit
     vkz::BufferHandle drawCmdBufferOutAlias;
 };
 
-void prepareMeshShading(MeshShading& _meshShading, uint32_t _width, uint32_t _height, const MeshShadingInitData _initData);
+void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t _width, uint32_t _height, const MeshShadingInitData _initData, bool late = false);
 
 void prepareTaskSubmit(TaskSubmit& _taskSubmit, vkz::BufferHandle _drawCmdBuf, vkz::BufferHandle _drawCmdCntBuf);
+
+void updateMeshShadingConstants(const GlobalsVKZ& _globals);
