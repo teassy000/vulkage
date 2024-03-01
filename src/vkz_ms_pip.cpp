@@ -15,7 +15,6 @@ void meshShading_renderFunc(vkz::CommandListI& _cmdList, const void* _data, uint
     MeshShading msd;
     vkz::read(&reader, msd);
 
-    //_cmdList.barrier(msd.meshDrawCmdCountBuffer, vkz::AccessFlagBits::indirect_command_read, vkz::PipelineStageFlagBits::task_shader);
     _cmdList.barrier(msd.color, vkz::AccessFlagBits::color_attachment_write, vkz::ImageLayout::color_attachment_optimal, vkz::PipelineStageFlagBits::color_attachment_output);
     _cmdList.barrier(msd.depth, vkz::AccessFlagBits::depth_stencil_attachment_write, vkz::ImageLayout::depth_stencil_attachment_optimal, vkz::PipelineStageFlagBits::late_fragment_tests);
     _cmdList.dispatchBarriers();
@@ -27,6 +26,8 @@ void meshShading_renderFunc(vkz::CommandListI& _cmdList, const void* _data, uint
     _cmdList.setViewPort(0, 1, &viewport);
     _cmdList.setScissorRect(0, 1, &scissor);
 
+    //assert(0);
+    // TODO: use the updated data, not the stored one
     _cmdList.pushConstants(msd.pass, &msd.globals, sizeof(GlobalsVKZ));
 
     vkz::CommandListI::DescriptorSet descs[] = 
@@ -201,5 +202,8 @@ void prepareTaskSubmit(TaskSubmit& _taskSubmit, vkz::BufferHandle _drawCmdBuf, v
 void updateMeshShadingConstants(MeshShading& _meshShading, const GlobalsVKZ& _globals)
 {
     _meshShading.globals = _globals;
-}
 
+    const vkz::Memory* mem = vkz::alloc(sizeof(MeshShading));
+    memcpy(mem->data, &_meshShading, mem->size);
+    vkz::updateCustomRenderFuncData(_meshShading.pass, mem);
+}

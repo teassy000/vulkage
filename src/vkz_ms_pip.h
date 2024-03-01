@@ -89,4 +89,4 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
 
 void prepareTaskSubmit(TaskSubmit& _taskSubmit, vkz::BufferHandle _drawCmdBuf, vkz::BufferHandle _drawCmdCntBuf);
 
-void updateMeshShadingConstants(const GlobalsVKZ& _globals);
+void updateMeshShadingConstants(MeshShading& _meshShading, const GlobalsVKZ& _globals);

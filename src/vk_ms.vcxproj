@@ -231,6 +231,7 @@
     <ClCompile Include="vkz_ms_pip.cpp" />
     <ClCompile Include="vkz_pyramid.cpp" />
     <ClCompile Include="vkz_ui.cpp" />
+    <ClCompile Include="vkz_vtx_pip.cpp" />
     <ClCompile Include="vk_device.cpp" />
     <ClCompile Include="vk_resource.cpp" />
     <ClCompile Include="rhi_context_vk.cpp" />

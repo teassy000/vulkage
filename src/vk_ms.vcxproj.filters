@@ -198,6 +198,7 @@
       <Filter>tracy</Filter>
     </ClCompile>
     <ClCompile Include="vkz_ms_pip.cpp" />
+    <ClCompile Include="vkz_vtx_pip.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\externs\fast_obj\fast_obj.h">
