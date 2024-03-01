@@ -27,6 +27,12 @@ struct UIRendering
 
     // image and for descriptor set push
     vkz::ImageHandle fontImage{ vkz::kInvalidHandle };
+
+    vkz::ImageHandle color{ vkz::kInvalidHandle };
+    vkz::ImageHandle depth{ vkz::kInvalidHandle };
+    
+    vkz::ImageHandle colorOutAlias{ vkz::kInvalidHandle };
+    vkz::ImageHandle depthOutAlias{ vkz::kInvalidHandle };
 };
 
 struct Input
@@ -42,7 +48,7 @@ struct Input
     float width, height;
 };
 
-void vkz_prepareUI(UIRendering& _ui, float _scale = 1.f, bool _useChinese = false);
+void vkz_prepareUI(UIRendering& _ui, vkz::ImageHandle _color, vkz::ImageHandle _depth, float _scale = 1.f, bool _useChinese = false);
 void vkz_destroyUIRendering(UIRendering& ui);
 
 void vkz_updateImGui(const Input& input, RenderOptionsData& rd, const ProfilingData& pd, const LogicData& ld);

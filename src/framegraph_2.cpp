@@ -759,6 +759,11 @@ namespace vkz
 
         }
 
+        for (PassHandle pidx : m_hPass)
+        {
+            message(info, "pass: %d", pidx.id);
+        }
+
         while (true)
         {
             stl::vector<bool> visited(passNum, false);
@@ -800,7 +805,7 @@ namespace vkz
                     }
                     else if (onStack[childPassIdx])
                     {
-                        message(error, "cycle detected!");
+                        message(error, "cycle detected! pass %d depends by %d!", childPassIdx, currPassIdx);
                         return;
                     }
                 }

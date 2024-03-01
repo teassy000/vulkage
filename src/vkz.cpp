@@ -334,6 +334,9 @@ namespace vkz
         UniDataContainer<ImageViewHandle, ImageViewDesc> m_imageViewDesc;
 
         // alias
+        stl::unordered_map<uint16_t, BufferHandle> m_bufferAliasMapToBase;
+        stl::unordered_map<uint16_t, ImageHandle> m_imageAliasMapToBase;
+
         UniDataContainer<BufferHandle, stl::vector<BufferHandle>> m_aliasBuffers;
         UniDataContainer<ImageHandle, stl::vector<ImageHandle>> m_aliasImages;
 
@@ -1153,21 +1156,31 @@ namespace vkz
     {
         uint16_t aliasId = m_bufferHandles.alloc();
 
-        if (m_aliasBuffers.exist(_baseBuf)) 
+        auto actualBaseMap = m_bufferAliasMapToBase.find(_baseBuf.id);
+
+        BufferHandle actualBase = _baseBuf;
+        // check if the base buffer is an alias
+        if (m_bufferAliasMapToBase.end() != actualBaseMap)
         {
-            stl::vector<BufferHandle>& aliasVecRef = m_aliasBuffers.getDataRef(_baseBuf);
+            actualBase = actualBaseMap->second;
+        }
+
+        m_bufferAliasMapToBase.insert({ aliasId, actualBase });
+
+        if (m_aliasBuffers.exist(actualBase))
+        {
+            stl::vector<BufferHandle>& aliasVecRef = m_aliasBuffers.getDataRef(actualBase);
             aliasVecRef.emplace_back(BufferHandle{ aliasId });
         }
         else 
         {
             stl::vector<BufferHandle> aliasVec{};
-            //aliasVec.push_back(_baseBuf); // first one is the base
             aliasVec.emplace_back(BufferHandle{ aliasId });
 
-            m_aliasBuffers.push_back({ _baseBuf }, aliasVec);
+            m_aliasBuffers.push_back({ actualBase }, aliasVec);
         }
 
-        BufferMetaData meta = { m_bufferMetas.getIdToData(_baseBuf) };
+        BufferMetaData meta = { m_bufferMetas.getIdToData(actualBase) };
         meta.bufId = aliasId;
         m_bufferMetas.push_back({ aliasId }, meta);
 
@@ -1180,21 +1193,31 @@ namespace vkz
     {
         uint16_t aliasId = m_imageHandles.alloc();
 
-        if (m_aliasImages.exist(_baseImg))
+        auto actualBaseMap = m_imageAliasMapToBase.find(_baseImg.id);
+
+        ImageHandle actualBase = _baseImg;
+        // check if the base buffer is an alias
+        if (m_imageAliasMapToBase.end() != actualBaseMap)
         {
-            stl::vector<ImageHandle>& aliasVecRef = m_aliasImages.getDataRef(_baseImg);
+            actualBase = actualBaseMap->second;
+        }
+
+        m_imageAliasMapToBase.insert({ {aliasId}, actualBase });
+
+        if (m_aliasImages.exist(actualBase))
+        {
+            stl::vector<ImageHandle>& aliasVecRef = m_aliasImages.getDataRef(actualBase);
             aliasVecRef.emplace_back(ImageHandle{ aliasId });
         }
         else
         {
             stl::vector<ImageHandle> aliasVec{};
-            //aliasVec.push_back(_baseImg);
             aliasVec.emplace_back(ImageHandle{ aliasId });
 
-            m_aliasImages.push_back({ _baseImg }, aliasVec);
+            m_aliasImages.push_back({ actualBase }, aliasVec);
         }
 
-        ImageMetaData meta = { m_imageMetas.getIdToData(_baseImg) };
+        ImageMetaData meta = { m_imageMetas.getIdToData(actualBase) };
         meta.imgId = aliasId;
         m_imageMetas.push_back({ aliasId }, meta);
 

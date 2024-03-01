@@ -228,6 +228,7 @@
     <ClCompile Include="framegraph_2.cpp" />
     <ClCompile Include="mesh.cpp" />
     <ClCompile Include="rhi_context.cpp" />
+    <ClCompile Include="vkz_culling_pass.cpp" />
     <ClCompile Include="vkz_ms_pip.cpp" />
     <ClCompile Include="vkz_pyramid.cpp" />
     <ClCompile Include="vkz_ui.cpp" />
@@ -299,6 +300,7 @@
     <ClInclude Include="rhi_context.h" />
     <ClInclude Include="string.h" />
     <ClInclude Include="util.h" />
+    <ClInclude Include="vkz_culling_pass.h" />
     <ClInclude Include="vkz_ms_pip.h" />
     <ClInclude Include="vkz_pyramid.h" />
     <ClInclude Include="vkz_structs.h" />

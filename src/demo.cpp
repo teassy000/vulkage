@@ -9,6 +9,7 @@
 #include "demo_structs.h"
 #include "vkz_ms_pip.h"
 #include "vkz_vtx_pip.h"
+#include "vkz_culling_pass.h"
 
 
 void meshDemo()
@@ -75,8 +76,6 @@ void meshDemo()
     meshDrawCmdBufDesc.usage = vkz::BufferUsageFlagBits::indirect | vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::transfer_dst;
     meshDrawCmdBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
     vkz::BufferHandle meshDrawCmdBuf = vkz::registBuffer("meshDrawCmd", meshDrawCmdBufDesc);
-    vkz::BufferHandle meshDrawCmdBuf2 = vkz::alias(meshDrawCmdBuf);
-    vkz::BufferHandle meshDrawCmdBuf3 = vkz::alias(meshDrawCmdBuf);
 
     // mesh draw instance count buffer
     vkz::BufferDesc meshDrawCmdCountBufDesc;
@@ -85,9 +84,7 @@ void meshDemo()
     meshDrawCmdCountBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
     vkz::BufferHandle meshDrawCmdCountBuf = vkz::registBuffer("meshDrawCmdCount", meshDrawCmdCountBufDesc);
     vkz::BufferHandle meshDrawCmdCountBuf2 = vkz::alias(meshDrawCmdCountBuf);
-    vkz::BufferHandle meshDrawCmdCountBuf3 = vkz::alias(meshDrawCmdCountBuf);
     vkz::BufferHandle meshDrawCmdCountBuf4 = vkz::alias(meshDrawCmdCountBuf);
-    vkz::BufferHandle meshDrawCmdCountBuf5 = vkz::alias(meshDrawCmdCountBuf);
 
 
     // mesh draw instance visibility buffer
@@ -96,8 +93,6 @@ void meshDemo()
     meshDrawVisBufDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::indirect | vkz::BufferUsageFlagBits::transfer_dst;
     meshDrawVisBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
     vkz::BufferHandle meshDrawVisBuf = vkz::registBuffer("meshDrawVis", meshDrawVisBufDesc);
-    vkz::BufferHandle meshDrawVisBuf2 = vkz::alias(meshDrawVisBuf);
-    vkz::BufferHandle meshDrawVisBuf3 = vkz::alias(meshDrawVisBuf);
 
     // mesh draw instance visibility buffer
     vkz::BufferDesc meshletVisBufDesc;
@@ -182,6 +177,22 @@ void meshDemo()
     VtxShading vtxShading{};
     VtxShading vtxShadingLate{};
 
+    CullingComp culling;
+    CullingComp cullingLate;
+    {
+
+        CullingCompInitData cullingInit{};
+        cullingInit.meshBuf = meshBuf;
+        cullingInit.meshDrawBuf = meshDrawBuf;
+        cullingInit.transBuf = transformBuf;
+        cullingInit.pyramid = pyRendering.image;
+        cullingInit.meshDrawCmdBuf = meshDrawCmdBuf;
+        cullingInit.meshDrawCmdCountBuf = meshDrawCmdCountBuf2;
+        cullingInit.meshDrawVisBuf = meshDrawVisBuf;
+
+        prepareCullingComp(culling, cullingInit);
+    }
+
     if(!supportMeshShading)
     {
         VtxShadingInitData vsInit{};
@@ -189,9 +200,9 @@ void meshDemo()
         vsInit.idxBuf = idxBuf;
         vsInit.vtxBuf = vtxBuf;
         vsInit.meshDrawBuf = meshDrawBuf;
-        vsInit.meshDrawCmdBuf = meshDrawCmdBuf2;
+        vsInit.meshDrawCmdBuf = culling.meshDrawCmdBufOutAlias;
         vsInit.transformBuf = transformBuf;
-        vsInit.meshDrawCmdCountBuf = meshDrawCmdCountBuf3;
+        vsInit.meshDrawCmdCountBuf = culling.meshDrawCmdCountBufOutAlias;
         vsInit.color = color;
         vsInit.depth = depth;
 
@@ -199,7 +210,7 @@ void meshDemo()
     }
     else
     {
-        prepareTaskSubmit(taskSubmit, meshDrawCmdBuf2, meshDrawCmdCountBuf3);
+        prepareTaskSubmit(taskSubmit, culling.meshDrawCmdBufOutAlias, culling.meshDrawCmdCountBufOutAlias);
 
         MeshShadingInitData msInit{};
         msInit.vtxBuffer = vtxBuf;
@@ -207,8 +218,8 @@ void meshDemo()
         msInit.meshletBuffer = meshletBuffer;
         msInit.meshletDataBuffer = meshletDataBuffer;
         msInit.meshDrawBuffer = meshDrawBuf;
-        msInit.meshDrawCmdBuffer = meshDrawCmdBuf2;
-        msInit.meshDrawCmdCountBuffer = taskSubmit.drawCmdBufferOutAlias;
+        msInit.meshDrawCmdBuffer = taskSubmit.drawCmdBufferOutAlias;
+        msInit.meshDrawCmdCountBuffer = culling.meshDrawCmdCountBufOutAlias;
         msInit.meshletVisBuffer = meshletVisBuf;
         msInit.transformBuffer = transformBuf;
 
@@ -221,130 +232,21 @@ void meshDemo()
 
     setPyramidPassDependency(pyRendering, supportMeshShading ? meshShading.depthOutAlias : vtxShading.depthOutAlias);
 
-
-    vkz::PassHandle pass_cull_0;
+    // culling late
     {
-        // cull pass
-        vkz::ShaderHandle cs = vkz::registShader("mesh_draw_cmd_shader", "shaders/drawcmd.comp.spv");
-        vkz::ProgramHandle csProgram = vkz::registProgram("mesh_draw_cmd_prog", { cs }, sizeof(MeshDrawCullVKZ));
+        CullingCompInitData cullingInit{};
+        cullingInit.meshBuf = meshBuf;
+        cullingInit.meshDrawBuf = meshDrawBuf;
+        cullingInit.transBuf = transformBuf;
+        cullingInit.pyramid = pyRendering.imgOutAlias;
+        cullingInit.meshDrawCmdBuf = culling.meshDrawCmdBufOutAlias;
+        cullingInit.meshDrawCmdCountBuf = meshDrawCmdCountBuf4;
+        cullingInit.meshDrawVisBuf = culling.meshDrawVisBufOutAlias;
 
-        int pipelineSpecs[] = { false, false };
-
-        const vkz::Memory* pConst = vkz::alloc(sizeof(int) * COUNTOF(pipelineSpecs));
-        memcpy_s(pConst->data, pConst->size, pipelineSpecs, sizeof(int)* COUNTOF(pipelineSpecs));
-
-        vkz::PassDesc passDesc;
-        passDesc.programId = csProgram.id;
-        passDesc.queue = vkz::PassExeQueue::compute;
-        passDesc.pipelineSpecNum = COUNTOF(pipelineSpecs);
-        passDesc.pipelineSpecData = (void*)pConst->data;
-        
-        pass_cull_0 = vkz::registPass("cull_pass", passDesc);
-
-        // bindings
-        vkz::bindBuffer(pass_cull_0, meshBuf
-            , 0
-            , vkz::PipelineStageFlagBits::compute_shader
-            , vkz::AccessFlagBits::shader_read);
-
-        vkz::bindBuffer(pass_cull_0, meshDrawBuf
-            , 1
-            , vkz::PipelineStageFlagBits::compute_shader
-            , vkz::AccessFlagBits::shader_read);
-
-        vkz::bindBuffer(pass_cull_0, transformBuf
-            , 2
-            , vkz::PipelineStageFlagBits::compute_shader
-            , vkz::AccessFlagBits::shader_read);
-
-        vkz::bindBuffer(pass_cull_0, meshDrawCmdBuf
-            , 3
-            , vkz::PipelineStageFlagBits::compute_shader
-            , vkz::AccessFlagBits::shader_read | vkz::AccessFlagBits::shader_write
-            , meshDrawCmdBuf2);
-
-        vkz::bindBuffer(pass_cull_0, meshDrawCmdCountBuf2
-            , 4
-            , vkz::PipelineStageFlagBits::compute_shader
-            , vkz::AccessFlagBits::shader_read | vkz::AccessFlagBits::shader_write
-            , meshDrawCmdCountBuf3);
-
-        vkz::bindBuffer(pass_cull_0, meshDrawVisBuf
-            , 5
-            , vkz::PipelineStageFlagBits::compute_shader
-            , vkz::AccessFlagBits::shader_read | vkz::AccessFlagBits::shader_write
-            , meshDrawVisBuf2);
-
-        vkz::sampleImage(pass_cull_0, pyRendering.image
-            , 6
-            , vkz::PipelineStageFlagBits::compute_shader
-            , vkz::ImageLayout::general
-            , vkz::SamplerReductionMode::weighted_average );
+        prepareCullingComp(cullingLate, cullingInit, true);
     }
 
-
-    vkz::PassHandle pass_cull_1;
-    {
-        // cull pass
-        vkz::ShaderHandle cs = vkz::registShader("mesh_draw_cmd_shader", "shaders/drawcmd.comp.spv");
-        vkz::ProgramHandle csProgram = vkz::registProgram("mesh_draw_cmd_prog", { cs }, sizeof(MeshDrawCullVKZ));
-
-        int pipelineSpecs[] = { true, false };
-
-        const vkz::Memory* pConst = vkz::alloc(sizeof(int) * COUNTOF(pipelineSpecs));
-        memcpy_s(pConst->data, pConst->size, pipelineSpecs, sizeof(int) * COUNTOF(pipelineSpecs));
-
-        vkz::PassDesc passDesc;
-        passDesc.programId = csProgram.id;
-        passDesc.queue = vkz::PassExeQueue::compute;
-        passDesc.pipelineSpecNum = COUNTOF(pipelineSpecs);
-        passDesc.pipelineSpecData = (void*)pConst->data;
-
-        pass_cull_1 = vkz::registPass("cull_pass", passDesc);
-
-
-        // bindings
-        vkz::bindBuffer(pass_cull_1, meshBuf
-            , 0
-            , vkz::PipelineStageFlagBits::compute_shader
-            , vkz::AccessFlagBits::shader_read);
-
-        vkz::bindBuffer(pass_cull_1, meshDrawBuf
-            , 1
-            , vkz::PipelineStageFlagBits::compute_shader
-            , vkz::AccessFlagBits::shader_read);
-
-        vkz::bindBuffer(pass_cull_1, transformBuf
-            , 2
-            , vkz::PipelineStageFlagBits::compute_shader
-            , vkz::AccessFlagBits::shader_read);
-
-        vkz::bindBuffer(pass_cull_1, meshDrawCmdBuf2
-            , 3
-            , vkz::PipelineStageFlagBits::compute_shader
-            , vkz::AccessFlagBits::shader_read | vkz::AccessFlagBits::shader_write
-            , meshDrawCmdBuf3);
-
-        vkz::BufferHandle dccb = supportMeshShading ? taskSubmit.drawCmdBufferOutAlias : meshDrawCmdCountBuf4;
-        vkz::bindBuffer(pass_cull_1, meshDrawCmdCountBuf4
-            , 4
-            , vkz::PipelineStageFlagBits::compute_shader
-            , vkz::AccessFlagBits::shader_read | vkz::AccessFlagBits::shader_write
-            , meshDrawCmdCountBuf5);
-
-        vkz::bindBuffer(pass_cull_1, meshDrawVisBuf2
-            , 5
-            , vkz::PipelineStageFlagBits::compute_shader
-            , vkz::AccessFlagBits::shader_read | vkz::AccessFlagBits::shader_write
-            , meshDrawVisBuf3);
-
-        vkz::sampleImage(pass_cull_1, pyRendering.imgOutAlias
-            , 6
-            , vkz::PipelineStageFlagBits::compute_shader
-            , vkz::ImageLayout::general
-            , vkz::SamplerReductionMode::weighted_average);
-    }
-
+    // draw late
     if (!supportMeshShading) 
     {
         VtxShadingInitData vsInit{};
@@ -352,9 +254,9 @@ void meshDemo()
         vsInit.idxBuf = idxBuf;
         vsInit.vtxBuf = vtxBuf;
         vsInit.meshDrawBuf = meshDrawBuf;
-        vsInit.meshDrawCmdBuf = meshDrawCmdBuf3;
+        vsInit.meshDrawCmdBuf = cullingLate.meshDrawCmdBufOutAlias;
         vsInit.transformBuf = transformBuf;
-        vsInit.meshDrawCmdCountBuf = meshDrawCmdCountBuf5;
+        vsInit.meshDrawCmdCountBuf = cullingLate.meshDrawCmdCountBufOutAlias;
         vsInit.color = vtxShading.colorOutAlias;
         vsInit.depth = vtxShading.depthOutAlias;
 
@@ -362,7 +264,7 @@ void meshDemo()
     }
     else
     {
-        prepareTaskSubmit(taskSubmitLate, meshDrawCmdBuf3, meshDrawCmdCountBuf5);
+        prepareTaskSubmit(taskSubmitLate, cullingLate.meshDrawCmdBufOutAlias, cullingLate.meshDrawCmdCountBufOutAlias);
 
         MeshShadingInitData msInit{};
         msInit.vtxBuffer = vtxBuf;
@@ -371,7 +273,7 @@ void meshDemo()
         msInit.meshletDataBuffer = meshletDataBuffer;
         msInit.meshDrawBuffer = meshDrawBuf;
         msInit.meshDrawCmdBuffer = taskSubmitLate.drawCmdBufferOutAlias;
-        msInit.meshDrawCmdCountBuffer = meshDrawCmdCountBuf5;
+        msInit.meshDrawCmdCountBuffer = cullingLate.meshDrawCmdCountBufOutAlias;
         msInit.meshletVisBuffer = meshShading.meshletVisBufferOutAlias;
         msInit.transformBuffer = transformBuf;
 
@@ -399,36 +301,26 @@ void meshDemo()
 
         pass_fill_dccb_late = vkz::registPass("fill_dccb", passDesc);
 
-        vkz::BufferHandle dccb = supportMeshShading ? taskSubmit.drawCmdBufferOutAlias : meshDrawCmdCountBuf3;
+        vkz::BufferHandle dccb = supportMeshShading ? taskSubmit.drawCmdBufferOutAlias : culling.meshDrawCmdCountBufOutAlias;
         vkz::fillBuffer(pass_fill_dccb_late, dccb, 0, sizeof(uint32_t), 0, meshDrawCmdCountBuf4);
     }
 
     UIRendering ui{};
     {
-        vkz_prepareUI(ui);
+        vkz::ImageHandle uiColorIn = supportMeshShading ? meshShadingLate.colorOutAlias : vtxShadingLate.colorOutAlias;
+        vkz::ImageHandle uiDepthIn = supportMeshShading ? meshShadingLate.depthOutAlias : vtxShadingLate.depthOutAlias;
 
-        if (!supportMeshShading)
-        {
-            vkz::setAttachmentOutput(ui.pass, vtxShadingLate.colorOutAlias, 0, color2);
-            vkz::setAttachmentOutput(ui.pass, vtxShadingLate.depthOutAlias, 0, depth2);
-        }
-        else
-        {
-            vkz::setAttachmentOutput(ui.pass, meshShadingLate.colorOutAlias, 0, color2);
-            vkz::setAttachmentOutput(ui.pass, meshShadingLate.depthOutAlias, 0, depth2);
-        }
-
+        vkz_prepareUI(ui, uiColorIn, uiDepthIn);
     }
 
     vkz::PassHandle pass_py = pyRendering.pass;
     vkz::PassHandle pass_ui = ui.pass;
 
-    vkz::setPresentImage(color2);
+    vkz::setPresentImage(ui.colorOutAlias);
 
     vkz::bake();
 
     // data used in loop
-    const vkz::Memory* memDrawCull = vkz::alloc(sizeof(MeshDrawCullVKZ));
     const vkz::Memory* memGlobal = vkz::alloc(sizeof(GlobalsVKZ));
     const vkz::Memory* memTransform = vkz::alloc(sizeof(TransformData));
     const vkz::Memory* memPyramidWndSz = vkz::alloc(sizeof(vec2));
@@ -458,9 +350,9 @@ void meshDemo()
         drawCull.enableLod = 0;
         drawCull.enableOcclusion = 0;
         drawCull.enableMeshletOcclusion = 0;
-        memcpy_s(memDrawCull->data, memDrawCull->size, &drawCull, sizeof(MeshDrawCullVKZ));
-        vkz::updatePushConstants(pass_cull_0, vkz::copy(memDrawCull));
-        vkz::updatePushConstants(pass_cull_1, vkz::copy(memDrawCull));
+
+        updateCullingConstants(culling, drawCull);
+        updateCullingConstants(cullingLate, drawCull);
 
         globals.projection = projection;
         globals.zfar = scene.drawDistance;
@@ -474,7 +366,6 @@ void meshDemo()
         globals.screenWidth = (float)config.windowWidth;
         globals.screenHeight = (float)config.windowHeight;
         globals.enableMeshletOcclusion = 0;  
-        memcpy_s(memGlobal->data, memGlobal->size, &globals, sizeof(GlobalsVKZ));
 
         if (supportMeshShading)
         {
@@ -487,8 +378,8 @@ void meshDemo()
             updateVtxShadingConstants(vtxShadingLate, globals);
         }
 
-        vkz::updateThreadCount(pass_cull_0, (uint32_t)scene.meshDraws.size(), 1, 1);
-        vkz::updateThreadCount(pass_cull_1, (uint32_t)scene.meshDraws.size(), 1, 1);
+        vkz::updateThreadCount(culling.pass, (uint32_t)scene.meshDraws.size(), 1, 1);
+        vkz::updateThreadCount(cullingLate.pass, (uint32_t)scene.meshDraws.size(), 1, 1);
 
         freeCamera.pos = vec3{ 0.f, 2.f, 20.f };
 

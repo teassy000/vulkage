@@ -74,7 +74,7 @@ void ui_renderFunc(vkz::CommandListI& _cmdList, const void* _data, uint32_t _siz
     _cmdList.endRendering();
 }
 
-void vkz_prepareUI(UIRendering& _ui, float _scale /*= 1.f*/, bool _useChinese /*= false*/)
+void vkz_prepareUI(UIRendering& _ui, vkz::ImageHandle _color, vkz::ImageHandle _depth, float _scale /*= 1.f*/, bool _useChinese /*= false*/)
 {
     VKZ_ZoneScopedC(vkz::Color::blue);
 
@@ -160,6 +160,9 @@ void vkz_prepareUI(UIRendering& _ui, float _scale /*= 1.f*/, bool _useChinese /*
     ibDesc.usage = vkz::BufferUsageFlagBits::index | vkz::BufferUsageFlagBits::transfer_dst;
     vkz::BufferHandle ib = vkz::registBuffer("ui.ib", ibDesc, vkz::ResourceLifetime::non_transition);
 
+    vkz::ImageHandle colorOutAlias = vkz::alias(_color);
+    vkz::ImageHandle depthOutAlias = vkz::alias(_depth);
+
     _ui.vs = vs;
     _ui.fs = fs;
     _ui.program = program;
@@ -167,6 +170,10 @@ void vkz_prepareUI(UIRendering& _ui, float _scale /*= 1.f*/, bool _useChinese /*
     _ui.vb = vb;
     _ui.ib = ib;
     _ui.fontImage = fontImage;
+    _ui.color = _color;
+    _ui.depth = _depth;
+    _ui.colorOutAlias = colorOutAlias;
+    _ui.depthOutAlias = depthOutAlias;
 
     const vkz::Memory* mem = vkz::alloc(sizeof(UIRendering));
     memcpy(mem->data, &_ui, mem->size);
@@ -181,6 +188,9 @@ void vkz_prepareUI(UIRendering& _ui, float _scale /*= 1.f*/, bool _useChinese /*
     );
 
     vkz::setCustomRenderFunc(pass, ui_renderFunc, mem);
+
+    vkz::setAttachmentOutput(_ui.pass, _color, 0, colorOutAlias);
+    vkz::setAttachmentOutput(_ui.pass, _depth, 0, depthOutAlias);
 }
 
 void vkz_destroyUIRendering(UIRendering& _ui)
