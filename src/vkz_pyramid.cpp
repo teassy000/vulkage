@@ -31,7 +31,7 @@ void pyramid_renderFunc(vkz::CommandListI& _cmdList, const void* _data, uint32_t
         vkz::CommandListI::DescriptorSet desc[] =
         {
             {srcImg, srcImgView, pyramid.sampler},
-            {pyramid.image, pyramid.sampler}
+            {pyramid.image, pyramid.imgMips[ii]}
         };
 
         _cmdList.pushDescriptorSetWithTemplate(pyramid.pass, desc, COUNTOF(desc));
@@ -73,8 +73,8 @@ void preparePyramid(PyramidRendering& _pyramid, uint32_t _width, uint32_t _heigh
 
     // create image
     vkz::ImageDesc desc{};
-    desc.width = _width;
-    desc.height = _height;
+    desc.width = level_width;
+    desc.height = level_height;
     desc.format = vkz::ResourceFormat::r32_sfloat;
     desc.depth = 1;
     desc.arrayLayers = 1;

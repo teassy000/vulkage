@@ -307,7 +307,6 @@ void meshDemo()
     vkz::bake();
 
     // data used in loop
-    const vkz::Memory* memGlobal = vkz::alloc(sizeof(GlobalsVKZ));
     const vkz::Memory* memTransform = vkz::alloc(sizeof(TransformData));
 
     MeshDrawCullVKZ drawCull = {};
@@ -315,7 +314,6 @@ void meshDemo()
 
     while (!vkz::shouldClose())
     {
-
         float znear = .1f;
         mat4 projection = perspectiveProjection2(glm::radians(70.f), (float)config.windowWidth / (float)config.windowHeight, znear);
         mat4 projectionT = glm::transpose(projection);

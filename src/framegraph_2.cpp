@@ -1330,12 +1330,21 @@ namespace vkz
         _bkt.desc.format = _info.format;
         _bkt.desc.usage = _info.usage;
         _bkt.desc.layout = _info.layout;
+        _bkt.desc.viewCount = _info.viewCount;
+
+
+        for (uint32_t mipIdx = 0; mipIdx < kMaxNumOfImageMipLevel; ++mipIdx)
+        {
+            _bkt.desc.mipViews[mipIdx] = mipIdx < _bkt.desc.viewCount ? _info.mipViews[mipIdx] : ImageViewHandle{ kInvalidHandle };
+        }
 
         _bkt.aspectFlags = _info.aspectFlags;
         _bkt.initialBarrierState = _info.initialState;
         _bkt.baseImgId = _info.imgId;
         _bkt.reses = _reses;
         _bkt.forceAliased = _forceAliased;
+
+
     }
 
     void Framegraph2::aliasBuffers(stl::vector<BufBucket>& _buckets, const stl::vector<uint16_t>& _sortedBufList)
@@ -1656,6 +1665,12 @@ namespace vkz
 
             info.aspectFlags = bkt.aspectFlags;
             info.barrierState = bkt.initialBarrierState;
+
+            info.viewCount = bkt.desc.viewCount;
+            for (uint32_t mipIdx = 0; mipIdx < kMaxNumOfImageMipLevel; ++mipIdx)
+            {
+                info.mipViews[mipIdx] = mipIdx < info.viewCount ? bkt.desc.mipViews[mipIdx] : ImageViewHandle{ kInvalidHandle };
+            }
 
             write(&m_rhiMemWriter, info);
 

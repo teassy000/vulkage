@@ -1249,29 +1249,35 @@ namespace vkz
             
             
         // submit
-        VkPipelineStageFlags submitStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        {
+            VKZ_ZoneScopedC(Color::green);
+            VkPipelineStageFlags submitStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
 
-        VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-        submitInfo.waitSemaphoreCount = 1;
-        submitInfo.pWaitSemaphores = &m_acquirSemaphore;
-        submitInfo.pWaitDstStageMask = &submitStageMask;
-        submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &m_cmdBuffer;
-        submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores = &m_releaseSemaphore;
+            VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+            submitInfo.waitSemaphoreCount = 1;
+            submitInfo.pWaitSemaphores = &m_acquirSemaphore;
+            submitInfo.pWaitDstStageMask = &submitStageMask;
+            submitInfo.commandBufferCount = 1;
+            submitInfo.pCommandBuffers = &m_cmdBuffer;
+            submitInfo.signalSemaphoreCount = 1;
+            submitInfo.pSignalSemaphores = &m_releaseSemaphore;
 
-        VK_CHECK(vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE));
+            VK_CHECK(vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE));
 
-        VkPresentInfoKHR presentInfo = { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
-        presentInfo.swapchainCount = 1;
-        presentInfo.pSwapchains = &m_swapchain.swapchain;
-        presentInfo.pImageIndices = &imageIndex;
-        presentInfo.pWaitSemaphores = &m_releaseSemaphore;
-        presentInfo.waitSemaphoreCount = 1;
+            VkPresentInfoKHR presentInfo = { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
+            presentInfo.swapchainCount = 1;
+            presentInfo.pSwapchains = &m_swapchain.swapchain;
+            presentInfo.pImageIndices = &imageIndex;
+            presentInfo.pWaitSemaphores = &m_releaseSemaphore;
+            presentInfo.waitSemaphoreCount = 1;
 
-        VK_CHECK(vkQueuePresentKHR(m_queue, &presentInfo));
+            VK_CHECK(vkQueuePresentKHR(m_queue, &presentInfo));
+        }
 
-        VK_CHECK(vkDeviceWaitIdle(m_device)); // TODO: a fence here?
+        {
+            VKZ_ZoneScopedC(Color::blue);
+            VK_CHECK(vkDeviceWaitIdle(m_device)); // TODO: a fence here?
+        }
 
         return true;
     }
@@ -2390,10 +2396,20 @@ namespace vkz
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
-        VkSampler sampler = sampler = m_samplerContainer.getIdToData(_hSampler.id);
+        VkSampler sampler = nullptr;
+        if (m_samplerContainer.exist(_hSampler.id))
+        {
+            sampler = m_samplerContainer.getIdToData(_hSampler.id);
+        }
         
         const Image_vk& img = getImage(_hImg.id);
+
         VkImageView view = img.defalutImgView;
+        if (m_imageViewContainer.exist(_hImgView.id))
+        {
+            view = m_imageViewContainer.getIdToData(_hImgView.id);
+        }
+        
         VkImageLayout layout = m_barrierDispatcher.getDstImageLayout(img.image);
         
         return { sampler, view, layout };

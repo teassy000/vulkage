@@ -36,11 +36,11 @@ static FreeCamera freeCamera = {};
 
 static RenderOptionsData rod = {
     /* bool enableMeshShading = */  true,
-    /* bool enableCull = */         true,
-    /* bool enableLod = */          true,
-    /* bool enableOcclusion = */    true,
-    /* bool enableMeshletOC = */    true,
-    /* bool enableTaskSubmit =*/    true,
+    /* bool enableCull = */         false,
+    /* bool enableLod = */          false,
+    /* bool enableOcclusion = */    false,
+    /* bool enableMeshletOC = */    false,
+    /* bool enableTaskSubmit =*/    false,
     /* bool showPyramid = */        false,
     /* int  debugPyramidLevel = */  0,
 };
@@ -49,7 +49,6 @@ static Input input = {};
 
 VkSemaphore createSemaphore(VkDevice device)
 {
-
     VkSemaphoreCreateInfo createInfo = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
     VkSemaphore semaphore = 0;
     VK_CHECK(vkCreateSemaphore(device, &createInfo, 0, &semaphore));

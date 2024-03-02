@@ -30,16 +30,6 @@ void CreateRandomScene(Scene& scene)
         uint32_t meshIdx = rand() % scene.geometry.meshes.size();
         Mesh& mesh = scene.geometry.meshes[meshIdx];
 
-        /*
-        * NOTE: simplification for occlusion test
-        meshDraws[i].pos[0] = 0.0f;
-
-        meshDraws[i].pos[1] = 0.0f;
-        meshDraws[i].pos[2] = (float)i + 2.0f;
-
-        meshDraws[i].scale = 1.f / (float)i;
-        */
-
         meshDraws[i].pos[0] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
         meshDraws[i].pos[1] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
         meshDraws[i].pos[2] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;

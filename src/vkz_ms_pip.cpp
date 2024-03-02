@@ -74,9 +74,9 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
     desc.pipelineConfig.enableDepthTest = true;
     desc.pipelineConfig.enableDepthWrite = true;
 
-    desc.passConfig.colorLoadOp = _late ? vkz::AttachmentLoadOp::load : vkz::AttachmentLoadOp::clear;
+    desc.passConfig.colorLoadOp = _late ? vkz::AttachmentLoadOp::dont_care : vkz::AttachmentLoadOp::clear;
     desc.passConfig.colorStoreOp = vkz::AttachmentStoreOp::store;
-    desc.passConfig.depthLoadOp = _late ? vkz::AttachmentLoadOp::load : vkz::AttachmentLoadOp::clear;
+    desc.passConfig.depthLoadOp = _late ? vkz::AttachmentLoadOp::dont_care : vkz::AttachmentLoadOp::clear;
     desc.passConfig.depthStoreOp = vkz::AttachmentStoreOp::store;
 
     desc.pipelineSpecNum = COUNTOF(pipelineSpecs);

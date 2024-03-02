@@ -895,6 +895,7 @@ namespace vkz
         }
 
         imgMeta.mipViews[imgMeta.viewCount] = handle;
+        imgMeta.viewCount++;
 
         setName(m_pNameManager, _name, strlen(_name), handle);
 
@@ -1172,6 +1173,7 @@ namespace vkz
             info.lifetime = meta.lifetime;
             info.bpp = meta.bpp;
             info.aspectFlags = meta.aspectFlags;
+            info.viewCount = meta.viewCount;
 
             info.initialState.access = AccessFlagBits::none;
             info.initialState.layout = ImageLayout::undefined;
@@ -1179,7 +1181,7 @@ namespace vkz
 
             for (uint32_t mipIdx = 0; mipIdx < kMaxNumOfImageMipLevel; ++ mipIdx)
             {
-                info.mipViews[mipIdx] = meta.mipViews[mipIdx];
+                info.mipViews[mipIdx] = mipIdx < info.viewCount ? meta.mipViews[mipIdx] : ImageViewHandle{kInvalidHandle};
             }
 
             write(m_fgMemWriter, info);

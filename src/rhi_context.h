@@ -24,7 +24,6 @@ namespace vkz
         create_shader,
         create_sampler,
         create_image_view,
-        create_specific_image_view,
 
         set_back_buffers,
 
@@ -154,7 +153,6 @@ namespace vkz
         virtual void createBuffer(MemoryReader& reader) = 0;
         virtual void createSampler(MemoryReader& _reader) = 0;
         virtual void createImageView(MemoryReader& _reader) = 0;
-        virtual void createSpecificImageView(MemoryReader& _reader) = 0;
         virtual void setBackBuffers(MemoryReader& _reader) = 0;
         virtual void setBrief(MemoryReader& reader) = 0;
     };
@@ -205,7 +203,7 @@ namespace vkz
         void createImage(MemoryReader& reader) override {};
         void createBuffer(MemoryReader& reader) override {};
         void createSampler(MemoryReader& _reader) override {};
-        void createSpecificImageView(MemoryReader& _reader) override {};
+        void createImageView(MemoryReader& _reader) override {};
         void setBackBuffers(MemoryReader& _reader) override {};
         void setBrief(MemoryReader& reader) override {};
 

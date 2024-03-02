@@ -115,9 +115,9 @@ void vkz_prepareUI(UIRendering& _ui, vkz::ImageHandle _color, vkz::ImageHandle _
     passDesc.vertexAttributes = vtxAttributeMem->data;
     passDesc.pipelineConfig = { true, true, vkz::CompareOp::always };
     
-    passDesc.passConfig.colorLoadOp = vkz::AttachmentLoadOp::load;
+    passDesc.passConfig.colorLoadOp = vkz::AttachmentLoadOp::dont_care;
     passDesc.passConfig.colorStoreOp = vkz::AttachmentStoreOp::store;
-    passDesc.passConfig.depthLoadOp = vkz::AttachmentLoadOp::load;
+    passDesc.passConfig.depthLoadOp = vkz::AttachmentLoadOp::dont_care;
     passDesc.passConfig.depthStoreOp = vkz::AttachmentStoreOp::dont_care;
 
     vkz::PassHandle pass = vkz::registPass("ui_pass", passDesc);

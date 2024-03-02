@@ -40,6 +40,13 @@ namespace vkz
                 type = ResourceType::image;
             }
 
+            DescriptorSet(ImageHandle _hImg, ImageViewHandle _hView)
+            {
+                img = _hImg;
+                imgView = _hView;
+                type = ResourceType::image;
+            }
+
 
         };
     public: 
