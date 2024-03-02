@@ -85,8 +85,8 @@ struct TaskSubmit
     vkz::BufferHandle drawCmdBufferOutAlias;
 };
 
-void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t _width, uint32_t _height, const MeshShadingInitData _initData, bool late = false);
+void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t _width, uint32_t _height, const MeshShadingInitData _initData, bool _late = false);
 
-void prepareTaskSubmit(TaskSubmit& _taskSubmit, vkz::BufferHandle _drawCmdBuf, vkz::BufferHandle _drawCmdCntBuf);
+void prepareTaskSubmit(TaskSubmit& _taskSubmit, vkz::BufferHandle _drawCmdBuf, vkz::BufferHandle _drawCmdCntBuf, bool _late = false);
 
 void updateMeshShadingConstants(MeshShading& _meshShading, const GlobalsVKZ& _globals);

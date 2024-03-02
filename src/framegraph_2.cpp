@@ -5,11 +5,10 @@
 
 #include "memory_operation.h"
 #include "handle.h"
-#include "vkz.h"
 #include "framegraph_2.h"
-#include <stack>
-#include <algorithm>
 #include "rhi_context.h"
+
+#include <algorithm>
 
 
 
@@ -689,7 +688,22 @@ namespace vkz
             {
                 CombinedResID writeOpIn = rwRes.writeOpForcedAliasMap.getIdAt(ii);
 
-                message(info, "res : 0x%8x in pass %d", writeOpIn, pass.id);
+                StringView resName;
+                if (writeOpIn.type == ResourceType::image)
+                {
+                    resName = getName( ImageHandle{ writeOpIn.id });
+                }
+                else if (writeOpIn.type == ResourceType::buffer)
+                {
+                    resName = getName(BufferHandle{ writeOpIn.id });
+                }
+                else
+                {
+                    assert(0);
+                }
+                StringView passName = getName(pass);
+
+                message(info, "res : 0x%8x:%s in pass %d:%s", writeOpIn, resName.getPtr(), pass.id, passName.getPtr());
 
                 writeResPassIdxMap.insert({ writeOpIn, order });
             }
@@ -885,15 +899,15 @@ namespace vkz
 
         for (uint16_t passIdx : m_sortedPassIdx)
         {
-            std::stack<uint16_t> passStack;
-            passStack.push(passIdx);
+            stl::vector<uint16_t> passStack;
+            passStack.push_back(passIdx);
 
             uint16_t baseLv = _maxLvLst[passIdx];
 
             while (!passStack.empty())
             {
-                uint16_t currPassIdx = passStack.top();
-                passStack.pop();
+                uint16_t currPassIdx = passStack.back();
+                passStack.pop_back();
 
                 const uint16_t currLv = _maxLvLst[currPassIdx];
                 for (const uint16_t inPassIdx : m_pass_dependency[currPassIdx].inPassIdxSet)
@@ -911,7 +925,7 @@ namespace vkz
 
                 for (const uint16_t inPassIdx : m_pass_dependency[currPassIdx].inPassIdxSet)
                 {
-                    passStack.push(inPassIdx);
+                    passStack.push_back(inPassIdx);
                 }
             }
         }
@@ -1777,7 +1791,7 @@ namespace vkz
         stl::vector<stl::vector<VertexAttributeDesc>> passVertexAttribute(m_sortedPass.size());
         stl::vector<stl::vector<int>> passPipelineSpecData(m_sortedPass.size());
 
-        stl::vector<std::pair<ImageHandle, ResInteractDesc>> writeDSPair(m_sortedPass.size());
+        stl::vector<stl::pair<ImageHandle, ResInteractDesc>> writeDSPair(m_sortedPass.size());
         stl::vector<UniDataContainer< ImageHandle, ResInteractDesc> > writeImageVec(m_sortedPass.size());
         stl::vector<UniDataContainer< ImageHandle, ResInteractDesc> > readImageVec(m_sortedPass.size());
 
@@ -1794,7 +1808,7 @@ namespace vkz
             const PassMetaData& passMeta = m_sparse_pass_meta[pass.id];
             assert(pass.id == passMeta.passId);
 
-            std::pair<ImageHandle, ResInteractDesc>& writeDS = writeDSPair[ii];
+            stl::pair<ImageHandle, ResInteractDesc>& writeDS = writeDSPair[ii];
             UniDataContainer< ImageHandle, ResInteractDesc>& writeColor = writeImageVec[ii];
             UniDataContainer< ImageHandle, ResInteractDesc>& readImg = readImageVec[ii];
 

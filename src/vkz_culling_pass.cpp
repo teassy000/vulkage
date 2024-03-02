@@ -16,7 +16,8 @@ void prepareCullingComp(CullingComp& _cullingComp, const CullingCompInitData& _i
     passDesc.pipelineSpecNum = COUNTOF(pipelineSpecs);
     passDesc.pipelineSpecData = (void*)pConst->data;
 
-    vkz::PassHandle pass = vkz::registPass("cull_pass", passDesc);
+    const char* passName = _late ? "cull_pass_late" : "cull_pass_early";
+    vkz::PassHandle pass = vkz::registPass(passName, passDesc);
 
     vkz::BufferHandle drawCmdOutAlias = vkz::alias(_initData.meshDrawCmdBuf);
     vkz::BufferHandle drawCmdCountOutAlias = vkz::alias(_initData.meshDrawCmdCountBuf);

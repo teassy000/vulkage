@@ -1,11 +1,16 @@
 #pragma once
 
-#include "vkz_structs.h"
 #include "cmd_list.h"
 #include "config.h"
+#include "vkz.h"
+#include "alloc.h"
+#include "string.h"
+
 
 namespace vkz
 {
+
+
     struct CombinedResID
     {
         uint16_t        id{kInvalidHandle};
@@ -195,7 +200,6 @@ namespace vkz
 
     struct ProgramCreateInfo : public ProgramDesc
     {
-
     };
 
     using RenderFuncPtr = void (*)(CommandListI& _cmdList, const void* _data, uint32_t _size);
@@ -247,4 +251,54 @@ namespace vkz
         uint32_t windowWidth{0};
         uint32_t windowHeight{0};
     };
+
+    namespace NameTags
+    {
+        // tag for varies of handle 
+        static const char* kShader = "[sh]";
+        static const char* kRenderPass = "[pass]";
+        static const char* kProgram = "[prog]";
+        static const char* kImage = "[img]";
+        static const char* kBuffer = "[buf]";
+        static const char* kSampler = "[samp]";
+        static const char* kImageView = "[imgv]";
+
+        // tag for alias: buffer, image
+        static const char* kAlias = "[alias]";
+    }
+
+    enum class HandleType : uint16_t
+    {
+        unknown = 0,
+
+        pass,
+        shader,
+        program,
+        image,
+        buffer,
+        sampler,
+        image_view,
+    };
+
+    struct HandleSignature
+    {
+        HandleType  type;
+        uint16_t    id;
+
+        // for tinystl::hash(const T& value)
+        // which requires to cast to size_t
+        operator size_t() const
+        {
+            return ((size_t)(type) << 16) | id;
+        }
+    };
+
+    
+    const char* getName(ShaderHandle _hShader);
+    const char* getName(ProgramHandle _hProg);
+    const char* getName(PassHandle _hPass);
+    const char* getName(ImageHandle _hImg);
+    const char* getName(BufferHandle _hBuf);
+    const char* getName(ImageViewHandle _hImgView);
+    const char* getName(SamplerHandle _hSampler);
 } // namespace vkz

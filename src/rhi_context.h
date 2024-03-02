@@ -2,10 +2,9 @@
 
 #include <stdint.h>
 
-#include "vkz_structs_inner.h"
-#include "vkz.h"
+#include "vkz_inner.h"
+
 #include "config.h"
-#include "name.h"
 #include "memory_operation.h"
 #include "util.h"
 
@@ -163,9 +162,8 @@ namespace vkz
     class RHIContext : public RHIContextI
     {
     public:
-        RHIContext(AllocatorI* _allocator, NameManager* _nameManager)
+        RHIContext(AllocatorI* _allocator)
             : m_pAllocator{ _allocator }
-            , m_pNameManager{ _nameManager }
             , m_pMemBlockBaked{ nullptr }
             , m_constantsMemBlock{ _allocator }
         {
@@ -214,7 +212,6 @@ namespace vkz
     protected:
         ConstantsMemoryBlock m_constantsMemBlock;
         AllocatorI* m_pAllocator;
-        NameManager* m_pNameManager;
     private:
 
         MemoryBlockI*   m_pMemBlockBaked;

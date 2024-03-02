@@ -9,7 +9,7 @@
 #include "vk_shaders.h"
 #include "vk_swapchain.h"
 
-#include "vkz_structs_inner.h"
+#include "vkz_inner.h"
 
 #include "rhi_context.h"
 #include "cmd_list_vk.h"
@@ -168,7 +168,7 @@ namespace vkz
     class RHIContext_vk : public RHIContext
     {
     public:
-        RHIContext_vk(AllocatorI* _allocator, NameManager* _nameManager, RHI_Config _config, void* _wnd);
+        RHIContext_vk(AllocatorI* _allocator, RHI_Config _config, void* _wnd);
 
         ~RHIContext_vk() override;
         void init(RHI_Config _config, void* _wnd) override;

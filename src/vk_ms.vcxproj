@@ -295,7 +295,6 @@
     <ClInclude Include="memory_operation.h" />
     <ClInclude Include="mesh.h" />
     <ClInclude Include="framegraph.h" />
-    <ClInclude Include="name.h" />
     <ClInclude Include="profiler.h" />
     <ClInclude Include="rhi_context.h" />
     <ClInclude Include="string.h" />
@@ -304,7 +303,7 @@
     <ClInclude Include="vkz_ms_pip.h" />
     <ClInclude Include="vkz_pyramid.h" />
     <ClInclude Include="vkz_structs.h" />
-    <ClInclude Include="vkz_structs_inner.h" />
+    <ClInclude Include="vkz_inner.h" />
     <ClInclude Include="vkz_ui.h" />
     <ClInclude Include="vkz_vtx_pip.h" />
     <ClInclude Include="vk_device.h" />

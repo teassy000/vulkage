@@ -2,13 +2,11 @@
 #include "macro.h"
 
 #include "config.h"
-#include "vkz.h"
 #include "util.h"
 
 #include "rhi_context_vk.h"
 
 #include <algorithm> //sort
-#include "name.h"
 
 
 namespace vkz
@@ -1047,8 +1045,8 @@ namespace vkz
         return props;
     }
 
-    RHIContext_vk::RHIContext_vk(AllocatorI* _allocator, NameManager* _nameManager, RHI_Config _config, void* _wnd)
-        : RHIContext(_allocator, _nameManager)
+    RHIContext_vk::RHIContext_vk(AllocatorI* _allocator, RHI_Config _config, void* _wnd)
+        : RHIContext(_allocator)
         , m_instance{ VK_NULL_HANDLE }
         , m_device{ VK_NULL_HANDLE }
         , m_phyDevice{ VK_NULL_HANDLE }

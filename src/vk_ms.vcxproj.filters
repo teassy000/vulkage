@@ -310,9 +310,6 @@
     <ClInclude Include="alloc.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="name.h">
-      <Filter>src</Filter>
-    </ClInclude>
     <ClInclude Include="demo.h" />
     <ClInclude Include="memory_operation.h">
       <Filter>src</Filter>
@@ -332,7 +329,7 @@
     <ClInclude Include="vkz_structs.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="vkz_structs_inner.h">
+    <ClInclude Include="vkz_inner.h">
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="vk_device.h">

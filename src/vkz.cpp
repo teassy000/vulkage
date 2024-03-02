@@ -2,10 +2,9 @@
 #include "alloc.h"
 #include "handle.h"
 #include "memory_operation.h"
-#include "vkz.h"
+#include "vkz_inner.h"
 
 #include "config.h"
-#include "name.h"
 
 #include "util.h"
 
@@ -13,15 +12,15 @@
 #include "framegraph_2.h"
 #include "rhi_context_vk.h"
 
+
 #include <glfw/glfw3.h>
 #include <glfw/glfw3native.h>
+#include "string.h"
 
 
 namespace vkz
 {
     static AllocatorI* s_allocator = nullptr;
-    static NameManager* s_nameManager = nullptr;
-
     static AllocatorI* getAllocator()
     {
         if (s_allocator == nullptr)
@@ -37,6 +36,150 @@ namespace vkz
         deleteObject(getAllocator(), s_allocator);
     }
 
+    using String = SimpleString<&s_allocator>;
+
+    struct NameManager
+    {
+        NameManager();
+        ~NameManager();
+
+        void setName(const char* _name, const int32_t _len, PassHandle _hPass) { setName(_name, _len, { HandleType::pass, _hPass.id }); }
+        void setName(const char* _name, const int32_t _len, ShaderHandle _hShader) { setName(_name, _len, { HandleType::shader, _hShader.id }); }
+        void setName(const char* _name, const int32_t _len, ProgramHandle _hProgram) { setName(_name, _len, { HandleType::program, _hProgram.id }); }
+        void setName(const char* _name, const int32_t _len, ImageHandle _hImage, bool _isAlias) { setName(_name, _len, { HandleType::image, _hImage.id }, _isAlias) ; }
+        void setName(const char* _name, const int32_t _len, BufferHandle _hBuffer, bool _isAlias) { setName(_name, _len, { HandleType::buffer, _hBuffer.id }, _isAlias); }
+        void setName(const char* _name, const int32_t _len, SamplerHandle _hSampler) { setName(_name, _len, { HandleType::sampler, _hSampler.id }); }
+        void setName(const char* _name, const int32_t _len, ImageViewHandle _hImageView) { setName(_name, _len, { HandleType::image_view , _hImageView.id }); }
+
+        const char* getName(PassHandle _hPass) { return getName({ HandleType::pass, _hPass.id }); }
+        const char* getName(ShaderHandle _hShader) { return getName({ HandleType::shader, _hShader.id }); }
+        const char* getName(ProgramHandle _hProgram) { return getName({ HandleType::program, _hProgram.id }); }
+        const char* getName(ImageHandle _hImage) { return getName({ HandleType::image, _hImage.id }); }
+        const char* getName(BufferHandle _hBuffer) { return getName({ HandleType::buffer, _hBuffer.id }); }
+        const char* getName(SamplerHandle _hSampler) { return getName({ HandleType::sampler, _hSampler.id }); }
+        const char* getName(ImageViewHandle _hImageView) { return getName({ HandleType::image_view, _hImageView.id }); }
+
+    private:
+        void setName(const char* _name, const int32_t _len, const HandleSignature _signature, bool _isAlias = false);
+
+        const char* getName(const HandleSignature id);
+
+        void getPrefix(String& _outStr, HandleType _type, bool _isAlias);
+
+    private:
+        stl::unordered_map<HandleSignature, String> _idToName;
+    };
+
+    NameManager::NameManager()
+    {
+        _idToName.clear();
+    }
+
+    NameManager::~NameManager()
+    {
+        _idToName.clear();
+    }
+
+    void NameManager::setName(const char* _name, const int32_t _len, const HandleSignature _signature, bool _isAlias /* = false */)
+    {
+        if (_signature.type == HandleType::unknown)
+        {
+            message(error, "invalid handle type");
+            return;
+        }
+
+        String name;
+        getPrefix(name, _signature.type, _isAlias);
+        name.append(_name);
+
+        _idToName.insert({ _signature, name });
+    }
+
+    const char* NameManager::getName(const HandleSignature id)
+    {
+        return _idToName[id].getCStr();
+    }
+
+    void NameManager::getPrefix(String& _inStr, HandleType _type, bool _isAlias)
+    {
+        if (HandleType::unknown == _type)
+        {
+            message(error, "invalid handle type");
+            return;
+        }
+
+        if (_isAlias)
+        {
+            _inStr.append(NameTags::kAlias);
+            return;
+        }
+
+        if (HandleType::pass == _type)
+        {
+            _inStr.append(NameTags::kRenderPass);
+        }
+        else if (HandleType::shader == _type)
+        {
+            _inStr.append(NameTags::kShader);
+        }
+        else if (HandleType::program == _type)
+        {
+            _inStr.append(NameTags::kProgram);
+        }
+        else if (HandleType::image == _type)
+        {
+            _inStr.append(NameTags::kImage);
+        }
+        else if (HandleType::buffer == _type)
+        {
+            _inStr.append(NameTags::kBuffer);
+        }
+        else if (HandleType::sampler == _type)
+        {
+            _inStr.append(NameTags::kSampler);
+        }
+        else if (HandleType::image_view == _type)
+        {
+            _inStr.append(NameTags::kImageView);
+        }
+    }
+
+    inline void setName(NameManager* _nameMngr, const char* _name, const size_t _len, PassHandle _hPass)
+    {
+        _nameMngr->setName(_name, (int32_t)_len, _hPass);
+    }
+
+    void setName(NameManager* _nameMngr, const char* _name, const size_t _len, ShaderHandle _hShader)
+    {
+        _nameMngr->setName(_name, (int32_t)_len, _hShader);
+    }
+
+    void setName(NameManager* _nameMngr, const char* _name, const size_t _len, ProgramHandle _hProgram)
+    {
+        _nameMngr->setName(_name, (int32_t)_len, _hProgram);
+    }
+
+    void setName(NameManager* _nameMngr, const char* _name, const size_t _len, ImageHandle _hImage, bool _isAlias = false)
+    {
+        _nameMngr->setName(_name, (int32_t)_len, _hImage, _isAlias);
+    }
+
+    void setName(NameManager* _nameMngr, const char* _name, const size_t _len, BufferHandle _hBuffer, bool _isAlias = false)
+    {
+        _nameMngr->setName(_name, (int32_t)_len, _hBuffer, _isAlias);
+    }
+
+    void setName(NameManager* _nameMngr, const char* _name, const size_t _len, SamplerHandle _hSampler)
+    {
+        _nameMngr->setName(_name, (int32_t)_len, _hSampler);
+    }
+
+    void setName(NameManager* _nameMngr, const char* _name, const size_t _len, ImageViewHandle _hImageView)
+    {
+        _nameMngr->setName(_name, (int32_t)_len, _hImageView);
+    }
+
+    static NameManager* s_nameManager = nullptr;
     static NameManager* getNameManager()
     {
         if (s_nameManager == nullptr)
@@ -46,8 +189,6 @@ namespace vkz
 
         return s_nameManager;
     }
-
-
 
     uint16_t getBytesPerPixel(ResourceFormat _format)
     {
@@ -1184,6 +1325,9 @@ namespace vkz
         meta.bufId = aliasId;
         m_bufferMetas.push_back({ aliasId }, meta);
 
+        StringView baseName = getName(actualBase);
+        setName(getNameManager(), baseName.getPtr(), baseName.getLen(), BufferHandle{ aliasId }, true);
+
         setRenderGraphDataDirty();
 
         return { aliasId };
@@ -1220,6 +1364,9 @@ namespace vkz
         ImageMetaData meta = { m_imageMetas.getIdToData(actualBase) };
         meta.imgId = aliasId;
         m_imageMetas.push_back({ aliasId }, meta);
+
+        StringView baseName = getName(actualBase);
+        setName(getNameManager(), baseName.getPtr(), baseName.getLen(), ImageHandle{ aliasId }, true);
 
         setRenderGraphDataDirty();
 
@@ -1696,9 +1843,9 @@ namespace vkz
         RHI_Config rhiConfig{};
         rhiConfig.windowWidth = m_renderWidth;
         rhiConfig.windowHeight = m_renderHeight;
-        m_rhiContext = VKZ_NEW(m_pAllocator, RHIContext_vk(m_pAllocator, m_pNameManager, rhiConfig, wnd));
+        m_rhiContext = VKZ_NEW(m_pAllocator, RHIContext_vk(m_pAllocator, rhiConfig, wnd));
 
-        m_frameGraph = VKZ_NEW(m_pAllocator, Framegraph2(m_pAllocator, m_pNameManager, m_rhiContext->memoryBlock()));
+        m_frameGraph = VKZ_NEW(m_pAllocator, Framegraph2(m_pAllocator, m_rhiContext->memoryBlock()));
 
         m_pFgMemBlock = m_frameGraph->getMemoryBlock();
         m_fgMemWriter = VKZ_NEW(m_pAllocator, MemoryWriter(m_pFgMemBlock));
@@ -2022,4 +2169,39 @@ namespace vkz
         deleteObject(getAllocator(), s_ctx);
         shutdownAllocator();
     }
+
+    const char* getName(ShaderHandle _hShader)
+    {
+        return getNameManager()->getName(_hShader);
+    }
+
+    const char* getName(ProgramHandle _hProg)
+    {
+        return getNameManager()->getName(_hProg);
+    }
+    
+    const char* getName(PassHandle _hPass)
+    {
+        return getNameManager()->getName(_hPass);
+    }
+
+    const char* getName(BufferHandle _hBuf)
+    {
+        return getNameManager()->getName(_hBuf);
+    }
+
+    const char* getName(ImageHandle _hImg)
+    {
+        return getNameManager()->getName(_hImg);
+    }
+
+    const char* getName(ImageViewHandle _hImgView)
+    {
+        return getNameManager()->getName(_hImgView);
+    }
+    const char* getName(SamplerHandle _hSampler)
+    {
+        return getNameManager()->getName(_hSampler);
+    }
+
 } // namespace vkz

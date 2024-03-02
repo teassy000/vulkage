@@ -1,8 +1,7 @@
 #pragma once
 
 #include "memory_operation.h"
-#include "vkz_structs_inner.h"
-#include "name.h"
+#include "vkz_inner.h"
 #include "common.h"
 #include "util.h"
 
@@ -134,9 +133,8 @@ namespace vkz
     class Framegraph2
     {
     public:
-        Framegraph2(AllocatorI* _allocator, NameManager* _nameManager, MemoryBlockI* _rhiMem)
+        Framegraph2(AllocatorI* _allocator, MemoryBlockI* _rhiMem)
             : m_pAllocator{ _allocator }
-            , m_pNamaManager{ _nameManager }
             , m_pCreatorMemBlock {_rhiMem}
             , m_rhiMemWriter{ _rhiMem }
         { 
@@ -334,7 +332,6 @@ namespace vkz
 
     private:
         AllocatorI* m_pAllocator;
-        NameManager* m_pNamaManager;
         MemoryBlockI* m_pMemBlock;
 
         MemoryBlockI* m_pCreatorMemBlock;

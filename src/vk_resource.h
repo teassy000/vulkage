@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vkz_structs_inner.h"
+#include "vkz_inner.h"
 
 namespace vkz
 {

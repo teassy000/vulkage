@@ -20,7 +20,7 @@ void meshDemo()
 
     vkz::init(config);
 
-    bool supportMeshShading = false;// vkz::checkSupports(vkz::VulkanSupportExtension::ext_mesh_shader);
+    bool supportMeshShading = true;// vkz::checkSupports(vkz::VulkanSupportExtension::ext_mesh_shader);
 
     // ui data
     Input input = {};
@@ -83,9 +83,8 @@ void meshDemo()
     meshDrawCmdCountBufDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::indirect | vkz::BufferUsageFlagBits::transfer_dst;
     meshDrawCmdCountBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
     vkz::BufferHandle meshDrawCmdCountBuf = vkz::registBuffer("meshDrawCmdCount", meshDrawCmdCountBufDesc);
-    vkz::BufferHandle meshDrawCmdCountBuf2 = vkz::alias(meshDrawCmdCountBuf);
-    vkz::BufferHandle meshDrawCmdCountBuf4 = vkz::alias(meshDrawCmdCountBuf);
-
+    vkz::BufferHandle meshDrawCmdCountBufAfterFill = vkz::alias(meshDrawCmdCountBuf);
+    vkz::BufferHandle meshDrawCmdCountBufAfterFillLate = vkz::alias(meshDrawCmdCountBuf);
 
     // mesh draw instance visibility buffer
     vkz::BufferDesc meshDrawVisBufDesc;
@@ -148,7 +147,6 @@ void meshDemo()
     rtDesc.mipLevels = 1;
     rtDesc.usage = vkz::ImageUsageFlagBits::transfer_src;
     vkz::ImageHandle color = vkz::registRenderTarget("color", rtDesc, vkz::ResourceLifetime::non_transition);
-    vkz::ImageHandle color2 = vkz::alias(color);
 
     vkz::ImageDesc dpDesc;
     dpDesc.depth = 1;
@@ -156,8 +154,6 @@ void meshDemo()
     dpDesc.mipLevels = 1;
     dpDesc.usage = vkz::ImageUsageFlagBits::transfer_src | vkz::ImageUsageFlagBits::sampled;
     vkz::ImageHandle depth = vkz::registDepthStencil("depth", dpDesc, vkz::ResourceLifetime::non_transition);
-    vkz::ImageHandle depth2 = vkz::alias(depth);
-
 
     // pyramid passes
     uint32_t pyramidLevelWidth = previousPow2_new(config.windowWidth);
@@ -187,7 +183,7 @@ void meshDemo()
         cullingInit.transBuf = transformBuf;
         cullingInit.pyramid = pyRendering.image;
         cullingInit.meshDrawCmdBuf = meshDrawCmdBuf;
-        cullingInit.meshDrawCmdCountBuf = meshDrawCmdCountBuf2;
+        cullingInit.meshDrawCmdCountBuf = meshDrawCmdCountBufAfterFill;
         cullingInit.meshDrawVisBuf = meshDrawVisBuf;
 
         prepareCullingComp(culling, cullingInit);
@@ -240,7 +236,7 @@ void meshDemo()
         cullingInit.transBuf = transformBuf;
         cullingInit.pyramid = pyRendering.imgOutAlias;
         cullingInit.meshDrawCmdBuf = culling.meshDrawCmdBufOutAlias;
-        cullingInit.meshDrawCmdCountBuf = meshDrawCmdCountBuf4;
+        cullingInit.meshDrawCmdCountBuf = meshDrawCmdCountBufAfterFillLate;
         cullingInit.meshDrawVisBuf = culling.meshDrawVisBufOutAlias;
 
         prepareCullingComp(cullingLate, cullingInit, true);
@@ -264,7 +260,7 @@ void meshDemo()
     }
     else
     {
-        prepareTaskSubmit(taskSubmitLate, cullingLate.meshDrawCmdBufOutAlias, cullingLate.meshDrawCmdCountBufOutAlias);
+        prepareTaskSubmit(taskSubmitLate, cullingLate.meshDrawCmdBufOutAlias, cullingLate.meshDrawCmdCountBufOutAlias, true);
 
         MeshShadingInitData msInit{};
         msInit.vtxBuffer = vtxBuf;
@@ -291,7 +287,7 @@ void meshDemo()
 
         pass_fill_dccb = vkz::registPass("fill_dccb", passDesc);
 
-        vkz::fillBuffer(pass_fill_dccb, meshDrawCmdCountBuf, 0, sizeof(uint32_t), 0, meshDrawCmdCountBuf2);
+        vkz::fillBuffer(pass_fill_dccb, meshDrawCmdCountBuf, 0, sizeof(uint32_t), 0, meshDrawCmdCountBufAfterFill);
     } 
 
     vkz::PassHandle pass_fill_dccb_late;
@@ -299,10 +295,10 @@ void meshDemo()
         vkz::PassDesc passDesc;
         passDesc.queue = vkz::PassExeQueue::fill_buffer;
 
-        pass_fill_dccb_late = vkz::registPass("fill_dccb", passDesc);
+        pass_fill_dccb_late = vkz::registPass("fill_dccb_late", passDesc);
 
         vkz::BufferHandle dccb = supportMeshShading ? taskSubmit.drawCmdBufferOutAlias : culling.meshDrawCmdCountBufOutAlias;
-        vkz::fillBuffer(pass_fill_dccb_late, dccb, 0, sizeof(uint32_t), 0, meshDrawCmdCountBuf4);
+        vkz::fillBuffer(pass_fill_dccb_late, dccb, 0, sizeof(uint32_t), 0, meshDrawCmdCountBufAfterFillLate);
     }
 
     UIRendering ui{};

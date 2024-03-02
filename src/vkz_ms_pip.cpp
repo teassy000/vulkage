@@ -54,11 +54,12 @@ void meshShading_renderFunc(vkz::CommandListI& _cmdList, const void* _data, uint
     _cmdList.barrier(msd.depth, vkz::AccessFlagBits::depth_stencil_attachment_write, vkz::ImageLayout::depth_stencil_attachment_optimal, vkz::PipelineStageFlagBits::late_fragment_tests);
 }
 
-void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t _width, uint32_t _height, const MeshShadingInitData _initData, bool late /* = false*/)
+void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t _width, uint32_t _height, const MeshShadingInitData _initData, bool _late /* = false*/)
 {
     vkz::ShaderHandle ms= vkz::registShader("mesh_shader", "shaders/meshlet.mesh.spv");
     vkz::ShaderHandle ts = vkz::registShader("task_shader", "shaders/meshlet.task.spv");
     vkz::ShaderHandle fs = vkz::registShader("mesh_frag_shader", "shaders/meshlet.frag.spv");
+
 
     vkz::ProgramHandle prog = vkz::registProgram("mesh_prog", { ts, ms, fs }, sizeof(GlobalsVKZ));
 
@@ -69,12 +70,13 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
     desc.pipelineConfig.enableDepthTest = true;
     desc.pipelineConfig.enableDepthWrite = true;
 
-    desc.passConfig.colorLoadOp = late ? vkz::AttachmentLoadOp::dont_care : vkz::AttachmentLoadOp::clear;
+    desc.passConfig.colorLoadOp = _late ? vkz::AttachmentLoadOp::dont_care : vkz::AttachmentLoadOp::clear;
     desc.passConfig.colorStoreOp = vkz::AttachmentStoreOp::store;
-    desc.passConfig.depthLoadOp = late ? vkz::AttachmentLoadOp::dont_care : vkz::AttachmentLoadOp::clear;
+    desc.passConfig.depthLoadOp = _late ? vkz::AttachmentLoadOp::dont_care : vkz::AttachmentLoadOp::clear;
     desc.passConfig.depthStoreOp = vkz::AttachmentStoreOp::store;
 
-    vkz::PassHandle pass = vkz::registPass("mesh_pass_early", desc);
+    const char* passName = _late ? "mesh_pass_late" : "mesh_pass_early";
+    vkz::PassHandle pass = vkz::registPass(passName, desc);
 
     vkz::BufferHandle mltVisBufOutAlias = vkz::alias(_initData.meshletVisBuffer);
     vkz::ImageHandle colorOutAlias = vkz::alias(_initData.color);
@@ -165,7 +167,7 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
     vkz::setCustomRenderFunc(pass, meshShading_renderFunc, mem);
 }
 
-void prepareTaskSubmit(TaskSubmit& _taskSubmit, vkz::BufferHandle _drawCmdBuf, vkz::BufferHandle _drawCmdCntBuf)
+void prepareTaskSubmit(TaskSubmit& _taskSubmit, vkz::BufferHandle _drawCmdBuf, vkz::BufferHandle _drawCmdCntBuf, bool _late /*= false*/)
 {
     vkz::ShaderHandle cs = vkz::registShader("task_modify_shader", "shaders/taskModify.comp.spv");
 
@@ -175,7 +177,8 @@ void prepareTaskSubmit(TaskSubmit& _taskSubmit, vkz::BufferHandle _drawCmdBuf, v
     desc.programId = prog.id;
     desc.queue = vkz::PassExeQueue::compute;
 
-    vkz::PassHandle pass = vkz::registPass("task_modify_pass", desc);
+    const char* passName = _late ? "task_modify_pass_late" : "task_modify_pass_early";
+    vkz::PassHandle pass = vkz::registPass(passName, desc);
 
     vkz::BufferHandle drawCmdBufferOutAlias = vkz::alias(_drawCmdBuf);
 

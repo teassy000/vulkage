@@ -137,6 +137,7 @@ namespace vkz
         , m_capacity(0)
     {
         set(_other);
+        m_ptr[m_len] = '\0';
     }
 
     template<AllocatorI** Allocator>
@@ -191,6 +192,8 @@ namespace vkz
 
         m_len = len;
         memcpy(ptr + oldLen, _str.getPtr(), _str.getLen());
+        // set the ending
+        memcpy(ptr + m_len, "\0", 1);
     }
 
     template<AllocatorI** Allocator>
