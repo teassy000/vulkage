@@ -5,7 +5,7 @@ void prepareCullingComp(CullingComp& _cullingComp, const CullingCompInitData& _i
     vkz::ShaderHandle cs = vkz::registShader("mesh_draw_cmd_shader", "shaders/drawcmd.comp.spv");
     vkz::ProgramHandle prog = vkz::registProgram("mesh_draw_cmd_prog", { cs }, sizeof(MeshDrawCullVKZ));
 
-    int pipelineSpecs[] = { false, false };
+    int pipelineSpecs[] = { _late, true };
 
     const vkz::Memory* pConst = vkz::alloc(sizeof(int) * COUNTOF(pipelineSpecs));
     memcpy_s(pConst->data, pConst->size, pipelineSpecs, sizeof(int) * COUNTOF(pipelineSpecs));

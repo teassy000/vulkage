@@ -447,7 +447,7 @@ int main(int argc, const char** argv)
     VkPipeline drawcmdPipeline = createComputePipeline(device, pipelineCache, drawcmdProgram.layout, drawcmdCS );
     VkPipeline drawcmdLatePipeline = createComputePipeline(device, pipelineCache, drawcmdProgram.layout, drawcmdCS, {/* late = */true});
 
-    VkPipeline taskCullPipeline = createComputePipeline(device, pipelineCache, drawcmdProgram.layout, drawcmdCS, {/* late = */true, /*task = */ true});
+    VkPipeline taskCullPipeline = createComputePipeline(device, pipelineCache, drawcmdProgram.layout, drawcmdCS, {/* late = */false, /*task = */ true});
     VkPipeline taskCullLatePipeline = createComputePipeline(device, pipelineCache, drawcmdProgram.layout, drawcmdCS, {/* late = */true, /*task = */ true});
 
     Program taskModifyProgram = createProgram(device, VK_PIPELINE_BIND_POINT_COMPUTE, { &taskModifiyCS});
@@ -659,7 +659,7 @@ int main(int argc, const char** argv)
     }
 
     // camera
-    freeCameraInit(freeCamera, { 0.f, 0.f, 0.f }, { 0.f, 1.f, 0.f }, 90.f, 0.f);
+    freeCameraInit(freeCamera, vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 1.0f, 0.0f), 90.0f, 0.0f);
 
     // imgui
     UIRendering ui = {};

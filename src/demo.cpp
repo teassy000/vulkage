@@ -20,7 +20,7 @@ void meshDemo()
 
     vkz::init(config);
 
-    bool supportMeshShading = true;// vkz::checkSupports(vkz::VulkanSupportExtension::ext_mesh_shader);
+    bool supportMeshShading = vkz::checkSupports(vkz::VulkanSupportExtension::ext_mesh_shader);
 
     // ui data
     Input input = {};
@@ -34,24 +34,12 @@ void meshDemo()
     // load scene
     Scene scene;
     const char* pathes[] = { "../data/kitten.obj" };
-    bool lmr = loadScene(scene, pathes, COUNTOF(pathes), true);
+    bool lmr = loadScene(scene, pathes, COUNTOF(pathes), supportMeshShading);
     assert(lmr);
 
     // basic data
     FreeCamera freeCamera = {};
-    freeCameraInit(freeCamera, vec3(0.0f, 2.0f, 0.0f), vec3(0.0f, 1.0f, 0.0f), 90.0f, 0.0f);
-
-    float znear = .1f;
-    mat4 projection = perspectiveProjection2(glm::radians(70.f), (float)config.windowWidth / (float)config.windowHeight, znear);
-    mat4 projectionT = glm::transpose(projection);
-    vec4 frustumX = normalizePlane2(projectionT[3] - projectionT[0]);
-    vec4 frustumY = normalizePlane2(projectionT[3] - projectionT[1]);
-
-    mat4 view = freeCameraGetViewMatrix(freeCamera);
-    TransformData trans = {};
-    trans.view = view;
-    trans.proj = projection;
-    trans.cameraPos = freeCamera.pos;
+    freeCameraInit(freeCamera, vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 1.0f, 0.0f), 90.0f, 0.0f);
 
     // buffers
     // mesh data
@@ -133,6 +121,8 @@ void meshDemo()
     vkz::BufferHandle meshletDataBuffer = vkz::registBuffer("meshlet_data_buffer", meshletDataBufferDesc);
 
     // transform
+    TransformData trans{};
+
     vkz::BufferDesc transformBufDesc;
     transformBufDesc.size = (uint32_t)(sizeof(TransformData));
     transformBufDesc.data = &trans;
@@ -235,7 +225,7 @@ void meshDemo()
         cullingInit.meshDrawBuf = meshDrawBuf;
         cullingInit.transBuf = transformBuf;
         cullingInit.pyramid = pyRendering.imgOutAlias;
-        cullingInit.meshDrawCmdBuf = culling.meshDrawCmdBufOutAlias;
+        cullingInit.meshDrawCmdBuf = supportMeshShading ?  taskSubmit.drawCmdBufferOutAlias : culling.meshDrawCmdBufOutAlias;
         cullingInit.meshDrawCmdCountBuf = meshDrawCmdCountBufAfterFillLate;
         cullingInit.meshDrawVisBuf = culling.meshDrawVisBufOutAlias;
 
@@ -297,7 +287,7 @@ void meshDemo()
 
         pass_fill_dccb_late = vkz::registPass("fill_dccb_late", passDesc);
 
-        vkz::BufferHandle dccb = supportMeshShading ? taskSubmit.drawCmdBufferOutAlias : culling.meshDrawCmdCountBufOutAlias;
+        vkz::BufferHandle dccb = culling.meshDrawCmdCountBufOutAlias;
         vkz::fillBuffer(pass_fill_dccb_late, dccb, 0, sizeof(uint32_t), 0, meshDrawCmdCountBufAfterFillLate);
     }
 
@@ -319,22 +309,29 @@ void meshDemo()
     // data used in loop
     const vkz::Memory* memGlobal = vkz::alloc(sizeof(GlobalsVKZ));
     const vkz::Memory* memTransform = vkz::alloc(sizeof(TransformData));
-    const vkz::Memory* memPyramidWndSz = vkz::alloc(sizeof(vec2));
 
     MeshDrawCullVKZ drawCull = {};
     GlobalsVKZ globals = {};
 
     while (!vkz::shouldClose())
     {
-        znear = .1f;
-        projection = perspectiveProjection2(glm::radians(70.f), (float)config.windowWidth / (float)config.windowHeight, znear);
-        projectionT = glm::transpose(projection);
-        frustumX = normalizePlane2(projectionT[3] - projectionT[0]);
-        frustumY = normalizePlane2(projectionT[3] - projectionT[1]);
+
+        float znear = .1f;
+        mat4 projection = perspectiveProjection2(glm::radians(70.f), (float)config.windowWidth / (float)config.windowHeight, znear);
+        mat4 projectionT = glm::transpose(projection);
+        vec4 frustumX = normalizePlane2(projectionT[3] - projectionT[0]);
+        vec4 frustumY = normalizePlane2(projectionT[3] - projectionT[1]);
+
+
+        mat4 view = freeCameraGetViewMatrix(freeCamera);
+        TransformData trans = {};
+        trans.view = view;
+        trans.proj = projection;
+        trans.cameraPos = freeCamera.pos;
 
         drawCull.P00 = projection[0][0];
         drawCull.P11 = projection[1][1];
-        drawCull.zfar = scene.drawDistance;
+        drawCull.zfar = 10000.f; //scene.drawDistance;
         drawCull.znear = znear;
         drawCull.pyramidWidth = (float)pyramidLevelWidth;
         drawCull.pyramidHeight = (float)pyramidLevelHeight;
@@ -343,15 +340,15 @@ void meshDemo()
         drawCull.frustum[2] = frustumY.y;
         drawCull.frustum[3] = frustumY.z;
         drawCull.enableCull = 1;
-        drawCull.enableLod = 0;
-        drawCull.enableOcclusion = 0;
-        drawCull.enableMeshletOcclusion = 0;
+        drawCull.enableLod = 1;
+        drawCull.enableOcclusion = 1;
+        drawCull.enableMeshletOcclusion = 1;
 
         updateCullingConstants(culling, drawCull);
         updateCullingConstants(cullingLate, drawCull);
 
         globals.projection = projection;
-        globals.zfar = scene.drawDistance;
+        globals.zfar = 10000.f;//scene.drawDistance;
         globals.znear = znear;
         globals.frustum[0] = frustumX.x;
         globals.frustum[1] = frustumX.z;
@@ -361,7 +358,7 @@ void meshDemo()
         globals.pyramidHeight = (float)pyramidLevelHeight;
         globals.screenWidth = (float)config.windowWidth;
         globals.screenHeight = (float)config.windowHeight;
-        globals.enableMeshletOcclusion = 0;  
+        globals.enableMeshletOcclusion = 1;  
 
         if (supportMeshShading)
         {
@@ -377,11 +374,6 @@ void meshDemo()
         vkz::updateThreadCount(culling.pass, (uint32_t)scene.meshDraws.size(), 1, 1);
         vkz::updateThreadCount(cullingLate.pass, (uint32_t)scene.meshDraws.size(), 1, 1);
 
-        freeCamera.pos = vec3{ 0.f, 2.f, 20.f };
-
-        trans.view = freeCameraGetViewMatrix(freeCamera);
-        trans.proj = projection;
-        trans.cameraPos = freeCamera.pos;
         memcpy_s(memTransform->data, memTransform->size, &trans, sizeof(TransformData));
         vkz::updateBuffer(transformBuf, vkz::copy(memTransform));
 

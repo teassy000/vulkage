@@ -21,13 +21,11 @@ void meshShading_renderFunc(vkz::CommandListI& _cmdList, const void* _data, uint
 
     _cmdList.beginRendering(msd.pass);
 
-    vkz::Viewport viewport = { 0.f, 0.f, (float)msd.width, (float)msd.height, 0.f, 1.f };
+    vkz::Viewport viewport = { 0.f, (float)msd.height, (float)msd.width, -(float)msd.height, 0.f, 1.f };
     vkz::Rect2D scissor = { {0, 0}, {uint32_t(msd.width), uint32_t(msd.height)} };
     _cmdList.setViewPort(0, 1, &viewport);
     _cmdList.setScissorRect(0, 1, &scissor);
 
-    //assert(0);
-    // TODO: use the updated data, not the stored one
     _cmdList.pushConstants(msd.pass, &msd.globals, sizeof(GlobalsVKZ));
 
     vkz::CommandListI::DescriptorSet descs[] = 
@@ -63,6 +61,12 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
 
     vkz::ProgramHandle prog = vkz::registProgram("mesh_prog", { ts, ms, fs }, sizeof(GlobalsVKZ));
 
+    int pipelineSpecs[] = { _late, true };
+
+    const vkz::Memory* pConst = vkz::alloc(sizeof(int) * COUNTOF(pipelineSpecs));
+    memcpy_s(pConst->data, pConst->size, pipelineSpecs, sizeof(int) * COUNTOF(pipelineSpecs));
+
+
     vkz::PassDesc desc{};
     desc.programId = prog.id;
     desc.queue = vkz::PassExeQueue::graphics;
@@ -70,10 +74,13 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
     desc.pipelineConfig.enableDepthTest = true;
     desc.pipelineConfig.enableDepthWrite = true;
 
-    desc.passConfig.colorLoadOp = _late ? vkz::AttachmentLoadOp::dont_care : vkz::AttachmentLoadOp::clear;
+    desc.passConfig.colorLoadOp = _late ? vkz::AttachmentLoadOp::load : vkz::AttachmentLoadOp::clear;
     desc.passConfig.colorStoreOp = vkz::AttachmentStoreOp::store;
-    desc.passConfig.depthLoadOp = _late ? vkz::AttachmentLoadOp::dont_care : vkz::AttachmentLoadOp::clear;
+    desc.passConfig.depthLoadOp = _late ? vkz::AttachmentLoadOp::load : vkz::AttachmentLoadOp::clear;
     desc.passConfig.depthStoreOp = vkz::AttachmentStoreOp::store;
+
+    desc.pipelineSpecNum = COUNTOF(pipelineSpecs);
+    desc.pipelineSpecData = (void*)pConst->data;
 
     const char* passName = _late ? "mesh_pass_late" : "mesh_pass_early";
     vkz::PassHandle pass = vkz::registPass(passName, desc);
@@ -173,9 +180,17 @@ void prepareTaskSubmit(TaskSubmit& _taskSubmit, vkz::BufferHandle _drawCmdBuf, v
 
     vkz::ProgramHandle prog = vkz::registProgram("task_modify_prog", { cs });
 
+    int pipelineSpecs[] = { _late, true };
+
+    const vkz::Memory* pConst = vkz::alloc(sizeof(int) * COUNTOF(pipelineSpecs));
+    memcpy_s(pConst->data, pConst->size, pipelineSpecs, sizeof(int) * COUNTOF(pipelineSpecs));
+    
     vkz::PassDesc desc{};
     desc.programId = prog.id;
     desc.queue = vkz::PassExeQueue::compute;
+
+    desc.pipelineSpecNum = COUNTOF(pipelineSpecs);
+    desc.pipelineSpecData = (void*)pConst->data;
 
     const char* passName = _late ? "task_modify_pass_late" : "task_modify_pass_early";
     vkz::PassHandle pass = vkz::registPass(passName, desc);

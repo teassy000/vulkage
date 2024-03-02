@@ -137,7 +137,6 @@ namespace vkz
         , m_capacity(0)
     {
         set(_other);
-        m_ptr[m_len] = '\0';
     }
 
     template<AllocatorI** Allocator>
