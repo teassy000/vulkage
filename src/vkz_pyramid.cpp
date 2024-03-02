@@ -121,7 +121,7 @@ void setPyramidPassDependency(PyramidRendering& _pyramid, const vkz::ImageHandle
         , 0
         , vkz::PipelineStageFlagBits::compute_shader
         , vkz::ImageLayout::shader_read_only_optimal
-        , vkz::SamplerReductionMode::sampler_reduction_mode_max
+        , vkz::SamplerReductionMode::min
     );
 
     vkz::bindImage(_pyramid.pass, _pyramid.image

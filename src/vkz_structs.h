@@ -217,7 +217,7 @@ namespace vkz
         min,
         max,
 
-        sampler_reduction_mode_max = 0x7FFFFFFF
+        max_enum = 0x7FFFFFFF
     };
 
     enum class IndexType
