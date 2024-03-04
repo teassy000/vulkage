@@ -293,6 +293,123 @@ namespace vkz
         free(getAllocator(), mem);
     }
 
+    // GLFW 
+    KeyEnum getKey(int _glfwKey)
+    {
+        switch (_glfwKey) {
+        case GLFW_KEY_UNKNOWN: return KeyEnum::key_unknown;
+        case GLFW_KEY_A: return KeyEnum::key_a;
+        case GLFW_KEY_B: return KeyEnum::key_b;
+        case GLFW_KEY_C: return KeyEnum::key_c;
+        case GLFW_KEY_D: return KeyEnum::key_d;
+        case GLFW_KEY_E: return KeyEnum::key_e;
+        case GLFW_KEY_F: return KeyEnum::key_f;
+        case GLFW_KEY_G: return KeyEnum::key_g;
+        case GLFW_KEY_H: return KeyEnum::key_h;
+        case GLFW_KEY_I: return KeyEnum::key_i;
+        case GLFW_KEY_J: return KeyEnum::key_j;
+        case GLFW_KEY_K: return KeyEnum::key_k;
+        case GLFW_KEY_L: return KeyEnum::key_l;
+        case GLFW_KEY_M: return KeyEnum::key_m;
+        case GLFW_KEY_N: return KeyEnum::key_n;
+        case GLFW_KEY_O: return KeyEnum::key_o;
+        case GLFW_KEY_P: return KeyEnum::key_p;
+        case GLFW_KEY_Q: return KeyEnum::key_q;
+        case GLFW_KEY_R: return KeyEnum::key_r;
+        case GLFW_KEY_S: return KeyEnum::key_s;
+        case GLFW_KEY_T: return KeyEnum::key_t;
+        case GLFW_KEY_U: return KeyEnum::key_u;
+        case GLFW_KEY_V: return KeyEnum::key_v;
+        case GLFW_KEY_W: return KeyEnum::key_w;
+        case GLFW_KEY_X: return KeyEnum::key_x;
+        case GLFW_KEY_Y: return KeyEnum::key_y;
+        case GLFW_KEY_Z: return KeyEnum::key_z;
+        case GLFW_KEY_0: return KeyEnum::key_0;
+        case GLFW_KEY_1: return KeyEnum::key_1;
+        case GLFW_KEY_2: return KeyEnum::key_2;
+        case GLFW_KEY_3: return KeyEnum::key_3;
+        case GLFW_KEY_4: return KeyEnum::key_4;
+        case GLFW_KEY_5: return KeyEnum::key_5;
+        case GLFW_KEY_6: return KeyEnum::key_6;
+        case GLFW_KEY_7: return KeyEnum::key_7;
+        case GLFW_KEY_8: return KeyEnum::key_8;
+        case GLFW_KEY_9: return KeyEnum::key_9;
+        case GLFW_KEY_F1: return KeyEnum::key_f1;
+        case GLFW_KEY_F2: return KeyEnum::key_f2;
+        case GLFW_KEY_F3: return KeyEnum::key_f3;
+        case GLFW_KEY_F4: return KeyEnum::key_f4;
+        case GLFW_KEY_F5: return KeyEnum::key_f5;
+        case GLFW_KEY_F6: return KeyEnum::key_f6;
+        case GLFW_KEY_F7: return KeyEnum::key_f7;
+        case GLFW_KEY_F8: return KeyEnum::key_f8;
+        case GLFW_KEY_F9: return KeyEnum::key_f9;
+        case GLFW_KEY_F10: return KeyEnum::key_f10;
+        case GLFW_KEY_F11: return KeyEnum::key_f11;
+        case GLFW_KEY_F12: return KeyEnum::key_f12;
+        case GLFW_KEY_LEFT: return KeyEnum::key_left;
+        case GLFW_KEY_RIGHT: return KeyEnum::key_right;
+        case GLFW_KEY_UP: return KeyEnum::key_up;
+        case GLFW_KEY_DOWN: return KeyEnum::key_down;
+        case GLFW_KEY_SPACE: return KeyEnum::key_space;
+        case GLFW_KEY_ESCAPE: return KeyEnum::key_esc;
+        case GLFW_KEY_ENTER: return KeyEnum::key_enter;
+        case GLFW_KEY_BACKSPACE: return KeyEnum::key_backspace;
+        case GLFW_KEY_TAB: return KeyEnum::key_tab;
+        case GLFW_KEY_CAPS_LOCK: return KeyEnum::key_capslock;
+        case GLFW_KEY_LEFT_SHIFT: return KeyEnum::key_shift;
+        case GLFW_KEY_RIGHT_SHIFT: return KeyEnum::key_shift;
+        case GLFW_KEY_LEFT_CONTROL: return KeyEnum::key_ctrl;
+        case GLFW_KEY_RIGHT_CONTROL: return KeyEnum::key_ctrl;
+        case GLFW_KEY_LEFT_ALT: return KeyEnum::key_alt;
+        case GLFW_KEY_RIGHT_ALT: return KeyEnum::key_alt;
+
+        default: return KeyEnum::key_unknown;
+        }
+    }
+
+    KeyState getKeyState(int _glfwKeyState)
+    {
+        switch (_glfwKeyState) {
+        case GLFW_PRESS: return KeyState::press;
+        case GLFW_RELEASE: return KeyState::release;
+        case GLFW_REPEAT: return KeyState::repeat;
+        default: return KeyState::unknown;
+        }
+    }
+
+    KeyModFlags getKeyModFlag(int _glfwModFlag)
+    {
+        KeyModFlags modFlags = KeyModBits::none;
+        if (_glfwModFlag & GLFW_MOD_SHIFT)
+        {
+            modFlags |= KeyModBits::shift;
+        }
+        if (_glfwModFlag & GLFW_MOD_CONTROL)
+        {
+            modFlags |= KeyModBits::ctrl;
+        }
+        if (_glfwModFlag & GLFW_MOD_ALT)
+        {
+            modFlags |= KeyModBits::alt;
+        }
+        if (_glfwModFlag & GLFW_MOD_CAPS_LOCK)
+        {
+            modFlags |= KeyModBits::capslock;
+        }
+        if (_glfwModFlag & GLFW_MOD_NUM_LOCK)
+        {
+            modFlags |= KeyModBits::numlock;
+        }
+
+        return modFlags;
+    }
+
+    void defaultKeyCallback(KeyEnum _key, KeyState _state, KeyModFlags _mods) {}
+    void defaultMouseMoveCallback(double xpos, double ypos) {}
+
+    static KeyCallbackFunc s_keyCallback = defaultKeyCallback;
+    static MouseMoveCallbackFunc s_mouseMoveCallback = defaultMouseMoveCallback;
+    static MouseButtonCallbackFunc s_mouseButtonCallback = nullptr;
     class GLFWManager
     {
     public:
@@ -304,6 +421,9 @@ namespace vkz
         GLFWwindow* getWindow() { return m_pWindow; }
 
     private:
+        static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
+        static void mouseMoveCallback(GLFWwindow* window, double xpos, double ypos);
+
         GLFWwindow* m_pWindow;
         uint32_t m_width;
         uint32_t m_height;
@@ -322,11 +442,11 @@ namespace vkz
         m_width = _w;
         m_height = _h;
 
-        /*
-        glfwSetKeyCallback(window, keyCallback);
-        glfwSetMouseButtonCallback(window, mousekeyCallback);
-        glfwSetCursorPosCallback(window, mouseMoveCallback);
-        */
+        glfwSetKeyCallback(m_pWindow, keyCallback);
+        glfwSetCursorPosCallback(m_pWindow, mouseMoveCallback);
+
+        // disable cursor
+        glfwSetInputMode(m_pWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
         return m_pWindow != nullptr;
     }
@@ -353,6 +473,31 @@ namespace vkz
     {
         _width = m_width;
         _height = m_height;
+    }
+
+    void GLFWManager::keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+    {
+        if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+        {
+            glfwSetWindowShouldClose(window, GLFW_TRUE);
+        }
+
+        if (s_keyCallback)
+        {
+            const KeyEnum keyEnum = getKey(key);
+            const KeyState keyState = getKeyState(action);
+            const KeyModFlags keyModFlags = getKeyModFlag(mods);
+
+            s_keyCallback(keyEnum, keyState, keyModFlags);
+        }
+    }
+
+    void GLFWManager::mouseMoveCallback(GLFWwindow* window, double xpos, double ypos)
+    {
+        if (s_mouseMoveCallback)
+        {
+            s_mouseMoveCallback(xpos, ypos);
+        }
     }
 
     constexpr uint8_t kTouched = 1;
@@ -454,6 +599,11 @@ namespace vkz
 
         void setRenderGraphDataDirty() { m_isRenderGraphDataDirty = true; }
         bool isRenderGraphDataDirty() const { return m_isRenderGraphDataDirty; }
+
+        // callbacks
+        void setKeyCallback(KeyCallbackFunc _func);
+        void setMouseMoveCallback(MouseMoveCallbackFunc _func);
+        void setMouseButtonCallback(MouseButtonCallbackFunc _func);
 
         HandleArrayT<kMaxNumOfShaderHandle> m_shaderHandles;
         HandleArrayT<kMaxNumOfProgramHandle> m_programHandles;
@@ -1928,6 +2078,33 @@ namespace vkz
         m_pAllocator = nullptr;
     }
 
+    void Context::setKeyCallback(KeyCallbackFunc _func)
+    {
+        if (!_func)
+        {
+            return;
+        }
+        s_keyCallback = _func;
+    }
+
+    void Context::setMouseMoveCallback(MouseMoveCallbackFunc _func)
+    {
+        if (!_func)
+        {
+            return;
+        }
+        s_mouseMoveCallback = _func;
+    }
+
+    void Context::setMouseButtonCallback(MouseButtonCallbackFunc _func)
+    {
+        if (!_func)
+        {
+            return;
+        }
+        s_mouseButtonCallback = _func;
+    }
+
     // ================================================
     static Context* s_ctx = nullptr;
 
@@ -2205,5 +2382,21 @@ namespace vkz
     {
         return getNameManager()->getName(_hSampler);
     }
+
+    void setKeyCallback(KeyCallbackFunc _func)
+    {
+        s_ctx->setKeyCallback(_func);
+    }
+
+    void setMouseMoveCallback(MouseMoveCallbackFunc _func)
+    {
+        s_ctx->setMouseMoveCallback(_func);
+    }
+
+    void setMouseButtonCallback(MouseButtonCallbackFunc _func)
+    {
+        s_ctx->setMouseButtonCallback(_func);
+    }
+
 
 } // namespace vkz

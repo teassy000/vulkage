@@ -135,7 +135,7 @@ void prepareUIResources(UIRendering& ui, const VkPhysicalDeviceMemoryProperties&
     ui.sampler = sampler;
 }
 
-void updateImGuiIO(const Input& input)
+void updateImGuiIO(const UIInput& input)
 {
     ImGuiIO& io = ImGui::GetIO();
 
@@ -197,7 +197,7 @@ void updateUIRendering(UIRendering& ui, const VkPhysicalDeviceMemoryProperties& 
     flushBuffer(device, ib);
 }
 
-void updateImGuiContent(RenderOptionsData& cd, const ProfilingData& pd, const LogicData& lmd)
+void updateImGuiContent(DebugRenderOptionsData& cd, const DebugProfilingData& pd, const DebugLogicData& lmd)
 {
     ImGui::NewFrame();
     ImGui::SetNextWindowSize({ 400, 450 }, ImGuiCond_FirstUseEver);
@@ -254,7 +254,7 @@ void updateImGuiContent(RenderOptionsData& cd, const ProfilingData& pd, const Lo
 
 }
 
-void updateImGui(const Input& input, RenderOptionsData& rd, const ProfilingData& pd, const LogicData& ld)
+void updateImGui(const UIInput& input, DebugRenderOptionsData& rd, const DebugProfilingData& pd, const DebugLogicData& ld)
 {
     updateImGuiIO(input);
 

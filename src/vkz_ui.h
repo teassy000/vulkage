@@ -35,22 +35,10 @@ struct UIRendering
     vkz::ImageHandle depthOutAlias{ vkz::kInvalidHandle };
 };
 
-struct Input
-{
-    float mousePosx, mousePosy;
-
-    struct {
-        bool left = false;
-        bool right = false;
-        bool middle = false;
-    } mouseButtons;
-
-    float width, height;
-};
 
 void vkz_prepareUI(UIRendering& _ui, vkz::ImageHandle _color, vkz::ImageHandle _depth, float _scale = 1.f, bool _useChinese = false);
 void vkz_destroyUIRendering(UIRendering& ui);
 
-void vkz_updateImGui(const Input& input, RenderOptionsData& rd, const ProfilingData& pd, const LogicData& ld);
+void vkz_updateImGui(const UIInput& input, DebugRenderOptionsData& rd, const DebugProfilingData& pd, const DebugLogicData& ld);
 
 void vkz_updateUIRenderData(UIRendering& ui);

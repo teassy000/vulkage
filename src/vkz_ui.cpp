@@ -204,7 +204,7 @@ void vkz_destroyUIRendering(UIRendering& _ui)
     _ui = {};
 }
 
-void vkz_updateImGuiIO(const Input& input)
+void vkz_updateImGuiIO(const UIInput& input)
 {
     VKZ_ZoneScopedC(vkz::Color::blue);;
 
@@ -218,7 +218,7 @@ void vkz_updateImGuiIO(const Input& input)
     io.MouseDown[2] = input.mouseButtons.middle;
 }
 
-void vkz_updateImGuiContent(RenderOptionsData& _rod, const ProfilingData& _pd, const LogicData& _ld)
+void vkz_updateImGuiContent(DebugRenderOptionsData& _rod, const DebugProfilingData& _pd, const DebugLogicData& _ld)
 {
     VKZ_ZoneScopedC(vkz::Color::blue);;
 
@@ -276,7 +276,7 @@ void vkz_updateImGuiContent(RenderOptionsData& _rod, const ProfilingData& _pd, c
     ImGui::End();
 }
 
-void vkz_updateImGui(const Input& input, RenderOptionsData& rd, const ProfilingData& pd, const LogicData& ld)
+void vkz_updateImGui(const UIInput& input, DebugRenderOptionsData& rd, const DebugProfilingData& pd, const DebugLogicData& ld)
 {
     VKZ_ZoneScopedC(vkz::Color::blue);;
 

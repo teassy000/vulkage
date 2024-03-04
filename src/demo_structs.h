@@ -1,6 +1,8 @@
 #pragma once
 #include "common.h"
 #include "math.h"
+#include "uidata.h"
+#include "camera.h"
 
 struct alignas(16) TransformData
 {
@@ -52,6 +54,22 @@ struct MeshDrawCommandVKZ
     uint32_t    local_x;
     uint32_t    local_y;
     uint32_t    local_z;
+};
+
+struct DemoData
+{
+    UIInput input;
+    FreeCamera camera;
+    DebugRenderOptionsData renderOptions;
+    DebugProfilingData profiling;
+    DebugLogicData logic;
+
+    // constants
+    GlobalsVKZ globals;
+    MeshDrawCullVKZ drawCull;
+
+    // uniform
+    TransformData trans;
 };
 
 

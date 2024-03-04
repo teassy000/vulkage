@@ -11,6 +11,24 @@
 #include "vkz_vtx_pip.h"
 #include "vkz_culling_pass.h"
 
+static DemoData demo{};
+
+void mouseMoveCallback(double _xpos, double _ypos)
+{
+    demo.input.mousePosx = (float)_xpos;
+    demo.input.mousePosy = (float)_ypos;
+
+    freeCameraProcessMouseMovement(demo.camera, (float)_xpos, (float)_ypos);
+}
+
+void keyCallback(vkz::KeyEnum _key, vkz::KeyState _state, vkz::KeyModFlags _flags)
+{
+    if (vkz::KeyState::press == _state 
+        || vkz::KeyState::repeat == _state)
+    {
+        freeCameraProcessKeyboard(demo.camera, _key, 0.1f);
+    }
+}
 
 void meshDemo()
 {
@@ -23,13 +41,8 @@ void meshDemo()
     bool supportMeshShading = vkz::checkSupports(vkz::VulkanSupportExtension::ext_mesh_shader);
 
     // ui data
-    Input input = {};
-    input.width = (float)config.windowWidth;
-    input.height = (float)config.windowHeight;
-
-    RenderOptionsData renderOptions = {};
-    ProfilingData profiling = {};
-    LogicData logics = {};
+    demo.input.width = (float)config.windowWidth;
+    demo.input.height = (float)config.windowHeight;
 
     // load scene
     Scene scene;
@@ -38,8 +51,11 @@ void meshDemo()
     assert(lmr);
 
     // basic data
-    FreeCamera freeCamera = {};
-    freeCameraInit(freeCamera, vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 1.0f, 0.0f), 90.0f, 0.0f);
+    freeCameraInit(demo.camera, vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 1.0f, 0.0f), 90.0f, 0.0f);
+
+    // set input callback
+    vkz::setKeyCallback(keyCallback);
+    vkz::setMouseMoveCallback(mouseMoveCallback);
 
     // buffers
     // mesh data
@@ -121,11 +137,9 @@ void meshDemo()
     vkz::BufferHandle meshletDataBuffer = vkz::registBuffer("meshlet_data_buffer", meshletDataBufferDesc);
 
     // transform
-    TransformData trans{};
-
     vkz::BufferDesc transformBufDesc;
     transformBufDesc.size = (uint32_t)(sizeof(TransformData));
-    transformBufDesc.data = &trans;
+    transformBufDesc.data = &demo.trans;
     transformBufDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::transfer_dst;
     transformBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
     vkz::BufferHandle transformBuf = vkz::registBuffer("transform", transformBufDesc);
@@ -309,8 +323,7 @@ void meshDemo()
     // data used in loop
     const vkz::Memory* memTransform = vkz::alloc(sizeof(TransformData));
 
-    MeshDrawCullVKZ drawCull = {};
-    GlobalsVKZ globals = {};
+
 
     while (!vkz::shouldClose())
     {
@@ -320,63 +333,62 @@ void meshDemo()
         vec4 frustumX = normalizePlane2(projectionT[3] - projectionT[0]);
         vec4 frustumY = normalizePlane2(projectionT[3] - projectionT[1]);
 
+        mat4 view = freeCameraGetViewMatrix(demo.camera);
 
-        mat4 view = freeCameraGetViewMatrix(freeCamera);
-        TransformData trans = {};
-        trans.view = view;
-        trans.proj = projection;
-        trans.cameraPos = freeCamera.pos;
+        demo.trans.view = view;
+        demo.trans.proj = projection;
+        demo.trans.cameraPos = demo.camera.pos;
 
-        drawCull.P00 = projection[0][0];
-        drawCull.P11 = projection[1][1];
-        drawCull.zfar = 10000.f; //scene.drawDistance;
-        drawCull.znear = znear;
-        drawCull.pyramidWidth = (float)pyramidLevelWidth;
-        drawCull.pyramidHeight = (float)pyramidLevelHeight;
-        drawCull.frustum[0] = frustumX.x;
-        drawCull.frustum[1] = frustumX.z;
-        drawCull.frustum[2] = frustumY.y;
-        drawCull.frustum[3] = frustumY.z;
-        drawCull.enableCull = 1;
-        drawCull.enableLod = 1;
-        drawCull.enableOcclusion = 1;
-        drawCull.enableMeshletOcclusion = 1;
+        demo.drawCull.P00 = projection[0][0];
+        demo.drawCull.P11 = projection[1][1];
+        demo.drawCull.zfar = 10000.f; //scene.drawDistance;
+        demo.drawCull.znear = znear;
+        demo.drawCull.pyramidWidth = (float)pyramidLevelWidth;
+        demo.drawCull.pyramidHeight = (float)pyramidLevelHeight;
+        demo.drawCull.frustum[0] = frustumX.x;
+        demo.drawCull.frustum[1] = frustumX.z;
+        demo.drawCull.frustum[2] = frustumY.y;
+        demo.drawCull.frustum[3] = frustumY.z;
+        demo.drawCull.enableCull = 1;
+        demo.drawCull.enableLod = 1;
+        demo.drawCull.enableOcclusion = 1;
+        demo.drawCull.enableMeshletOcclusion = 0;
 
-        updateCullingConstants(culling, drawCull);
-        updateCullingConstants(cullingLate, drawCull);
+        updateCullingConstants(culling, demo.drawCull);
+        updateCullingConstants(cullingLate, demo.drawCull);
 
-        globals.projection = projection;
-        globals.zfar = 10000.f;//scene.drawDistance;
-        globals.znear = znear;
-        globals.frustum[0] = frustumX.x;
-        globals.frustum[1] = frustumX.z;
-        globals.frustum[2] = frustumY.y;
-        globals.frustum[3] = frustumY.z;
-        globals.pyramidWidth = (float)pyramidLevelWidth;
-        globals.pyramidHeight = (float)pyramidLevelHeight;
-        globals.screenWidth = (float)config.windowWidth;
-        globals.screenHeight = (float)config.windowHeight;
-        globals.enableMeshletOcclusion = 1;  
+        demo.globals.projection = projection;
+        demo.globals.zfar = 10000.f;//scene.drawDistance;
+        demo.globals.znear = znear;
+        demo.globals.frustum[0] = frustumX.x;
+        demo.globals.frustum[1] = frustumX.z;
+        demo.globals.frustum[2] = frustumY.y;
+        demo.globals.frustum[3] = frustumY.z;
+        demo.globals.pyramidWidth = (float)pyramidLevelWidth;
+        demo.globals.pyramidHeight = (float)pyramidLevelHeight;
+        demo.globals.screenWidth = (float)config.windowWidth;
+        demo.globals.screenHeight = (float)config.windowHeight;
+        demo.globals.enableMeshletOcclusion = 0;  
 
         if (supportMeshShading)
         {
-            updateMeshShadingConstants(meshShading, globals);
-            updateMeshShadingConstants(meshShadingLate, globals);
+            updateMeshShadingConstants(meshShading, demo.globals);
+            updateMeshShadingConstants(meshShadingLate, demo.globals);
         }
         else
         {
-            updateVtxShadingConstants(vtxShading, globals);
-            updateVtxShadingConstants(vtxShadingLate, globals);
+            updateVtxShadingConstants(vtxShading, demo.globals);
+            updateVtxShadingConstants(vtxShadingLate, demo.globals);
         }
 
         vkz::updateThreadCount(culling.pass, (uint32_t)scene.meshDraws.size(), 1, 1);
         vkz::updateThreadCount(cullingLate.pass, (uint32_t)scene.meshDraws.size(), 1, 1);
 
-        memcpy_s(memTransform->data, memTransform->size, &trans, sizeof(TransformData));
+        memcpy_s(memTransform->data, memTransform->size, &demo.trans, sizeof(TransformData));
         vkz::updateBuffer(transformBuf, vkz::copy(memTransform));
 
         // ui
-        vkz_updateImGui(input, renderOptions, profiling, logics);
+        vkz_updateImGui(demo.input, demo.renderOptions, demo.profiling, demo.logic);
         vkz_updateUIRenderData(ui);
 
         vkz::run();

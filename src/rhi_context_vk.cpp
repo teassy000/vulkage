@@ -1319,7 +1319,8 @@ namespace vkz
         uint16_t baseBufId = m_aliasToBaseBuffers.getIdToData(_hBuf.id);
         const Buffer_vk& baseBuf = m_bufferContainer.getIdToData(baseBufId);
 
-        if (buf.size != _size && _size < baseBuf.size)
+        // re-create buffer if new size is larger than the old one
+        if (buf.size != _size && baseBuf.size < _size)
         {
             m_barrierDispatcher.removeBuffer(buf.buffer);
 
@@ -1343,7 +1344,7 @@ namespace vkz
             );
         }
 
-        const Buffer_vk& mewBuf = m_bufferContainer.getIdToData(_hBuf.id);
+        const Buffer_vk& newBuf = m_bufferContainer.getIdToData(_hBuf.id);
         uploadBuffer(_hBuf.id, _data, _size);
     }
 

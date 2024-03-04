@@ -1,4 +1,5 @@
 #pragma once
+#include "uidata.h"
 
 struct PushConstBlock {
     glm::vec2 scale;
@@ -32,18 +33,6 @@ struct UIRendering
     PushConstBlock pushConstBlock;
 };
 
-struct Input
-{
-    float mousePosx, mousePosy;
-
-    struct {
-        bool left = false;
-        bool right = false;
-        bool middle = false;
-    } mouseButtons;
-
-    float width, height;
-};
 
 void initializeUIRendering(UIRendering& ui, VkDevice device, VkQueue queue, float scale = 1.f);
 void destroyUIRendering(UIRendering& ui);
@@ -54,4 +43,4 @@ void prepareUIResources(UIRendering& ui, const VkPhysicalDeviceMemoryProperties&
 void updateUIRendering(UIRendering& ui, const VkPhysicalDeviceMemoryProperties& memoryProps);
 void drawUI(UIRendering& ui, const VkCommandBuffer cmdBuffer);
 
-void updateImGui(const Input& input, RenderOptionsData& rd, const ProfilingData& pd, const LogicData& ld);
+void updateImGui(const UIInput& input, DebugRenderOptionsData& rd, const DebugProfilingData& pd, const DebugLogicData& ld);

@@ -391,6 +391,96 @@ namespace vkz
         image,
     };
 
+    namespace KeyModBits
+    {
+        enum Enum : uint32_t
+        {
+            none = 0,
+            shift = 1 << 0,
+            ctrl = 1 << 1,
+            alt = 1 << 2,
+            capslock = 1 << 3,
+            numlock = 1 << 4,
+            max_enum = 0xffffffff,
+        };
+    }
+    using KeyModFlags = uint32_t;
+
+    enum class KeyState : uint32_t
+    {
+        unknown,
+        release,
+        press,
+        repeat,
+    };
+
+    enum  class KeyEnum : uint32_t
+    {
+        key_unknown,
+        key_a,
+        key_b,
+        key_c,
+        key_d,
+        key_e,
+        key_f,
+        key_g,
+        key_h,
+        key_i,
+        key_j,
+        key_k,
+        key_l,
+        key_m,
+        key_n,
+        key_o,
+        key_p,
+        key_q,
+        key_r,
+        key_s,
+        key_t,
+        key_u,
+        key_v,
+        key_w,
+        key_x,
+        key_y,
+        key_z,
+        key_0,
+        key_1,
+        key_2,
+        key_3,
+        key_4,
+        key_5,
+        key_6,
+        key_7,
+        key_8,
+        key_9,
+        key_f1,
+        key_f2,
+        key_f3,
+        key_f4,
+        key_f5,
+        key_f6,
+        key_f7,
+        key_f8,
+        key_f9,
+        key_f10,
+        key_f11,
+        key_f12,
+        key_left,
+        key_right,
+        key_up,
+        key_down,
+        key_space,
+        key_esc,
+        key_enter,
+        key_backspace,
+        key_tab,
+        key_capslock,
+        key_shift,
+        key_ctrl,
+        key_alt,
+        key_max_enum = 0xffffffff,
+    };
+
     struct VKZInitConfig
     {
         uint32_t windowWidth{ 0 };

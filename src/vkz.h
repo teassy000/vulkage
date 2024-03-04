@@ -59,7 +59,7 @@ namespace vkz
 
     void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ);
 
-    // meomory related
+    // memory related
     const Memory* alloc(uint32_t _sz);
     const Memory* copy(const void* _data, uint32_t _sz);
     const Memory* copy(const Memory* _mem);
@@ -74,4 +74,15 @@ namespace vkz
     void bake();
     void run();
     void shutdown();
+
+    // callback func pointers
+    using KeyCallbackFunc = void (*)(KeyEnum _key, KeyState _action, KeyModFlags _mods);
+    void setKeyCallback(KeyCallbackFunc _func);
+
+    using MouseMoveCallbackFunc = void (*)(double _x, double _y);
+    void setMouseMoveCallback(MouseMoveCallbackFunc _func);
+
+    using MouseButtonCallbackFunc = void (*)(int, int, int);
+    void setMouseButtonCallback(MouseButtonCallbackFunc _func);
+
 }

@@ -1,7 +1,8 @@
 #include "camera.h"
 #include "GLFW/glfw3.h"
+#include "vkz_structs.h"
 
-static bool recordingMouse = false;
+static bool recordingMouse = true;
 
 void freeCameraInit(FreeCamera& camera, vec3 pos, vec3 up, float yaw, float pitch)
 {
@@ -36,6 +37,23 @@ void freeCameraProcessKeyboard(FreeCamera& camera, int key, float deltaTime)
     if (key == GLFW_KEY_R)
         freeCameraInit(camera, { 0.f, 0.f, 0.f }, { 0.f, 1.f, 0.f }, 90.f, 0.f);
     if (key == GLFW_KEY_F)
+        recordingMouse = !recordingMouse;
+}
+
+void freeCameraProcessKeyboard(FreeCamera& camera, vkz::KeyEnum _key, float deltaTime)
+{
+    float velocity = camera.moveSpeed * deltaTime;
+    if (vkz::KeyEnum::key_w == _key)
+        camera.pos += camera.front * velocity;
+    if (vkz::KeyEnum::key_s == _key)
+        camera.pos -= camera.front * velocity;
+    if (vkz::KeyEnum::key_a == _key)
+        camera.pos -= camera.right * velocity;
+    if (vkz::KeyEnum::key_d == _key)
+        camera.pos += camera.right * velocity;
+    if (vkz::KeyEnum::key_r == _key)
+        freeCameraInit(camera, { 0.f, 0.f, 0.f }, { 0.f, 1.f, 0.f }, 90.f, 0.f);
+    if (vkz::KeyEnum::key_f == _key)
         recordingMouse = !recordingMouse;
 }
 

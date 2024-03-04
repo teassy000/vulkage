@@ -13,7 +13,7 @@ enum class Scene_Enum : uint64_t
     CornellBox,
 };
 
-static Scene_Enum se = Scene_Enum::RamdomScene;
+static Scene_Enum se = Scene_Enum::MatrixScene;
 
 void CreateRandomScene(Scene& scene)
 {
@@ -101,7 +101,7 @@ void CreateMatrixScene(Scene& scene)
 void CreateTenObjScene(Scene& scene)
 {
     uint32_t side = 50;
-    uint32_t drawCount = side * side; // 500*500
+    uint32_t drawCount = side * side; // 50*50
     std::vector<MeshDraw> meshDraws(drawCount);
 
     float drawDist = 200;
@@ -116,7 +116,7 @@ void CreateTenObjScene(Scene& scene)
         //-- NOTE: simplification for occlusion test
         meshDraws[i].pos[0] = float(i % side) + basePos + 1.f;
         meshDraws[i].pos[1] = -1.f;
-        meshDraws[i].pos[2] = float(i / side) - basePos;
+        meshDraws[i].pos[2] = float(i / side) + basePos;
 
         meshDraws[i].scale = 1.f;
 

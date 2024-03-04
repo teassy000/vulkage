@@ -1,6 +1,6 @@
 #pragma once
 
-struct ProfilingData
+struct DebugProfilingData
 {
     float cpuTime;
     float avgCpuTime;
@@ -25,7 +25,7 @@ struct ProfilingData
     float trianglesPerSec;
 };
 
-struct RenderOptionsData
+struct DebugRenderOptionsData
 {
     bool meshShadingEnabled = true;
     bool objCullEnabled = true;
@@ -37,8 +37,21 @@ struct RenderOptionsData
     int  debugPyramidLevel = 0;
 };
 
-struct LogicData
+struct DebugLogicData
 {
     glm::vec3 cameraPos;
     glm::vec3 cameraFront;
+};
+
+struct UIInput
+{
+    float mousePosx, mousePosy;
+
+    struct {
+        bool left = false;
+        bool right = false;
+        bool middle = false;
+    } mouseButtons;
+
+    float width, height;
 };

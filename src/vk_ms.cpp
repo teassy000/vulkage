@@ -31,21 +31,23 @@
 #include <algorithm>
 #include <string>
 
+#include "profiler.h"
+
 static float deltaFrameTime = 0.f;
 static FreeCamera freeCamera = {};
 
-static RenderOptionsData rod = {
+static DebugRenderOptionsData rod = {
     /* bool enableMeshShading = */  true,
-    /* bool enableCull = */         false,
-    /* bool enableLod = */          false,
-    /* bool enableOcclusion = */    false,
+    /* bool enableCull = */         true,
+    /* bool enableLod = */          true,
+    /* bool enableOcclusion = */    true,
     /* bool enableMeshletOC = */    false,
-    /* bool enableTaskSubmit =*/    false,
+    /* bool enableTaskSubmit =*/    true,
     /* bool showPyramid = */        false,
     /* int  debugPyramidLevel = */  0,
 };
 static int s_depthPyramidCount = 0;
-static Input input = {};
+static UIInput input = {};
 
 VkSemaphore createSemaphore(VkDevice device)
 {
@@ -666,7 +668,7 @@ int main(int argc, const char** argv)
     prepareUIPipeline(ui, pipelineCache, renderInfo);
     prepareUIResources(ui, memoryProps, cmdPool);
 
-    ProfilingData pd = {};
+    DebugProfilingData pd = {};
     pd.meshletCount = (uint32_t)scene.geometry.meshlets.size();
     pd.primitiveCount = (uint32_t)(scene.geometry.indices.size() / 3);
 
@@ -1427,7 +1429,7 @@ int main(int argc, const char** argv)
             input.width = (float)newWindowWidth;
             input.height = (float)newWindowHeight;
 
-            LogicData ld = {};
+            DebugLogicData ld = {};
             ld.cameraPos = freeCamera.pos;
             ld.cameraFront = freeCamera.front;
             updateImGui(input, rod, pd, ld);
@@ -1435,6 +1437,8 @@ int main(int argc, const char** argv)
             updateUIRendering(ui, memoryProps);
             deltaTime = 0.0;
         }
+
+        VKZ_FrameMark;
 	}
 
     VK_CHECK(vkDeviceWaitIdle(device));
