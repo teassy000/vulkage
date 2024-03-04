@@ -207,8 +207,8 @@ void updateImGuiContent(DebugRenderOptionsData& cd, const DebugProfilingData& pd
     ImGui::Text("avg cpu: [%.3f]ms", pd.avgCpuTime);
     ImGui::Text("gpu: [%.3f]ms", pd.gpuTime);
     ImGui::Text("avg gpu: [%.3f]ms", pd.avgGpuTime);
-    ImGui::Text("cull: [%.3f]ms", pd.cullTime);
-    ImGui::Text("draw: [%.3f]ms", pd.drawTime);
+    ImGui::Text("cull: [%.3f]ms", pd.cullEarlyTime);
+    ImGui::Text("draw: [%.3f]ms", pd.drawEarlyTime);
 
     ImGui::Text("ui: [%.3f]ms", pd.uiTime);
     ImGui::Text("wait: [%.3f]ms", pd.waitTime);
@@ -216,8 +216,8 @@ void updateImGuiContent(DebugRenderOptionsData& cd, const DebugProfilingData& pd
     if (cd.ocEnabled)
     {
         ImGui::Text("pyramid: [%.3f]ms", pd.pyramidTime);
-        ImGui::Text("late cull: [%.3f]ms", pd.lateCullTime);
-        ImGui::Text("render L: [%.3f]ms", pd.lateRender);
+        ImGui::Text("late cull: [%.3f]ms", pd.cullLateTime);
+        ImGui::Text("render L: [%.3f]ms", pd.drawLateTime);
     }
 
     if (ImGui::TreeNode("Static Data:"))

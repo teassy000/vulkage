@@ -212,6 +212,8 @@ namespace vkz
         void barrier(ImageHandle _hImg, AccessFlags _access, ImageLayout _layout, PipelineStageFlags _stage);
         void dispatchBarriers();
 
+        double getPassTime(const PassHandle _hPass) override;
+
     private:
         void createShader(MemoryReader& _reader) override;
         void createProgram(MemoryReader& _reader) override;
@@ -317,6 +319,7 @@ namespace vkz
         VkPhysicalDevice m_phyDevice;
         VkPhysicalDeviceMemoryProperties m_memProps;
         VkSurfaceKHR m_surface;
+        VkPhysicalDeviceProperties m_phyDeviceProps;
 
         Swapchain_vk m_swapchain;
 
@@ -351,5 +354,12 @@ namespace vkz
         // custom command list
         CmdList_vk*  m_cmdList;
 
+        // naive profiling
+        VkQueryPool m_queryPoolTimeStamp;
+        uint32_t m_queryTimeStampCount{ 0 };
+        stl::unordered_map<uint16_t, double> m_passTime;
+
+        VkQueryPool m_queryPoolStatistics;
+        uint32_t m_queryStatisticsCount{ 0 };
     };
 } // namespace vkz

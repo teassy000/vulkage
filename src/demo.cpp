@@ -352,7 +352,7 @@ void meshDemo()
         demo.drawCull.enableCull = 1;
         demo.drawCull.enableLod = 1;
         demo.drawCull.enableOcclusion = 1;
-        demo.drawCull.enableMeshletOcclusion = 0;
+        demo.drawCull.enableMeshletOcclusion = 1;
 
         updateCullingConstants(culling, demo.drawCull);
         updateCullingConstants(cullingLate, demo.drawCull);
@@ -368,7 +368,7 @@ void meshDemo()
         demo.globals.pyramidHeight = (float)pyramidLevelHeight;
         demo.globals.screenWidth = (float)config.windowWidth;
         demo.globals.screenHeight = (float)config.windowHeight;
-        demo.globals.enableMeshletOcclusion = 0;  
+        demo.globals.enableMeshletOcclusion = 1;  // FIX THIS: once this is enabled, the early draw will draw nothing 
 
         if (supportMeshShading)
         {
@@ -392,6 +392,17 @@ void meshDemo()
         vkz_updateUIRenderData(ui);
 
         vkz::run();
+
+        // update profiling data for this frame
+        // means the data will show next frame
+        {
+            demo.profiling.cullEarlyTime = (float)vkz::getPassTime(culling.pass);
+            demo.profiling.drawEarlyTime = (float)vkz::getPassTime(meshShading.pass);
+            demo.profiling.cullLateTime = (float)vkz::getPassTime(cullingLate.pass);
+            demo.profiling.drawLateTime = (float)vkz::getPassTime(meshShadingLate.pass);
+            demo.profiling.pyramidTime = (float)vkz::getPassTime(pyRendering.pass);
+            demo.profiling.uiTime = (float)vkz::getPassTime(ui.pass);
+        }
 
         VKZ_FrameMark;
     }

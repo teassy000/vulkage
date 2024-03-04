@@ -145,6 +145,9 @@ namespace vkz
 
         virtual void updateCustomFuncData(const PassHandle _hPass, const void* _data, uint32_t _size) = 0;
 
+        // naive profiling
+        virtual double getPassTime(const PassHandle _hPass) = 0;
+
     private:
         virtual void createShader(MemoryReader& reader) = 0;
         virtual void createProgram(MemoryReader& reader) = 0;
@@ -193,6 +196,8 @@ namespace vkz
         void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ) override {};
         
         void updateCustomFuncData(const PassHandle _hPass, const void* _data, uint32_t _size) override {};
+
+        double getPassTime(const PassHandle _hPass) override { return 0.0; }
 
     private:
         void parseOp();

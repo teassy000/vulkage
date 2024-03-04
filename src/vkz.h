@@ -85,4 +85,7 @@ namespace vkz
     using MouseButtonCallbackFunc = void (*)(int, int, int);
     void setMouseButtonCallback(MouseButtonCallbackFunc _func);
 
+    // naive profiling data
+    double getPassTime(const PassHandle _hPass);
+
 }

@@ -1045,6 +1045,23 @@ namespace vkz
         return props;
     }
 
+    VkQueryPool createQueryPool(VkDevice device, uint32_t queryCount, VkQueryType queryType)
+    {
+        VkQueryPoolCreateInfo createInfo = { VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO };
+        createInfo.queryType = queryType;
+        createInfo.queryCount = queryCount;
+
+        if (queryType == VK_QUERY_TYPE_PIPELINE_STATISTICS)
+        {
+            createInfo.pipelineStatistics = VK_QUERY_PIPELINE_STATISTIC_CLIPPING_PRIMITIVES_BIT;
+        }
+
+
+        VkQueryPool queryPool = nullptr;
+        VK_CHECK(vkCreateQueryPool(device, &createInfo, 0, &queryPool));
+        return queryPool;
+    }
+
     RHIContext_vk::RHIContext_vk(AllocatorI* _allocator, RHI_Config _config, void* _wnd)
         : RHIContext(_allocator)
         , m_instance{ VK_NULL_HANDLE }
@@ -1093,9 +1110,9 @@ namespace vkz
 
         m_supportMeshShading = checkExtSupportness(supportedExtensions, VK_EXT_MESH_SHADER_EXTENSION_NAME, false);
 
-        VkPhysicalDeviceProperties props = {};
-        vkGetPhysicalDeviceProperties(m_phyDevice, &props);
-        assert(props.limits.timestampPeriod);
+
+        vkGetPhysicalDeviceProperties(m_phyDevice, &m_phyDeviceProps);
+        assert(m_phyDeviceProps.limits.timestampPeriod);
 
         m_gfxFamilyIdx = getGraphicsFamilyIndex(m_phyDevice);
         assert(m_gfxFamilyIdx != VK_QUEUE_FAMILY_IGNORED);
@@ -1183,6 +1200,14 @@ namespace vkz
         VKZ_ZoneScopedC(Color::indian_red);
 
         RHIContext::bake();
+
+        m_queryTimeStampCount = (uint32_t)(2 * m_passContainer.size());
+        m_queryPoolTimeStamp = createQueryPool(m_device, m_queryTimeStampCount, VK_QUERY_TYPE_TIMESTAMP);
+        assert(m_queryPoolTimeStamp);
+
+        m_queryStatisticsCount = (uint32_t)(2 * m_passContainer.size());
+        m_queryPoolStatistics = createQueryPool(m_device, m_queryStatisticsCount, VK_QUERY_TYPE_PIPELINE_STATISTICS);
+        assert(m_queryPoolStatistics);
     }
 
     bool RHIContext_vk::render()
@@ -1227,6 +1252,12 @@ namespace vkz
 
         VK_CHECK(vkBeginCommandBuffer(m_cmdBuffer, &beginInfo));
 
+        // time stamp
+        uint32_t queryIdx = 0;
+        vkCmdResetQueryPool(m_cmdBuffer, m_queryPoolTimeStamp, 0, m_queryTimeStampCount);
+        
+
+        vkCmdWriteTimestamp(m_cmdBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, m_queryPoolTimeStamp, queryIdx);
         // render passes
         for (size_t ii = 0; ii < m_passContainer.size(); ++ii)
         {
@@ -1238,16 +1269,18 @@ namespace vkz
 
             executePass(passId);
 
-            flushWriteBarriers(passId);
-            
+            // will dispatch barriers internally
+            flushWriteBarriers(passId); 
+
+            // write time stamp
+            vkCmdWriteTimestamp(m_cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, m_queryPoolTimeStamp, ++queryIdx);
         }
 
         // copy to swapchain
         copyToSwapchain(imageIndex);
 
         VK_CHECK(vkEndCommandBuffer(m_cmdBuffer));
-            
-            
+
         // submit
         {
             VKZ_ZoneScopedC(Color::green);
@@ -1277,6 +1310,20 @@ namespace vkz
         {
             VKZ_ZoneScopedC(Color::blue);
             VK_CHECK(vkDeviceWaitIdle(m_device)); // TODO: a fence here?
+        }
+
+        // set the time stamp data
+        m_passTime.clear();
+        stl::vector<uint64_t> timeStamps(queryIdx);
+        VK_CHECK(vkGetQueryPoolResults(m_device, m_queryPoolTimeStamp, 0, (uint32_t)timeStamps.size(), sizeof(uint64_t) * timeStamps.size(), timeStamps.data(), sizeof(uint64_t), VK_QUERY_RESULT_64_BIT));
+        assert(queryIdx == m_passContainer.size());
+        for (uint32_t ii = 1; ii < queryIdx; ++ii)
+        {
+            uint16_t passId = m_passContainer.getIdAt(ii - 1);
+            double timeStart = double(timeStamps[ii - 1]) * m_phyDeviceProps.limits.timestampPeriod * 1e-6;
+            double timeEnd = double(timeStamps[ii]) * m_phyDeviceProps.limits.timestampPeriod * 1e-6;
+
+            m_passTime.emplace({ passId, timeEnd - timeStart });
         }
 
         return true;
@@ -2447,6 +2494,16 @@ namespace vkz
     void RHIContext_vk::dispatchBarriers()
     {
         m_barrierDispatcher.dispatch(m_cmdBuffer);
+    }
+
+    double RHIContext_vk::getPassTime(const PassHandle _hPass)
+    {
+        auto it = m_passTime.find(_hPass.id);
+        if (m_passTime.end() == it)
+        {
+            return 0.0;
+        }
+        return it->second;
     }
 
     void RHIContext_vk::pushConstants(const uint16_t _passId)

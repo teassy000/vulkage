@@ -605,6 +605,8 @@ namespace vkz
         void setMouseMoveCallback(MouseMoveCallbackFunc _func);
         void setMouseButtonCallback(MouseButtonCallbackFunc _func);
 
+        double getPassTime(const PassHandle _hPass);
+
         HandleArrayT<kMaxNumOfShaderHandle> m_shaderHandles;
         HandleArrayT<kMaxNumOfProgramHandle> m_programHandles;
         HandleArrayT<kMaxNumOfPassHandle> m_passHandles;
@@ -2105,6 +2107,11 @@ namespace vkz
         s_mouseButtonCallback = _func;
     }
 
+    double Context::getPassTime(const PassHandle _hPass)
+    {
+        return m_rhiContext->getPassTime(_hPass);
+    }
+
     // ================================================
     static Context* s_ctx = nullptr;
 
@@ -2398,5 +2405,9 @@ namespace vkz
         s_ctx->setMouseButtonCallback(_func);
     }
 
+    double getPassTime(const PassHandle _hPass)
+    {
+        return s_ctx->getPassTime(_hPass);
+    }
 
 } // namespace vkz

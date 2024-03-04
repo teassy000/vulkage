@@ -1406,11 +1406,11 @@ int main(int argc, const char** argv)
             pd.cpuTime = float(frameCpuEnd - frameCpuBegin);
             pd.gpuTime = float(frameGpuEnd - frameGpuBegin);
             pd.avgGpuTime = float(avrageGpuTime);
-            pd.cullTime = float(frameCullEnd - frameCullBegin);
-            pd.drawTime = float(frameDrawEnd - frameDrawBegin);
+            pd.cullEarlyTime = float(frameCullEnd - frameCullBegin);
+            pd.drawEarlyTime = float(frameDrawEnd - frameDrawBegin);
             pd.pyramidTime = float(framePyramidEnd - framePyramidBegin);
-            pd.lateRender = float(frameCopyBegin - frameLateCullEnd);
-            pd.lateCullTime = float(frameLateCullEnd - framePyramidEnd);
+            pd.drawLateTime = float(frameCopyBegin - frameLateCullEnd);
+            pd.cullLateTime = float(frameLateCullEnd - framePyramidEnd);
             pd.uiTime = float(frameUIEnd - frameUIBegin);
             pd.waitTime = float(waitTimeEnd - waitTimeBegin);
             pd.trianglesPerSec = float(triangleCount * 1e-9 * double(1000 / avrageGpuTime));

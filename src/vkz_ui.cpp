@@ -226,22 +226,22 @@ void vkz_updateImGuiContent(DebugRenderOptionsData& _rod, const DebugProfilingDa
     ImGui::SetNextWindowSize({ 400, 450 }, ImGuiCond_FirstUseEver);
     ImGui::Begin("info:");
 
-    ImGui::Text("cpu: [%.3f]ms", _pd.cpuTime);
-    ImGui::Text("avg cpu: [%.3f]ms", _pd.avgCpuTime);
-    ImGui::Text("gpu: [%.3f]ms", _pd.gpuTime);
-    ImGui::Text("avg gpu: [%.3f]ms", _pd.avgGpuTime);
-    ImGui::Text("cull: [%.3f]ms", _pd.cullTime);
-    ImGui::Text("draw: [%.3f]ms", _pd.drawTime);
-
-    ImGui::Text("ui: [%.3f]ms", _pd.uiTime);
-    ImGui::Text("wait: [%.3f]ms", _pd.waitTime);
+    ImGui::Text("cpu: [%.6f]ms", _pd.cpuTime);
+    ImGui::Text("gpu: [%.6f]ms", _pd.gpuTime);
+    ImGui::Text("avg cpu: [%.6f]ms", _pd.avgCpuTime);
+    ImGui::Text("avg gpu: [%.6f]ms", _pd.avgGpuTime);
+    ImGui::Text("cull early: [%.6f]ms", _pd.cullEarlyTime);
+    ImGui::Text("draw early: [%.6f]ms", _pd.drawEarlyTime);
     
     if (_rod.ocEnabled)
     {
-        ImGui::Text("pyramid: [%.3f]ms", _pd.pyramidTime);
-        ImGui::Text("late cull: [%.3f]ms", _pd.lateCullTime);
-        ImGui::Text("render L: [%.3f]ms", _pd.lateRender);
+        ImGui::Text("pyramid: [%.6f]ms", _pd.pyramidTime);
+        ImGui::Text("cull late: [%.6f]ms", _pd.cullLateTime);
+        ImGui::Text("draw late: [%.6f]ms", _pd.drawLateTime);
     }
+
+    ImGui::Text("ui: [%.3f]ms", _pd.uiTime);
+    ImGui::Text("wait: [%.3f]ms", _pd.waitTime);
 
     if (ImGui::TreeNode("Static Data:"))
     {
