@@ -102,7 +102,7 @@ void meshDemo()
     meshletVisBufDesc.size = (scene.meshletVisibilityCount + 31) / 32 * sizeof(uint32_t);
     meshletVisBufDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::indirect | vkz::BufferUsageFlagBits::transfer_dst;
     meshletVisBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
-    vkz::BufferHandle meshletVisBuf = vkz::registBuffer("meshletVis", meshDrawVisBufDesc);
+    vkz::BufferHandle meshletVisBuf = vkz::registBuffer("meshletVis", meshletVisBufDesc);
 
     // index buffer
     vkz::BufferDesc idxBufDesc;
@@ -387,14 +387,10 @@ void meshDemo()
         memcpy_s(memTransform->data, memTransform->size, &demo.trans, sizeof(TransformData));
         vkz::updateBuffer(transformBuf, vkz::copy(memTransform));
 
-        // ui
-        vkz_updateImGui(demo.input, demo.renderOptions, demo.profiling, demo.logic);
-        vkz_updateUIRenderData(ui);
-
-        vkz::run();
 
         // update profiling data for this frame
-        // means the data will show next frame
+        // means the data is from last frame
+        // ISSUE: why this not updated?
         {
             demo.profiling.cullEarlyTime = (float)vkz::getPassTime(culling.pass);
             demo.profiling.drawEarlyTime = (float)vkz::getPassTime(meshShading.pass);
@@ -403,6 +399,12 @@ void meshDemo()
             demo.profiling.pyramidTime = (float)vkz::getPassTime(pyRendering.pass);
             demo.profiling.uiTime = (float)vkz::getPassTime(ui.pass);
         }
+
+        // ui
+        vkz_updateImGui(demo.input, demo.renderOptions, demo.profiling, demo.logic);
+        vkz_updateUIRenderData(ui);
+
+        vkz::run();
 
         VKZ_FrameMark;
     }
