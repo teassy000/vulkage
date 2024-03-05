@@ -130,8 +130,6 @@ namespace vkz
         d16,
         d32,
 
-        depth = d16 | d32,
-
         resource_format_max = 0x7fffffff,
     };
 
