@@ -244,6 +244,7 @@ namespace vkz
     {
         uint16_t finalPassId{ kInvalidHandle };
         uint16_t presentImageId{ kInvalidHandle };
+        uint32_t presentMipLevel{ 0 };
     };
 
     struct RHI_Config

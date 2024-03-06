@@ -1264,7 +1264,6 @@ namespace vkz
             uint16_t passId = m_passContainer.getIdAt(ii);
             //checkUnmatchedBarriers(passId);
             createBarriers(passId);
-            //message(info, "---------- before pass %d ------------------------------", passId);
             m_barrierDispatcher.dispatch(m_cmdBuffer);
 
             executePass(passId);
@@ -1277,7 +1276,7 @@ namespace vkz
         }
 
         // copy to swapchain
-        copyToSwapchain(imageIndex);
+        drawToSwapchain(imageIndex);
 
         VK_CHECK(vkEndCommandBuffer(m_cmdBuffer));
 
@@ -1348,6 +1347,12 @@ namespace vkz
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
+        if (!m_passContainer.exist(_hPass.id))
+        {
+            message(info, "updateThreadCount will not perform for pass %d! It might be useless after render pass sorted", _hPass.id);
+            return;
+        }
+
         assert(_threadCountX > 0);
         assert(_threadCountY > 0);
         assert(_threadCountZ > 0);
@@ -1361,6 +1366,12 @@ namespace vkz
     void RHIContext_vk::updateBuffer(BufferHandle _hBuf, const void* _data, uint32_t _size)
     {
         VKZ_ZoneScopedC(Color::indian_red);
+
+        if (!m_bufferContainer.exist(_hBuf.id))
+        {
+            message(info, "updateBuffer will not perform for buffer %d! It might be useless after render pass sorted", _hBuf.id);
+            return;
+        }
 
         const Buffer_vk& buf = m_bufferContainer.getIdToData(_hBuf.id);
         uint16_t baseBufId = m_aliasToBaseBuffers.getIdToData(_hBuf.id);
@@ -1400,6 +1411,12 @@ namespace vkz
         VKZ_ZoneScopedC(Color::indian_red);
 
         assert(_data != nullptr);
+        if (!m_passContainer.exist(_hPass.id))
+        {
+            message(info, "update will not perform for pass %d! It might be useless after render pass sorted", _hPass.id);
+            return;
+        }
+
         PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
         
         if (nullptr != passInfo.renderFuncDataPtr)
@@ -2703,6 +2720,91 @@ namespace vkz
 
         vkCmdFillBuffer(m_cmdBuffer, buf.buffer, 0, buf.size, buf.fillVal);
     }
+     
+    bool RHIContext_vk::checkCopyableToSwapchain(const uint16_t _imgId) const
+    {
+        const uint16_t baseId = m_aliasToBaseImages.getIdToData(_imgId);
+        const ImageCreateInfo& srcInfo = m_imageInitPropContainer.getIdToData(baseId);
+        
+        bool result = true;
+        
+        result &= (getFormat(srcInfo.format) == m_imageFormat);
+        result &= (srcInfo.width == m_swapchain.width);
+        result &= (srcInfo.height == m_swapchain.height);
+        result &= (srcInfo.mipLevels == 1);
+        result &= (srcInfo.arrayLayers == 1);
+        result &= (srcInfo.layout == ImageLayout::color_attachment_optimal);
+        result &= ((srcInfo.usage & ImageUsageFlagBits::color_attachment) == 1);
+
+        return result;
+    }
+
+    void RHIContext_vk::drawToSwapchain(uint32_t _swapImgIdx)
+    {
+        if (checkCopyableToSwapchain(m_brief.presentImageId))
+        {
+            copyToSwapchain(_swapImgIdx);
+        }
+        else
+        {
+            blitToSwapchain(_swapImgIdx);
+        }
+    }
+
+    void RHIContext_vk::blitToSwapchain(uint32_t _swapImgIdx)
+    {
+        VKZ_ZoneScopedC(Color::indian_red);
+
+        if (!m_imageContainer.exist(m_brief.presentImageId))
+        {
+            message(DebugMessageType::error, "Does the presentImageId set correctly?");
+            return;
+        }
+        // add swapchain barrier
+        // img to present
+        const Image_vk& presentImg = getImage(m_brief.presentImageId);
+        
+
+        uint32_t levelWidth = glm::max(1u, presentImg.width >> m_brief.presentMipLevel);
+        uint32_t levelHeight = glm::max(1u, presentImg.height >> m_brief.presentMipLevel);
+
+        VkImageBlit regions[1] = {};
+        regions[0].srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        regions[0].srcSubresource.mipLevel = m_brief.presentMipLevel;
+        regions[0].srcSubresource.layerCount = 1;
+        regions[0].dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        regions[0].dstSubresource.layerCount = 1;
+
+        regions[0].srcOffsets[0] = { 0, 0, 0 };
+        regions[0].srcOffsets[1] = { int32_t(levelWidth), int32_t(levelHeight), 1 };
+        regions[0].dstOffsets[0] = { 0, 0, 0 };
+        regions[0].dstOffsets[1] = { int32_t(m_swapchain.width), int32_t(m_swapchain.height), 1 };
+
+        m_barrierDispatcher.barrier(
+            presentImg.image, presentImg.aspectMask,
+            { VK_ACCESS_TRANSFER_READ_BIT, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT }
+        );
+
+        // swapchain image
+        const VkImage& swapImg = m_swapchain.images[_swapImgIdx];
+
+        m_barrierDispatcher.barrier(
+            swapImg, VK_IMAGE_ASPECT_COLOR_BIT,
+            { VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT }
+        );
+
+        m_barrierDispatcher.dispatch(m_cmdBuffer);
+
+        vkCmdBlitImage(m_cmdBuffer, presentImg.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, swapImg, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, COUNTOF(regions), regions, VK_FILTER_NEAREST);
+
+        // add present barrier
+        m_barrierDispatcher.barrier(
+            swapImg, VK_IMAGE_ASPECT_COLOR_BIT,
+            { 0, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT }
+        );
+
+        m_barrierDispatcher.dispatch(m_cmdBuffer);
+    }
 
     void RHIContext_vk::copyToSwapchain(uint32_t _swapImgIdx)
     {
@@ -2719,7 +2821,6 @@ namespace vkz
 
         m_barrierDispatcher.barrier(
             presentImg.image, presentImg.aspectMask,
-            //src,
             { VK_ACCESS_TRANSFER_READ_BIT, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT }
         );
         
@@ -2728,7 +2829,6 @@ namespace vkz
 
         m_barrierDispatcher.barrier(
             swapImg, VK_IMAGE_ASPECT_COLOR_BIT,
-            //{ 0, VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT },
             { VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT }
         );
 
@@ -2752,7 +2852,6 @@ namespace vkz
         // add present barrier
         m_barrierDispatcher.barrier(
             swapImg, VK_IMAGE_ASPECT_COLOR_BIT,
-            //{ VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT },
             { 0, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT }
         );
 

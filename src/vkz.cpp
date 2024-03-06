@@ -566,7 +566,7 @@ namespace vkz
         void setMultiFrame(ImageHandle _img);
         void setMultiFrame(BufferHandle _buf);
         
-        void setPresentImage(ImageHandle _rt);
+        void setPresentImage(ImageHandle _rt, uint32_t _mipLv);
 
         void updateCustomRenderFuncData(const PassHandle _hPass, const Memory* _dataMem);
 
@@ -616,6 +616,7 @@ namespace vkz
         HandleArrayT<kMaxNumOfSamplerHandle> m_samplerHandles;
         
         ImageHandle m_presentImage{kInvalidHandle};
+        uint32_t m_presentMipLevel{ 0 };
 
         // resource Info
         UniDataContainer<ShaderHandle, std::string> m_shaderDescs;
@@ -1105,6 +1106,7 @@ namespace vkz
         brief.imgViewNum = m_imageViewHandles.getNumHandles();
 
         brief.presentImage = m_presentImage.id;
+        brief.presentMipLevel = m_presentMipLevel;
 
 
         write(m_fgMemWriter, brief);
@@ -1928,9 +1930,10 @@ namespace vkz
         setRenderGraphDataDirty();
     }
 
-    void Context::setPresentImage(ImageHandle _img)
+    void Context::setPresentImage(ImageHandle _rt, uint32_t _mipLv)
     {
-        m_presentImage = _img;
+        m_presentImage = _rt;
+        m_presentMipLevel = _mipLv;
 
         setRenderGraphDataDirty();
     }
@@ -2248,9 +2251,9 @@ namespace vkz
         s_ctx->setCustomRenderFunc(_hPass, _func, _dataMem);
     }
 
-    void setPresentImage(ImageHandle _rt)
+    void setPresentImage(ImageHandle _rt, uint32_t _mipLv /*= 0*/)
     {
-        s_ctx->setPresentImage(_rt);
+        s_ctx->setPresentImage(_rt, _mipLv);
     }
     
     void updatePushConstants(const PassHandle _hPass, const Memory* _mem)

@@ -44,6 +44,7 @@ namespace vkz
         uint32_t    imgViewNum;
 
         uint16_t    presentImage;
+        uint32_t    presentMipLevel;
     };
 
     // Register Info
@@ -314,9 +315,24 @@ namespace vkz
         // for optimize
         struct PassInDependLevel
         {
-            stl::vector<stl::vector<uint16_t>> passInLv;
+            PassInDependLevel()
+                : maxLevel{ 0 }
+            {
+                plainPassInLevel.clear();
+            }
+
+            PassInDependLevel(size_t _piqSz)
+                : maxLevel{ 0 }
+                , plainPassInLevel(_piqSz, kInvalidIndex)
+            {
+            }
+            ~PassInDependLevel()
+            {
+                plainPassInLevel.clear();
+            }
 
             stl::vector<uint16_t> plainPassInLevel;
+            uint16_t maxLevel;
         };
 
         struct PassToSync
@@ -338,6 +354,7 @@ namespace vkz
         MemoryWriter m_rhiMemWriter;
 
         CombinedResID  m_combinedPresentImage;
+        uint32_t       m_presentMipLevel;
         PassHandle     m_finalPass{kInvalidHandle};
 
         stl::vector< ShaderHandle >     m_hShader;
@@ -389,7 +406,11 @@ namespace vkz
         // =====================
         // lv0 index: each pass would use
         // lv1 index: one pass in each queue
-        stl::vector< std::array<uint16_t, (uint16_t)PassExeQueue::count> >    m_nearestSyncPassIdx;
+        struct PassInQueue
+        {
+            uint16_t arr[(uint16_t)PassExeQueue::count];
+        };
+        stl::vector< PassInQueue >    m_nearestSyncPassIdx;
 
         stl::vector< CombinedResID>     m_multiFrame_resList;
 

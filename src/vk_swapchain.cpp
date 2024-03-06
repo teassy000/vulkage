@@ -152,7 +152,7 @@ namespace vkz
         VkSwapchainKHR swapchain = createSwapchain(device, surface, surfaceCaps, familyIndex, format, oldSwapchain, presentMode);
         assert(swapchain);
 
-        stl::vector<VkImage> images(16);
+        stl::vector<VkImage> images(16, nullptr);
         uint32_t imageCount = 16;
         VK_CHECK(vkGetSwapchainImagesKHR(device, swapchain, &imageCount, images.data()));
         

@@ -254,6 +254,9 @@ namespace vkz
         void exeBlit(const uint16_t _passId);
         void exeFillBuffer(const uint16_t _passId);
 
+        bool checkCopyableToSwapchain(const uint16_t _imgId) const;
+        void drawToSwapchain(uint32_t _swapImgIdx);
+        void blitToSwapchain(uint32_t _swapImgIdx);
         void copyToSwapchain(uint32_t _swapImgIdx);
 
         const Buffer_vk getBuffer(const uint16_t _bufId, bool _base = true) const

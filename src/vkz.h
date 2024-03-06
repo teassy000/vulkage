@@ -51,7 +51,7 @@ namespace vkz
 
     using RenderFuncPtr = void (*)(CommandListI& _cmdList, const void* _data, uint32_t size);
     void setCustomRenderFunc(const PassHandle _hPass, RenderFuncPtr _func, const Memory* _dataMem);
-    void setPresentImage(ImageHandle _rt);
+    void setPresentImage(ImageHandle _rt, uint32_t _mipLv = 0);
 
     void updateCustomRenderFuncData(const PassHandle _hPass, const Memory* _dataMem);
     void updateBuffer(const BufferHandle _buffer, const Memory* _mem);

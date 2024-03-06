@@ -138,6 +138,7 @@ namespace vkz
         m_sparse_pass_data_ref.resize(brief.passNum);
 
         m_combinedPresentImage = CombinedResID{ brief.presentImage, ResourceType::image };
+        m_presentMipLevel = brief.presentMipLevel;
     }
 
 
@@ -887,22 +888,22 @@ namespace vkz
     {
         // initialize the dependency level
         const uint16_t maxLv = *std::max_element(_maxLvLst.begin(), _maxLvLst.end());
-        m_passIdxInDpLevels = stl::vector<PassInDependLevel>(m_sortedPassIdx.size(), PassInDependLevel{});
 
+        stl::vector<PassInDependLevel> passInDpLevel(m_sortedPassIdx.size(), PassInDependLevel{ (uint32_t)(maxLv * m_sortedPassIdx.size()) });
 
-        for (uint16_t passIdx : m_sortedPassIdx)
-        {
-            m_passIdxInDpLevels[passIdx].passInLv.resize(maxLv);
-
-            m_passIdxInDpLevels[passIdx].plainPassInLevel.resize(m_sortedPassIdx.size() * maxLv);
-        }
-
+        const uint32_t stride = (uint32_t)m_sortedPassIdx.size();
         for (uint16_t passIdx : m_sortedPassIdx)
         {
             stl::vector<uint16_t> passStack;
             passStack.push_back(passIdx);
 
             uint16_t baseLv = _maxLvLst[passIdx];
+
+            stl::unordered_map<uint16_t, uint16_t> lvToIdx;
+            for (uint16_t lv = 0; lv < maxLv; ++lv)
+            {
+                lvToIdx.insert({ lv, 0 });
+            }
 
             while (!passStack.empty())
             {
@@ -914,13 +915,21 @@ namespace vkz
                 {
                     uint16_t lvDist = baseLv - currLv;
 
-                    const size_t idx = getElemIndex(m_passIdxInDpLevels[passIdx].passInLv[lvDist], inPassIdx);
+                    stl::vector<uint16_t>::iterator beginIt = passInDpLevel[passIdx].plainPassInLevel.begin();
+                    size_t offset = stride * lvDist;
+                    stl::vector<uint16_t> range(beginIt + offset, beginIt + offset + stride);
+
+                    const size_t idx = getElemIndex(range, inPassIdx);
+                    
                     if (currLv - 1 != _maxLvLst[inPassIdx] || kInvalidIndex != idx)
                     {
                         continue;
                     }
-
-                    m_passIdxInDpLevels[passIdx].passInLv[lvDist].push_back(inPassIdx);
+                    
+                    uint16_t size = lvToIdx.find(lvDist)->second;
+                    size_t finalIdx = offset + size;
+                    passInDpLevel[passIdx].plainPassInLevel[finalIdx] = inPassIdx;
+                    lvToIdx.emplace({ lvDist, uint16_t(size + 1) });
                 }
 
                 for (const uint16_t inPassIdx : m_pass_dependency[currPassIdx].inPassIdxSet)
@@ -929,43 +938,52 @@ namespace vkz
                 }
             }
         }
+
+        m_passIdxInDpLevels.resize(passInDpLevel.size());
+        for (uint32_t ii = 0; ii < passInDpLevel.size(); ++ii)
+        {
+            const PassInDependLevel& pidl = passInDpLevel[ii];
+            PassInDependLevel& target = m_passIdxInDpLevels[ii];
+            target.plainPassInLevel.assign(pidl.plainPassInLevel.begin(), pidl.plainPassInLevel.end());
+            target.maxLevel = maxLv;
+        }
+
     }
 
     void Framegraph2::fillNearestSyncPass()
     {
         // init nearest sync pass
         m_nearestSyncPassIdx.resize(m_sortedPass.size());
-        for (auto& arr : m_nearestSyncPassIdx)
+        for (auto& piq : m_nearestSyncPassIdx)
         {
-            arr.fill(kInvalidIndex);
+            for (uint16_t & pIdx : piq.arr)
+            {
+                pIdx = kInvalidIndex;
+            }
         }
 
         for (const uint16_t passIdx : m_sortedPassIdx)
         {
             const PassInDependLevel& passDep = m_passIdxInDpLevels[passIdx];
 
-            // iterate each level
-            for (const auto & passInCurrLv : passDep.passInLv)
+            for (const uint16_t pIdx : passDep.plainPassInLevel)
             {
-                // iterate each pass in current level
-                for (uint16_t pIdx : passInCurrLv)
+                size_t passCount = m_sortedPassIdx.size();
+
+                for (uint16_t qIdx = 0; qIdx < m_passIdxInQueue.size(); ++qIdx)
                 {
-                    // check if pass in m_passIdxInDLevels can match with m_passIdxInQueue
-                    for (uint16_t qIdx = 0; qIdx < m_passIdxInQueue.size(); ++qIdx)
-                    {
-                        const size_t idx = getElemIndex(m_passIdxInQueue[qIdx], pIdx);
+                    const size_t idx = getElemIndex(m_passIdxInQueue[qIdx], pIdx);
 
-                        bool isMatch = 
-                               (kInvalidIndex == m_nearestSyncPassIdx[passIdx][qIdx]) // not set yet
-                            && (kInvalidIndex != idx); // found
+                    bool isMatch =
+                        (kInvalidIndex == m_nearestSyncPassIdx[passIdx].arr[qIdx]) // not set yet
+                        && (kInvalidIndex != idx); // found
 
-                        // only first met would set the value
-                        if ( isMatch) {
-                            m_nearestSyncPassIdx[passIdx][qIdx] = pIdx;
+                    // only first met would set the value
+                    if (isMatch) {
+                        m_nearestSyncPassIdx[passIdx].arr[qIdx] = pIdx;
 
-                            message(info, "pass %d to queue %d: %d", passIdx, qIdx, pIdx);
-                            break;
-                        }
+                        message(info, "pass %d to queue %d: %d", passIdx, qIdx, pIdx);
+                        break;
                     }
                 }
             }
@@ -978,13 +996,22 @@ namespace vkz
         for (uint16_t pIdx : m_sortedPassIdx)
         {
             const PassInDependLevel& dpLv = m_passIdxInDpLevels[pIdx];
-            
-            
-            if (dpLv.passInLv.empty() || dpLv.passInLv[0].empty())
+
+            if (dpLv.plainPassInLevel.empty())
                 continue;
 
-            // only level 0 would be sync
-            m_passIdxToSync[pIdx].insert(m_passIdxToSync[pIdx].end(), dpLv.passInLv[0].begin(), dpLv.passInLv[0].end());
+            stl::vector<uint16_t> lv0;
+            for (uint16_t ii=0; ii < m_sortedPassIdx.size(); ++ii)
+            {
+                if (dpLv.plainPassInLevel[ii] == kInvalidIndex)
+                    break;
+
+                lv0.push_back(dpLv.plainPassInLevel[ii]);
+
+                message(info, "pass: %d to sync %d", pIdx, dpLv.plainPassInLevel[ii]);
+            }
+
+            m_passIdxToSync[pIdx].insert(m_passIdxToSync[pIdx].end(), lv0.begin(), lv0.end());
         }
 
         // TODO: 
@@ -2008,6 +2035,7 @@ namespace vkz
             RHIBrief brief;
             brief.finalPassId = m_finalPass.id;
             brief.presentImageId = m_combinedPresentImage.id;
+            brief.presentMipLevel = m_presentMipLevel;
 
             write(&m_rhiMemWriter, brief);
             write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end);
