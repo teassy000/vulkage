@@ -1,11 +1,11 @@
 #include "vkz_culling_pass.h"
 
-void prepareCullingComp(CullingComp& _cullingComp, const CullingCompInitData& _initData, bool _late /*= false*/)
+void prepareCullingComp(CullingComp& _cullingComp, const CullingCompInitData& _initData, bool _late /*= false*/, bool _task /*= false*/)
 {
     vkz::ShaderHandle cs = vkz::registShader("mesh_draw_cmd_shader", "shaders/drawcmd.comp.spv");
     vkz::ProgramHandle prog = vkz::registProgram("mesh_draw_cmd_prog", { cs }, sizeof(MeshDrawCullVKZ));
 
-    int pipelineSpecs[] = { _late, true };
+    int pipelineSpecs[] = { _late, _task };
 
     const vkz::Memory* pConst = vkz::alloc(sizeof(int) * COUNTOF(pipelineSpecs));
     memcpy_s(pConst->data, pConst->size, pipelineSpecs, sizeof(int) * COUNTOF(pipelineSpecs));

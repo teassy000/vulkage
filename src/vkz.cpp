@@ -2271,7 +2271,6 @@ namespace vkz
         s_ctx->updateBuffer(_hbuf, _mem);
     }
 
-
     void updateCustomRenderFuncData(const PassHandle _hPass, const Memory* _dataMem)
     {
         s_ctx->updateCustomRenderFuncData(_hPass, _dataMem);

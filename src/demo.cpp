@@ -10,6 +10,7 @@
 #include "vkz_ms_pip.h"
 #include "vkz_vtx_pip.h"
 #include "vkz_culling_pass.h"
+#include "time.h"
 
 static DemoData demo{};
 
@@ -141,7 +142,7 @@ void meshDemo()
     transformBufDesc.size = (uint32_t)(sizeof(TransformData));
     transformBufDesc.data = &demo.trans;
     transformBufDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::transfer_dst;
-    transformBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
+    transformBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local | vkz::MemoryPropFlagBits::host_visible;
     vkz::BufferHandle transformBuf = vkz::registBuffer("transform", transformBufDesc);
     
     // color
@@ -190,7 +191,7 @@ void meshDemo()
         cullingInit.meshDrawCmdCountBuf = meshDrawCmdCountBufAfterFill;
         cullingInit.meshDrawVisBuf = meshDrawVisBuf;
 
-        prepareCullingComp(culling, cullingInit);
+        prepareCullingComp(culling, cullingInit, false, supportMeshShading);
     }
 
     if(!supportMeshShading)
@@ -243,7 +244,7 @@ void meshDemo()
         cullingInit.meshDrawCmdCountBuf = meshDrawCmdCountBufAfterFillLate;
         cullingInit.meshDrawVisBuf = culling.meshDrawVisBufOutAlias;
 
-        prepareCullingComp(cullingLate, cullingInit, true);
+        prepareCullingComp(cullingLate, cullingInit, true, supportMeshShading);
     }
 
     // draw late
@@ -323,10 +324,12 @@ void meshDemo()
     // data used in loop
     const vkz::Memory* memTransform = vkz::alloc(sizeof(TransformData));
 
-
-
+    double clockDuration = 0.0;
+    double avgCpuTime = 0.0;
     while (!vkz::shouldClose())
     {
+        clock_t startFrameTime = clock();
+
         float znear = .1f;
         mat4 projection = perspectiveProjection2(glm::radians(70.f), (float)config.windowWidth / (float)config.windowHeight, znear);
         mat4 projectionT = glm::transpose(projection);
@@ -387,24 +390,30 @@ void meshDemo()
         memcpy_s(memTransform->data, memTransform->size, &demo.trans, sizeof(TransformData));
         vkz::updateBuffer(transformBuf, vkz::copy(memTransform));
 
-
-        // update profiling data for this frame
-        // means the data is from last frame
-        // ISSUE: why this not updated?
+        // update profiling data to GPU from last frame
+        if (clockDuration > 33.33)
         {
-            demo.profiling.cullEarlyTime = (float)vkz::getPassTime(culling.pass);
-            demo.profiling.drawEarlyTime = (float)vkz::getPassTime(meshShading.pass);
-            demo.profiling.cullLateTime = (float)vkz::getPassTime(cullingLate.pass);
-            demo.profiling.drawLateTime = (float)vkz::getPassTime(meshShadingLate.pass);
-            demo.profiling.pyramidTime = (float)vkz::getPassTime(pyRendering.pass);
-            demo.profiling.uiTime = (float)vkz::getPassTime(ui.pass);
+            vkz_updateImGui(demo.input, demo.renderOptions, demo.profiling, demo.logic);
+            vkz_updateUIRenderData(ui);
+
+            clockDuration = 0.0;
         }
 
-        // ui
-        vkz_updateImGui(demo.input, demo.renderOptions, demo.profiling, demo.logic);
-        vkz_updateUIRenderData(ui);
-
+        // render
         vkz::run();
+
+        clock_t endFrameTime = clock();
+        double cpuTimeMS = (double)(endFrameTime - startFrameTime);
+        clockDuration += cpuTimeMS;
+        
+        avgCpuTime = float(avgCpuTime * 0.95 + (cpuTimeMS) * 0.05);
+        demo.profiling.avgCpuTime = (float)avgCpuTime;
+        demo.profiling.cullEarlyTime = (float)vkz::getPassTime(culling.pass);
+        demo.profiling.drawEarlyTime = (float)vkz::getPassTime(meshShading.pass);
+        demo.profiling.cullLateTime = (float)vkz::getPassTime(cullingLate.pass);
+        demo.profiling.drawLateTime = (float)vkz::getPassTime(meshShadingLate.pass);
+        demo.profiling.pyramidTime = (float)vkz::getPassTime(pyRendering.pass);
+        demo.profiling.uiTime = (float)vkz::getPassTime(ui.pass);
 
         VKZ_FrameMark;
     }

@@ -152,12 +152,14 @@ void vkz_prepareUI(UIRendering& _ui, vkz::ImageHandle _color, vkz::ImageHandle _
     vbDesc.size = kInitialVertexBufferSize;
     vbDesc.fillVal = 0;
     vbDesc.usage = vkz::BufferUsageFlagBits::vertex | vkz::BufferUsageFlagBits::transfer_dst;
+    vbDesc.memFlags = vkz::MemoryPropFlagBits::host_visible | vkz::MemoryPropFlagBits::host_coherent;
     vkz::BufferHandle vb = vkz::registBuffer("ui.vb", vbDesc, vkz::ResourceLifetime::non_transition);
 
     vkz::BufferDesc ibDesc{};
     ibDesc.size = kInitialIndexBufferSize;
     ibDesc.fillVal = 0;
     ibDesc.usage = vkz::BufferUsageFlagBits::index | vkz::BufferUsageFlagBits::transfer_dst;
+    ibDesc.memFlags = vkz::MemoryPropFlagBits::host_visible | vkz::MemoryPropFlagBits::host_coherent;
     vkz::BufferHandle ib = vkz::registBuffer("ui.ib", ibDesc, vkz::ResourceLifetime::non_transition);
 
     vkz::ImageHandle colorOutAlias = vkz::alias(_color);
@@ -226,18 +228,18 @@ void vkz_updateImGuiContent(DebugRenderOptionsData& _rod, const DebugProfilingDa
     ImGui::SetNextWindowSize({ 400, 450 }, ImGuiCond_FirstUseEver);
     ImGui::Begin("info:");
 
-    ImGui::Text("cpu: [%.6f]ms", _pd.cpuTime);
-    ImGui::Text("gpu: [%.6f]ms", _pd.gpuTime);
-    ImGui::Text("avg cpu: [%.6f]ms", _pd.avgCpuTime);
-    ImGui::Text("avg gpu: [%.6f]ms", _pd.avgGpuTime);
-    ImGui::Text("cull early: [%.6f]ms", _pd.cullEarlyTime);
-    ImGui::Text("draw early: [%.6f]ms", _pd.drawEarlyTime);
+    ImGui::Text("cpu: [%.3f]ms", _pd.cpuTime);
+    ImGui::Text("gpu: [%.3f]ms", _pd.gpuTime);
+    ImGui::Text("avg cpu: [%.3f]ms", _pd.avgCpuTime);
+    ImGui::Text("avg gpu: [%.3f]ms", _pd.avgGpuTime);
+    ImGui::Text("cull early: [%.3f]ms", _pd.cullEarlyTime);
+    ImGui::Text("draw early: [%.3f]ms", _pd.drawEarlyTime);
     
     if (_rod.ocEnabled)
     {
-        ImGui::Text("pyramid: [%.6f]ms", _pd.pyramidTime);
-        ImGui::Text("cull late: [%.6f]ms", _pd.cullLateTime);
-        ImGui::Text("draw late: [%.6f]ms", _pd.drawLateTime);
+        ImGui::Text("pyramid: [%.3f]ms", _pd.pyramidTime);
+        ImGui::Text("cull late: [%.3f]ms", _pd.cullLateTime);
+        ImGui::Text("draw late: [%.3f]ms", _pd.drawLateTime);
     }
 
     ImGui::Text("ui: [%.3f]ms", _pd.uiTime);
@@ -308,30 +310,21 @@ void vkz_updateUIRenderData(UIRendering& _ui)
     ibSize += (0x40 - (ibSize % 0x40));
 
     assert((vbSize % 0x40 == 0) && (ibSize % 0x40 == 0));
-    if ( _ui.vtxCount != imDrawData->TotalVtxCount
-         || _ui.idxCount != imDrawData->TotalIdxCount) 
-    {
-        const vkz::Memory* vbMem = vkz::alloc((uint32_t)vbSize);
-        const vkz::Memory* ibMem = vkz::alloc((uint32_t)ibSize);
 
-        uint32_t vbOffset = 0;
-        uint32_t ibOffset = 0;
-        for (int32_t ii = 0; ii < imDrawData->CmdListsCount; ++ii) {
-            const ImDrawList* imCmdList = imDrawData->CmdLists[ii];
-            memcpy(vbMem->data + vbOffset, imCmdList->VtxBuffer.Data, imCmdList->VtxBuffer.Size * sizeof(ImDrawVert));
-            memcpy(ibMem->data + ibOffset, imCmdList->IdxBuffer.Data, imCmdList->IdxBuffer.Size * sizeof(ImDrawIdx));
-            vbOffset += imCmdList->VtxBuffer.Size * sizeof(ImDrawVert);
-            ibOffset += imCmdList->IdxBuffer.Size * sizeof(ImDrawIdx);
-        }
+    
+    const vkz::Memory* vbMem = vkz::alloc((uint32_t)vbSize);
+    const vkz::Memory* ibMem = vkz::alloc((uint32_t)ibSize);
 
-        if (_ui.vtxCount != imDrawData->TotalVtxCount) {
-            vkz::updateBuffer(_ui.vb, vbMem);
-            _ui.vtxCount = imDrawData->TotalVtxCount;
-        }
-
-        if (_ui.idxCount != imDrawData->TotalIdxCount) {
-            vkz::updateBuffer(_ui.ib, ibMem);
-            _ui.idxCount = imDrawData->TotalIdxCount;
-        }
+    uint32_t vbOffset = 0;
+    uint32_t ibOffset = 0;
+    for (int32_t ii = 0; ii < imDrawData->CmdListsCount; ++ii) {
+        const ImDrawList* imCmdList = imDrawData->CmdLists[ii];
+        memcpy(vbMem->data + vbOffset, imCmdList->VtxBuffer.Data, imCmdList->VtxBuffer.Size * sizeof(ImDrawVert));
+        memcpy(ibMem->data + ibOffset, imCmdList->IdxBuffer.Data, imCmdList->IdxBuffer.Size * sizeof(ImDrawIdx));
+        vbOffset += imCmdList->VtxBuffer.Size * sizeof(ImDrawVert);
+        ibOffset += imCmdList->IdxBuffer.Size * sizeof(ImDrawIdx);
     }
+
+    vkz::updateBuffer(_ui.vb, vbMem);
+    vkz::updateBuffer(_ui.ib, ibMem);
 }

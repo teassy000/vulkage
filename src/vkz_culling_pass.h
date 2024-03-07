@@ -40,7 +40,7 @@ struct CullingComp
     MeshDrawCullVKZ meshDrawCull;
 };
 
-void prepareCullingComp(CullingComp& _cullingComp, const CullingCompInitData& _initData, bool _late = false);
+void prepareCullingComp(CullingComp& _cullingComp, const CullingCompInitData& _initData, bool _late = false, bool _task = false);
 
 void updateCullingConstants(CullingComp& _cullingComp, const MeshDrawCullVKZ& _drawCull);
 

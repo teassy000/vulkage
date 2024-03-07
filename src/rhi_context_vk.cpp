@@ -1377,6 +1377,13 @@ namespace vkz
         uint16_t baseBufId = m_aliasToBaseBuffers.getIdToData(_hBuf.id);
         const Buffer_vk& baseBuf = m_bufferContainer.getIdToData(baseBufId);
 
+        const BufferCreateInfo& createInfo = m_bufferCreateInfoContainer.getDataRef(baseBufId);
+        if (!(createInfo.memFlags & MemoryPropFlagBits::host_visible))
+        {
+            message(info, "updateBuffer will not perform for buffer %d! Buffer must be host visible so we can map to host memory", _hBuf.id);
+            return;
+        }
+
         // re-create buffer if new size is larger than the old one
         if (buf.size != _size && baseBuf.size < _size)
         {
@@ -1390,7 +1397,7 @@ namespace vkz
             info.size = _size;
             info.bufId = _hBuf.id;
 
-            const BufferCreateInfo& createInfo = m_bufferCreateInfoContainer.getDataRef(_hBuf.id);
+
             Buffer_vk newBuf = vkz::createBuffer(info, m_memProps, m_device, getBufferUsageFlags(createInfo.usage), getMemPropFlags(createInfo.memFlags));
             m_bufferContainer.update_data(_hBuf.id, newBuf);
 
@@ -1404,6 +1411,8 @@ namespace vkz
 
         const Buffer_vk& newBuf = m_bufferContainer.getIdToData(_hBuf.id);
         uploadBuffer(_hBuf.id, _data, _size);
+
+        flushBuffer(m_device, newBuf);
     }
 
     void RHIContext_vk::updateCustomFuncData(const PassHandle _hPass, const void* _data, uint32_t _size)
