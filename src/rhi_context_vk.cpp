@@ -2736,6 +2736,26 @@ namespace vkz
         result &= (srcInfo.layout == ImageLayout::color_attachment_optimal);
         result &= ((srcInfo.usage & ImageUsageFlagBits::color_attachment) == 1);
 
+
+        return result;
+    }
+
+    bool RHIContext_vk::checkBlitableToSwapchain(const uint16_t _imgId) const
+    {
+        const uint16_t baseId = m_aliasToBaseImages.getIdToData(_imgId);
+        const ImageCreateInfo& srcInfo = m_imageInitPropContainer.getIdToData(baseId);
+
+        bool result = true;
+
+        // based on the doc, blit image can simply understand as copy with scaling 
+        // https://vulkan.lunarg.com/doc/view/1.3.243.0/windows/1.3-extensions/vkspec.html#copies-imagescaling
+        // but there're a lot of conditions
+        // here just a naive and simple one which cause no validation error in current demo.
+
+        result &= (srcInfo.mipLevels == 1);
+        result &= (srcInfo.arrayLayers == 1);
+        result &= ((srcInfo.usage & ImageUsageFlagBits::color_attachment) == 1);
+
         return result;
     }
 
@@ -2745,9 +2765,14 @@ namespace vkz
         {
             copyToSwapchain(_swapImgIdx);
         }
-        else
+        else if (checkBlitableToSwapchain(m_brief.presentImageId))
         {
             blitToSwapchain(_swapImgIdx);
+        }
+        else
+        {
+            // render to swapchain
+            assert(0);
         }
     }
 
@@ -2760,11 +2785,24 @@ namespace vkz
             message(DebugMessageType::error, "Does the presentImageId set correctly?");
             return;
         }
-        // add swapchain barrier
-        // img to present
-        const Image_vk& presentImg = getImage(m_brief.presentImageId);
-        
 
+        // barriers
+        const Image_vk& presentImg = getImage(m_brief.presentImageId);
+        m_barrierDispatcher.barrier(
+            presentImg.image, presentImg.aspectMask,
+            { VK_ACCESS_TRANSFER_READ_BIT, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT }
+        );
+
+        // swapchain image
+        const VkImage& swapImg = m_swapchain.images[_swapImgIdx];
+        m_barrierDispatcher.barrier(
+            swapImg, VK_IMAGE_ASPECT_COLOR_BIT,
+            { VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT }
+        );
+
+        m_barrierDispatcher.dispatch(m_cmdBuffer);
+
+        // blit image
         uint32_t levelWidth = glm::max(1u, presentImg.width >> m_brief.presentMipLevel);
         uint32_t levelHeight = glm::max(1u, presentImg.height >> m_brief.presentMipLevel);
 
@@ -2779,21 +2817,6 @@ namespace vkz
         regions[0].srcOffsets[1] = { int32_t(levelWidth), int32_t(levelHeight), 1 };
         regions[0].dstOffsets[0] = { 0, 0, 0 };
         regions[0].dstOffsets[1] = { int32_t(m_swapchain.width), int32_t(m_swapchain.height), 1 };
-
-        m_barrierDispatcher.barrier(
-            presentImg.image, presentImg.aspectMask,
-            { VK_ACCESS_TRANSFER_READ_BIT, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT }
-        );
-
-        // swapchain image
-        const VkImage& swapImg = m_swapchain.images[_swapImgIdx];
-
-        m_barrierDispatcher.barrier(
-            swapImg, VK_IMAGE_ASPECT_COLOR_BIT,
-            { VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT }
-        );
-
-        m_barrierDispatcher.dispatch(m_cmdBuffer);
 
         vkCmdBlitImage(m_cmdBuffer, presentImg.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, swapImg, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, COUNTOF(regions), regions, VK_FILTER_NEAREST);
 

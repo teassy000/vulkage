@@ -13,28 +13,15 @@ namespace vkz
 
     static VkBool32 debugReportCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage, void* pUserData)
     {
-        const char* type =
-            flags & VK_DEBUG_REPORT_ERROR_BIT_EXT
-            ? "ERROR"
+        DebugMessageType msgType = flags & VK_DEBUG_REPORT_ERROR_BIT_EXT
+            ? DebugMessageType::error
             : (flags & (VK_DEBUG_REPORT_WARNING_BIT_EXT | VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT))
-            ? "WARNING"
-            : "INFO";
+            ? DebugMessageType::warning
+            : DebugMessageType::info;
 
-        char message[4096];
-        snprintf(message, COUNTOF(message), "%s: %s\n", type, pMessage);
+        vkz::message(msgType, "%s\n", pMessage);
 
-        vkz::message(vkz::info, "%s\n", message);
-
-#ifdef _WIN32
-        OutputDebugStringA(message);
-#endif
-
-        if (flags & VK_DEBUG_REPORT_ERROR_BIT_EXT)
-        {
-            assert(!"validation error encountered!");
-        }
         return VK_FALSE;
-
     }
 
     VkDebugReportCallbackEXT registerDebugCallback(VkInstance instance)
