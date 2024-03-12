@@ -60,7 +60,7 @@ void prepareCullingComp(CullingComp& _cullingComp, const CullingCompInitData& _i
         , 6
         , vkz::PipelineStageFlagBits::compute_shader
         , vkz::ImageLayout::general
-        , vkz::SamplerReductionMode::weighted_average);
+        , vkz::SamplerReductionMode::min);
 
     _cullingComp.cs = cs;
     _cullingComp.prog = prog;
