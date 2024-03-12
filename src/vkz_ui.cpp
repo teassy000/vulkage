@@ -228,8 +228,7 @@ void vkz_updateImGuiContent(DebugRenderOptionsData& _rod, const DebugProfilingDa
     ImGui::SetNextWindowSize({ 400, 450 }, ImGuiCond_FirstUseEver);
     ImGui::Begin("info:");
 
-    ImGui::Text("cpu: [%.3f]ms", _pd.cpuTime);
-    ImGui::Text("gpu: [%.3f]ms", _pd.gpuTime);
+    ImGui::Text("fps: [%.2f]", 1000.f / _pd.avgCpuTime);
     ImGui::Text("avg cpu: [%.3f]ms", _pd.avgCpuTime);
     ImGui::Text("avg gpu: [%.3f]ms", _pd.avgGpuTime);
     ImGui::Text("cull early: [%.3f]ms", _pd.cullEarlyTime);
@@ -243,7 +242,6 @@ void vkz_updateImGuiContent(DebugRenderOptionsData& _rod, const DebugProfilingDa
     }
 
     ImGui::Text("ui: [%.3f]ms", _pd.uiTime);
-    ImGui::Text("wait: [%.3f]ms", _pd.waitTime);
 
     if (ImGui::TreeNode("Static Data:"))
     {

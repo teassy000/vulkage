@@ -311,7 +311,7 @@ void meshDemo()
         vkz::ImageHandle uiColorIn = supportMeshShading ? meshShadingLate.colorOutAlias : vtxShadingLate.colorOutAlias;
         vkz::ImageHandle uiDepthIn = supportMeshShading ? meshShadingLate.depthOutAlias : vtxShadingLate.depthOutAlias;
 
-        vkz_prepareUI(ui, uiColorIn, uiDepthIn);
+        vkz_prepareUI(ui, uiColorIn, uiDepthIn, 1.3f);
     }
 
     vkz::PassHandle pass_py = pyRendering.pass;
@@ -371,7 +371,7 @@ void meshDemo()
         demo.globals.pyramidHeight = (float)pyramidLevelHeight;
         demo.globals.screenWidth = (float)config.windowWidth;
         demo.globals.screenHeight = (float)config.windowHeight;
-        demo.globals.enableMeshletOcclusion = 1;  // FIX THIS: once this is enabled, the early draw will draw nothing 
+        demo.globals.enableMeshletOcclusion = 1;
 
         if (supportMeshShading)
         {

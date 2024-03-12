@@ -203,6 +203,7 @@ void updateImGuiContent(DebugRenderOptionsData& cd, const DebugProfilingData& pd
     ImGui::SetNextWindowSize({ 400, 450 }, ImGuiCond_FirstUseEver);
     ImGui::Begin("info:");
 
+    ImGui::Text("fps: [%.3f]ms", 1000.f/pd.avgCpuTime);
     ImGui::Text("cpu: [%.3f]ms", pd.cpuTime);
     ImGui::Text("avg cpu: [%.3f]ms", pd.avgCpuTime);
     ImGui::Text("gpu: [%.3f]ms", pd.gpuTime);

@@ -251,7 +251,7 @@ namespace vkz
             uint32_t        idx;
             uint16_t        baseBufId;
             BufferDesc      desc;
-            ResInteractDesc    initialBarrierState;
+            ResInteractDesc initialBarrierState;
 
             bool            forceAliased{ false };
             stl::vector<CombinedResID> reses;

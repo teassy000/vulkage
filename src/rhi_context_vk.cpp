@@ -1275,7 +1275,7 @@ namespace vkz
             vkCmdWriteTimestamp(m_cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, m_queryPoolTimeStamp, ++queryIdx);
         }
 
-        // copy to swapchain
+        // to swapchain
         drawToSwapchain(imageIndex);
 
         VK_CHECK(vkEndCommandBuffer(m_cmdBuffer));
@@ -1863,7 +1863,7 @@ namespace vkz
         ImageViewDesc desc;
         read(&_reader, desc);
 
-        // only store the descriptor, will do the real creation in image creation
+        // only store the descriptor, will do the real creation during image creation
         m_imageViewDescContainer.push_back(desc.imgViewId, desc);
     }
 

@@ -23,7 +23,7 @@ void pyramid_renderFunc(vkz::CommandListI& _cmdList, const void* _data, uint32_t
         vec2 levelSize = vec2(levelWidth, levelHeight);
         _cmdList.pushConstants(pyramid.pass, &levelSize, sizeof(levelSize));
 
-        vkz::ImageHandle srcImg = ii == 0 ? pyramid.inDepth : pyramid.image;
+        vkz::ImageHandle srcImg = (ii == 0) ? pyramid.inDepth : pyramid.image;
 
         vkz::ImageViewHandle srcImgView = ii == 0 ? vkz::ImageViewHandle{vkz::kInvalidHandle} : pyramid.imgMips[ii - 1];
 
