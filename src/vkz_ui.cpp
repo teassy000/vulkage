@@ -144,23 +144,21 @@ void vkz_prepareUI(UIRendering& _ui, vkz::ImageHandle _color, vkz::ImageHandle _
     imageDesc.mipLevels = 1;
     imageDesc.format = vkz::ResourceFormat::r8g8b8a8_unorm;
     imageDesc.usage = vkz::ImageUsageFlagBits::sampled | vkz::ImageUsageFlagBits::transfer_dst;
-    imageDesc.size = fontImgMem->size;
-    imageDesc.data = fontImgMem->data;
-    vkz::ImageHandle fontImage = vkz::registTexture("ui.fontImage", imageDesc, vkz::ResourceLifetime::non_transition);
+    vkz::ImageHandle fontImage = vkz::registTexture("ui.fontImage", imageDesc, fontImgMem, vkz::ResourceLifetime::non_transition);
 
     vkz::BufferDesc vbDesc{};
     vbDesc.size = kInitialVertexBufferSize;
     vbDesc.fillVal = 0;
     vbDesc.usage = vkz::BufferUsageFlagBits::vertex | vkz::BufferUsageFlagBits::transfer_dst;
     vbDesc.memFlags = vkz::MemoryPropFlagBits::host_visible | vkz::MemoryPropFlagBits::host_coherent;
-    vkz::BufferHandle vb = vkz::registBuffer("ui.vb", vbDesc, vkz::ResourceLifetime::non_transition);
+    vkz::BufferHandle vb = vkz::registBuffer("ui.vb", vbDesc, nullptr, vkz::ResourceLifetime::non_transition);
 
     vkz::BufferDesc ibDesc{};
     ibDesc.size = kInitialIndexBufferSize;
     ibDesc.fillVal = 0;
     ibDesc.usage = vkz::BufferUsageFlagBits::index | vkz::BufferUsageFlagBits::transfer_dst;
     ibDesc.memFlags = vkz::MemoryPropFlagBits::host_visible | vkz::MemoryPropFlagBits::host_coherent;
-    vkz::BufferHandle ib = vkz::registBuffer("ui.ib", ibDesc, vkz::ResourceLifetime::non_transition);
+    vkz::BufferHandle ib = vkz::registBuffer("ui.ib", ibDesc, nullptr, vkz::ResourceLifetime::non_transition);
 
     vkz::ImageHandle colorOutAlias = vkz::alias(_color);
     vkz::ImageHandle depthOutAlias = vkz::alias(_depth);

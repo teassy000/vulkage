@@ -144,7 +144,7 @@ namespace vkz
 
     void Framegraph2::registerShader(MemoryReader& _reader)
     {
-        ShaderRegisterInfo info;
+        FGShaderCreateInfo info;
         read(&_reader, info);
 
         m_hShader.push_back({ info.shaderId });
@@ -154,19 +154,19 @@ namespace vkz
         path[info.strLen] = '\0'; // null-terminated string
 
         m_shader_path.emplace_back(path);
-        m_sparse_shader_info[info.shaderId].regInfo = info;
+        m_sparse_shader_info[info.shaderId].createInfo = info;
         m_sparse_shader_info[info.shaderId].pathIdx = (uint16_t)m_shader_path.size() - 1;
     }
 
     void Framegraph2::registerProgram(MemoryReader& _reader)
     {
-        ProgramRegisterInfo regInfo;
+        FGProgCreateInfo regInfo;
         read(&_reader, regInfo);
 
         assert(regInfo.shaderNum <= kMaxNumOfStageInPorgram);
 
         ProgramInfo& progInfo = m_sparse_program_info[regInfo.progId];
-        progInfo.regInfo = regInfo;
+        progInfo.createInfo = regInfo;
 
         read(&_reader, (void*)(progInfo.shaderIds), sizeof(uint16_t) * regInfo.shaderNum);
 
@@ -250,7 +250,7 @@ namespace vkz
 
     void Framegraph2::registerBuffer(MemoryReader& _reader)
     {
-        BufRegisterInfo info;
+        FGBufferCreateInfo info;
         read(&_reader, info);
 
         m_hBuf.push_back({ info.bufId });
@@ -268,7 +268,7 @@ namespace vkz
 
     void Framegraph2::registerImage(MemoryReader& _reader)
     {
-        ImgRegisterInfo info;
+        FGImageCreateInfo info;
         read(&_reader, info);
 
         m_hTex.push_back({ info.imgId });
@@ -1252,7 +1252,7 @@ namespace vkz
             // buffers
             if (isBuffer(base)) 
             {
-                const BufRegisterInfo info = m_sparse_buf_info[base.id];
+                const FGBufferCreateInfo info = m_sparse_buf_info[base.id];
 
                 BufBucket bucket;
                 createBufBkt(bucket, info, aliasVec, true);
@@ -1262,7 +1262,7 @@ namespace vkz
             // images
             if (isImage(base))
             {
-                const ImgRegisterInfo info = m_sparse_img_info[base.id];
+                const FGImageCreateInfo info = m_sparse_img_info[base.id];
 
                 ImgBucket bucket;
                 createImgBkt(bucket, info, aliasVec, true);
@@ -1278,7 +1278,7 @@ namespace vkz
             // buffers
             if (isBuffer(cid))
             {
-                const BufRegisterInfo info = m_sparse_buf_info[cid.id];
+                const FGBufferCreateInfo info = m_sparse_buf_info[cid.id];
 
                 BufBucket bucket;
                 createBufBkt(bucket, info, { 1, cid });
@@ -1288,7 +1288,7 @@ namespace vkz
             // images
             if (isImage(cid))
             {
-                const ImgRegisterInfo info = m_sparse_img_info[cid.id];
+                const FGImageCreateInfo info = m_sparse_img_info[cid.id];
 
                 ImgBucket bucket;
                 createImgBkt(bucket, info, {1, cid});
@@ -1304,7 +1304,7 @@ namespace vkz
             // buffers
             if (isBuffer(cid))
             {
-                const BufRegisterInfo info = m_sparse_buf_info[cid.id];
+                const FGBufferCreateInfo info = m_sparse_buf_info[cid.id];
 
                 BufBucket bucket;
                 createBufBkt(bucket, info, { 1, cid });
@@ -1314,7 +1314,7 @@ namespace vkz
             // images
             if (isImage(cid))
             {
-                const ImgRegisterInfo info = m_sparse_img_info[cid.id];
+                const FGImageCreateInfo info = m_sparse_img_info[cid.id];
 
                 ImgBucket bucket;
                 createImgBkt(bucket, info, { 1, cid });
@@ -1323,12 +1323,12 @@ namespace vkz
         }
     }
 
-    void Framegraph2::createBufBkt(BufBucket& _bkt, const BufRegisterInfo& _info, const stl::vector<CombinedResID>& _reses, const bool _forceAliased /*= false*/)
+    void Framegraph2::createBufBkt(BufBucket& _bkt, const FGBufferCreateInfo& _info, const stl::vector<CombinedResID>& _reses, const bool _forceAliased /*= false*/)
     {
         assert(!_reses.empty());
 
         _bkt.desc.size = _info.size;
-        _bkt.desc.data = _info.data;
+        _bkt.pData = _info.pData;
 
         _bkt.desc.memFlags = _info.memFlags;
         _bkt.desc.usage = _info.usage;
@@ -1339,7 +1339,7 @@ namespace vkz
         _bkt.forceAliased = _forceAliased;
     }
 
-    void Framegraph2::createImgBkt(ImgBucket& _bkt, const ImgRegisterInfo& _info, const stl::vector<CombinedResID>& _reses, const bool _forceAliased /*= false*/)
+    void Framegraph2::createImgBkt(ImgBucket& _bkt, const FGImageCreateInfo& _info, const stl::vector<CombinedResID>& _reses, const bool _forceAliased /*= false*/)
     {
         assert(!_reses.empty());
 
@@ -1349,8 +1349,8 @@ namespace vkz
         _bkt.desc.depth = _info.depth;
         _bkt.desc.arrayLayers = _info.arrayLayers;
 
-        _bkt.desc.size = _info.size;
-        _bkt.desc.data = _info.data;
+        _bkt.size = _info.size;
+        _bkt.pData = _info.pData;
 
         _bkt.desc.type = _info.type;
         _bkt.desc.viewType = _info.viewType;
@@ -1424,7 +1424,7 @@ namespace vkz
 
             // no suitable bucket found, create a new one
             BufBucket bucket;
-            const BufRegisterInfo& info = m_sparse_buf_info[baseRes];
+            const FGBufferCreateInfo& info = m_sparse_buf_info[baseRes];
             createBufBkt(bucket, info, { 1, baseCid });
             buckets.push_back(bucket);
 
@@ -1437,7 +1437,7 @@ namespace vkz
         _buckets = _buckets;
     }
 
-    void Framegraph2::aliasImages(stl::vector<ImgBucket>& _buckets,const stl::vector< ImgRegisterInfo >& _infos, const stl::vector<uint16_t>& _sortedTexList, const ResourceType _type)
+    void Framegraph2::aliasImages(stl::vector<ImgBucket>& _buckets,const stl::vector< FGImageCreateInfo >& _infos, const stl::vector<uint16_t>& _sortedTexList, const ResourceType _type)
     {
         stl::vector<uint16_t> restRes = _sortedTexList;
 
@@ -1489,7 +1489,7 @@ namespace vkz
 
             // no suitable bucket found, create a new one
             ImgBucket bucket;
-            const ImgRegisterInfo& info = _infos[baseRes];
+            const FGImageCreateInfo& info = _infos[baseRes];
             createImgBkt(bucket, info, { 1, baseCid });
             buckets.push_back(bucket);
 
@@ -1538,8 +1538,8 @@ namespace vkz
         }
 
         std::sort(sortedTexIdx.begin(), sortedTexIdx.end(), [&](uint16_t _l, uint16_t _r) {
-            ImgRegisterInfo info_l = m_sparse_img_info[_l];
-            ImgRegisterInfo info_r = m_sparse_img_info[_r];
+            FGImageCreateInfo info_l = m_sparse_img_info[_l];
+            FGImageCreateInfo info_r = m_sparse_img_info[_r];
 
             size_t size_l = info_l.width * info_l.height * info_l.depth * info_l.mipLevels * info_l.bpp;
             size_t size_r = info_r.width * info_r.height * info_r.depth * info_r.mipLevels * info_r.bpp;
@@ -1599,7 +1599,7 @@ namespace vkz
             BufferCreateInfo info;
             info.bufId = bkt.baseBufId;
             info.size = bkt.desc.size;
-            info.data = bkt.desc.data;
+            info.pData = bkt.pData;
             info.fillVal = bkt.desc.fillVal;
             info.memFlags = bkt.desc.memFlags;
             info.usage = bkt.desc.usage;
@@ -1611,7 +1611,7 @@ namespace vkz
 
             if (info.resCount > 1)
             {
-                assert(info.data == nullptr);
+                assert(info.pData == nullptr);
             }
 
             stl::vector<BufferAliasInfo> aliasInfo;
@@ -1639,7 +1639,7 @@ namespace vkz
         {
             for (const CombinedResID cid : bkt.reses)
             {
-                const ImgRegisterInfo& info = m_sparse_img_info[cid.id];
+                const FGImageCreateInfo& info = m_sparse_img_info[cid.id];
 
                 for (uint32_t ii = 0 ; ii < info.viewCount; ++ii )
                 {
@@ -1679,8 +1679,8 @@ namespace vkz
             info.height = bkt.desc.height;
             info.depth = bkt.desc.depth;
             info.arrayLayers = bkt.desc.arrayLayers;
-            info.data = bkt.desc.data;
-            info.size = bkt.desc.size;
+            info.pData = bkt.pData;
+            info.size = bkt.size;
 
             info.type = bkt.desc.type;
             info.viewType = bkt.desc.viewType;
@@ -1744,7 +1744,7 @@ namespace vkz
             const ProgramInfo& progInfo = m_sparse_program_info[passMeta.programId];
             usedProgram.push_back({ passMeta.programId });
 
-            for (uint16_t ii = 0; ii < progInfo.regInfo.shaderNum; ++ii)
+            for (uint16_t ii = 0; ii < progInfo.createInfo.shaderNum; ++ii)
             {
                 const uint16_t shaderId = progInfo.shaderIds[ii];
 
@@ -1756,12 +1756,12 @@ namespace vkz
         for (ShaderHandle shader : usedShaders)
         {
             const ShaderInfo& info = m_sparse_shader_info[shader.id];
-            assert(shader.id == info.regInfo.shaderId);
+            assert(shader.id == info.createInfo.shaderId);
 
             std::string& path = m_shader_path[info.pathIdx];
             
             ShaderCreateInfo createInfo;
-            createInfo.shaderId = info.regInfo.shaderId;
+            createInfo.shaderId = info.createInfo.shaderId;
             createInfo.pathLen = (uint16_t)path.length();
 
             RHIContextOpMagic magic{ RHIContextOpMagic::create_shader };
@@ -1779,12 +1779,12 @@ namespace vkz
         for (ProgramHandle prog : usedProgram)
         {
             const ProgramInfo& info = m_sparse_program_info[prog.id];
-            assert(prog.id == info.regInfo.progId);
+            assert(prog.id == info.createInfo.progId);
 
             ProgramCreateInfo createInfo;
-            createInfo.progId = info.regInfo.progId;
-            createInfo.shaderNum = info.regInfo.shaderNum;
-            createInfo.sizePushConstants = info.regInfo.sizePushConstants;
+            createInfo.progId = info.createInfo.progId;
+            createInfo.shaderNum = info.createInfo.shaderNum;
+            createInfo.sizePushConstants = info.createInfo.sizePushConstants;
 
             RHIContextOpMagic magic{ RHIContextOpMagic::create_program };
 
@@ -1792,7 +1792,7 @@ namespace vkz
 
             write(&m_rhiMemWriter, createInfo);
 
-            write(&m_rhiMemWriter, (void*)info.shaderIds, (int32_t)(info.regInfo.shaderNum * sizeof(uint16_t)));
+            write(&m_rhiMemWriter, (void*)info.shaderIds, (int32_t)(info.createInfo.shaderNum * sizeof(uint16_t)));
 
             write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end);
         }
@@ -2048,15 +2048,15 @@ namespace vkz
     bool Framegraph2::isBufInfoAliasable(uint16_t _idx, const BufBucket& _bucket, const stl::vector<CombinedResID> _resInCurrStack) const
     {
         // size check in current stack
-        const BufRegisterInfo& info = m_sparse_buf_info[_idx];
+        const FGBufferCreateInfo& info = m_sparse_buf_info[_idx];
 
         bool bCondMatch = (info.size <= _bucket.desc.size);
 
         for (const CombinedResID res : _resInCurrStack)
         {
-            const BufRegisterInfo& stackInfo = m_sparse_buf_info[res.id];
+            const FGBufferCreateInfo& stackInfo = m_sparse_buf_info[res.id];
 
-            bCondMatch &= (info.data == nullptr && stackInfo.data == nullptr);
+            bCondMatch &= (info.pData == nullptr && stackInfo.pData == nullptr);
             bCondMatch &= (info.memFlags == stackInfo.memFlags);
             bCondMatch &= (info.usage == stackInfo.usage);
 
@@ -2070,10 +2070,10 @@ namespace vkz
         bool bCondMatch = true;
 
         // condition check
-        const ImgRegisterInfo& info = m_sparse_img_info[_ImgId];
+        const FGImageCreateInfo& info = m_sparse_img_info[_ImgId];
         for (const CombinedResID res : _resInCurrStack)
         {
-            const ImgRegisterInfo& stackInfo = m_sparse_img_info[res.id];
+            const FGImageCreateInfo& stackInfo = m_sparse_img_info[res.id];
 
             bCondMatch &= (info.mipLevels == stackInfo.mipLevels);
             bCondMatch &= (info.width == stackInfo.width && info.height == stackInfo.height && info.depth == stackInfo.depth);

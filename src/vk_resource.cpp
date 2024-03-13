@@ -7,27 +7,28 @@
 
 #include <functional> // for hash
 #include <string>
+#include "profiler.h"
 
 namespace vkz
 {
-
-    // Image first bit is 0
-    // Buffer first bit is 1
-    #define IMAGE_HASH_MASK 0x7FFFFFFF
-    #define BUFFER_HASH_MASK 0xFFFFFFFF
-
-    uint32_t hash32(VkImage image)
+    VkDeviceMemory allocVkMemory(const VkDevice _device, size_t _size, uint32_t _memTypeIdx)
     {
-        uint32_t hash = std::hash<VkImage>{}(image) & IMAGE_HASH_MASK;
+        VkMemoryAllocateInfo allocInfo = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
+        allocInfo.allocationSize = _size;
+        allocInfo.memoryTypeIndex = _memTypeIdx;
 
-        return hash;
+        VkDeviceMemory memory = 0;
+        VK_CHECK(vkAllocateMemory(_device, &allocInfo, nullptr, &memory));
+        
+        VKZ_ProfAlloc((void*)memory, _size);
+
+        return memory;
     }
 
-    uint32_t hash32(VkBuffer buffer)
+    void freeVkMemory(const VkDevice _device, VkDeviceMemory _mem)
     {
-        uint32_t hash = std::hash<VkBuffer>{}(buffer) & BUFFER_HASH_MASK;
-
-        return hash;
+        vkFreeMemory(_device, _mem, nullptr);
+        VKZ_ProfFree((void*)_mem);
     }
 
     uint32_t selectMemoryType(const VkPhysicalDeviceMemoryProperties& memoryProps, uint32_t memoryTypeBits, VkMemoryPropertyFlags flags)
@@ -75,12 +76,7 @@ namespace vkz
         uint32_t memoryTypeIdx = selectMemoryType(_memProps, memoryReqs.memoryTypeBits, _memFlags);
         assert(memoryTypeIdx != ~0u);
 
-        VkMemoryAllocateInfo allocInfo = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
-        allocInfo.allocationSize = memoryReqs.size;
-        allocInfo.memoryTypeIndex = memoryTypeIdx;
-
-        VkDeviceMemory memory = 0;
-        VK_CHECK(vkAllocateMemory(_device, &allocInfo, nullptr, &memory));
+        VkDeviceMemory memory = allocVkMemory(_device, memoryReqs.size, memoryTypeIdx);
 
         // all buffers share the same memory
         for (uint32_t ii = 0; ii < size; ++ii)
@@ -199,7 +195,7 @@ namespace vkz
         //    If a memory object is mapped at the time it is freed, it is implicitly unmapped.
         // https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/vkFreeMemory.html
         Buffer_vk baseBuf = _buffers[0];
-        vkFreeMemory(_device, baseBuf.memory, 0);
+        freeVkMemory(_device, baseBuf.memory);
 
         for (const Buffer_vk& buf : _buffers)
         {
@@ -266,13 +262,7 @@ namespace vkz
         vkGetImageMemoryRequirements(_device, baseImg, &memoryReqs);
 
         uint32_t memoryTypeIdx = selectMemoryType(_memProps, memoryReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-        VkMemoryAllocateInfo allocInfo = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
-        allocInfo.allocationSize = memoryReqs.size;
-        allocInfo.memoryTypeIndex = memoryTypeIdx;
-
-        VkDeviceMemory memory = 0;
-        VK_CHECK(vkAllocateMemory(_device, &allocInfo, 0, &memory));
+        VkDeviceMemory memory = allocVkMemory(_device, memoryReqs.size, memoryTypeIdx);
 
         for (uint32_t ii = 0; ii < num; ++ii)
         {
@@ -285,7 +275,6 @@ namespace vkz
         {
             Image_vk& img = results[ii];
 
-            img.ID = hash32(img.image);
             img.resId = _infos[ii].imgId;
             img.defalutImgView = createImageView(_device, img.image, _initProps.format, 0, _initProps.level, _initProps.viewType); // ImageView bind to the image handle it self, should create a new one for alias
             img.memory = memory;
@@ -397,8 +386,9 @@ namespace vkz
 
         // If a memory object is mapped at the time it is freed, it is implicitly unmapped.
         // https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/vkFreeMemory.html
+        
         Image_vk baseImg = _images[0];
-        vkFreeMemory(_device, baseImg.memory, nullptr);
+        freeVkMemory(_device, baseImg.memory);
 
         for (const Image_vk& img : _images)
         {

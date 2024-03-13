@@ -60,20 +60,25 @@ void meshDemo()
 
     // buffers
     // mesh data
+    const vkz::Memory* memMeshBuf = vkz::alloc((uint32_t)(sizeof(Mesh) * scene.geometry.meshes.size()));
+    memcpy(memMeshBuf->data, scene.geometry.meshes.data(), memMeshBuf->size);
+
     vkz::BufferDesc meshBufDesc;
-    meshBufDesc.size = (uint32_t)(scene.geometry.meshes.size() * sizeof(Mesh));
-    meshBufDesc.data = scene.geometry.meshes.data();
+    meshBufDesc.size = memMeshBuf->size;
     meshBufDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::transfer_dst;
     meshBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
-    vkz::BufferHandle meshBuf = vkz::registBuffer("mesh", meshBufDesc);
+    vkz::BufferHandle meshBuf = vkz::registBuffer("mesh", meshBufDesc, memMeshBuf);
 
     // mesh draw instance buffer
+
+    const vkz::Memory* memMeshDrawBuf = vkz::alloc((uint32_t)(scene.meshDraws.size() * sizeof(MeshDraw)));
+    memcpy(memMeshDrawBuf->data, scene.meshDraws.data(), memMeshDrawBuf->size);
+
     vkz::BufferDesc meshDrawBufDesc;
-    meshDrawBufDesc.size = (uint32_t)(scene.meshDraws.size() * sizeof(MeshDraw));
-    meshDrawBufDesc.data = scene.meshDraws.data();
+    meshDrawBufDesc.size = memMeshDrawBuf->size;
     meshDrawBufDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::transfer_dst;
     meshDrawBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
-    vkz::BufferHandle meshDrawBuf = vkz::registBuffer("meshDraw", meshDrawBufDesc);
+    vkz::BufferHandle meshDrawBuf = vkz::registBuffer("meshDraw", meshDrawBufDesc, memMeshDrawBuf);
 
     // mesh draw instance buffer
     vkz::BufferDesc meshDrawCmdBufDesc;
@@ -106,41 +111,48 @@ void meshDemo()
     vkz::BufferHandle meshletVisBuf = vkz::registBuffer("meshletVis", meshletVisBufDesc);
 
     // index buffer
+    const vkz::Memory* memIdxBuf = vkz::alloc((uint32_t)(scene.geometry.indices.size() * sizeof(uint32_t)));
+    memcpy(memIdxBuf->data, scene.geometry.indices.data(), memIdxBuf->size);
+
     vkz::BufferDesc idxBufDesc;
-    idxBufDesc.size = (uint32_t)(scene.geometry.indices.size() * sizeof(uint32_t));
-    idxBufDesc.data = scene.geometry.indices.data();
+    idxBufDesc.size = memIdxBuf->size;
     idxBufDesc.usage = vkz::BufferUsageFlagBits::index | vkz::BufferUsageFlagBits::transfer_dst;
     idxBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
-    vkz::BufferHandle idxBuf = vkz::registBuffer("idx", idxBufDesc);
+    vkz::BufferHandle idxBuf = vkz::registBuffer("idx", idxBufDesc, memIdxBuf);
 
     // vertex buffer
+    const vkz::Memory* memVtxBuf = vkz::alloc((uint32_t)(scene.geometry.vertices.size() * sizeof(Vertex)));
+    memcpy(memVtxBuf->data, scene.geometry.vertices.data(), memVtxBuf->size);
+
     vkz::BufferDesc vtxBufDesc;
-    vtxBufDesc.size = (uint32_t)(scene.geometry.vertices.size() * sizeof(Vertex));
-    vtxBufDesc.data = scene.geometry.vertices.data();
+    vtxBufDesc.size = memVtxBuf->size;
     vtxBufDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::transfer_dst;
     vtxBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
-    vkz::BufferHandle vtxBuf = vkz::registBuffer("vtx", vtxBufDesc);
+    vkz::BufferHandle vtxBuf = vkz::registBuffer("vtx", vtxBufDesc, memVtxBuf);
 
     // meshlet buffer
+    const vkz::Memory* memMeshletBuf = vkz::alloc((uint32_t)(scene.geometry.meshlets.size() * sizeof(Meshlet)));
+    memcpy(memMeshletBuf->data, scene.geometry.meshlets.data(), memMeshletBuf->size);
+
     vkz::BufferDesc meshletBufferDesc;
-    meshletBufferDesc.size = (uint32_t)(scene.geometry.meshlets.size() * sizeof(Meshlet));
-    meshletBufferDesc.data = scene.geometry.meshlets.data();
+    meshletBufferDesc.size = memMeshletBuf->size;
     meshletBufferDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::transfer_dst;
     meshletBufferDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
-    vkz::BufferHandle meshletBuffer = vkz::registBuffer("meshlet_buffer", meshletBufferDesc);
+    vkz::BufferHandle meshletBuffer = vkz::registBuffer("meshlet_buffer", meshletBufferDesc, memMeshletBuf);
     
     // meshlet data buffer
+    const vkz::Memory* memMeshletDataBuf = vkz::alloc((uint32_t)(scene.geometry.meshletdata.size() * sizeof(uint32_t)));
+    memcpy(memMeshletDataBuf->data, scene.geometry.meshletdata.data(), memMeshletDataBuf->size);
+
     vkz::BufferDesc meshletDataBufferDesc;
-    meshletDataBufferDesc.size = (uint32_t)(scene.geometry.meshletdata.size() * sizeof(uint32_t));
-    meshletDataBufferDesc.data = scene.geometry.meshletdata.data();
+    meshletDataBufferDesc.size = memMeshletDataBuf->size;
     meshletDataBufferDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::transfer_dst;
     meshletDataBufferDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
-    vkz::BufferHandle meshletDataBuffer = vkz::registBuffer("meshlet_data_buffer", meshletDataBufferDesc);
+    vkz::BufferHandle meshletDataBuffer = vkz::registBuffer("meshlet_data_buffer", meshletDataBufferDesc, memMeshletDataBuf);
 
     // transform
     vkz::BufferDesc transformBufDesc;
     transformBufDesc.size = (uint32_t)(sizeof(TransformData));
-    transformBufDesc.data = &demo.trans;
     transformBufDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::transfer_dst;
     transformBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local | vkz::MemoryPropFlagBits::host_visible;
     vkz::BufferHandle transformBuf = vkz::registBuffer("transform", transformBufDesc);
@@ -391,7 +403,7 @@ void meshDemo()
         vkz::updateBuffer(transformBuf, vkz::copy(memTransform));
 
         // update profiling data to GPU from last frame
-        if (clockDuration > 33.33)
+        if ( clockDuration > 1000.0 )
         {
             vkz_updateImGui(demo.input, demo.renderOptions, demo.profiling, demo.logic);
             vkz_updateUIRenderData(ui);

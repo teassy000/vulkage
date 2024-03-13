@@ -553,24 +553,23 @@ namespace vkz
         AttachmentStoreOp colorStoreOp{ AttachmentStoreOp::store };
     };
 
-    struct BufferDesc {
+    struct BufferDesc 
+    {
         uint32_t size{ 0 };
-        void*   data{ nullptr };
+
         uint32_t fillVal{ 0 };
 
         BufferUsageFlags usage{ BufferUsageFlagBits::none };
         MemoryPropFlags memFlags{ MemoryPropFlagBits::none };
     };
 
-    struct ImageDesc {
+    struct ImageDesc 
+    {
         uint32_t width{ 0 };
         uint32_t height{ 0 };
         uint32_t depth{ 1 };
         uint16_t arrayLayers{ 1 };
         uint16_t mipLevels{ 1 };
-
-        uint32_t size{ 0 };
-        void* data{ nullptr };
 
         ImageType       type{ ImageType::type_2d };
         ImageViewType   viewType{ ImageViewType::type_2d };

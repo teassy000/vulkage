@@ -29,15 +29,20 @@
 
 #include <TINYSTL/stddef.h>
 
+#include "profiler.h" // vkz: modified to track the memory
+
 namespace tinystl {
 
 	struct allocator {
 		static void* static_allocate(size_t bytes) {
-			return operator new(bytes);
+			void* ptr = operator new(bytes);
+			VKZ_ProfAlloc(ptr, bytes);
+			return ptr;
 		}
 
 		static void static_deallocate(void* ptr, size_t /*bytes*/) {
 			operator delete(ptr);
+			VKZ_ProfFree(ptr);
 		}
 	};
 }

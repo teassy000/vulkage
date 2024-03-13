@@ -53,6 +53,8 @@ namespace vkz
         uint16_t    imgId{ kInvalidHandle };
         uint16_t    bpp{ 4u };
 
+        uint32_t    size{ 0 };
+        void*       pData{ nullptr };
 
         ResourceLifetime    lifetime{ ResourceLifetime::transition };
         ImageAspectFlags    aspectFlags{ 0 };
@@ -62,6 +64,7 @@ namespace vkz
     {
         BufferMetaData(const BufferDesc& desc) : BufferDesc(desc) {}
 
+        void*       pData{ nullptr };
         uint16_t    bufId{ kInvalidHandle };
 
         ResourceLifetime    lifetime{ ResourceLifetime::transition };
@@ -137,6 +140,7 @@ namespace vkz
     struct BufferCreateInfo : public BufferDesc
     {
         uint16_t    bufId{ kInvalidHandle };
+        void*       pData{ nullptr };
         uint16_t    resCount{ 0 };
 
         ResInteractDesc    barrierState;
@@ -152,6 +156,9 @@ namespace vkz
     {
         uint16_t    imgId{ kInvalidHandle };
         uint16_t    resCount{ 0 };
+
+        uint32_t    size;
+        void*       pData;
 
         ImageAspectFlags    aspectFlags;
         ResInteractDesc    barrierState;

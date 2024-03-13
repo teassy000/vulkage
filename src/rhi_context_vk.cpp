@@ -1783,9 +1783,9 @@ namespace vkz
             );
         }
 
-        if (info.data != nullptr)
+        if (info.pData != nullptr)
         {
-            uploadImage(info.imgId, info.data, info.size);
+            uploadImage(info.imgId, info.pData, info.size);
         }
         VKZ_DELETE_ARRAY(resArr);
     }
@@ -1833,9 +1833,9 @@ namespace vkz
         VKZ_DELETE_ARRAY(resArr);
         
         // initialize buffer
-        if (info.data != nullptr)
+        if (info.pData != nullptr)
         {
-            uploadBuffer(info.bufId, info.data, info.size);
+            uploadBuffer(info.bufId, info.pData, info.size);
         }
         else
         {

@@ -48,28 +48,32 @@ namespace vkz
     };
 
     // Register Info
-    struct ShaderRegisterInfo
+    struct FGShaderCreateInfo
     {
         uint16_t    shaderId;
         uint16_t    strLen;
     };
 
-    struct ProgramRegisterInfo : public ProgramDesc
+    struct FGProgCreateInfo : public ProgramDesc
     {
     };
 
-    struct BufRegisterInfo : public BufferDesc
+    struct FGBufferCreateInfo : public BufferDesc
     {
         uint16_t    bufId{ kInvalidHandle };
+        void*       pData{ nullptr };
         
         ResourceLifetime    lifetime{ ResourceLifetime::transition };
 
         ResInteractDesc initialState;
     };
 
-    struct ImgRegisterInfo : public ImageDesc
+    struct FGImageCreateInfo : public ImageDesc
     {
         uint16_t    imgId{ kInvalidHandle };
+
+        uint32_t    size;
+        void*       pData;
 
         uint16_t    bpp{ 4u };
 
@@ -111,13 +115,13 @@ namespace vkz
 
     struct ShaderInfo
     {
-        ShaderRegisterInfo      regInfo;
+        FGShaderCreateInfo      createInfo;
         uint16_t                pathIdx;
     };
 
     struct ProgramInfo
     {
-        ProgramRegisterInfo     regInfo;
+        FGProgCreateInfo     createInfo;
         uint16_t   shaderIds[kMaxNumOfStageInPorgram];
     };
 
@@ -126,7 +130,7 @@ namespace vkz
         uint16_t                passRegInfoIdx;
         stl::vector<uint16_t>   vtxBindingIdxs;
         stl::vector<uint16_t>   vtxAttrIdxs;
-        stl::vector<int>   pipelineSpecIdxs;
+        stl::vector<int>        pipelineSpecIdxs;
     };
 
     class RHIContext;
@@ -221,7 +225,7 @@ namespace vkz
                 return false;
             }
 
-            const ImgRegisterInfo& info = m_sparse_img_info[_res.id];
+            const FGImageCreateInfo& info = m_sparse_img_info[_res.id];
             return info.usage & ImageUsageFlagBits::depth_stencil_attachment;
         }
 
@@ -232,7 +236,7 @@ namespace vkz
                 return false;
             }
 
-            const ImgRegisterInfo& info = m_sparse_img_info[_res.id];
+            const FGImageCreateInfo& info = m_sparse_img_info[_res.id];
             return info.usage & ImageUsageFlagBits::color_attachment;
         }
 
@@ -250,6 +254,10 @@ namespace vkz
         {
             uint32_t        idx;
             uint16_t        baseBufId;
+
+            uint32_t        size;
+            void*           pData;
+
             BufferDesc      desc;
             ResInteractDesc initialBarrierState;
 
@@ -262,6 +270,9 @@ namespace vkz
             uint32_t    idx;
             uint16_t    baseImgId;
             ImageDesc   desc;
+
+            uint32_t    size;
+            void*       pData;
 
             ImageAspectFlags   aspectFlags;
             ResInteractDesc    initialBarrierState;
@@ -283,11 +294,11 @@ namespace vkz
         void fillBucketReadonly();
         void fillBucketMultiFrame();
 
-        void createBufBkt(BufBucket& _bkt, const BufRegisterInfo& _info, const stl::vector<CombinedResID>& _res, const bool _forceAliased = false);
-        void createImgBkt(ImgBucket& _bkt, const ImgRegisterInfo& _info, const stl::vector<CombinedResID>& _res, const bool _forceAliased = false);
+        void createBufBkt(BufBucket& _bkt, const FGBufferCreateInfo& _info, const stl::vector<CombinedResID>& _res, const bool _forceAliased = false);
+        void createImgBkt(ImgBucket& _bkt, const FGImageCreateInfo& _info, const stl::vector<CombinedResID>& _res, const bool _forceAliased = false);
 
         void aliasBuffers(stl::vector<BufBucket>& _buckets, const stl::vector<uint16_t>& _sortedBufList);
-        void aliasImages(stl::vector<ImgBucket>& _buckets, const stl::vector< ImgRegisterInfo >& _infos, const stl::vector<uint16_t>& _sortedTexList, const ResourceType _type);
+        void aliasImages(stl::vector<ImgBucket>& _buckets, const stl::vector< FGImageCreateInfo >& _infos, const stl::vector<uint16_t>& _sortedTexList, const ResourceType _type);
 
         void fillBufferBuckets();
         void fillImageBuckets();
@@ -365,14 +376,14 @@ namespace vkz
         stl::vector< SamplerHandle >    m_hSampler;
         stl::vector< ImageViewHandle>   m_hImgView;
 
-        stl::vector< ShaderInfo >       m_sparse_shader_info;
-        stl::vector< ProgramInfo>       m_sparse_program_info;
-        stl::vector< PassMetaData >     m_sparse_pass_meta;
-        stl::vector< BufRegisterInfo >  m_sparse_buf_info;
-        stl::vector< ImgRegisterInfo >  m_sparse_img_info;
-        stl::vector< PassMetaDataRef>   m_sparse_pass_data_ref;
-        stl::vector< SamplerMetaData >  m_sparse_sampler_meta;
-        stl::vector< ImageViewDesc >    m_sparse_img_view_desc;
+        stl::vector< ShaderInfo >           m_sparse_shader_info;
+        stl::vector< ProgramInfo>           m_sparse_program_info;
+        stl::vector< PassMetaData >         m_sparse_pass_meta;
+        stl::vector< FGBufferCreateInfo >   m_sparse_buf_info;
+        stl::vector< FGImageCreateInfo >    m_sparse_img_info;
+        stl::vector< PassMetaDataRef>       m_sparse_pass_data_ref;
+        stl::vector< SamplerMetaData >      m_sparse_sampler_meta;
+        stl::vector< ImageViewDesc >        m_sparse_img_view_desc;
 
         stl::unordered_set< uint16_t >      m_backBufferSet;
         

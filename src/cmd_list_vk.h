@@ -12,7 +12,7 @@ namespace vkz
     public:
         CmdList_vk(VkCommandBuffer& _vkCmdBuf, RHIContext_vk* _pCtx)
             : m_cmdBuf{ _vkCmdBuf }
-            , m_pCtx{ _pCtx }
+            , m_pRhiCtx{ _pCtx }
         {
         }
 
@@ -55,6 +55,6 @@ namespace vkz
         void dispatchBarriers() override;
     private:
         VkCommandBuffer m_cmdBuf{ VK_NULL_HANDLE };
-        RHIContext_vk* m_pCtx{ nullptr };
+        RHIContext_vk* m_pRhiCtx{ nullptr };
     };
 }

@@ -531,8 +531,9 @@ namespace vkz
 
         PassHandle registPass(const char* _name, const PassDesc& _desc);
 
-        BufferHandle registBuffer(const char* _name, const BufferDesc& _desc, const ResourceLifetime _lifetime);
-        ImageHandle registTexture(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime);
+        BufferHandle registBuffer(const char* _name, const BufferDesc& _desc, const Memory* _mem, const ResourceLifetime _lifetime);
+
+        ImageHandle registTexture(const char* _name, const ImageDesc& _desc, const Memory* _mem, const ResourceLifetime _lifetime);
         ImageHandle registRenderTarget(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime);
         ImageHandle registDepthStencil(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime);
 
@@ -655,6 +656,8 @@ namespace vkz
         // 1-operation pass: blit/copy/fill 
         UniDataContainer<PassHandle, uint8_t> m_oneOpPassTouched;
 
+        // Memories
+        stl::vector<const Memory*> m_inputMemories;
 
         // render config
         uint32_t m_renderWidth{ 0 };
@@ -874,7 +877,7 @@ namespace vkz
         return handle;
     }
 
-    BufferHandle Context::registBuffer(const char* _name, const BufferDesc& _desc, const ResourceLifetime _lifetime)
+    vkz::BufferHandle Context::registBuffer(const char* _name, const BufferDesc& _desc, const Memory* _mem, const ResourceLifetime _lifetime)
     {
         uint16_t idx = m_bufferHandles.alloc();
 
@@ -889,10 +892,13 @@ namespace vkz
         BufferMetaData meta{ _desc };
         meta.bufId = idx;
         meta.lifetime = _lifetime;
-        
-        if (_desc.data != nullptr)
+
+        if (_mem != nullptr)
         {
+            meta.pData = _mem->data;
             meta.usage |= BufferUsageFlagBits::transfer_dst;
+
+            m_inputMemories.push_back(_mem);
         }
 
         m_bufferMetas.push_back({ idx }, meta);
@@ -904,7 +910,7 @@ namespace vkz
         return handle;
     }
 
-    ImageHandle Context::registTexture(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime)
+    ImageHandle Context::registTexture(const char* _name, const ImageDesc& _desc, const Memory* _mem, const ResourceLifetime _lifetime)
     {
         uint16_t idx = m_imageHandles.alloc();
 
@@ -920,6 +926,15 @@ namespace vkz
         meta.imgId = idx;
         meta.aspectFlags = ImageAspectFlagBits::color;
         meta.lifetime = _lifetime;
+
+        if (_mem != nullptr)
+        {
+            meta.usage |= ImageUsageFlagBits::transfer_dst;
+            meta.size = _mem->size;
+            meta.pData = _mem->data;
+
+            m_inputMemories.push_back(_mem);
+        }
 
         m_imageMetas.push_back({ idx }, meta);
 
@@ -1127,7 +1142,7 @@ namespace vkz
             MagicTag magic{ MagicTag::register_shader };
             write(m_fgMemWriter, magic);
 
-            ShaderRegisterInfo info;
+            FGShaderCreateInfo info;
             info.shaderId = shader.id;
             info.strLen = (uint16_t)strnlen_s(path.c_str(), kMaxPathLen);
 
@@ -1152,7 +1167,7 @@ namespace vkz
             write(m_fgMemWriter, magic);
 
             // info
-            ProgramRegisterInfo info;
+            FGProgCreateInfo info;
             info.progId = desc.progId;
             info.sizePushConstants = desc.sizePushConstants;
             info.shaderNum = desc.shaderNum;
@@ -1277,11 +1292,10 @@ namespace vkz
             MagicTag magic{ MagicTag::register_buffer };
             write(m_fgMemWriter, magic);
 
-            BufRegisterInfo info;
+            FGBufferCreateInfo info;
             info.bufId = meta.bufId;
             info.size = meta.size;
-            info.data = meta.data;
-            info.fillVal = meta.fillVal;
+            info.pData = meta.pData;
             info.usage = meta.usage;
             info.memFlags = meta.memFlags;
             info.lifetime = meta.lifetime;
@@ -1309,14 +1323,14 @@ namespace vkz
             MagicTag magic{ MagicTag::register_image };
             write(m_fgMemWriter, magic);
 
-            ImgRegisterInfo info;
+            FGImageCreateInfo info;
             info.imgId = meta.imgId;
             info.width = meta.width;
             info.height = meta.height;
             info.depth = meta.depth;
             info.mipLevels = meta.mipLevels;
             info.size = meta.size;
-            info.data = meta.data;
+            info.pData = meta.pData;
 
             info.type = meta.type;
             info.viewType = meta.viewType;
@@ -2078,6 +2092,11 @@ namespace vkz
         deleteObject(m_pAllocator, m_rhiContext);
         deleteObject(m_pAllocator, m_fgMemWriter);
 
+        // free memorys
+        for (const Memory* pMem : m_inputMemories)
+        {
+            release(pMem);
+        }
 
         m_pFgMemBlock = nullptr;
         m_pAllocator = nullptr;
@@ -2145,14 +2164,14 @@ namespace vkz
         return s_ctx->registProgram(_name, mem, shaderNum, _sizePushConstants);
     }
 
-    BufferHandle registBuffer(const char* _name, const BufferDesc& _desc, const ResourceLifetime _lifetime /*= ResourceLifetime::transision*/)
+    BufferHandle registBuffer(const char* _name, const BufferDesc& _desc, const Memory* _mem /* = nullptr */, const ResourceLifetime _lifetime /*= ResourceLifetime::transision*/)
     {
-        return s_ctx->registBuffer(_name, _desc, _lifetime);
+        return s_ctx->registBuffer(_name, _desc, _mem, _lifetime);
     }
 
-    ImageHandle registTexture(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime /*= ResourceLifetime::single_frame*/)
+    ImageHandle registTexture(const char* _name, const ImageDesc& _desc, const Memory* _mem /* = nullptr */, const ResourceLifetime _lifetime /*= ResourceLifetime::single_frame*/)
     {
-        return s_ctx->registTexture(_name, _desc, _lifetime);
+        return s_ctx->registTexture(_name, _desc, _mem, _lifetime);
     }
 
     ImageHandle registRenderTarget(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime /*= ResourceLifetime::single_frame*/)

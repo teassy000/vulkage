@@ -81,7 +81,7 @@ void preparePyramid(PyramidRendering& _pyramid, uint32_t _width, uint32_t _heigh
     desc.mipLevels = levels;
     desc.usage = vkz::ImageUsageFlagBits::transfer_src | vkz::ImageUsageFlagBits::sampled | vkz::ImageUsageFlagBits::storage;
 
-    vkz::ImageHandle img = vkz::registTexture("pyramid", desc, vkz::ResourceLifetime::non_transition);
+    vkz::ImageHandle img = vkz::registTexture("pyramid", desc, nullptr, vkz::ResourceLifetime::non_transition);
     vkz::ImageHandle outAlias = vkz::alias(img);
 
     // create shader
