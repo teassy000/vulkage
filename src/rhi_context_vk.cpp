@@ -1019,7 +1019,7 @@ namespace vkz
     {
 
         VkCommandPoolCreateInfo createInfo = { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
-        createInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+        createInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
         createInfo.queueFamilyIndex = familyIndex;
 
         VkCommandPool cmdPool = 0;
@@ -1090,6 +1090,7 @@ namespace vkz
     RHIContext_vk::~RHIContext_vk()
     {
         VKZ_ZoneScopedC(Color::indian_red);
+        VKZ_ProfDestroyContext(m_tracyVkCtx);
     }
 
     void RHIContext_vk::init(RHI_Config _config, void* _wnd)
@@ -1193,6 +1194,8 @@ namespace vkz
         m_scratchBuffer = vkz::createBuffer(scratchAlias, m_memProps, m_device, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
         
         m_cmdList = VKZ_NEW(m_pAllocator, CmdList_vk(m_cmdBuffer, this));
+
+        VKZ_ProfVkContext(m_tracyVkCtx, m_phyDevice, m_device, m_queue, m_cmdBuffer);
     }
 
     void RHIContext_vk::bake()
@@ -1250,34 +1253,43 @@ namespace vkz
         VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
         beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
-        VK_CHECK(vkBeginCommandBuffer(m_cmdBuffer, &beginInfo));
-
         // time stamp
         uint32_t queryIdx = 0;
-        vkCmdResetQueryPool(m_cmdBuffer, m_queryPoolTimeStamp, 0, m_queryTimeStampCount);
-        
 
-        vkCmdWriteTimestamp(m_cmdBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, m_queryPoolTimeStamp, queryIdx);
-        // render passes
-        for (size_t ii = 0; ii < m_passContainer.size(); ++ii)
+        // zone the command buffer to fix tracy tracking issue
         {
-            uint16_t passId = m_passContainer.getIdAt(ii);
-            //checkUnmatchedBarriers(passId);
-            createBarriers(passId);
-            m_barrierDispatcher.dispatch(m_cmdBuffer);
+            VK_CHECK(vkBeginCommandBuffer(m_cmdBuffer, &beginInfo));
+            VKZ_VkZoneC(m_tracyVkCtx, m_cmdBuffer, "main command buffer", Color::blue);
 
-            executePass(passId);
 
-            // will dispatch barriers internally
-            flushWriteBarriers(passId); 
+            vkCmdResetQueryPool(m_cmdBuffer, m_queryPoolTimeStamp, 0, m_queryTimeStampCount);
 
-            // write time stamp
-            vkCmdWriteTimestamp(m_cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, m_queryPoolTimeStamp, ++queryIdx);
+            vkCmdWriteTimestamp(m_cmdBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, m_queryPoolTimeStamp, queryIdx);
+            // render passes
+            for (size_t ii = 0; ii < m_passContainer.size(); ++ii)
+            {
+
+                uint16_t passId = m_passContainer.getIdAt(ii);
+
+                const char* pn = getName(PassHandle{ passId });
+                VKZ_VkZoneC(m_tracyVkCtx, m_cmdBuffer, "pass", Color::cyan);
+                //checkUnmatchedBarriers(passId);
+                createBarriers(passId);
+                m_barrierDispatcher.dispatch(m_cmdBuffer);
+
+                executePass(passId);
+
+                // will dispatch barriers internally
+                flushWriteBarriers(passId);
+
+                // write time stamp
+                vkCmdWriteTimestamp(m_cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, m_queryPoolTimeStamp, ++queryIdx);
+            }
+
+            // to swapchain
+            drawToSwapchain(imageIndex);
         }
-
-        // to swapchain
-        drawToSwapchain(imageIndex);
-
+        VKZ_VkCollect(m_tracyVkCtx, m_cmdBuffer);
         VK_CHECK(vkEndCommandBuffer(m_cmdBuffer));
 
         // submit

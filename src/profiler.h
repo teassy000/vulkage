@@ -5,6 +5,31 @@
 #include <tracy/Tracy.hpp>
 #include "colors.h"
 
+#include "volk.h"
+#include <tracy/TracyVulkan.hpp>
+
+#define VKZ_ProfCtxType tracy::VkCtx
+
+#define VKZ_ProfVkContext(_ctx, _phyDevice, _device, _queue, _cmdBuf) do{ \
+            _ctx = TracyVkContext(_phyDevice, _device, _queue, _cmdBuf); \
+        } while (0)
+
+#define VKZ_ProfDestroyContext(_ctx) do{ \
+            TracyVkDestroy(_ctx); \
+        } while (0)
+
+#define MY_MACRO(str) do { \
+    const char* source = str; \
+    const int length = strlen(source); \
+    char destination[length + 1]; \
+    strncpy(destination, source, length); \
+    destination[length] = '\0'; \
+} while(0)
+
+#define VKZ_VkZone(_ctx, _cmdBuf, _name) TracyVkZone(_ctx, _cmdBuf, _name) 
+#define VKZ_VkZoneC(_ctx, _cmdBuf, _name, _color) TracyVkZoneC(_ctx, _cmdBuf, _name, _color) 
+
+#define VKZ_VkCollect(_ctx, _cmdBuf) TracyVkCollect(_ctx, _cmdBuf)
 
 #define VKZ_ProfAlloc(_ptr, _size) TracyAlloc(_ptr, _size)
 #define VKZ_ProfFree(_ptr) TracyFree(_ptr)
@@ -14,9 +39,22 @@
 #define VKZ_ZoneScoped ZoneScoped
 #define VKZ_ZoneScopedC(_color) ZoneScopedC(_color)
 
-
-
 #else // ! TRACY_ENABLE
+
+#define VKZ_ProfCtxType void
+
+#define VKZ_ProfVkContext(_ctx, _phyDevice, _device, _queue, _cmdBuf) do{ \
+            ; \
+        } while (0)
+
+#define VKZ_ProfDestroyContext(_ctx) do{ \
+            ; \
+        } while (0)
+
+#define VKZ_VkZone(_ctx, _cmdBuf, _name) 
+#define VKZ_VkZoneC(_ctx, _cmdBuf, _name, _color)
+
+#define VKZ_VkCollect(_ctx, _cmdBuf)
 
 #define VKZ_ProfAlloc(x, y) 
 #define VKZ_ProfFree(x) 

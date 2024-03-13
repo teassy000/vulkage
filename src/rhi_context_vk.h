@@ -344,11 +344,6 @@ namespace vkz
         VkFormat m_depthFormat;
 
         uint32_t m_gfxFamilyIdx;
-
-#if _DEBUG
-        VkDebugReportCallbackEXT m_debugCallback;
-#endif
-
         // support
         bool m_supportMeshShading{ false };
 
@@ -365,5 +360,14 @@ namespace vkz
 
         VkQueryPool m_queryPoolStatistics;
         uint32_t m_queryStatisticsCount{ 0 };
+
+
+#if _DEBUG
+        VkDebugReportCallbackEXT m_debugCallback;
+#endif //!_DEBUG
+
+#if TRACY_ENABLE
+        VKZ_ProfCtxType* m_tracyVkCtx;
+#endif //TRACY_ENABLE
     };
 } // namespace vkz
