@@ -1261,7 +1261,6 @@ namespace vkz
             VK_CHECK(vkBeginCommandBuffer(m_cmdBuffer, &beginInfo));
             VKZ_VkZoneC(m_tracyVkCtx, m_cmdBuffer, "main command buffer", Color::blue);
 
-
             vkCmdResetQueryPool(m_cmdBuffer, m_queryPoolTimeStamp, 0, m_queryTimeStampCount);
 
             vkCmdWriteTimestamp(m_cmdBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, m_queryPoolTimeStamp, queryIdx);
@@ -1271,7 +1270,7 @@ namespace vkz
                 uint16_t passId = m_passContainer.getIdAt(ii);
                 const char* pn = getName(PassHandle{ passId });
 
-                TracyVkZoneTransient(m_tracyVkCtx, var, m_cmdBuffer, pn, true);
+                VKZ_VkZoneTransient(m_tracyVkCtx, var, m_cmdBuffer, pn);
 
                 //checkUnmatchedBarriers(passId);
                 createBarriers(passId);
@@ -1294,7 +1293,7 @@ namespace vkz
 
         // submit
         {
-            VKZ_ZoneScopedC(Color::green);
+            VKZ_ZoneScopedNC("submit", Color::green);
             VkPipelineStageFlags submitStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
 
             VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
@@ -1308,9 +1307,10 @@ namespace vkz
 
             VK_CHECK(vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE));
         }
+
         // present
         {
-            VKZ_ZoneScopedC(Color::light_yellow);
+            VKZ_ZoneScopedNC("present", Color::light_yellow);
             VkPresentInfoKHR presentInfo = { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
             presentInfo.swapchainCount = 1;
             presentInfo.pSwapchains = &m_swapchain.swapchain;
@@ -1321,8 +1321,9 @@ namespace vkz
             VK_CHECK(vkQueuePresentKHR(m_queue, &presentInfo));
         }
 
+        // wait
         {
-            VKZ_ZoneScopedC(Color::blue);
+            VKZ_ZoneScopedNC("wait", Color::blue);
             VK_CHECK(vkDeviceWaitIdle(m_device)); // TODO: a fence here?
         }
 

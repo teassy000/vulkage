@@ -31,6 +31,8 @@
 
 #define VKZ_ZoneScoped ZoneScoped
 #define VKZ_ZoneScopedC(_color) ZoneScopedC(_color)
+#define VKZ_ZoneScopedNC(_name, _color) ZoneScopedNC(_name, _color)
+
 
 #else // ! TRACY_ENABLE
 
@@ -53,5 +55,6 @@
 
 #define VKZ_ZoneScoped
 #define VKZ_ZoneScopedC(x)
+#define VKZ_ZoneScopedNC(x, y)
 
 #endif // TRACY_ENABLE
