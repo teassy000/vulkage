@@ -670,7 +670,7 @@ namespace vkz
 
     VkAttachmentLoadOp getAttachmentLoadOp(AttachmentLoadOp _op)
     {
-        VkAttachmentLoadOp op = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        VkAttachmentLoadOp op = VK_ATTACHMENT_LOAD_OP_LOAD;
 
         switch (_op)
         {
@@ -684,7 +684,7 @@ namespace vkz
             op = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
             break;
         default:
-            op = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+            op = VK_ATTACHMENT_LOAD_OP_LOAD;
             break;
         }
 
@@ -693,7 +693,7 @@ namespace vkz
 
     VkAttachmentStoreOp getAttachmentStoreOp(AttachmentStoreOp _op)
     {
-        VkAttachmentStoreOp op = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        VkAttachmentStoreOp op = VK_ATTACHMENT_STORE_OP_STORE;
 
         switch (_op)
         {
@@ -703,8 +703,11 @@ namespace vkz
         case AttachmentStoreOp::dont_care:
             op = VK_ATTACHMENT_STORE_OP_DONT_CARE;
             break;
+        case AttachmentStoreOp::none:
+            op = VK_ATTACHMENT_STORE_OP_NONE;
+            break;
         default:
-            op = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+            op = VK_ATTACHMENT_STORE_OP_STORE;
             break;
         }
 

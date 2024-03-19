@@ -114,6 +114,10 @@ namespace vkz
         r32g32_uint,
         r32g32_sint,
         r32g32_sfloat,
+
+        r32g32b32_uint,
+        r32g32b32_sint,
+        r32g32b32_sfloat,
         
         b8g8r8a8_snorm,
         b8g8r8a8_unorm,
@@ -379,6 +383,7 @@ namespace vkz
     {
         store,
         dont_care,
+        none,
         attachement_store_op_max = 0x7fffffff,
     };
 
