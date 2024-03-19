@@ -1268,11 +1268,11 @@ namespace vkz
             // render passes
             for (size_t ii = 0; ii < m_passContainer.size(); ++ii)
             {
-
                 uint16_t passId = m_passContainer.getIdAt(ii);
-
                 const char* pn = getName(PassHandle{ passId });
-                VKZ_VkZoneC(m_tracyVkCtx, m_cmdBuffer, "pass", Color::cyan);
+
+                TracyVkZoneTransient(m_tracyVkCtx, var, m_cmdBuffer, pn, true);
+
                 //checkUnmatchedBarriers(passId);
                 createBarriers(passId);
                 m_barrierDispatcher.dispatch(m_cmdBuffer);
@@ -1307,7 +1307,10 @@ namespace vkz
             submitInfo.pSignalSemaphores = &m_releaseSemaphore;
 
             VK_CHECK(vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE));
-
+        }
+        // present
+        {
+            VKZ_ZoneScopedC(Color::light_yellow);
             VkPresentInfoKHR presentInfo = { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
             presentInfo.swapchainCount = 1;
             presentInfo.pSwapchains = &m_swapchain.swapchain;

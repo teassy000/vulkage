@@ -173,7 +173,6 @@
     <ClCompile Include="alloc.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="demo.cpp" />
     <ClCompile Include="rhi_context.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -189,17 +188,30 @@
     <ClCompile Include="vk_swapchain.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="vkz_ui.cpp" />
     <ClCompile Include="cmd_list_vk.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="vkz_pyramid.cpp" />
     <ClCompile Include="..\externs\tracy\public\TracyClient.cpp">
       <Filter>tracy</Filter>
     </ClCompile>
-    <ClCompile Include="vkz_ms_pip.cpp" />
-    <ClCompile Include="vkz_vtx_pip.cpp" />
-    <ClCompile Include="vkz_culling_pass.cpp" />
+    <ClCompile Include="vkz_culling_pass.cpp">
+      <Filter>vkz_demo</Filter>
+    </ClCompile>
+    <ClCompile Include="vkz_ms_pip.cpp">
+      <Filter>vkz_demo</Filter>
+    </ClCompile>
+    <ClCompile Include="vkz_pyramid.cpp">
+      <Filter>vkz_demo</Filter>
+    </ClCompile>
+    <ClCompile Include="vkz_ui.cpp">
+      <Filter>vkz_demo</Filter>
+    </ClCompile>
+    <ClCompile Include="vkz_vtx_pip.cpp">
+      <Filter>vkz_demo</Filter>
+    </ClCompile>
+    <ClCompile Include="demo.cpp">
+      <Filter>vkz_demo</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\externs\fast_obj\fast_obj.h">
@@ -310,7 +322,6 @@
     <ClInclude Include="alloc.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="demo.h" />
     <ClInclude Include="memory_operation.h">
       <Filter>src</Filter>
     </ClInclude>
@@ -341,7 +352,6 @@
     <ClInclude Include="util.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="vkz_ui.h" />
     <ClInclude Include="cmd_list_vk.h">
       <Filter>src</Filter>
     </ClInclude>
@@ -384,7 +394,6 @@
     <ClInclude Include="..\externs\tinystl\include\TINYSTL\vector.h">
       <Filter>tinystl</Filter>
     </ClInclude>
-    <ClInclude Include="vkz_pyramid.h" />
     <ClInclude Include="..\externs\tracy\public\tracy\Tracy.hpp">
       <Filter>tracy</Filter>
     </ClInclude>
@@ -400,10 +409,27 @@
     <ClInclude Include="string.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="vkz_ms_pip.h" />
-    <ClInclude Include="demo_structs.h" />
-    <ClInclude Include="vkz_vtx_pip.h" />
-    <ClInclude Include="vkz_culling_pass.h" />
+    <ClInclude Include="vkz_vtx_pip.h">
+      <Filter>vkz_demo</Filter>
+    </ClInclude>
+    <ClInclude Include="vkz_culling_pass.h">
+      <Filter>vkz_demo</Filter>
+    </ClInclude>
+    <ClInclude Include="vkz_ms_pip.h">
+      <Filter>vkz_demo</Filter>
+    </ClInclude>
+    <ClInclude Include="vkz_pyramid.h">
+      <Filter>vkz_demo</Filter>
+    </ClInclude>
+    <ClInclude Include="vkz_ui.h">
+      <Filter>vkz_demo</Filter>
+    </ClInclude>
+    <ClInclude Include="demo_structs.h">
+      <Filter>vkz_demo</Filter>
+    </ClInclude>
+    <ClInclude Include="demo.h">
+      <Filter>vkz_demo</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="shaders\mesh.frag.glsl">
@@ -479,6 +505,9 @@
     </Filter>
     <Filter Include="tracy">
       <UniqueIdentifier>{76bf0d40-85f5-498f-9721-5e13fe9f8e4a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vkz_demo">
+      <UniqueIdentifier>{5fab8a4e-be93-4d00-b376-6f7f8c96a35b}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
