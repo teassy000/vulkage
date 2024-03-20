@@ -21,9 +21,9 @@
 [submodule "externs/tracy"]
 	path = externs/tracy
 	url = https://github.com/wolfpld/tracy.git
-[submodule "externs/bimg"]
+[submodule "bimg"]
 	path = externs/bimg
 	url = https://github.com/bkaradzic/bimg.git
-[submodule "externs/bx"]
+[submodule "bx"]
 	path = externs/bx
 	url = https://github.com/bkaradzic/bx.git
