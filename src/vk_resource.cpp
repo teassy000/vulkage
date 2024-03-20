@@ -110,42 +110,6 @@ namespace vkz
         return results[0];
     }
 
-    void uploadBuffer(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer cmdBuffer, VkQueue queue, const Buffer_vk& buffer, const Buffer_vk& scratch, const void* data, size_t size)
-    {
-        assert(size > 0);
-        assert(scratch.data);
-        assert(scratch.size >= size);
-    
-        memcpy(scratch.data, data, size);
-
-
-        VK_CHECK(vkResetCommandPool(device, cmdPool, 0));
-
-        VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-        VK_CHECK(vkBeginCommandBuffer(cmdBuffer, &beginInfo));
-
-        VkBufferCopy region = { 0, 0, VkDeviceSize(size) };
-        vkCmdCopyBuffer(cmdBuffer, scratch.buffer, buffer.buffer, 1, &region);
-
-        VkBufferMemoryBarrier2 copyBarrier = bufferBarrier(buffer.buffer,
-            VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-            VK_ACCESS_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
-        pipelineBarrier(cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 1, &copyBarrier, 0, 0);
-
-        VK_CHECK(vkEndCommandBuffer(cmdBuffer));
-
-        VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-
-        submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &cmdBuffer;
-
-        VK_CHECK(vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE));
-
-        VK_CHECK(vkDeviceWaitIdle(device));
-    }
-
     void fillBuffer(VkDevice _device, VkCommandPool _cmdPool, VkCommandBuffer _cmdBuffer, VkQueue _queue, const Buffer_vk& _buffer, uint32_t _value, size_t _size)
     {
         assert(_size > 0);
@@ -237,8 +201,8 @@ namespace vkz
         createInfo.imageType = _initProps.type;
         createInfo.format = _initProps.format;
         createInfo.extent = { _initProps.width, _initProps.height, _initProps.depth };
-        createInfo.mipLevels = _initProps.level;
-        createInfo.arrayLayers = (_initProps.viewType == VK_IMAGE_VIEW_TYPE_CUBE) ? 6 : 1;
+        createInfo.mipLevels = _initProps.numMips;
+        createInfo.arrayLayers = _initProps.numLayers;// (_initProps.viewType == VK_IMAGE_VIEW_TYPE_CUBE) ? 6 : 1;
         createInfo.samples = VK_SAMPLE_COUNT_1_BIT;
         createInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
         createInfo.usage = _initProps.usage;
@@ -276,14 +240,17 @@ namespace vkz
             Image_vk& img = results[ii];
 
             img.resId = _infos[ii].imgId;
-            img.defalutImgView = createImageView(_device, img.image, _initProps.format, 0, _initProps.level, _initProps.viewType); // ImageView bind to the image handle it self, should create a new one for alias
+            img.defalutImgView = createImageView(_device, img.image, _initProps.format, 0, _initProps.numMips, _initProps.viewType); // ImageView bind to the image handle it self, should create a new one for alias
             img.memory = memory;
 
             img.width = _initProps.width;
             img.height = _initProps.height;
-            img.mipLevels = _initProps.level;
+
             img.aspectMask = _initProps.aspectMask;
             img.format = _initProps.format;
+
+            img.numMips = _initProps.numMips;
+            img.numLayers = _initProps.numLayers;
         }
 
         _results = std::move(results);
@@ -307,77 +274,6 @@ namespace vkz
         assert(result == KTX_SUCCESS);
     }
 
-    void uploadImage(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer cmdBuffer, VkQueue queue, const Image_vk& image, const Buffer_vk& scratch, const void* data, size_t size, VkImageLayout layout, const uint32_t regionCount /*= 1*/, uint32_t mipLevels /*= 1*/)
-    {
-        assert(scratch.data);
-        assert(scratch.size >= size);
-    
-        memcpy(scratch.data, data, size);
-
-        VK_CHECK(vkResetCommandPool(device, cmdPool, 0));
-
-        VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-        VK_CHECK(vkBeginCommandBuffer(cmdBuffer, &beginInfo));
-
-        VkImageMemoryBarrier copyBarrier[1] = {};
-        copyBarrier[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-        copyBarrier[0].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        copyBarrier[0].oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        copyBarrier[0].newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-        copyBarrier[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        copyBarrier[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        copyBarrier[0].image = image.image;
-        copyBarrier[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        copyBarrier[0].subresourceRange.levelCount = 1;
-        copyBarrier[0].subresourceRange.layerCount = 1;
-
-        vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, copyBarrier);
-
-
-        stl::vector<VkBufferImageCopy> regions;
-        for (uint32_t face = 0; face < regionCount; ++face)
-        {
-            for (uint32_t level = 0; level < mipLevels; ++level)
-            {
-
-            }
-        }
-
-        VkBufferImageCopy region = {};
-        region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        region.imageSubresource.layerCount = 1;
-        region.imageExtent.width = image.width;
-        region.imageExtent.height = image.height;
-        region.imageExtent.depth = 1;
-        vkCmdCopyBufferToImage(cmdBuffer, scratch.buffer, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-
-        VkImageMemoryBarrier useBarrier[1] = {};
-        useBarrier[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-        useBarrier[0].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        useBarrier[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-        useBarrier[0].oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-        useBarrier[0].newLayout = layout;
-        useBarrier[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        useBarrier[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        useBarrier[0].image = image.image;
-        useBarrier[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        useBarrier[0].subresourceRange.levelCount = 1;
-        useBarrier[0].subresourceRange.layerCount = regionCount;
-        vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, useBarrier);
-
-        VK_CHECK(vkEndCommandBuffer(cmdBuffer));
-
-        VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-
-        submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &cmdBuffer;
-
-        VK_CHECK(vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE));
-
-        VK_CHECK(vkDeviceWaitIdle(device));
-    }
 
     void destroyImage(const VkDevice _device, const stl::vector<Image_vk>& _images)
     {

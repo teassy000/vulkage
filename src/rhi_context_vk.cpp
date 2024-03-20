@@ -1034,7 +1034,8 @@ namespace vkz
     ImgInitProps_vk getImageInitProp(const ImageCreateInfo& info, VkFormat _defaultColorFormat, VkFormat _defaultDepthFormat)
     {
         ImgInitProps_vk props{};
-        props.level = info.mipLevels;
+        props.numMips = info.numMips;
+        props.numLayers = info.numLayers;
         props.width = info.width;
         props.height = info.height;
         props.depth = info.depth;
@@ -2088,17 +2089,18 @@ namespace vkz
         VK_CHECK(vkDeviceWaitIdle(m_device));
     }
 
-    void RHIContext_vk::uploadImage(const uint16_t _imgId, const void* data, uint32_t size)
+    void RHIContext_vk::uploadImage(const uint16_t _imgId, const void* _data, uint32_t _size)
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
-        assert(size > 0);
+        assert(_size > 0);
         assert(m_scratchBuffer.data);
-        assert(m_scratchBuffer.size > size);
+        assert(m_scratchBuffer.size > _size);
 
-        memcpy(m_scratchBuffer.data, data, size);
+        memcpy(m_scratchBuffer.data, _data, _size);
 
-        const Image_vk& image = getImage(_imgId);
+        const Image_vk& vkImg = getImage(_imgId);
+        const ImageCreateInfo& imgInfo = m_imageInitPropContainer.getIdToData(_imgId);
 
         VK_CHECK(vkResetCommandPool(m_device, m_cmdPool, 0));
 
@@ -2107,20 +2109,20 @@ namespace vkz
 
         VK_CHECK(vkBeginCommandBuffer(m_cmdBuffer, &beginInfo));
 
-        m_barrierDispatcher.barrier(image.image
-            , image.aspectMask
+        m_barrierDispatcher.barrier(vkImg.image
+            , vkImg.aspectMask
             , { VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT }
         );
 
         m_barrierDispatcher.dispatch(m_cmdBuffer);
 
         VkBufferImageCopy region = {};
-        region.imageSubresource.aspectMask = image.aspectMask;
+        region.imageSubresource.aspectMask = vkImg.aspectMask;
         region.imageSubresource.layerCount = 1;
-        region.imageExtent.width = image.width;
-        region.imageExtent.height = image.height;
+        region.imageExtent.width = vkImg.width;
+        region.imageExtent.height = vkImg.height;
         region.imageExtent.depth = 1;
-        vkCmdCopyBufferToImage(m_cmdBuffer, m_scratchBuffer.buffer, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+        vkCmdCopyBufferToImage(m_cmdBuffer, m_scratchBuffer.buffer, vkImg.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
 
         VK_CHECK(vkEndCommandBuffer(m_cmdBuffer));
@@ -2759,8 +2761,8 @@ namespace vkz
         result &= (getFormat(srcInfo.format) == m_imageFormat);
         result &= (srcInfo.width == m_swapchain.width);
         result &= (srcInfo.height == m_swapchain.height);
-        result &= (srcInfo.mipLevels == 1);
-        result &= (srcInfo.arrayLayers == 1);
+        result &= (srcInfo.numMips == 1);
+        result &= (srcInfo.numLayers == 1);
         result &= (srcInfo.layout == ImageLayout::color_attachment_optimal);
         result &= ((srcInfo.usage & ImageUsageFlagBits::color_attachment) == 1);
 
@@ -2780,8 +2782,8 @@ namespace vkz
         // but there're a lot of conditions
         // here just a naive and simple one which cause no validation error in current demo.
 
-        result &= (srcInfo.mipLevels == 1);
-        result &= (srcInfo.arrayLayers == 1);
+        result &= (srcInfo.numMips == 1);
+        result &= (srcInfo.numLayers == 1);
         result &= ((srcInfo.usage & ImageUsageFlagBits::color_attachment) == 1);
 
         return result;

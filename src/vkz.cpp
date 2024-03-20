@@ -1329,7 +1329,7 @@ namespace vkz
             info.width = meta.width;
             info.height = meta.height;
             info.depth = meta.depth;
-            info.mipLevels = meta.mipLevels;
+            info.numMips = meta.numMips;
             info.size = meta.size;
             info.pData = meta.pData;
 
@@ -1337,7 +1337,7 @@ namespace vkz
             info.viewType = meta.viewType;
             info.format = meta.format;
             info.layout = meta.layout;
-            info.arrayLayers = meta.arrayLayers;
+            info.numLayers = meta.numLayers;
             info.usage = meta.usage;
             info.lifetime = meta.lifetime;
             info.bpp = meta.bpp;

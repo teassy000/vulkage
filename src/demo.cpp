@@ -160,15 +160,15 @@ void meshDemo()
     // color
     vkz::ImageDesc rtDesc;
     rtDesc.depth = 1;
-    rtDesc.arrayLayers = 1;
-    rtDesc.mipLevels = 1;
+    rtDesc.numLayers = 1;
+    rtDesc.numMips = 1;
     rtDesc.usage = vkz::ImageUsageFlagBits::transfer_src;
     vkz::ImageHandle color = vkz::registRenderTarget("color", rtDesc, vkz::ResourceLifetime::non_transition);
 
     vkz::ImageDesc dpDesc;
     dpDesc.depth = 1;
-    dpDesc.arrayLayers = 1;
-    dpDesc.mipLevels = 1;
+    dpDesc.numLayers = 1;
+    dpDesc.numMips = 1;
     dpDesc.usage = vkz::ImageUsageFlagBits::transfer_src | vkz::ImageUsageFlagBits::sampled;
     vkz::ImageHandle depth = vkz::registDepthStencil("depth", dpDesc, vkz::ResourceLifetime::non_transition);
 

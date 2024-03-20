@@ -141,7 +141,7 @@ void vkz_prepareUI(UIRendering& _ui, vkz::ImageHandle _color, vkz::ImageHandle _
     vkz::ImageDesc imageDesc{};
     imageDesc.width = width;
     imageDesc.height = height;
-    imageDesc.mipLevels = 1;
+    imageDesc.numMips = 1;
     imageDesc.format = vkz::ResourceFormat::r8g8b8a8_unorm;
     imageDesc.usage = vkz::ImageUsageFlagBits::sampled | vkz::ImageUsageFlagBits::transfer_dst;
     vkz::ImageHandle fontImage = vkz::registTexture("ui.fontImage", imageDesc, fontImgMem, vkz::ResourceLifetime::non_transition);

@@ -77,8 +77,8 @@ void preparePyramid(PyramidRendering& _pyramid, uint32_t _width, uint32_t _heigh
     desc.height = level_height;
     desc.format = vkz::ResourceFormat::r32_sfloat;
     desc.depth = 1;
-    desc.arrayLayers = 1;
-    desc.mipLevels = levels;
+    desc.numLayers = 1;
+    desc.numMips = levels;
     desc.usage = vkz::ImageUsageFlagBits::transfer_src | vkz::ImageUsageFlagBits::sampled | vkz::ImageUsageFlagBits::storage;
 
     vkz::ImageHandle img = vkz::registTexture("pyramid", desc, nullptr, vkz::ResourceLifetime::non_transition);

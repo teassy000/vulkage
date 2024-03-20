@@ -1390,11 +1390,11 @@ namespace vkz
 
         assert(!_reses.empty());
 
-        _bkt.desc.mipLevels = _info.mipLevels;
         _bkt.desc.width = _info.width;
         _bkt.desc.height = _info.height;
         _bkt.desc.depth = _info.depth;
-        _bkt.desc.arrayLayers = _info.arrayLayers;
+        _bkt.desc.numMips = _info.numMips;
+        _bkt.desc.numLayers = _info.numLayers;
 
         _bkt.size = _info.size;
         _bkt.pData = _info.pData;
@@ -1596,8 +1596,8 @@ namespace vkz
             FGImageCreateInfo info_l = m_sparse_img_info[_l];
             FGImageCreateInfo info_r = m_sparse_img_info[_r];
 
-            size_t size_l = info_l.width * info_l.height * info_l.depth * info_l.mipLevels * info_l.bpp;
-            size_t size_r = info_r.width * info_r.height * info_r.depth * info_r.mipLevels * info_r.bpp;
+            size_t size_l = info_l.width * info_l.height * info_l.depth * info_l.numMips * info_l.bpp;
+            size_t size_r = info_r.width * info_r.height * info_r.depth * info_r.numMips * info_r.bpp;
 
             return size_l > size_r;
         });
@@ -1737,11 +1737,11 @@ namespace vkz
 
             ImageCreateInfo info;
             info.imgId = bkt.baseImgId;
-            info.mipLevels = bkt.desc.mipLevels;
+            info.numMips = bkt.desc.numMips;
             info.width = bkt.desc.width;
             info.height = bkt.desc.height;
             info.depth = bkt.desc.depth;
-            info.arrayLayers = bkt.desc.arrayLayers;
+            info.numLayers = bkt.desc.numLayers;
             info.pData = bkt.pData;
             info.size = bkt.size;
 
@@ -2150,9 +2150,9 @@ namespace vkz
         {
             const FGImageCreateInfo& stackInfo = m_sparse_img_info[res.id];
 
-            bCondMatch &= (info.mipLevels == stackInfo.mipLevels);
+            bCondMatch &= (info.numMips == stackInfo.numMips);
             bCondMatch &= (info.width == stackInfo.width && info.height == stackInfo.height && info.depth == stackInfo.depth);
-            bCondMatch &= (info.arrayLayers == stackInfo.arrayLayers);
+            bCondMatch &= (info.numLayers == stackInfo.numLayers);
             bCondMatch &= (info.format == stackInfo.format);
 
             bCondMatch &= (info.usage == stackInfo.usage);

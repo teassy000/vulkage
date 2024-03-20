@@ -573,8 +573,8 @@ namespace vkz
         uint32_t width{ 0 };
         uint32_t height{ 0 };
         uint32_t depth{ 1 };
-        uint16_t arrayLayers{ 1 };
-        uint16_t mipLevels{ 1 };
+        uint16_t numLayers{ 1 };
+        uint16_t numMips{ 1 };
 
         ImageType       type{ ImageType::type_2d };
         ImageViewType   viewType{ ImageViewType::type_2d };

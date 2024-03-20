@@ -19,7 +19,6 @@ namespace vkz
     Buffer_vk createBuffer(const BufferAliasInfo& info, const VkPhysicalDeviceMemoryProperties& _memProps, VkDevice _device, VkBufferUsageFlags _usage, VkMemoryPropertyFlags _memFlags);
     void createBuffer(stl::vector<Buffer_vk>& _results, const stl::vector<BufferAliasInfo> _infos, const VkPhysicalDeviceMemoryProperties& _memProps, VkDevice _device, VkBufferUsageFlags _usage, VkMemoryPropertyFlags _memFlags);
 
-    void uploadBuffer(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer cmdBuffer, VkQueue queue, const Buffer_vk& buffer, const Buffer_vk& scratch, const void* data, size_t size);
     void fillBuffer(VkDevice _device, VkCommandPool _cmdPool, VkCommandBuffer _cmdBuffer, VkQueue _queue, const Buffer_vk& _buffer, uint32_t _value, size_t _size);
     void flushBuffer(VkDevice device, const Buffer_vk& buffer, uint32_t offset = 0);
 
@@ -39,7 +38,8 @@ namespace vkz
         VkImageAspectFlags  aspectMask;
         VkFormat            format;
 
-        uint32_t mipLevels;
+        uint32_t numMips;
+        uint32_t numLayers;
         uint32_t width, height;
     };
 
@@ -50,7 +50,8 @@ namespace vkz
 
     struct ImgInitProps_vk
     {
-        uint32_t level;
+        uint32_t numMips;
+        uint32_t numLayers;
 
         uint32_t width;
         uint32_t height;
@@ -66,7 +67,6 @@ namespace vkz
 
     Image_vk createImage(const ImageAliasInfo& info, const VkDevice _device, const VkPhysicalDeviceMemoryProperties& _memProps, const ImgInitProps_vk& _initProps);
     void createImage(stl::vector<Image_vk>& _results, const stl::vector<ImageAliasInfo>& _infos, const VkDevice _device, const VkPhysicalDeviceMemoryProperties& _memProps, const ImgInitProps_vk& _initProps);
-    void uploadImage(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer cmdBuffer, VkQueue queue, const Image_vk& image, const Buffer_vk& scratch, const void* data, size_t size, VkImageLayout layout, const uint32_t regionCount = 1, uint32_t mipLevels = 1);
     // destroy a list of buffers, which shares the same memory
     void destroyImage(const VkDevice _device, const stl::vector<Image_vk>& _images);
 
