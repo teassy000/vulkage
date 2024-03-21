@@ -2,7 +2,7 @@
 //
 #include "common.h"
 #include "macro.h"
-#include "math.h"
+#include "vkz_math.h"
 
 #include "resources.h"
 #include "swapchain.h"

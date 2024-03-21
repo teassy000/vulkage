@@ -276,7 +276,7 @@ void vkz_updateImGuiContent(DebugRenderOptionsData& _rod, const DebugProfilingDa
 
 void vkz_updateImGui(const UIInput& input, DebugRenderOptionsData& rd, const DebugProfilingData& pd, const DebugLogicData& ld)
 {
-    VKZ_ZoneScopedC(vkz::Color::blue);;
+    VKZ_ZoneScopedC(vkz::Color::blue);
 
     vkz_updateImGuiIO(input);
 

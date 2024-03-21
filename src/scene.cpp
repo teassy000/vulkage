@@ -1,5 +1,5 @@
 #include "common.h"
-#include "math.h"
+#include "vkz_math.h"
 
 #include "mesh.h"
 #include "scene.h"
@@ -13,7 +13,7 @@ enum class Scene_Enum : uint64_t
     CornellBox,
 };
 
-static Scene_Enum se = Scene_Enum::MatrixScene;
+static Scene_Enum se = Scene_Enum::TenMatrixScene;
 
 void CreateRandomScene(Scene& scene)
 {
@@ -100,8 +100,8 @@ void CreateMatrixScene(Scene& scene)
 
 void CreateTenObjScene(Scene& scene)
 {
-    uint32_t side = 50;
-    uint32_t drawCount = side * side; // 50*50
+    uint32_t side = 10;
+    uint32_t drawCount = side * side;
     std::vector<MeshDraw> meshDraws(drawCount);
 
     float drawDist = 200;

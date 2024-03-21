@@ -91,7 +91,7 @@ namespace vkz
     {
         uint32_t propertyCount = 0;
         vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &propertyCount, nullptr);
-        tinystl::vector<VkQueueFamilyProperties> queueFamilyProperties(propertyCount);
+        stl::vector<VkQueueFamilyProperties> queueFamilyProperties(propertyCount);
         vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &propertyCount, queueFamilyProperties.data());
 
         VkQueueFlags requiredFlags = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT;
@@ -172,7 +172,7 @@ namespace vkz
         queueInfo.queueCount = 1;
         queueInfo.pQueuePriorities = queueProps;
 
-        tinystl::vector<const char*> extensions;
+        stl::vector<const char*> extensions;
         extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
         extensions.push_back(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
 

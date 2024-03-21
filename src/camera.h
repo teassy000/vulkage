@@ -1,6 +1,6 @@
 #pragma once
 
-#include "math.h"
+#include "vkz_math.h"
 #include "vkz_structs.h"
 
 struct FreeCamera

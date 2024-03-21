@@ -2,7 +2,7 @@
 
 #include "vkz.h"
 #include "uidata.h"
-#include "math.h"
+#include "vkz_math.h"
 
 struct PushConstBlock {
     glm::vec2 scale;

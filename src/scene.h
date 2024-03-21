@@ -1,7 +1,7 @@
 #pragma once
 
 #include "mesh.h"
-#include "math.h"
+#include "vkz_math.h"
 
 struct alignas(16) MeshDraw
 {

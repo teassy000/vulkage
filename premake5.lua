@@ -62,27 +62,21 @@ function common_filter()
 		defines "_DEBUG"
 end
 
-function tracy_filter()
-	filter "configurations:release_prof"
+function using_vulkan()
+	filter "system:windows"
 		defines {
-			"TRACY_ENABLE",
-			"TRACY_ON_DEMAND",
+			"VK_USE_PLATFORM_WIN32_KHR",
 		}
-	filter "configurations:debug_prof"
-		defines {
-			"TRACY_ENABLE",
-			"TRACY_ON_DEMAND",
-		}
-	filter {"configurations:debug_prof", "action:vs*"}
-		editandcontinue "Off" -- Tracy doesn't work with Edit and Continue, set debug info to "Program Database (/Zi)" instead
-
 end
+
 
 dofile("scripts/bx.lua")
 dofile("scripts/bimg.lua")
 dofile("scripts/glfw.lua")
 dofile("scripts/imgui.lua")
 dofile("scripts/meshoptimizer.lua")
+dofile("scripts/tracy.lua")
+dofile("scripts/fast_obj.lua")
 
 -- vulkage
 project "vulkage"
@@ -95,46 +89,48 @@ project "vulkage"
 		path.join(SRC_DIR, "*.h"),
 		path.join(SRC_DIR, "*.cpp"),
 		path.join(SRC_DIR, "*.inl"),
+
 		path.join(SRC_DIR, "shaders/*.glsl"),
 		path.join(SRC_DIR, "shaders/*.h"),
-
-		-- fast_obj
-		path.join(FAST_OBJ_DIR, "fast_obj.h"),
-		path.join(FAST_OBJ_DIR, "fast_obj.c"),
-
+		
 		-- volk
 		path.join(VOLK_DIR, "volk.c"),
 		path.join(VOLK_DIR, "volk.h"),
-
-		-- tinystl		
-		path.join(TINYSTL_DIR, "include/TINYSTL/*.h"),
 
 		-- glm
 		path.join(GLM_DIR, "glm/**.hpp"),
 		path.join(GLM_DIR, "glm/**.inl"),
 		path.join(GLM_DIR, "glm/**.h"),
-
-		-- tracy
-		path.join(TRACY_DIR, "public/TracyClient.cpp"),
 	}
 
 	includedirs {
-		path.join(EXT_DIR, "glfw/include"),
-		path.join(EXT_DIR, "volk"),
-		path.join(EXT_DIR, "meshoptimizer/src"),
-		path.join(EXT_DIR, "imgui"),
-		path.join(EXT_DIR, "fast_obj"),
-		path.join(EXT_DIR, "tinystl/include"),
-		path.join(EXT_DIR, "glm"),
-		path.join(EXT_DIR, "tracy/public"),
-		path.join(VK_SDK_DIR, "Include"),
-		path.join(KTX_SDK_DIR, "include"),
+		path.join(BX_DIR,	 	"include"),
+		path.join(BIMG_DIR,	 	"include"),
+		path.join(GLFW_DIR,	 	"include"),
+		path.join(MESH_OPT_DIR,	"src"),
+
+		path.join(TRACY_DIR,	"public"),
+
+		path.join(VOLK_DIR,	 	""),
+		path.join(IMGUI_DIR,	""),
+		path.join(FAST_OBJ_DIR,	""),
+		path.join(GLM_DIR,	 	""),
+
+		path.join(VK_SDK_DIR,	"Include"),
+		path.join(KTX_SDK_DIR,	"include"),
 	}
 
-	vpaths { 
-		["src"] 	= {"src/*.h", "src/*.inl", "src/*.cpp"},
-		["3rd"] 	= {"externs/**.h", "externs/**.cpp", "externs/**.c", "externs/**.inl"},
-		["shaders"] = {"src/shaders/*.glsl", "src/shaders/*.h"}
+	vpaths {
+		["src"] 	= {
+			path.join(SRC_DIR, "*.h"),
+			path.join(SRC_DIR, "*.inl"),
+			path.join(SRC_DIR, "*.cpp"),
+		},
+		
+		["shaders"] = {
+			path.join(SRC_DIR,	"shaders/*.glsl"),
+			path.join(SRC_DIR, 	"shaders/*.h"),
+		}
 	}
 
 	defines {
@@ -148,16 +144,15 @@ project "vulkage"
 		"glfw",
 		"imgui",
 		"meshoptimizer",
+		"fast_obj",
+		"tracy",
 		path.join(VK_SDK_DIR, "Lib", "vulkan-1.lib"),
 		path.join(KTX_SDK_DIR, "lib", "ktx.lib"),
 	}
 
 	filter "system:windows"
 		defines {
-			"_GLFW_WIN32",
-			"GLFW_EXPOSE_NATIVE_WIN32",
 			"WIN32_LEAN_AND_MEAN",
-			"VK_USE_PLATFORM_WIN32_KHR",
 		}
 
    	filter "configurations:debug"
@@ -175,7 +170,11 @@ project "vulkage"
 		optimize "Full"
 	
 	tracy_filter()
+
+	using_vulkan()
+	using_glfw()
 	using_bx()
+	
 	common_filter()
 	enable_msvc_muiltithreaded()
 	disable_msvc_crt_warning()
@@ -186,3 +185,5 @@ project("bimg").group 			= "3rd"
 project("glfw").group 			= "3rd"
 project("imgui").group 			= "3rd"
 project("meshoptimizer").group 	= "3rd"
+project("tracy").group 			= "3rd"
+project("fast_obj").group 		= "3rd"

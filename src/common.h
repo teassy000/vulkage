@@ -9,10 +9,12 @@
 #include <string>
 #include <array>
 
-#include <TINYSTL/vector.h>
-#include <TINYSTL/unordered_set.h>
-#include <TINYSTL/unordered_map.h>
+#include "tinystl/allocator.h"
+#include "tinystl/vector.h"
+#include "tinystl/unordered_set.h"
+#include "tinystl/unordered_map.h"
 
+#include <stdlib.h>
 #include <stdint.h>
 #include "profiler.h"
 
@@ -25,7 +27,5 @@
 
 
 #include "debug.h"
-
-const uint32_t invalidID = UINT32_MAX;
 
 namespace stl = tinystl;

@@ -1342,7 +1342,9 @@ namespace vkz
             double timeStart = double(timeStamps[ii - 1]) * m_phyDeviceProps.limits.timestampPeriod * 1e-6;
             double timeEnd = double(timeStamps[ii]) * m_phyDeviceProps.limits.timestampPeriod * 1e-6;
 
-            m_passTime.emplace({ passId, timeEnd - timeStart });
+
+            //m_passTime.find(passId)->second = timeEnd - timeStart;
+            m_passTime.insert({ passId, timeEnd - timeStart });
         }
 
         return true;

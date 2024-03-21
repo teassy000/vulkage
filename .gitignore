@@ -13,6 +13,3 @@ externs/*
 bin/*
 obj/*
 build/*
-
-# tinystl is not intrduced as a submodule
-!externs/tinystl

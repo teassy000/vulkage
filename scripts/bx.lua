@@ -3,14 +3,6 @@ os.chdir(_WORKING_DIR)
 print("current bx path: " .. BX_DIR);
 
 function using_bx()
-	includedirs {
-		path.join(BX_DIR, "include"),
-	}
-
-	links {
-		"bx",
-	}
-
 	filter "configurations:release"
 		defines "BX_CONFIG_DEBUG=0"
 	filter "configurations:release_prof"

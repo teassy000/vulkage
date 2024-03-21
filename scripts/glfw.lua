@@ -1,7 +1,16 @@
 print("current glfw path: " .. GLFW_DIR);
 
 os.chdir(_WORKING_DIR)
--- glfw	
+
+function using_glfw()
+	filter "system:windows"
+		defines {
+			"_GLFW_WIN32",
+			"GLFW_EXPOSE_NATIVE_WIN32",
+		}
+end
+
+
 project "glfw"
 	kind "StaticLib"
 	language "c"
@@ -21,19 +30,17 @@ project "glfw"
 		path.join(GLFW_DIR, "src/window.c"),
 	}
 	includedirs { 
-		--path.join(GLFW_DIR, "include"),
+		path.join(GLFW_DIR, "include"),
 		path.join(VK_SDK_DIR, "Include"),
 	}
 	filter "system:windows"
-		defines {
-			"_GLFW_WIN32",
-			"GLFW_EXPOSE_NATIVE_WIN32",
-		}
 		files {
 			path.join(GLFW_DIR, "src/win32_*.*"),
 			path.join(GLFW_DIR, "src/wgl_context.*")
 		}
 
+	using_vulkan()
+	using_glfw()
 	enable_msvc_muiltithreaded()
 	disable_msvc_crt_warning()
 	common_filter()

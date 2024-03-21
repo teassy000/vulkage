@@ -3,7 +3,7 @@
 #include "demo_structs.h"
 #include "scene.h"
 #include "memory_operation.h"
-#include "math.h"
+#include "vkz_math.h"
 
 
 void meshShading_renderFunc(vkz::CommandListI& _cmdList, const void* _data, uint32_t _size)

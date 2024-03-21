@@ -960,7 +960,8 @@ namespace vkz
                     uint16_t size = lvToIdx.find(lvDist)->second;
                     size_t finalIdx = offset + size;
                     passInDpLevel[passIdx].plainPassInLevel[finalIdx] = inPassIdx;
-                    lvToIdx.emplace({ lvDist, uint16_t(size + 1) });
+
+                    lvToIdx.insert({ lvDist, uint16_t(size + 1) });
                 }
 
                 for (const uint16_t inPassIdx : m_pass_dependency[currPassIdx].inPassIdxSet)

@@ -1,5 +1,5 @@
 #include "vkz_pyramid.h"
-#include "math.h"
+#include "vkz_math.h"
 #include "profiler.h"
 #include "memory_operation.h"
 
