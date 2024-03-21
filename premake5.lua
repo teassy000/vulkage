@@ -69,6 +69,20 @@ function using_vulkan()
 		}
 end
 
+function custom_build_glsl()
+	local abs_shaderpath = path.join(_WORKING_DIR, SRC_DIR, "shaders")
+	local abs_filepath = path.join(_WORKING_DIR, SRC_DIR, "shaders", "%(Filename).glsl")
+	local abs_outputpath = path.join(abs_shaderpath, "%(Filename).spv")
+	filter "files:**.glsl"
+		buildmessage "custom compiling to spv..."
+		buildcommands {
+			"$(VULKAN_SDK)\\Bin\\glslangValidator " .. abs_filepath .. " -V -o " .. abs_outputpath .. " --target-env spirv1.4"
+		}
+		buildoutputs {
+			abs_outputpath
+		}
+end
+
 
 dofile("scripts/bx.lua")
 dofile("scripts/bimg.lua")
@@ -178,6 +192,7 @@ project "vulkage"
 	common_filter()
 	enable_msvc_muiltithreaded()
 	disable_msvc_crt_warning()
+	custom_build_glsl()
 
 -- group projects
 project("bx").group 			= "3rd"
