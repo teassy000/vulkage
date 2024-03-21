@@ -12,12 +12,7 @@ out/*
 externs/*
 bin/*
 obj/*
-
-**.sln
-**.vcxproj
-**.user
-**.filters
-
+build/*
 
 # tinystl is not intrduced as a submodule
 !externs/tinystl
