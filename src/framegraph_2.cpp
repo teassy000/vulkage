@@ -3,15 +3,15 @@
 #include "config.h"
 #include "util.h"
 
-#include "memory_operation.h"
 #include "handle.h"
 #include "framegraph_2.h"
 #include "rhi_context.h"
 
 #include "profiler.h"
 
-#include <algorithm>
 
+#include <algorithm>
+#include "bx/readerwriter.h"
 
 
 namespace vkz
@@ -48,12 +48,12 @@ namespace vkz
     {
         VKZ_ZoneScopedC(Color::light_yellow);
         assert(m_pMemBlock != nullptr);
-        MemoryReader reader(m_pMemBlock->expand(0), m_pMemBlock->size());
+        bx::MemoryReader reader(m_pMemBlock->more(), m_pMemBlock->getSize());
 
         while (true)
         {
             MagicTag magic = MagicTag::invalid_magic;
-            read(&reader, magic);
+            bx::read(&reader, magic, nullptr);
 
             bool finished = false;
             switch (magic)
@@ -121,16 +121,16 @@ namespace vkz
             }
 
             MagicTag bodyEnd;
-            read(&reader, bodyEnd);
+            bx::read(&reader, bodyEnd, nullptr);
             assert(MagicTag::magic_body_end == bodyEnd);
         }
     }
 
-    void Framegraph2::setBrief(MemoryReader& _reader)
+    void Framegraph2::setBrief(bx::MemoryReader& _reader)
     {
         VKZ_ZoneScopedC(Color::light_yellow);
         FrameGraphBrief brief;
-        read(&_reader, brief);
+        bx::read(&_reader, brief, nullptr);
 
         // info data will use idx from handle as iterator
         m_sparse_shader_info.resize(brief.shaderNum);
@@ -148,16 +148,16 @@ namespace vkz
     }
 
 
-    void Framegraph2::registerShader(MemoryReader& _reader)
+    void Framegraph2::registerShader(bx::MemoryReader& _reader)
     {
         VKZ_ZoneScopedC(Color::light_yellow);
         FGShaderCreateInfo info;
-        read(&_reader, info);
+        bx::read(&_reader, info, nullptr);
 
         m_hShader.push_back({ info.shaderId });
         
         char path[kMaxPathLen];
-        read(&_reader, (void*)(path), info.strLen);
+        bx::read(&_reader, (void*)(path), info.strLen, nullptr);
         path[info.strLen] = '\0'; // null-terminated string
 
         m_shader_path.emplace_back(path);
@@ -165,33 +165,33 @@ namespace vkz
         m_sparse_shader_info[info.shaderId].pathIdx = (uint16_t)m_shader_path.size() - 1;
     }
 
-    void Framegraph2::registerProgram(MemoryReader& _reader)
+    void Framegraph2::registerProgram(bx::MemoryReader& _reader)
     {
         VKZ_ZoneScopedC(Color::light_yellow);
         FGProgCreateInfo regInfo;
-        read(&_reader, regInfo);
+        bx::read(&_reader, regInfo, nullptr);
 
         assert(regInfo.shaderNum <= kMaxNumOfStageInPorgram);
 
         ProgramInfo& progInfo = m_sparse_program_info[regInfo.progId];
         progInfo.createInfo = regInfo;
 
-        read(&_reader, (void*)(progInfo.shaderIds), sizeof(uint16_t) * regInfo.shaderNum);
+        bx::read(&_reader, (void*)(progInfo.shaderIds), sizeof(uint16_t) * regInfo.shaderNum, nullptr);
 
         m_hProgram.push_back({ regInfo.progId });
     }
 
-    void Framegraph2::registerPass(MemoryReader& _reader)
+    void Framegraph2::registerPass(bx::MemoryReader& _reader)
     {
         VKZ_ZoneScopedC(Color::light_yellow);
         PassMetaData passMeta;
-        read(&_reader, passMeta);
+        bx::read(&_reader, passMeta, nullptr);
 
         // process order is important
         for (uint32_t ii = 0; ii < passMeta.vertexBindingNum; ++ii)
         {
             VertexBindingDesc bInfo;
-            read(&_reader, bInfo);
+            bx::read(&_reader, bInfo, nullptr);
             m_vtxBindingDesc.emplace_back(bInfo);
             m_sparse_pass_data_ref[passMeta.passId].vtxBindingIdxs.push_back((uint16_t)m_vtxBindingDesc.size() - 1);
         }
@@ -199,7 +199,7 @@ namespace vkz
         for (uint32_t ii = 0; ii < passMeta.vertexAttributeNum; ++ii)
         {
             VertexAttributeDesc aInfo;
-            read(&_reader, aInfo);
+            bx::read(&_reader, aInfo, nullptr);
             m_vtxAttrDesc.emplace_back(aInfo);
             m_sparse_pass_data_ref[passMeta.passId].vtxAttrIdxs.push_back((uint16_t)m_vtxAttrDesc.size() - 1);
         }
@@ -207,7 +207,7 @@ namespace vkz
         for (uint32_t ii = 0; ii < passMeta.pipelineSpecNum; ++ii)
         {
             int pipelineSpec;
-            read(&_reader, pipelineSpec);
+            bx::read(&_reader, pipelineSpec, nullptr);
             m_pipelineSpecData.emplace_back(pipelineSpec);
             m_sparse_pass_data_ref[passMeta.passId].pipelineSpecIdxs.push_back((uint16_t)m_pipelineSpecData.size() - 1);
         }
@@ -218,31 +218,31 @@ namespace vkz
         // write image
         // include color attachment and depth stencil attachment
         stl::vector<PassResInteract> writeImgVec(passMeta.writeImageNum);
-        read(&_reader, writeImgVec.data(), sizeof(PassResInteract) * passMeta.writeImageNum);
+        bx::read(&_reader, writeImgVec.data(), sizeof(PassResInteract) * passMeta.writeImageNum, nullptr);
         passMeta.writeImageNum = writeResource(writeImgVec, passMeta.passId, ResourceType::image);
 
         // read image
         stl::vector<PassResInteract> readImgVec(passMeta.readImageNum);
-        read(&_reader, readImgVec.data(), sizeof(PassResInteract) * passMeta.readImageNum);
+        bx::read(&_reader, readImgVec.data(), sizeof(PassResInteract) * passMeta.readImageNum, nullptr);
         passMeta.readImageNum = readResource(readImgVec, passMeta.passId, ResourceType::image);
 
         // write buffer
         stl::vector<PassResInteract> writeBufVec(passMeta.writeBufferNum);
-        read(&_reader, writeBufVec.data(), sizeof(PassResInteract) * passMeta.writeBufferNum);
+        bx::read(&_reader, writeBufVec.data(), sizeof(PassResInteract) * passMeta.writeBufferNum, nullptr);
         passMeta.writeBufferNum = writeResource(writeBufVec, passMeta.passId, ResourceType::buffer);
 
         // read buffer
         stl::vector<PassResInteract> readBufVec(passMeta.readBufferNum);
-        read(&_reader, readBufVec.data(), sizeof(PassResInteract) * passMeta.readBufferNum);
+        bx::read(&_reader, readBufVec.data(), sizeof(PassResInteract) * passMeta.readBufferNum, nullptr);
         passMeta.readBufferNum = readResource(readBufVec, passMeta.passId, ResourceType::buffer);
 
         // write resource alias
         stl::vector<WriteOperationAlias> writeImgAliasVec(passMeta.writeImgAliasNum);
-        read(&_reader, writeImgAliasVec.data(), sizeof(WriteOperationAlias) * passMeta.writeImgAliasNum);
+        bx::read(&_reader, writeImgAliasVec.data(), sizeof(WriteOperationAlias) * passMeta.writeImgAliasNum, nullptr);
         passMeta.writeImgAliasNum = writeResForceAlias(writeImgAliasVec, passMeta.passId, ResourceType::image);
 
         stl::vector<WriteOperationAlias> writeBufAliasVec(passMeta.writeBufAliasNum);
-        read(&_reader, writeBufAliasVec.data(), sizeof(WriteOperationAlias) * passMeta.writeBufAliasNum);
+        bx::read(&_reader, writeBufAliasVec.data(), sizeof(WriteOperationAlias) * passMeta.writeBufAliasNum, nullptr);
         passMeta.writeBufAliasNum = writeResForceAlias(writeBufAliasVec, passMeta.passId, ResourceType::buffer);
 
         // fill pass idx in queue
@@ -257,11 +257,11 @@ namespace vkz
         m_passIdxToSync.emplace_back();
     }
 
-    void Framegraph2::registerBuffer(MemoryReader& _reader)
+    void Framegraph2::registerBuffer(bx::MemoryReader& _reader)
     {
         VKZ_ZoneScopedC(Color::light_yellow);
         FGBufferCreateInfo info;
-        read(&_reader, info);
+        bx::read(&_reader, info, nullptr);
 
         m_hBuf.push_back({ info.bufId });
         m_sparse_buf_info[info.bufId] = info;
@@ -276,11 +276,11 @@ namespace vkz
         }
     }
 
-    void Framegraph2::registerImage(MemoryReader& _reader)
+    void Framegraph2::registerImage(bx::MemoryReader& _reader)
     {
         VKZ_ZoneScopedC(Color::light_yellow);
         FGImageCreateInfo info;
-        read(&_reader, info);
+        bx::read(&_reader, info, nullptr);
 
         m_hTex.push_back({ info.imgId });
         m_sparse_img_info[info.imgId] = info;
@@ -295,31 +295,31 @@ namespace vkz
         }
     }
 
-    void Framegraph2::registerSampler(MemoryReader& _reader)
+    void Framegraph2::registerSampler(bx::MemoryReader& _reader)
     {
         VKZ_ZoneScopedC(Color::light_yellow);
         SamplerMetaData meta;
-        read(&_reader, meta);
+        bx::read(&_reader, meta, nullptr);
 
         m_hSampler.push_back({ meta.samplerId });
         m_sparse_sampler_meta[meta.samplerId] = meta;
     }
 
-    void Framegraph2::registerImageView(MemoryReader& _reader)
+    void Framegraph2::registerImageView(bx::MemoryReader& _reader)
     {
         VKZ_ZoneScopedC(Color::light_yellow);
         ImageViewDesc meta;
-        read(&_reader, meta);
+        bx::read(&_reader, meta, nullptr);
 
         m_hImgView.push_back({ meta.imgViewId });
         m_sparse_img_view_desc[meta.imgViewId] = meta;
     }
 
-    void Framegraph2::storeBackBuffer(MemoryReader& _reader)
+    void Framegraph2::storeBackBuffer(bx::MemoryReader& _reader)
     {
         VKZ_ZoneScopedC(Color::light_yellow);
         uint16_t id;
-        read(&_reader, id);
+        bx::read(&_reader, id, nullptr);
 
         m_backBufferSet.insert( id );
     }
@@ -484,14 +484,14 @@ namespace vkz
         return actualSize;
     }
 
-    void Framegraph2::aliasResForce(MemoryReader& _reader, ResourceType _type)
+    void Framegraph2::aliasResForce(bx::MemoryReader& _reader, ResourceType _type)
     {
         VKZ_ZoneScopedC(Color::light_yellow);
         ResAliasInfo info;
-        read(&_reader, info);
+        bx::read(&_reader, info, nullptr);
 
         void* mem = alloc(m_pAllocator, info.aliasNum * sizeof(uint16_t));
-        read(&_reader, mem, info.aliasNum * sizeof(uint16_t));
+        bx::read(&_reader, mem, info.aliasNum * sizeof(uint16_t), nullptr);
 
         CombinedResID combinedBaseIdx{ info.resBase, _type };
         size_t idx = getElemIndex(m_combinedForceAlias_base, combinedBaseIdx);
@@ -714,7 +714,7 @@ namespace vkz
             {
                 CombinedResID writeOpIn = rwRes.writeOpForcedAliasMap.getIdAt(ii);
 
-                StringView resName;
+                bx::StringView resName;
                 if (writeOpIn.type == ResourceType::image)
                 {
                     resName = getName( ImageHandle{ writeOpIn.id });
@@ -727,7 +727,7 @@ namespace vkz
                 {
                     assert(0);
                 }
-                StringView passName = getName(pass);
+                bx::StringView passName = getName(pass);
 
                 message(info, "res : 0x%8x:%s in pass %d:%s", writeOpIn, resName.getPtr(), pass.id, passName.getPtr());
 
@@ -1656,7 +1656,7 @@ namespace vkz
         {
             RHIContextOpMagic magic{ RHIContextOpMagic::create_buffer };
 
-            write(&m_rhiMemWriter, magic);
+            bx::write(&m_rhiMemWriter, magic, nullptr);
 
             BufferCreateInfo info;
             info.bufId = bkt.baseBufId;
@@ -1669,7 +1669,7 @@ namespace vkz
 
             info.barrierState = bkt.initialBarrierState;
 
-            write(&m_rhiMemWriter, info);
+            bx::write(&m_rhiMemWriter, info, nullptr);
 
             if (info.resCount > 1)
             {
@@ -1685,9 +1685,9 @@ namespace vkz
                 aliasInfo.push_back(alias);
             }
 
-            write(&m_rhiMemWriter, (void*)aliasInfo.data(), int32_t(sizeof(BufferAliasInfo) * bkt.reses.size()));
+            bx::write(&m_rhiMemWriter, (void*)aliasInfo.data(), int32_t(sizeof(BufferAliasInfo) * bkt.reses.size()), nullptr);
 
-            write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end);
+            bx::write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end, nullptr);
         }
     }
 
@@ -1722,11 +1722,11 @@ namespace vkz
         {
             RHIContextOpMagic magic{ RHIContextOpMagic::create_image_view };
 
-            write(&m_rhiMemWriter, magic);
+            bx::write(&m_rhiMemWriter, magic, nullptr);
 
-            write(&m_rhiMemWriter, desc);
+            bx::write(&m_rhiMemWriter, desc, nullptr);
 
-            write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end);
+            bx::write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end, nullptr);
         }
 
 
@@ -1734,7 +1734,7 @@ namespace vkz
         {
             RHIContextOpMagic magic{ RHIContextOpMagic::create_image };
 
-            write(&m_rhiMemWriter, magic);
+            bx::write(&m_rhiMemWriter, magic, nullptr);
 
             ImageCreateInfo info;
             info.imgId = bkt.baseImgId;
@@ -1763,7 +1763,7 @@ namespace vkz
                 info.mipViews[mipIdx] = mipIdx < info.viewCount ? bkt.desc.mipViews[mipIdx] : ImageViewHandle{ kInvalidHandle };
             }
 
-            write(&m_rhiMemWriter, info);
+            bx::write(&m_rhiMemWriter, info, nullptr);
 
             stl::vector<ImageAliasInfo> aliasInfo;
             for (const CombinedResID cid : bkt.reses)
@@ -1773,21 +1773,21 @@ namespace vkz
                 aliasInfo.push_back(alias);
             }
 
-            write(&m_rhiMemWriter, (void*)aliasInfo.data(), int32_t(sizeof(ImageAliasInfo) * bkt.reses.size()));
+            bx::write(&m_rhiMemWriter, (void*)aliasInfo.data(), int32_t(sizeof(ImageAliasInfo) * bkt.reses.size()), nullptr);
 
-            write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end);
+            bx::write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end, nullptr);
         }
 
         if (!backbuffers.empty())
         {
-            write(&m_rhiMemWriter, RHIContextOpMagic::set_back_buffers);
+            bx::write(&m_rhiMemWriter, RHIContextOpMagic::set_back_buffers, nullptr);
 
             uint32_t count = (uint32_t)backbuffers.size();
-            write(&m_rhiMemWriter, count);
+            bx::write(&m_rhiMemWriter, count, nullptr);
 
-            write(&m_rhiMemWriter, (void*)backbuffers.data(), int32_t(sizeof(uint16_t) * backbuffers.size()));
+            bx::write(&m_rhiMemWriter, (void*)backbuffers.data(), int32_t(sizeof(uint16_t) * backbuffers.size()), nullptr);
 
-            write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end);
+            bx::write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end, nullptr);
         }
 
     }
@@ -1831,13 +1831,13 @@ namespace vkz
             createInfo.pathLen = (uint16_t)path.length();
 
             RHIContextOpMagic magic{ RHIContextOpMagic::create_shader };
-            write(&m_rhiMemWriter, magic);
+            bx::write(&m_rhiMemWriter, magic, nullptr);
 
-            write(&m_rhiMemWriter, createInfo);
+            bx::write(&m_rhiMemWriter, createInfo, nullptr);
 
-            write(&m_rhiMemWriter, (void*)path.c_str(), (int32_t)path.length());
+            bx::write(&m_rhiMemWriter, (void*)path.c_str(), (int32_t)path.length(), nullptr);
 
-            write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end);
+            bx::write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end, nullptr);
         }
 
 
@@ -1854,13 +1854,13 @@ namespace vkz
 
             RHIContextOpMagic magic{ RHIContextOpMagic::create_program };
 
-            write(&m_rhiMemWriter, magic);
+            bx::write(&m_rhiMemWriter, magic, nullptr);
 
-            write(&m_rhiMemWriter, createInfo);
+            bx::write(&m_rhiMemWriter, createInfo, nullptr);
 
-            write(&m_rhiMemWriter, (void*)info.shaderIds, (int32_t)(info.createInfo.shaderNum * sizeof(uint16_t)));
+            bx::write(&m_rhiMemWriter, (void*)info.shaderIds, (int32_t)(info.createInfo.shaderNum * sizeof(uint16_t)), nullptr);
 
-            write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end);
+            bx::write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end, nullptr);
         }
     }
 
@@ -1888,9 +1888,9 @@ namespace vkz
 
             RHIContextOpMagic magic{ RHIContextOpMagic::create_sampler };
 
-            write(&m_rhiMemWriter, magic);
-            write(&m_rhiMemWriter, meta);
-            write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end);
+            bx::write(&m_rhiMemWriter, magic, nullptr);
+            bx::write(&m_rhiMemWriter, meta, nullptr);
+            bx::write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end, nullptr);
         }
     }
 
@@ -2054,40 +2054,40 @@ namespace vkz
 
             RHIContextOpMagic magic{ RHIContextOpMagic::create_pass };
 
-            write(&m_rhiMemWriter, magic);
+            bx::write(&m_rhiMemWriter, magic, nullptr);
 
-            write(&m_rhiMemWriter, createInfo);
+            bx::write(&m_rhiMemWriter, createInfo, nullptr);
 
             // vertex binding
-            write(&m_rhiMemWriter, (void*)passVertexBinding[ii].data(), (int32_t)(createInfo.vertexBindingNum * sizeof(VertexBindingDesc)));
+            bx::write(&m_rhiMemWriter, (void*)passVertexBinding[ii].data(), (int32_t)(createInfo.vertexBindingNum * sizeof(VertexBindingDesc)), nullptr);
 
             // vertex attribute
-            write(&m_rhiMemWriter, (void*)passVertexAttribute[ii].data(), (int32_t)(createInfo.vertexAttributeNum * sizeof(VertexAttributeDesc)));
+            bx::write(&m_rhiMemWriter, (void*)passVertexAttribute[ii].data(), (int32_t)(createInfo.vertexAttributeNum * sizeof(VertexAttributeDesc)), nullptr);
 
             // push constants
-            write(&m_rhiMemWriter, (void*)passPipelineSpecData[ii].data(), (int32_t)(createInfo.pipelineSpecNum * sizeof(int)));
+            bx::write(&m_rhiMemWriter, (void*)passPipelineSpecData[ii].data(), (int32_t)(createInfo.pipelineSpecNum * sizeof(int)), nullptr);
 
             // pass read/write resources and it's interaction
-            write(&m_rhiMemWriter, (void*)writeImageVec[ii].getIdPtr(), (int32_t)(createInfo.writeImageNum * sizeof(ImageHandle)));
-            write(&m_rhiMemWriter, (void*)readImageVec[ii].getIdPtr(), (int32_t)(createInfo.readImageNum * sizeof(ImageHandle)));
-            write(&m_rhiMemWriter, (void*)readBufferVec[ii].getIdPtr(), (int32_t)(createInfo.readBufferNum * sizeof(BufferHandle)));
-            write(&m_rhiMemWriter, (void*)writeBufferVec[ii].getIdPtr(), (int32_t)(createInfo.writeBufferNum * sizeof(BufferHandle)));
+            bx::write(&m_rhiMemWriter, (void*)writeImageVec[ii].getIdPtr(), (int32_t)(createInfo.writeImageNum * sizeof(ImageHandle)), nullptr);
+            bx::write(&m_rhiMemWriter, (void*)readImageVec[ii].getIdPtr(), (int32_t)(createInfo.readImageNum * sizeof(ImageHandle)), nullptr);
+            bx::write(&m_rhiMemWriter, (void*)readBufferVec[ii].getIdPtr(), (int32_t)(createInfo.readBufferNum * sizeof(BufferHandle)), nullptr);
+            bx::write(&m_rhiMemWriter, (void*)writeBufferVec[ii].getIdPtr(), (int32_t)(createInfo.writeBufferNum * sizeof(BufferHandle)), nullptr);
 
             //write(&m_rhiMemWriter, writeDSPair[ii].second);
-            write(&m_rhiMemWriter, (void*)writeImageVec[ii].getDataPtr(), (int32_t)(createInfo.writeImageNum * sizeof(ResInteractDesc)));
-            write(&m_rhiMemWriter, (void*)readImageVec[ii].getDataPtr(), (int32_t)(createInfo.readImageNum * sizeof(ResInteractDesc)));
-            write(&m_rhiMemWriter, (void*)readBufferVec[ii].getDataPtr(), (int32_t)(createInfo.readBufferNum * sizeof(ResInteractDesc)));
-            write(&m_rhiMemWriter, (void*)writeBufferVec[ii].getDataPtr(), (int32_t)(createInfo.writeBufferNum * sizeof(ResInteractDesc)));
+            bx::write(&m_rhiMemWriter, (void*)writeImageVec[ii].getDataPtr(), (int32_t)(createInfo.writeImageNum * sizeof(ResInteractDesc)), nullptr);
+            bx::write(&m_rhiMemWriter, (void*)readImageVec[ii].getDataPtr(), (int32_t)(createInfo.readImageNum * sizeof(ResInteractDesc)), nullptr);
+            bx::write(&m_rhiMemWriter, (void*)readBufferVec[ii].getDataPtr(), (int32_t)(createInfo.readBufferNum * sizeof(ResInteractDesc)), nullptr);
+            bx::write(&m_rhiMemWriter, (void*)writeBufferVec[ii].getDataPtr(), (int32_t)(createInfo.writeBufferNum * sizeof(ResInteractDesc)), nullptr);
 
             // samplers
-            write(&m_rhiMemWriter, (void*)imageSamplerVec[ii].getIdPtr(), (int32_t)(createInfo.sampleImageNum * sizeof(ImageHandle)));
-            write(&m_rhiMemWriter, (void*)imageSamplerVec[ii].getDataPtr(), (int32_t)(createInfo.sampleImageNum * sizeof(SamplerHandle)));
+            bx::write(&m_rhiMemWriter, (void*)imageSamplerVec[ii].getIdPtr(), (int32_t)(createInfo.sampleImageNum * sizeof(ImageHandle)), nullptr);
+            bx::write(&m_rhiMemWriter, (void*)imageSamplerVec[ii].getDataPtr(), (int32_t)(createInfo.sampleImageNum * sizeof(SamplerHandle)), nullptr);
 
             // write op alias
-            write(&m_rhiMemWriter, (void*)writeOpAliasMapVec[ii].getIdPtr(), (int32_t)(createInfo.writeBufAliasNum + createInfo.writeImgAliasNum) * sizeof(CombinedResID));
-            write(&m_rhiMemWriter, (void*)writeOpAliasMapVec[ii].getDataPtr(), (int32_t)(createInfo.writeBufAliasNum + createInfo.writeImgAliasNum) * sizeof(CombinedResID));
+            bx::write(&m_rhiMemWriter, (void*)writeOpAliasMapVec[ii].getIdPtr(), (int32_t)(createInfo.writeBufAliasNum + createInfo.writeImgAliasNum) * sizeof(CombinedResID), nullptr);
+            bx::write(&m_rhiMemWriter, (void*)writeOpAliasMapVec[ii].getDataPtr(), (int32_t)(createInfo.writeBufAliasNum + createInfo.writeImgAliasNum) * sizeof(CombinedResID), nullptr);
 
-            write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end);
+            bx::write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end, nullptr);
         }
     }
 
@@ -2103,18 +2103,18 @@ namespace vkz
 
         // set brief
         {
-            write(&m_rhiMemWriter, RHIContextOpMagic::set_brief);
+            bx::write(&m_rhiMemWriter, RHIContextOpMagic::set_brief, nullptr);
             RHIBrief brief;
             brief.finalPassId = m_finalPass.id;
             brief.presentImageId = m_combinedPresentImage.id;
             brief.presentMipLevel = m_presentMipLevel;
 
-            write(&m_rhiMemWriter, brief);
-            write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end);
+            bx::write(&m_rhiMemWriter, brief, nullptr);
+            bx::write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end, nullptr);
         }
 
         // end mem tag
-        write(&m_rhiMemWriter,  RHIContextOpMagic::end );
+        bx::write(&m_rhiMemWriter,  RHIContextOpMagic::end , nullptr);
     }
 
     bool Framegraph2::isBufInfoAliasable(uint16_t _idx, const BufBucket& _bucket, const stl::vector<CombinedResID> _resInCurrStack) const

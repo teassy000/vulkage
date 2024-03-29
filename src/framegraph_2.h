@@ -1,9 +1,11 @@
 #pragma once
 
-#include "memory_operation.h"
 #include "vkz_inner.h"
 #include "common.h"
 #include "util.h"
+
+#include "bx/allocator.h"
+#include "bx/readerwriter.h"
 
 namespace vkz
 {
@@ -138,25 +140,25 @@ namespace vkz
     class Framegraph2
     {
     public:
-        Framegraph2(AllocatorI* _allocator, MemoryBlockI* _rhiMem)
+        Framegraph2(bx::AllocatorI* _allocator, bx::MemoryBlockI* _rhiMem)
             : m_pAllocator{ _allocator }
             , m_pCreatorMemBlock {_rhiMem}
             , m_rhiMemWriter{ _rhiMem }
         { 
-            m_pMemBlock = VKZ_NEW(m_pAllocator, MemoryBlock(m_pAllocator));
-            m_pMemBlock->expand(kInitialFrameGraphMemSize);
+            m_pMemBlock = BX_NEW(m_pAllocator, bx::MemoryBlock)(m_pAllocator);
+            m_pMemBlock->more(kInitialFrameGraphMemSize);
         }
 
         ~Framegraph2();
         void bake();
 
     public:
-        inline MemoryBlockI* getMemoryBlock() const
+        inline bx::MemoryBlockI* getMemoryBlock() const
         {
             return m_pMemBlock;
         }
 
-        inline void setMemoryBlock(MemoryBlockI* _memBlock)
+        inline void setMemoryBlock(bx::MemoryBlockI* _memBlock)
         {
             m_pMemBlock = _memBlock;
         }
@@ -166,25 +168,25 @@ namespace vkz
 
         // ==============================
         // process operations 
-        void setBrief(MemoryReader& _reader);
+        void setBrief(bx::MemoryReader& _reader);
 
-        void registerShader(MemoryReader& _reader);
-        void registerProgram(MemoryReader& _reader);
+        void registerShader(bx::MemoryReader& _reader);
+        void registerProgram(bx::MemoryReader& _reader);
 
-        void registerPass(MemoryReader& _reader);
-        void registerBuffer(MemoryReader& _reader);
-        void registerImage(MemoryReader& _reader);
+        void registerPass(bx::MemoryReader& _reader);
+        void registerBuffer(bx::MemoryReader& _reader);
+        void registerImage(bx::MemoryReader& _reader);
 
-        void registerSampler(MemoryReader& _reader);
-        void registerImageView(MemoryReader& _reader);
-
-        void storeBackBuffer(MemoryReader& _reader);
+        void registerSampler(bx::MemoryReader& _reader);
+        void registerImageView(bx::MemoryReader& _reader);
+        
+        void storeBackBuffer(bx::MemoryReader& _reader);
 
         uint32_t readResource(const stl::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type);
         uint32_t writeResource(const stl::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type);
         uint32_t writeResForceAlias(const stl::vector<WriteOperationAlias>& _aliasMapVec, const uint16_t _passId, const ResourceType _type);
 
-        void aliasResForce(MemoryReader& _reader, ResourceType _type);
+        void aliasResForce(bx::MemoryReader& _reader, ResourceType _type);
 
         bool isForceAliased(const CombinedResID& _res_0, const CombinedResID _res_1) const;
         // =======================================
@@ -358,11 +360,11 @@ namespace vkz
         };
 
     private:
-        AllocatorI* m_pAllocator;
-        MemoryBlockI* m_pMemBlock;
+        bx::AllocatorI* m_pAllocator;
+        bx::MemoryBlockI* m_pMemBlock;
 
-        MemoryBlockI* m_pCreatorMemBlock;
-        MemoryWriter m_rhiMemWriter;
+        bx::MemoryBlockI* m_pCreatorMemBlock;
+        bx::MemoryWriter m_rhiMemWriter;
 
         CombinedResID  m_combinedPresentImage;
         uint32_t       m_presentMipLevel;

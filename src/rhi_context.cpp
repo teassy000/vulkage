@@ -1,6 +1,5 @@
 
 #include "common.h"
-#include "memory_operation.h"
 
 #include "rhi_context.h"
 #include "util.h"
@@ -21,12 +20,12 @@ namespace vkz
     void RHIContext::parseOp()
     {
         assert(m_pMemBlockBaked != nullptr);
-        MemoryReader reader(m_pMemBlockBaked->expand(0), m_pMemBlockBaked->size());
+        bx::MemoryReader reader(m_pMemBlockBaked->more(), m_pMemBlockBaked->getSize());
 
         while (true)
         {
             RHIContextOpMagic magic = RHIContextOpMagic::invalid_magic;
-            read(&reader, magic);
+            bx::read(&reader, magic, nullptr);
 
             bool finished = false;
 
@@ -74,12 +73,12 @@ namespace vkz
             }
 
             RHIContextOpMagic bodyEnd;
-            read(&reader, bodyEnd);
+            bx::read(&reader, bodyEnd, nullptr);
             assert(RHIContextOpMagic::magic_body_end == bodyEnd);
 
         }
 
-        reader.seek(0, Whence::Begin); // reset reader
+        reader.seek(0, bx::Whence::Begin); // reset reader
     }
 
     const void* UniformMemoryBlock::getUniformData(const PassHandle _hPass)
@@ -105,9 +104,9 @@ namespace vkz
         constants.size = _size;
         constants.offset = offset;
 
-        if (m_pConstantData->size() <= offset + _size)
+        if (m_pConstantData->getSize() <= offset + _size)
         {
-            m_pConstantData->expand(m_pConstantData->size()); // double current size
+            m_pConstantData->more(m_pConstantData->getSize()); // double current size
         }
 
         m_passes.push_back(_hPass);
@@ -131,7 +130,7 @@ namespace vkz
             return nullptr;
         }
 
-        uint8_t* data = (uint8_t*)m_pConstantData->expand(0);
+        uint8_t* data = (uint8_t*)m_pConstantData->more(0);
         const void* pC = data + m_constants[idx].offset;
 
         return pC;
@@ -145,8 +144,8 @@ namespace vkz
         }
         assert(m_constants[idx].size == _size);
 
-        m_pWriter->seek(m_constants[idx].offset, Whence::Begin);
-        write(m_pWriter, _data, _size);
+        m_pWriter->seek(m_constants[idx].offset,bx::Whence::Begin);
+        bx::write(m_pWriter, _data, _size, nullptr);
     }
 
 }

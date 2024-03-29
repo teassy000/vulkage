@@ -2,18 +2,19 @@
 #include "vkz_ms_pip.h"
 #include "demo_structs.h"
 #include "scene.h"
-#include "memory_operation.h"
 #include "vkz_math.h"
+
+#include "bx/readerwriter.h"
 
 
 void meshShading_renderFunc(vkz::CommandListI& _cmdList, const void* _data, uint32_t _size)
 {
     VKZ_ZoneScopedC(vkz::Color::cyan);
 
-    vkz::MemoryReader reader(_data, _size);
+    bx::MemoryReader reader(_data, _size);
 
     MeshShading msd;
-    vkz::read(&reader, msd);
+    bx::read(&reader, msd, nullptr);
 
     _cmdList.barrier(msd.color, vkz::AccessFlagBits::color_attachment_write, vkz::ImageLayout::color_attachment_optimal, vkz::PipelineStageFlagBits::color_attachment_output);
     _cmdList.barrier(msd.depth, vkz::AccessFlagBits::depth_stencil_attachment_write, vkz::ImageLayout::depth_stencil_attachment_optimal, vkz::PipelineStageFlagBits::late_fragment_tests);

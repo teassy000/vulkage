@@ -1,7 +1,7 @@
 #include "common.h"
-#include "alloc.h"
+
 #include "handle.h"
-#include "memory_operation.h"
+
 #include "vkz_inner.h"
 
 #include "config.h"
@@ -18,25 +18,33 @@
 #include "string.h"
 
 
+#include "bx/allocator.h"
+#include "bx/readerwriter.h"
+#include "bx/settings.h"
+#include "bx/string.h"
+
+
 namespace vkz
 {
-    static AllocatorI* s_allocator = nullptr;
-    static AllocatorI* getAllocator()
+    static bx::AllocatorI* s_bxAllocator = nullptr;
+    static bx::AllocatorI* getBxAllocator()
     {
-        if (s_allocator == nullptr)
+        if (s_bxAllocator == nullptr)
         {
-            DefaultAllocator allocator;
-            s_allocator = VKZ_NEW(&allocator, DefaultAllocator);
+            bx::DefaultAllocator allocator;
+            s_bxAllocator = BX_NEW(&allocator, bx::DefaultAllocator)();
         }
-        return s_allocator;
+        return s_bxAllocator;
     }
 
     static void shutdownAllocator()
     {
-        deleteObject(getAllocator(), s_allocator);
+        s_bxAllocator = nullptr;
     }
 
-    using String = SimpleString<&s_allocator>;
+    using String = bx::StringT<&s_bxAllocator>;
+
+    //using String = SimpleString<&s_bxAllocator>;
 
     struct NameMgr
     {
@@ -98,7 +106,7 @@ namespace vkz
     const char* NameMgr::getName(const HandleSignature id) const
     {
         const String& str = _idToName.find(id)->second;
-        return str.getCStr();
+        return str.getCPtr();
     }
 
     void NameMgr::getPrefix(String& _inStr, HandleType _type, bool _isAlias)
@@ -185,7 +193,7 @@ namespace vkz
     {
         if (s_nameManager == nullptr)
         {
-            s_nameManager = VKZ_NEW(getAllocator(), NameMgr);
+            s_nameManager = BX_NEW(getBxAllocator(), NameMgr)();
         }
 
         return s_nameManager;
@@ -291,7 +299,7 @@ namespace vkz
                 memRef->releaseFn(mem->data, memRef->userData);
             }
         }
-        free(getAllocator(), mem);
+        free(getBxAllocator(), mem);
     }
 
     // GLFW 
@@ -668,14 +676,14 @@ namespace vkz
         bool    m_isRenderGraphDataDirty{ false };
 
         // frame graph
-        MemoryBlockI* m_pFgMemBlock{ nullptr };
-        MemoryWriter* m_fgMemWriter{ nullptr };
+        bx::MemoryBlockI* m_pFgMemBlock{ nullptr };
+        bx::MemoryWriter* m_fgMemWriter{ nullptr };
 
         RHIContext* m_rhiContext{ nullptr };
 
         Framegraph2* m_frameGraph{ nullptr };
 
-        AllocatorI* m_pAllocator{ nullptr };
+        bx::AllocatorI* m_pAllocator{ nullptr };
 
         // name manager
         NameMgr* m_pNameManager{ nullptr };
@@ -1108,7 +1116,7 @@ namespace vkz
     void Context::storeBrief()
     {
         MagicTag magic{ MagicTag::set_brief };
-        write(m_fgMemWriter, magic);
+        bx::write(m_fgMemWriter, magic, nullptr);
 
         // set the brief data
         FrameGraphBrief brief;
@@ -1125,9 +1133,9 @@ namespace vkz
         brief.presentMipLevel = m_presentMipLevel;
 
 
-        write(m_fgMemWriter, brief);
+        bx::write(m_fgMemWriter, brief, nullptr);
 
-        write(m_fgMemWriter, MagicTag::magic_body_end);
+        bx::write(m_fgMemWriter, MagicTag::magic_body_end, nullptr);
     }
 
     void Context::storeShaderData()
@@ -1141,16 +1149,16 @@ namespace vkz
 
             // magic tag
             MagicTag magic{ MagicTag::register_shader };
-            write(m_fgMemWriter, magic);
+            bx::write(m_fgMemWriter, magic, nullptr);
 
             FGShaderCreateInfo info;
             info.shaderId = shader.id;
             info.strLen = (uint16_t)strnlen_s(path.c_str(), kMaxPathLen);
 
-            write(m_fgMemWriter, info);
-            write(m_fgMemWriter, (void*)path.c_str(), (int32_t)info.strLen);
+            bx::write(m_fgMemWriter, info, nullptr);
+            bx::write(m_fgMemWriter, (void*)path.c_str(), (int32_t)info.strLen, nullptr);
 
-            write(m_fgMemWriter, MagicTag::magic_body_end);
+            bx::write(m_fgMemWriter, MagicTag::magic_body_end, nullptr);
         }
     }
 
@@ -1165,19 +1173,19 @@ namespace vkz
 
             // magic tag
             MagicTag magic{ MagicTag::register_program };
-            write(m_fgMemWriter, magic);
+            bx::write(m_fgMemWriter, magic, nullptr);
 
             // info
             FGProgCreateInfo info;
             info.progId = desc.progId;
             info.sizePushConstants = desc.sizePushConstants;
             info.shaderNum = desc.shaderNum;
-            write(m_fgMemWriter, info);
+            bx::write(m_fgMemWriter, info, nullptr);
 
             // actual shader indexes
-            write(m_fgMemWriter, desc.shaderIds, sizeof(uint16_t) * desc.shaderNum);
+            bx::write(m_fgMemWriter, desc.shaderIds, sizeof(uint16_t) * desc.shaderNum, nullptr);
 
-            write(m_fgMemWriter, MagicTag::magic_body_end);
+            bx::write(m_fgMemWriter, MagicTag::magic_body_end, nullptr);
         }
     }
 
@@ -1208,75 +1216,86 @@ namespace vkz
 
             // frame graph data
             MagicTag magic{ MagicTag::register_pass };
-            write(m_fgMemWriter, magic);
+            bx::write(m_fgMemWriter, magic, nullptr);
 
-            write(m_fgMemWriter, passMeta);
+            bx::write(m_fgMemWriter, passMeta, nullptr);
 
             if (0 != passMeta.vertexBindingNum)
             {
-                write(m_fgMemWriter, passMeta.vertexBindings, sizeof(VertexBindingDesc) * passMeta.vertexBindingNum);
+                bx::write(m_fgMemWriter, passMeta.vertexBindings, sizeof(VertexBindingDesc) * passMeta.vertexBindingNum, nullptr);
             }
             if (0 != passMeta.vertexAttributeNum)
             {
-                write(m_fgMemWriter, passMeta.vertexAttributes, sizeof(VertexAttributeDesc) * passMeta.vertexAttributeNum);
+                bx::write(m_fgMemWriter, passMeta.vertexAttributes, sizeof(VertexAttributeDesc) * passMeta.vertexAttributeNum, nullptr);
             }
             if (0 != passMeta.pipelineSpecNum)
             {
-                write(m_fgMemWriter, passMeta.pipelineSpecData, sizeof(int) * passMeta.pipelineSpecNum);
+                bx::write(m_fgMemWriter, passMeta.pipelineSpecData, sizeof(int) * passMeta.pipelineSpecNum, nullptr);
             }
 
             // write image
             if (0 != passMeta.writeImageNum)
             {
-                write(
+                bx::write(
                     m_fgMemWriter
                     , (const void*)m_writeImages.getIdToData(pass).data()
                     , (uint32_t)(sizeof(PassResInteract) * getResInteractNum(m_writeImages, pass))
+                    , nullptr
                 );
             }
             // read image
             if (0 != passMeta.readImageNum)
             {
-                write(
+                bx::write(
                     m_fgMemWriter
                     , (const void*)m_readImages.getIdToData(pass).data()
-                    , (uint32_t)(sizeof(PassResInteract) * getResInteractNum(m_readImages, pass)));
+                    , (uint32_t)(sizeof(PassResInteract) * getResInteractNum(m_readImages, pass))
+                    , nullptr
+                );
             }
             // write buffer
             if (0 != passMeta.writeBufferNum)
             {
-                write(
+                bx::write(
                     m_fgMemWriter, 
                     (const void*)m_writeBuffers.getIdToData(pass).data(), 
-                    (uint32_t)(sizeof(PassResInteract) * getResInteractNum(m_writeBuffers, pass)));
+                    (uint32_t)(sizeof(PassResInteract) * getResInteractNum(m_writeBuffers, pass))
+                    , nullptr
+                );
             }
             // read buffer
             if (0 != passMeta.readBufferNum)
             {
-                write(
+                bx::write(
                     m_fgMemWriter
                     , (const void*)m_readBuffers.getIdToData(pass).data()
-                    , (uint32_t)(sizeof(PassResInteract) * getResInteractNum(m_readBuffers, pass)));
+                    , (uint32_t)(sizeof(PassResInteract) * getResInteractNum(m_readBuffers, pass))
+                    , nullptr
+                );
             }
 
             // wirte res forced alias
             if (0 != passMeta.writeImgAliasNum)
             {
-                write(
+                bx::write(
                     m_fgMemWriter
                     , (const void*)m_writeForcedImageAliases.getIdToData(pass).data()
-                    , (uint32_t)(sizeof(WriteOperationAlias) * passMeta.writeImgAliasNum));
+                    , (uint32_t)(sizeof(WriteOperationAlias) * passMeta.writeImgAliasNum)
+                    , nullptr
+                );
             }
 
             if (0 != passMeta.writeBufAliasNum)
             {
-                write(
+                bx::write(
                     m_fgMemWriter
                     , (const void*)m_writeForcedBufferAliases.getIdToData(pass).data()
-                    , (uint32_t)(sizeof(WriteOperationAlias) * passMeta.writeBufAliasNum));
+                    , (uint32_t)(sizeof(WriteOperationAlias) * passMeta.writeBufAliasNum)
+                    , nullptr
+                );
             }
 
-            write(m_fgMemWriter, MagicTag::magic_body_end);
+            bx::write(m_fgMemWriter, MagicTag::magic_body_end, nullptr);
         }
     }
 
@@ -1291,7 +1310,7 @@ namespace vkz
 
             // frame graph data
             MagicTag magic{ MagicTag::register_buffer };
-            write(m_fgMemWriter, magic);
+            bx::write(m_fgMemWriter, magic, nullptr);
 
             FGBufferCreateInfo info;
             info.bufId = meta.bufId;
@@ -1305,9 +1324,9 @@ namespace vkz
             info.initialState.layout = ImageLayout::undefined;
             info.initialState.stage = PipelineStageFlagBits::none;
 
-            write(m_fgMemWriter, info);
+            bx::write(m_fgMemWriter, info, nullptr);
 
-            write(m_fgMemWriter, MagicTag::magic_body_end);
+            bx::write(m_fgMemWriter, MagicTag::magic_body_end, nullptr);
         }
     }
 
@@ -1322,7 +1341,7 @@ namespace vkz
 
             // frame graph data
             MagicTag magic{ MagicTag::register_image };
-            write(m_fgMemWriter, magic);
+            bx::write(m_fgMemWriter, magic, nullptr);
 
             FGImageCreateInfo info;
             info.imgId = meta.imgId;
@@ -1353,9 +1372,9 @@ namespace vkz
                 info.mipViews[mipIdx] = mipIdx < info.viewCount ? meta.mipViews[mipIdx] : ImageViewHandle{kInvalidHandle};
             }
 
-            write(m_fgMemWriter, info);
+            bx::write(m_fgMemWriter, info, nullptr);
 
-            write(m_fgMemWriter, MagicTag::magic_body_end);
+            bx::write(m_fgMemWriter, MagicTag::magic_body_end, nullptr);
         }
 
         uint16_t imgViewCount = m_imageViewHandles.getNumHandles();
@@ -1366,11 +1385,11 @@ namespace vkz
             const ImageViewDesc& desc = m_imageViewDesc.getIdToData(imgView);
 
             // frame graph data
-            write(m_fgMemWriter, MagicTag::register_image_view);
+            bx::write(m_fgMemWriter, MagicTag::register_image_view, nullptr);
 
-            write(m_fgMemWriter, desc);
+            bx::write(m_fgMemWriter, desc, nullptr);
 
-            write(m_fgMemWriter, MagicTag::magic_body_end);
+            bx::write(m_fgMemWriter, MagicTag::magic_body_end, nullptr);
         }
     }
 
@@ -1389,18 +1408,18 @@ namespace vkz
 
             // magic tag
             MagicTag magic{ MagicTag::force_alias_buffer };
-            write(m_fgMemWriter, magic);
+            bx::write(m_fgMemWriter, magic, nullptr);
 
             // info
             ResAliasInfo info;
             info.aliasNum = (uint16_t)aliasVec.size();
             info.resBase = buf.id;
-            write(m_fgMemWriter, info);
+            bx::write(m_fgMemWriter, info, nullptr);
 
             // actual alias indexes
-            write(m_fgMemWriter, aliasVec.data(), uint32_t(sizeof(uint16_t) * aliasVec.size()));
+            bx::write(m_fgMemWriter, aliasVec.data(), uint32_t(sizeof(uint16_t) * aliasVec.size()), nullptr);
 
-            write(m_fgMemWriter, MagicTag::magic_body_end);
+            bx::write(m_fgMemWriter, MagicTag::magic_body_end, nullptr);
             
         }
 
@@ -1418,18 +1437,18 @@ namespace vkz
 
             const ImageMetaData& meta = m_imageMetas.getIdToData(img);
             MagicTag magic{ MagicTag::force_alias_image };
-            write(m_fgMemWriter, magic);
+            bx::write(m_fgMemWriter, magic, nullptr);
 
             // info
             ResAliasInfo info;
             info.aliasNum = (uint16_t)aliasVec.size();
             info.resBase = img.id;
-            write(m_fgMemWriter, info);
+            bx::write(m_fgMemWriter, info, nullptr);
 
             // actual alias indexes
-            write(m_fgMemWriter, aliasVec.data(), uint32_t(sizeof(uint16_t) * aliasVec.size()));
+            bx::write(m_fgMemWriter, aliasVec.data(), uint32_t(sizeof(uint16_t) * aliasVec.size()), nullptr);
 
-            write(m_fgMemWriter, MagicTag::magic_body_end);
+            bx::write(m_fgMemWriter, MagicTag::magic_body_end, nullptr);
         }
     }
 
@@ -1441,14 +1460,14 @@ namespace vkz
             const SamplerDesc& desc = m_samplerDescs.getIdToData({ samplerId });
 
             // magic tag
-            write(m_fgMemWriter, MagicTag::register_sampler);
+            bx::write(m_fgMemWriter, MagicTag::register_sampler, nullptr);
 
             SamplerMetaData meta{desc};
             meta.samplerId = samplerId;
 
-            write(m_fgMemWriter, meta);
+            bx::write(m_fgMemWriter, meta, nullptr);
 
-            write(m_fgMemWriter, MagicTag::magic_body_end);
+            bx::write(m_fgMemWriter, MagicTag::magic_body_end, nullptr);
         }
     }
 
@@ -1457,9 +1476,9 @@ namespace vkz
         for (ImageHandle hImg : m_backBuffers)
         {
             MagicTag magic{ MagicTag::store_back_buffer };
-            write(m_fgMemWriter, magic);
-            write(m_fgMemWriter, hImg.id);
-            write(m_fgMemWriter, MagicTag::magic_body_end);
+            bx::write(m_fgMemWriter, magic, nullptr);
+            bx::write(m_fgMemWriter, hImg.id, nullptr);
+            bx::write(m_fgMemWriter, MagicTag::magic_body_end, nullptr);
         }
 
     }
@@ -1496,8 +1515,8 @@ namespace vkz
         meta.bufId = aliasId;
         m_bufferMetas.push_back({ aliasId }, meta);
 
-        StringView baseName = getName(actualBase);
-        setName(getNameManager(), baseName.getPtr(), baseName.getLen(), BufferHandle{ aliasId }, true);
+        bx::StringView baseName = getName(actualBase);
+        setName(getNameManager(), baseName.getPtr(), baseName.getLength(), BufferHandle{ aliasId }, true);
 
         setRenderGraphDataDirty();
 
@@ -1536,8 +1555,8 @@ namespace vkz
         meta.imgId = aliasId;
         m_imageMetas.push_back({ aliasId }, meta);
 
-        StringView baseName = getName(actualBase);
-        setName(getNameManager(), baseName.getPtr(), baseName.getLen(), ImageHandle{ aliasId }, true);
+        bx::StringView baseName = getName(actualBase);
+        setName(getNameManager(), baseName.getPtr(), baseName.getLength(), ImageHandle{ aliasId }, true);
 
         setRenderGraphDataDirty();
 
@@ -1832,7 +1851,7 @@ namespace vkz
     {
         assert(_func != nullptr);
 
-        void * mem = alloc(getAllocator(), _dataMem->size);
+        void * mem = alloc(getBxAllocator(), _dataMem->size);
         memcpy(mem, _dataMem->data, _dataMem->size);
 
         PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
@@ -2004,7 +2023,7 @@ namespace vkz
 
     void Context::init()
     {
-        m_pAllocator = getAllocator();
+        m_pAllocator = getBxAllocator();
         m_pNameManager = getNameManager();
 
         // init glfw
@@ -2015,12 +2034,12 @@ namespace vkz
         RHI_Config rhiConfig{};
         rhiConfig.windowWidth = m_renderWidth;
         rhiConfig.windowHeight = m_renderHeight;
-        m_rhiContext = VKZ_NEW(m_pAllocator, RHIContext_vk(m_pAllocator, rhiConfig, wnd));
+        m_rhiContext = BX_NEW(getBxAllocator(), RHIContext_vk)(getBxAllocator(), rhiConfig, wnd);
 
-        m_frameGraph = VKZ_NEW(m_pAllocator, Framegraph2(m_pAllocator, m_rhiContext->memoryBlock()));
+        m_frameGraph = BX_NEW(getBxAllocator(), Framegraph2)(getBxAllocator(), m_rhiContext->memoryBlock());
 
         m_pFgMemBlock = m_frameGraph->getMemoryBlock();
-        m_fgMemWriter = VKZ_NEW(m_pAllocator, MemoryWriter(m_pFgMemBlock));
+        m_fgMemWriter = BX_NEW(getBxAllocator(), bx::MemoryWriter)(m_pFgMemBlock);
 
         setRenderGraphDataDirty();
     }
@@ -2062,7 +2081,7 @@ namespace vkz
 
         // write the finish tag
         MagicTag magic{ MagicTag::end };
-        write(m_fgMemWriter, magic);
+        bx::write(m_fgMemWriter, magic, nullptr);
 
         m_frameGraph->setMemoryBlock(m_pFgMemBlock);
         m_frameGraph->bake();
@@ -2155,11 +2174,11 @@ namespace vkz
         const uint16_t shaderNum = static_cast<const uint16_t>(_shaders.size());
         const Memory* mem = alloc(shaderNum * sizeof(uint16_t));
 
-        StaticMemoryBlockWriter writer(mem->data, mem->size);
+        bx::StaticMemoryBlockWriter writer(mem->data, mem->size);
         for (uint16_t ii = 0; ii < shaderNum; ++ii)
         {
             const ShaderHandle& handle = begin(_shaders)[ii];
-            write(&writer, handle.id);
+            bx::write(&writer, handle.id, nullptr);
         }
 
         return s_ctx->registProgram(_name, mem, shaderNum, _sizePushConstants);
@@ -2303,7 +2322,7 @@ namespace vkz
             message(error, "_sz < 0");
         }
 
-        Memory* mem = (Memory*)alloc(getAllocator(), sizeof(Memory) + _sz);
+        Memory* mem = (Memory*)alloc(getBxAllocator(), sizeof(Memory) + _sz);
         mem->size = _sz;
         mem->data = (uint8_t*)mem + sizeof(Memory);
         return mem;
@@ -2328,7 +2347,7 @@ namespace vkz
 
     const Memory* makeRef(const void* _data, uint32_t _sz, ReleaseFn _releaseFn /*= nullptr*/, void* _userData /*= nullptr*/)
     {
-        MemoryRef* memRef = (MemoryRef*)alloc(getAllocator(), sizeof(MemoryRef));
+        MemoryRef* memRef = (MemoryRef*)alloc(getBxAllocator(), sizeof(MemoryRef));
         memRef->mem.size = _sz;
         memRef->mem.data = (uint8_t*)_data;
         memRef->releaseFn = _releaseFn;
@@ -2339,7 +2358,7 @@ namespace vkz
     // main data here
     bool init(VKZInitConfig _config /*= {}*/)
     {
-        s_ctx = VKZ_NEW(getAllocator(), Context);
+        s_ctx = BX_NEW(getBxAllocator(), Context);
         s_ctx->setRenderSize(_config.windowWidth, _config.windowHeight);
         s_ctx->setWindowName(_config.name);
         s_ctx->init();
@@ -2374,7 +2393,7 @@ namespace vkz
 
     void shutdown()
     {
-        deleteObject(getAllocator(), s_ctx);
+        deleteObject(getBxAllocator(), s_ctx);
         shutdownAllocator();
     }
 

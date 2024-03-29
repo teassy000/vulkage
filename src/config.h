@@ -16,6 +16,7 @@ namespace vkz
 
     constexpr unsigned int kInitialFrameGraphMemSize = 16 * 1024; // 16k
 
+    constexpr unsigned int kInitialConstantsTotalMemSize = 1024; // 1k
     constexpr unsigned int kInitialUniformTotalMemSize = 16 * 1024; // 16k
 
     constexpr unsigned int kMaxPathLen = 256;

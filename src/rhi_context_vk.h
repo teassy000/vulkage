@@ -168,7 +168,7 @@ namespace vkz
     class RHIContext_vk : public RHIContext
     {
     public:
-        RHIContext_vk(AllocatorI* _allocator, RHI_Config _config, void* _wnd);
+        RHIContext_vk(bx::AllocatorI* _allocator, RHI_Config _config, void* _wnd);
 
         ~RHIContext_vk() override;
         void init(RHI_Config _config, void* _wnd) override;
@@ -215,15 +215,15 @@ namespace vkz
         double getPassTime(const PassHandle _hPass) override;
 
     private:
-        void createShader(MemoryReader& _reader) override;
-        void createProgram(MemoryReader& _reader) override;
-        void createPass(MemoryReader& _reader) override;
-        void createImage(MemoryReader& _reader) override;
-        void createBuffer(MemoryReader& _reader) override;
-        void createSampler(MemoryReader& _reader) override;
-        void createImageView(MemoryReader& _reader) override;
-        void setBackBuffers(MemoryReader& _reader) override;
-        void setBrief(MemoryReader& _reader) override;
+        void createShader(bx::MemoryReader& _reader) override;
+        void createProgram(bx::MemoryReader& _reader) override;
+        void createPass(bx::MemoryReader& _reader) override;
+        void createImage(bx::MemoryReader& _reader) override;
+        void createBuffer(bx::MemoryReader& _reader) override;
+        void createSampler(bx::MemoryReader& _reader) override;
+        void createImageView(bx::MemoryReader& _reader) override;
+        void setBackBuffers(bx::MemoryReader& _reader) override;
+        void setBrief(bx::MemoryReader& _reader) override;
 
     private:
         void createInstance();

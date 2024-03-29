@@ -1,16 +1,18 @@
 #include "vkz_pyramid.h"
 #include "vkz_math.h"
 #include "profiler.h"
-#include "memory_operation.h"
+
+#include "bx/readerwriter.h"
+
 
 void pyramid_renderFunc(vkz::CommandListI& _cmdList, const void* _data, uint32_t _size)
 {
     VKZ_ZoneScopedC(vkz::Color::cyan);
 
-    vkz::MemoryReader reader(_data, _size);
+    bx::MemoryReader reader(_data, _size);
 
     PyramidRendering pyramid{};
-    vkz::read(&reader, pyramid);
+    bx::read(&reader, pyramid, nullptr);
 
     for (uint32_t ii = 0; ii < pyramid.levels; ++ii)
     {

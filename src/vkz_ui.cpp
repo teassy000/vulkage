@@ -6,7 +6,8 @@
 #include "uidata.h"
 #include "vkz_ui.h"
 
-#include "memory_operation.h"
+#include "bx/readerwriter.h"
+
 
 constexpr uint32_t kInitialVertexBufferSize = 1024 * 1024; // 1MB
 constexpr uint32_t kInitialIndexBufferSize = 1024 * 1024; // 1MB
@@ -15,10 +16,10 @@ void ui_renderFunc(vkz::CommandListI& _cmdList, const void* _data, uint32_t _siz
 {
     VKZ_ZoneScopedC(vkz::Color::cyan);
 
-    vkz::MemoryReader reader(_data, _size);
+    bx::MemoryReader reader(_data, _size);
 
     UIRendering ui{};
-    vkz::read(&reader, ui);
+    bx::read(&reader, ui, nullptr);
     ImDrawData* imDrawData = ImGui::GetDrawData();
 
     if ((!imDrawData) || (imDrawData->CmdListsCount == 0)) {

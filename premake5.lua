@@ -9,7 +9,7 @@ GLM_DIR 		= 	path.join(EXT_DIR, "glm")
 FAST_OBJ_DIR 	= 	path.join(EXT_DIR, "fast_obj")
 IMGUI_DIR 		= 	path.join(EXT_DIR, "imgui")
 MESH_OPT_DIR 	= 	path.join(EXT_DIR, "meshoptimizer")
-TRACY_DIR 		= 	path.join(EXT_DIR, "tracy")
+TRACY_DIR 		= 	path.join(EXT_DIR, "tracy/0.10")
 VOLK_DIR 		= 	path.join(EXT_DIR, "volk")
 TINYSTL_DIR 	= 	path.join(EXT_DIR, "tinystl")
 
@@ -22,13 +22,6 @@ KTX_SDK_DIR 	= os.getenv("KTX_SDK")
 if KTX_SDK_DIR == nil then
 	error("KTX_SDK_DIR environment variable not set")
 end
-
-
-workspace "vulkage"
-	configurations {"debug", "debug_prof", "release", "release_prof"}
-	platforms {"x64"}
-	location "build"
-	targetdir "bin/%{cfg.buildcfg}"
 
 function disable_exceptions()
 	filter "action:vs*"
@@ -47,7 +40,7 @@ function enable_msvc_muiltithreaded()
 		flags { "MultiProcessorCompile" }
 end
 
-function common_filter()
+function common_filter() 
 	filter "configurations:release"
 		runtime "Release"
 		defines "NDEBUG"
@@ -84,6 +77,12 @@ function custom_build_glsl()
 end
 
 
+workspace "vulkage"
+	configurations {"debug", "debug_prof", "release", "release_prof"}
+	platforms {"x64"}
+	location "build"
+	targetdir "bin/%{cfg.buildcfg}"
+
 dofile("scripts/bx.lua")
 dofile("scripts/bimg.lua")
 dofile("scripts/glfw.lua")
@@ -96,6 +95,7 @@ dofile("scripts/fast_obj.lua")
 project "vulkage"
 	kind "ConsoleApp"
 	language "c++"
+	cppdialect "C++17"
 	rtti "Off"
 	exceptionhandling "Off"
 
@@ -122,7 +122,6 @@ project "vulkage"
 		path.join(BIMG_DIR,	 	"include"),
 		path.join(GLFW_DIR,	 	"include"),
 		path.join(MESH_OPT_DIR,	"src"),
-
 		path.join(TRACY_DIR,	"public"),
 
 		path.join(VOLK_DIR,	 	""),
@@ -135,7 +134,7 @@ project "vulkage"
 	}
 
 	vpaths {
-		["src"] 	= {
+		["src"] = {
 			path.join(SRC_DIR, "*.h"),
 			path.join(SRC_DIR, "*.inl"),
 			path.join(SRC_DIR, "*.cpp"),
@@ -183,12 +182,14 @@ project "vulkage"
 	filter "configurations:release_prof"
 		optimize "Full"
 	
-	tracy_filter()
-
 	using_vulkan()
 	using_glfw()
 	using_bx()
-	
+
+	tracy_filter()
+
+	set_bx_compat()
+
 	common_filter()
 	enable_msvc_muiltithreaded()
 	disable_msvc_crt_warning()

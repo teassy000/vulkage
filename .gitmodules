@@ -18,9 +18,6 @@
 	path = externs/glm
 	url = https://github.com/g-truc/glm.git
 	branch = stable
-[submodule "externs/tracy"]
-	path = externs/tracy
-	url = https://github.com/wolfpld/tracy.git
 [submodule "bimg"]
 	path = externs/bimg
 	url = https://github.com/bkaradzic/bimg.git

@@ -1066,7 +1066,7 @@ namespace vkz
         return queryPool;
     }
 
-    RHIContext_vk::RHIContext_vk(AllocatorI* _allocator, RHI_Config _config, void* _wnd)
+    RHIContext_vk::RHIContext_vk(bx::AllocatorI* _allocator, RHI_Config _config, void* _wnd)
         : RHIContext(_allocator)
         , m_instance{ VK_NULL_HANDLE }
         , m_device{ VK_NULL_HANDLE }
@@ -1197,7 +1197,7 @@ namespace vkz
         scratchAlias.size = 128 * 1024 * 1024; // 128M
         m_scratchBuffer = vkz::createBuffer(scratchAlias, m_memProps, m_device, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
         
-        m_cmdList = VKZ_NEW(m_pAllocator, CmdList_vk(m_cmdBuffer, this));
+        m_cmdList = BX_NEW(m_pAllocator, CmdList_vk)(m_cmdBuffer, this);
 
         VKZ_ProfVkContext(m_tracyVkCtx, m_phyDevice, m_device, m_queue, m_cmdBuffer);
     }
@@ -1462,15 +1462,15 @@ namespace vkz
         passInfo.renderFuncDataSize = _size;
     }
 
-    void RHIContext_vk::createShader(MemoryReader& _reader)
+    void RHIContext_vk::createShader(bx::MemoryReader& _reader)
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
         ShaderCreateInfo info;
-        read(&_reader, info);
+        bx::read(&_reader, info, nullptr);
 
         char path[kMaxPathLen];
-        read(&_reader, path, info.pathLen);
+        bx::read(&_reader, path, info.pathLen, nullptr);
         path[info.pathLen] = '\0'; // null-terminated string
 
         Shader_vk shader{};
@@ -1480,15 +1480,15 @@ namespace vkz
         m_shaderContainer.push_back(info.shaderId, shader);
     }
 
-    void RHIContext_vk::createProgram(MemoryReader& _reader)
+    void RHIContext_vk::createProgram(bx::MemoryReader& _reader)
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
         ProgramCreateInfo info;
-        read(&_reader, info);
+        bx::read(&_reader, info, nullptr);
 
         stl::vector<uint16_t> shaderIds(info.shaderNum);
-        read(&_reader, shaderIds.data(), info.shaderNum * sizeof(uint16_t));
+        bx::read(&_reader, shaderIds.data(), info.shaderNum * sizeof(uint16_t), nullptr);
 
         stl::vector<Shader_vk> shaders;
         for (const uint16_t sid : shaderIds)
@@ -1505,37 +1505,37 @@ namespace vkz
         assert(m_programContainer.size() == m_programShaderIds.size());
     }
 
-    void RHIContext_vk::createPass(MemoryReader& _reader)
+    void RHIContext_vk::createPass(bx::MemoryReader& _reader)
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
         PassMetaData passMeta;
-        read(&_reader, passMeta);
+        bx::read(&_reader, passMeta, nullptr);
         
         size_t vtxBindingSz = passMeta.vertexBindingNum * sizeof(VertexBindingDesc);
         size_t vtxAttributeSz = passMeta.vertexAttributeNum * sizeof(VertexAttributeDesc);
 
         stl::vector<VertexBindingDesc> passVertexBinding(passMeta.vertexBindingNum);
-        read(&_reader, passVertexBinding.data(), (int32_t)vtxBindingSz);
+        bx::read(&_reader, passVertexBinding.data(), (int32_t)vtxBindingSz, nullptr);
         stl::vector<VertexAttributeDesc> passVertexAttribute(passMeta.vertexAttributeNum);
-        read(&_reader, passVertexAttribute.data(), (int32_t)vtxAttributeSz);
+        bx::read(&_reader, passVertexAttribute.data(), (int32_t)vtxAttributeSz, nullptr);
 
         // pipeline spec data
         stl::vector<int> pipelineSpecData(passMeta.pipelineSpecNum);
-        read(&_reader, pipelineSpecData.data(), passMeta.pipelineSpecNum * sizeof(int));
+        bx::read(&_reader, pipelineSpecData.data(), passMeta.pipelineSpecNum * sizeof(int), nullptr);
 
         // r/w resources
         stl::vector<uint16_t> writeImageIds(passMeta.writeImageNum);
-        read(&_reader, writeImageIds.data(), passMeta.writeImageNum * sizeof(uint16_t));
+        bx::read(&_reader, writeImageIds.data(), passMeta.writeImageNum * sizeof(uint16_t), nullptr);
 
         stl::vector<uint16_t> readImageIds(passMeta.readImageNum);
-        read(&_reader, readImageIds.data(), passMeta.readImageNum * sizeof(uint16_t));
+        bx::read(&_reader, readImageIds.data(), passMeta.readImageNum * sizeof(uint16_t), nullptr);
 
         stl::vector<uint16_t> readBufferIds(passMeta.readBufferNum);
-        read(&_reader, readBufferIds.data(), passMeta.readBufferNum * sizeof(uint16_t));
+        bx::read(&_reader, readBufferIds.data(), passMeta.readBufferNum * sizeof(uint16_t), nullptr);
         
         stl::vector<uint16_t> writeBufferIds(passMeta.writeBufferNum);
-        read(&_reader, writeBufferIds.data(), passMeta.writeBufferNum * sizeof(uint16_t));
+        bx::read(&_reader, writeBufferIds.data(), passMeta.writeBufferNum * sizeof(uint16_t), nullptr);
 
         const size_t interactSz =
             passMeta.writeImageNum +
@@ -1544,20 +1544,20 @@ namespace vkz
             passMeta.writeBufferNum;
 
         stl::vector<ResInteractDesc> interacts(interactSz);
-        read(&_reader, interacts.data(), (uint32_t)(interactSz * sizeof(ResInteractDesc)));
+        bx::read(&_reader, interacts.data(), (uint32_t)(interactSz * sizeof(ResInteractDesc)), nullptr);
 
         // samplers
         stl::vector<uint16_t> sampleImageIds(passMeta.sampleImageNum);
         stl::vector<uint16_t> samplerIds(passMeta.sampleImageNum);
-        read(&_reader, sampleImageIds.data(), passMeta.sampleImageNum * sizeof(uint16_t));
-        read(&_reader, samplerIds.data(), passMeta.sampleImageNum * sizeof(uint16_t));
+        bx::read(&_reader, sampleImageIds.data(), passMeta.sampleImageNum * sizeof(uint16_t), nullptr);
+        bx::read(&_reader, samplerIds.data(), passMeta.sampleImageNum * sizeof(uint16_t), nullptr);
 
         // write op aliases
         stl::vector<CombinedResID> writeOpAliasInIds(passMeta.writeBufAliasNum + passMeta.writeImgAliasNum);
-        read(&_reader, writeOpAliasInIds.data(), (passMeta.writeBufAliasNum + passMeta.writeImgAliasNum) * sizeof(CombinedResID));
+        bx::read(&_reader, writeOpAliasInIds.data(), (passMeta.writeBufAliasNum + passMeta.writeImgAliasNum) * sizeof(CombinedResID), nullptr);
 
         stl::vector<CombinedResID> writeOpAliasOutIds(passMeta.writeBufAliasNum + passMeta.writeImgAliasNum);
-        read(&_reader, writeOpAliasOutIds.data(), (passMeta.writeBufAliasNum + passMeta.writeImgAliasNum) * sizeof(CombinedResID));
+        bx::read(&_reader, writeOpAliasOutIds.data(), (passMeta.writeBufAliasNum + passMeta.writeImgAliasNum) * sizeof(CombinedResID), nullptr);
 
 
         VkPipeline pipeline{};
@@ -1749,15 +1749,15 @@ namespace vkz
         m_passContainer.push_back(passInfo.passId, passInfo);
     }
 
-    void RHIContext_vk::createImage(MemoryReader& _reader)
+    void RHIContext_vk::createImage(bx::MemoryReader& _reader)
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
         ImageCreateInfo info;
-        read(&_reader, info);
+        bx::read(&_reader, info, nullptr);
 
         ImageAliasInfo* resArr = new ImageAliasInfo[info.resCount];
-        read(&_reader, resArr, sizeof(ImageAliasInfo) * info.resCount);
+        bx::read(&_reader, resArr, sizeof(ImageAliasInfo) * info.resCount, nullptr);
 
         // so the res handle should map to the real buffer array
         stl::vector<ImageAliasInfo> infoList(resArr, resArr + info.resCount);
@@ -1812,15 +1812,15 @@ namespace vkz
         VKZ_DELETE_ARRAY(resArr);
     }
 
-    void RHIContext_vk::createBuffer(MemoryReader& _reader)
+    void RHIContext_vk::createBuffer(bx::MemoryReader& _reader)
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
         BufferCreateInfo info;
-        read(&_reader, info);
+        bx::read(&_reader, info, nullptr);
 
         BufferAliasInfo* resArr = new BufferAliasInfo[info.resCount];
-        read(&_reader, resArr, sizeof(BufferAliasInfo) * info.resCount);
+        bx::read(&_reader, resArr, sizeof(BufferAliasInfo) * info.resCount, nullptr);
 
         // so the res handle should map to the real buffer array
         stl::vector<BufferAliasInfo> infoList(resArr, resArr + info.resCount);
@@ -1865,12 +1865,12 @@ namespace vkz
         }
     }
 
-    void RHIContext_vk::createSampler(MemoryReader& _reader)
+    void RHIContext_vk::createSampler(bx::MemoryReader& _reader)
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
         SamplerMetaData meta;
-        read(&_reader, meta);
+        bx::read(&_reader, meta, nullptr);
 
         VkSampler sampler = vkz::createSampler(m_device, getSamplerReductionMode( meta.reductionMode));
         assert(sampler);
@@ -1878,26 +1878,26 @@ namespace vkz
         m_samplerContainer.push_back(meta.samplerId, sampler);
     }
 
-    void RHIContext_vk::createImageView(MemoryReader& _reader)
+    void RHIContext_vk::createImageView(bx::MemoryReader& _reader)
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
         ImageViewDesc desc;
-        read(&_reader, desc);
+        bx::read(&_reader, desc, nullptr);
 
         // only store the descriptor, will do the real creation during image creation
         m_imageViewDescContainer.push_back(desc.imgViewId, desc);
     }
 
-    void RHIContext_vk::setBackBuffers(MemoryReader& _reader)
+    void RHIContext_vk::setBackBuffers(bx::MemoryReader& _reader)
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
         uint32_t count;
-        read(&_reader, count);
+        bx::read(&_reader, count, nullptr);
 
         stl::vector<uint16_t> ids(count);
-        read(&_reader, ids.data(), count * sizeof(uint16_t));
+        bx::read(&_reader, ids.data(), count * sizeof(uint16_t), nullptr);
 
         for (uint16_t id : ids)
         {
@@ -1905,12 +1905,12 @@ namespace vkz
         }
     }
 
-    void RHIContext_vk::setBrief(MemoryReader& _reader)
+    void RHIContext_vk::setBrief(bx::MemoryReader& _reader)
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
         RHIBrief brief;
-        read(&_reader, brief);
+        bx::read(&_reader, brief, nullptr);
 
         m_brief = brief;
     }

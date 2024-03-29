@@ -5,8 +5,10 @@
 #include "vkz_inner.h"
 
 #include "config.h"
-#include "memory_operation.h"
+
 #include "util.h"
+#include "bx/allocator.h"
+#include "bx/readerwriter.h"
 
 namespace vkz
 {
@@ -43,20 +45,21 @@ namespace vkz
     class UniformMemoryBlock
     {
     public:
-        UniformMemoryBlock(AllocatorI* _allocator)
-            : m_pAllocator{ _allocator }
+        UniformMemoryBlock(bx::AllocatorI* _allocator)
+            : m_pbxAllocator{ _allocator }
             , m_pUniformData{ nullptr }
         {
-            m_pUniformData = VKZ_NEW(m_pAllocator, MemoryBlock(m_pAllocator));
-            m_pUniformData->expand(kInitialUniformTotalMemSize);
+            m_pUniformData = (Memory*)bx::alloc(m_pbxAllocator, kInitialUniformTotalMemSize);// BX_NEW(m_pbxAllocator, bx::MemoryBlock)(m_pbxAllocator);
+            //m_pUniformData->expand(kInitialUniformTotalMemSize);
         }
 
         ~UniformMemoryBlock()
         {
-            deleteObject(m_pAllocator, m_pUniformData);
+
+            free(m_pbxAllocator, m_pUniformData);
         }
 
-        inline MemoryBlockI* getMemoryBlock() const { return m_pUniformData; }
+        inline Memory* getMemory() const { return m_pUniformData; }
 
         inline void addUniform(const UniformBuffer& _uniform, const void* _data, uint32_t _size)
         {
@@ -69,7 +72,8 @@ namespace vkz
 
     private:
         AllocatorI* m_pAllocator;
-        MemoryBlockI* m_pUniformData;
+        bx::AllocatorI* m_pbxAllocator;
+        Memory* m_pUniformData;
 
         stl::vector<PassHandle> m_passes;
         stl::vector<UniformBuffer> m_uniforms;
@@ -85,25 +89,23 @@ namespace vkz
     class ConstantsMemoryBlock
     {
     public:
-        ConstantsMemoryBlock(AllocatorI* _allocator)
-            : m_pAllocator{ _allocator }
+        ConstantsMemoryBlock(bx::AllocatorI* _allocator)
+            : m_pbxAllocator{ _allocator }
             , m_pConstantData{ nullptr }
             , m_pWriter{nullptr}
             , m_usedSize{0}
         {
-            m_pConstantData = VKZ_NEW(m_pAllocator, MemoryBlock(m_pAllocator));
-            m_pConstantData->expand(kInitialUniformTotalMemSize);
+            m_pConstantData = BX_NEW(m_pbxAllocator, bx::MemoryBlock)(m_pbxAllocator);
+            m_pConstantData->more(kInitialConstantsTotalMemSize);
 
-            m_pWriter = VKZ_NEW(m_pAllocator, MemoryWriter(m_pConstantData));
+            m_pWriter = BX_NEW(m_pbxAllocator, bx::MemoryWriter)(m_pConstantData);
         }
 
         ~ConstantsMemoryBlock()
         {
-            deleteObject(m_pAllocator, m_pWriter);
-            deleteObject(m_pAllocator, m_pConstantData);
+            bx::deleteObject(m_pbxAllocator, m_pWriter);
+            bx::deleteObject(m_pbxAllocator, m_pConstantData);
         }
-
-        inline MemoryBlockI* getMemoryBlock() const { return m_pConstantData; }
 
         void addConstant(const PassHandle _hPass, uint32_t _size);
 
@@ -112,9 +114,9 @@ namespace vkz
         void updateConstantData(const PassHandle _hPass, const void* _data, uint32_t _size);
 
     private:
-        AllocatorI* m_pAllocator;
-        MemoryBlockI* m_pConstantData;
-        MemoryWriter* m_pWriter;
+        bx::AllocatorI* m_pbxAllocator;
+        bx::MemoryBlockI* m_pConstantData;
+        bx::MemoryWriter* m_pWriter;
 
         stl::vector<PassHandle> m_passes;
         stl::vector<Constants> m_constants;
@@ -149,27 +151,27 @@ namespace vkz
         virtual double getPassTime(const PassHandle _hPass) = 0;
 
     private:
-        virtual void createShader(MemoryReader& reader) = 0;
-        virtual void createProgram(MemoryReader& reader) = 0;
-        virtual void createPass(MemoryReader& reader) = 0;
-        virtual void createImage(MemoryReader& reader) = 0;
-        virtual void createBuffer(MemoryReader& reader) = 0;
-        virtual void createSampler(MemoryReader& _reader) = 0;
-        virtual void createImageView(MemoryReader& _reader) = 0;
-        virtual void setBackBuffers(MemoryReader& _reader) = 0;
-        virtual void setBrief(MemoryReader& reader) = 0;
+        virtual void createShader(bx::MemoryReader& reader) = 0;
+        virtual void createProgram(bx::MemoryReader& reader) = 0;
+        virtual void createPass(bx::MemoryReader& reader) = 0;
+        virtual void createImage(bx::MemoryReader& reader) = 0;
+        virtual void createBuffer(bx::MemoryReader& reader) = 0;
+        virtual void createSampler(bx::MemoryReader& _reader) = 0;
+        virtual void createImageView(bx::MemoryReader& _reader) = 0;
+        virtual void setBackBuffers(bx::MemoryReader& _reader) = 0;
+        virtual void setBrief(bx::MemoryReader& reader) = 0;
     };
 
     class RHIContext : public RHIContextI
     {
     public:
-        RHIContext(AllocatorI* _allocator)
+        RHIContext(bx::AllocatorI* _allocator)
             : m_pAllocator{ _allocator }
             , m_pMemBlockBaked{ nullptr }
             , m_constantsMemBlock{ _allocator }
         {
-            m_pMemBlockBaked = VKZ_NEW(m_pAllocator, MemoryBlock(m_pAllocator));
-            m_pMemBlockBaked->expand(kInitialFrameGraphMemSize);
+            m_pMemBlockBaked = BX_NEW(m_pAllocator, bx::MemoryBlock)(m_pAllocator);
+            m_pMemBlockBaked->more(kInitialFrameGraphMemSize);
         }
 
         virtual ~RHIContext()
@@ -177,8 +179,8 @@ namespace vkz
             deleteObject(m_pAllocator, m_pMemBlockBaked);
         }
 
-        inline MemoryBlockI* memoryBlock() const {return m_pMemBlockBaked;}
-        inline AllocatorI* allocator() const { return m_pAllocator; }
+        inline bx::MemoryBlockI* memoryBlock() const {return m_pMemBlockBaked;}
+        inline bx::AllocatorI* allocator() const { return m_pAllocator; }
 
         void init(RHI_Config _config, void* _wnd) override {};
 
@@ -202,22 +204,22 @@ namespace vkz
     private:
         void parseOp();
 
-        void createShader(MemoryReader& reader) override {};
-        void createProgram(MemoryReader& reader) override {};
-        void createPass(MemoryReader& reader) override {};
-        void createImage(MemoryReader& reader) override {};
-        void createBuffer(MemoryReader& reader) override {};
-        void createSampler(MemoryReader& _reader) override {};
-        void createImageView(MemoryReader& _reader) override {};
-        void setBackBuffers(MemoryReader& _reader) override {};
-        void setBrief(MemoryReader& reader) override {};
+        void createShader(bx::MemoryReader& reader) override {};
+        void createProgram(bx::MemoryReader& reader) override {};
+        void createPass(bx::MemoryReader& reader) override {};
+        void createImage(bx::MemoryReader& reader) override {};
+        void createBuffer(bx::MemoryReader& reader) override {};
+        void createSampler(bx::MemoryReader& _reader) override {};
+        void createImageView(bx::MemoryReader& _reader) override {};
+        void setBackBuffers(bx::MemoryReader& _reader) override {};
+        void setBrief(bx::MemoryReader& reader) override {};
 
     protected:
         ConstantsMemoryBlock m_constantsMemBlock;
-        AllocatorI* m_pAllocator;
+        bx::AllocatorI* m_pAllocator;
     private:
 
-        MemoryBlockI*   m_pMemBlockBaked;
+        bx::MemoryBlockI*   m_pMemBlockBaked;
     };
 
 } // namespace vkz
