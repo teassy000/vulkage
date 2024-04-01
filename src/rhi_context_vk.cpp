@@ -348,6 +348,15 @@ namespace vkz
         case vkz::ResourceFormat::r32g32_sfloat:
             format = VK_FORMAT_R32G32_SFLOAT;
             break;
+        case vkz::ResourceFormat::r32g32b32_uint:
+            format = VK_FORMAT_R32G32B32_UINT;
+            break;
+        case vkz::ResourceFormat::r32g32b32_sint:
+            format = VK_FORMAT_R32G32B32_SINT;
+            break;
+        case vkz::ResourceFormat::r32g32b32_sfloat:
+            format = VK_FORMAT_R32G32B32_SFLOAT;
+            break;
         case vkz::ResourceFormat::b8g8r8a8_snorm:
             format = VK_FORMAT_B8G8R8A8_SNORM;
             break;
@@ -388,18 +397,29 @@ namespace vkz
 
     VkFormat getValidFormat(ResourceFormat _format, ImageUsageFlags _usage, VkFormat _color, VkFormat _depth)
     {
+        // attachments
         if (_usage &= ImageUsageFlagBits::color_attachment)
         {
             return _color;
         }
-        else if (_usage &= ImageUsageFlagBits::depth_stencil_attachment)
+        if (_usage &= ImageUsageFlagBits::depth_stencil_attachment)
         {
             return _depth;
         }
-        else
+
+        // undefined
+        if (_format == ResourceFormat::undefined)
         {
-            return getFormat(_format);
+            message(warning, "undefined color format! using attachment default format instead!");
+            return _color;
         }
+        if(_format == ResourceFormat::unknown_depth)
+        {
+            message(warning, "undefined depth format! using attachment default format instead!");
+            return _depth;
+        }
+
+        return getFormat(_format);
     }
 
     VkPipelineBindPoint getBindPoint(const stl::vector<Shader_vk>& shaders)
@@ -463,6 +483,22 @@ namespace vkz
         }
 
         return compareOp;
+    }
+
+    VkCullModeFlags getCullMode(CullModeFlags _mode)
+    {
+        VkCullModeFlags mode = VK_CULL_MODE_NONE;
+        
+        if (_mode & CullModeFlagBits::front)
+        {
+            mode |= VK_CULL_MODE_FRONT_BIT;
+        }
+        if (_mode & CullModeFlagBits::back)
+        {
+            mode |= VK_CULL_MODE_BACK_BIT;
+        }
+
+        return mode;
     }
 
     VkVertexInputRate getInputRate(VertexInputRate _rate)
@@ -966,10 +1002,10 @@ namespace vkz
         }
 
         const vkz::Memory* vtxBindingMem = vkz::alloc(uint32_t(sizeof(VkVertexInputBindingDescription) * bindings.size()));
-        memcpy(vtxBindingMem->data, bindings.data(), sizeof(VkVertexInputAttributeDescription) * bindings.size());
+        memcpy(vtxBindingMem->data, bindings.data(), sizeof(VkVertexInputBindingDescription) * bindings.size());
 
-        const vkz::Memory* vtxAttributeMem = vkz::alloc(uint32_t(sizeof(vkz::VertexAttributeDesc) * attributes.size()));
-        memcpy(vtxAttributeMem->data, attributes.data(), sizeof(vkz::VertexAttributeDesc) * attributes.size());
+        const vkz::Memory* vtxAttributeMem = vkz::alloc(uint32_t(sizeof(VkVertexInputAttributeDescription) * attributes.size()));
+        memcpy(vtxAttributeMem->data, attributes.data(), sizeof(VkVertexInputAttributeDescription) * attributes.size());
 
         _out.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
         _out.vertexBindingDescriptionCount = (uint32_t)bindings.size();
@@ -1584,7 +1620,12 @@ namespace vkz
             VkPipelineVertexInputStateCreateInfo vtxInputCreateInfo{};
             bool hasVIS = getVertexInputState(vtxInputCreateInfo, passVertexBinding, passVertexAttribute);
 
-            PipelineConfigs_vk configs{ passMeta.pipelineConfig.enableDepthTest, passMeta.pipelineConfig.enableDepthWrite, getCompareOp(passMeta.pipelineConfig.depthCompOp) };
+            PipelineConfigs_vk configs{ 
+                passMeta.pipelineConfig.enableDepthTest
+                , passMeta.pipelineConfig.enableDepthWrite
+                , getCompareOp(passMeta.pipelineConfig.depthCompOp) 
+                , getCullMode(passMeta.pipelineConfig.cullMode)
+            };
 
             VkPipelineCache cache{};
             pipeline = vkz::createGraphicsPipeline(m_device, cache, program.layout, renderInfo, shaders, hasVIS ? &vtxInputCreateInfo : nullptr, pipelineSpecData, configs);
@@ -1617,7 +1658,10 @@ namespace vkz
         passInfo.pipeline = pipeline;
 
         passInfo.vertexBufferId = passMeta.vertexBufferId;
+        passInfo.vertexCount = passMeta.vertexCount;
         passInfo.indexBufferId = passMeta.indexBufferId;
+        passInfo.indexCount = passMeta.indexCount;
+
         passInfo.indirectBufferId = passMeta.indirectBufferId;
         passInfo.indirectBufOffset = passMeta.indirectBufOffset;
         passInfo.indirectBufStride = passMeta.indirectBufStride;

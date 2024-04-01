@@ -28,8 +28,8 @@ namespace vkz
     BufferHandle alias(const BufferHandle _hBuf);
     ImageHandle alias(const ImageHandle _img);
 
-    void bindVertexBuffer(PassHandle _hPass, BufferHandle _hBuf);
-    void bindIndexBuffer(PassHandle _hPass, BufferHandle _hBuf);
+    void bindVertexBuffer(PassHandle _hPass, BufferHandle _hBuf, const uint32_t _vtxCount = 0);
+    void bindIndexBuffer(PassHandle _hPass, BufferHandle _hBuf, const uint32_t _idxCount = 0);
 
     void setIndirectBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset, uint32_t _stride, uint32_t _maxCount);
     void setIndirectCountBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset);

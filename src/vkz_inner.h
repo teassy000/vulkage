@@ -237,6 +237,10 @@ namespace vkz
 
         uint16_t    sampleImageNum{ 0 };
 
+        uint32_t    indexCount{ 0 };
+        uint32_t    vertexCount{ 0 };
+        uint32_t    instanceCount{ 0 };
+
         uint32_t    indirectBufOffset{ 0 };
         uint32_t    indirectCountBufOffset{ 0 };
         uint32_t    indirectMaxDrawCount{ 0 };

@@ -11,6 +11,7 @@
 #include "vkz_vtx_pip.h"
 #include "vkz_culling_pass.h"
 #include "time.h"
+#include "vkz_skybox_pass.h"
 
 static DemoData demo{};
 
@@ -206,6 +207,13 @@ void meshDemo()
         prepareCullingComp(culling, cullingInit, false, supportMeshShading);
     }
 
+
+    SkyboxRendering skybox{};
+    {
+        vkz::ImageHandle sbColorIn = color;
+        initSkyboxPass(skybox, transformBuf, sbColorIn);
+    }
+
     if(!supportMeshShading)
     {
         VtxShadingInitData vsInit{};
@@ -216,7 +224,7 @@ void meshDemo()
         vsInit.meshDrawCmdBuf = culling.meshDrawCmdBufOutAlias;
         vsInit.transformBuf = transformBuf;
         vsInit.meshDrawCmdCountBuf = culling.meshDrawCmdCountBufOutAlias;
-        vsInit.color = color;
+        vsInit.color = skybox.colorOutAlias;
         vsInit.depth = depth;
 
         prepareVtxShading(vtxShading, scene, vsInit);
@@ -238,7 +246,7 @@ void meshDemo()
 
         msInit.pyramid = pyRendering.image;
 
-        msInit.color = color;
+        msInit.color = skybox.colorOutAlias;
         msInit.depth = depth;
         prepareMeshShading(meshShading, scene, config.windowWidth, config.windowHeight, msInit);
     }
@@ -338,6 +346,7 @@ void meshDemo()
 
     double clockDuration = 0.0;
     double avgCpuTime = 0.0;
+
     while (!vkz::shouldClose())
     {
         clock_t startFrameTime = clock();
@@ -403,7 +412,7 @@ void meshDemo()
         vkz::updateBuffer(transformBuf, vkz::copy(memTransform));
 
         // update profiling data to GPU from last frame
-        if ( clockDuration > 1000.0 )
+        if ( clockDuration > 300.0)
         {
             vkz_updateImGui(demo.input, demo.renderOptions, demo.profiling, demo.logic);
             vkz_updateUIRenderData(ui);

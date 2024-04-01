@@ -18,8 +18,10 @@ layout (location = 1) out vec3 outColor;
 
 void main() 
 {
-	outUVW = (inPos + vec3(1.0))/2.0;
-	outUVW.xy *= -1.0;
-	gl_Position = trans.proj * trans.view * vec4(inPos.xyz, 1.0);
+	outUVW = (inPos + vec3(1.0)) * 0.5;
+	
+	mat4 viewWithoutTranslation = mat4(trans.view[0], trans.view[1], trans.view[2], vec4(vec3(0.0), 1.0));
+
+	gl_Position = trans.proj *viewWithoutTranslation * vec4(inPos, 1.0);
 	outColor = vec3(1.0, 0.0, 0.0);
 }

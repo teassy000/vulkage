@@ -36,6 +36,7 @@ namespace vkz
         bool enableDepthTest{ true };
         bool enableDepthWrite{ true };
         VkCompareOp depthCompOp{ VK_COMPARE_OP_GREATER };
+        VkCullModeFlags cullMode{ VK_CULL_MODE_BACK_BIT };
     };
 
     bool loadShader(Shader_vk& shader, VkDevice device, const char* path);

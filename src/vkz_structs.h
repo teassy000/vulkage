@@ -232,6 +232,21 @@ namespace vkz
         uint32,
     };
 
+    namespace CullModeFlagBits
+    {
+        enum Enum : uint16_t
+        {
+            none = 0,
+
+            front = 1 >> 0,
+            back = 1 >> 1,
+            front_and_back = front | back,
+            
+            max_enum = 0x7fff,
+        };
+    };
+    using CullModeFlags = uint16_t;
+
     namespace BufferUsageFlagBits
     {
         enum Enum : uint16_t
@@ -520,6 +535,7 @@ namespace vkz
         bool enableDepthTest{ true };
         bool enableDepthWrite{ true };
         CompareOp depthCompOp{ CompareOp::greater };
+        CullModeFlags cullMode{ CullModeFlagBits::back };
     };
 
     struct Viewport {

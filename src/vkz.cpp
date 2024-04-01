@@ -553,8 +553,8 @@ namespace vkz
         ImageHandle aliasImage(const ImageHandle  _baseImg);
 
         // read-only data, no barrier required
-        void bindVertexBuffer(const PassHandle _hPass, const BufferHandle _hBuf);
-        void bindIndexBuffer(const PassHandle _hPass, const BufferHandle _hBuf);
+        void bindVertexBuffer(const PassHandle _hPass, const BufferHandle _hBuf, const uint32_t _vtxCount);
+        void bindIndexBuffer(const PassHandle _hPass, const BufferHandle _hBuf, const uint32_t _idxCount);
 
         void setIndirectBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset, uint32_t _stride, uint32_t _defaultMaxCount);
         void setIndirectCountBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset);
@@ -1649,10 +1649,12 @@ namespace vkz
         return vecSize;
     }
 
-    void Context::bindVertexBuffer(const PassHandle _hPass, const BufferHandle _hBuf)
+    void Context::bindVertexBuffer(const PassHandle _hPass, const BufferHandle _hBuf, const uint32_t _vtxCount)
     {
         PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
         passMeta.vertexBufferId = _hBuf.id;
+
+        passMeta.vertexCount = _vtxCount;
 
         ResInteractDesc interact{};
         interact.binding = kDescriptorSetBindingDontCare;
@@ -1664,10 +1666,12 @@ namespace vkz
         setRenderGraphDataDirty();
     }
 
-    void Context::bindIndexBuffer(const PassHandle _hPass, const BufferHandle _hBuf)
+    void Context::bindIndexBuffer(const PassHandle _hPass, const BufferHandle _hBuf, const uint32_t _idxCount)
     {
         PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
         passMeta.indexBufferId = _hBuf.id;
+
+        passMeta.indexCount = _idxCount;
 
         ResInteractDesc interact{};
         interact.binding = kDescriptorSetBindingDontCare;
@@ -2223,14 +2227,14 @@ namespace vkz
         return s_ctx->aliasImage(_baseImg);
     }
 
-    void bindVertexBuffer(PassHandle _hPass, BufferHandle _buf)
+    void bindVertexBuffer(PassHandle _hPass, BufferHandle _hBuf, const uint32_t _vtxCount /*= 0*/)
     {
-        s_ctx->bindVertexBuffer(_hPass, _buf);
+        s_ctx->bindVertexBuffer(_hPass, _hBuf, _vtxCount);
     }
 
-    void bindIndexBuffer(PassHandle _hPass, BufferHandle _buf)
+    void bindIndexBuffer(PassHandle _hPass, BufferHandle _hBuf, const uint32_t _idxCount /*= 0*/)
     {
-        s_ctx->bindIndexBuffer(_hPass, _buf);
+        s_ctx->bindIndexBuffer(_hPass, _hBuf, _idxCount);
     }
 
     void setIndirectBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset, uint32_t _stride, uint32_t _maxCount)
