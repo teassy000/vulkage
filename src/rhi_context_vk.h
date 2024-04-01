@@ -97,16 +97,16 @@ namespace vkz
 
         // barrier status expect in current pass
         std::pair<uint16_t, BarrierState_vk> writeDepth{ kInvalidHandle, {} };
-        UniDataContainer< uint16_t, BarrierState_vk> writeColors;
-        UniDataContainer< uint16_t, BarrierState_vk> readImages;
-        UniDataContainer< uint16_t, BarrierState_vk> readBuffers;
-        UniDataContainer< uint16_t, BarrierState_vk> writeBuffers;
+        ContinuousMap< uint16_t, BarrierState_vk> writeColors;
+        ContinuousMap< uint16_t, BarrierState_vk> readImages;
+        ContinuousMap< uint16_t, BarrierState_vk> readBuffers;
+        ContinuousMap< uint16_t, BarrierState_vk> writeBuffers;
 
         // samplers for image
-        UniDataContainer<uint16_t, uint16_t>    imageToSamplerIds;
+        ContinuousMap<uint16_t, uint16_t>    imageToSamplerIds;
 
         // write op base to alias
-        UniDataContainer<CombinedResID, CombinedResID> writeOpInToOut;
+        ContinuousMap<CombinedResID, CombinedResID> writeOpInToOut;
 
         // for one op passes:
         // copy/blit/fill etc.
@@ -281,17 +281,17 @@ namespace vkz
         }
 
     private:
-        UniDataContainer<uint16_t, Buffer_vk> m_bufferContainer;
-        UniDataContainer<uint16_t, Image_vk> m_imageContainer;
-        UniDataContainer<uint16_t, Shader_vk> m_shaderContainer;
-        UniDataContainer<uint16_t, Program_vk> m_programContainer;
-        UniDataContainer<uint16_t, PassInfo_vk> m_passContainer;
-        UniDataContainer<uint16_t, VkSampler> m_samplerContainer;
-        UniDataContainer<uint16_t, VkImageView> m_imageViewContainer;
+        ContinuousMap<uint16_t, Buffer_vk> m_bufferContainer;
+        ContinuousMap<uint16_t, Image_vk> m_imageContainer;
+        ContinuousMap<uint16_t, Shader_vk> m_shaderContainer;
+        ContinuousMap<uint16_t, Program_vk> m_programContainer;
+        ContinuousMap<uint16_t, PassInfo_vk> m_passContainer;
+        ContinuousMap<uint16_t, VkSampler> m_samplerContainer;
+        ContinuousMap<uint16_t, VkImageView> m_imageViewContainer;
 
-        UniDataContainer<uint16_t, ImageViewDesc> m_imageViewDescContainer;
-        UniDataContainer<uint16_t, BufferCreateInfo> m_bufferCreateInfoContainer;
-        UniDataContainer<uint16_t, ImageCreateInfo> m_imageInitPropContainer;
+        ContinuousMap<uint16_t, ImageViewDesc> m_imageViewDescContainer;
+        ContinuousMap<uint16_t, BufferCreateInfo> m_bufferCreateInfoContainer;
+        ContinuousMap<uint16_t, ImageCreateInfo> m_imageInitPropContainer;
 
         stl::unordered_set<uint16_t> m_backBufferIds;
 
@@ -300,8 +300,8 @@ namespace vkz
         stl::vector<stl::vector<uint16_t>> m_programShaderIds;
         stl::vector<uint32_t>           m_progThreadCount;
 
-        UniDataContainer< uint16_t, uint16_t> m_aliasToBaseImages;
-        UniDataContainer< uint16_t, uint16_t> m_aliasToBaseBuffers;
+        ContinuousMap< uint16_t, uint16_t> m_aliasToBaseImages;
+        ContinuousMap< uint16_t, uint16_t> m_aliasToBaseBuffers;
 
         stl::unordered_map<uint16_t, uint16_t> m_imgToViewGroupIdx;
         stl::vector<stl::vector<ImageViewHandle>> m_imgViewGroups;

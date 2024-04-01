@@ -1421,7 +1421,7 @@ namespace vkz
 
 
             Buffer_vk newBuf = vkz::createBuffer(info, m_memProps, m_device, getBufferUsageFlags(createInfo.usage), getMemPropFlags(createInfo.memFlags));
-            m_bufferContainer.update_data(_hBuf.id, newBuf);
+            m_bufferContainer.update(_hBuf.id, newBuf);
 
             ResInteractDesc interact{ createInfo.barrierState };
             m_barrierDispatcher.addBuffer(
@@ -1477,7 +1477,7 @@ namespace vkz
         bool lsr = loadShader(shader, m_device, path);
         assert(lsr);
 
-        m_shaderContainer.push_back(info.shaderId, shader);
+        m_shaderContainer.addOrUpdate(info.shaderId, shader);
     }
 
     void RHIContext_vk::createProgram(bx::MemoryReader& _reader)
@@ -1499,7 +1499,7 @@ namespace vkz
         VkPipelineBindPoint bindPoint = getBindPoint(shaders);
         Program_vk prog = vkz::createProgram(m_device, bindPoint, shaders, info.sizePushConstants);
 
-        m_programContainer.push_back(info.progId, prog);
+        m_programContainer.addOrUpdate(info.progId, prog);
         m_programShaderIds.emplace_back(shaderIds);
 
         assert(m_programContainer.size() == m_programShaderIds.size());
@@ -1564,7 +1564,7 @@ namespace vkz
         if (passMeta.queue == PassExeQueue::graphics)
         {
             // create pipeline
-            const uint16_t progIdx = (uint16_t)m_programContainer.getIndex(passMeta.programId);
+            const uint16_t progIdx = (uint16_t)m_programContainer.getIdIndex(passMeta.programId);
             const Program_vk& program = m_programContainer.getIdToData(passMeta.programId);
             const stl::vector<uint16_t>& shaderIds = m_programShaderIds[progIdx];
 
@@ -1593,7 +1593,7 @@ namespace vkz
         else if (passMeta.queue == PassExeQueue::compute)
         {
             // create pipeline
-            const uint16_t progIdx = (uint16_t)m_programContainer.getIndex(passMeta.programId);
+            const uint16_t progIdx = (uint16_t)m_programContainer.getIdIndex(passMeta.programId);
             const Program_vk& program = m_programContainer.getIdToData(passMeta.programId);
             const stl::vector<uint16_t>& shaderIds = m_programShaderIds[progIdx];
 
@@ -1657,13 +1657,13 @@ namespace vkz
         size_t offset = 0; // the depth is the first one
         auto preparePassBarriers = [&interacts, &offset, getBarrierState](
               const stl::vector<uint16_t>& _ids
-            , UniDataContainer< uint16_t, BarrierState_vk>& _container
+            , ContinuousMap< uint16_t, BarrierState_vk>& _container
             , stl::vector<std::pair<uint32_t, CombinedResID>>& _bindings
             , const ResourceType _type
             ) {
                 for (uint32_t ii = 0; ii < _ids.size(); ++ii)
                 {
-                    _container.push_back(_ids[ii], getBarrierState(interacts[offset + ii]));
+                    _container.addOrUpdate(_ids[ii], getBarrierState(interacts[offset + ii]));
 
                     const uint32_t bindPoint = interacts[offset + ii].binding;
 
@@ -1717,7 +1717,7 @@ namespace vkz
         // samplers
         for (uint16_t ii = 0; ii < passMeta.sampleImageNum; ++ii)
         {
-            passInfo.imageToSamplerIds.push_back(sampleImageIds[ii], samplerIds[ii]);
+            passInfo.imageToSamplerIds.addOrUpdate(sampleImageIds[ii], samplerIds[ii]);
         }
 
         // push constants
@@ -1742,11 +1742,11 @@ namespace vkz
             assert(writeOpAliasOutIds.size() == writeOpAliasCount);
             for (uint32_t ii = 0; ii < writeOpAliasCount; ++ii )
             {
-                passInfo.writeOpInToOut.push_back(writeOpAliasInIds[ii], writeOpAliasOutIds[ii]);
+                passInfo.writeOpInToOut.addOrUpdate(writeOpAliasInIds[ii], writeOpAliasOutIds[ii]);
             }
         }
 
-        m_passContainer.push_back(passInfo.passId, passInfo);
+        m_passContainer.addOrUpdate(passInfo.passId, passInfo);
     }
 
     void RHIContext_vk::createImage(bx::MemoryReader& _reader)
@@ -1768,12 +1768,12 @@ namespace vkz
         vkz::createImage(images, infoList, m_device, m_memProps, initPorps);
         assert(images.size() == info.resCount);
 
-        m_imageInitPropContainer.push_back(info.imgId, info);
+        m_imageInitPropContainer.addOrUpdate(info.imgId, info);
 
         for (int ii = 0; ii < info.resCount; ++ii)
         {
-            m_imageContainer.push_back(resArr[ii].imgId, images[ii]);
-            m_aliasToBaseImages.push_back(resArr[ii].imgId, info.imgId);
+            m_imageContainer.addOrUpdate(resArr[ii].imgId, images[ii]);
+            m_aliasToBaseImages.addOrUpdate(resArr[ii].imgId, info.imgId);
             m_imgIdToAliasGroupIdx.insert({ resArr[ii].imgId, (uint32_t)m_imgAliasGroups.size() });
         }
         m_imgAliasGroups.emplace_back(infoList);
@@ -1786,7 +1786,7 @@ namespace vkz
             const ImageViewDesc& viewDesc = m_imageViewDescContainer.getIdToData(imgView.id);
 
             VkImageView view_vk = vkz::createImageView(m_device, baseImage.image, baseImage.format, viewDesc.baseMip, viewDesc.mipLevels);
-            m_imageViewContainer.push_back(imgView.id, view_vk);
+            m_imageViewContainer.addOrUpdate(imgView.id, view_vk);
         }
 
         m_imgToViewGroupIdx.insert({ info.imgId, (uint16_t)m_imgViewGroups.size() });
@@ -1833,14 +1833,14 @@ namespace vkz
         for (int ii = 0; ii < info.resCount; ++ii)
         {
             buffers[ii].fillVal = info.fillVal;
-            m_bufferContainer.push_back(resArr[ii].bufId, buffers[ii]);
-            m_aliasToBaseBuffers.push_back(resArr[ii].bufId, info.bufId);
+            m_bufferContainer.addOrUpdate(resArr[ii].bufId, buffers[ii]);
+            m_aliasToBaseBuffers.addOrUpdate(resArr[ii].bufId, info.bufId);
 
             m_bufIdToAliasGroupIdx.insert({ resArr[ii].bufId, (uint16_t)m_bufAliasGroups.size() });
         }
         m_bufAliasGroups.emplace_back(infoList);
 
-        m_bufferCreateInfoContainer.push_back(info.bufId, info);
+        m_bufferCreateInfoContainer.addOrUpdate(info.bufId, info);
 
         const Buffer_vk& baseBuffer = getBuffer(info.bufId);
         for (int ii = 0; ii < info.resCount; ++ii)
@@ -1875,7 +1875,7 @@ namespace vkz
         VkSampler sampler = vkz::createSampler(m_device, getSamplerReductionMode( meta.reductionMode));
         assert(sampler);
 
-        m_samplerContainer.push_back(meta.samplerId, sampler);
+        m_samplerContainer.addOrUpdate(meta.samplerId, sampler);
     }
 
     void RHIContext_vk::createImageView(bx::MemoryReader& _reader)
@@ -1886,7 +1886,7 @@ namespace vkz
         bx::read(&_reader, desc, nullptr);
 
         // only store the descriptor, will do the real creation during image creation
-        m_imageViewDescContainer.push_back(desc.imgViewId, desc);
+        m_imageViewDescContainer.addOrUpdate(desc.imgViewId, desc);
     }
 
     void RHIContext_vk::setBackBuffers(bx::MemoryReader& _reader)
@@ -1989,7 +1989,7 @@ namespace vkz
 
             for (uint16_t ii = 0 ; ii < aliases.size(); ++ii)
             {
-                m_imageContainer.update_data(aliases[ii].imgId, images[ii]);
+                m_imageContainer.update(aliases[ii].imgId, images[ii]);
             }
 
             // views
@@ -2003,7 +2003,7 @@ namespace vkz
                 {
                     const ImageViewDesc& viewDesc = m_imageViewDescContainer.getIdToData(view.id);
                     VkImageView view_vk = vkz::createImageView(m_device, baseImg.image, baseImg.format, viewDesc.baseMip, viewDesc.mipLevels);
-                    m_imageViewContainer.update_data(view.id, view_vk);
+                    m_imageViewContainer.update(view.id, view_vk);
                 }
             }
 
@@ -2720,7 +2720,7 @@ namespace vkz
         pushDescriptorSetWithTemplates(_passId);
 
         // get the dispatch size
-        const uint16_t progIdx = (uint16_t)m_programContainer.getIndex(passInfo.programId);
+        const uint16_t progIdx = (uint16_t)m_programContainer.getIdIndex(passInfo.programId);
         const stl::vector<uint16_t>& shaderIds = m_programShaderIds[progIdx];
         assert(shaderIds.size() == 1);
         const Shader_vk& shader = m_shaderContainer.getIdToData(shaderIds[0]);

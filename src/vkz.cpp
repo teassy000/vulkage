@@ -1,7 +1,5 @@
 #include "common.h"
 
-#include "handle.h"
-
 #include "vkz_inner.h"
 
 #include "config.h"
@@ -22,6 +20,7 @@
 #include "bx/readerwriter.h"
 #include "bx/settings.h"
 #include "bx/string.h"
+#include "bx/handlealloc.h"
 
 
 namespace vkz
@@ -617,53 +616,53 @@ namespace vkz
 
         double getPassTime(const PassHandle _hPass);
 
-        HandleArrayT<kMaxNumOfShaderHandle> m_shaderHandles;
-        HandleArrayT<kMaxNumOfProgramHandle> m_programHandles;
-        HandleArrayT<kMaxNumOfPassHandle> m_passHandles;
-        HandleArrayT<kMaxNumOfBufferHandle> m_bufferHandles;
-        HandleArrayT<kMaxNumOfImageHandle> m_imageHandles;
-        HandleArrayT<kMaxNumOfImageViewHandle> m_imageViewHandles;
-        HandleArrayT<kMaxNumOfSamplerHandle> m_samplerHandles;
+        bx::HandleAllocT<kMaxNumOfShaderHandle> m_shaderHandles;
+        bx::HandleAllocT<kMaxNumOfProgramHandle> m_programHandles;
+        bx::HandleAllocT<kMaxNumOfPassHandle> m_passHandles;
+        bx::HandleAllocT<kMaxNumOfBufferHandle> m_bufferHandles;
+        bx::HandleAllocT<kMaxNumOfImageHandle> m_imageHandles;
+        bx::HandleAllocT<kMaxNumOfImageViewHandle> m_imageViewHandles;
+        bx::HandleAllocT<kMaxNumOfSamplerHandle> m_samplerHandles;
         
         ImageHandle m_presentImage{kInvalidHandle};
         uint32_t m_presentMipLevel{ 0 };
 
         // resource Info
-        UniDataContainer<ShaderHandle, std::string> m_shaderDescs;
-        UniDataContainer<ProgramHandle, ProgramDesc> m_programDescs;
-        UniDataContainer<BufferHandle, BufferMetaData> m_bufferMetas;
-        UniDataContainer<ImageHandle, ImageMetaData> m_imageMetas;
-        UniDataContainer<PassHandle, PassMetaData> m_passMetas;
-        UniDataContainer<SamplerHandle, SamplerDesc> m_samplerDescs;
-        UniDataContainer<ImageViewHandle, ImageViewDesc> m_imageViewDesc;
+        ContinuousMap<ShaderHandle, std::string> m_shaderDescs;
+        ContinuousMap<ProgramHandle, ProgramDesc> m_programDescs;
+        ContinuousMap<BufferHandle, BufferMetaData> m_bufferMetas;
+        ContinuousMap<ImageHandle, ImageMetaData> m_imageMetas;
+        ContinuousMap<PassHandle, PassMetaData> m_passMetas;
+        ContinuousMap<SamplerHandle, SamplerDesc> m_samplerDescs;
+        ContinuousMap<ImageViewHandle, ImageViewDesc> m_imageViewDesc;
 
         // alias
         stl::unordered_map<uint16_t, BufferHandle> m_bufferAliasMapToBase;
         stl::unordered_map<uint16_t, ImageHandle> m_imageAliasMapToBase;
 
-        UniDataContainer<BufferHandle, stl::vector<BufferHandle>> m_aliasBuffers;
-        UniDataContainer<ImageHandle, stl::vector<ImageHandle>> m_aliasImages;
+        ContinuousMap<BufferHandle, stl::vector<BufferHandle>> m_aliasBuffers;
+        ContinuousMap<ImageHandle, stl::vector<ImageHandle>> m_aliasImages;
 
         // read/write resources
-        UniDataContainer<PassHandle, stl::vector<PassResInteract>> m_readBuffers;
-        UniDataContainer<PassHandle, stl::vector<PassResInteract>> m_writeBuffers;
-        UniDataContainer<PassHandle, stl::vector<PassResInteract>> m_readImages;
-        UniDataContainer<PassHandle, stl::vector<PassResInteract>> m_writeImages;
-        UniDataContainer<PassHandle, stl::vector<WriteOperationAlias>> m_writeForcedBufferAliases; // add a dependency line to the write resource
-        UniDataContainer<PassHandle, stl::vector<WriteOperationAlias>> m_writeForcedImageAliases; // add a dependency line to the write resource
+        ContinuousMap<PassHandle, stl::vector<PassResInteract>> m_readBuffers;
+        ContinuousMap<PassHandle, stl::vector<PassResInteract>> m_writeBuffers;
+        ContinuousMap<PassHandle, stl::vector<PassResInteract>> m_readImages;
+        ContinuousMap<PassHandle, stl::vector<PassResInteract>> m_writeImages;
+        ContinuousMap<PassHandle, stl::vector<WriteOperationAlias>> m_writeForcedBufferAliases; // add a dependency line to the write resource
+        ContinuousMap<PassHandle, stl::vector<WriteOperationAlias>> m_writeForcedImageAliases; // add a dependency line to the write resource
 
         // back buffers
         stl::vector<ImageHandle> m_backBuffers;
 
         // binding
-        UniDataContainer<PassHandle, stl::vector<uint32_t>> m_usedBindPoints;
-        UniDataContainer<PassHandle, stl::vector<uint32_t>> m_usedAttchBindPoints;
+        ContinuousMap<PassHandle, stl::vector<uint32_t>> m_usedBindPoints;
+        ContinuousMap<PassHandle, stl::vector<uint32_t>> m_usedAttchBindPoints;
 
         // push constants
-        UniDataContainer<ProgramHandle, void *> m_pushConstants;
+        ContinuousMap<ProgramHandle, void *> m_pushConstants;
 
         // 1-operation pass: blit/copy/fill 
-        UniDataContainer<PassHandle, uint8_t> m_oneOpPassTouched;
+        ContinuousMap<PassHandle, uint8_t> m_oneOpPassTouched;
 
         // Memories
         stl::vector<const Memory*> m_inputMemories;
@@ -825,7 +824,7 @@ namespace vkz
             return ShaderHandle{ kInvalidHandle };
         }
 
-        m_shaderDescs.push_back({ idx }, _path);
+        m_shaderDescs.addOrUpdate({ idx }, _path);
         
         setName(m_pNameManager, _name, strlen(_name), handle);
 
@@ -852,7 +851,7 @@ namespace vkz
         desc.sizePushConstants = _sizePushConstants;
         memcpy_s(desc.shaderIds, COUNTOF(desc.shaderIds), _mem->data, _mem->size);
         release(_mem);
-        m_programDescs.push_back({ idx }, desc);
+        m_programDescs.addOrUpdate({ idx }, desc);
 
         setName(m_pNameManager, _name, strlen(_name), handle);
 
@@ -875,9 +874,9 @@ namespace vkz
 
         PassMetaData meta{ _desc };
         meta.passId = idx;
-        m_passMetas.push_back({ idx }, meta);
+        m_passMetas.addOrUpdate({ idx }, meta);
 
-        m_oneOpPassTouched.push_back({ idx }, kUnTouched);
+        m_oneOpPassTouched.addOrUpdate({ idx }, kUnTouched);
 
         setName(m_pNameManager, _name, strlen(_name), handle);
 
@@ -910,7 +909,7 @@ namespace vkz
             m_inputMemories.push_back(_mem);
         }
 
-        m_bufferMetas.push_back({ idx }, meta);
+        m_bufferMetas.addOrUpdate({ idx }, meta);
 
         setName(m_pNameManager, _name, strlen(_name), handle);
 
@@ -945,7 +944,7 @@ namespace vkz
             m_inputMemories.push_back(_mem);
         }
 
-        m_imageMetas.push_back({ idx }, meta);
+        m_imageMetas.addOrUpdate({ idx }, meta);
 
         setName(m_pNameManager, _name, strlen(_name), handle);
 
@@ -987,7 +986,7 @@ namespace vkz
         meta.aspectFlags = ImageAspectFlagBits::color;
         meta.lifetime = _lifetime;
 
-        m_imageMetas.push_back(handle, meta);
+        m_imageMetas.addOrUpdate(handle, meta);
 
         m_backBuffers.push_back(handle);
 
@@ -1032,7 +1031,7 @@ namespace vkz
         meta.aspectFlags = ImageAspectFlagBits::depth;
         meta.lifetime = _lifetime;
 
-        m_imageMetas.push_back(handle, meta);
+        m_imageMetas.addOrUpdate(handle, meta);
 
         m_backBuffers.push_back(handle);
         setName(m_pNameManager, _name, strlen(_name), handle);
@@ -1061,7 +1060,7 @@ namespace vkz
         }
 
         ImageViewDesc desc{ _hImg.id, idx, _baseMip, _mipLevel };
-        m_imageViewDesc.push_back({ idx }, desc);
+        m_imageViewDesc.addOrUpdate({ idx }, desc);
 
 
         ImageMetaData& imgMeta = m_imageMetas.getDataRef(_hImg);
@@ -1107,7 +1106,7 @@ namespace vkz
                 return SamplerHandle{ kInvalidHandle };
             }
             
-            m_samplerDescs.push_back({ samplerId }, _desc);
+            m_samplerDescs.addOrUpdate({ samplerId }, _desc);
         }
 
         return SamplerHandle{ samplerId };
@@ -1196,7 +1195,7 @@ namespace vkz
         for (uint16_t ii = 0; ii < passCount; ++ii)
         {
             auto getResInteractNum = [](
-                const UniDataContainer<PassHandle, stl::vector<PassResInteract>>& __cont
+                const ContinuousMap<PassHandle, stl::vector<PassResInteract>>& __cont
                 , const PassHandle __pass) -> uint32_t
             {
                 if (__cont.exist(__pass)) {
@@ -1508,12 +1507,12 @@ namespace vkz
             stl::vector<BufferHandle> aliasVec{};
             aliasVec.emplace_back(BufferHandle{ aliasId });
 
-            m_aliasBuffers.push_back({ actualBase }, aliasVec);
+            m_aliasBuffers.addOrUpdate({ actualBase }, aliasVec);
         }
 
         BufferMetaData meta = { m_bufferMetas.getIdToData(actualBase) };
         meta.bufId = aliasId;
-        m_bufferMetas.push_back({ aliasId }, meta);
+        m_bufferMetas.addOrUpdate({ aliasId }, meta);
 
         bx::StringView baseName = getName(actualBase);
         setName(getNameManager(), baseName.getPtr(), baseName.getLength(), BufferHandle{ aliasId }, true);
@@ -1548,12 +1547,12 @@ namespace vkz
             stl::vector<ImageHandle> aliasVec{};
             aliasVec.emplace_back(ImageHandle{ aliasId });
 
-            m_aliasImages.push_back({ actualBase }, aliasVec);
+            m_aliasImages.addOrUpdate({ actualBase }, aliasVec);
         }
 
         ImageMetaData meta = { m_imageMetas.getIdToData(actualBase) };
         meta.imgId = aliasId;
-        m_imageMetas.push_back({ aliasId }, meta);
+        m_imageMetas.addOrUpdate({ aliasId }, meta);
 
         bx::StringView baseName = getName(actualBase);
         setName(getNameManager(), baseName.getPtr(), baseName.getLength(), ImageHandle{ aliasId }, true);
@@ -1563,7 +1562,7 @@ namespace vkz
         return { aliasId };
     }
 
-    uint32_t availableBinding(UniDataContainer<PassHandle, stl::vector<uint32_t>>& _container, const PassHandle _hPass, const uint32_t _binding)
+    uint32_t availableBinding(ContinuousMap<PassHandle, stl::vector<uint32_t>>& _container, const PassHandle _hPass, const uint32_t _binding)
     {
         bool conflict = false;
         if (_container.exist(_hPass))
@@ -1581,13 +1580,13 @@ namespace vkz
         {
             stl::vector<uint32_t> bindingVec{};
             bindingVec.emplace_back(_binding);
-            _container.push_back({ _hPass }, bindingVec);
+            _container.addOrUpdate({ _hPass }, bindingVec);
         }
 
         return !conflict;
     }
 
-    uint32_t insertResInteract(UniDataContainer<PassHandle, stl::vector<PassResInteract>>& _container
+    uint32_t insertResInteract(ContinuousMap<PassHandle, stl::vector<PassResInteract>>& _container
         , const PassHandle _hPass, const uint16_t _resId, const SamplerHandle _hSampler, const ResInteractDesc& _interact
     )
     {
@@ -1610,7 +1609,7 @@ namespace vkz
         {
             stl::vector<PassResInteract> prInteractVec{};
             prInteractVec.emplace_back(pri);
-            _container.push_back({ _hPass }, prInteractVec);
+            _container.addOrUpdate({ _hPass }, prInteractVec);
 
             vecSize = (uint32_t)prInteractVec.size();
         }
@@ -1627,7 +1626,7 @@ namespace vkz
     }
     */
 
-    uint32_t insertWriteResAlias(UniDataContainer<PassHandle, stl::vector<WriteOperationAlias>>& _container, const PassHandle _hPass, const uint16_t _resIn, const uint16_t _resOut)
+    uint32_t insertWriteResAlias(ContinuousMap<PassHandle, stl::vector<WriteOperationAlias>>& _container, const PassHandle _hPass, const uint16_t _resIn, const uint16_t _resOut)
     {
         uint32_t vecSize = 0u;
 
@@ -1642,7 +1641,7 @@ namespace vkz
         {
             stl::vector<WriteOperationAlias> aliasVec{};
             aliasVec.emplace_back(WriteOperationAlias{ _resIn, _resOut });
-            _container.push_back({ _hPass }, aliasVec);
+            _container.addOrUpdate({ _hPass }, aliasVec);
 
             vecSize = (uint32_t)aliasVec.size();
         }
@@ -1940,7 +1939,7 @@ namespace vkz
         passMeta.writeBufAliasNum = insertWriteResAlias(m_writeForcedBufferAliases, _hPass, _hBuf.id, _outAlias.id);
         assert(passMeta.writeBufferNum == passMeta.writeBufAliasNum);
 
-        m_oneOpPassTouched.update_data(_hPass, kTouched);
+        m_oneOpPassTouched.update(_hPass, kTouched);
         setRenderGraphDataDirty();
     }
 
@@ -1949,7 +1948,7 @@ namespace vkz
         ImageMetaData meta = m_imageMetas.getIdToData(_img);
         meta.lifetime = ResourceLifetime::non_transition;
 
-        m_imageMetas.update_data(_img, meta);
+        m_imageMetas.update(_img, meta);
 
         setRenderGraphDataDirty();
     }
@@ -1959,7 +1958,7 @@ namespace vkz
         BufferMetaData meta = m_bufferMetas.getIdToData(_buf);
         meta.lifetime = ResourceLifetime::non_transition;
 
-        m_bufferMetas.update_data(_buf, meta);
+        m_bufferMetas.update(_buf, meta);
 
         setRenderGraphDataDirty();
     }

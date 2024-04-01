@@ -42,8 +42,9 @@ namespace vkz
         return idx;
     }
 
+    // store data in a vector, and use a map to store the index of the data in the vector
     template<typename IdType, typename DataType>
-    struct UniDataContainer
+    struct ContinuousMap
     {
     public:
         size_t size() const {
@@ -51,25 +52,27 @@ namespace vkz
         }
 
         void clear() {
+            idToIndex.clear();
             ids.clear();
             indexToData.clear();
         }
 
+        size_t getIdIndex(IdType _id) const {
+            auto it = idToIndex.find(_id);
+            if (it != idToIndex.end())
+            {
+                return it->second;
+            }
+
+            return kInvalidIndex;
+        }
+
         bool exist(IdType _id) const {
-            return getElemIndex(ids, _id) != kInvalidIndex;
+            return getIdIndex(_id) != kInvalidIndex;
         }
 
-        size_t push_back(const IdType& _id, const DataType& _data) {
-            ids.push_back(_id);
-            indexToData.push_back(_data);
-
-            size_t idx = (size_t)ids.size() - 1;
-
-            return idx;
-        }
-
-        size_t update_data(const IdType& _id, const DataType& _data) {
-            size_t idx = getElemIndex(ids, _id);
+        size_t update(const IdType& _id, const DataType& _data) {
+            size_t idx = getIdIndex(_id);
             if (idx != kInvalidIndex) {
                 indexToData[idx] = _data;
             }
@@ -81,20 +84,30 @@ namespace vkz
             return idx;
         }
 
-        
+        size_t addOrUpdate(const IdType& _id, const DataType& _data) {
+            if (!exist(_id))
+            {
+                idToIndex.insert({ _id, ids.size() });
+                ids.push_back(_id);
+                indexToData.push_back(_data);
+            }
+            else
+            {
+                update(_id, _data);
+            }
+
+            return getIdIndex(_id);
+        }
+
         DataType& getDataRef(IdType _id) {
-            size_t index = getElemIndex(ids, _id);
+            size_t index = getIdIndex(_id);
             assert(index != kInvalidIndex);
 
             return indexToData[index];
         }
 
-        const size_t getIndex(IdType _id) const {
-            return getElemIndex(ids, _id);
-        }
-
         const DataType& getIdToData(IdType _id) const {
-            size_t index = getElemIndex(ids, _id);
+            size_t index = getIdIndex(_id);
             assert(index != kInvalidIndex);
 
             return indexToData[index];
@@ -117,7 +130,10 @@ namespace vkz
         const DataType* getDataPtr() const {
             return indexToData.data();
         }
+
     private:
+
+        stl::unordered_map<IdType, size_t> idToIndex;
         stl::vector<IdType> ids;
         stl::vector<DataType> indexToData;
     };

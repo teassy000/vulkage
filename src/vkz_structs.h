@@ -11,7 +11,6 @@ namespace vkz
     static const uint32_t kDescriptorSetBindingDontCare = UINT32_MAX - 1;
 
 
-
     template <class HandleType>
     struct NO_VTABLE Handle {
         uint16_t id;
@@ -22,6 +21,11 @@ namespace vkz
 
         bool operator < (const Handle<HandleType>& rhs) const {
             return id < rhs.id;
+        }
+
+        operator size_t() const
+        {
+            return id;
         }
     };
 

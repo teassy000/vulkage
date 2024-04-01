@@ -314,9 +314,9 @@ namespace vkz
             stl::unordered_set<CombinedResID> readCombinedRes;
             stl::unordered_set<CombinedResID> writeCombinedRes;
 
-            UniDataContainer<CombinedResID, CombinedResID> writeOpForcedAliasMap;
+            ContinuousMap<CombinedResID, CombinedResID> writeOpForcedAliasMap;
 
-            UniDataContainer<CombinedResID, uint16_t> imageSamplerMap;
+            ContinuousMap<CombinedResID, uint16_t> imageSamplerMap;
         };
 
         struct PassDependency
@@ -435,7 +435,7 @@ namespace vkz
 
         stl::vector< ResLifetime>       m_resLifeTime;
 
-        UniDataContainer< CombinedResID, CombinedResID> m_plainResAliasToBase;
+        ContinuousMap< CombinedResID, CombinedResID> m_plainResAliasToBase;
 
         stl::vector< BufBucket>          m_bufBuckets;
         stl::vector< ImgBucket>          m_imgBuckets;

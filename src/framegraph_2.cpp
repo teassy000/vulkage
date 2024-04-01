@@ -3,7 +3,6 @@
 #include "config.h"
 #include "util.h"
 
-#include "handle.h"
 #include "framegraph_2.h"
 #include "rhi_context.h"
 
@@ -413,7 +412,7 @@ namespace vkz
             if (isImage(plainId))
             {
                 assert(kInvalidHandle != prInteract.samplerId);
-                m_pass_rw_res[hPassIdx].imageSamplerMap.push_back(plainId, prInteract.samplerId);
+                m_pass_rw_res[hPassIdx].imageSamplerMap.addOrUpdate(plainId, prInteract.samplerId);
             }
         }
 
@@ -477,7 +476,7 @@ namespace vkz
                 continue;
             }
 
-            m_pass_rw_res[hPassIdx].writeOpForcedAliasMap.push_back(basdCombined, aliasCombined);
+            m_pass_rw_res[hPassIdx].writeOpForcedAliasMap.addOrUpdate(basdCombined, aliasCombined);
             actualSize++;
         }
 
@@ -1074,7 +1073,7 @@ namespace vkz
             for (CombinedResID alias : aliasVec)
             {
                 plainAliasResIdx.push_back(ii);
-                m_plainResAliasToBase.push_back(alias, base);
+                m_plainResAliasToBase.addOrUpdate(alias, base);
             }
         }
 
@@ -1904,13 +1903,13 @@ namespace vkz
         stl::vector<stl::vector<int>> passPipelineSpecData(m_sortedPass.size());
 
         stl::vector<stl::pair<ImageHandle, ResInteractDesc>> writeDSPair(m_sortedPass.size());
-        stl::vector<UniDataContainer< ImageHandle, ResInteractDesc> > writeImageVec(m_sortedPass.size());
-        stl::vector<UniDataContainer< ImageHandle, ResInteractDesc> > readImageVec(m_sortedPass.size());
+        stl::vector<ContinuousMap< ImageHandle, ResInteractDesc> > writeImageVec(m_sortedPass.size());
+        stl::vector<ContinuousMap< ImageHandle, ResInteractDesc> > readImageVec(m_sortedPass.size());
 
-        stl::vector<UniDataContainer< BufferHandle, ResInteractDesc> > readBufferVec(m_sortedPass.size());
-        stl::vector<UniDataContainer< BufferHandle, ResInteractDesc> > writeBufferVec(m_sortedPass.size());
-        stl::vector<UniDataContainer< ImageHandle, SamplerHandle> > imageSamplerVec(m_sortedPass.size());
-        stl::vector< UniDataContainer<CombinedResID, CombinedResID> >  writeOpAliasMapVec(m_sortedPass.size());
+        stl::vector<ContinuousMap< BufferHandle, ResInteractDesc> > readBufferVec(m_sortedPass.size());
+        stl::vector<ContinuousMap< BufferHandle, ResInteractDesc> > writeBufferVec(m_sortedPass.size());
+        stl::vector<ContinuousMap< ImageHandle, SamplerHandle> > imageSamplerVec(m_sortedPass.size());
+        stl::vector< ContinuousMap<CombinedResID, CombinedResID> >  writeOpAliasMapVec(m_sortedPass.size());
 
         
         for (uint32_t ii = 0; ii < m_sortedPass.size(); ++ii)
@@ -1921,14 +1920,14 @@ namespace vkz
             assert(pass.id == passMeta.passId);
 
             stl::pair<ImageHandle, ResInteractDesc>& writeDS = writeDSPair[ii];
-            UniDataContainer< ImageHandle, ResInteractDesc>& writeColor = writeImageVec[ii];
-            UniDataContainer< ImageHandle, ResInteractDesc>& readImg = readImageVec[ii];
+            ContinuousMap< ImageHandle, ResInteractDesc>& writeColor = writeImageVec[ii];
+            ContinuousMap< ImageHandle, ResInteractDesc>& readImg = readImageVec[ii];
 
-            UniDataContainer< BufferHandle, ResInteractDesc>& readBuf = readBufferVec[ii];
-            UniDataContainer< BufferHandle, ResInteractDesc>& writeBuf = writeBufferVec[ii];
-            UniDataContainer< ImageHandle, SamplerHandle>& imgSamplerMap = imageSamplerVec[ii];
+            ContinuousMap< BufferHandle, ResInteractDesc>& readBuf = readBufferVec[ii];
+            ContinuousMap< BufferHandle, ResInteractDesc>& writeBuf = writeBufferVec[ii];
+            ContinuousMap< ImageHandle, SamplerHandle>& imgSamplerMap = imageSamplerVec[ii];
 
-            UniDataContainer<CombinedResID, CombinedResID>& writeOpAliasMap = writeOpAliasMapVec[ii];
+            ContinuousMap<CombinedResID, CombinedResID>& writeOpAliasMap = writeOpAliasMapVec[ii];
             {
                 writeDS.first = { kInvalidHandle };
                 writeColor.clear();
@@ -1936,6 +1935,7 @@ namespace vkz
                 readBuf.clear();
                 writeBuf.clear();
                 imgSamplerMap.clear();
+                writeOpAliasMap.clear();
 
                 const PassRWResource& rwRes = m_pass_rw_res[passIdx];
                 // set write resources
@@ -1950,20 +1950,20 @@ namespace vkz
                         writeDS.first = { writeRes.id };
                         writeDS.second = writeInteractPair->second;
                         
-                        writeColor.push_back({ writeRes.id }, writeInteractPair->second);
+                        writeColor.addOrUpdate({ writeRes.id }, writeInteractPair->second);
                     }
                     else if (isColorAttachment(writeRes))
                     {
-                        writeColor.push_back({ writeRes.id }, writeInteractPair->second);
+                        writeColor.addOrUpdate({ writeRes.id }, writeInteractPair->second);
                     }
                     else if (isNormalImage(writeRes)
                         && (passMeta.queue == PassExeQueue::compute || passMeta.queue == PassExeQueue::copy))
                     {
-                        writeColor.push_back({ writeRes.id }, writeInteractPair->second);
+                        writeColor.addOrUpdate({ writeRes.id }, writeInteractPair->second);
                     }
                     else if (isBuffer(writeRes))
                     {
-                        writeBuf.push_back({ writeRes.id }, writeInteractPair->second);
+                        writeBuf.addOrUpdate({ writeRes.id }, writeInteractPair->second);
                     }
                     else
                     {
@@ -1981,12 +1981,12 @@ namespace vkz
                         || isDepthStencil(readRes)
                         || isNormalImage(readRes))
                     {
-                        readImg.push_back({ readRes.id }, readInteractPair->second);
+                        readImg.addOrUpdate({ readRes.id }, readInteractPair->second);
                     }
                     else if (isBuffer(readRes))
                     {
                         assert(!readBuf.exist({ readRes.id }));
-                        readBuf.push_back({ readRes.id }, readInteractPair->second);
+                        readBuf.addOrUpdate({ readRes.id }, readInteractPair->second);
                     }
                 }
 
@@ -1995,7 +1995,7 @@ namespace vkz
                 {
                     const CombinedResID& image = rwRes.imageSamplerMap.getIdAt(ii);
                     const uint16_t& samplerId = rwRes.imageSamplerMap.getDataAt(ii);
-                    imgSamplerMap.push_back({ image.id }, {samplerId });
+                    imgSamplerMap.addOrUpdate({ image.id }, {samplerId });
                 }
 
                 // write operation out aliases
@@ -2005,7 +2005,7 @@ namespace vkz
                     const CombinedResID writeOpIn = rwRes.writeOpForcedAliasMap.getIdAt(ii);
                     const CombinedResID writeOpOut = rwRes.writeOpForcedAliasMap.getDataAt(ii);
 
-                    writeOpAliasMap.push_back(writeOpIn, writeOpOut);
+                    writeOpAliasMap.addOrUpdate(writeOpIn, writeOpOut);
                 }
             }
 
