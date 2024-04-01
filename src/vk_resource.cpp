@@ -202,7 +202,7 @@ namespace vkz
         createInfo.format = _initProps.format;
         createInfo.extent = { _initProps.width, _initProps.height, _initProps.depth };
         createInfo.mipLevels = _initProps.numMips;
-        createInfo.arrayLayers = _initProps.numLayers;// (_initProps.viewType == VK_IMAGE_VIEW_TYPE_CUBE) ? 6 : 1;
+        createInfo.arrayLayers = _initProps.numLayers;
         createInfo.samples = VK_SAMPLE_COUNT_1_BIT;
         createInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
         createInfo.usage = _initProps.usage;

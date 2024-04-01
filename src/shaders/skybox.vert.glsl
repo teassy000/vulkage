@@ -14,14 +14,12 @@ layout (binding = 0) readonly buffer Transform
 };
 
 layout (location = 0) out vec3 outUVW;
-layout (location = 1) out vec3 outColor;
 
 void main() 
 {
-	outUVW = (inPos + vec3(1.0)) * 0.5;
+	outUVW = inPos.xyz;
 	
 	mat4 viewWithoutTranslation = mat4(trans.view[0], trans.view[1], trans.view[2], vec4(vec3(0.0), 1.0));
 
-	gl_Position = trans.proj *viewWithoutTranslation * vec4(inPos, 1.0);
-	outColor = vec3(1.0, 0.0, 0.0);
+	gl_Position = trans.proj * viewWithoutTranslation * vec4(inPos, 1.0);
 }

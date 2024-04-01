@@ -2164,7 +2164,7 @@ namespace vkz
 
         VkBufferImageCopy region = {};
         region.imageSubresource.aspectMask = vkImg.aspectMask;
-        region.imageSubresource.layerCount = 1;
+        region.imageSubresource.layerCount = vkImg.numLayers;
         region.imageExtent.width = vkImg.width;
         region.imageExtent.height = vkImg.height;
         region.imageExtent.depth = 1;
