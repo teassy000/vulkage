@@ -9,8 +9,6 @@
 
 namespace kage
 {
-
-
     struct CombinedResID
     {
         uint16_t        id{kInvalidHandle};

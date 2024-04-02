@@ -91,7 +91,7 @@ namespace kage
     };
 
     static bx::AllocatorI* s_bxAllocator = nullptr;
-    static bx::AllocatorI* getBxAllocator()
+    static bx::AllocatorI* getAllocator()
     {
         if (s_bxAllocator == nullptr)
         {
@@ -101,14 +101,26 @@ namespace kage
         return s_bxAllocator;
     }
 
+    void* TinyStlAllocator::static_allocate(size_t _bytes)
+    {
+        return bx::alloc(getAllocator(), _bytes);
+    }
+
+    void TinyStlAllocator::static_deallocate(void* _ptr, size_t /*_bytes*/)
+    {
+        if (nullptr != _ptr)
+        {
+            bx::free(getAllocator(), _ptr);
+        }
+    }
+
+
     static void shutdownAllocator()
     {
         s_bxAllocator = nullptr;
     }
 
     using String = bx::StringT<&s_bxAllocator>;
-
-    //using String = SimpleString<&s_bxAllocator>;
 
     struct NameMgr
     {
@@ -257,7 +269,7 @@ namespace kage
     {
         if (s_nameManager == nullptr)
         {
-            s_nameManager = BX_NEW(getBxAllocator(), NameMgr)();
+            s_nameManager = BX_NEW(getAllocator(), NameMgr)();
         }
 
         return s_nameManager;
@@ -363,7 +375,7 @@ namespace kage
                 memRef->releaseFn(mem->data, memRef->userData);
             }
         }
-        free(getBxAllocator(), mem);
+        free(getAllocator(), mem);
     }
 
     // GLFW 
@@ -1919,7 +1931,7 @@ namespace kage
     {
         assert(_func != nullptr);
 
-        void * mem = alloc(getBxAllocator(), _dataMem->size);
+        void * mem = alloc(getAllocator(), _dataMem->size);
         memcpy(mem, _dataMem->data, _dataMem->size);
 
         PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
@@ -2091,7 +2103,7 @@ namespace kage
 
     void Context::init()
     {
-        m_pAllocator = getBxAllocator();
+        m_pAllocator = getAllocator();
         m_pNameManager = getNameManager();
 
         // init glfw
@@ -2102,12 +2114,12 @@ namespace kage
         RHI_Config rhiConfig{};
         rhiConfig.windowWidth = m_renderWidth;
         rhiConfig.windowHeight = m_renderHeight;
-        m_rhiContext = BX_NEW(getBxAllocator(), RHIContext_vk)(getBxAllocator(), rhiConfig, wnd);
+        m_rhiContext = BX_NEW(getAllocator(), RHIContext_vk)(getAllocator(), rhiConfig, wnd);
 
-        m_frameGraph = BX_NEW(getBxAllocator(), Framegraph)(getBxAllocator(), m_rhiContext->memoryBlock());
+        m_frameGraph = BX_NEW(getAllocator(), Framegraph)(getAllocator(), m_rhiContext->memoryBlock());
 
         m_pFgMemBlock = m_frameGraph->getMemoryBlock();
-        m_fgMemWriter = BX_NEW(getBxAllocator(), bx::MemoryWriter)(m_pFgMemBlock);
+        m_fgMemWriter = BX_NEW(getAllocator(), bx::MemoryWriter)(m_pFgMemBlock);
 
         setRenderGraphDataDirty();
     }
@@ -2390,7 +2402,7 @@ namespace kage
             message(error, "_sz < 0");
         }
 
-        Memory* mem = (Memory*)alloc(getBxAllocator(), sizeof(Memory) + _sz);
+        Memory* mem = (Memory*)alloc(getAllocator(), sizeof(Memory) + _sz);
         mem->size = _sz;
         mem->data = (uint8_t*)mem + sizeof(Memory);
         return mem;
@@ -2415,7 +2427,7 @@ namespace kage
 
     const Memory* makeRef(const void* _data, uint32_t _sz, ReleaseFn _releaseFn /*= nullptr*/, void* _userData /*= nullptr*/)
     {
-        MemoryRef* memRef = (MemoryRef*)alloc(getBxAllocator(), sizeof(MemoryRef));
+        MemoryRef* memRef = (MemoryRef*)alloc(getAllocator(), sizeof(MemoryRef));
         memRef->mem.size = _sz;
         memRef->mem.data = (uint8_t*)_data;
         memRef->releaseFn = _releaseFn;
@@ -2426,7 +2438,7 @@ namespace kage
     // main data here
     bool init(VKZInitConfig _config /*= {}*/)
     {
-        s_ctx = BX_NEW(getBxAllocator(), Context);
+        s_ctx = BX_NEW(getAllocator(), Context);
         s_ctx->setRenderSize(_config.windowWidth, _config.windowHeight);
         s_ctx->setWindowName(_config.name);
         s_ctx->init();
@@ -2461,8 +2473,8 @@ namespace kage
 
     void shutdown()
     {
-        bx::deleteObject(getBxAllocator(), s_ctx);
-        bx::deleteObject(getBxAllocator(), s_nameManager);
+        bx::deleteObject(getAllocator(), s_ctx);
+        bx::deleteObject(getAllocator(), s_nameManager);
 
         shutdownAllocator();
     }
