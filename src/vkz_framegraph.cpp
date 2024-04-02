@@ -3,26 +3,26 @@
 #include "config.h"
 #include "util.h"
 
-#include "framegraph_2.h"
+#include "vkz_framegraph.h"
 #include "rhi_context.h"
 
+#include "vkz_math.h"
+
 #include "profiler.h"
-
-
-#include <algorithm>
 #include "bx/readerwriter.h"
+#include <algorithm>
 
 
 namespace vkz
 {
 
-    Framegraph2::~Framegraph2()
+    Framegraph::~Framegraph()
     {
         VKZ_ZoneScopedC(Color::light_yellow);
         deleteObject(m_pAllocator, m_pMemBlock);
     }
 
-    void Framegraph2::bake()
+    void Framegraph::bake()
     {
         VKZ_ZoneScopedC(Color::light_yellow);
         // prepare
@@ -43,7 +43,7 @@ namespace vkz
         createResources();
     }
 
-    void Framegraph2::parseOp()
+    void Framegraph::parseOp()
     {
         VKZ_ZoneScopedC(Color::light_yellow);
         assert(m_pMemBlock != nullptr);
@@ -125,7 +125,7 @@ namespace vkz
         }
     }
 
-    void Framegraph2::setBrief(bx::MemoryReader& _reader)
+    void Framegraph::setBrief(bx::MemoryReader& _reader)
     {
         VKZ_ZoneScopedC(Color::light_yellow);
         FrameGraphBrief brief;
@@ -147,7 +147,7 @@ namespace vkz
     }
 
 
-    void Framegraph2::registerShader(bx::MemoryReader& _reader)
+    void Framegraph::registerShader(bx::MemoryReader& _reader)
     {
         VKZ_ZoneScopedC(Color::light_yellow);
         FGShaderCreateInfo info;
@@ -164,7 +164,7 @@ namespace vkz
         m_sparse_shader_info[info.shaderId].pathIdx = (uint16_t)m_shader_path.size() - 1;
     }
 
-    void Framegraph2::registerProgram(bx::MemoryReader& _reader)
+    void Framegraph::registerProgram(bx::MemoryReader& _reader)
     {
         VKZ_ZoneScopedC(Color::light_yellow);
         FGProgCreateInfo regInfo;
@@ -180,7 +180,7 @@ namespace vkz
         m_hProgram.push_back({ regInfo.progId });
     }
 
-    void Framegraph2::registerPass(bx::MemoryReader& _reader)
+    void Framegraph::registerPass(bx::MemoryReader& _reader)
     {
         VKZ_ZoneScopedC(Color::light_yellow);
         PassMetaData passMeta;
@@ -256,7 +256,7 @@ namespace vkz
         m_passIdxToSync.emplace_back();
     }
 
-    void Framegraph2::registerBuffer(bx::MemoryReader& _reader)
+    void Framegraph::registerBuffer(bx::MemoryReader& _reader)
     {
         VKZ_ZoneScopedC(Color::light_yellow);
         FGBufferCreateInfo info;
@@ -275,7 +275,7 @@ namespace vkz
         }
     }
 
-    void Framegraph2::registerImage(bx::MemoryReader& _reader)
+    void Framegraph::registerImage(bx::MemoryReader& _reader)
     {
         VKZ_ZoneScopedC(Color::light_yellow);
         FGImageCreateInfo info;
@@ -294,7 +294,7 @@ namespace vkz
         }
     }
 
-    void Framegraph2::registerSampler(bx::MemoryReader& _reader)
+    void Framegraph::registerSampler(bx::MemoryReader& _reader)
     {
         VKZ_ZoneScopedC(Color::light_yellow);
         SamplerMetaData meta;
@@ -304,7 +304,7 @@ namespace vkz
         m_sparse_sampler_meta[meta.samplerId] = meta;
     }
 
-    void Framegraph2::registerImageView(bx::MemoryReader& _reader)
+    void Framegraph::registerImageView(bx::MemoryReader& _reader)
     {
         VKZ_ZoneScopedC(Color::light_yellow);
         ImageViewDesc meta;
@@ -314,7 +314,7 @@ namespace vkz
         m_sparse_img_view_desc[meta.imgViewId] = meta;
     }
 
-    void Framegraph2::storeBackBuffer(bx::MemoryReader& _reader)
+    void Framegraph::storeBackBuffer(bx::MemoryReader& _reader)
     {
         VKZ_ZoneScopedC(Color::light_yellow);
         uint16_t id;
@@ -377,7 +377,7 @@ namespace vkz
         return retVar;
     }
 
-    uint32_t Framegraph2::readResource(const stl::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type)
+    uint32_t Framegraph::readResource(const stl::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type)
     {
         VKZ_ZoneScopedC(Color::light_yellow);
         const size_t hPassIdx = getElemIndex(m_hPass, { _passId });
@@ -421,7 +421,7 @@ namespace vkz
         return actualSize;
     }
 
-    uint32_t Framegraph2::writeResource(const stl::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type)
+    uint32_t Framegraph::writeResource(const stl::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type)
     {
         VKZ_ZoneScopedC(Color::light_yellow);
         const size_t hPassIdx = getElemIndex(m_hPass, { _passId });
@@ -458,7 +458,7 @@ namespace vkz
         return actualSize;
     }
 
-    uint32_t Framegraph2::writeResForceAlias(const stl::vector<WriteOperationAlias>& _aliasMapVec, const uint16_t _passId, const ResourceType _type)
+    uint32_t Framegraph::writeResForceAlias(const stl::vector<WriteOperationAlias>& _aliasMapVec, const uint16_t _passId, const ResourceType _type)
     {
         VKZ_ZoneScopedC(Color::light_yellow);
         const size_t hPassIdx =getElemIndex(m_hPass, { _passId });
@@ -483,7 +483,7 @@ namespace vkz
         return actualSize;
     }
 
-    void Framegraph2::aliasResForce(bx::MemoryReader& _reader, ResourceType _type)
+    void Framegraph::aliasResForce(bx::MemoryReader& _reader, ResourceType _type)
     {
         VKZ_ZoneScopedC(Color::light_yellow);
         ResAliasInfo info;
@@ -515,7 +515,7 @@ namespace vkz
         free(m_pAllocator, mem);
     }
 
-    bool Framegraph2::isForceAliased(const CombinedResID& _res_0, const CombinedResID _res_1) const
+    bool Framegraph::isForceAliased(const CombinedResID& _res_0, const CombinedResID _res_1) const
     {
         VKZ_ZoneScopedC(Color::light_yellow);
         const CombinedResID base_0 = m_forceAliasMapToBase.find(_res_0)->second;
@@ -524,7 +524,7 @@ namespace vkz
         return base_0 == base_1;
     }
 
-    void Framegraph2::buildGraph()
+    void Framegraph::buildGraph()
     {
         VKZ_ZoneScopedC(Color::light_yellow);
         stl::unordered_map<CombinedResID, uint16_t> linear_writeResPassIdxMap;
@@ -603,7 +603,7 @@ namespace vkz
         }
     }
 
-    void Framegraph2::calcPriority()
+    void Framegraph::calcPriority()
     {
         VKZ_ZoneScopedC(Color::light_yellow);
         uint16_t passNum = (uint16_t)m_hPass.size();
@@ -614,7 +614,7 @@ namespace vkz
         }
     }
 
-    void Framegraph2::calcCombinations(stl::vector<stl::vector<uint16_t>>& _vecs, const stl::vector<uint16_t>& _inVec)
+    void Framegraph::calcCombinations(stl::vector<stl::vector<uint16_t>>& _vecs, const stl::vector<uint16_t>& _inVec)
     {
         VKZ_ZoneScopedC(Color::light_yellow);
         uint16_t n = (uint16_t)_inVec.size();
@@ -654,7 +654,7 @@ namespace vkz
         }
     }
 
-    uint16_t Framegraph2::findCommonParent(const uint16_t _a, uint16_t _b, const stl::unordered_map<uint16_t, uint16_t>& _sortedParentMap, const uint16_t _root)
+    uint16_t Framegraph::findCommonParent(const uint16_t _a, uint16_t _b, const stl::unordered_map<uint16_t, uint16_t>& _sortedParentMap, const uint16_t _root)
     {
         VKZ_ZoneScopedC(Color::light_yellow);
         uint16_t commonNode = _root;
@@ -685,7 +685,7 @@ namespace vkz
         return commonNode;
     }
 
-    uint16_t Framegraph2::validateSortedPasses(const stl::vector<uint16_t>& _sortedPassIdxes, const stl::unordered_map<uint16_t, uint16_t>& _sortedParentMap)
+    uint16_t Framegraph::validateSortedPasses(const stl::vector<uint16_t>& _sortedPassIdxes, const stl::unordered_map<uint16_t, uint16_t>& _sortedParentMap)
     {
         VKZ_ZoneScopedC(Color::light_yellow);
 
@@ -772,7 +772,7 @@ namespace vkz
         return ret;
     }
 
-    void Framegraph2::reverseTraversalDFSWithBackTrack()
+    void Framegraph::reverseTraversalDFSWithBackTrack()
     {
         VKZ_ZoneScopedC(Color::light_yellow);
 
@@ -873,6 +873,7 @@ namespace vkz
                 // fill the sorted and clipped pass
                 for (uint16_t idx : sortedPassIdx)
                 {
+                    message(info, "- sorted idx: %d", idx);
                     m_sortedPass.push_back(m_hPass[idx]);
                 }
                 m_sortedPassIdx = sortedPassIdx;
@@ -894,7 +895,7 @@ namespace vkz
         }
     }
 
-    void Framegraph2::buildMaxLevelList(stl::vector<uint16_t>& _maxLvLst)
+    void Framegraph::buildMaxLevelList(stl::vector<uint16_t>& _maxLvLst)
     {
         VKZ_ZoneScopedC(Color::light_yellow);
 
@@ -912,7 +913,7 @@ namespace vkz
         }
     }
 
-    void Framegraph2::formatDependency(const stl::vector<uint16_t>& _maxLvLst)
+    void Framegraph::formatDependency(const stl::vector<uint16_t>& _maxLvLst)
     {
         VKZ_ZoneScopedC(Color::light_yellow);
 
@@ -981,7 +982,7 @@ namespace vkz
 
     }
 
-    void Framegraph2::fillNearestSyncPass()
+    void Framegraph::fillNearestSyncPass()
     {
         VKZ_ZoneScopedC(Color::light_yellow);
 
@@ -1024,7 +1025,7 @@ namespace vkz
         // cool nesting :)
     }
 
-    void Framegraph2::optimizeSyncPass()
+    void Framegraph::optimizeSyncPass()
     {
         VKZ_ZoneScopedC(Color::light_yellow);
 
@@ -1055,7 +1056,7 @@ namespace vkz
         //      **Fence** required
     }
 
-    void Framegraph2::postParse()
+    void Framegraph::postParse()
     {
         VKZ_ZoneScopedC(Color::light_yellow);
 
@@ -1097,7 +1098,7 @@ namespace vkz
         m_multiFrame_resList = fullMultiFrameRes;
     }
 
-    void Framegraph2::buildResLifetime()
+    void Framegraph::buildResLifetime()
     {
         VKZ_ZoneScopedC(Color::light_yellow);
 
@@ -1260,7 +1261,7 @@ namespace vkz
         m_resLifeTime = resLifeTime;
     }
 
-    void Framegraph2::fillBucketForceAlias()
+    void Framegraph::fillBucketForceAlias()
     {
         stl::vector<CombinedResID> actualAliasBase;
         stl::vector<stl::vector<CombinedResID>> actualAlias;
@@ -1310,7 +1311,7 @@ namespace vkz
         }
     }
 
-    void Framegraph2::fillBucketReadonly()
+    void Framegraph::fillBucketReadonly()
     {
         VKZ_ZoneScopedC(Color::light_yellow);
 
@@ -1338,7 +1339,7 @@ namespace vkz
         }
     }
 
-    void Framegraph2::fillBucketMultiFrame()
+    void Framegraph::fillBucketMultiFrame()
     {
         VKZ_ZoneScopedC(Color::light_yellow);
 
@@ -1366,7 +1367,7 @@ namespace vkz
         }
     }
 
-    void Framegraph2::createBufBkt(BufBucket& _bkt, const FGBufferCreateInfo& _info, const stl::vector<CombinedResID>& _reses, const bool _forceAliased /*= false*/)
+    void Framegraph::createBufBkt(BufBucket& _bkt, const FGBufferCreateInfo& _info, const stl::vector<CombinedResID>& _reses, const bool _forceAliased /*= false*/)
     {
         VKZ_ZoneScopedC(Color::light_yellow);
 
@@ -1384,7 +1385,7 @@ namespace vkz
         _bkt.forceAliased = _forceAliased;
     }
 
-    void Framegraph2::createImgBkt(ImgBucket& _bkt, const FGImageCreateInfo& _info, const stl::vector<CombinedResID>& _reses, const bool _forceAliased /*= false*/)
+    void Framegraph::createImgBkt(ImgBucket& _bkt, const FGImageCreateInfo& _info, const stl::vector<CombinedResID>& _reses, const bool _forceAliased /*= false*/)
     {
         VKZ_ZoneScopedC(Color::light_yellow);
 
@@ -1421,7 +1422,7 @@ namespace vkz
 
     }
 
-    void Framegraph2::aliasBuffers(stl::vector<BufBucket>& _buckets, const stl::vector<uint16_t>& _sortedBufList)
+    void Framegraph::aliasBuffers(stl::vector<BufBucket>& _buckets, const stl::vector<uint16_t>& _sortedBufList)
     {
         VKZ_ZoneScopedC(Color::light_yellow);
 
@@ -1486,7 +1487,7 @@ namespace vkz
         _buckets = _buckets;
     }
 
-    void Framegraph2::aliasImages(stl::vector<ImgBucket>& _buckets,const stl::vector< FGImageCreateInfo >& _infos, const stl::vector<uint16_t>& _sortedTexList, const ResourceType _type)
+    void Framegraph::aliasImages(stl::vector<ImgBucket>& _buckets,const stl::vector< FGImageCreateInfo >& _infos, const stl::vector<uint16_t>& _sortedTexList, const ResourceType _type)
     {
         VKZ_ZoneScopedC(Color::light_yellow);
 
@@ -1553,7 +1554,7 @@ namespace vkz
         _buckets.insert(_buckets.end(), buckets.begin(), buckets.end());
     }
 
-    void Framegraph2::fillBufferBuckets()
+    void Framegraph::fillBufferBuckets()
     {
         VKZ_ZoneScopedC(Color::light_yellow);
 
@@ -1577,7 +1578,7 @@ namespace vkz
         m_bufBuckets.insert(m_bufBuckets.end(), buckets.begin(), buckets.end());
     }
 
-    void Framegraph2::fillImageBuckets()
+    void Framegraph::fillImageBuckets()
     {
         VKZ_ZoneScopedC(Color::light_yellow);
 
@@ -1608,7 +1609,7 @@ namespace vkz
         m_imgBuckets.insert(m_imgBuckets.end(), buckets.begin(), buckets.end());
     }
 
-    void Framegraph2::optimizeSync()
+    void Framegraph::optimizeSync()
     {
         VKZ_ZoneScopedC(Color::light_yellow);
 
@@ -1626,7 +1627,7 @@ namespace vkz
         optimizeSyncPass();
     }
 
-    void Framegraph2::optimizeAlias()
+    void Framegraph::optimizeAlias()
     {
         VKZ_ZoneScopedC(Color::light_yellow);
 
@@ -1647,7 +1648,7 @@ namespace vkz
         fillImageBuckets();
     }
 
-    void Framegraph2::createBuffers()
+    void Framegraph::createBuffers()
     {
         VKZ_ZoneScopedC(Color::light_yellow);
 
@@ -1690,7 +1691,7 @@ namespace vkz
         }
     }
 
-    void Framegraph2::createImages()
+    void Framegraph::createImages()
     {
         VKZ_ZoneScopedC(Color::light_yellow);
 
@@ -1791,7 +1792,7 @@ namespace vkz
 
     }
 
-    void Framegraph2::createShaders()
+    void Framegraph::createShaders()
     {
         VKZ_ZoneScopedC(Color::light_yellow);
 
@@ -1863,7 +1864,7 @@ namespace vkz
         }
     }
 
-    void Framegraph2::createSamplers()
+    void Framegraph::createSamplers()
     {
         VKZ_ZoneScopedC(Color::light_yellow);
 
@@ -1893,7 +1894,7 @@ namespace vkz
         }
     }
 
-    void Framegraph2::createPasses()
+    void Framegraph::createPasses()
     {
         VKZ_ZoneScopedC(Color::light_yellow);
 
@@ -2091,7 +2092,7 @@ namespace vkz
         }
     }
 
-    void Framegraph2::createResources()
+    void Framegraph::createResources()
     {
         VKZ_ZoneScopedC(Color::light_yellow);
 
@@ -2117,7 +2118,7 @@ namespace vkz
         bx::write(&m_rhiMemWriter,  RHIContextOpMagic::end , nullptr);
     }
 
-    bool Framegraph2::isBufInfoAliasable(uint16_t _idx, const BufBucket& _bucket, const stl::vector<CombinedResID> _resInCurrStack) const
+    bool Framegraph::isBufInfoAliasable(uint16_t _idx, const BufBucket& _bucket, const stl::vector<CombinedResID> _resInCurrStack) const
     {
         VKZ_ZoneScopedC(Color::light_yellow);
 
@@ -2139,7 +2140,7 @@ namespace vkz
         return bCondMatch;
     }
 
-    bool Framegraph2::isImgInfoAliasable(uint16_t _ImgId, const ImgBucket& _bucket, const stl::vector<CombinedResID> _resInCurrStack) const
+    bool Framegraph::isImgInfoAliasable(uint16_t _ImgId, const ImgBucket& _bucket, const stl::vector<CombinedResID> _resInCurrStack) const
     {
         VKZ_ZoneScopedC(Color::light_yellow);
 
@@ -2163,7 +2164,7 @@ namespace vkz
         return bCondMatch;
     }
 
-    bool Framegraph2::isStackAliasable(const CombinedResID& _res, const stl::vector<CombinedResID>& _reses) const
+    bool Framegraph::isStackAliasable(const CombinedResID& _res, const stl::vector<CombinedResID>& _reses) const
     {
         VKZ_ZoneScopedC(Color::light_yellow);
 
@@ -2184,7 +2185,7 @@ namespace vkz
         return bStackMatch;
     }
 
-    bool Framegraph2::isAliasable(const CombinedResID& _res, const BufBucket& _bucket, const stl::vector<CombinedResID>& _resInCurrStack) const
+    bool Framegraph::isAliasable(const CombinedResID& _res, const BufBucket& _bucket, const stl::vector<CombinedResID>& _resInCurrStack) const
     {
         VKZ_ZoneScopedC(Color::light_yellow);
 
@@ -2197,7 +2198,7 @@ namespace vkz
         return bInfoMatch && bStackMatch;
     }
 
-    bool Framegraph2::isAliasable(const CombinedResID& _res, const ImgBucket& _bucket, const stl::vector<CombinedResID>& _resInCurrStack) const
+    bool Framegraph::isAliasable(const CombinedResID& _res, const ImgBucket& _bucket, const stl::vector<CombinedResID>& _resInCurrStack) const
     {
         VKZ_ZoneScopedC(Color::light_yellow);
 

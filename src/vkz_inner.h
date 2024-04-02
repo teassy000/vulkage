@@ -3,7 +3,7 @@
 #include "cmd_list.h"
 #include "config.h"
 #include "vkz.h"
-#include "alloc.h"
+
 #include "string.h"
 
 

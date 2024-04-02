@@ -1,8 +1,6 @@
 #include "common.h"
 #include "vk_swapchain.h"
 
-#include "resources.h"
-
 #include "macro.h"
 
 #include <GLFW/glfw3.h>

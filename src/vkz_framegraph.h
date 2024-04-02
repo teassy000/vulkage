@@ -137,10 +137,10 @@ namespace vkz
 
     class RHIContext;
     
-    class Framegraph2
+    class Framegraph
     {
     public:
-        Framegraph2(bx::AllocatorI* _allocator, bx::MemoryBlockI* _rhiMem)
+        Framegraph(bx::AllocatorI* _allocator, bx::MemoryBlockI* _rhiMem)
             : m_pAllocator{ _allocator }
             , m_pCreatorMemBlock {_rhiMem}
             , m_rhiMemWriter{ _rhiMem }
@@ -149,7 +149,7 @@ namespace vkz
             m_pMemBlock->more(kInitialFrameGraphMemSize);
         }
 
-        ~Framegraph2();
+        ~Framegraph();
         void bake();
 
     public:

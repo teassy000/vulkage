@@ -7,7 +7,7 @@
 #include "util.h"
 
 #include "rhi_context.h"
-#include "framegraph_2.h"
+#include "framegraph.h"
 #include "rhi_context_vk.h"
 
 
@@ -680,7 +680,7 @@ namespace vkz
 
         RHIContext* m_rhiContext{ nullptr };
 
-        Framegraph2* m_frameGraph{ nullptr };
+        Framegraph* m_frameGraph{ nullptr };
 
         bx::AllocatorI* m_pAllocator{ nullptr };
 
@@ -2039,7 +2039,7 @@ namespace vkz
         rhiConfig.windowHeight = m_renderHeight;
         m_rhiContext = BX_NEW(getBxAllocator(), RHIContext_vk)(getBxAllocator(), rhiConfig, wnd);
 
-        m_frameGraph = BX_NEW(getBxAllocator(), Framegraph2)(getBxAllocator(), m_rhiContext->memoryBlock());
+        m_frameGraph = BX_NEW(getBxAllocator(), Framegraph)(getBxAllocator(), m_rhiContext->memoryBlock());
 
         m_pFgMemBlock = m_frameGraph->getMemoryBlock();
         m_fgMemWriter = BX_NEW(getBxAllocator(), bx::MemoryWriter)(m_pFgMemBlock);

@@ -3,7 +3,7 @@
 
 #include "config.h"
 #include "util.h"
-
+#include "vkz_math.h"
 #include "rhi_context_vk.h"
 
 #include <algorithm> //sort

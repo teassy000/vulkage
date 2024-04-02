@@ -71,7 +71,6 @@ namespace vkz
         void updateUniformData(const PassHandle _hPass, const void* _data, uint32_t _size);
 
     private:
-        AllocatorI* m_pAllocator;
         bx::AllocatorI* m_pbxAllocator;
         Memory* m_pUniformData;
 
