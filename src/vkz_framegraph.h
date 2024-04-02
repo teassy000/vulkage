@@ -124,11 +124,19 @@ namespace kage
     struct ProgramInfo
     {
         FGProgCreateInfo     createInfo;
-        uint16_t   shaderIds[kMaxNumOfStageInPorgram];
+        uint16_t   shaderIds[kMaxNumOfStageInPorgram]{kInvalidHandle};
     };
 
     struct PassMetaDataRef
     {
+        PassMetaDataRef() = default;
+        ~PassMetaDataRef()
+        {
+            vtxBindingIdxs.clear();
+            vtxAttrIdxs.clear();
+            pipelineSpecIdxs.clear();
+        }
+
         uint16_t                passRegInfoIdx;
         stl::vector<uint16_t>   vtxBindingIdxs;
         stl::vector<uint16_t>   vtxAttrIdxs;
@@ -142,7 +150,6 @@ namespace kage
     public:
         Framegraph(bx::AllocatorI* _allocator, bx::MemoryBlockI* _rhiMem)
             : m_pAllocator{ _allocator }
-            , m_pCreatorMemBlock {_rhiMem}
             , m_rhiMemWriter{ _rhiMem }
         { 
             m_pMemBlock = BX_NEW(m_pAllocator, bx::MemoryBlock)(m_pAllocator);
@@ -164,6 +171,8 @@ namespace kage
         }
 
     private:
+        void shutdown();
+
         void parseOp();
 
         // ==============================
@@ -254,11 +263,21 @@ namespace kage
 
         struct BufBucket
         {
-            uint32_t        idx;
-            uint16_t        baseBufId;
+            BufBucket() = default;
+            ~BufBucket()
+            {
+                baseBufId = kInvalidHandle;
 
-            uint32_t        size;
-            void*           pData;
+                size = 0;
+                pData = nullptr;
+
+                reses.clear();
+            }
+
+            uint16_t        baseBufId{kInvalidHandle};
+
+            uint32_t        size{ 0 };
+            void*           pData{ nullptr };
 
             BufferDesc      desc;
             ResInteractDesc initialBarrierState;
@@ -269,7 +288,17 @@ namespace kage
 
         struct ImgBucket
         {
-            uint32_t    idx;
+            ImgBucket() = default;
+            ~ImgBucket()
+            {
+                baseImgId = kInvalidHandle;
+
+                size = 0;
+                pData = nullptr;
+
+                reses.clear();
+            }
+
             uint16_t    baseImgId;
             ImageDesc   desc;
 
@@ -308,6 +337,22 @@ namespace kage
         // for sort
         struct PassRWResource
         {
+            void clear()
+            {
+                readInteractMap.clear();
+                writeInteractMap.clear();
+                readCombinedRes.clear();
+                writeCombinedRes.clear();
+                writeOpForcedAliasMap.clear();
+                imageSamplerMap.clear();
+            }
+
+            PassRWResource() = default;
+            ~PassRWResource()
+            {
+                clear();
+            }
+
             stl::unordered_map<CombinedResID, ResInteractDesc> readInteractMap;
             stl::unordered_map<CombinedResID, ResInteractDesc> writeInteractMap;
 
@@ -315,12 +360,23 @@ namespace kage
             stl::unordered_set<CombinedResID> writeCombinedRes;
 
             ContinuousMap<CombinedResID, CombinedResID> writeOpForcedAliasMap;
-
             ContinuousMap<CombinedResID, uint16_t> imageSamplerMap;
         };
 
         struct PassDependency
         {
+            void clear()
+            {
+                inPassIdxSet.clear();
+                outPassIdxSet.clear();
+            }
+
+            PassDependency() = default;
+            ~PassDependency()
+            {
+                clear();
+            }
+
             stl::unordered_set<uint16_t> inPassIdxSet;
             stl::unordered_set<uint16_t> outPassIdxSet;
         };
@@ -363,7 +419,6 @@ namespace kage
         bx::AllocatorI* m_pAllocator;
         bx::MemoryBlockI* m_pMemBlock;
 
-        bx::MemoryBlockI* m_pCreatorMemBlock;
         bx::MemoryWriter m_rhiMemWriter;
 
         CombinedResID  m_combinedPresentImage;

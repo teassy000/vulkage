@@ -33,7 +33,7 @@ namespace kage
         uint16_t resId;
 
         VkImage image;
-        VkImageView defalutImgView;
+        VkImageView defaultView;
         VkDeviceMemory memory;
         VkImageAspectFlags  aspectMask;
         VkFormat            format;

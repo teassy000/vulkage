@@ -175,7 +175,7 @@ namespace kage
 
         virtual ~RHIContext()
         {
-            deleteObject(m_pAllocator, m_pMemBlockBaked);
+            bx::deleteObject(m_pAllocator, m_pMemBlockBaked);
         }
 
         inline bx::MemoryBlockI* memoryBlock() const {return m_pMemBlockBaked;}

@@ -97,6 +97,7 @@ namespace kage
 
         // barrier status expect in current pass
         std::pair<uint16_t, BarrierState_vk> writeDepth{ kInvalidHandle, {} };
+
         ContinuousMap< uint16_t, BarrierState_vk> writeColors;
         ContinuousMap< uint16_t, BarrierState_vk> readImages;
         ContinuousMap< uint16_t, BarrierState_vk> readBuffers;
@@ -124,6 +125,8 @@ namespace kage
     class BarrierDispatcher
     {
     public:
+        ~BarrierDispatcher();
+
         void addBuffer(const VkBuffer _img, BarrierState_vk _barrierState, const VkBuffer _baseBuf = 0);
         void addImage(const VkImage _img, const ImageAspectFlags _aspect, BarrierState_vk _barrierState, const VkImage _baseImg = 0);
 
@@ -174,6 +177,7 @@ namespace kage
         void init(RHI_Config _config, void* _wnd) override;
         void bake() override;
         bool render() override;
+        void shutdown();
 
         bool checkSupports(VulkanSupportExtension _ext) override;
 

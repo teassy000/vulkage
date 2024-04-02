@@ -47,6 +47,11 @@ namespace kage
     struct ContinuousMap
     {
     public:
+        ContinuousMap() = default;
+        ~ContinuousMap() {
+            clear();
+        }
+
         size_t size() const {
             return ids.size();
         }

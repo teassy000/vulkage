@@ -1130,6 +1130,9 @@ namespace kage
     RHIContext_vk::~RHIContext_vk()
     {
         VKZ_ZoneScopedC(Color::indian_red);
+
+        shutdown();
+
         VKZ_ProfDestroyContext(m_tracyVkCtx);
     }
 
@@ -1384,6 +1387,230 @@ namespace kage
         }
 
         return true;
+    }
+
+    void RHIContext_vk::shutdown()
+    {
+        VKZ_ZoneScopedC(Color::indian_red);
+
+        if (!m_device)
+        {
+            return;
+        }
+
+
+        vkDeviceWaitIdle(m_device);
+
+        if (m_cmdList)
+        {
+            bx::free(m_pAllocator, m_cmdList);
+            m_cmdList = nullptr;
+        }
+
+        if (m_queryPoolTimeStamp)
+        {
+            vkDestroyQueryPool(m_device, m_queryPoolTimeStamp, 0);
+            m_queryPoolTimeStamp = VK_NULL_HANDLE;
+        }
+
+        if (m_queryPoolStatistics)
+        {
+            vkDestroyQueryPool(m_device, m_queryPoolStatistics, 0);
+            m_queryPoolStatistics = VK_NULL_HANDLE;
+        }
+
+        if (m_descPool)
+        {
+            vkDestroyDescriptorPool(m_device, m_descPool, 0);
+            m_descPool = VK_NULL_HANDLE;
+        }
+
+        if (m_scratchBuffer.buffer)
+        {
+            stl::vector<Buffer_vk> bufs;
+            bufs.emplace_back(m_scratchBuffer);
+            kage::destroyBuffer(m_device, bufs);
+        }
+
+        if (m_cmdBuffer)
+        {
+            vkFreeCommandBuffers(m_device, m_cmdPool, 1, &m_cmdBuffer);
+            m_cmdBuffer = VK_NULL_HANDLE;
+        }
+
+        if (m_cmdPool)
+        {
+            vkDestroyCommandPool(m_device, m_cmdPool, 0);
+            m_cmdPool = VK_NULL_HANDLE;
+        }
+
+        if (m_releaseSemaphore)
+        {
+            vkDestroySemaphore(m_device, m_releaseSemaphore, 0);
+            m_releaseSemaphore = VK_NULL_HANDLE;
+        }
+
+        if (m_acquirSemaphore)
+        {
+            vkDestroySemaphore(m_device, m_acquirSemaphore, 0);
+            m_acquirSemaphore = VK_NULL_HANDLE;
+        }
+
+        if (m_swapchain.swapchain)
+        {
+            kage::destroySwapchain(m_device, m_swapchain);
+        }
+
+        if (m_surface)
+        {
+            vkDestroySurfaceKHR(m_instance, m_surface, 0);
+            m_surface = VK_NULL_HANDLE;
+        }
+
+        /// containers
+        // buffer
+        for (uint32_t ii = 0; ii < m_bufferContainer.size(); ++ii)
+        {
+            uint16_t bufId = m_bufferContainer.getIdAt(ii);
+            Buffer_vk& buf = m_bufferContainer.getDataRef(bufId);
+            if (buf.buffer)
+            {
+                vkDestroyBuffer(m_device, buf.buffer, nullptr);
+                buf.buffer = VK_NULL_HANDLE;
+            }
+
+            if (buf.memory)
+            {
+                vkFreeMemory(m_device, buf.memory, nullptr);
+                buf.memory = VK_NULL_HANDLE;
+            }
+        }
+        m_bufferContainer.clear();
+
+        // image
+        for (uint32_t ii = 0; ii < m_imageContainer.size(); ++ii)
+        {
+            uint16_t imgId = m_imageContainer.getIdAt(ii);
+            Image_vk& img = m_imageContainer.getDataRef(imgId);
+            if (img.image)
+            {
+                vkDestroyImage(m_device, img.image, nullptr);
+                img.image = VK_NULL_HANDLE;
+            }
+
+            if (img.memory)
+            {
+                vkFreeMemory(m_device, img.memory, nullptr);
+                img.memory = VK_NULL_HANDLE;
+            }
+
+            if (img.defaultView)
+            {
+                vkDestroyImageView(m_device, img.defaultView, nullptr);
+                img.defaultView = VK_NULL_HANDLE;
+            }
+        }
+        m_imageContainer.clear();
+
+        // image views
+        for (uint32_t ii = 0; ii < m_imageViewContainer.size(); ++ii)
+        {
+            uint16_t imgViewId = m_imageViewContainer.getIdAt(ii);
+            VkImageView& view = m_imageViewContainer.getDataRef(imgViewId);
+            if (view)
+            {
+                vkDestroyImageView(m_device, view, nullptr);
+                view = VK_NULL_HANDLE;
+            }
+        }
+        m_imageViewContainer.clear();
+
+        // samplers
+        for (uint32_t ii = 0; ii < m_samplerContainer.size(); ++ii)
+        {
+            uint16_t samplerId = m_samplerContainer.getIdAt(ii);
+            VkSampler& sampler = m_samplerContainer.getDataRef(samplerId);
+            if (sampler)
+            {
+                vkDestroySampler(m_device, sampler, nullptr);
+                sampler = VK_NULL_HANDLE;
+            }
+        }
+
+        // render pass
+        for (uint32_t ii = 0; ii < m_passContainer.size(); ++ii)
+        {
+            uint16_t passId = m_passContainer.getIdAt(ii);
+            PassInfo_vk& pass = m_passContainer.getDataRef(passId);
+            if (pass.renderFuncDataPtr)
+            {
+                bx::free(m_pAllocator, pass.renderFuncDataPtr);
+            }
+            pass.renderFunc = nullptr;
+
+            if (m_device && pass.pipeline)
+            {
+                vkDestroyPipeline(m_device, pass.pipeline, nullptr);
+                pass.pipeline = VK_NULL_HANDLE;
+            }
+        }
+        m_passContainer.clear();
+
+        // shader
+        for (uint32_t ii = 0; ii < m_shaderContainer.size(); ++ii)
+        {
+            uint16_t shaderId = m_shaderContainer.getIdAt(ii);
+            Shader_vk& shader = m_shaderContainer.getDataRef(shaderId);
+            if (shader.module)
+            {
+                vkDestroyShaderModule(m_device, shader.module, nullptr);
+                shader.module = VK_NULL_HANDLE;
+            }
+        }
+        m_shaderContainer.clear();
+
+        // program
+        for (uint32_t ii = 0; ii < m_programContainer.size(); ++ii)
+        {
+            uint16_t programId = m_programContainer.getIdAt(ii);
+            Program_vk& program = m_programContainer.getDataRef(programId);
+            if (program.layout)
+            {
+                vkDestroyPipelineLayout(m_device, program.layout, nullptr);
+                program.layout = VK_NULL_HANDLE;
+            }
+        }
+
+        if (m_device)
+        {
+            vkDestroyDevice(m_device, 0);
+            m_device = VK_NULL_HANDLE;
+        }
+        
+        if (m_instance)
+        {
+            vkDestroyInstance(m_instance, 0);
+            m_instance = VK_NULL_HANDLE;
+        }
+
+        // descriptor set layout
+        m_imageViewDescContainer.clear();
+        m_bufferCreateInfoContainer.clear();
+        m_imageInitPropContainer.clear();
+
+        m_programShaderIds.clear();
+        m_progThreadCount.clear();
+
+        m_aliasToBaseBuffers.clear();
+        m_aliasToBaseImages.clear();
+        m_imgToViewGroupIdx.clear();
+        m_imgViewGroups.clear();
+        m_imgIdToAliasGroupIdx.clear();
+        m_imgAliasGroups.clear();
+        m_bufIdToAliasGroupIdx.clear();
+        m_bufAliasGroups.clear();
+
+        m_pWindow = nullptr;
     }
 
     bool RHIContext_vk::checkSupports(VulkanSupportExtension _ext)
@@ -2435,7 +2662,7 @@ namespace kage
                     sampler = m_samplerContainer.getIdToData(samplerId);
                 }
 
-                VkImageView view = img.defalutImgView;
+                VkImageView view = img.defaultView;
                 VkImageLayout layout = m_barrierDispatcher.getDstImageLayout(img.image);
                 DescriptorInfo info{ sampler, view, layout };
                 descInfos[ii] = info;
@@ -2499,7 +2726,7 @@ namespace kage
             colorAttachments[ii].loadOp = getAttachmentLoadOp(passInfo.config.colorLoadOp);
             colorAttachments[ii].storeOp = getAttachmentStoreOp(passInfo.config.colorStoreOp);
             colorAttachments[ii].imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
-            colorAttachments[ii].imageView = colorTarget.defalutImgView;
+            colorAttachments[ii].imageView = colorTarget.defaultView;
         }
 
         bool hasDepth = (passInfo.writeDepthId != kInvalidHandle);
@@ -2512,7 +2739,7 @@ namespace kage
             depthAttachment.loadOp = getAttachmentLoadOp(passInfo.config.depthLoadOp);
             depthAttachment.storeOp = getAttachmentStoreOp(passInfo.config.depthStoreOp);
             depthAttachment.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
-            depthAttachment.imageView = depthTarget.defalutImgView;
+            depthAttachment.imageView = depthTarget.defaultView;
         }
 
         VkRenderingInfo renderingInfo = { VK_STRUCTURE_TYPE_RENDERING_INFO };
@@ -2545,7 +2772,7 @@ namespace kage
         
         const Image_vk& img = getImage(_hImg.id);
 
-        VkImageView view = img.defalutImgView;
+        VkImageView view = img.defaultView;
         if (m_imageViewContainer.exist(_hImgView.id))
         {
             view = m_imageViewContainer.getIdToData(_hImgView.id);
@@ -2994,6 +3221,11 @@ namespace kage
         m_imgAspectFlags.erase(_img);
     }
 
+    BarrierDispatcher::~BarrierDispatcher()
+    {
+        clear();
+    }
+
     void BarrierDispatcher::addBuffer(const VkBuffer _buf, BarrierState_vk _barrierState, const VkBuffer _baseBuf/* = 0*/)
     {
         VKZ_ZoneScopedC(Color::indian_red);
@@ -3186,5 +3418,4 @@ namespace kage
         m_srcBufBarriers.clear();
         m_dstBufBarriers.clear();
     }
-
 } // namespace vkz

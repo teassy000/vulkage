@@ -18,7 +18,7 @@ namespace kage
     Framegraph::~Framegraph()
     {
         VKZ_ZoneScopedC(Color::light_yellow);
-        deleteObject(m_pAllocator, m_pMemBlock);
+        shutdown();
     }
 
     void Framegraph::bake()
@@ -40,6 +40,63 @@ namespace kage
 
         // actual create resources for renderer
         createResources();
+    }
+
+    void Framegraph::shutdown()
+    {
+        VKZ_ZoneScopedC(Color::light_yellow);
+
+        m_hShader.clear();
+        m_hProgram.clear();
+        m_hPass.clear();
+        m_hBuf.clear();
+        m_hTex.clear();
+        m_hSampler.clear();
+        m_hImgView.clear();
+
+        m_sparse_shader_info.clear();
+        m_sparse_program_info.clear();
+        m_sparse_pass_meta.clear();
+        m_sparse_buf_info.clear();
+        m_sparse_img_info.clear();
+        m_sparse_sampler_meta.clear();
+        m_sparse_img_view_desc.clear();
+        m_sparse_pass_data_ref.clear();
+        
+        m_backBufferSet.clear();
+        m_shader_path.clear();
+        m_combinedResId.clear();
+        m_vtxBindingDesc.clear();
+        m_vtxAttrDesc.clear();
+        m_pipelineSpecData.clear();
+
+        m_pass_rw_res.clear();
+        m_pass_dependency.clear();
+        m_combinedForceAlias_base.clear();
+        m_combinedForceAlias.clear();
+        m_forceAliasMapToBase.clear();
+
+        m_sortedPass.clear();
+        m_sortedPassIdx.clear();
+
+        m_passIdxInDpLevels.clear();
+        m_passIdxToSync.clear();
+
+        m_nearestSyncPassIdx.clear();
+        m_multiFrame_resList.clear();
+
+        m_resInUseUniList.clear();
+        m_resToOptmUniList.clear();
+        m_resInUseReadonlyList.clear();
+        m_resInUseMultiframeList.clear();
+
+        m_resLifeTime.clear();
+        m_plainResAliasToBase.clear();
+        m_bufBuckets.clear();
+        m_imgBuckets.clear();
+
+        bx::deleteObject(m_pAllocator, m_pMemBlock);
+        m_pAllocator = nullptr;
     }
 
     void Framegraph::parseOp()

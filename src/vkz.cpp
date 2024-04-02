@@ -25,13 +25,78 @@
 
 namespace kage
 {
+    constexpr size_t kDefaultAlign = 8;
+    struct AllocatorStub : public bx::AllocatorI
+    {
+        AllocatorStub() = default;
+        ~AllocatorStub() override {}
+
+        void* realloc(
+            void* _ptr
+            , size_t _sz
+            , size_t _align
+            , const char* _file
+            , uint32_t _line) override
+        {
+            if (0 == _sz)
+            {
+                if (nullptr != _ptr)
+                {
+                    VKZ_ProfFree(_ptr);
+                    if (kDefaultAlign >= _align)
+                    {
+                        ::free(_ptr);
+                    }
+                    else
+                    {
+                        ::_aligned_free(_ptr);
+                    }
+
+                }
+
+                return nullptr;
+            }
+
+            if (nullptr == _ptr)
+            {
+                void* ret = nullptr;
+                if (kDefaultAlign >= _align)
+                {
+                    ret = ::malloc(_sz);
+
+                }
+                else
+                {
+                    ret = _aligned_malloc(_sz, _align);
+                }
+
+                VKZ_ProfAlloc(ret, _sz);
+                return ret;
+            }
+
+            if (kDefaultAlign >= _align)
+            {
+                VKZ_ProfFree(_ptr);
+                void* ret = ::realloc(_ptr, _sz);
+                VKZ_ProfAlloc(ret, _sz);
+                return ret;
+            }
+
+            VKZ_ProfFree(_ptr);
+            void* ret = _aligned_realloc(_ptr, _sz, _align);
+            VKZ_ProfAlloc(ret, _sz);
+            return ret;
+        }
+
+    };
+
     static bx::AllocatorI* s_bxAllocator = nullptr;
     static bx::AllocatorI* getBxAllocator()
     {
         if (s_bxAllocator == nullptr)
         {
             bx::DefaultAllocator allocator;
-            s_bxAllocator = BX_NEW(&allocator, bx::DefaultAllocator)();
+            s_bxAllocator = BX_NEW(&allocator, AllocatorStub)();
         }
         return s_bxAllocator;
     }
@@ -2111,9 +2176,9 @@ namespace kage
 
     void Context::shutdown()
     {
-        deleteObject(m_pAllocator, m_frameGraph);
-        deleteObject(m_pAllocator, m_rhiContext);
-        deleteObject(m_pAllocator, m_fgMemWriter);
+        bx::deleteObject(m_pAllocator, m_frameGraph);
+        bx::deleteObject(m_pAllocator, m_rhiContext);
+        bx::deleteObject(m_pAllocator, m_fgMemWriter);
 
         // free memorys
         for (const Memory* pMem : m_inputMemories)
@@ -2396,7 +2461,9 @@ namespace kage
 
     void shutdown()
     {
-        deleteObject(getBxAllocator(), s_ctx);
+        bx::deleteObject(getBxAllocator(), s_ctx);
+        bx::deleteObject(getBxAllocator(), s_nameManager);
+
         shutdownAllocator();
     }
 

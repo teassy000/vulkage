@@ -240,7 +240,7 @@ namespace kage
             Image_vk& img = results[ii];
 
             img.resId = _infos[ii].imgId;
-            img.defalutImgView = createImageView(_device, img.image, _initProps.format, 0, _initProps.numMips, _initProps.viewType); // ImageView bind to the image handle it self, should create a new one for alias
+            img.defaultView = createImageView(_device, img.image, _initProps.format, 0, _initProps.numMips, _initProps.viewType); // ImageView bind to the image handle it self, should create a new one for alias
             img.memory = memory;
 
             img.width = _initProps.width;
@@ -288,7 +288,7 @@ namespace kage
 
         for (const Image_vk& img : _images)
         {
-            vkDestroyImageView(_device, img.defalutImgView, nullptr);
+            vkDestroyImageView(_device, img.defaultView, nullptr);
             vkDestroyImage(_device, img.image, nullptr);
         }
     }
