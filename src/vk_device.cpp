@@ -8,7 +8,7 @@
 #include <windows.h>
 #endif
 
-namespace vkz
+namespace kage
 {
 
     static VkBool32 debugReportCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage, void* pUserData)
@@ -19,7 +19,7 @@ namespace vkz
             ? DebugMessageType::warning
             : DebugMessageType::info;
 
-        vkz::message(msgType, "%s\n", pMessage);
+        kage::message(msgType, "%s\n", pMessage);
 
         return VK_FALSE;
     }
@@ -127,7 +127,7 @@ namespace vkz
             VkPhysicalDeviceProperties props;
             vkGetPhysicalDeviceProperties(physicalDevices[i], &props);
 
-            vkz::message(vkz::info, "GPU%d: %s\n", i, props.deviceName);
+            kage::message(kage::info, "GPU%d: %s\n", i, props.deviceName);
 
             uint32_t familyIndex = getGraphicsFamilyIndex(physicalDevices[i]);
 
@@ -152,10 +152,10 @@ namespace vkz
             VkPhysicalDeviceProperties props;
             vkGetPhysicalDeviceProperties(result, &props);
 
-            vkz::message(vkz::info, "Selected GPU %s\n", props.deviceName);
+            kage::message(kage::info, "Selected GPU %s\n", props.deviceName);
         }
         else {
-            vkz::message(vkz::info, "ERROR: No GPU Found!\n");
+            kage::message(kage::info, "ERROR: No GPU Found!\n");
         }
 
 

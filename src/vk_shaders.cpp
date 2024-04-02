@@ -9,7 +9,7 @@
 #endif
 
 
-namespace vkz
+namespace kage
 {
     // https://www.khronos.org/registry/spir-v/specs/1.0/SPIRV.pdf
     struct Id

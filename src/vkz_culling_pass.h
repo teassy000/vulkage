@@ -4,38 +4,38 @@
 
 struct CullingCompInitData
 {
-    vkz::BufferHandle meshBuf;
-    vkz::BufferHandle meshDrawBuf;
-    vkz::BufferHandle transBuf;
+    kage::BufferHandle meshBuf;
+    kage::BufferHandle meshDrawBuf;
+    kage::BufferHandle transBuf;
 
-    vkz::ImageHandle pyramid;
+    kage::ImageHandle pyramid;
 
-    vkz::BufferHandle meshDrawCmdBuf;
-    vkz::BufferHandle meshDrawCmdCountBuf;
-    vkz::BufferHandle meshDrawVisBuf;
+    kage::BufferHandle meshDrawCmdBuf;
+    kage::BufferHandle meshDrawCmdCountBuf;
+    kage::BufferHandle meshDrawVisBuf;
 };
 
 struct CullingComp
 {
-    vkz::ShaderHandle cs;
-    vkz::ProgramHandle prog;
-    vkz::PassHandle pass;
+    kage::ShaderHandle cs;
+    kage::ProgramHandle prog;
+    kage::PassHandle pass;
 
     // read-only
-    vkz::BufferHandle meshBuf;
-    vkz::BufferHandle meshDrawBuf;
-    vkz::BufferHandle transBuf;
+    kage::BufferHandle meshBuf;
+    kage::BufferHandle meshDrawBuf;
+    kage::BufferHandle transBuf;
 
-    vkz::ImageHandle pyramid;
+    kage::ImageHandle pyramid;
 
     // read / write
-    vkz::BufferHandle meshDrawCmdBuf;
-    vkz::BufferHandle meshDrawCmdCountBuf;
-    vkz::BufferHandle meshDrawVisBuf;
+    kage::BufferHandle meshDrawCmdBuf;
+    kage::BufferHandle meshDrawCmdCountBuf;
+    kage::BufferHandle meshDrawVisBuf;
 
-    vkz::BufferHandle meshDrawCmdBufOutAlias;
-    vkz::BufferHandle meshDrawCmdCountBufOutAlias;
-    vkz::BufferHandle meshDrawVisBufOutAlias;
+    kage::BufferHandle meshDrawCmdBufOutAlias;
+    kage::BufferHandle meshDrawCmdCountBufOutAlias;
+    kage::BufferHandle meshDrawVisBufOutAlias;
 
     MeshDrawCullVKZ meshDrawCull;
 };

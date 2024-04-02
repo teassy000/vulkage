@@ -4,7 +4,7 @@
 #include "rhi_context.h"
 #include "util.h"
 
-namespace vkz
+namespace kage
 {
 
     void RHIContext::bake()

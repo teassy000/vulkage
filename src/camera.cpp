@@ -40,20 +40,20 @@ void freeCameraProcessKeyboard(FreeCamera& camera, int key, float deltaTime)
         recordingMouse = !recordingMouse;
 }
 
-void freeCameraProcessKeyboard(FreeCamera& camera, vkz::KeyEnum _key, float deltaTime)
+void freeCameraProcessKeyboard(FreeCamera& camera, kage::KeyEnum _key, float deltaTime)
 {
     float velocity = camera.moveSpeed * deltaTime;
-    if (vkz::KeyEnum::key_w == _key)
+    if (kage::KeyEnum::key_w == _key)
         camera.pos += camera.front * velocity;
-    if (vkz::KeyEnum::key_s == _key)
+    if (kage::KeyEnum::key_s == _key)
         camera.pos -= camera.front * velocity;
-    if (vkz::KeyEnum::key_a == _key)
+    if (kage::KeyEnum::key_a == _key)
         camera.pos -= camera.right * velocity;
-    if (vkz::KeyEnum::key_d == _key)
+    if (kage::KeyEnum::key_d == _key)
         camera.pos += camera.right * velocity;
-    if (vkz::KeyEnum::key_r == _key)
+    if (kage::KeyEnum::key_r == _key)
         freeCameraInit(camera, { 0.f, 0.f, 0.f }, { 0.f, 1.f, 0.f }, 90.f, 0.f);
-    if (vkz::KeyEnum::key_f == _key)
+    if (kage::KeyEnum::key_f == _key)
         recordingMouse = !recordingMouse;
 }
 

@@ -11,32 +11,32 @@ struct PushConstBlock {
 
 struct UIRendering
 {
-    vkz::ProgramHandle program{ vkz::kInvalidHandle };
+    kage::ProgramHandle program{ kage::kInvalidHandle };
 
     // shaders
-    vkz::ShaderHandle vs{ vkz::kInvalidHandle };
-    vkz::ShaderHandle fs{ vkz::kInvalidHandle };
+    kage::ShaderHandle vs{ kage::kInvalidHandle };
+    kage::ShaderHandle fs{ kage::kInvalidHandle };
 
-    vkz::PassHandle pass{ vkz::kInvalidHandle };
+    kage::PassHandle pass{ kage::kInvalidHandle };
 
     // vertex buffer and index buffer
-    vkz::BufferHandle vb{ vkz::kInvalidHandle };
+    kage::BufferHandle vb{ kage::kInvalidHandle };
     uint32_t vtxCount;
-    vkz::BufferHandle ib{ vkz::kInvalidHandle };
+    kage::BufferHandle ib{ kage::kInvalidHandle };
     uint32_t idxCount;
 
     // image and for descriptor set push
-    vkz::ImageHandle fontImage{ vkz::kInvalidHandle };
+    kage::ImageHandle fontImage{ kage::kInvalidHandle };
 
-    vkz::ImageHandle color{ vkz::kInvalidHandle };
-    vkz::ImageHandle depth{ vkz::kInvalidHandle };
+    kage::ImageHandle color{ kage::kInvalidHandle };
+    kage::ImageHandle depth{ kage::kInvalidHandle };
     
-    vkz::ImageHandle colorOutAlias{ vkz::kInvalidHandle };
-    vkz::ImageHandle depthOutAlias{ vkz::kInvalidHandle };
+    kage::ImageHandle colorOutAlias{ kage::kInvalidHandle };
+    kage::ImageHandle depthOutAlias{ kage::kInvalidHandle };
 };
 
 
-void vkz_prepareUI(UIRendering& _ui, vkz::ImageHandle _color, vkz::ImageHandle _depth, float _scale = 1.f, bool _useChinese = false);
+void vkz_prepareUI(UIRendering& _ui, kage::ImageHandle _color, kage::ImageHandle _depth, float _scale = 1.f, bool _useChinese = false);
 void vkz_destroyUIRendering(UIRendering& ui);
 
 void vkz_updateImGui(const UIInput& input, DebugRenderOptionsData& rd, const DebugProfilingData& pd, const DebugLogicData& ld);

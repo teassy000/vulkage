@@ -4,7 +4,7 @@
 #include "macro.h"
 #include "config.h"
 
-namespace vkz
+namespace kage
 {
     static const uint16_t kInvalidHandle = UINT16_MAX;
     static const uint32_t kInvalidDescriptorSetIndex = UINT32_MAX;

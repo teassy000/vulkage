@@ -2,7 +2,7 @@
 
 #include "vkz_inner.h"
 
-namespace vkz
+namespace kage
 {
 
     struct Buffer_vk

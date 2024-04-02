@@ -23,10 +23,10 @@ void mouseMoveCallback(double _xpos, double _ypos)
     freeCameraProcessMouseMovement(demo.camera, (float)_xpos, (float)_ypos);
 }
 
-void keyCallback(vkz::KeyEnum _key, vkz::KeyState _state, vkz::KeyModFlags _flags)
+void keyCallback(kage::KeyEnum _key, kage::KeyState _state, kage::KeyModFlags _flags)
 {
-    if (vkz::KeyState::press == _state 
-        || vkz::KeyState::repeat == _state)
+    if (kage::KeyState::press == _state 
+        || kage::KeyState::repeat == _state)
     {
         freeCameraProcessKeyboard(demo.camera, _key, 0.1f);
     }
@@ -34,13 +34,13 @@ void keyCallback(vkz::KeyEnum _key, vkz::KeyState _state, vkz::KeyModFlags _flag
 
 void meshDemo()
 {
-    vkz::VKZInitConfig config = {};
+    kage::VKZInitConfig config = {};
     config.windowWidth = 2560;
     config.windowHeight = 1440;
 
-    vkz::init(config);
+    kage::init(config);
 
-    bool supportMeshShading = vkz::checkSupports(vkz::VulkanSupportExtension::ext_mesh_shader);
+    bool supportMeshShading = kage::checkSupports(kage::VulkanSupportExtension::ext_mesh_shader);
 
     // ui data
     demo.input.width = (float)config.windowWidth;
@@ -56,122 +56,122 @@ void meshDemo()
     freeCameraInit(demo.camera, vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 1.0f, 0.0f), 90.0f, 0.0f);
 
     // set input callback
-    vkz::setKeyCallback(keyCallback);
-    vkz::setMouseMoveCallback(mouseMoveCallback);
+    kage::setKeyCallback(keyCallback);
+    kage::setMouseMoveCallback(mouseMoveCallback);
 
     // buffers
     // mesh data
-    const vkz::Memory* memMeshBuf = vkz::alloc((uint32_t)(sizeof(Mesh) * scene.geometry.meshes.size()));
+    const kage::Memory* memMeshBuf = kage::alloc((uint32_t)(sizeof(Mesh) * scene.geometry.meshes.size()));
     memcpy(memMeshBuf->data, scene.geometry.meshes.data(), memMeshBuf->size);
 
-    vkz::BufferDesc meshBufDesc;
+    kage::BufferDesc meshBufDesc;
     meshBufDesc.size = memMeshBuf->size;
-    meshBufDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::transfer_dst;
-    meshBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
-    vkz::BufferHandle meshBuf = vkz::registBuffer("mesh", meshBufDesc, memMeshBuf);
+    meshBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+    meshBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+    kage::BufferHandle meshBuf = kage::registBuffer("mesh", meshBufDesc, memMeshBuf);
 
     // mesh draw instance buffer
 
-    const vkz::Memory* memMeshDrawBuf = vkz::alloc((uint32_t)(scene.meshDraws.size() * sizeof(MeshDraw)));
+    const kage::Memory* memMeshDrawBuf = kage::alloc((uint32_t)(scene.meshDraws.size() * sizeof(MeshDraw)));
     memcpy(memMeshDrawBuf->data, scene.meshDraws.data(), memMeshDrawBuf->size);
 
-    vkz::BufferDesc meshDrawBufDesc;
+    kage::BufferDesc meshDrawBufDesc;
     meshDrawBufDesc.size = memMeshDrawBuf->size;
-    meshDrawBufDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::transfer_dst;
-    meshDrawBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
-    vkz::BufferHandle meshDrawBuf = vkz::registBuffer("meshDraw", meshDrawBufDesc, memMeshDrawBuf);
+    meshDrawBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+    meshDrawBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+    kage::BufferHandle meshDrawBuf = kage::registBuffer("meshDraw", meshDrawBufDesc, memMeshDrawBuf);
 
     // mesh draw instance buffer
-    vkz::BufferDesc meshDrawCmdBufDesc;
+    kage::BufferDesc meshDrawCmdBufDesc;
     meshDrawCmdBufDesc.size = 128 * 1024 * 1024; // 128M
-    meshDrawCmdBufDesc.usage = vkz::BufferUsageFlagBits::indirect | vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::transfer_dst;
-    meshDrawCmdBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
-    vkz::BufferHandle meshDrawCmdBuf = vkz::registBuffer("meshDrawCmd", meshDrawCmdBufDesc);
+    meshDrawCmdBufDesc.usage = kage::BufferUsageFlagBits::indirect | kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+    meshDrawCmdBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+    kage::BufferHandle meshDrawCmdBuf = kage::registBuffer("meshDrawCmd", meshDrawCmdBufDesc);
 
     // mesh draw instance count buffer
-    vkz::BufferDesc meshDrawCmdCountBufDesc;
+    kage::BufferDesc meshDrawCmdCountBufDesc;
     meshDrawCmdCountBufDesc.size = 16;
-    meshDrawCmdCountBufDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::indirect | vkz::BufferUsageFlagBits::transfer_dst;
-    meshDrawCmdCountBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
-    vkz::BufferHandle meshDrawCmdCountBuf = vkz::registBuffer("meshDrawCmdCount", meshDrawCmdCountBufDesc);
-    vkz::BufferHandle meshDrawCmdCountBufAfterFill = vkz::alias(meshDrawCmdCountBuf);
-    vkz::BufferHandle meshDrawCmdCountBufAfterFillLate = vkz::alias(meshDrawCmdCountBuf);
+    meshDrawCmdCountBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::indirect | kage::BufferUsageFlagBits::transfer_dst;
+    meshDrawCmdCountBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+    kage::BufferHandle meshDrawCmdCountBuf = kage::registBuffer("meshDrawCmdCount", meshDrawCmdCountBufDesc);
+    kage::BufferHandle meshDrawCmdCountBufAfterFill = kage::alias(meshDrawCmdCountBuf);
+    kage::BufferHandle meshDrawCmdCountBufAfterFillLate = kage::alias(meshDrawCmdCountBuf);
 
     // mesh draw instance visibility buffer
-    vkz::BufferDesc meshDrawVisBufDesc;
+    kage::BufferDesc meshDrawVisBufDesc;
     meshDrawVisBufDesc.size = uint32_t(scene.drawCount * sizeof(uint32_t));
-    meshDrawVisBufDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::indirect | vkz::BufferUsageFlagBits::transfer_dst;
-    meshDrawVisBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
-    vkz::BufferHandle meshDrawVisBuf = vkz::registBuffer("meshDrawVis", meshDrawVisBufDesc);
+    meshDrawVisBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::indirect | kage::BufferUsageFlagBits::transfer_dst;
+    meshDrawVisBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+    kage::BufferHandle meshDrawVisBuf = kage::registBuffer("meshDrawVis", meshDrawVisBufDesc);
 
     // mesh draw instance visibility buffer
-    vkz::BufferDesc meshletVisBufDesc;
+    kage::BufferDesc meshletVisBufDesc;
     meshletVisBufDesc.size = (scene.meshletVisibilityCount + 31) / 32 * sizeof(uint32_t);
-    meshletVisBufDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::indirect | vkz::BufferUsageFlagBits::transfer_dst;
-    meshletVisBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
-    vkz::BufferHandle meshletVisBuf = vkz::registBuffer("meshletVis", meshletVisBufDesc);
+    meshletVisBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::indirect | kage::BufferUsageFlagBits::transfer_dst;
+    meshletVisBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+    kage::BufferHandle meshletVisBuf = kage::registBuffer("meshletVis", meshletVisBufDesc);
 
     // index buffer
-    const vkz::Memory* memIdxBuf = vkz::alloc((uint32_t)(scene.geometry.indices.size() * sizeof(uint32_t)));
+    const kage::Memory* memIdxBuf = kage::alloc((uint32_t)(scene.geometry.indices.size() * sizeof(uint32_t)));
     memcpy(memIdxBuf->data, scene.geometry.indices.data(), memIdxBuf->size);
 
-    vkz::BufferDesc idxBufDesc;
+    kage::BufferDesc idxBufDesc;
     idxBufDesc.size = memIdxBuf->size;
-    idxBufDesc.usage = vkz::BufferUsageFlagBits::index | vkz::BufferUsageFlagBits::transfer_dst;
-    idxBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
-    vkz::BufferHandle idxBuf = vkz::registBuffer("idx", idxBufDesc, memIdxBuf);
+    idxBufDesc.usage = kage::BufferUsageFlagBits::index | kage::BufferUsageFlagBits::transfer_dst;
+    idxBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+    kage::BufferHandle idxBuf = kage::registBuffer("idx", idxBufDesc, memIdxBuf);
 
     // vertex buffer
-    const vkz::Memory* memVtxBuf = vkz::alloc((uint32_t)(scene.geometry.vertices.size() * sizeof(Vertex)));
+    const kage::Memory* memVtxBuf = kage::alloc((uint32_t)(scene.geometry.vertices.size() * sizeof(Vertex)));
     memcpy(memVtxBuf->data, scene.geometry.vertices.data(), memVtxBuf->size);
 
-    vkz::BufferDesc vtxBufDesc;
+    kage::BufferDesc vtxBufDesc;
     vtxBufDesc.size = memVtxBuf->size;
-    vtxBufDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::transfer_dst;
-    vtxBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
-    vkz::BufferHandle vtxBuf = vkz::registBuffer("vtx", vtxBufDesc, memVtxBuf);
+    vtxBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+    vtxBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+    kage::BufferHandle vtxBuf = kage::registBuffer("vtx", vtxBufDesc, memVtxBuf);
 
     // meshlet buffer
-    const vkz::Memory* memMeshletBuf = vkz::alloc((uint32_t)(scene.geometry.meshlets.size() * sizeof(Meshlet)));
+    const kage::Memory* memMeshletBuf = kage::alloc((uint32_t)(scene.geometry.meshlets.size() * sizeof(Meshlet)));
     memcpy(memMeshletBuf->data, scene.geometry.meshlets.data(), memMeshletBuf->size);
 
-    vkz::BufferDesc meshletBufferDesc;
+    kage::BufferDesc meshletBufferDesc;
     meshletBufferDesc.size = memMeshletBuf->size;
-    meshletBufferDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::transfer_dst;
-    meshletBufferDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
-    vkz::BufferHandle meshletBuffer = vkz::registBuffer("meshlet_buffer", meshletBufferDesc, memMeshletBuf);
+    meshletBufferDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+    meshletBufferDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+    kage::BufferHandle meshletBuffer = kage::registBuffer("meshlet_buffer", meshletBufferDesc, memMeshletBuf);
     
     // meshlet data buffer
-    const vkz::Memory* memMeshletDataBuf = vkz::alloc((uint32_t)(scene.geometry.meshletdata.size() * sizeof(uint32_t)));
+    const kage::Memory* memMeshletDataBuf = kage::alloc((uint32_t)(scene.geometry.meshletdata.size() * sizeof(uint32_t)));
     memcpy(memMeshletDataBuf->data, scene.geometry.meshletdata.data(), memMeshletDataBuf->size);
 
-    vkz::BufferDesc meshletDataBufferDesc;
+    kage::BufferDesc meshletDataBufferDesc;
     meshletDataBufferDesc.size = memMeshletDataBuf->size;
-    meshletDataBufferDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::transfer_dst;
-    meshletDataBufferDesc.memFlags = vkz::MemoryPropFlagBits::device_local;
-    vkz::BufferHandle meshletDataBuffer = vkz::registBuffer("meshlet_data_buffer", meshletDataBufferDesc, memMeshletDataBuf);
+    meshletDataBufferDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+    meshletDataBufferDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+    kage::BufferHandle meshletDataBuffer = kage::registBuffer("meshlet_data_buffer", meshletDataBufferDesc, memMeshletDataBuf);
 
     // transform
-    vkz::BufferDesc transformBufDesc;
+    kage::BufferDesc transformBufDesc;
     transformBufDesc.size = (uint32_t)(sizeof(TransformData));
-    transformBufDesc.usage = vkz::BufferUsageFlagBits::storage | vkz::BufferUsageFlagBits::transfer_dst;
-    transformBufDesc.memFlags = vkz::MemoryPropFlagBits::device_local | vkz::MemoryPropFlagBits::host_visible;
-    vkz::BufferHandle transformBuf = vkz::registBuffer("transform", transformBufDesc);
+    transformBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+    transformBufDesc.memFlags = kage::MemoryPropFlagBits::device_local | kage::MemoryPropFlagBits::host_visible;
+    kage::BufferHandle transformBuf = kage::registBuffer("transform", transformBufDesc);
     
     // color
-    vkz::ImageDesc rtDesc;
+    kage::ImageDesc rtDesc;
     rtDesc.depth = 1;
     rtDesc.numLayers = 1;
     rtDesc.numMips = 1;
-    rtDesc.usage = vkz::ImageUsageFlagBits::transfer_src;
-    vkz::ImageHandle color = vkz::registRenderTarget("color", rtDesc, vkz::ResourceLifetime::non_transition);
+    rtDesc.usage = kage::ImageUsageFlagBits::transfer_src;
+    kage::ImageHandle color = kage::registRenderTarget("color", rtDesc, kage::ResourceLifetime::non_transition);
 
-    vkz::ImageDesc dpDesc;
+    kage::ImageDesc dpDesc;
     dpDesc.depth = 1;
     dpDesc.numLayers = 1;
     dpDesc.numMips = 1;
-    dpDesc.usage = vkz::ImageUsageFlagBits::transfer_src | vkz::ImageUsageFlagBits::sampled;
-    vkz::ImageHandle depth = vkz::registDepthStencil("depth", dpDesc, vkz::ResourceLifetime::non_transition);
+    dpDesc.usage = kage::ImageUsageFlagBits::transfer_src | kage::ImageUsageFlagBits::sampled;
+    kage::ImageHandle depth = kage::registDepthStencil("depth", dpDesc, kage::ResourceLifetime::non_transition);
 
     // pyramid passes
     uint32_t pyramidLevelWidth = previousPow2_new(config.windowWidth);
@@ -210,7 +210,7 @@ void meshDemo()
 
     SkyboxRendering skybox{};
     {
-        vkz::ImageHandle sbColorIn = color;
+        kage::ImageHandle sbColorIn = color;
         initSkyboxPass(skybox, transformBuf, sbColorIn);
     }
 
@@ -305,49 +305,49 @@ void meshDemo()
         prepareMeshShading(meshShadingLate, scene, config.windowWidth, config.windowHeight, msInit, true);
     }
 
-    vkz::PassHandle pass_fill_dccb;
+    kage::PassHandle pass_fill_dccb;
     {
-        vkz::PassDesc passDesc;
-        passDesc.queue = vkz::PassExeQueue::fill_buffer;
+        kage::PassDesc passDesc;
+        passDesc.queue = kage::PassExeQueue::fill_buffer;
 
-        pass_fill_dccb = vkz::registPass("fill_dccb", passDesc);
+        pass_fill_dccb = kage::registPass("fill_dccb", passDesc);
 
-        vkz::fillBuffer(pass_fill_dccb, meshDrawCmdCountBuf, 0, sizeof(uint32_t), 0, meshDrawCmdCountBufAfterFill);
+        kage::fillBuffer(pass_fill_dccb, meshDrawCmdCountBuf, 0, sizeof(uint32_t), 0, meshDrawCmdCountBufAfterFill);
     } 
 
-    vkz::PassHandle pass_fill_dccb_late;
+    kage::PassHandle pass_fill_dccb_late;
     {
-        vkz::PassDesc passDesc;
-        passDesc.queue = vkz::PassExeQueue::fill_buffer;
+        kage::PassDesc passDesc;
+        passDesc.queue = kage::PassExeQueue::fill_buffer;
 
-        pass_fill_dccb_late = vkz::registPass("fill_dccb_late", passDesc);
+        pass_fill_dccb_late = kage::registPass("fill_dccb_late", passDesc);
 
-        vkz::BufferHandle dccb = culling.meshDrawCmdCountBufOutAlias;
-        vkz::fillBuffer(pass_fill_dccb_late, dccb, 0, sizeof(uint32_t), 0, meshDrawCmdCountBufAfterFillLate);
+        kage::BufferHandle dccb = culling.meshDrawCmdCountBufOutAlias;
+        kage::fillBuffer(pass_fill_dccb_late, dccb, 0, sizeof(uint32_t), 0, meshDrawCmdCountBufAfterFillLate);
     }
 
     UIRendering ui{};
     {
-        vkz::ImageHandle uiColorIn = supportMeshShading ? meshShadingLate.colorOutAlias : vtxShadingLate.colorOutAlias;
-        vkz::ImageHandle uiDepthIn = supportMeshShading ? meshShadingLate.depthOutAlias : vtxShadingLate.depthOutAlias;
+        kage::ImageHandle uiColorIn = supportMeshShading ? meshShadingLate.colorOutAlias : vtxShadingLate.colorOutAlias;
+        kage::ImageHandle uiDepthIn = supportMeshShading ? meshShadingLate.depthOutAlias : vtxShadingLate.depthOutAlias;
 
         vkz_prepareUI(ui, uiColorIn, uiDepthIn, 1.3f);
     }
 
-    vkz::PassHandle pass_py = pyRendering.pass;
-    vkz::PassHandle pass_ui = ui.pass;
+    kage::PassHandle pass_py = pyRendering.pass;
+    kage::PassHandle pass_ui = ui.pass;
 
-    vkz::setPresentImage(ui.colorOutAlias);
+    kage::setPresentImage(ui.colorOutAlias);
 
-    vkz::bake();
+    kage::bake();
 
     // data used in loop
-    const vkz::Memory* memTransform = vkz::alloc(sizeof(TransformData));
+    const kage::Memory* memTransform = kage::alloc(sizeof(TransformData));
 
     double clockDuration = 0.0;
     double avgCpuTime = 0.0;
 
-    while (!vkz::shouldClose())
+    while (!kage::shouldClose())
     {
         clock_t startFrameTime = clock();
 
@@ -405,11 +405,11 @@ void meshDemo()
             updateVtxShadingConstants(vtxShadingLate, demo.globals);
         }
 
-        vkz::updateThreadCount(culling.pass, (uint32_t)scene.meshDraws.size(), 1, 1);
-        vkz::updateThreadCount(cullingLate.pass, (uint32_t)scene.meshDraws.size(), 1, 1);
+        kage::updateThreadCount(culling.pass, (uint32_t)scene.meshDraws.size(), 1, 1);
+        kage::updateThreadCount(cullingLate.pass, (uint32_t)scene.meshDraws.size(), 1, 1);
 
         memcpy_s(memTransform->data, memTransform->size, &demo.trans, sizeof(TransformData));
-        vkz::updateBuffer(transformBuf, vkz::copy(memTransform));
+        kage::updateBuffer(transformBuf, kage::copy(memTransform));
 
         // update profiling data to GPU from last frame
         if ( clockDuration > 300.0)
@@ -421,7 +421,7 @@ void meshDemo()
         }
 
         // render
-        vkz::run();
+        kage::run();
 
         clock_t endFrameTime = clock();
         double cpuTimeMS = (double)(endFrameTime - startFrameTime);
@@ -429,17 +429,17 @@ void meshDemo()
         
         avgCpuTime = float(avgCpuTime * 0.95 + (cpuTimeMS) * 0.05);
         demo.profiling.avgCpuTime = (float)avgCpuTime;
-        demo.profiling.cullEarlyTime = (float)vkz::getPassTime(culling.pass);
-        demo.profiling.drawEarlyTime = (float)vkz::getPassTime(meshShading.pass);
-        demo.profiling.cullLateTime = (float)vkz::getPassTime(cullingLate.pass);
-        demo.profiling.drawLateTime = (float)vkz::getPassTime(meshShadingLate.pass);
-        demo.profiling.pyramidTime = (float)vkz::getPassTime(pyRendering.pass);
-        demo.profiling.uiTime = (float)vkz::getPassTime(ui.pass);
+        demo.profiling.cullEarlyTime = (float)kage::getPassTime(culling.pass);
+        demo.profiling.drawEarlyTime = (float)kage::getPassTime(meshShading.pass);
+        demo.profiling.cullLateTime = (float)kage::getPassTime(cullingLate.pass);
+        demo.profiling.drawLateTime = (float)kage::getPassTime(meshShadingLate.pass);
+        demo.profiling.pyramidTime = (float)kage::getPassTime(pyRendering.pass);
+        demo.profiling.uiTime = (float)kage::getPassTime(ui.pass);
 
         VKZ_FrameMark;
     }
 
-    vkz::shutdown();
+    kage::shutdown();
 }
 
 void DemoMain()

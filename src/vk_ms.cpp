@@ -7,7 +7,7 @@
 int main(int argc, const char** argv)
 {
     if (argc < 2) {
-        vkz::message(vkz::info, "Usage: %s [mesh]\n", argv[0]);
+        kage::message(kage::info, "Usage: %s [mesh]\n", argv[0]);
         return 1;
     }
 

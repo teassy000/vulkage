@@ -5,7 +5,7 @@
 
 using GLFWwindow = struct GLFWwindow;
 
-namespace vkz
+namespace kage
 {
 
     struct Swapchain_vk

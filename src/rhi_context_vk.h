@@ -14,7 +14,7 @@
 #include "rhi_context.h"
 #include "cmd_list_vk.h"
 
-namespace vkz
+namespace kage
 {
     enum class ShaderStage_vk : uint16_t
     {

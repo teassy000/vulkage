@@ -2,7 +2,7 @@
 
 #include "common.h"
 
-namespace vkz
+namespace kage
 {
     VkInstance createInstance();
     VkDebugReportCallbackEXT registerDebugCallback(VkInstance instance);

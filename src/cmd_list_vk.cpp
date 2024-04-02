@@ -2,15 +2,15 @@
 #include "util.h"
 #include "rhi_context_vk.h"
 
-namespace vkz
+namespace kage
 {
     VkIndexType getIndexType(IndexType _type)
     {
         switch (_type)
         {
-        case vkz::IndexType::uint16:
+        case kage::IndexType::uint16:
             return VK_INDEX_TYPE_UINT16;
-        case vkz::IndexType::uint32:
+        case kage::IndexType::uint32:
             return VK_INDEX_TYPE_UINT32;
         default:
             return VK_INDEX_TYPE_UINT16;

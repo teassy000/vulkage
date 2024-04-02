@@ -9,7 +9,7 @@
 #define VKZ_ALIGNED_NEW(_allocator, _type, _align) VKZ_PLACEMENT_NEW(vkz::alloc(_allocator, sizeof(_type), _align), _type)
 #define VKZ_PLACEMENT_NEW(_ptr, _type)             ::new(vkz::PlacementNew, _ptr) _type
 
-namespace vkz
+namespace kage
 {
     struct NO_VTABLE AllocatorI
     {
@@ -179,16 +179,16 @@ namespace vkz
     }
 }
 
-namespace vkz
+namespace kage
 {
     VKZ_DECLARE_TAG(PlacementNew);
 }
 
-inline void* operator new(size_t, vkz::PlacementNewTag, void* _ptr)
+inline void* operator new(size_t, kage::PlacementNewTag, void* _ptr)
 {
     return _ptr;
 }
 
-inline void operator delete(void*, vkz::PlacementNewTag, void*) throw()
+inline void operator delete(void*, kage::PlacementNewTag, void*) throw()
 {
 }

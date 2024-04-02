@@ -13,9 +13,8 @@
 #include <algorithm>
 
 
-namespace vkz
+namespace kage
 {
-
     Framegraph::~Framegraph()
     {
         VKZ_ZoneScopedC(Color::light_yellow);
@@ -1968,7 +1967,7 @@ namespace vkz
                     }
                     else
                     {
-                        vkz::message(DebugMessageType::error, "invalid write resource mapping: Res %4d, PassExeQueue: %d\n", writeRes.id, passMeta.queue);
+                        kage::message(DebugMessageType::error, "invalid write resource mapping: Res %4d, PassExeQueue: %d\n", writeRes.id, passMeta.queue);
                     }
                 }
 

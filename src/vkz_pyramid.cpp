@@ -5,9 +5,9 @@
 #include "bx/readerwriter.h"
 
 
-void pyramid_renderFunc(vkz::CommandListI& _cmdList, const void* _data, uint32_t _size)
+void pyramid_renderFunc(kage::CommandListI& _cmdList, const void* _data, uint32_t _size)
 {
-    VKZ_ZoneScopedC(vkz::Color::cyan);
+    VKZ_ZoneScopedC(kage::Color::cyan);
 
     bx::MemoryReader reader(_data, _size);
 
@@ -16,7 +16,7 @@ void pyramid_renderFunc(vkz::CommandListI& _cmdList, const void* _data, uint32_t
 
     for (uint32_t ii = 0; ii < pyramid.levels; ++ii)
     {
-        _cmdList.barrier(pyramid.image, vkz::AccessFlagBits::shader_write, vkz::ImageLayout::general, vkz::PipelineStageFlagBits::compute_shader);
+        _cmdList.barrier(pyramid.image, kage::AccessFlagBits::shader_write, kage::ImageLayout::general, kage::PipelineStageFlagBits::compute_shader);
         _cmdList.dispatchBarriers();
 
         uint32_t levelWidth = glm::max(1u, pyramid.width >> ii);
@@ -25,12 +25,12 @@ void pyramid_renderFunc(vkz::CommandListI& _cmdList, const void* _data, uint32_t
         vec2 levelSize = vec2(levelWidth, levelHeight);
         _cmdList.pushConstants(pyramid.pass, &levelSize, sizeof(levelSize));
 
-        vkz::ImageHandle srcImg = (ii == 0) ? pyramid.inDepth : pyramid.image;
+        kage::ImageHandle srcImg = (ii == 0) ? pyramid.inDepth : pyramid.image;
 
-        vkz::ImageViewHandle srcImgView = ii == 0 ? vkz::ImageViewHandle{vkz::kInvalidHandle} : pyramid.imgMips[ii - 1];
+        kage::ImageViewHandle srcImgView = ii == 0 ? kage::ImageViewHandle{kage::kInvalidHandle} : pyramid.imgMips[ii - 1];
 
 
-        vkz::CommandListI::DescriptorSet desc[] =
+        kage::CommandListI::DescriptorSet desc[] =
         {
             {srcImg, srcImgView, pyramid.sampler},
             {pyramid.image, pyramid.imgMips[ii]}
@@ -39,7 +39,7 @@ void pyramid_renderFunc(vkz::CommandListI& _cmdList, const void* _data, uint32_t
         _cmdList.pushDescriptorSetWithTemplate(pyramid.pass, desc, COUNTOF(desc));
         _cmdList.dispatch(pyramid.cs, levelWidth, levelHeight, 1);
 
-        _cmdList.barrier(pyramid.image, vkz::AccessFlagBits::shader_read, vkz::ImageLayout::general, vkz::PipelineStageFlagBits::compute_shader);
+        _cmdList.barrier(pyramid.image, kage::AccessFlagBits::shader_read, kage::ImageLayout::general, kage::PipelineStageFlagBits::compute_shader);
         _cmdList.dispatchBarriers();
     }
 }
@@ -74,28 +74,28 @@ void preparePyramid(PyramidRendering& _pyramid, uint32_t _width, uint32_t _heigh
     uint32_t levels = calculateMipLevelCount_py(level_width, level_height);
 
     // create image
-    vkz::ImageDesc desc{};
+    kage::ImageDesc desc{};
     desc.width = level_width;
     desc.height = level_height;
-    desc.format = vkz::ResourceFormat::r32_sfloat;
+    desc.format = kage::ResourceFormat::r32_sfloat;
     desc.depth = 1;
     desc.numLayers = 1;
     desc.numMips = levels;
-    desc.usage = vkz::ImageUsageFlagBits::transfer_src | vkz::ImageUsageFlagBits::sampled | vkz::ImageUsageFlagBits::storage;
+    desc.usage = kage::ImageUsageFlagBits::transfer_src | kage::ImageUsageFlagBits::sampled | kage::ImageUsageFlagBits::storage;
 
-    vkz::ImageHandle img = vkz::registTexture("pyramid", desc, nullptr, vkz::ResourceLifetime::non_transition);
-    vkz::ImageHandle outAlias = vkz::alias(img);
+    kage::ImageHandle img = kage::registTexture("pyramid", desc, nullptr, kage::ResourceLifetime::non_transition);
+    kage::ImageHandle outAlias = kage::alias(img);
 
     // create shader
-    vkz::ShaderHandle cs = vkz::registShader("pyramid_shader", "shaders/depthpyramid.comp.spv");
-    vkz::ProgramHandle program = vkz::registProgram("pyramid_prog", { cs }, sizeof(glm::vec2));
+    kage::ShaderHandle cs = kage::registShader("pyramid_shader", "shaders/depthpyramid.comp.spv");
+    kage::ProgramHandle program = kage::registProgram("pyramid_prog", { cs }, sizeof(glm::vec2));
 
     // create pass
-    vkz::PassDesc passDesc{};
+    kage::PassDesc passDesc{};
     passDesc.programId = program.id;
-    passDesc.queue = vkz::PassExeQueue::compute;
+    passDesc.queue = kage::PassExeQueue::compute;
 
-    vkz::PassHandle pass = vkz::registPass("pyramid_pass", passDesc);
+    kage::PassHandle pass = kage::registPass("pyramid_pass", passDesc);
 
     // set the pyramid data
     _pyramid.image = img;
@@ -111,31 +111,31 @@ void preparePyramid(PyramidRendering& _pyramid, uint32_t _width, uint32_t _heigh
 
     for (uint32_t ii = 0; ii < levels; ++ii)
     {
-        _pyramid.imgMips[ii] = vkz::registImageView("pyramidMips", img, ii, 1);
+        _pyramid.imgMips[ii] = kage::registImageView("pyramidMips", img, ii, 1);
     }
 }
 
-void setPyramidPassDependency(PyramidRendering& _pyramid, const vkz::ImageHandle _inDepth)
+void setPyramidPassDependency(PyramidRendering& _pyramid, const kage::ImageHandle _inDepth)
 {
     _pyramid.inDepth = _inDepth;
 
-    _pyramid.sampler = vkz::sampleImage(_pyramid.pass, _inDepth
+    _pyramid.sampler = kage::sampleImage(_pyramid.pass, _inDepth
         , 0
-        , vkz::PipelineStageFlagBits::compute_shader
-        , vkz::ImageLayout::shader_read_only_optimal
-        , vkz::SamplerReductionMode::min
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::ImageLayout::shader_read_only_optimal
+        , kage::SamplerReductionMode::min
     );
 
-    vkz::bindImage(_pyramid.pass, _pyramid.image
+    kage::bindImage(_pyramid.pass, _pyramid.image
         , 1
-        , vkz::PipelineStageFlagBits::compute_shader
-        , vkz::AccessFlagBits::shader_write
-        , vkz::ImageLayout::general
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::AccessFlagBits::shader_write
+        , kage::ImageLayout::general
         , _pyramid.imgOutAlias
     );
 
-    const vkz::Memory* mem = vkz::alloc(sizeof(PyramidRendering));
+    const kage::Memory* mem = kage::alloc(sizeof(PyramidRendering));
     memcpy(mem->data, &_pyramid, mem->size);
 
-    vkz::setCustomRenderFunc(_pyramid.pass, pyramid_renderFunc, mem);
+    kage::setCustomRenderFunc(_pyramid.pass, pyramid_renderFunc, mem);
 }

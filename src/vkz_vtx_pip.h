@@ -6,44 +6,44 @@
 
 struct VtxShadingInitData
 {
-    vkz::BufferHandle idxBuf;
-    vkz::BufferHandle vtxBuf;
-    vkz::BufferHandle meshDrawBuf;
-    vkz::BufferHandle meshDrawCmdBuf;
-    vkz::BufferHandle transformBuf;
-    vkz::BufferHandle meshDrawCmdCountBuf;
+    kage::BufferHandle idxBuf;
+    kage::BufferHandle vtxBuf;
+    kage::BufferHandle meshDrawBuf;
+    kage::BufferHandle meshDrawCmdBuf;
+    kage::BufferHandle transformBuf;
+    kage::BufferHandle meshDrawCmdCountBuf;
 
-    vkz::ImageHandle color;
-    vkz::ImageHandle depth;
+    kage::ImageHandle color;
+    kage::ImageHandle depth;
 };
 
 
 struct VtxShading
 {
     // read-only
-    vkz::ShaderHandle vtxShader;
-    vkz::ShaderHandle fragShader;
-    vkz::ProgramHandle prog;
-    vkz::PassHandle pass;
+    kage::ShaderHandle vtxShader;
+    kage::ShaderHandle fragShader;
+    kage::ProgramHandle prog;
+    kage::PassHandle pass;
 
-    vkz::BufferHandle idxBuf;
-    vkz::BufferHandle vtxBuf;
+    kage::BufferHandle idxBuf;
+    kage::BufferHandle vtxBuf;
 
-    vkz::BufferHandle meshDrawBuf;
-    vkz::BufferHandle meshDrawCmdBuf;
-    vkz::BufferHandle transformBuf;
+    kage::BufferHandle meshDrawBuf;
+    kage::BufferHandle meshDrawCmdBuf;
+    kage::BufferHandle transformBuf;
 
     // read / write
-    vkz::BufferHandle meshDrawCmdCountBuf;
+    kage::BufferHandle meshDrawCmdCountBuf;
 
     // write
-    vkz::ImageHandle color;
-    vkz::ImageHandle depth;
+    kage::ImageHandle color;
+    kage::ImageHandle depth;
 
     // out alias
-    vkz::BufferHandle meshDrawCmdBufOutAlias;
-    vkz::ImageHandle colorOutAlias;
-    vkz::ImageHandle depthOutAlias;
+    kage::BufferHandle meshDrawCmdBufOutAlias;
+    kage::ImageHandle colorOutAlias;
+    kage::ImageHandle depthOutAlias;
 
     GlobalsVKZ globals;
 };

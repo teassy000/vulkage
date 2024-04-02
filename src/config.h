@@ -1,6 +1,6 @@
 #pragma once
 
-namespace vkz
+namespace kage
 {
     constexpr unsigned int kMaxNumOfShaderHandle = 1024;
     constexpr unsigned int kMaxNumOfPipelineHandle = 1024;

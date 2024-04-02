@@ -9,7 +9,7 @@
 #include <string>
 #include "profiler.h"
 
-namespace vkz
+namespace kage
 {
     VkDeviceMemory allocVkMemory(const VkDevice _device, size_t _size, uint32_t _memTypeIdx)
     {
@@ -256,7 +256,7 @@ namespace vkz
         _results = std::move(results);
     }
 
-    vkz::Image_vk createImage(const ImageAliasInfo& _info, const VkDevice _device, const VkPhysicalDeviceMemoryProperties& _memProps, const ImgInitProps_vk& _initProps)
+    kage::Image_vk createImage(const ImageAliasInfo& _info, const VkDevice _device, const VkPhysicalDeviceMemoryProperties& _memProps, const ImgInitProps_vk& _initProps)
     {
         stl::vector<Image_vk> results;
         createImage(results, {1, _info}, _device, _memProps, _initProps);

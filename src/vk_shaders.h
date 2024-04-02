@@ -1,7 +1,7 @@
 #pragma once
 #include "common.h"
 
-namespace vkz
+namespace kage
 {
     struct Shader_vk
     {

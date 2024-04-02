@@ -12,9 +12,9 @@
 constexpr uint32_t kInitialVertexBufferSize = 1024 * 1024; // 1MB
 constexpr uint32_t kInitialIndexBufferSize = 1024 * 1024; // 1MB
 
-void ui_renderFunc(vkz::CommandListI& _cmdList, const void* _data, uint32_t _size)
+void ui_renderFunc(kage::CommandListI& _cmdList, const void* _data, uint32_t _size)
 {
-    VKZ_ZoneScopedC(vkz::Color::cyan);
+    VKZ_ZoneScopedC(kage::Color::cyan);
 
     bx::MemoryReader reader(_data, _size);
 
@@ -28,16 +28,16 @@ void ui_renderFunc(vkz::CommandListI& _cmdList, const void* _data, uint32_t _siz
 
     _cmdList.beginRendering(ui.pass);
 
-    vkz::Viewport viewport = { 0.f, 0.f, imDrawData->DisplaySize.x, imDrawData->DisplaySize.y, 0.f, 1.f };
-    vkz::Rect2D scissor = { {0, 0}, {uint32_t(imDrawData->DisplaySize.x), uint32_t(imDrawData->DisplaySize.y)} };
+    kage::Viewport viewport = { 0.f, 0.f, imDrawData->DisplaySize.x, imDrawData->DisplaySize.y, 0.f, 1.f };
+    kage::Rect2D scissor = { {0, 0}, {uint32_t(imDrawData->DisplaySize.x), uint32_t(imDrawData->DisplaySize.y)} };
 
     _cmdList.setViewPort(0, 1, &viewport);
     _cmdList.setScissorRect(0, 1, &scissor);
 
-    vkz::BufferHandle vertex_buffers[1] = { ui.vb };
+    kage::BufferHandle vertex_buffers[1] = { ui.vb };
     uint64_t vertex_offset[1] = { 0 };
     _cmdList.bindVertexBuffer(0, 1, vertex_buffers, vertex_offset);
-    _cmdList.bindIndexBuffer(ui.ib, 0, sizeof(ImDrawIdx) == 2 ? vkz::IndexType::uint16 : vkz::IndexType::uint32);
+    _cmdList.bindIndexBuffer(ui.ib, 0, sizeof(ImDrawIdx) == 2 ? kage::IndexType::uint16 : kage::IndexType::uint32);
 
     const ImGuiIO& io = ImGui::GetIO();
     PushConstBlock pushConstBlock{};
@@ -58,7 +58,7 @@ void ui_renderFunc(vkz::CommandListI& _cmdList, const void* _data, uint32_t _siz
         {
             const ImDrawCmd& cmd = imCmdList->CmdBuffer[j];
 
-            vkz::Rect2D scissor;
+            kage::Rect2D scissor;
             scissor.offset.x = glm::max((int32_t)(cmd.ClipRect.x), 0);
             scissor.offset.y = glm::max((int32_t)(cmd.ClipRect.y), 0);
             scissor.extent.width = (uint32_t)(cmd.ClipRect.z - cmd.ClipRect.x);
@@ -75,53 +75,53 @@ void ui_renderFunc(vkz::CommandListI& _cmdList, const void* _data, uint32_t _siz
     _cmdList.endRendering();
 }
 
-void vkz_prepareUI(UIRendering& _ui, vkz::ImageHandle _color, vkz::ImageHandle _depth, float _scale /*= 1.f*/, bool _useChinese /*= false*/)
+void vkz_prepareUI(UIRendering& _ui, kage::ImageHandle _color, kage::ImageHandle _depth, float _scale /*= 1.f*/, bool _useChinese /*= false*/)
 {
-    VKZ_ZoneScopedC(vkz::Color::blue);
+    VKZ_ZoneScopedC(kage::Color::blue);
 
     ImGui::CreateContext();
 
     ImGuiIO& io = ImGui::GetIO();
     io.FontGlobalScale = _scale;
 
-    vkz::ShaderHandle vs = vkz::registShader("ui.vs", "shaders/ui.vert.spv");
-    vkz::ShaderHandle fs = vkz::registShader("ui.fs", "shaders/ui.frag.spv");
+    kage::ShaderHandle vs = kage::registShader("ui.vs", "shaders/ui.vert.spv");
+    kage::ShaderHandle fs = kage::registShader("ui.fs", "shaders/ui.frag.spv");
 
-    vkz::ProgramHandle program = vkz::registProgram("ui.program", { vs, fs }, sizeof(PushConstBlock));
+    kage::ProgramHandle program = kage::registProgram("ui.program", { vs, fs }, sizeof(PushConstBlock));
 
-    vkz::VertexBindingDesc bindings[] =
+    kage::VertexBindingDesc bindings[] =
     {
-        {0, sizeof(ImDrawVert), vkz::VertexInputRate::vertex},
+        {0, sizeof(ImDrawVert), kage::VertexInputRate::vertex},
     };
 
-    vkz::VertexAttributeDesc attributes[] =
+    kage::VertexAttributeDesc attributes[] =
     {
-        {0, 0, vkz::ResourceFormat::r32g32_sfloat, offsetof(ImDrawVert, pos)},
-        {1, 0, vkz::ResourceFormat::r32g32_sfloat, offsetof(ImDrawVert, uv)},
-        {2, 0, vkz::ResourceFormat::r8g8b8a8_unorm, offsetof(ImDrawVert, col)},
+        {0, 0, kage::ResourceFormat::r32g32_sfloat, offsetof(ImDrawVert, pos)},
+        {1, 0, kage::ResourceFormat::r32g32_sfloat, offsetof(ImDrawVert, uv)},
+        {2, 0, kage::ResourceFormat::r8g8b8a8_unorm, offsetof(ImDrawVert, col)},
     };
 
-    const vkz::Memory* vtxBindingMem = vkz::alloc(uint32_t(sizeof(vkz::VertexBindingDesc) * COUNTOF(bindings)));
-    memcpy(vtxBindingMem->data, bindings, sizeof(vkz::VertexBindingDesc) * COUNTOF(bindings));
+    const kage::Memory* vtxBindingMem = kage::alloc(uint32_t(sizeof(kage::VertexBindingDesc) * COUNTOF(bindings)));
+    memcpy(vtxBindingMem->data, bindings, sizeof(kage::VertexBindingDesc) * COUNTOF(bindings));
 
-    const vkz::Memory* vtxAttributeMem = vkz::alloc(uint32_t(sizeof(vkz::VertexAttributeDesc) * COUNTOF(attributes)));
-    memcpy(vtxAttributeMem->data, attributes, sizeof(vkz::VertexAttributeDesc) * COUNTOF(attributes));
+    const kage::Memory* vtxAttributeMem = kage::alloc(uint32_t(sizeof(kage::VertexAttributeDesc) * COUNTOF(attributes)));
+    memcpy(vtxAttributeMem->data, attributes, sizeof(kage::VertexAttributeDesc) * COUNTOF(attributes));
 
-    vkz::PassDesc passDesc;
+    kage::PassDesc passDesc;
     passDesc.programId = program.id;
-    passDesc.queue = vkz::PassExeQueue::graphics;
+    passDesc.queue = kage::PassExeQueue::graphics;
     passDesc.vertexBindingNum = (uint32_t)COUNTOF(bindings);
     passDesc.vertexBindings = vtxBindingMem->data;
     passDesc.vertexAttributeNum = (uint32_t)COUNTOF(attributes);
     passDesc.vertexAttributes = vtxAttributeMem->data;
-    passDesc.pipelineConfig = { true, true, vkz::CompareOp::always };
+    passDesc.pipelineConfig = { true, true, kage::CompareOp::always };
     
-    passDesc.passConfig.colorLoadOp = vkz::AttachmentLoadOp::dont_care;
-    passDesc.passConfig.colorStoreOp = vkz::AttachmentStoreOp::store;
-    passDesc.passConfig.depthLoadOp = vkz::AttachmentLoadOp::dont_care;
-    passDesc.passConfig.depthStoreOp = vkz::AttachmentStoreOp::dont_care;
+    passDesc.passConfig.colorLoadOp = kage::AttachmentLoadOp::dont_care;
+    passDesc.passConfig.colorStoreOp = kage::AttachmentStoreOp::store;
+    passDesc.passConfig.depthLoadOp = kage::AttachmentLoadOp::dont_care;
+    passDesc.passConfig.depthStoreOp = kage::AttachmentStoreOp::dont_care;
 
-    vkz::PassHandle pass = vkz::registPass("ui_pass", passDesc);
+    kage::PassHandle pass = kage::registPass("ui_pass", passDesc);
 
     // create font texture
     unsigned char* fontData = nullptr;
@@ -136,33 +136,33 @@ void vkz_prepareUI(UIRendering& _ui, vkz::ImageHandle _color, vkz::ImageHandle _
     assert(fontData);
     size_t uploadSize = width * height * 4 * sizeof(char);
 
-    const vkz::Memory* fontImgMem = vkz::alloc((uint32_t)uploadSize);
+    const kage::Memory* fontImgMem = kage::alloc((uint32_t)uploadSize);
     memcpy(fontImgMem->data, fontData, uploadSize);
 
-    vkz::ImageDesc imageDesc{};
+    kage::ImageDesc imageDesc{};
     imageDesc.width = width;
     imageDesc.height = height;
     imageDesc.numMips = 1;
-    imageDesc.format = vkz::ResourceFormat::r8g8b8a8_unorm;
-    imageDesc.usage = vkz::ImageUsageFlagBits::sampled | vkz::ImageUsageFlagBits::transfer_dst;
-    vkz::ImageHandle fontImage = vkz::registTexture("ui.fontImage", imageDesc, fontImgMem, vkz::ResourceLifetime::non_transition);
+    imageDesc.format = kage::ResourceFormat::r8g8b8a8_unorm;
+    imageDesc.usage = kage::ImageUsageFlagBits::sampled | kage::ImageUsageFlagBits::transfer_dst;
+    kage::ImageHandle fontImage = kage::registTexture("ui.fontImage", imageDesc, fontImgMem, kage::ResourceLifetime::non_transition);
 
-    vkz::BufferDesc vbDesc{};
+    kage::BufferDesc vbDesc{};
     vbDesc.size = kInitialVertexBufferSize;
     vbDesc.fillVal = 0;
-    vbDesc.usage = vkz::BufferUsageFlagBits::vertex | vkz::BufferUsageFlagBits::transfer_dst;
-    vbDesc.memFlags = vkz::MemoryPropFlagBits::host_visible | vkz::MemoryPropFlagBits::host_coherent;
-    vkz::BufferHandle vb = vkz::registBuffer("ui.vb", vbDesc, nullptr, vkz::ResourceLifetime::non_transition);
+    vbDesc.usage = kage::BufferUsageFlagBits::vertex | kage::BufferUsageFlagBits::transfer_dst;
+    vbDesc.memFlags = kage::MemoryPropFlagBits::host_visible | kage::MemoryPropFlagBits::host_coherent;
+    kage::BufferHandle vb = kage::registBuffer("ui.vb", vbDesc, nullptr, kage::ResourceLifetime::non_transition);
 
-    vkz::BufferDesc ibDesc{};
+    kage::BufferDesc ibDesc{};
     ibDesc.size = kInitialIndexBufferSize;
     ibDesc.fillVal = 0;
-    ibDesc.usage = vkz::BufferUsageFlagBits::index | vkz::BufferUsageFlagBits::transfer_dst;
-    ibDesc.memFlags = vkz::MemoryPropFlagBits::host_visible | vkz::MemoryPropFlagBits::host_coherent;
-    vkz::BufferHandle ib = vkz::registBuffer("ui.ib", ibDesc, nullptr, vkz::ResourceLifetime::non_transition);
+    ibDesc.usage = kage::BufferUsageFlagBits::index | kage::BufferUsageFlagBits::transfer_dst;
+    ibDesc.memFlags = kage::MemoryPropFlagBits::host_visible | kage::MemoryPropFlagBits::host_coherent;
+    kage::BufferHandle ib = kage::registBuffer("ui.ib", ibDesc, nullptr, kage::ResourceLifetime::non_transition);
 
-    vkz::ImageHandle colorOutAlias = vkz::alias(_color);
-    vkz::ImageHandle depthOutAlias = vkz::alias(_depth);
+    kage::ImageHandle colorOutAlias = kage::alias(_color);
+    kage::ImageHandle depthOutAlias = kage::alias(_depth);
 
     _ui.vs = vs;
     _ui.fs = fs;
@@ -176,27 +176,27 @@ void vkz_prepareUI(UIRendering& _ui, vkz::ImageHandle _color, vkz::ImageHandle _
     _ui.colorOutAlias = colorOutAlias;
     _ui.depthOutAlias = depthOutAlias;
 
-    const vkz::Memory* mem = vkz::alloc(sizeof(UIRendering));
+    const kage::Memory* mem = kage::alloc(sizeof(UIRendering));
     memcpy(mem->data, &_ui, mem->size);
 
-    vkz::bindIndexBuffer(pass, ib); // TODO: bind in the custom func already, this is for frame-graph
-    vkz::bindVertexBuffer(pass, vb);
-    vkz::sampleImage(pass, fontImage
+    kage::bindIndexBuffer(pass, ib); // TODO: bind in the custom func already, this is for frame-graph
+    kage::bindVertexBuffer(pass, vb);
+    kage::sampleImage(pass, fontImage
         , 0
-        , vkz::PipelineStageFlagBits::fragment_shader
-        , vkz::ImageLayout::general
-        , vkz::SamplerReductionMode::weighted_average
+        , kage::PipelineStageFlagBits::fragment_shader
+        , kage::ImageLayout::general
+        , kage::SamplerReductionMode::weighted_average
     );
 
-    vkz::setCustomRenderFunc(pass, ui_renderFunc, mem);
+    kage::setCustomRenderFunc(pass, ui_renderFunc, mem);
 
-    vkz::setAttachmentOutput(_ui.pass, _color, 0, colorOutAlias);
-    vkz::setAttachmentOutput(_ui.pass, _depth, 0, depthOutAlias);
+    kage::setAttachmentOutput(_ui.pass, _color, 0, colorOutAlias);
+    kage::setAttachmentOutput(_ui.pass, _depth, 0, depthOutAlias);
 }
 
 void vkz_destroyUIRendering(UIRendering& _ui)
 {
-    VKZ_ZoneScopedC(vkz::Color::blue);;
+    VKZ_ZoneScopedC(kage::Color::blue);;
 
     if (ImGui::GetCurrentContext()) {
         ImGui::DestroyContext();
@@ -207,7 +207,7 @@ void vkz_destroyUIRendering(UIRendering& _ui)
 
 void vkz_updateImGuiIO(const UIInput& input)
 {
-    VKZ_ZoneScopedC(vkz::Color::blue);;
+    VKZ_ZoneScopedC(kage::Color::blue);;
 
     ImGuiIO& io = ImGui::GetIO();
 
@@ -221,7 +221,7 @@ void vkz_updateImGuiIO(const UIInput& input)
 
 void vkz_updateImGuiContent(DebugRenderOptionsData& _rod, const DebugProfilingData& _pd, const DebugLogicData& _ld)
 {
-    VKZ_ZoneScopedC(vkz::Color::blue);;
+    VKZ_ZoneScopedC(kage::Color::blue);;
 
     ImGui::NewFrame();
     ImGui::SetNextWindowSize({ 400, 450 }, ImGuiCond_FirstUseEver);
@@ -277,7 +277,7 @@ void vkz_updateImGuiContent(DebugRenderOptionsData& _rod, const DebugProfilingDa
 
 void vkz_updateImGui(const UIInput& input, DebugRenderOptionsData& rd, const DebugProfilingData& pd, const DebugLogicData& ld)
 {
-    VKZ_ZoneScopedC(vkz::Color::blue);
+    VKZ_ZoneScopedC(kage::Color::blue);
 
     vkz_updateImGuiIO(input);
 
@@ -288,7 +288,7 @@ void vkz_updateImGui(const UIInput& input, DebugRenderOptionsData& rd, const Deb
 
 void vkz_updateUIRenderData(UIRendering& _ui)
 {
-    VKZ_ZoneScopedC(vkz::Color::blue);;
+    VKZ_ZoneScopedC(kage::Color::blue);;
 
     ImDrawData* imDrawData = ImGui::GetDrawData();
 
@@ -309,8 +309,8 @@ void vkz_updateUIRenderData(UIRendering& _ui)
     assert((vbSize % 0x40 == 0) && (ibSize % 0x40 == 0));
 
     
-    const vkz::Memory* vbMem = vkz::alloc((uint32_t)vbSize);
-    const vkz::Memory* ibMem = vkz::alloc((uint32_t)ibSize);
+    const kage::Memory* vbMem = kage::alloc((uint32_t)vbSize);
+    const kage::Memory* ibMem = kage::alloc((uint32_t)ibSize);
 
     uint32_t vbOffset = 0;
     uint32_t ibOffset = 0;
@@ -322,6 +322,6 @@ void vkz_updateUIRenderData(UIRendering& _ui)
         ibOffset += imCmdList->IdxBuffer.Size * sizeof(ImDrawIdx);
     }
 
-    vkz::updateBuffer(_ui.vb, vbMem);
-    vkz::updateBuffer(_ui.ib, ibMem);
+    kage::updateBuffer(_ui.vb, vbMem);
+    kage::updateBuffer(_ui.ib, ibMem);
 }

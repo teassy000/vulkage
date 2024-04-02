@@ -9,33 +9,33 @@
 #include <algorithm> //sort
 
 
-namespace vkz
+namespace kage
 {
     const char* getExtName(VulkanSupportExtension _ext)
     {
         switch (_ext)
         {
-        case vkz::VulkanSupportExtension::ext_swapchain:
+        case kage::VulkanSupportExtension::ext_swapchain:
             return VK_KHR_SWAPCHAIN_EXTENSION_NAME;
-        case vkz::VulkanSupportExtension::ext_push_descriptor:
+        case kage::VulkanSupportExtension::ext_push_descriptor:
             return VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME;
-        case vkz::VulkanSupportExtension::ext_8bit_storage:
+        case kage::VulkanSupportExtension::ext_8bit_storage:
             return VK_KHR_8BIT_STORAGE_EXTENSION_NAME;
-        case vkz::VulkanSupportExtension::ext_16bit_storage:
+        case kage::VulkanSupportExtension::ext_16bit_storage:
             return VK_KHR_16BIT_STORAGE_EXTENSION_NAME;
-        case vkz::VulkanSupportExtension::ext_mesh_shader:
+        case kage::VulkanSupportExtension::ext_mesh_shader:
             return VK_EXT_MESH_SHADER_EXTENSION_NAME;
-        case vkz::VulkanSupportExtension::ext_spirv_1_4:
+        case kage::VulkanSupportExtension::ext_spirv_1_4:
             return VK_KHR_SPIRV_1_4_EXTENSION_NAME;
-        case vkz::VulkanSupportExtension::ext_shader_float_controls:
+        case kage::VulkanSupportExtension::ext_shader_float_controls:
             return VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME;
-        case vkz::VulkanSupportExtension::ext_shader_draw_parameters:
+        case kage::VulkanSupportExtension::ext_shader_draw_parameters:
             return VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME;
-        case vkz::VulkanSupportExtension::ext_draw_indriect_count:
+        case kage::VulkanSupportExtension::ext_draw_indriect_count:
             return VK_KHR_DRAW_INDIRECT_COUNT_EXTENSION_NAME;
-        case vkz::VulkanSupportExtension::ext_shader_float16_int8:
+        case kage::VulkanSupportExtension::ext_shader_float16_int8:
             return VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME;
-        case vkz::VulkanSupportExtension::ext_fragment_shading_rate:
+        case kage::VulkanSupportExtension::ext_fragment_shading_rate:
             return VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME;
         default:
             return nullptr;
@@ -312,79 +312,79 @@ namespace vkz
 
         switch (_format)
         {
-        case vkz::ResourceFormat::r8_sint:
+        case kage::ResourceFormat::r8_sint:
             format = VK_FORMAT_R8_SINT;
             break;
-        case vkz::ResourceFormat::r8_uint:
+        case kage::ResourceFormat::r8_uint:
             format = VK_FORMAT_R8_UINT;
             break;
-        case vkz::ResourceFormat::r16_uint:
+        case kage::ResourceFormat::r16_uint:
             format = VK_FORMAT_R16_UINT;
             break;
-        case vkz::ResourceFormat::r16_sint:
+        case kage::ResourceFormat::r16_sint:
             format = VK_FORMAT_R16_SINT;
             break;
-        case vkz::ResourceFormat::r16_snorm:
+        case kage::ResourceFormat::r16_snorm:
             format = VK_FORMAT_R16_SNORM;
             break;
-        case vkz::ResourceFormat::r16_unorm:
+        case kage::ResourceFormat::r16_unorm:
             format = VK_FORMAT_R16_UNORM;       
             break;
-        case vkz::ResourceFormat::r32_uint:
+        case kage::ResourceFormat::r32_uint:
             format = VK_FORMAT_R32_UINT;
             break;
-        case vkz::ResourceFormat::r32_sint:
+        case kage::ResourceFormat::r32_sint:
             format = VK_FORMAT_R32_SINT;
             break;
-        case vkz::ResourceFormat::r32_sfloat:
+        case kage::ResourceFormat::r32_sfloat:
             format = VK_FORMAT_R32_SFLOAT;
             break;
-        case vkz::ResourceFormat::r32g32_uint:
+        case kage::ResourceFormat::r32g32_uint:
             format = VK_FORMAT_R32G32_UINT;
             break;
-        case vkz::ResourceFormat::r32g32_sint:
+        case kage::ResourceFormat::r32g32_sint:
             format = VK_FORMAT_R32G32_SINT;
             break;
-        case vkz::ResourceFormat::r32g32_sfloat:
+        case kage::ResourceFormat::r32g32_sfloat:
             format = VK_FORMAT_R32G32_SFLOAT;
             break;
-        case vkz::ResourceFormat::r32g32b32_uint:
+        case kage::ResourceFormat::r32g32b32_uint:
             format = VK_FORMAT_R32G32B32_UINT;
             break;
-        case vkz::ResourceFormat::r32g32b32_sint:
+        case kage::ResourceFormat::r32g32b32_sint:
             format = VK_FORMAT_R32G32B32_SINT;
             break;
-        case vkz::ResourceFormat::r32g32b32_sfloat:
+        case kage::ResourceFormat::r32g32b32_sfloat:
             format = VK_FORMAT_R32G32B32_SFLOAT;
             break;
-        case vkz::ResourceFormat::b8g8r8a8_snorm:
+        case kage::ResourceFormat::b8g8r8a8_snorm:
             format = VK_FORMAT_B8G8R8A8_SNORM;
             break;
-        case vkz::ResourceFormat::b8g8r8a8_unorm:
+        case kage::ResourceFormat::b8g8r8a8_unorm:
             format = VK_FORMAT_B8G8R8A8_UNORM;
             break;
-        case vkz::ResourceFormat::b8g8r8a8_sint:
+        case kage::ResourceFormat::b8g8r8a8_sint:
             format = VK_FORMAT_B8G8R8A8_SINT;
             break;
-        case vkz::ResourceFormat::b8g8r8a8_uint:
+        case kage::ResourceFormat::b8g8r8a8_uint:
             format = VK_FORMAT_B8G8R8A8_UINT;
             break;
-        case vkz::ResourceFormat::r8g8b8a8_snorm:
+        case kage::ResourceFormat::r8g8b8a8_snorm:
             format = VK_FORMAT_R8G8B8A8_SNORM;
             break;
-        case vkz::ResourceFormat::r8g8b8a8_unorm:
+        case kage::ResourceFormat::r8g8b8a8_unorm:
             format = VK_FORMAT_R8G8B8A8_UNORM;
             break;
-        case vkz::ResourceFormat::r8g8b8a8_sint:
+        case kage::ResourceFormat::r8g8b8a8_sint:
             format = VK_FORMAT_R8G8B8A8_SINT;
             break;
-        case vkz::ResourceFormat::r8g8b8a8_uint:
+        case kage::ResourceFormat::r8g8b8a8_uint:
             format = VK_FORMAT_R8G8B8A8_UINT;
             break;
-        case vkz::ResourceFormat::d16:
+        case kage::ResourceFormat::d16:
             format = VK_FORMAT_D16_UNORM;
             break;
-        case vkz::ResourceFormat::d32:
+        case kage::ResourceFormat::d32:
             format = VK_FORMAT_D32_SFLOAT;
             break;
         default:
@@ -1001,10 +1001,10 @@ namespace vkz
             attributes[ii] = { attr.location, attr.binding, getFormat(attr.format), attr.offset };
         }
 
-        const vkz::Memory* vtxBindingMem = vkz::alloc(uint32_t(sizeof(VkVertexInputBindingDescription) * bindings.size()));
+        const kage::Memory* vtxBindingMem = kage::alloc(uint32_t(sizeof(VkVertexInputBindingDescription) * bindings.size()));
         memcpy(vtxBindingMem->data, bindings.data(), sizeof(VkVertexInputBindingDescription) * bindings.size());
 
-        const vkz::Memory* vtxAttributeMem = vkz::alloc(uint32_t(sizeof(VkVertexInputAttributeDescription) * attributes.size()));
+        const kage::Memory* vtxAttributeMem = kage::alloc(uint32_t(sizeof(VkVertexInputAttributeDescription) * attributes.size()));
         memcpy(vtxAttributeMem->data, attributes.data(), sizeof(VkVertexInputAttributeDescription) * attributes.size());
 
         _out.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -1037,7 +1037,7 @@ namespace vkz
 
         if (print)
         {
-            vkz::message(vkz::info, "%s : %s\n", extName, extSupported ? "true" : "false");
+            kage::message(kage::info, "%s : %s\n", extName, extSupported ? "true" : "false");
         }
 
 
@@ -1158,7 +1158,7 @@ namespace vkz
         m_gfxFamilyIdx = getGraphicsFamilyIndex(m_phyDevice);
         assert(m_gfxFamilyIdx != VK_QUEUE_FAMILY_IGNORED);
 
-        m_device = vkz::createDevice(m_instance, m_phyDevice, m_gfxFamilyIdx, m_supportMeshShading);
+        m_device = kage::createDevice(m_instance, m_phyDevice, m_gfxFamilyIdx, m_supportMeshShading);
         assert(m_device);
         
         // only single device used in this application.
@@ -1177,10 +1177,10 @@ namespace vkz
         m_releaseSemaphore = createSemaphore(m_device);
         assert(m_releaseSemaphore);
 
-        m_imageFormat = vkz::getSwapchainFormat(m_phyDevice, m_surface);
+        m_imageFormat = kage::getSwapchainFormat(m_phyDevice, m_surface);
         m_depthFormat = VK_FORMAT_D32_SFLOAT;
 
-        vkz::createSwapchain(m_swapchain, m_phyDevice, m_device, m_surface, m_gfxFamilyIdx, m_imageFormat);
+        kage::createSwapchain(m_swapchain, m_phyDevice, m_device, m_surface, m_gfxFamilyIdx, m_imageFormat);
 
         // fill the image to barrier
         for (uint32_t ii = 0; ii < m_swapchain.imageCount; ++ii)
@@ -1231,7 +1231,7 @@ namespace vkz
 
         BufferAliasInfo scratchAlias;
         scratchAlias.size = 128 * 1024 * 1024; // 128M
-        m_scratchBuffer = vkz::createBuffer(scratchAlias, m_memProps, m_device, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        m_scratchBuffer = kage::createBuffer(scratchAlias, m_memProps, m_device, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
         
         m_cmdList = BX_NEW(m_pAllocator, CmdList_vk)(m_cmdBuffer, this);
 
@@ -1448,7 +1448,7 @@ namespace vkz
             m_barrierDispatcher.removeBuffer(buf.buffer);
 
             stl::vector<Buffer_vk> buffers(1, buf);
-            vkz::destroyBuffer(m_device, buffers);
+            kage::destroyBuffer(m_device, buffers);
 
             // recreate buffer
             BufferAliasInfo info{};
@@ -1456,7 +1456,7 @@ namespace vkz
             info.bufId = _hBuf.id;
 
 
-            Buffer_vk newBuf = vkz::createBuffer(info, m_memProps, m_device, getBufferUsageFlags(createInfo.usage), getMemPropFlags(createInfo.memFlags));
+            Buffer_vk newBuf = kage::createBuffer(info, m_memProps, m_device, getBufferUsageFlags(createInfo.usage), getMemPropFlags(createInfo.memFlags));
             m_bufferContainer.update(_hBuf.id, newBuf);
 
             ResInteractDesc interact{ createInfo.barrierState };
@@ -1533,7 +1533,7 @@ namespace vkz
         }
 
         VkPipelineBindPoint bindPoint = getBindPoint(shaders);
-        Program_vk prog = vkz::createProgram(m_device, bindPoint, shaders, info.sizePushConstants);
+        Program_vk prog = kage::createProgram(m_device, bindPoint, shaders, info.sizePushConstants);
 
         m_programContainer.addOrUpdate(info.progId, prog);
         m_programShaderIds.emplace_back(shaderIds);
@@ -1628,7 +1628,7 @@ namespace vkz
             };
 
             VkPipelineCache cache{};
-            pipeline = vkz::createGraphicsPipeline(m_device, cache, program.layout, renderInfo, shaders, hasVIS ? &vtxInputCreateInfo : nullptr, pipelineSpecData, configs);
+            pipeline = kage::createGraphicsPipeline(m_device, cache, program.layout, renderInfo, shaders, hasVIS ? &vtxInputCreateInfo : nullptr, pipelineSpecData, configs);
             assert(pipeline);
         }
         else if (passMeta.queue == PassExeQueue::compute)
@@ -1648,7 +1648,7 @@ namespace vkz
             Shader_vk shader = m_shaderContainer.getIdToData(shaderIds[0]);
 
             VkPipelineCache cache{};
-            pipeline = vkz::createComputePipeline(m_device, cache, program.layout, shader, pipelineSpecData);
+            pipeline = kage::createComputePipeline(m_device, cache, program.layout, shader, pipelineSpecData);
             assert(pipeline);
         }
 
@@ -1809,7 +1809,7 @@ namespace vkz
         ImgInitProps_vk initPorps = getImageInitProp(info, m_imageFormat, m_depthFormat);
 
         stl::vector<Image_vk> images;
-        vkz::createImage(images, infoList, m_device, m_memProps, initPorps);
+        kage::createImage(images, infoList, m_device, m_memProps, initPorps);
         assert(images.size() == info.resCount);
 
         m_imageInitPropContainer.addOrUpdate(info.imgId, info);
@@ -1829,7 +1829,7 @@ namespace vkz
             const ImageViewHandle imgView = info.mipViews[ii];
             const ImageViewDesc& viewDesc = m_imageViewDescContainer.getIdToData(imgView.id);
 
-            VkImageView view_vk = vkz::createImageView(m_device, baseImage.image, baseImage.format, viewDesc.baseMip, viewDesc.mipLevels);
+            VkImageView view_vk = kage::createImageView(m_device, baseImage.image, baseImage.format, viewDesc.baseMip, viewDesc.mipLevels);
             m_imageViewContainer.addOrUpdate(imgView.id, view_vk);
         }
 
@@ -1870,7 +1870,7 @@ namespace vkz
         stl::vector<BufferAliasInfo> infoList(resArr, resArr + info.resCount);
 
         stl::vector<Buffer_vk> buffers;
-        vkz::createBuffer(buffers, infoList, m_memProps, m_device, getBufferUsageFlags(info.usage), getMemPropFlags(info.memFlags));
+        kage::createBuffer(buffers, infoList, m_memProps, m_device, getBufferUsageFlags(info.usage), getMemPropFlags(info.memFlags));
 
         assert(buffers.size() == info.resCount);
 
@@ -1916,7 +1916,7 @@ namespace vkz
         SamplerMetaData meta;
         bx::read(&_reader, meta, nullptr);
 
-        VkSampler sampler = vkz::createSampler(m_device, getSamplerReductionMode( meta.reductionMode));
+        VkSampler sampler = kage::createSampler(m_device, getSamplerReductionMode( meta.reductionMode));
         assert(sampler);
 
         m_samplerContainer.addOrUpdate(meta.samplerId, sampler);
@@ -1963,7 +1963,7 @@ namespace vkz
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
-        m_instance = vkz::createInstance();
+        m_instance = kage::createInstance();
         assert(m_instance);
 
         volkLoadInstanceOnly(m_instance);
@@ -1975,7 +1975,7 @@ namespace vkz
         uint32_t deviceCount = sizeof(physicalDevices) / sizeof(physicalDevices[0]);
         VK_CHECK(vkEnumeratePhysicalDevices(m_instance, &deviceCount, physicalDevices));
 
-        m_phyDevice = vkz::pickPhysicalDevice(physicalDevices, deviceCount);
+        m_phyDevice = kage::pickPhysicalDevice(physicalDevices, deviceCount);
         assert(m_phyDevice);
     }
 
@@ -2000,7 +2000,7 @@ namespace vkz
             }
 
             // destroy Image
-            vkz::destroyImage(m_device, images);
+            kage::destroyImage(m_device, images);
             
             // destroy image views
             uint16_t baseId = m_aliasToBaseImages.getIdToData(id);
@@ -2029,7 +2029,7 @@ namespace vkz
 
             //image
             stl::vector<Image_vk> images;
-            vkz::createImage(images, aliases, m_device, m_memProps, initPorps);
+            kage::createImage(images, aliases, m_device, m_memProps, initPorps);
 
             for (uint16_t ii = 0 ; ii < aliases.size(); ++ii)
             {
@@ -2046,7 +2046,7 @@ namespace vkz
                 for (ImageViewHandle view : viewHandles)
                 {
                     const ImageViewDesc& viewDesc = m_imageViewDescContainer.getIdToData(view.id);
-                    VkImageView view_vk = vkz::createImageView(m_device, baseImg.image, baseImg.format, viewDesc.baseMip, viewDesc.mipLevels);
+                    VkImageView view_vk = kage::createImageView(m_device, baseImg.image, baseImg.format, viewDesc.baseMip, viewDesc.mipLevels);
                     m_imageViewContainer.update(view.id, view_vk);
                 }
             }
@@ -2459,14 +2459,14 @@ namespace vkz
         }
     }
 
-    const vkz::Shader_vk& RHIContext_vk::getShader(const ShaderHandle _hShader) const
+    const kage::Shader_vk& RHIContext_vk::getShader(const ShaderHandle _hShader) const
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
         return m_shaderContainer.getIdToData(_hShader.id);
     }
 
-    const vkz::Program_vk& RHIContext_vk::getProgram(const PassHandle _hPass) const
+    const kage::Program_vk& RHIContext_vk::getProgram(const PassHandle _hPass) const
     {
         VKZ_ZoneScopedC(Color::indian_red);
 

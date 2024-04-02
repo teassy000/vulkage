@@ -9,7 +9,7 @@
 #include <windows.h>
 #endif
 
-namespace vkz {
+namespace kage {
 
 
     void message(DebugMessageType type, const char* format, ...)

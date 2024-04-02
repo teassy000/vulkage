@@ -4,7 +4,7 @@
 #include "common.h"
 
 
-namespace vkz
+namespace kage
 {
     constexpr uint16_t kInvalidIndex = 0xffff;
 

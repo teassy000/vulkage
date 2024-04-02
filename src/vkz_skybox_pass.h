@@ -5,22 +5,22 @@
 
 struct SkyboxRendering
 {
-    vkz::PassHandle pass;
-    vkz::ProgramHandle prog;
-    vkz::ShaderHandle vs;
-    vkz::ShaderHandle fs;
+    kage::PassHandle pass;
+    kage::ProgramHandle prog;
+    kage::ShaderHandle vs;
+    kage::ShaderHandle fs;
 
-    vkz::SamplerHandle cubemapSampler;
+    kage::SamplerHandle cubemapSampler;
 
-    vkz::ImageHandle color;
-    vkz::ImageHandle cubemap;
-    vkz::BufferHandle trans;
+    kage::ImageHandle color;
+    kage::ImageHandle cubemap;
+    kage::BufferHandle trans;
 
-    vkz::ImageHandle colorOutAlias;
+    kage::ImageHandle colorOutAlias;
 };
 
 void initSkyboxPass(
     SkyboxRendering& _skybox
-    , const vkz::BufferHandle _trans
-    , const vkz::ImageHandle _color
+    , const kage::BufferHandle _trans
+    , const kage::ImageHandle _color
 );

@@ -6,7 +6,7 @@
 #include "vkz_structs.h"
 #include "cmd_list.h"
 
-namespace vkz
+namespace kage
 {
     using ShaderHandleList = std::initializer_list<const ShaderHandle>;
     // rendering info
@@ -67,7 +67,7 @@ namespace vkz
 
 
     // basic functions
-    bool init(vkz::VKZInitConfig _config = {});
+    bool init(kage::VKZInitConfig _config = {});
     bool shouldClose();
     void getWindowSize(uint32_t& _width, uint32_t _height);
     void resizeBackBuffer(uint32_t _width, uint32_t _height);

@@ -7,7 +7,7 @@
 #include "util.h"
 
 #include "rhi_context.h"
-#include "framegraph.h"
+#include "vkz_framegraph.h"
 #include "rhi_context_vk.h"
 
 
@@ -23,7 +23,7 @@
 #include "bx/handlealloc.h"
 
 
-namespace vkz
+namespace kage
 {
     static bx::AllocatorI* s_bxAllocator = nullptr;
     static bx::AllocatorI* getBxAllocator()
@@ -885,7 +885,7 @@ namespace vkz
         return handle;
     }
 
-    vkz::BufferHandle Context::registBuffer(const char* _name, const BufferDesc& _desc, const Memory* _mem, const ResourceLifetime _lifetime)
+    kage::BufferHandle Context::registBuffer(const char* _name, const BufferDesc& _desc, const Memory* _mem, const ResourceLifetime _lifetime)
     {
         uint16_t idx = m_bufferHandles.alloc();
 
@@ -1042,7 +1042,7 @@ namespace vkz
         return handle;
     }
 
-    vkz::ImageViewHandle Context::registImageView(const char* _name, const ImageHandle _hImg, const uint32_t _baseMip, const uint32_t _mipLevel)
+    kage::ImageViewHandle Context::registImageView(const char* _name, const ImageHandle _hImg, const uint32_t _baseMip, const uint32_t _mipLevel)
     {
         if (!isValid(_hImg))
         {
@@ -2207,7 +2207,7 @@ namespace vkz
         return s_ctx->registDepthStencil(_name, _desc, _lifetime);
     }
 
-    vkz::ImageViewHandle registImageView(const char* _name, const ImageHandle _hImg, const uint32_t _baseMip, const uint32_t _mipLevel)
+    kage::ImageViewHandle registImageView(const char* _name, const ImageHandle _hImg, const uint32_t _baseMip, const uint32_t _mipLevel)
     {
         return s_ctx->registImageView(_name, _hImg, _baseMip, _mipLevel);
     }

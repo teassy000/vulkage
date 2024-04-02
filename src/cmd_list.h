@@ -2,7 +2,7 @@
 
 #include "vkz_structs.h"
 
-namespace vkz
+namespace kage
 {
     class CommandListI
     {

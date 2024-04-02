@@ -8,9 +8,8 @@
 
 #include <glm/common.hpp> // for glm::max
 
-namespace vkz
+namespace kage
 {
-
     VkSurfaceKHR createSurface(VkInstance instance, void* _wnd)
     {
 #if defined(VK_USE_PLATFORM_WIN32_KHR)

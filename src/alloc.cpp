@@ -2,7 +2,7 @@
 #include "common.h"
 #include "alloc.h"
 
-namespace vkz
+namespace kage
 {
     constexpr unsigned int kDefaultAlign = 8;
 

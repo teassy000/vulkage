@@ -5,21 +5,21 @@
 
 
 struct PyramidRendering {
-    vkz::ImageHandle inDepth{ vkz::kInvalidHandle };
+    kage::ImageHandle inDepth{ kage::kInvalidHandle };
 
-    vkz::ImageHandle image{ vkz::kInvalidHandle };
-    vkz::ImageHandle imgOutAlias{ vkz::kInvalidHandle };
-    vkz::SamplerHandle sampler{ vkz::kInvalidHandle };
+    kage::ImageHandle image{ kage::kInvalidHandle };
+    kage::ImageHandle imgOutAlias{ kage::kInvalidHandle };
+    kage::SamplerHandle sampler{ kage::kInvalidHandle };
 
-    vkz::ProgramHandle program;
-    vkz::ShaderHandle cs;
-    vkz::PassHandle pass;
+    kage::ProgramHandle program;
+    kage::ShaderHandle cs;
+    kage::PassHandle pass;
     
     uint32_t width;
     uint32_t height;
     uint32_t levels;
     
-    vkz::ImageViewHandle imgMips[vkz::kMaxNumOfImageMipLevel]{ vkz::kInvalidHandle }; // [levels]
+    kage::ImageViewHandle imgMips[kage::kMaxNumOfImageMipLevel]{ kage::kInvalidHandle }; // [levels]
 };
 
 void preparePyramid(
@@ -28,4 +28,4 @@ void preparePyramid(
     , uint32_t _height
 );
 
-void setPyramidPassDependency(PyramidRendering& _pyramid, const vkz::ImageHandle _inDepth);
+void setPyramidPassDependency(PyramidRendering& _pyramid, const kage::ImageHandle _inDepth);

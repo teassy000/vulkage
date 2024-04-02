@@ -4,59 +4,59 @@
 void prepareVtxShading(VtxShading& _vtxShading, const Scene& _scene, const VtxShadingInitData& _initData, bool _late /*= false*/)
 {
     // render shader
-    vkz::ShaderHandle vs = vkz::registShader("mesh_vert_shader", "shaders/mesh.vert.spv");
-    vkz::ShaderHandle fs = vkz::registShader("mesh_frag_shader", "shaders/mesh.frag.spv");
-    vkz::ProgramHandle prog = vkz::registProgram("mesh_prog", { vs, fs }, sizeof(GlobalsVKZ));
+    kage::ShaderHandle vs = kage::registShader("mesh_vert_shader", "shaders/mesh.vert.spv");
+    kage::ShaderHandle fs = kage::registShader("mesh_frag_shader", "shaders/mesh.frag.spv");
+    kage::ProgramHandle prog = kage::registProgram("mesh_prog", { vs, fs }, sizeof(GlobalsVKZ));
     // pass
-    vkz::PassDesc desc;
+    kage::PassDesc desc;
     desc.programId = prog.id;
-    desc.queue = vkz::PassExeQueue::graphics;
-    desc.pipelineConfig.depthCompOp = vkz::CompareOp::greater;
+    desc.queue = kage::PassExeQueue::graphics;
+    desc.pipelineConfig.depthCompOp = kage::CompareOp::greater;
     desc.pipelineConfig.enableDepthTest = true;
     desc.pipelineConfig.enableDepthWrite = true;
 
-    desc.passConfig.colorLoadOp = _late ? vkz::AttachmentLoadOp::dont_care : vkz::AttachmentLoadOp::clear;
-    desc.passConfig.colorStoreOp = vkz::AttachmentStoreOp::store;
-    desc.passConfig.depthLoadOp = _late ? vkz::AttachmentLoadOp::dont_care : vkz::AttachmentLoadOp::clear;
-    desc.passConfig.depthStoreOp = vkz::AttachmentStoreOp::store;
+    desc.passConfig.colorLoadOp = _late ? kage::AttachmentLoadOp::dont_care : kage::AttachmentLoadOp::clear;
+    desc.passConfig.colorStoreOp = kage::AttachmentStoreOp::store;
+    desc.passConfig.depthLoadOp = _late ? kage::AttachmentLoadOp::dont_care : kage::AttachmentLoadOp::clear;
+    desc.passConfig.depthStoreOp = kage::AttachmentStoreOp::store;
 
-    vkz::PassHandle pass = vkz::registPass("vtx_render_pass", desc);
+    kage::PassHandle pass = kage::registPass("vtx_render_pass", desc);
 
-    vkz::BufferHandle meshDrawCmdBufOutAlias = vkz::alias(_initData.meshDrawCmdBuf);
-    vkz::ImageHandle colorOutAlias = vkz::alias(_initData.color);
-    vkz::ImageHandle depthOutAlias = vkz::alias(_initData.depth);
+    kage::BufferHandle meshDrawCmdBufOutAlias = kage::alias(_initData.meshDrawCmdBuf);
+    kage::ImageHandle colorOutAlias = kage::alias(_initData.color);
+    kage::ImageHandle depthOutAlias = kage::alias(_initData.depth);
 
 
     // index buffer
-    vkz::bindIndexBuffer(pass, _initData.idxBuf);
+    kage::bindIndexBuffer(pass, _initData.idxBuf);
 
     // bindings
-    vkz::bindBuffer(pass, _initData.meshDrawCmdBuf
+    kage::bindBuffer(pass, _initData.meshDrawCmdBuf
         , 0
-        , vkz::PipelineStageFlagBits::vertex_shader
-        , vkz::AccessFlagBits::shader_read);
+        , kage::PipelineStageFlagBits::vertex_shader
+        , kage::AccessFlagBits::shader_read);
 
-    vkz::bindBuffer(pass, _initData.meshDrawBuf
+    kage::bindBuffer(pass, _initData.meshDrawBuf
         , 1
-        , vkz::PipelineStageFlagBits::vertex_shader
-        , vkz::AccessFlagBits::shader_read);
+        , kage::PipelineStageFlagBits::vertex_shader
+        , kage::AccessFlagBits::shader_read);
 
-    vkz::bindBuffer(pass, _initData.vtxBuf
+    kage::bindBuffer(pass, _initData.vtxBuf
         , 2
-        , vkz::PipelineStageFlagBits::vertex_shader
-        , vkz::AccessFlagBits::shader_read);
+        , kage::PipelineStageFlagBits::vertex_shader
+        , kage::AccessFlagBits::shader_read);
 
-    vkz::bindBuffer(pass, _initData.transformBuf
+    kage::bindBuffer(pass, _initData.transformBuf
         , 3
-        , vkz::PipelineStageFlagBits::vertex_shader
-        , vkz::AccessFlagBits::shader_read);
+        , kage::PipelineStageFlagBits::vertex_shader
+        , kage::AccessFlagBits::shader_read);
 
 
-    vkz::setIndirectBuffer(pass, _initData.meshDrawCmdBuf, offsetof(MeshDrawCommandVKZ, indexCount), sizeof(MeshDrawCommandVKZ), (uint32_t)_scene.meshDraws.size());
-    vkz::setIndirectCountBuffer(pass, _initData.meshDrawCmdCountBuf, 0);
+    kage::setIndirectBuffer(pass, _initData.meshDrawCmdBuf, offsetof(MeshDrawCommandVKZ, indexCount), sizeof(MeshDrawCommandVKZ), (uint32_t)_scene.meshDraws.size());
+    kage::setIndirectCountBuffer(pass, _initData.meshDrawCmdCountBuf, 0);
 
-    vkz::setAttachmentOutput(pass, _initData.color, 0, colorOutAlias);
-    vkz::setAttachmentOutput(pass, _initData.depth, 0, depthOutAlias);
+    kage::setAttachmentOutput(pass, _initData.color, 0, colorOutAlias);
+    kage::setAttachmentOutput(pass, _initData.depth, 0, depthOutAlias);
 
     _vtxShading.vtxShader = vs;
     _vtxShading.fragShader = fs;
@@ -81,7 +81,7 @@ void updateVtxShadingConstants(VtxShading& _vtxShading, const GlobalsVKZ& _globa
 {
     _vtxShading.globals = _globals;
 
-    const vkz::Memory* mem = vkz::alloc(sizeof(GlobalsVKZ));
+    const kage::Memory* mem = kage::alloc(sizeof(GlobalsVKZ));
     memcpy(mem->data, &_globals, mem->size);
-    vkz::updatePushConstants(_vtxShading.pass, mem);
+    kage::updatePushConstants(_vtxShading.pass, mem);
 }

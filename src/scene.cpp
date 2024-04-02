@@ -176,7 +176,7 @@ bool loadScene(Scene& scene, const char** pathes, const uint32_t pathCount ,bool
         bool rcm = false;
         rcm = loadMesh(scene.geometry, pathes[i], buildMeshlets);
         if (!rcm) {
-            vkz::message(vkz::error, "Failed to load mesh %s", pathes[i]);
+            kage::message(kage::error, "Failed to load mesh %s", pathes[i]);
             return false;
         }
 
@@ -185,7 +185,7 @@ bool loadScene(Scene& scene, const char** pathes, const uint32_t pathCount ,bool
 
     if (scene.geometry.meshes.empty())
     {
-        vkz::message(vkz::error, "No mesh was loaded!");
+        kage::message(kage::error, "No mesh was loaded!");
         return false;
     }
 

@@ -6,60 +6,60 @@
 
 struct MeshShadingInitData
 {
-    vkz::BufferHandle vtxBuffer;
-    vkz::BufferHandle meshBuffer;
-    vkz::BufferHandle meshletBuffer;
-    vkz::BufferHandle meshletDataBuffer;
-    vkz::BufferHandle meshDrawBuffer;
+    kage::BufferHandle vtxBuffer;
+    kage::BufferHandle meshBuffer;
+    kage::BufferHandle meshletBuffer;
+    kage::BufferHandle meshletDataBuffer;
+    kage::BufferHandle meshDrawBuffer;
 
-    vkz::BufferHandle meshDrawCmdBuffer;
-    vkz::BufferHandle meshDrawCmdCountBuffer;
-    vkz::BufferHandle meshletVisBuffer;
+    kage::BufferHandle meshDrawCmdBuffer;
+    kage::BufferHandle meshDrawCmdCountBuffer;
+    kage::BufferHandle meshletVisBuffer;
 
-    vkz::BufferHandle transformBuffer;
+    kage::BufferHandle transformBuffer;
 
-    vkz::ImageHandle pyramid;
+    kage::ImageHandle pyramid;
 
-    vkz::ImageHandle color;
-    vkz::ImageHandle depth;
+    kage::ImageHandle color;
+    kage::ImageHandle depth;
 };
 
 struct MeshShading
 {
-    vkz::ShaderHandle taskShader;
-    vkz::ShaderHandle meshShader;
-    vkz::ShaderHandle fragShader;
+    kage::ShaderHandle taskShader;
+    kage::ShaderHandle meshShader;
+    kage::ShaderHandle fragShader;
 
-    vkz::ProgramHandle program;
-    vkz::PassHandle pass;
+    kage::ProgramHandle program;
+    kage::PassHandle pass;
 
     // read-only
-    vkz::BufferHandle vtxBuffer;
-    vkz::BufferHandle meshBuffer;
-    vkz::BufferHandle meshletBuffer;
-    vkz::BufferHandle meshletDataBuffer;
-    vkz::BufferHandle meshDrawCmdBuffer;
-    vkz::BufferHandle meshDrawCmdCountBuffer;
-    vkz::BufferHandle meshDrawBuffer;
-    vkz::BufferHandle transformBuffer;
+    kage::BufferHandle vtxBuffer;
+    kage::BufferHandle meshBuffer;
+    kage::BufferHandle meshletBuffer;
+    kage::BufferHandle meshletDataBuffer;
+    kage::BufferHandle meshDrawCmdBuffer;
+    kage::BufferHandle meshDrawCmdCountBuffer;
+    kage::BufferHandle meshDrawBuffer;
+    kage::BufferHandle transformBuffer;
     
     // read / write
-    vkz::BufferHandle meshletVisBuffer;
+    kage::BufferHandle meshletVisBuffer;
 
     // read-only
-    vkz::ImageHandle pyramid;
+    kage::ImageHandle pyramid;
 
     // write
-    vkz::ImageHandle color;
-    vkz::ImageHandle depth;
+    kage::ImageHandle color;
+    kage::ImageHandle depth;
 
     // sampler
-    vkz::SamplerHandle pyramidSampler;
+    kage::SamplerHandle pyramidSampler;
 
     // out aliases
-    vkz::BufferHandle meshletVisBufferOutAlias;
-    vkz::ImageHandle colorOutAlias;
-    vkz::ImageHandle depthOutAlias;
+    kage::BufferHandle meshletVisBufferOutAlias;
+    kage::ImageHandle colorOutAlias;
+    kage::ImageHandle depthOutAlias;
 
     uint32_t width;
     uint32_t height;
@@ -75,18 +75,18 @@ struct MeshShadingConfig
 
 struct TaskSubmit
 {
-    vkz::ShaderHandle cs;
-    vkz::ProgramHandle prog;
+    kage::ShaderHandle cs;
+    kage::ProgramHandle prog;
 
-    vkz::PassHandle pass;
+    kage::PassHandle pass;
 
-    vkz::BufferHandle drawCmdBuffer;
-    vkz::BufferHandle drawCmdCountBuffer;
-    vkz::BufferHandle drawCmdBufferOutAlias;
+    kage::BufferHandle drawCmdBuffer;
+    kage::BufferHandle drawCmdCountBuffer;
+    kage::BufferHandle drawCmdBufferOutAlias;
 };
 
 void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t _width, uint32_t _height, const MeshShadingInitData _initData, bool _late = false);
 
-void prepareTaskSubmit(TaskSubmit& _taskSubmit, vkz::BufferHandle _drawCmdBuf, vkz::BufferHandle _drawCmdCntBuf, bool _late = false);
+void prepareTaskSubmit(TaskSubmit& _taskSubmit, kage::BufferHandle _drawCmdBuf, kage::BufferHandle _drawCmdCntBuf, bool _late = false);
 
 void updateMeshShadingConstants(MeshShading& _meshShading, const GlobalsVKZ& _globals);

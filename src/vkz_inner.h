@@ -7,7 +7,7 @@
 #include "string.h"
 
 
-namespace vkz
+namespace kage
 {
 
 

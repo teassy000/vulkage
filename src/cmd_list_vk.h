@@ -3,7 +3,7 @@
 #include "cmd_list.h"
 #include "volk.h"
 
-namespace vkz
+namespace kage
 {
     class RHIContext_vk;
 

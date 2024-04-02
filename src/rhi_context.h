@@ -10,7 +10,7 @@
 #include "bx/allocator.h"
 #include "bx/readerwriter.h"
 
-namespace vkz
+namespace kage
 {
     enum class RHIContextOpMagic : uint32_t
     {

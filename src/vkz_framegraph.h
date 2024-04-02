@@ -7,7 +7,7 @@
 #include "bx/allocator.h"
 #include "bx/readerwriter.h"
 
-namespace vkz
+namespace kage
 {
     enum class MagicTag : uint32_t
     {

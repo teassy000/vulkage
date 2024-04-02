@@ -1,7 +1,7 @@
 #pragma once
 #include <stdint.h>
 
-namespace vkz
+namespace kage
 {
     namespace Color
     {
