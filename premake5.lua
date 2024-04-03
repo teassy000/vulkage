@@ -12,6 +12,7 @@ MESH_OPT_DIR 	= 	path.join(EXT_DIR, "meshoptimizer")
 TRACY_DIR 		= 	path.join(EXT_DIR, "tracy/0.10")
 VOLK_DIR 		= 	path.join(EXT_DIR, "volk")
 TINYSTL_DIR 	= 	path.join(EXT_DIR, "tinystl")
+BGFX_COMMON_DIR = 	path.join(EXT_DIR, "bgfx_common")
 
 VK_SDK_DIR 		= os.getenv("VULKAN_SDK")
 if VK_SDK_DIR == nil then
@@ -90,6 +91,7 @@ dofile("scripts/imgui.lua")
 dofile("scripts/meshoptimizer.lua")
 dofile("scripts/tracy.lua")
 dofile("scripts/fast_obj.lua")
+dofile("scripts/bgfx_common.lua")
 
 -- vulkage
 project "vulkage"
@@ -159,6 +161,7 @@ project "vulkage"
 		"meshoptimizer",
 		"fast_obj",
 		"tracy",
+		"bgfx_common",
 		path.join(VK_SDK_DIR, "Lib", "vulkan-1.lib"),
 		path.join(KTX_SDK_DIR, "lib", "ktx.lib"),
 	}
@@ -203,3 +206,4 @@ project("imgui").group 			= "3rd"
 project("meshoptimizer").group 	= "3rd"
 project("tracy").group 			= "3rd"
 project("fast_obj").group 		= "3rd"
+project("bgfx_common").group 	= "3rd"
