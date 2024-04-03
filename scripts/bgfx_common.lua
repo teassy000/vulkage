@@ -17,10 +17,16 @@ project "bgfx_common"
 	}
 
     includedirs {
-        path.join(BGFX_COMMON_DIR,  "entry"),
+        path.join(GLFW_DIR,	 	    "include"),
         path.join(BX_DIR,	 	    "include"),
+        path.join(BGFX_COMMON_DIR,  "entry"),
     }
 	
+
+    defines {
+        "ENTRY_CONFIG_USE_GLFW",
+    }
+
     common_filter()
 	using_glfw()
 	using_bx()

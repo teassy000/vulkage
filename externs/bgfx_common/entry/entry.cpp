@@ -6,7 +6,6 @@
 #include <bx/bx.h>
 #include <bx/file.h>
 #include <bx/sort.h>
-//#include <bgfx/bgfx.h>
 
 #include <time.h>
 
@@ -22,8 +21,8 @@ extern "C" int32_t _main_(int32_t _argc, char** _argv);
 
 namespace entry
 {
-	static uint32_t s_debug = BGFX_DEBUG_NONE;
-	static uint32_t s_reset = BGFX_RESET_NONE;
+	static uint32_t s_debug = 0;
+	static uint32_t s_reset = 0;
 	static uint32_t s_width = ENTRY_DEFAULT_WIDTH;
 	static uint32_t s_height = ENTRY_DEFAULT_HEIGHT;
 	static bool s_exit = false;
@@ -282,48 +281,7 @@ BX_PRAGMA_DIAGNOSTIC_POP();
 	{
 		if (_argc > 1)
 		{
-			if (setOrToggle(s_reset, "vsync",       BGFX_RESET_VSYNC,              1, _argc, _argv)
-			||  setOrToggle(s_reset, "maxaniso",    BGFX_RESET_MAXANISOTROPY,      1, _argc, _argv)
-			||  setOrToggle(s_reset, "msaa",        BGFX_RESET_MSAA_X16,           1, _argc, _argv)
-			||  setOrToggle(s_reset, "flush",       BGFX_RESET_FLUSH_AFTER_RENDER, 1, _argc, _argv)
-			||  setOrToggle(s_reset, "flip",        BGFX_RESET_FLIP_AFTER_RENDER,  1, _argc, _argv)
-			||  setOrToggle(s_reset, "hidpi",       BGFX_RESET_HIDPI,              1, _argc, _argv)
-			||  setOrToggle(s_reset, "depthclamp",  BGFX_RESET_DEPTH_CLAMP,        1, _argc, _argv)
-			   )
-			{
-				return bx::kExitSuccess;
-			}
-			else if (setOrToggle(s_debug, "stats",     BGFX_DEBUG_STATS,     1, _argc, _argv)
-				 ||  setOrToggle(s_debug, "ifh",       BGFX_DEBUG_IFH,       1, _argc, _argv)
-				 ||  setOrToggle(s_debug, "text",      BGFX_DEBUG_TEXT,      1, _argc, _argv)
-				 ||  setOrToggle(s_debug, "wireframe", BGFX_DEBUG_WIREFRAME, 1, _argc, _argv)
-				 ||  setOrToggle(s_debug, "profiler",  BGFX_DEBUG_PROFILER,  1, _argc, _argv)
-				    )
-			{
-				bgfx::setDebug(s_debug);
-				return bx::kExitSuccess;
-			}
-			else if (0 == bx::strCmp(_argv[1], "screenshot") )
-			{
-				bgfx::FrameBufferHandle fbh = BGFX_INVALID_HANDLE;
-
-				if (_argc > 2)
-				{
-					bgfx::requestScreenShot(fbh, _argv[2]);
-				}
-				else
-				{
-					time_t tt;
-					time(&tt);
-
-					char filePath[256];
-					bx::snprintf(filePath, sizeof(filePath), "temp/screenshot-%d", tt);
-					bgfx::requestScreenShot(fbh, filePath);
-				}
-
-				return bx::kExitSuccess;
-			}
-			else if (0 == bx::strCmp(_argv[1], "fullscreen") )
+			if (0 == bx::strCmp(_argv[1], "fullscreen") )
 			{
 				WindowHandle window = { 0 };
 				toggleFullscreen(window);
@@ -533,7 +491,9 @@ BX_PRAGMA_DIAGNOSTIC_POP();
 		setWindowSize(kDefaultWindowHandle, s_width, s_height);
 
 		_app->init(_argc, _argv, s_width, s_height);
-		bgfx::frame();
+		
+		// TODO: update the engine via update() function
+		//bgfx::frame();
 
 #if BX_PLATFORM_EMSCRIPTEN
 		s_app = _app;
@@ -800,7 +760,9 @@ restart:
 		&&  needReset)
 		{
 			_reset = s_reset;
-			bgfx::reset(_width, _height, _reset);
+
+			// TODO: toggle the resize/reset op for vulkage
+			//bgfx::reset(_width, _height, _reset);
 			inputSetMouseResolution(uint16_t(_width), uint16_t(_height) );
 		}
 
@@ -979,7 +941,8 @@ restart:
 		if (needReset)
 		{
 			_reset = s_reset;
-			bgfx::reset(s_window[0].m_width, s_window[0].m_height, _reset);
+            // TODO: toggle the resize/reset op for vulkage
+			//bgfx::reset(s_window[0].m_width, s_window[0].m_height, _reset);
 			inputSetMouseResolution(uint16_t(s_window[0].m_width), uint16_t(s_window[0].m_height) );
 		}
 
@@ -1036,9 +999,4 @@ extern "C" void* entry_get_default_native_window_handle()
 extern "C" void* entry_get_native_display_handle()
 {
 	return entry::getNativeDisplayHandle();
-}
-
-extern "C" bgfx::NativeWindowHandleType::Enum entry_get_native_window_handle_type()
-{
-	return entry::getNativeWindowHandleType(entry::kDefaultWindowHandle);
 }

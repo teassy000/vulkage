@@ -7,7 +7,6 @@
 #define ENTRY_H_HEADER_GUARD
 
 #include "dbg.h"
-#include <bgfx/bgfx.h>
 #include <bx/bx.h>
 #include <bx/filepath.h>
 #include <bx/string.h>
@@ -297,9 +296,6 @@ namespace entry
 
 	///
 	void* getNativeDisplayHandle();
-
-	///
-	bgfx::NativeWindowHandleType::Enum getNativeWindowHandleType(WindowHandle _handle);
 
 	///
 	void setCurrentDir(const char* _dir);
