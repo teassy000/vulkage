@@ -17,7 +17,6 @@
 #include "cmd.h"
 #include "input.h"
 
-extern "C" int32_t _main_(int32_t _argc, char** _argv);
 
 namespace entry
 {
@@ -604,14 +603,9 @@ restart:
 
 		int32_t result = bx::kExitSuccess;
 		s_restartArgs[0] = '\0';
-		if (0 == s_numApps)
-		{
-			result = ::_main_(_argc, (char**)_argv);
-		}
-		else
-		{
-			result = runApp(getCurrentApp(selected), _argc, _argv);
-		}
+
+		result = runApp(getCurrentApp(selected), _argc, _argv);
+
 
 		if (0 != bx::strLen(s_restartArgs) )
 		{

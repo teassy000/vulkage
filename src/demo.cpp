@@ -13,14 +13,16 @@
 #include "time.h"
 #include "vkz_skybox_pass.h"
 
-static DemoData demo{};
+#include "entry/entry.h"
+
+static DemoData demoData{};
 
 void mouseMoveCallback(double _xpos, double _ypos)
 {
-    demo.input.mousePosx = (float)_xpos;
-    demo.input.mousePosy = (float)_ypos;
+    demoData.input.mousePosx = (float)_xpos;
+    demoData.input.mousePosy = (float)_ypos;
 
-    freeCameraProcessMouseMovement(demo.camera, (float)_xpos, (float)_ypos);
+    freeCameraProcessMouseMovement(demoData.camera, (float)_xpos, (float)_ypos);
 }
 
 void keyCallback(kage::KeyEnum _key, kage::KeyState _state, kage::KeyModFlags _flags)
@@ -28,7 +30,7 @@ void keyCallback(kage::KeyEnum _key, kage::KeyState _state, kage::KeyModFlags _f
     if (kage::KeyState::press == _state 
         || kage::KeyState::repeat == _state)
     {
-        freeCameraProcessKeyboard(demo.camera, _key, 0.1f);
+        freeCameraProcessKeyboard(demoData.camera, _key, 0.1f);
     }
 }
 
@@ -43,8 +45,8 @@ void meshDemo()
     bool supportMeshShading = kage::checkSupports(kage::VulkanSupportExtension::ext_mesh_shader);
 
     // ui data
-    demo.input.width = (float)config.windowWidth;
-    demo.input.height = (float)config.windowHeight;
+    demoData.input.width = (float)config.windowWidth;
+    demoData.input.height = (float)config.windowHeight;
 
     // load scene
     Scene scene;
@@ -53,7 +55,7 @@ void meshDemo()
     assert(lmr);
 
     // basic data
-    freeCameraInit(demo.camera, vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 1.0f, 0.0f), 90.0f, 0.0f);
+    freeCameraInit(demoData.camera, vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 1.0f, 0.0f), 90.0f, 0.0f);
 
     // set input callback
     kage::setKeyCallback(keyCallback);
@@ -357,64 +359,64 @@ void meshDemo()
         vec4 frustumX = normalizePlane2(projectionT[3] - projectionT[0]);
         vec4 frustumY = normalizePlane2(projectionT[3] - projectionT[1]);
 
-        mat4 view = freeCameraGetViewMatrix(demo.camera);
+        mat4 view = freeCameraGetViewMatrix(demoData.camera);
 
-        demo.trans.view = view;
-        demo.trans.proj = projection;
-        demo.trans.cameraPos = demo.camera.pos;
+        demoData.trans.view = view;
+        demoData.trans.proj = projection;
+        demoData.trans.cameraPos = demoData.camera.pos;
 
-        demo.drawCull.P00 = projection[0][0];
-        demo.drawCull.P11 = projection[1][1];
-        demo.drawCull.zfar = 10000.f; //scene.drawDistance;
-        demo.drawCull.znear = znear;
-        demo.drawCull.pyramidWidth = (float)pyramidLevelWidth;
-        demo.drawCull.pyramidHeight = (float)pyramidLevelHeight;
-        demo.drawCull.frustum[0] = frustumX.x;
-        demo.drawCull.frustum[1] = frustumX.z;
-        demo.drawCull.frustum[2] = frustumY.y;
-        demo.drawCull.frustum[3] = frustumY.z;
-        demo.drawCull.enableCull = 1;
-        demo.drawCull.enableLod = 1;
-        demo.drawCull.enableOcclusion = 1;
-        demo.drawCull.enableMeshletOcclusion = 1;
+        demoData.drawCull.P00 = projection[0][0];
+        demoData.drawCull.P11 = projection[1][1];
+        demoData.drawCull.zfar = 10000.f; //scene.drawDistance;
+        demoData.drawCull.znear = znear;
+        demoData.drawCull.pyramidWidth = (float)pyramidLevelWidth;
+        demoData.drawCull.pyramidHeight = (float)pyramidLevelHeight;
+        demoData.drawCull.frustum[0] = frustumX.x;
+        demoData.drawCull.frustum[1] = frustumX.z;
+        demoData.drawCull.frustum[2] = frustumY.y;
+        demoData.drawCull.frustum[3] = frustumY.z;
+        demoData.drawCull.enableCull = 1;
+        demoData.drawCull.enableLod = 1;
+        demoData.drawCull.enableOcclusion = 1;
+        demoData.drawCull.enableMeshletOcclusion = 1;
 
-        updateCullingConstants(culling, demo.drawCull);
-        updateCullingConstants(cullingLate, demo.drawCull);
+        updateCullingConstants(culling, demoData.drawCull);
+        updateCullingConstants(cullingLate, demoData.drawCull);
 
-        demo.globals.projection = projection;
-        demo.globals.zfar = 10000.f;//scene.drawDistance;
-        demo.globals.znear = znear;
-        demo.globals.frustum[0] = frustumX.x;
-        demo.globals.frustum[1] = frustumX.z;
-        demo.globals.frustum[2] = frustumY.y;
-        demo.globals.frustum[3] = frustumY.z;
-        demo.globals.pyramidWidth = (float)pyramidLevelWidth;
-        demo.globals.pyramidHeight = (float)pyramidLevelHeight;
-        demo.globals.screenWidth = (float)config.windowWidth;
-        demo.globals.screenHeight = (float)config.windowHeight;
-        demo.globals.enableMeshletOcclusion = 1;
+        demoData.globals.projection = projection;
+        demoData.globals.zfar = 10000.f;//scene.drawDistance;
+        demoData.globals.znear = znear;
+        demoData.globals.frustum[0] = frustumX.x;
+        demoData.globals.frustum[1] = frustumX.z;
+        demoData.globals.frustum[2] = frustumY.y;
+        demoData.globals.frustum[3] = frustumY.z;
+        demoData.globals.pyramidWidth = (float)pyramidLevelWidth;
+        demoData.globals.pyramidHeight = (float)pyramidLevelHeight;
+        demoData.globals.screenWidth = (float)config.windowWidth;
+        demoData.globals.screenHeight = (float)config.windowHeight;
+        demoData.globals.enableMeshletOcclusion = 1;
 
         if (supportMeshShading)
         {
-            updateMeshShadingConstants(meshShading, demo.globals);
-            updateMeshShadingConstants(meshShadingLate, demo.globals);
+            updateMeshShadingConstants(meshShading, demoData.globals);
+            updateMeshShadingConstants(meshShadingLate, demoData.globals);
         }
         else
         {
-            updateVtxShadingConstants(vtxShading, demo.globals);
-            updateVtxShadingConstants(vtxShadingLate, demo.globals);
+            updateVtxShadingConstants(vtxShading, demoData.globals);
+            updateVtxShadingConstants(vtxShadingLate, demoData.globals);
         }
 
         kage::updateThreadCount(culling.pass, (uint32_t)scene.meshDraws.size(), 1, 1);
         kage::updateThreadCount(cullingLate.pass, (uint32_t)scene.meshDraws.size(), 1, 1);
 
-        memcpy_s(memTransform->data, memTransform->size, &demo.trans, sizeof(TransformData));
+        memcpy_s(memTransform->data, memTransform->size, &demoData.trans, sizeof(TransformData));
         kage::updateBuffer(transformBuf, kage::copy(memTransform));
 
         // update profiling data to GPU from last frame
         if ( clockDuration > 300.0)
         {
-            vkz_updateImGui(demo.input, demo.renderOptions, demo.profiling, demo.logic);
+            vkz_updateImGui(demoData.input, demoData.renderOptions, demoData.profiling, demoData.logic);
             vkz_updateUIRenderData(ui);
 
             clockDuration = 0.0;
@@ -428,21 +430,60 @@ void meshDemo()
         clockDuration += cpuTimeMS;
         
         avgCpuTime = float(avgCpuTime * 0.95 + (cpuTimeMS) * 0.05);
-        demo.profiling.avgCpuTime = (float)avgCpuTime;
-        demo.profiling.cullEarlyTime = (float)kage::getPassTime(culling.pass);
-        demo.profiling.drawEarlyTime = (float)kage::getPassTime(meshShading.pass);
-        demo.profiling.cullLateTime = (float)kage::getPassTime(cullingLate.pass);
-        demo.profiling.drawLateTime = (float)kage::getPassTime(meshShadingLate.pass);
-        demo.profiling.pyramidTime = (float)kage::getPassTime(pyRendering.pass);
-        demo.profiling.uiTime = (float)kage::getPassTime(ui.pass);
+        demoData.profiling.avgCpuTime = (float)avgCpuTime;
+        demoData.profiling.cullEarlyTime = (float)kage::getPassTime(culling.pass);
+        demoData.profiling.drawEarlyTime = (float)kage::getPassTime(meshShading.pass);
+        demoData.profiling.cullLateTime = (float)kage::getPassTime(cullingLate.pass);
+        demoData.profiling.drawLateTime = (float)kage::getPassTime(meshShadingLate.pass);
+        demoData.profiling.pyramidTime = (float)kage::getPassTime(pyRendering.pass);
+        demoData.profiling.uiTime = (float)kage::getPassTime(ui.pass);
 
         VKZ_FrameMark;
     }
-
-    kage::shutdown();
 }
 
-void DemoMain()
+namespace
 {
-    meshDemo();
+    class Demo : public entry::AppI
+    {
+    public:
+        Demo(
+            const char* _name
+            , const char* _description
+            , const char* _url = "https://bkaradzic.github.io/bgfx/index.html"
+        )
+            : entry::AppI(_name, _description, _url)
+        {
+
+        }
+        ~Demo()
+        {
+
+        }
+
+        void init(int32_t _argc, const char* const* _argv, uint32_t _width, uint32_t _height)
+        {
+            meshDemo();
+        }
+
+        bool update()
+        {
+            return false;
+        }
+
+        int shutdown()
+        {
+            kage::shutdown();
+            return 0;
+        }
+    };
 }
+
+ENTRY_IMPLEMENT_MAIN(
+    Demo
+    , "vk_ms"
+    , "vk_ms"
+    , "none"
+);
+
+

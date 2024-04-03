@@ -125,6 +125,7 @@ project "vulkage"
 		path.join(GLFW_DIR,	 	"include"),
 		path.join(MESH_OPT_DIR,	"src"),
 		path.join(TRACY_DIR,	"public"),
+		path.join(BGFX_COMMON_DIR, ""),
 
 		path.join(VOLK_DIR,	 	""),
 		path.join(IMGUI_DIR,	""),
