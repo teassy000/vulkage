@@ -70,6 +70,9 @@ struct DemoData
 
     // uniform
     TransformData trans;
+
+    uint32_t width;
+    uint32_t height;
 };
 
 
