@@ -10,9 +10,6 @@
 #include "vkz_framegraph.h"
 #include "rhi_context_vk.h"
 
-
-#include <glfw/glfw3.h>
-#include <glfw/glfw3native.h>
 #include "string.h"
 
 
@@ -378,213 +375,6 @@ namespace kage
         free(getAllocator(), mem);
     }
 
-    // GLFW 
-    KeyEnum getKey(int _glfwKey)
-    {
-        switch (_glfwKey) {
-        case GLFW_KEY_UNKNOWN: return KeyEnum::key_unknown;
-        case GLFW_KEY_A: return KeyEnum::key_a;
-        case GLFW_KEY_B: return KeyEnum::key_b;
-        case GLFW_KEY_C: return KeyEnum::key_c;
-        case GLFW_KEY_D: return KeyEnum::key_d;
-        case GLFW_KEY_E: return KeyEnum::key_e;
-        case GLFW_KEY_F: return KeyEnum::key_f;
-        case GLFW_KEY_G: return KeyEnum::key_g;
-        case GLFW_KEY_H: return KeyEnum::key_h;
-        case GLFW_KEY_I: return KeyEnum::key_i;
-        case GLFW_KEY_J: return KeyEnum::key_j;
-        case GLFW_KEY_K: return KeyEnum::key_k;
-        case GLFW_KEY_L: return KeyEnum::key_l;
-        case GLFW_KEY_M: return KeyEnum::key_m;
-        case GLFW_KEY_N: return KeyEnum::key_n;
-        case GLFW_KEY_O: return KeyEnum::key_o;
-        case GLFW_KEY_P: return KeyEnum::key_p;
-        case GLFW_KEY_Q: return KeyEnum::key_q;
-        case GLFW_KEY_R: return KeyEnum::key_r;
-        case GLFW_KEY_S: return KeyEnum::key_s;
-        case GLFW_KEY_T: return KeyEnum::key_t;
-        case GLFW_KEY_U: return KeyEnum::key_u;
-        case GLFW_KEY_V: return KeyEnum::key_v;
-        case GLFW_KEY_W: return KeyEnum::key_w;
-        case GLFW_KEY_X: return KeyEnum::key_x;
-        case GLFW_KEY_Y: return KeyEnum::key_y;
-        case GLFW_KEY_Z: return KeyEnum::key_z;
-        case GLFW_KEY_0: return KeyEnum::key_0;
-        case GLFW_KEY_1: return KeyEnum::key_1;
-        case GLFW_KEY_2: return KeyEnum::key_2;
-        case GLFW_KEY_3: return KeyEnum::key_3;
-        case GLFW_KEY_4: return KeyEnum::key_4;
-        case GLFW_KEY_5: return KeyEnum::key_5;
-        case GLFW_KEY_6: return KeyEnum::key_6;
-        case GLFW_KEY_7: return KeyEnum::key_7;
-        case GLFW_KEY_8: return KeyEnum::key_8;
-        case GLFW_KEY_9: return KeyEnum::key_9;
-        case GLFW_KEY_F1: return KeyEnum::key_f1;
-        case GLFW_KEY_F2: return KeyEnum::key_f2;
-        case GLFW_KEY_F3: return KeyEnum::key_f3;
-        case GLFW_KEY_F4: return KeyEnum::key_f4;
-        case GLFW_KEY_F5: return KeyEnum::key_f5;
-        case GLFW_KEY_F6: return KeyEnum::key_f6;
-        case GLFW_KEY_F7: return KeyEnum::key_f7;
-        case GLFW_KEY_F8: return KeyEnum::key_f8;
-        case GLFW_KEY_F9: return KeyEnum::key_f9;
-        case GLFW_KEY_F10: return KeyEnum::key_f10;
-        case GLFW_KEY_F11: return KeyEnum::key_f11;
-        case GLFW_KEY_F12: return KeyEnum::key_f12;
-        case GLFW_KEY_LEFT: return KeyEnum::key_left;
-        case GLFW_KEY_RIGHT: return KeyEnum::key_right;
-        case GLFW_KEY_UP: return KeyEnum::key_up;
-        case GLFW_KEY_DOWN: return KeyEnum::key_down;
-        case GLFW_KEY_SPACE: return KeyEnum::key_space;
-        case GLFW_KEY_ESCAPE: return KeyEnum::key_esc;
-        case GLFW_KEY_ENTER: return KeyEnum::key_enter;
-        case GLFW_KEY_BACKSPACE: return KeyEnum::key_backspace;
-        case GLFW_KEY_TAB: return KeyEnum::key_tab;
-        case GLFW_KEY_CAPS_LOCK: return KeyEnum::key_capslock;
-        case GLFW_KEY_LEFT_SHIFT: return KeyEnum::key_shift;
-        case GLFW_KEY_RIGHT_SHIFT: return KeyEnum::key_shift;
-        case GLFW_KEY_LEFT_CONTROL: return KeyEnum::key_ctrl;
-        case GLFW_KEY_RIGHT_CONTROL: return KeyEnum::key_ctrl;
-        case GLFW_KEY_LEFT_ALT: return KeyEnum::key_alt;
-        case GLFW_KEY_RIGHT_ALT: return KeyEnum::key_alt;
-
-        default: return KeyEnum::key_unknown;
-        }
-    }
-
-    KeyState getKeyState(int _glfwKeyState)
-    {
-        switch (_glfwKeyState) {
-        case GLFW_PRESS: return KeyState::press;
-        case GLFW_RELEASE: return KeyState::release;
-        case GLFW_REPEAT: return KeyState::repeat;
-        default: return KeyState::unknown;
-        }
-    }
-
-    KeyModFlags getKeyModFlag(int _glfwModFlag)
-    {
-        KeyModFlags modFlags = KeyModBits::none;
-        if (_glfwModFlag & GLFW_MOD_SHIFT)
-        {
-            modFlags |= KeyModBits::shift;
-        }
-        if (_glfwModFlag & GLFW_MOD_CONTROL)
-        {
-            modFlags |= KeyModBits::ctrl;
-        }
-        if (_glfwModFlag & GLFW_MOD_ALT)
-        {
-            modFlags |= KeyModBits::alt;
-        }
-        if (_glfwModFlag & GLFW_MOD_CAPS_LOCK)
-        {
-            modFlags |= KeyModBits::capslock;
-        }
-        if (_glfwModFlag & GLFW_MOD_NUM_LOCK)
-        {
-            modFlags |= KeyModBits::numlock;
-        }
-
-        return modFlags;
-    }
-
-    void defaultKeyCallback(KeyEnum _key, KeyState _state, KeyModFlags _mods) {}
-    void defaultMouseMoveCallback(double xpos, double ypos) {}
-
-    static KeyCallbackFunc s_keyCallback = defaultKeyCallback;
-    static MouseMoveCallbackFunc s_mouseMoveCallback = defaultMouseMoveCallback;
-    static MouseButtonCallbackFunc s_mouseButtonCallback = nullptr;
-    class GLFWManager
-    {
-    public:
-        bool init(uint32_t _w, uint32_t _h, const char* _name);
-        bool shouldClose();
-        void update();
-        void shutdown();
-        void getWindowSize(uint32_t& _width, uint32_t& _height);
-        GLFWwindow* getWindow() { return m_pWindow; }
-
-    private:
-        static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
-        static void mouseMoveCallback(GLFWwindow* window, double xpos, double ypos);
-
-        GLFWwindow* m_pWindow;
-        uint32_t m_width;
-        uint32_t m_height;
-    };
-
-    bool GLFWManager::init(uint32_t _w, uint32_t _h, const char* _name)
-    {
-        int rc = glfwInit();
-        assert(rc);
-
-        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-
-        m_pWindow = glfwCreateWindow(_w, _h, _name, nullptr, nullptr);
-        assert(m_pWindow);
-
-        m_width = _w;
-        m_height = _h;
-
-        glfwSetKeyCallback(m_pWindow, keyCallback);
-        glfwSetCursorPosCallback(m_pWindow, mouseMoveCallback);
-
-        // disable cursor
-        glfwSetInputMode(m_pWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-
-        return m_pWindow != nullptr;
-    }
-
-    bool GLFWManager::shouldClose()
-    {
-        return glfwWindowShouldClose(m_pWindow);
-    }
-
-    void GLFWManager::update()
-    {
-        glfwPollEvents();
-        int newWindowWidth = 0, newWindowHeight = 0;
-        glfwGetWindowSize(m_pWindow, &newWindowWidth, &newWindowHeight);
-    }
-
-    void GLFWManager::shutdown()
-    {
-        glfwDestroyWindow(m_pWindow);
-        glfwTerminate();
-    }
-
-    void GLFWManager::getWindowSize(uint32_t& _width, uint32_t& _height)
-    {
-        _width = m_width;
-        _height = m_height;
-    }
-
-    void GLFWManager::keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
-    {
-        if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-        {
-            glfwSetWindowShouldClose(window, GLFW_TRUE);
-        }
-
-        if (s_keyCallback)
-        {
-            const KeyEnum keyEnum = getKey(key);
-            const KeyState keyState = getKeyState(action);
-            const KeyModFlags keyModFlags = getKeyModFlag(mods);
-
-            s_keyCallback(keyEnum, keyState, keyModFlags);
-        }
-    }
-
-    void GLFWManager::mouseMoveCallback(GLFWwindow* window, double xpos, double ypos)
-    {
-        if (s_mouseMoveCallback)
-        {
-            s_mouseMoveCallback(xpos, ypos);
-        }
-    }
-
     constexpr uint8_t kTouched = 1;
     constexpr uint8_t kUnTouched = 0;
 
@@ -608,6 +398,7 @@ namespace kage
         // Context API
         void setRenderSize(uint32_t _width, uint32_t _height);
         void setWindowName(const char* _name);
+        void setNativeWindowHandle(void* _hWnd);
 
         bool checkSupports(VulkanSupportExtension _ext);
 
@@ -678,18 +469,12 @@ namespace kage
 
         void run();
         void bake();
-        void getWindowSize(uint32_t& _width, uint32_t _height);
         void resizeBackBuffer(uint32_t _windth, uint32_t _height);
         void render();
         void shutdown();
 
         void setRenderGraphDataDirty() { m_isRenderGraphDataDirty = true; }
         bool isRenderGraphDataDirty() const { return m_isRenderGraphDataDirty; }
-
-        // callbacks
-        void setKeyCallback(KeyCallbackFunc _func);
-        void setMouseMoveCallback(MouseMoveCallbackFunc _func);
-        void setMouseButtonCallback(MouseButtonCallbackFunc _func);
 
         double getPassTime(const PassHandle _hPass);
 
@@ -764,9 +549,7 @@ namespace kage
         // name manager
         NameMgr* m_pNameManager{ nullptr };
 
-        // glfw
-        char m_windowTitle[256];
-        GLFWManager m_glfwManager;
+        void* m_nativeWnd{ nullptr };
     };
 
     bool Context::isCompute(const PassHandle _hPass)
@@ -870,18 +653,15 @@ namespace kage
         m_renderHeight = _height;
     }
 
-    void Context::setWindowName(const char* _name)
+    void Context::setNativeWindowHandle(void* _hWnd)
     {
-        if (nullptr == _name)
+        if (_hWnd == nullptr)
         {
-            memcpy(m_windowTitle, "vkz", 3);
-            m_windowTitle[3] = '\0';
+            message(error, "invalid window handle");
             return;
         }
 
-        size_t length = strlen(_name);
-        memcpy(m_windowTitle, _name, length);
-        m_windowTitle[length] = '\0';
+        m_nativeWnd = _hWnd;
     }
 
     bool Context::checkSupports(VulkanSupportExtension _ext)
@@ -2092,29 +1872,15 @@ namespace kage
         m_rhiContext->updateThreadCount(_hPass, _threadCountX, _threadCountY, _threadCountZ);
     }
 
-    static void* glfwNativeWindowHandle(GLFWwindow* _window)
-    {
-#if defined(VK_USE_PLATFORM_WIN32_KHR)
-        return glfwGetWin32Window(_window);
-#else
-        #error unsupport platform
-#endif
-    }
-
     void Context::init()
     {
         m_pAllocator = getAllocator();
         m_pNameManager = getNameManager();
 
-        // init glfw
-        m_glfwManager.init(m_renderWidth, m_renderHeight, m_windowTitle);
-        
-        void* wnd = glfwNativeWindowHandle(m_glfwManager.getWindow());
-
         RHI_Config rhiConfig{};
         rhiConfig.windowWidth = m_renderWidth;
         rhiConfig.windowHeight = m_renderHeight;
-        m_rhiContext = BX_NEW(getAllocator(), RHIContext_vk)(getAllocator(), rhiConfig, wnd);
+        m_rhiContext = BX_NEW(getAllocator(), RHIContext_vk)(getAllocator(), rhiConfig, m_nativeWnd);
 
         m_frameGraph = BX_NEW(getAllocator(), Framegraph)(getAllocator(), m_rhiContext->memoryBlock());
 
@@ -2124,14 +1890,8 @@ namespace kage
         setRenderGraphDataDirty();
     }
 
-    bool Context::shouldClose()
-    {
-        return m_glfwManager.shouldClose();
-    }
-
     void Context::run()
     {
-        m_glfwManager.update();
 
         if (kInvalidHandle == m_presentImage.id)
         {
@@ -2171,11 +1931,6 @@ namespace kage
         m_rhiContext->bake();
     }
 
-    void Context::getWindowSize(uint32_t& _width, uint32_t _height)
-    {
-        m_glfwManager.getWindowSize(_width, _height);
-    }
-
     void Context::resizeBackBuffer(uint32_t _windth, uint32_t _height)
     {
 
@@ -2200,33 +1955,6 @@ namespace kage
 
         m_pFgMemBlock = nullptr;
         m_pAllocator = nullptr;
-    }
-
-    void Context::setKeyCallback(KeyCallbackFunc _func)
-    {
-        if (!_func)
-        {
-            return;
-        }
-        s_keyCallback = _func;
-    }
-
-    void Context::setMouseMoveCallback(MouseMoveCallbackFunc _func)
-    {
-        if (!_func)
-        {
-            return;
-        }
-        s_mouseMoveCallback = _func;
-    }
-
-    void Context::setMouseButtonCallback(MouseButtonCallbackFunc _func)
-    {
-        if (!_func)
-        {
-            return;
-        }
-        s_mouseButtonCallback = _func;
     }
 
     double Context::getPassTime(const PassHandle _hPass)
@@ -2440,25 +2168,15 @@ namespace kage
     {
         s_ctx = BX_NEW(getAllocator(), Context);
         s_ctx->setRenderSize(_config.windowWidth, _config.windowHeight);
-        s_ctx->setWindowName(_config.name);
+        s_ctx->setNativeWindowHandle(_config.windowHandle);
         s_ctx->init();
 
         return true;
     }
 
-    bool shouldClose()
-    {
-        return s_ctx->shouldClose();
-    }
-
     void bake()
     {
         s_ctx->bake();
-    }
-
-    void getWindowSize(uint32_t& _width, uint32_t _height)
-    {
-        s_ctx->getWindowSize(_width, _height);
     }
 
     void resizeBackBuffer(uint32_t _width, uint32_t _height)
@@ -2511,21 +2229,6 @@ namespace kage
     const char* getName(SamplerHandle _hSampler)
     {
         return getNameManager()->getName(_hSampler);
-    }
-
-    void setKeyCallback(KeyCallbackFunc _func)
-    {
-        s_ctx->setKeyCallback(_func);
-    }
-
-    void setMouseMoveCallback(MouseMoveCallbackFunc _func)
-    {
-        s_ctx->setMouseMoveCallback(_func);
-    }
-
-    void setMouseButtonCallback(MouseButtonCallbackFunc _func)
-    {
-        s_ctx->setMouseButtonCallback(_func);
     }
 
     double getPassTime(const PassHandle _hPass)

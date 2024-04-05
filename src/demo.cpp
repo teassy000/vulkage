@@ -39,6 +39,8 @@ namespace
             kage::VKZInitConfig config = {};
             config.windowWidth = _width;
             config.windowHeight = _height;
+            config.name = "vulkage demo";
+            config.windowHandle = entry::getNativeWindowHandle(entry::kDefaultWindowHandle);
 
             demoData.width = _width;
             demoData.height = _height;
@@ -58,10 +60,6 @@ namespace
             // basic data
             freeCameraInit(demoData.camera, vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 1.0f, 0.0f), 90.0f, 0.0f);
 
-            // set input callback
-            //kage::setKeyCallback(this->keyCallback);
-            //kage::setMouseMoveCallback(mouseMoveCallback);
-
             createBuffers();
             createImages();
             createPasses();
@@ -71,7 +69,15 @@ namespace
 
         bool update() override
         {
+            if (entry::processEvents(m_width, m_height, m_debug, m_reset, &m_mouseState))
+            {
+                return false;
+            }
+
             clock_t startFrameTime = clock();
+
+            mouseMoveCallback(m_mouseState.m_mx, m_mouseState.m_my);
+            kage::message(kage::info, "x: %6d, y: %6d", m_mouseState.m_mx, m_mouseState.m_my);
 
             float znear = .1f;
             mat4 projection = perspectiveProjection2(glm::radians(70.f), (float)demoData.width / (float)demoData.height, znear);
@@ -164,7 +170,7 @@ namespace
 
             VKZ_FrameMark;
 
-            return !kage::shouldClose();
+            return true;
         }
 
         int shutdown() override
@@ -494,6 +500,13 @@ namespace
         Scene scene{};
         DemoData demoData{};
         bool supportMeshShading;
+
+        uint32_t m_width;
+        uint32_t m_height;
+        uint32_t m_debug;
+        uint32_t m_reset;
+        entry::MouseState m_mouseState;
+
 
         kage::BufferHandle meshBuf;
         kage::BufferHandle meshDrawBuf;

@@ -507,6 +507,9 @@ namespace kage
     {
         uint32_t windowWidth{ 0 };
         uint32_t windowHeight{ 0 };
+
+        void * windowHandle{ nullptr };
+
         const char* name{ nullptr };
     };
 
