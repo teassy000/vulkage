@@ -1,28 +1,23 @@
 #pragma once
 
-#include "vkz_math.h"
-#include "vkz_structs.h"
+#include "bx/math.h"
+#include "entry/entry.h"
 
-struct FreeCamera
-{
-    vec3 pos;
-    vec3 front;
-    vec3 up;
-    vec3 right;
-    vec3 worldUp;
 
-    float yaw;
-    float pitch;
-    float moveSpeed;
-    float mouseSensitivity;
-};
+#define CAMERA_KEY_FORWARD   UINT8_C(0x01)
+#define CAMERA_KEY_BACKWARD  UINT8_C(0x02)
+#define CAMERA_KEY_LEFT      UINT8_C(0x04)
+#define CAMERA_KEY_RIGHT     UINT8_C(0x08)
+#define CAMERA_KEY_UP        UINT8_C(0x10)
+#define CAMERA_KEY_DOWN      UINT8_C(0x20)
+#define CAMERA_KEY_RESET     UINT8_C(0x40)
 
-void freeCameraInit(FreeCamera& camera, vec3 position, vec3 up, float yaw, float pitch);
-mat4 freeCameraGetViewMatrix(const FreeCamera& camera);
-void freeCameraProcessKeyboard(FreeCamera& camera, int key, float deltaTime);
-void freeCameraProcessKeyboard(FreeCamera& camera, kage::KeyEnum _key, float deltaTime);
-void freeCameraProcessMouseKey(FreeCamera& camera, int key, int action, int mods);
-void freeCameraProcessMouseMovement(FreeCamera& camera, float xoffset, float yoffset, bool constrainPitch = true);
-void freeCameraProcessMouseScroll(FreeCamera& camera, float yoffset);
-void freeCameraUpdateVectors(FreeCamera& camera);
 
+void freeCameraInit();
+void freeCameraDestroy();
+void freeCameraGetViewMatrix(float* _mat);
+bx::Vec3 freeCameraGetPos();
+
+void freeCameraUpdate(float _delta, const entry::MouseState& _mouseState, bool _reset);
+
+void freeCameraSetKeyState(uint8_t _key, bool _down);

@@ -14,6 +14,7 @@
 #include "vkz_skybox_pass.h"
 
 #include "entry/entry.h"
+#include "bx/timer.h"
 
 namespace
 {
@@ -45,6 +46,7 @@ namespace
             demoData.width = _width;
             demoData.height = _height;
 
+            entry::setMouseLock(entry::kDefaultWindowHandle, true);
 
             kage::init(config);
             
@@ -56,9 +58,8 @@ namespace
             demoData.input.width = (float)config.windowWidth;
             demoData.input.height = (float)config.windowHeight;
 
-
             // basic data
-            freeCameraInit(demoData.camera, vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 1.0f, 0.0f), 90.0f, 0.0f);
+            freeCameraInit();
 
             createBuffers();
             createImages();
@@ -74,10 +75,15 @@ namespace
                 return false;
             }
 
-            clock_t startFrameTime = clock();
+            int64_t now = bx::getHPCounter();
+            static int64_t last = now;
+            const int64_t frameTime = now - last;
+            last = now;
 
-            mouseMoveCallback(m_mouseState.m_mx, m_mouseState.m_my);
-            kage::message(kage::info, "x: %6d, y: %6d", m_mouseState.m_mx, m_mouseState.m_my);
+            const double freq = double(bx::getHPFrequency());
+            const float deltaTimeMS = float(frameTime / freq) * 1000.f;
+
+            freeCameraUpdate(deltaTimeMS, m_mouseState, m_reset);
 
             float znear = .1f;
             mat4 projection = perspectiveProjection2(glm::radians(70.f), (float)demoData.width / (float)demoData.height, znear);
@@ -85,14 +91,17 @@ namespace
             vec4 frustumX = normalizePlane2(projectionT[3] - projectionT[0]);
             vec4 frustumY = normalizePlane2(projectionT[3] - projectionT[1]);
 
-            mat4 view = freeCameraGetViewMatrix(demoData.camera);
-
             uint32_t pyramidLevelWidth = previousPow2_new(demoData.width);
             uint32_t pyramidLevelHeight = previousPow2_new(demoData.height);
 
-            demoData.trans.view = view;
+
+            freeCameraGetViewMatrix(demoData.trans.view);
             demoData.trans.proj = projection;
-            demoData.trans.cameraPos = demoData.camera.pos;
+
+            bx::Vec3 cameraPos = freeCameraGetPos();
+            demoData.trans.cameraPos.x = cameraPos.x;
+            demoData.trans.cameraPos.y = cameraPos.y;
+            demoData.trans.cameraPos.z = cameraPos.z;
 
             demoData.drawCull.P00 = projection[0][0];
             demoData.drawCull.P11 = projection[1][1];
@@ -144,23 +153,18 @@ namespace
             kage::updateBuffer(transformBuf, memTransform);
 
             // update profiling data to GPU from last frame
-            if (clockDuration > 300.0)
-            {
-                vkz_updateImGui(demoData.input, demoData.renderOptions, demoData.profiling, demoData.logic);
-                vkz_updateUIRenderData(ui);
 
-                clockDuration = 0.0;
-            }
+            vkz_updateImGui(demoData.input, demoData.renderOptions, demoData.profiling, demoData.logic);
+            vkz_updateUIRenderData(ui);
+
 
             // render
             kage::run();
 
-            clock_t endFrameTime = clock();
-            double cpuTimeMS = (double)(endFrameTime - startFrameTime);
-            clockDuration += cpuTimeMS;
 
-            avgCpuTime = float(avgCpuTime * 0.95 + (cpuTimeMS) * 0.05);
-            demoData.profiling.avgCpuTime = (float)avgCpuTime;
+            static float avgCpuTime = 0.0f;
+            avgCpuTime = avgCpuTime * 0.95f + (deltaTimeMS) * 0.05f;
+            demoData.profiling.avgCpuTime = avgCpuTime;
             demoData.profiling.cullEarlyTime = (float)kage::getPassTime(culling.pass);
             demoData.profiling.drawEarlyTime = (float)kage::getPassTime(meshShading.pass);
             demoData.profiling.cullLateTime = (float)kage::getPassTime(cullingLate.pass);
@@ -175,6 +179,8 @@ namespace
 
         int shutdown() override
         {
+            freeCameraDestroy();
+
             kage::shutdown();
             return 0;
         }
@@ -480,23 +486,6 @@ namespace
             kage::bake();
         }
 
-        void mouseMoveCallback(double _xpos, double _ypos)
-        {
-            demoData.input.mousePosx = (float)_xpos;
-            demoData.input.mousePosy = (float)_ypos;
-
-            freeCameraProcessMouseMovement(demoData.camera, (float)_xpos, (float)_ypos);
-        }
-
-        void keyCallback(kage::KeyEnum _key, kage::KeyState _state, kage::KeyModFlags _flags)
-        {
-            if (kage::KeyState::press == _state
-                || kage::KeyState::repeat == _state)
-            {
-                freeCameraProcessKeyboard(demoData.camera, _key, 0.1f);
-            }
-        }
-
         Scene scene{};
         DemoData demoData{};
         bool supportMeshShading;
@@ -546,9 +535,6 @@ namespace
         SkyboxRendering skybox{};
 
         UIRendering ui{};
-
-        double clockDuration = 0.0;
-        double avgCpuTime = 0.0;
     };
 }
 

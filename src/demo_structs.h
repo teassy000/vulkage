@@ -6,7 +6,7 @@
 
 struct alignas(16) TransformData
 {
-    mat4 view;
+    float view[16];
     mat4 proj;
     vec3 cameraPos;
 };
@@ -59,7 +59,6 @@ struct MeshDrawCommandVKZ
 struct DemoData
 {
     UIInput input;
-    FreeCamera camera;
     DebugRenderOptionsData renderOptions;
     DebugProfilingData profiling;
     DebugLogicData logic;
