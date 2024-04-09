@@ -1,6 +1,6 @@
 #include "common.h"
 #include "macro.h"
-#include "vkz_math.h"
+#include "kage_math.h"
 
 #include "mesh.h"
 #include "meshoptimizer.h"

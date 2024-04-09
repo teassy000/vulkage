@@ -2,7 +2,7 @@
 
 #include "demo_structs.h"
 #include "scene.h"
-#include "vkz.h"
+#include "kage.h"
 
 struct MeshShadingInitData
 {

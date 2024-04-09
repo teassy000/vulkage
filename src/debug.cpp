@@ -42,5 +42,5 @@ namespace kage {
 #endif //_DEBUG
     }
 
-} // namespace vkz
+} // namespace kage
 

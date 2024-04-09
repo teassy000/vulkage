@@ -1,6 +1,6 @@
 #include "camera.h"
 
-#include "vkz_structs.h"
+#include "kage_structs.h"
 #include "entry/cmd.h"
 #include "bx/string.h"
 #include "entry/input.h"
@@ -251,7 +251,7 @@ struct FreeCamera
         m_yaw = 0.01f;
         m_pitch = 0.01f;
 
-        m_mouseSpeed = 0.005f;
+        m_mouseSpeed = 0.01f;
         m_gamepadSpeed = 0.01f;
         m_moveSpeed = 0.01f;
         m_keys = 0;

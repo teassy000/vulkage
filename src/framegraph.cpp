@@ -3,10 +3,10 @@
 #include "config.h"
 #include "util.h"
 
-#include "vkz_framegraph.h"
+#include "framegraph.h"
 #include "rhi_context.h"
 
-#include "vkz_math.h"
+#include "kage_math.h"
 
 #include "profiler.h"
 #include "bx/readerwriter.h"
@@ -2267,4 +2267,4 @@ namespace kage
         return bInfoMatch && bStackMatch;
     }
 
-} // namespace vkz
+} // namespace kage

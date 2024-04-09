@@ -3,14 +3,29 @@
 
 #include "config.h"
 #include "util.h"
-#include "vkz_math.h"
+#include "kage_math.h"
 #include "rhi_context_vk.h"
 
 #include <algorithm> //sort
 
 
-namespace kage
+namespace kage { namespace vk
 {
+    static RHIContext_vk* s_renderVK = nullptr;
+
+    RHIContext* rendererCreate(RHI_Config _config, void* _wnd)
+    {
+        s_renderVK = BX_NEW(g_bxAllocator, RHIContext_vk)(g_bxAllocator, _config, _wnd);
+        
+        return s_renderVK;
+    }
+    void rendererDestroy()
+    {
+        s_renderVK->shutdown();
+        bx::deleteObject(g_bxAllocator, s_renderVK);
+        s_renderVK = nullptr;
+    }
+
     const char* getExtName(VulkanSupportExtension _ext)
     {
         switch (_ext)
@@ -1186,9 +1201,9 @@ namespace kage
         kage::createSwapchain(m_swapchain, m_phyDevice, m_device, m_surface, m_gfxFamilyIdx, m_imageFormat);
 
         // fill the image to barrier
-        for (uint32_t ii = 0; ii < m_swapchain.imageCount; ++ii)
+        for (uint32_t ii = 0; ii < m_swapchain.m_imgCnt; ++ii)
         {
-            m_barrierDispatcher.addImage(m_swapchain.images[ii]
+            m_barrierDispatcher.addImage(m_swapchain.m_backBuffers[ii]
                 , VK_IMAGE_ASPECT_COLOR_BIT
                 , { 0, VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT }
             );
@@ -1273,13 +1288,14 @@ namespace kage
 
         if(swapchainStatus == SwapchainStatus_vk::resize)
         {
+            return true;
             // TODO: remove old swapchain images from barriers first
             assert(0);
 
             // fill the image to barrier
-            for (uint32_t ii = 0; ii < m_swapchain.imageCount; ++ii)
+            for (uint32_t ii = 0; ii < m_swapchain.m_imgCnt; ++ii)
             {
-                m_barrierDispatcher.addImage(m_swapchain.images[ii]
+                m_barrierDispatcher.addImage(m_swapchain.m_backBuffers[ii]
                     , VK_IMAGE_ASPECT_COLOR_BIT
                     , { 0, VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT }
                 );
@@ -1289,7 +1305,7 @@ namespace kage
         }
 
         uint32_t imageIndex = 0;
-        VK_CHECK(vkAcquireNextImageKHR(m_device, m_swapchain.swapchain, ~0ull, m_acquirSemaphore, VK_NULL_HANDLE, &imageIndex));
+        VK_CHECK(vkAcquireNextImageKHR(m_device, m_swapchain.m_swapchain, ~0ull, m_acquirSemaphore, VK_NULL_HANDLE, &imageIndex));
 
         VK_CHECK(vkResetCommandPool(m_device, m_cmdPool, 0));
 
@@ -1356,7 +1372,7 @@ namespace kage
             VKZ_ZoneScopedNC("present", Color::light_yellow);
             VkPresentInfoKHR presentInfo = { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
             presentInfo.swapchainCount = 1;
-            presentInfo.pSwapchains = &m_swapchain.swapchain;
+            presentInfo.pSwapchains = &m_swapchain.m_swapchain;
             presentInfo.pImageIndices = &imageIndex;
             presentInfo.pWaitSemaphores = &m_releaseSemaphore;
             presentInfo.waitSemaphoreCount = 1;
@@ -1456,7 +1472,7 @@ namespace kage
             m_acquirSemaphore = VK_NULL_HANDLE;
         }
 
-        if (m_swapchain.swapchain)
+        if (m_swapchain.m_swapchain)
         {
             kage::destroySwapchain(m_device, m_swapchain);
         }
@@ -1626,6 +1642,8 @@ namespace kage
     {
         m_backBufferWidth = _width;
         m_backBufferHeight = _height;
+
+
     }
 
     void RHIContext_vk::updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ)
@@ -2249,8 +2267,8 @@ namespace kage
 
             uint16_t baseId = m_aliasToBaseImages.getIdToData(id);
             ImageCreateInfo& createInfo = m_imageInitPropContainer.getDataRef(baseId);
-            createInfo.width = m_swapchain.width;
-            createInfo.height = m_swapchain.height;
+            createInfo.width = m_swapchain.m_width;
+            createInfo.height = m_swapchain.m_height;
 
             ImgInitProps_vk initPorps = getImageInitProp(createInfo, m_imageFormat, m_depthFormat);
 
@@ -2743,8 +2761,8 @@ namespace kage
         }
 
         VkRenderingInfo renderingInfo = { VK_STRUCTURE_TYPE_RENDERING_INFO };
-        renderingInfo.renderArea.extent.width = m_swapchain.width;
-        renderingInfo.renderArea.extent.height = m_swapchain.height;
+        renderingInfo.renderArea.extent.width = m_swapchain.m_width;
+        renderingInfo.renderArea.extent.height = m_swapchain.m_height;
         renderingInfo.layerCount = 1;
         renderingInfo.colorAttachmentCount = (uint32_t)colorAttachments.size();
         renderingInfo.pColorAttachments = colorAttachments.data();
@@ -2889,8 +2907,8 @@ namespace kage
         beginRendering(m_cmdBuffer, _passId);
 
         // drawcalls
-        VkViewport viewport = { 0.f, float(m_swapchain.height), float(m_swapchain.width), -float(m_swapchain.height), 0.f, 1.f };
-        VkRect2D scissor = { {0, 0}, {m_swapchain.width, m_swapchain.height } };
+        VkViewport viewport = { 0.f, float(m_swapchain.m_height), float(m_swapchain.m_width), -float(m_swapchain.m_height), 0.f, 1.f };
+        VkRect2D scissor = { {0, 0}, {m_swapchain.m_width, m_swapchain.m_height } };
 
         vkCmdSetViewport(m_cmdBuffer, 0, 1, &viewport);
         vkCmdSetScissor(m_cmdBuffer, 0, 1, &scissor);
@@ -3032,8 +3050,8 @@ namespace kage
         bool result = true;
         
         result &= (getFormat(srcInfo.format) == m_imageFormat);
-        result &= (srcInfo.width == m_swapchain.width);
-        result &= (srcInfo.height == m_swapchain.height);
+        result &= (srcInfo.width == m_swapchain.m_width);
+        result &= (srcInfo.height == m_swapchain.m_height);
         result &= (srcInfo.numMips == 1);
         result &= (srcInfo.numLayers == 1);
         result &= (srcInfo.layout == ImageLayout::color_attachment_optimal);
@@ -3097,7 +3115,7 @@ namespace kage
         );
 
         // swapchain image
-        const VkImage& swapImg = m_swapchain.images[_swapImgIdx];
+        const VkImage& swapImg = m_swapchain.m_backBuffers[_swapImgIdx];
         m_barrierDispatcher.barrier(
             swapImg, VK_IMAGE_ASPECT_COLOR_BIT,
             { VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT }
@@ -3119,7 +3137,7 @@ namespace kage
         regions[0].srcOffsets[0] = { 0, 0, 0 };
         regions[0].srcOffsets[1] = { int32_t(levelWidth), int32_t(levelHeight), 1 };
         regions[0].dstOffsets[0] = { 0, 0, 0 };
-        regions[0].dstOffsets[1] = { int32_t(m_swapchain.width), int32_t(m_swapchain.height), 1 };
+        regions[0].dstOffsets[1] = { int32_t(m_swapchain.m_width), int32_t(m_swapchain.m_height), 1 };
 
         vkCmdBlitImage(m_cmdBuffer, presentImg.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, swapImg, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, COUNTOF(regions), regions, VK_FILTER_NEAREST);
 
@@ -3151,7 +3169,7 @@ namespace kage
         );
         
         // swapchain image
-        const VkImage& swapImg = m_swapchain.images[_swapImgIdx];
+        const VkImage& swapImg = m_swapchain.m_backBuffers[_swapImgIdx];
 
         m_barrierDispatcher.barrier(
             swapImg, VK_IMAGE_ASPECT_COLOR_BIT,
@@ -3166,7 +3184,7 @@ namespace kage
         copyRegion.srcSubresource.layerCount = 1;
         copyRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         copyRegion.dstSubresource.layerCount = 1;
-        copyRegion.extent = { m_swapchain.width, m_swapchain.height, 1 };
+        copyRegion.extent = { m_swapchain.m_width, m_swapchain.m_height, 1 };
 
         vkCmdCopyImage(
             m_cmdBuffer,
@@ -3418,4 +3436,5 @@ namespace kage
         m_srcBufBarriers.clear();
         m_dstBufBarriers.clear();
     }
-} // namespace vkz
+} // namespace vk
+} // namespace kage

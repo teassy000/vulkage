@@ -10,12 +10,23 @@ namespace kage
 
     struct Swapchain_vk
     {
-        VkSwapchainKHR swapchain;
+        Swapchain_vk()
+            : m_swapchain{ VK_NULL_HANDLE }
+            , m_backBuffers{}
+            , m_width{ 0 }
+            , m_height{ 0 }
+            , m_imgCnt{ 0 }
+        {
+        }
 
-        stl::vector<VkImage> images;
+        VkResult create();
 
-        uint32_t width, height;
-        uint32_t imageCount;
+        VkSwapchainKHR m_swapchain;
+
+        stl::vector<VkImage> m_backBuffers;
+
+        uint32_t m_width, m_height;
+        uint32_t m_imgCnt;
     };
 
     enum class SwapchainStatus_vk : uint32_t
@@ -36,4 +47,4 @@ namespace kage
 
     VkFramebuffer createFramebuffer(VkDevice device, VkRenderPass renderPass, VkImageView colorView, VkImageView depthView, uint32_t width, uint32_t height);
 
-} // namespace vkz
+} // namespace kage

@@ -9,12 +9,12 @@
 #include "vk_shaders.h"
 #include "vk_swapchain.h"
 
-#include "vkz_inner.h"
+#include "kage_inner.h"
 
 #include "rhi_context.h"
 #include "cmd_list_vk.h"
 
-namespace kage
+namespace kage { namespace vk
 {
     enum class ShaderStage_vk : uint16_t
     {
@@ -374,4 +374,5 @@ namespace kage
         VKZ_ProfCtxType* m_tracyVkCtx;
 #endif //TRACY_ENABLE
     };
-} // namespace vkz
+} // namespace vk
+} // namespace kage

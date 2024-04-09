@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vkz_inner.h"
+#include "kage_inner.h"
 
 namespace kage
 {

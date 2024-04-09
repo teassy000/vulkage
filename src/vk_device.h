@@ -14,4 +14,4 @@ namespace kage
     VkDebugReportCallbackEXT registerDebugCallback(VkInstance instance);
 
     VkDevice createDevice(VkInstance instance, VkPhysicalDevice physicalDevice, uint32_t familyIndex, bool meshShadingSupported);
-} // namespace vkz
+} // namespace kage

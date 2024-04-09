@@ -558,4 +558,4 @@ namespace kage
         return layout;
     }
 
-} // namespace vkz
+} // namespace kage

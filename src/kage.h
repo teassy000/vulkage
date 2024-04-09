@@ -3,7 +3,7 @@
 #include <stdint.h> // uint32_t
 #include <initializer_list>
 
-#include "vkz_structs.h"
+#include "kage_structs.h"
 #include "cmd_list.h"
 
 namespace kage
@@ -42,7 +42,7 @@ namespace kage
 
     void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx, const ImageHandle _outAlias = { kInvalidHandle });
 
-    void resizeTexture(ImageHandle _hImg, uint32_t _width, uint32_t _height);
+    void resizeImage(ImageHandle _hImg, uint32_t _width, uint32_t _height);
 
     // following interface would trigger in a render pass, which means the render-graph would affect.
     void fillBuffer(const PassHandle _hPass, const BufferHandle _hBuf, const uint32_t _offset, const uint32_t _size, const uint32_t _value, const BufferHandle _outAlias);
@@ -67,9 +67,8 @@ namespace kage
 
 
     // basic functions
-    bool init(kage::VKZInitConfig _config = {});
-    bool shouldClose();
-    void getWindowSize(uint32_t& _width, uint32_t _height);
+    bool init(kage::Init _config = {});
+
     void resizeBackBuffer(uint32_t _width, uint32_t _height);
     void bake();
     void run();

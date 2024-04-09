@@ -237,4 +237,4 @@ namespace kage
 
         return device;
     }
-} // namespace vkz
+} // namespace kage

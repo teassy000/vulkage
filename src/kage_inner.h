@@ -2,13 +2,16 @@
 
 #include "cmd_list.h"
 #include "config.h"
-#include "vkz.h"
+#include "kage.h"
 
 #include "string.h"
+#include "entry/entry.h"
 
 
 namespace kage
 {
+    extern bx::AllocatorI* g_bxAllocator;
+
     struct CombinedResID
     {
         uint16_t        id{kInvalidHandle};
@@ -311,4 +314,4 @@ namespace kage
     const char* getName(BufferHandle _hBuf);
     const char* getName(ImageViewHandle _hImgView);
     const char* getName(SamplerHandle _hSampler);
-} // namespace vkz
+} // namespace kage

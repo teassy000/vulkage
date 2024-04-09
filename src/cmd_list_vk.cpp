@@ -2,7 +2,7 @@
 #include "util.h"
 #include "rhi_context_vk.h"
 
-namespace kage
+namespace kage { namespace vk
 {
     VkIndexType getIndexType(IndexType _type)
     {
@@ -193,5 +193,5 @@ namespace kage
         m_pRhiCtx->dispatchBarriers();
     }
 
-}
-
+} // namespace vk
+} // namespace kage

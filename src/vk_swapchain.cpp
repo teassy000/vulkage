@@ -155,16 +155,16 @@ namespace kage
         
         images.resize(imageCount);
 
-        result.swapchain = swapchain;
-        result.images = images;
-        result.width = width;
-        result.height = height;
-        result.imageCount = imageCount;
+        result.m_swapchain = swapchain;
+        result.m_backBuffers = images;
+        result.m_width = width;
+        result.m_height = height;
+        result.m_imgCnt = imageCount;
     }
 
     void destroySwapchain(VkDevice device, const Swapchain_vk& swapchain)
     {
-        vkDestroySwapchainKHR(device, swapchain.swapchain, 0);
+        vkDestroySwapchainKHR(device, swapchain.m_swapchain, 0);
     }
 
 
@@ -174,7 +174,7 @@ namespace kage
         VkSurfaceCapabilitiesKHR surfaceCaps;
         VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCaps));
 
-        if (result.width == surfaceCaps.currentExtent.width && result.height == surfaceCaps.currentExtent.height)
+        if (result.m_width == surfaceCaps.currentExtent.width && result.m_height == surfaceCaps.currentExtent.height)
         {
             return SwapchainStatus_vk::ready;
         }
@@ -185,7 +185,7 @@ namespace kage
         }
 
         Swapchain_vk old = result;
-        createSwapchain(result, physicalDevice, device, surface, familyIndex, format, old.swapchain);
+        createSwapchain(result, physicalDevice, device, surface, familyIndex, format, old.m_swapchain);
 
         VK_CHECK(vkDeviceWaitIdle(device));
         destroySwapchain(device, old);
@@ -193,4 +193,4 @@ namespace kage
         return SwapchainStatus_vk::resize;
     }
 
-} // namespace vkz
+} // namespace kage

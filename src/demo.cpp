@@ -1,4 +1,4 @@
-#include "vkz.h"
+#include "kage.h"
 #include "mesh.h"
 #include "scene.h"
 #include <cstddef>
@@ -37,7 +37,7 @@ namespace
 
         void init(int32_t _argc, const char* const* _argv, uint32_t _width, uint32_t _height) override
         {
-            kage::VKZInitConfig config = {};
+            kage::Init config = {};
             config.windowWidth = _width;
             config.windowHeight = _height;
             config.name = "vulkage demo";
@@ -75,6 +75,16 @@ namespace
                 return false;
             }
 
+            if (m_reset)
+            {
+                // reset
+            }
+            if (m_width != demoData.width 
+                || m_height != demoData.height )
+            {
+                kage::resizeBackBuffer(m_width, m_height);
+            }
+
             int64_t now = bx::getHPCounter();
             static int64_t last = now;
             const int64_t frameTime = now - last;
@@ -84,6 +94,7 @@ namespace
             const float deltaTimeMS = float(frameTime / freq) * 1000.f;
 
             freeCameraUpdate(deltaTimeMS, m_mouseState, m_reset);
+
 
             float znear = .1f;
             mat4 projection = perspectiveProjection2(glm::radians(70.f), (float)demoData.width / (float)demoData.height, znear);

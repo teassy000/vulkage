@@ -372,4 +372,4 @@ namespace kage
     }
 
 
-} // namespace vkz
+} // namespace kage

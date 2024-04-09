@@ -1,5 +1,5 @@
 #include "vkz_pyramid.h"
-#include "vkz_math.h"
+#include "kage_math.h"
 #include "profiler.h"
 
 #include "bx/readerwriter.h"

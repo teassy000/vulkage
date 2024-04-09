@@ -1,6 +1,6 @@
 #pragma once
 #include "common.h"
-#include "vkz_math.h"
+#include "kage_math.h"
 #include "uidata.h"
 #include "camera.h"
 

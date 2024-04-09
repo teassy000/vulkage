@@ -1,8 +1,8 @@
 #pragma once
 
-#include "vkz.h"
+#include "kage.h"
 #include "uidata.h"
-#include "vkz_math.h"
+#include "kage_math.h"
 
 struct PushConstBlock {
     glm::vec2 scale;

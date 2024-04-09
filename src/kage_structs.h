@@ -503,7 +503,7 @@ namespace kage
         key_max_enum = 0xffffffff,
     };
 
-    struct VKZInitConfig
+    struct Init
     {
         uint32_t windowWidth{ 0 };
         uint32_t windowHeight{ 0 };
@@ -625,4 +625,4 @@ namespace kage
         PassConfig      passConfig{};
     };
 
-} // namespace vkz
+} // namespace kage

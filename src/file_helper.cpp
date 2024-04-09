@@ -1,6 +1,6 @@
 #include "file_helper.h"
 
-#include "vkz.h"
+#include "kage.h"
 #include "common.h"
 #include <ktx.h>
 

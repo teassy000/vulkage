@@ -3,7 +3,7 @@
 #include "cmd_list.h"
 #include "volk.h"
 
-namespace kage
+namespace kage { namespace vk
 {
     class RHIContext_vk;
 
@@ -57,4 +57,5 @@ namespace kage
         VkCommandBuffer m_cmdBuf{ VK_NULL_HANDLE };
         RHIContext_vk* m_pRhiCtx{ nullptr };
     };
-}
+} // namespace vk
+} // namespace kage

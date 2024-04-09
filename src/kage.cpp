@@ -1,17 +1,16 @@
 #include "common.h"
 
-#include "vkz_inner.h"
+#include "kage_inner.h"
 
 #include "config.h"
 
 #include "util.h"
 
 #include "rhi_context.h"
-#include "vkz_framegraph.h"
-#include "rhi_context_vk.h"
+#include "framegraph.h"
 
-#include "string.h"
 
+#include "bx/string.h"
 
 #include "bx/allocator.h"
 #include "bx/readerwriter.h"
@@ -48,7 +47,6 @@ namespace kage
                     {
                         ::_aligned_free(_ptr);
                     }
-
                 }
 
                 return nullptr;
@@ -87,15 +85,15 @@ namespace kage
 
     };
 
-    static bx::AllocatorI* s_bxAllocator = nullptr;
+    bx::AllocatorI* g_bxAllocator = nullptr;
     static bx::AllocatorI* getAllocator()
     {
-        if (s_bxAllocator == nullptr)
+        if (g_bxAllocator == nullptr)
         {
             bx::DefaultAllocator allocator;
-            s_bxAllocator = BX_NEW(&allocator, AllocatorStub)();
+            g_bxAllocator = BX_NEW(&allocator, AllocatorStub)();
         }
-        return s_bxAllocator;
+        return g_bxAllocator;
     }
 
     void* TinyStlAllocator::static_allocate(size_t _bytes)
@@ -114,10 +112,10 @@ namespace kage
 
     static void shutdownAllocator()
     {
-        s_bxAllocator = nullptr;
+        g_bxAllocator = nullptr;
     }
 
-    using String = bx::StringT<&s_bxAllocator>;
+    using String = bx::StringT<&g_bxAllocator>;
 
     struct NameMgr
     {
@@ -436,7 +434,7 @@ namespace kage
 
         void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx, const ImageHandle _outAlias);
 
-        void resizeTexture(ImageHandle _hImg, uint32_t _width, uint32_t _height);
+        void resizeImage(ImageHandle _hImg, uint32_t _width, uint32_t _height);
 
         void fillBuffer(const PassHandle _hPass, const BufferHandle _hBuf, const uint32_t _offset, const uint32_t _size, const uint32_t _value, const BufferHandle _outAlias);
 
@@ -1766,9 +1764,9 @@ namespace kage
         setRenderGraphDataDirty();
     }
 
-    void Context::resizeTexture(ImageHandle _hImg, uint32_t _width, uint32_t _height)
+    void Context::resizeImage(ImageHandle _hImg, uint32_t _width, uint32_t _height)
     {
-
+        assert(0);
     }
 
     void Context::fillBuffer(const PassHandle _hPass, const BufferHandle _hBuf, const uint32_t _offset, const uint32_t _size, const uint32_t _value, const BufferHandle _outAlias)
@@ -1872,6 +1870,12 @@ namespace kage
         m_rhiContext->updateThreadCount(_hPass, _threadCountX, _threadCountY, _threadCountZ);
     }
 
+    namespace vk
+    {
+        extern RHIContext* rendererCreate(RHI_Config _config, void* _wnd);
+        extern void rendererDestroy();
+    }
+
     void Context::init()
     {
         m_pAllocator = getAllocator();
@@ -1880,7 +1884,7 @@ namespace kage
         RHI_Config rhiConfig{};
         rhiConfig.windowWidth = m_renderWidth;
         rhiConfig.windowHeight = m_renderHeight;
-        m_rhiContext = BX_NEW(getAllocator(), RHIContext_vk)(getAllocator(), rhiConfig, m_nativeWnd);
+        m_rhiContext = vk::rendererCreate(rhiConfig, m_nativeWnd);// BX_NEW(getAllocator(), RHIContext_vk)(getAllocator(), rhiConfig, m_nativeWnd);
 
         m_frameGraph = BX_NEW(getAllocator(), Framegraph)(getAllocator(), m_rhiContext->memoryBlock());
 
@@ -1933,7 +1937,7 @@ namespace kage
 
     void Context::resizeBackBuffer(uint32_t _windth, uint32_t _height)
     {
-
+        m_rhiContext->resizeBackbuffers(_windth, _height);
     }
 
     void Context::render()
@@ -2073,9 +2077,9 @@ namespace kage
         s_ctx->setAttachmentOutput(_hPass, _hImg, _attachmentIdx, _outAlias);
     }
 
-    void resizeTexture(ImageHandle _hImg, uint32_t _width, uint32_t _height)
+    void resizeImage(ImageHandle _hImg, uint32_t _width, uint32_t _height)
     {
-        s_ctx->resizeTexture(_hImg, _width, _height);
+        s_ctx->resizeImage(_hImg, _width, _height);
     }
 
     void fillBuffer(const PassHandle _hPass, const BufferHandle _hBuf, const uint32_t _offset, const uint32_t _size, const uint32_t _value, const BufferHandle _outAlias)
@@ -2164,7 +2168,7 @@ namespace kage
     }
 
     // main data here
-    bool init(VKZInitConfig _config /*= {}*/)
+    bool init(Init _config /*= {}*/)
     {
         s_ctx = BX_NEW(getAllocator(), Context);
         s_ctx->setRenderSize(_config.windowWidth, _config.windowHeight);
@@ -2236,4 +2240,4 @@ namespace kage
         return s_ctx->getPassTime(_hPass);
     }
 
-} // namespace vkz
+} // namespace kage

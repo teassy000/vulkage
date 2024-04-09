@@ -2,7 +2,7 @@
 #include "vkz_ms_pip.h"
 #include "demo_structs.h"
 #include "scene.h"
-#include "vkz_math.h"
+#include "kage_math.h"
 
 #include "bx/readerwriter.h"
 

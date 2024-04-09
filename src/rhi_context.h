@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 
-#include "vkz_inner.h"
+#include "kage_inner.h"
 
 #include "config.h"
 
@@ -221,4 +221,4 @@ namespace kage
         bx::MemoryBlockI*   m_pMemBlockBaked;
     };
 
-} // namespace vkz
+} // namespace kage
