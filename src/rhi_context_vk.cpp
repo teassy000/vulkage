@@ -11,11 +11,13 @@
 
 namespace kage { namespace vk
 {
-    static RHIContext_vk* s_renderVK = nullptr;
+    RHIContext_vk* s_renderVK = nullptr;
 
     RHIContext* rendererCreate(RHI_Config _config, void* _wnd)
     {
-        s_renderVK = BX_NEW(g_bxAllocator, RHIContext_vk)(g_bxAllocator, _config, _wnd);
+        s_renderVK = BX_NEW(g_bxAllocator, RHIContext_vk)(g_bxAllocator);
+
+        s_renderVK->init(_config, _wnd);
         
         return s_renderVK;
     }
@@ -1117,11 +1119,12 @@ namespace kage { namespace vk
         return queryPool;
     }
 
-    RHIContext_vk::RHIContext_vk(bx::AllocatorI* _allocator, RHI_Config _config, void* _wnd)
+    RHIContext_vk::RHIContext_vk(bx::AllocatorI* _allocator)
         : RHIContext(_allocator)
+        , m_nwh(nullptr)
         , m_instance{ VK_NULL_HANDLE }
         , m_device{ VK_NULL_HANDLE }
-        , m_phyDevice{ VK_NULL_HANDLE }
+        , m_physicalDevice{ VK_NULL_HANDLE }
         , m_surface{ VK_NULL_HANDLE }
         , m_queue{ VK_NULL_HANDLE }
         , m_cmdPool{ VK_NULL_HANDLE }
@@ -1130,7 +1133,6 @@ namespace kage { namespace vk
         , m_releaseSemaphore{ VK_NULL_HANDLE }
         , m_imageFormat{ VK_FORMAT_UNDEFINED }
         , m_depthFormat{ VK_FORMAT_UNDEFINED }
-        , m_pWindow{ nullptr }
         , m_swapchain{}
         , m_gfxFamilyIdx{ VK_QUEUE_FAMILY_IGNORED }
         , m_cmdList{nullptr}
@@ -1139,7 +1141,6 @@ namespace kage { namespace vk
 #endif
     {
         VKZ_ZoneScopedC(Color::indian_red);
-        init(_config, _wnd);
     }
 
     RHIContext_vk::~RHIContext_vk()
@@ -1165,29 +1166,22 @@ namespace kage { namespace vk
         createPhysicalDevice();
 
         stl::vector<VkExtensionProperties> supportedExtensions;
-        enumrateDeviceExtPorps(m_phyDevice, supportedExtensions);
+        enumrateDeviceExtPorps(m_physicalDevice, supportedExtensions);
 
         m_supportMeshShading = checkExtSupportness(supportedExtensions, VK_EXT_MESH_SHADER_EXTENSION_NAME, false);
 
 
-        vkGetPhysicalDeviceProperties(m_phyDevice, &m_phyDeviceProps);
+        vkGetPhysicalDeviceProperties(m_physicalDevice, &m_phyDeviceProps);
         assert(m_phyDeviceProps.limits.timestampPeriod);
 
-        m_gfxFamilyIdx = getGraphicsFamilyIndex(m_phyDevice);
+        m_gfxFamilyIdx = getGraphicsFamilyIndex(m_physicalDevice);
         assert(m_gfxFamilyIdx != VK_QUEUE_FAMILY_IGNORED);
 
-        m_device = kage::createDevice(m_instance, m_phyDevice, m_gfxFamilyIdx, m_supportMeshShading);
+        m_device = kage::createDevice(m_instance, m_physicalDevice, m_gfxFamilyIdx, m_supportMeshShading);
         assert(m_device);
         
         // only single device used in this application.
         volkLoadDevice(m_device);
-
-        m_surface = createSurface(m_instance, _wnd);
-        assert(m_surface);
-
-        VkBool32 presentSupported = 0;
-        VK_CHECK(vkGetPhysicalDeviceSurfaceSupportKHR(m_phyDevice, m_gfxFamilyIdx, m_surface, &presentSupported));
-        assert(presentSupported);
 
         m_acquirSemaphore = createSemaphore(m_device);
         assert(m_acquirSemaphore);
@@ -1195,15 +1189,17 @@ namespace kage { namespace vk
         m_releaseSemaphore = createSemaphore(m_device);
         assert(m_releaseSemaphore);
 
-        m_imageFormat = kage::getSwapchainFormat(m_phyDevice, m_surface);
+        m_nwh = _wnd;
+
+        m_swapchain.create(m_nwh);
+
+        m_imageFormat = m_swapchain.getSwapchainFormat();
         m_depthFormat = VK_FORMAT_D32_SFLOAT;
 
-        kage::createSwapchain(m_swapchain, m_phyDevice, m_device, m_surface, m_gfxFamilyIdx, m_imageFormat);
-
         // fill the image to barrier
-        for (uint32_t ii = 0; ii < m_swapchain.m_imgCnt; ++ii)
+        for (uint32_t ii = 0; ii < m_swapchain.m_swapchainImageCount; ++ii)
         {
-            m_barrierDispatcher.addImage(m_swapchain.m_backBuffers[ii]
+            m_barrierDispatcher.addImage(m_swapchain.m_swapchainImages[ii]
                 , VK_IMAGE_ASPECT_COLOR_BIT
                 , { 0, VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT }
             );
@@ -1244,7 +1240,7 @@ namespace kage { namespace vk
             VK_CHECK(vkCreateDescriptorPool(m_device, &poolCreateInfo, 0, &m_descPool));
         }
 
-        vkGetPhysicalDeviceMemoryProperties(m_phyDevice, &m_memProps);
+        vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &m_memProps);
 
 
         BufferAliasInfo scratchAlias;
@@ -1253,7 +1249,7 @@ namespace kage { namespace vk
         
         m_cmdList = BX_NEW(m_pAllocator, CmdList_vk)(m_cmdBuffer, this);
 
-        VKZ_ProfVkContext(m_tracyVkCtx, m_phyDevice, m_device, m_queue, m_cmdBuffer);
+        VKZ_ProfVkContext(m_tracyVkCtx, m_physicalDevice, m_device, m_queue, m_cmdBuffer);
     }
 
     void RHIContext_vk::bake()
@@ -1281,7 +1277,7 @@ namespace kage { namespace vk
             return false;
         }
 
-        SwapchainStatus_vk swapchainStatus = resizeSwapchainIfNecessary(m_swapchain, m_phyDevice, m_device, m_surface, m_gfxFamilyIdx, m_imageFormat);
+        SwapchainStatus_vk swapchainStatus = resizeSwapchainIfNecessary(m_swapchain, m_physicalDevice, m_device, m_surface, m_gfxFamilyIdx, m_imageFormat);
         if (swapchainStatus == SwapchainStatus_vk::not_ready) {  // skip this frame
             return true;
         }
@@ -1293,9 +1289,9 @@ namespace kage { namespace vk
             assert(0);
 
             // fill the image to barrier
-            for (uint32_t ii = 0; ii < m_swapchain.m_imgCnt; ++ii)
+            for (uint32_t ii = 0; ii < m_swapchain.m_swapchainImageCount; ++ii)
             {
-                m_barrierDispatcher.addImage(m_swapchain.m_backBuffers[ii]
+                m_barrierDispatcher.addImage(m_swapchain.m_swapchainImages[ii]
                     , VK_IMAGE_ASPECT_COLOR_BIT
                     , { 0, VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT }
                 );
@@ -1472,16 +1468,7 @@ namespace kage { namespace vk
             m_acquirSemaphore = VK_NULL_HANDLE;
         }
 
-        if (m_swapchain.m_swapchain)
-        {
-            kage::destroySwapchain(m_device, m_swapchain);
-        }
-
-        if (m_surface)
-        {
-            vkDestroySurfaceKHR(m_instance, m_surface, 0);
-            m_surface = VK_NULL_HANDLE;
-        }
+        m_swapchain.destroy();
 
         /// containers
         // buffer
@@ -1633,7 +1620,7 @@ namespace kage { namespace vk
     {
         const char* extName = getExtName(_ext);
         stl::vector<VkExtensionProperties> supportedExtensions;
-        enumrateDeviceExtPorps(m_phyDevice, supportedExtensions);
+        enumrateDeviceExtPorps(m_physicalDevice, supportedExtensions);
 
         return checkExtSupportness(supportedExtensions, extName);
     }
@@ -1642,8 +1629,6 @@ namespace kage { namespace vk
     {
         m_backBufferWidth = _width;
         m_backBufferHeight = _height;
-
-
     }
 
     void RHIContext_vk::updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ)
@@ -2220,8 +2205,8 @@ namespace kage { namespace vk
         uint32_t deviceCount = sizeof(physicalDevices) / sizeof(physicalDevices[0]);
         VK_CHECK(vkEnumeratePhysicalDevices(m_instance, &deviceCount, physicalDevices));
 
-        m_phyDevice = kage::pickPhysicalDevice(physicalDevices, deviceCount);
-        assert(m_phyDevice);
+        m_physicalDevice = kage::pickPhysicalDevice(physicalDevices, deviceCount);
+        assert(m_physicalDevice);
     }
 
     void RHIContext_vk::recreateBackBuffers()
@@ -3115,7 +3100,7 @@ namespace kage { namespace vk
         );
 
         // swapchain image
-        const VkImage& swapImg = m_swapchain.m_backBuffers[_swapImgIdx];
+        const VkImage& swapImg = m_swapchain.m_swapchainImages[_swapImgIdx];
         m_barrierDispatcher.barrier(
             swapImg, VK_IMAGE_ASPECT_COLOR_BIT,
             { VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT }
@@ -3169,7 +3154,7 @@ namespace kage { namespace vk
         );
         
         // swapchain image
-        const VkImage& swapImg = m_swapchain.m_backBuffers[_swapImgIdx];
+        const VkImage& swapImg = m_swapchain.m_swapchainImages[_swapImgIdx];
 
         m_barrierDispatcher.barrier(
             swapImg, VK_IMAGE_ASPECT_COLOR_BIT,

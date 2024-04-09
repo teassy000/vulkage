@@ -168,10 +168,9 @@ namespace kage { namespace vk
         std::unordered_map<VkBuffer, BarrierState_vk> m_baseBufBarrierStatus;
     };
 
-    class RHIContext_vk : public RHIContext
+    struct RHIContext_vk : public RHIContext
     {
-    public:
-        RHIContext_vk(bx::AllocatorI* _allocator, RHI_Config _config, void* _wnd);
+        RHIContext_vk(bx::AllocatorI* _allocator);
 
         ~RHIContext_vk() override;
         void init(RHI_Config _config, void* _wnd) override;
@@ -218,7 +217,6 @@ namespace kage { namespace vk
 
         double getPassTime(const PassHandle _hPass) override;
 
-    private:
         void createShader(bx::MemoryReader& _reader) override;
         void createProgram(bx::MemoryReader& _reader) override;
         void createPass(bx::MemoryReader& _reader) override;
@@ -229,7 +227,6 @@ namespace kage { namespace vk
         void setBackBuffers(bx::MemoryReader& _reader) override;
         void setBrief(bx::MemoryReader& _reader) override;
 
-    private:
         void createInstance();
         void createPhysicalDevice();
 
@@ -284,7 +281,6 @@ namespace kage { namespace vk
             return m_imageContainer.getIdToData(_imgId);
         }
 
-    private:
         ContinuousMap<uint16_t, Buffer_vk> m_bufferContainer;
         ContinuousMap<uint16_t, Image_vk> m_imageContainer;
         ContinuousMap<uint16_t, Shader_vk> m_shaderContainer;
@@ -320,11 +316,12 @@ namespace kage { namespace vk
 
         // glfw data
         GLFWwindow* m_pWindow;
+        void* m_nwh;
 
         // vulkan context data
         VkInstance m_instance;
         VkDevice m_device;
-        VkPhysicalDevice m_phyDevice;
+        VkPhysicalDevice m_physicalDevice;
         VkPhysicalDeviceMemoryProperties m_memProps;
         VkSurfaceKHR m_surface;
         VkPhysicalDeviceProperties m_phyDeviceProps;

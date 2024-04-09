@@ -1869,7 +1869,6 @@ namespace kage
 
         m_rhiContext->updateThreadCount(_hPass, _threadCountX, _threadCountY, _threadCountZ);
     }
-
     namespace vk
     {
         extern RHIContext* rendererCreate(RHI_Config _config, void* _wnd);
@@ -1948,10 +1947,10 @@ namespace kage
     void Context::shutdown()
     {
         bx::deleteObject(m_pAllocator, m_frameGraph);
-        bx::deleteObject(m_pAllocator, m_rhiContext);
+        vk::rendererDestroy();
         bx::deleteObject(m_pAllocator, m_fgMemWriter);
 
-        // free memorys
+        // free memories
         for (const Memory* pMem : m_inputMemories)
         {
             release(pMem);

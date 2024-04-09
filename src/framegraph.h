@@ -143,7 +143,7 @@ namespace kage
         stl::vector<int>        pipelineSpecIdxs;
     };
 
-    class RHIContext;
+    struct RHIContext;
     
     class Framegraph
     {

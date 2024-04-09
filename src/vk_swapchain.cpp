@@ -8,44 +8,11 @@
 
 #include <glm/common.hpp> // for glm::max
 
-namespace kage
+#include "rhi_context_vk.h"
+
+namespace kage { namespace vk
 {
-    VkSurfaceKHR createSurface(VkInstance instance, void* _wnd)
-    {
-#if defined(VK_USE_PLATFORM_WIN32_KHR)
-        VkWin32SurfaceCreateInfoKHR createInfo = { VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR };
-        createInfo.hinstance = GetModuleHandle(0);
-        createInfo.hwnd = (HWND)_wnd;
-        VkSurfaceKHR surface;
-        VK_CHECK(vkCreateWin32SurfaceKHR(instance, &createInfo, 0, &surface));
-        return surface;
-#else
-#error unsupport platform
-#endif
-    }
-
-
-    VkFormat getSwapchainFormat(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface)
-    {
-        stl::vector<VkSurfaceFormatKHR> formats;
-        uint32_t formatCount = 0;
-        vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, nullptr);
-        formats.resize(formatCount);
-        VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, formats.data()));
-
-        if (formatCount == 1 && formats[0].format == VK_FORMAT_UNDEFINED) {
-            return VK_FORMAT_R8G8B8A8_UNORM;
-        }
-
-        for (uint32_t i = 0; i < formatCount; ++i) {
-            if (formats[i].format == VK_FORMAT_R8G8B8A8_UNORM || formats[i].format == VK_FORMAT_B8G8R8A8_UNORM) {
-                return formats[i].format;
-            }
-        }
-
-        return formats[0].format;
-    }
-
+    extern RHIContext_vk* s_renderVK;
 
     VkPresentModeKHR getSwapchainPresentMode(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface)
     {
@@ -62,11 +29,66 @@ namespace kage
         return VK_PRESENT_MODE_FIFO_KHR;
     }
 
-    VkSwapchainKHR createSwapchain(VkDevice device, VkSurfaceKHR surface, VkSurfaceCapabilitiesKHR surfaceCaps, uint32_t familyIndex, VkFormat format
-        , VkSwapchainKHR oldSwapchain, VkPresentModeKHR presentMode)
+    SwapchainStatus_vk resizeSwapchainIfNecessary(Swapchain_vk& result, VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, uint32_t familyIndex
+        , VkFormat format)
     {
+        return  SwapchainStatus_vk::ready;
+
+        VkSurfaceCapabilitiesKHR surfaceCaps;
+        VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCaps));
+
+        if (result.m_width == surfaceCaps.currentExtent.width && result.m_height == surfaceCaps.currentExtent.height)
+        {
+            return SwapchainStatus_vk::ready;
+        }
+
+        if (surfaceCaps.currentExtent.width == 0 || surfaceCaps.currentExtent.height == 0)
+        {
+            return SwapchainStatus_vk::not_ready;
+        }
+        /*
+        Swapchain_vk old = result;
+        createSwapchain(result, physicalDevice, device, surface, familyIndex, format, old.m_swapchain);
+
+        VK_CHECK(vkDeviceWaitIdle(device));
+        destroySwapchain(device, old);
+        */
+        return SwapchainStatus_vk::resize;
+    }
+
+    VkResult Swapchain_vk::create(void* _nwh)
+    {
+        const VkPhysicalDevice physicalDevice = s_renderVK->m_physicalDevice;
+        const uint32_t queueFamilyIdx = s_renderVK->m_gfxFamilyIdx;
+        
+        m_nwh = _nwh;
+
+        createSurface();
+
+        VkBool32 presentSupported = 0;
+        VK_CHECK(vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queueFamilyIdx, m_surface, &presentSupported));
+        assert(presentSupported);
+
+        createSwapchain();
+
+        return VK_SUCCESS;
+    }
+
+    void Swapchain_vk::createSwapchain()
+    {
+        const VkDevice device = s_renderVK->m_device;
+        const VkPhysicalDevice physicalDevice = s_renderVK->m_physicalDevice;
+
+        VkSurfaceCapabilitiesKHR surfaceCaps;
+        VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, m_surface, &surfaceCaps));
+
         uint32_t width = surfaceCaps.currentExtent.width;
         uint32_t height = surfaceCaps.currentExtent.height;
+
+        m_width = width;
+        m_height = height;
+
+        VkFormat format = getSwapchainFormat();
 
         VkCompositeAlphaFlagBitsKHR surfaceComposite =
             (surfaceCaps.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)
@@ -81,116 +103,101 @@ namespace kage
             ? VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR
             : surfaceCaps.currentTransform;
 
-        VkSwapchainCreateInfoKHR createInfo = { VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
-        createInfo.surface = surface;
-        createInfo.minImageCount = glm::max(4u, surfaceCaps.minImageCount);
-        createInfo.imageFormat = format;
-        createInfo.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-        createInfo.imageExtent.width = width;
-        createInfo.imageExtent.height = height;
-        createInfo.imageArrayLayers = 1;
-        createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-        createInfo.queueFamilyIndexCount = 1;
-        createInfo.pQueueFamilyIndices = &familyIndex;
-        createInfo.preTransform = (VkSurfaceTransformFlagBitsKHR)preTransform;
-        createInfo.compositeAlpha = surfaceComposite;
-        createInfo.presentMode = presentMode;
-        createInfo.clipped = VK_TRUE;
-        createInfo.oldSwapchain = oldSwapchain;
+        VkPresentModeKHR presentMode = getSwapchainPresentMode(physicalDevice, m_surface);
+
+        m_sci.surface = m_surface;
+        m_sci.minImageCount = glm::max(4u, surfaceCaps.minImageCount);
+        m_sci.imageFormat = format;
+        m_sci.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+        m_sci.imageExtent.width = width;
+        m_sci.imageExtent.height = height;
+        m_sci.imageArrayLayers = 1;
+        m_sci.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        m_sci.queueFamilyIndexCount = 1;
+        m_sci.pQueueFamilyIndices = NULL;
+        m_sci.preTransform = (VkSurfaceTransformFlagBitsKHR)preTransform;
+        m_sci.compositeAlpha = surfaceComposite;
+        m_sci.presentMode = presentMode;
+        m_sci.clipped = VK_TRUE;
 
         // Enable transfer source on swap chain images if supported
         if (surfaceCaps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_SRC_BIT) {
-            createInfo.imageUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+            m_sci.imageUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
         }
 
         // Enable transfer destination on swap chain images if supported
         if (surfaceCaps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT) {
-            createInfo.imageUsage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+            m_sci.imageUsage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
         }
 
-        VkSwapchainKHR swapchain = 0;
+        VK_CHECK(vkCreateSwapchainKHR(device, &m_sci, 0, &m_swapchain));
 
-        VK_CHECK(vkCreateSwapchainKHR(device, &createInfo, 0, &swapchain));
 
-        return swapchain;
+        m_sci.oldSwapchain = m_swapchain;
+
+        VK_CHECK(vkGetSwapchainImagesKHR(device, m_swapchain, &m_swapchainImageCount, NULL));
+        if (m_swapchainImageCount < m_sci.minImageCount)
+        {
+            message(error, "create swapchain failed! %d < %d", m_swapchainImageCount, m_sci.minImageCount);
+        }
+
+        if (m_swapchainImageCount > COUNTOF(m_swapchainImages))
+        {
+            message(error, "create swapchain failed! %d > %d", m_swapchainImageCount, COUNTOF(m_swapchainImages));
+        }
+
+        VK_CHECK(vkGetSwapchainImagesKHR(device, m_swapchain, &m_swapchainImageCount, m_swapchainImages));
     }
 
-    VkFramebuffer createFramebuffer(VkDevice device, VkRenderPass renderPass, VkImageView colorView, VkImageView depthView, uint32_t width, uint32_t height)
+    void Swapchain_vk::createSurface()
     {
-        VkImageView attachments[] = { colorView, depthView };
+        const VkDevice device = s_renderVK->m_device;
+        const VkInstance instance = s_renderVK->m_instance;
 
-        VkFramebufferCreateInfo createInfo = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
-        createInfo.renderPass = renderPass;
-        createInfo.attachmentCount = COUNTOF(attachments);
-        createInfo.pAttachments = attachments;
-        createInfo.width = width;
-        createInfo.height = height;
-        createInfo.layers = 1;
-
-        VkFramebuffer framebuffer = 0;
-
-        VK_CHECK(vkCreateFramebuffer(device, &createInfo, 0, &framebuffer));
-
-        return framebuffer;
-    }
-
-
-    void createSwapchain(Swapchain_vk& result, VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, uint32_t familyIndex
-        , VkFormat format, VkSwapchainKHR oldSwapchain/* = 0*/)
-    {
-        VkSurfaceCapabilitiesKHR surfaceCaps;
-        VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCaps));
-
-        uint32_t width = surfaceCaps.currentExtent.width;
-        uint32_t height = surfaceCaps.currentExtent.height;
-
-        VkPresentModeKHR presentMode = getSwapchainPresentMode(physicalDevice, surface);
-
-        VkSwapchainKHR swapchain = createSwapchain(device, surface, surfaceCaps, familyIndex, format, oldSwapchain, presentMode);
-        assert(swapchain);
-
-        stl::vector<VkImage> images(16, nullptr);
-        uint32_t imageCount = 16;
-        VK_CHECK(vkGetSwapchainImagesKHR(device, swapchain, &imageCount, images.data()));
+#if defined(VK_USE_PLATFORM_WIN32_KHR)
+        VkWin32SurfaceCreateInfoKHR info = { VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR };
+        info.hinstance = GetModuleHandle(0);
+        info.hwnd = (HWND)m_nwh;
+        VkSurfaceKHR surface;
+        VK_CHECK(vkCreateWin32SurfaceKHR(instance, &info, 0, &surface));
         
-        images.resize(imageCount);
-
-        result.m_swapchain = swapchain;
-        result.m_backBuffers = images;
-        result.m_width = width;
-        result.m_height = height;
-        result.m_imgCnt = imageCount;
+        m_surface = surface;
+#else
+#error unsupport platform
+#endif
     }
 
-    void destroySwapchain(VkDevice device, const Swapchain_vk& swapchain)
+    VkFormat Swapchain_vk::getSwapchainFormat()
     {
-        vkDestroySwapchainKHR(device, swapchain.m_swapchain, 0);
-    }
+        const VkPhysicalDevice physicalDevice = s_renderVK->m_physicalDevice;
 
+        stl::vector<VkSurfaceFormatKHR> formats;
+        uint32_t formatCount = 0;
+        vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, m_surface, &formatCount, nullptr);
+        formats.resize(formatCount);
+        VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, m_surface, &formatCount, formats.data()));
 
-    SwapchainStatus_vk resizeSwapchainIfNecessary(Swapchain_vk& result, VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, uint32_t familyIndex
-        , VkFormat format)
-    {
-        VkSurfaceCapabilitiesKHR surfaceCaps;
-        VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCaps));
-
-        if (result.m_width == surfaceCaps.currentExtent.width && result.m_height == surfaceCaps.currentExtent.height)
-        {
-            return SwapchainStatus_vk::ready;
+        if (formatCount == 1 && formats[0].format == VK_FORMAT_UNDEFINED) {
+            return VK_FORMAT_R8G8B8A8_UNORM;
         }
 
-        if (surfaceCaps.currentExtent.width == 0 || surfaceCaps.currentExtent.height == 0)
-        {
-            return SwapchainStatus_vk::not_ready;
+        for (uint32_t i = 0; i < formatCount; ++i) {
+            if (formats[i].format == VK_FORMAT_R8G8B8A8_UNORM || formats[i].format == VK_FORMAT_B8G8R8A8_UNORM) {
+                return formats[i].format;
+            }
         }
 
-        Swapchain_vk old = result;
-        createSwapchain(result, physicalDevice, device, surface, familyIndex, format, old.m_swapchain);
-
-        VK_CHECK(vkDeviceWaitIdle(device));
-        destroySwapchain(device, old);
-
-        return SwapchainStatus_vk::resize;
+        return formats[0].format;
     }
 
+    void Swapchain_vk::destroy()
+    {
+        const VkDevice device = s_renderVK->m_device;
+        const VkInstance instance = s_renderVK->m_instance;
+
+        vkDestroySwapchainKHR(device, m_swapchain, 0);
+        vkDestroySurfaceKHR(instance, m_surface, 0);
+    }
+
+} // namespace vk
 } // namespace kage

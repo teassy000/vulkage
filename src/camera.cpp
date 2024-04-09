@@ -40,7 +40,6 @@ int cmdMove(CmdContext* /*_context*/, void* /*_userData*/, int _argc, char const
             freeCameraSetKeyState(CAMERA_KEY_DOWN, true);
             return 0;
         }
-        
     }
 
     return 1;

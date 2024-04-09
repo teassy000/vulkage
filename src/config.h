@@ -34,4 +34,6 @@ namespace kage
 
     constexpr unsigned int kMaxNumOfImageMipLevel = 16;
     constexpr unsigned int kAllMipLevel = ~0;
+
+    constexpr unsigned int kMaxNumOfBackBuffers = 16;
 }

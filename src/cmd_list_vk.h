@@ -5,7 +5,7 @@
 
 namespace kage { namespace vk
 {
-    class RHIContext_vk;
+    struct RHIContext_vk;
 
     class CmdList_vk : public CommandListI
     {

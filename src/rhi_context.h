@@ -124,9 +124,8 @@ namespace kage
     };
 
 
-    class RHIContextI
+    struct RHIContextI
     {
-    public:
         virtual void init(RHI_Config _config, void* _wnd) = 0;
         virtual void bake() = 0;
         virtual bool render() = 0;
@@ -149,7 +148,6 @@ namespace kage
         // naive profiling
         virtual double getPassTime(const PassHandle _hPass) = 0;
 
-    private:
         virtual void createShader(bx::MemoryReader& reader) = 0;
         virtual void createProgram(bx::MemoryReader& reader) = 0;
         virtual void createPass(bx::MemoryReader& reader) = 0;
@@ -161,9 +159,8 @@ namespace kage
         virtual void setBrief(bx::MemoryReader& reader) = 0;
     };
 
-    class RHIContext : public RHIContextI
+    struct RHIContext : public RHIContextI
     {
-    public:
         RHIContext(bx::AllocatorI* _allocator)
             : m_pAllocator{ _allocator }
             , m_pMemBlockBaked{ nullptr }
@@ -200,7 +197,6 @@ namespace kage
 
         double getPassTime(const PassHandle _hPass) override { return 0.0; }
 
-    private:
         void parseOp();
 
         void createShader(bx::MemoryReader& reader) override {};
@@ -213,10 +209,8 @@ namespace kage
         void setBackBuffers(bx::MemoryReader& _reader) override {};
         void setBrief(bx::MemoryReader& reader) override {};
 
-    protected:
         ConstantsMemoryBlock m_constantsMemBlock;
         bx::AllocatorI* m_pAllocator;
-    private:
 
         bx::MemoryBlockI*   m_pMemBlockBaked;
     };

@@ -1,32 +1,47 @@
 #pragma once
 
 #include "common.h"
+#include "config.h"
 
 
 using GLFWwindow = struct GLFWwindow;
 
-namespace kage
+namespace kage { namespace vk
 {
 
     struct Swapchain_vk
     {
         Swapchain_vk()
             : m_swapchain{ VK_NULL_HANDLE }
-            , m_backBuffers{}
+            , m_surface{ VK_NULL_HANDLE }
+            , m_sci{ VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR }
+            , m_nwh{ nullptr }
+            , m_swapchainImages{}
             , m_width{ 0 }
             , m_height{ 0 }
-            , m_imgCnt{ 0 }
+            , m_swapchainImageCount{ 0 }
         {
         }
 
-        VkResult create();
+        VkResult create(void* _nwh);
 
+        void createSwapchain();
+
+        void createSurface();
+
+        VkFormat getSwapchainFormat();
+
+        void destroy();
+
+        void* m_nwh;
         VkSwapchainKHR m_swapchain;
+        VkSurfaceKHR m_surface;
+        VkSwapchainCreateInfoKHR m_sci;
 
-        stl::vector<VkImage> m_backBuffers;
-
+        VkImage m_swapchainImages[kMaxNumOfBackBuffers];
+        uint32_t m_swapchainImageCount;
         uint32_t m_width, m_height;
-        uint32_t m_imgCnt;
+
     };
 
     enum class SwapchainStatus_vk : uint32_t
@@ -36,15 +51,8 @@ namespace kage
         resize = 2u,
     };
 
-    VkSurfaceKHR createSurface(VkInstance instance, void* _wnd);
-    VkFormat getSwapchainFormat(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface);
-
-    void createSwapchain(Swapchain_vk& result, VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, uint32_t familyIndex, VkFormat format, VkSwapchainKHR oldSwapchain = 0);
-
-    void destroySwapchain(VkDevice device, const Swapchain_vk& swapchain);
-
     SwapchainStatus_vk resizeSwapchainIfNecessary(Swapchain_vk& result, VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, uint32_t familyIndex, VkFormat format);
 
     VkFramebuffer createFramebuffer(VkDevice device, VkRenderPass renderPass, VkImageView colorView, VkImageView depthView, uint32_t width, uint32_t height);
-
+} // namespace vk
 } // namespace kage
