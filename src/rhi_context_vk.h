@@ -173,14 +173,14 @@ namespace kage { namespace vk
         RHIContext_vk(bx::AllocatorI* _allocator);
 
         ~RHIContext_vk() override;
-        void init(RHI_Config _config, void* _wnd) override;
+        void init(const Resolution& _resolution, void* _wnd) override;
         void bake() override;
         bool render() override;
         void shutdown();
 
         bool checkSupports(VulkanSupportExtension _ext) override;
 
-        void resizeBackbuffers(uint32_t _width, uint32_t _height) override;
+        void updateResolution(uint32_t _width, uint32_t _height) override;
 
         void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ) override;
         void updateBuffer(BufferHandle _hBuf,  const void* _data, uint32_t _size) override;
@@ -230,7 +230,7 @@ namespace kage { namespace vk
         void createInstance();
         void createPhysicalDevice();
 
-        void recreateBackBuffers();
+        void recreateSwapchainImages();
 
         // private pass
         // e.g. upload buffer, copy image, etc.
@@ -293,7 +293,7 @@ namespace kage { namespace vk
         ContinuousMap<uint16_t, BufferCreateInfo> m_bufferCreateInfoContainer;
         ContinuousMap<uint16_t, ImageCreateInfo> m_imageInitPropContainer;
 
-        stl::unordered_set<uint16_t> m_backBufferIds;
+        stl::unordered_set<uint16_t> m_swapchainImageIds;
 
         Buffer_vk m_scratchBuffer;
 
@@ -335,8 +335,7 @@ namespace kage { namespace vk
 
         uint32_t m_swapChainImageIndex{0};
 
-        uint32_t m_backBufferWidth;
-        uint32_t m_backBufferHeight;
+        Resolution m_resolution;
 
         VkSemaphore m_acquirSemaphore;
         VkSemaphore m_releaseSemaphore;

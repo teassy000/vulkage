@@ -38,8 +38,8 @@ namespace
         void init(int32_t _argc, const char* const* _argv, uint32_t _width, uint32_t _height) override
         {
             kage::Init config = {};
-            config.windowWidth = _width;
-            config.windowHeight = _height;
+            config.resolution.width = _width;
+            config.resolution.height = _height;
             config.name = "vulkage demo";
             config.windowHandle = entry::getNativeWindowHandle(entry::kDefaultWindowHandle);
 
@@ -55,8 +55,8 @@ namespace
             initScene();
 
             // ui data
-            demoData.input.width = (float)config.windowWidth;
-            demoData.input.height = (float)config.windowHeight;
+            demoData.input.width = (float)_width;
+            demoData.input.height = (float)_height;
 
             // basic data
             freeCameraInit();
@@ -73,16 +73,6 @@ namespace
             if (entry::processEvents(m_width, m_height, m_debug, m_reset, &m_mouseState))
             {
                 return false;
-            }
-
-            if (m_reset)
-            {
-                // reset
-            }
-            if (m_width != demoData.width 
-                || m_height != demoData.height )
-            {
-                kage::resizeBackBuffer(m_width, m_height);
             }
 
             int64_t now = bx::getHPCounter();

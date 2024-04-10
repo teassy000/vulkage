@@ -13,12 +13,6 @@
 #include <stdint.h>
 #include "profiler.h"
 
-#define VK_CHECK(call) \
-	do{ \
-		VkResult result = call; \
-		assert(result == VK_SUCCESS);\
-	} while (0)
-
 
 
 #include "debug.h"

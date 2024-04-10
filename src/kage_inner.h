@@ -259,12 +259,6 @@ namespace kage
         uint32_t presentMipLevel{ 0 };
     };
 
-    struct RHI_Config
-    {
-        uint32_t windowWidth{0};
-        uint32_t windowHeight{0};
-    };
-
     namespace NameTags
     {
         // tag for varies of handle 

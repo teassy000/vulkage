@@ -394,7 +394,6 @@ namespace kage
         bool isAliasFromImage(const ImageHandle _hBase, const ImageHandle _hAlias);
 
         // Context API
-        void setRenderSize(uint32_t _width, uint32_t _height);
         void setWindowName(const char* _name);
         void setNativeWindowHandle(void* _hWnd);
 
@@ -462,12 +461,12 @@ namespace kage
         void storeSamplerData();
         void storeBackBufferData();
 
-        void init();
+        void init(const Init& _init);
         bool shouldClose();
 
         void run();
         void bake();
-        void resizeBackBuffer(uint32_t _windth, uint32_t _height);
+        void reset(uint32_t _windth, uint32_t _height);
         void render();
         void shutdown();
 
@@ -527,10 +526,6 @@ namespace kage
         // Memories
         stl::vector<const Memory*> m_inputMemories;
 
-        // render config
-        uint32_t m_renderWidth{ 0 };
-        uint32_t m_renderHeight{ 0 };
-
         // render data status
         bool    m_isRenderGraphDataDirty{ false };
 
@@ -541,6 +536,8 @@ namespace kage
         RHIContext* m_rhiContext{ nullptr };
 
         Framegraph* m_frameGraph{ nullptr };
+
+        Resolution m_resolution{};
 
         bx::AllocatorI* m_pAllocator{ nullptr };
 
@@ -643,12 +640,6 @@ namespace kage
         }
 
         return result;
-    }
-
-    void Context::setRenderSize(uint32_t _width, uint32_t _height)
-    {
-        m_renderWidth = _width;
-        m_renderHeight = _height;
     }
 
     void Context::setNativeWindowHandle(void* _hWnd)
@@ -827,14 +818,14 @@ namespace kage
             return ImageHandle{ kInvalidHandle };
         }
 
-        if (m_renderWidth != _desc.width || m_renderHeight != _desc.height)
+        if (m_resolution.width != _desc.width || m_resolution.height != _desc.height)
         {
             message(warning, "no need to set width and height for render target, will use render size instead");
         }
 
         ImageMetaData meta = _desc;
-        meta.width = m_renderWidth;
-        meta.height = m_renderHeight;
+        meta.width = m_resolution.width;
+        meta.height = m_resolution.height;
         meta.imgId = idx;
         meta.format = ResourceFormat::undefined;
         meta.usage = ImageUsageFlagBits::color_attachment | _desc.usage;
@@ -858,7 +849,7 @@ namespace kage
 
         ImageHandle handle = ImageHandle{ idx };
 
-        if (m_renderWidth != _desc.width || m_renderHeight != _desc.height)
+        if (m_resolution.width != _desc.width || m_resolution.height != _desc.height)
         {
             message(warning, "no need to set width and height for depth stencil, will use render size instead");
         }
@@ -878,8 +869,8 @@ namespace kage
         }
 
         ImageMetaData meta{ _desc };
-        meta.width = m_renderWidth;
-        meta.height = m_renderHeight;
+        meta.width = m_resolution.width;
+        meta.height = m_resolution.height;
         meta.imgId = idx;
         meta.format = ResourceFormat::d32;
         meta.usage = ImageUsageFlagBits::depth_stencil_attachment | _desc.usage;
@@ -1871,19 +1862,19 @@ namespace kage
     }
     namespace vk
     {
-        extern RHIContext* rendererCreate(RHI_Config _config, void* _wnd);
+        extern RHIContext* rendererCreate(const Resolution& _config, void* _wnd);
         extern void rendererDestroy();
     }
 
-    void Context::init()
+    void Context::init(const Init& _init)
     {
         m_pAllocator = getAllocator();
         m_pNameManager = getNameManager();
 
-        RHI_Config rhiConfig{};
-        rhiConfig.windowWidth = m_renderWidth;
-        rhiConfig.windowHeight = m_renderHeight;
-        m_rhiContext = vk::rendererCreate(rhiConfig, m_nativeWnd);// BX_NEW(getAllocator(), RHIContext_vk)(getAllocator(), rhiConfig, m_nativeWnd);
+        m_resolution = _init.resolution;
+        m_nativeWnd = _init.windowHandle;
+
+        m_rhiContext = vk::rendererCreate(m_resolution, m_nativeWnd);
 
         m_frameGraph = BX_NEW(getAllocator(), Framegraph)(getAllocator(), m_rhiContext->memoryBlock());
 
@@ -1934,9 +1925,9 @@ namespace kage
         m_rhiContext->bake();
     }
 
-    void Context::resizeBackBuffer(uint32_t _windth, uint32_t _height)
+    void Context::reset(uint32_t _windth, uint32_t _height)
     {
-        m_rhiContext->resizeBackbuffers(_windth, _height);
+        m_rhiContext->updateResolution(_windth, _height);
     }
 
     void Context::render()
@@ -2167,12 +2158,10 @@ namespace kage
     }
 
     // main data here
-    bool init(Init _config /*= {}*/)
+    bool init(Init _init /*= {}*/)
     {
         s_ctx = BX_NEW(getAllocator(), Context);
-        s_ctx->setRenderSize(_config.windowWidth, _config.windowHeight);
-        s_ctx->setNativeWindowHandle(_config.windowHandle);
-        s_ctx->init();
+        s_ctx->init(_init);
 
         return true;
     }
@@ -2182,9 +2171,9 @@ namespace kage
         s_ctx->bake();
     }
 
-    void resizeBackBuffer(uint32_t _width, uint32_t _height)
+    void reset(uint32_t _width, uint32_t _height)
     {
-        s_ctx->resizeBackBuffer(_width, _height);
+        s_ctx->reset(_width, _height);
     }
 
     void run()

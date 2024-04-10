@@ -29,33 +29,6 @@ namespace kage { namespace vk
         return VK_PRESENT_MODE_FIFO_KHR;
     }
 
-    SwapchainStatus_vk resizeSwapchainIfNecessary(Swapchain_vk& result, VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, uint32_t familyIndex
-        , VkFormat format)
-    {
-        return  SwapchainStatus_vk::ready;
-
-        VkSurfaceCapabilitiesKHR surfaceCaps;
-        VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCaps));
-
-        if (result.m_width == surfaceCaps.currentExtent.width && result.m_height == surfaceCaps.currentExtent.height)
-        {
-            return SwapchainStatus_vk::ready;
-        }
-
-        if (surfaceCaps.currentExtent.width == 0 || surfaceCaps.currentExtent.height == 0)
-        {
-            return SwapchainStatus_vk::not_ready;
-        }
-        /*
-        Swapchain_vk old = result;
-        createSwapchain(result, physicalDevice, device, surface, familyIndex, format, old.m_swapchain);
-
-        VK_CHECK(vkDeviceWaitIdle(device));
-        destroySwapchain(device, old);
-        */
-        return SwapchainStatus_vk::resize;
-    }
-
     VkResult Swapchain_vk::create(void* _nwh)
     {
         const VkPhysicalDevice physicalDevice = s_renderVK->m_physicalDevice;
@@ -85,8 +58,7 @@ namespace kage { namespace vk
         uint32_t width = surfaceCaps.currentExtent.width;
         uint32_t height = surfaceCaps.currentExtent.height;
 
-        m_width = width;
-        m_height = height;
+        assert(width == m_resolution.width || height == m_resolution.height);
 
         VkFormat format = getSwapchainFormat();
 
@@ -135,6 +107,7 @@ namespace kage { namespace vk
 
         m_sci.oldSwapchain = m_swapchain;
 
+        // count only
         VK_CHECK(vkGetSwapchainImagesKHR(device, m_swapchain, &m_swapchainImageCount, NULL));
         if (m_swapchainImageCount < m_sci.minImageCount)
         {
@@ -190,13 +163,38 @@ namespace kage { namespace vk
         return formats[0].format;
     }
 
+    kage::vk::SwapchainStatus_vk Swapchain_vk::getSwapchainStatus()
+    {
+        const VkPhysicalDevice physicalDevice = s_renderVK->m_physicalDevice;
+
+        VkSurfaceCapabilitiesKHR surfaceCaps;
+        VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, m_surface, &surfaceCaps));
+
+        if (m_resolution.width == surfaceCaps.currentExtent.width 
+            && m_resolution.height == surfaceCaps.currentExtent.height)
+        {
+            return SwapchainStatus_vk::ready;
+        }
+
+        if (surfaceCaps.currentExtent.width == 0 || surfaceCaps.currentExtent.height == 0)
+        {
+            return SwapchainStatus_vk::not_ready;
+        }
+
+        // destroy old swapchain
+
+        // create new
+
+        return SwapchainStatus_vk::resize;
+    }
+
     void Swapchain_vk::destroy()
     {
         const VkDevice device = s_renderVK->m_device;
         const VkInstance instance = s_renderVK->m_instance;
 
-        vkDestroySwapchainKHR(device, m_swapchain, 0);
-        vkDestroySurfaceKHR(instance, m_surface, 0);
+        vkDestroySwapchainKHR(device, m_swapchain, nullptr);
+        vkDestroySurfaceKHR(instance, m_surface, nullptr);
     }
 
 } // namespace vk

@@ -69,9 +69,9 @@ namespace kage
     // basic functions
     bool init(kage::Init _config = {});
 
-    void resizeBackBuffer(uint32_t _width, uint32_t _height);
     void bake();
     void run();
+    void reset(uint32_t _width, uint32_t _height);
     void shutdown();
 
     // callback func pointers

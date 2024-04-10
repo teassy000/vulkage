@@ -13,11 +13,11 @@ namespace kage { namespace vk
 {
     RHIContext_vk* s_renderVK = nullptr;
 
-    RHIContext* rendererCreate(RHI_Config _config, void* _wnd)
+    RHIContext* rendererCreate(const Resolution& _resolution, void* _wnd)
     {
         s_renderVK = BX_NEW(g_bxAllocator, RHIContext_vk)(g_bxAllocator);
 
-        s_renderVK->init(_config, _wnd);
+        s_renderVK->init(_resolution, _wnd);
         
         return s_renderVK;
     }
@@ -1152,7 +1152,7 @@ namespace kage { namespace vk
         VKZ_ProfDestroyContext(m_tracyVkCtx);
     }
 
-    void RHIContext_vk::init(RHI_Config _config, void* _wnd)
+    void RHIContext_vk::init(const Resolution& _resolution, void* _wnd)
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
@@ -1277,7 +1277,7 @@ namespace kage { namespace vk
             return false;
         }
 
-        SwapchainStatus_vk swapchainStatus = resizeSwapchainIfNecessary(m_swapchain, m_physicalDevice, m_device, m_surface, m_gfxFamilyIdx, m_imageFormat);
+        SwapchainStatus_vk swapchainStatus = m_swapchain.getSwapchainStatus();
         if (swapchainStatus == SwapchainStatus_vk::not_ready) {  // skip this frame
             return true;
         }
@@ -1297,7 +1297,7 @@ namespace kage { namespace vk
                 );
             }
 
-            recreateBackBuffers();
+            recreateSwapchainImages();
         }
 
         uint32_t imageIndex = 0;
@@ -1625,10 +1625,10 @@ namespace kage { namespace vk
         return checkExtSupportness(supportedExtensions, extName);
     }
 
-    void RHIContext_vk::resizeBackbuffers(uint32_t _width, uint32_t _height)
+    void RHIContext_vk::updateResolution(uint32_t _width, uint32_t _height)
     {
-        m_backBufferWidth = _width;
-        m_backBufferHeight = _height;
+        m_resolution.width = _width;
+        m_resolution.height = _height;
     }
 
     void RHIContext_vk::updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ)
@@ -2175,7 +2175,7 @@ namespace kage { namespace vk
 
         for (uint16_t id : ids)
         {
-            m_backBufferIds.insert(id);
+            m_swapchainImageIds.insert(id);
         }
     }
 
@@ -2209,10 +2209,10 @@ namespace kage { namespace vk
         assert(m_physicalDevice);
     }
 
-    void RHIContext_vk::recreateBackBuffers()
+    void RHIContext_vk::recreateSwapchainImages()
     {
         // destroy images
-        for (uint16_t id : m_backBufferIds)
+        for (uint16_t id : m_swapchainImageIds)
         {
             uint32_t aliasGroupIdx = m_imgIdToAliasGroupIdx.find(id)->second;
             const stl::vector<ImageAliasInfo>& aliases = m_imgAliasGroups[aliasGroupIdx];
@@ -2245,15 +2245,15 @@ namespace kage { namespace vk
             }
         }
         // create images
-        for (uint16_t id : m_backBufferIds)
+        for (uint16_t id : m_swapchainImageIds)
         {
             uint32_t aliasGroupIdx = m_imgIdToAliasGroupIdx.find(id)->second;
             const stl::vector<ImageAliasInfo>& aliases = m_imgAliasGroups[aliasGroupIdx];
 
             uint16_t baseId = m_aliasToBaseImages.getIdToData(id);
             ImageCreateInfo& createInfo = m_imageInitPropContainer.getDataRef(baseId);
-            createInfo.width = m_swapchain.m_width;
-            createInfo.height = m_swapchain.m_height;
+            createInfo.width = m_swapchain.m_resolution.width;
+            createInfo.height = m_swapchain.m_resolution.height;
 
             ImgInitProps_vk initPorps = getImageInitProp(createInfo, m_imageFormat, m_depthFormat);
 
@@ -2746,8 +2746,8 @@ namespace kage { namespace vk
         }
 
         VkRenderingInfo renderingInfo = { VK_STRUCTURE_TYPE_RENDERING_INFO };
-        renderingInfo.renderArea.extent.width = m_swapchain.m_width;
-        renderingInfo.renderArea.extent.height = m_swapchain.m_height;
+        renderingInfo.renderArea.extent.width = m_swapchain.m_resolution.width;
+        renderingInfo.renderArea.extent.height = m_swapchain.m_resolution.height;
         renderingInfo.layerCount = 1;
         renderingInfo.colorAttachmentCount = (uint32_t)colorAttachments.size();
         renderingInfo.pColorAttachments = colorAttachments.data();
@@ -2892,8 +2892,11 @@ namespace kage { namespace vk
         beginRendering(m_cmdBuffer, _passId);
 
         // drawcalls
-        VkViewport viewport = { 0.f, float(m_swapchain.m_height), float(m_swapchain.m_width), -float(m_swapchain.m_height), 0.f, 1.f };
-        VkRect2D scissor = { {0, 0}, {m_swapchain.m_width, m_swapchain.m_height } };
+        const uint32_t width = m_swapchain.m_resolution.width;
+        const uint32_t height = m_swapchain.m_resolution.height;
+
+        VkViewport viewport = { 0.f, float(height), float(width), -float(height), 0.f, 1.f };
+        VkRect2D scissor = { {0, 0}, {width, height } };
 
         vkCmdSetViewport(m_cmdBuffer, 0, 1, &viewport);
         vkCmdSetScissor(m_cmdBuffer, 0, 1, &scissor);
@@ -3035,8 +3038,8 @@ namespace kage { namespace vk
         bool result = true;
         
         result &= (getFormat(srcInfo.format) == m_imageFormat);
-        result &= (srcInfo.width == m_swapchain.m_width);
-        result &= (srcInfo.height == m_swapchain.m_height);
+        result &= (srcInfo.width == m_swapchain.m_resolution.width);
+        result &= (srcInfo.height == m_swapchain.m_resolution.height);
         result &= (srcInfo.numMips == 1);
         result &= (srcInfo.numLayers == 1);
         result &= (srcInfo.layout == ImageLayout::color_attachment_optimal);
@@ -3122,7 +3125,7 @@ namespace kage { namespace vk
         regions[0].srcOffsets[0] = { 0, 0, 0 };
         regions[0].srcOffsets[1] = { int32_t(levelWidth), int32_t(levelHeight), 1 };
         regions[0].dstOffsets[0] = { 0, 0, 0 };
-        regions[0].dstOffsets[1] = { int32_t(m_swapchain.m_width), int32_t(m_swapchain.m_height), 1 };
+        regions[0].dstOffsets[1] = { int32_t(m_swapchain.m_resolution.width), int32_t(m_swapchain.m_resolution.height), 1 };
 
         vkCmdBlitImage(m_cmdBuffer, presentImg.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, swapImg, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, COUNTOF(regions), regions, VK_FILTER_NEAREST);
 
@@ -3169,7 +3172,7 @@ namespace kage { namespace vk
         copyRegion.srcSubresource.layerCount = 1;
         copyRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         copyRegion.dstSubresource.layerCount = 1;
-        copyRegion.extent = { m_swapchain.m_width, m_swapchain.m_height, 1 };
+        copyRegion.extent = { m_swapchain.m_resolution.width, m_swapchain.m_resolution.height, 1 };
 
         vkCmdCopyImage(
             m_cmdBuffer,

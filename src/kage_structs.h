@@ -503,13 +503,21 @@ namespace kage
         key_max_enum = 0xffffffff,
     };
 
+
+    struct Resolution
+    {
+        uint32_t width{ 2560 };
+        uint32_t height{ 1440 };
+        uint32_t reset{ 0 };
+        ResourceFormat format{ ResourceFormat::r8g8b8a8_unorm };
+        uint8_t  numBackBuffers{ 2 };
+    };
+
     struct Init
     {
-        uint32_t windowWidth{ 0 };
-        uint32_t windowHeight{ 0 };
+        Resolution resolution;
 
         void * windowHandle{ nullptr };
-
         const char* name{ nullptr };
     };
 
@@ -624,5 +632,6 @@ namespace kage
         PipelineConfig  pipelineConfig{};
         PassConfig      passConfig{};
     };
+
 
 } // namespace kage

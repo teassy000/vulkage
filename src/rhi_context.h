@@ -126,14 +126,14 @@ namespace kage
 
     struct RHIContextI
     {
-        virtual void init(RHI_Config _config, void* _wnd) = 0;
+        virtual void init(const Resolution& _resolution, void* _wnd) = 0;
         virtual void bake() = 0;
         virtual bool render() = 0;
         // check supports
         virtual bool checkSupports(VulkanSupportExtension _ext) = 0;
 
         // swapchain 
-        virtual void resizeBackbuffers(uint32_t _width, uint32_t _height) = 0;
+        virtual void updateResolution(uint32_t _width, uint32_t _height) = 0;
 
         // update resources
         virtual void updatePushConstants(PassHandle _hPass, const void* _data, uint32_t _size) = 0;
@@ -178,14 +178,14 @@ namespace kage
         inline bx::MemoryBlockI* memoryBlock() const {return m_pMemBlockBaked;}
         inline bx::AllocatorI* allocator() const { return m_pAllocator; }
 
-        void init(RHI_Config _config, void* _wnd) override {};
+        void init(const Resolution& _resolution, void* _wnd) override {};
 
         void bake() override;
         bool render() override { return false; }
 
 
         bool checkSupports(VulkanSupportExtension _ext) override { return false; }
-        void resizeBackbuffers(uint32_t _width, uint32_t _height) override {};
+        void updateResolution(uint32_t _width, uint32_t _height) override {};
 
         // update 
         void updatePushConstants(PassHandle _hPass, const void* _data, uint32_t _size) override;
