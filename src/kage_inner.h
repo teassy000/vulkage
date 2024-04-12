@@ -4,7 +4,6 @@
 #include "config.h"
 #include "kage.h"
 
-#include "string.h"
 #include "entry/entry.h"
 
 

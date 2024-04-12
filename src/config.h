@@ -36,4 +36,7 @@ namespace kage
     constexpr unsigned int kAllMipLevel = ~0;
 
     constexpr unsigned int kMaxNumOfBackBuffers = 16;
+    constexpr unsigned int kMaxNumFrameLatency = 3;
+    constexpr unsigned int kMaxNumFrameBuffers = 128;
+    
 }

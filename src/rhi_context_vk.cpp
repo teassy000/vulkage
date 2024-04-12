@@ -13,6 +13,53 @@ namespace kage { namespace vk
 {
     RHIContext_vk* s_renderVK = nullptr;
 
+
+#define VK_DESTROY_FUNC(_name)                                                          \
+	void vkDestroy(Vk##_name& _obj)                                                     \
+	{                                                                                   \
+		if (VK_NULL_HANDLE != _obj)                                                     \
+		{                                                                               \
+			vkDestroy##_name(s_renderVK->m_device, _obj, s_renderVK->m_allocatorCb); \
+			_obj = VK_NULL_HANDLE;                                                      \
+		}                                                                               \
+	}                                                                                   \
+	void release(Vk##_name& _obj)                                                       \
+	{                                                                                   \
+		s_renderVK->release(_obj);                                                      \
+	}
+
+    VK_DESTROY
+
+#undef VK_DESTROY_FUNC
+
+    void vkDestroy(VkSurfaceKHR& _obj)
+    {
+        if (VK_NULL_HANDLE != _obj)
+        {
+            vkDestroySurfaceKHR(s_renderVK->m_instance, _obj, s_renderVK->m_allocatorCb);
+            _obj = VK_NULL_HANDLE;
+        }
+    }
+
+    void vkDestroy(VkDeviceMemory& _obj)
+    {
+        if (VK_NULL_HANDLE != _obj)
+        {
+            vkFreeMemory(s_renderVK->m_device, _obj, s_renderVK->m_allocatorCb);
+            _obj = VK_NULL_HANDLE;
+        }
+    }
+
+    void release(VkSurfaceKHR& _obj)
+    {
+        s_renderVK->release(_obj);
+    }
+
+    void release(VkDeviceMemory& _obj)
+    {
+        s_renderVK->release(_obj);
+    }
+
     RHIContext* rendererCreate(const Resolution& _resolution, void* _wnd)
     {
         s_renderVK = BX_NEW(g_bxAllocator, RHIContext_vk)(g_bxAllocator);
@@ -1119,6 +1166,31 @@ namespace kage { namespace vk
         return queryPool;
     }
 
+
+    template<typename Ty>
+    constexpr VkObjectType getType();
+
+    template<> VkObjectType getType<VkBuffer             >() { return VK_OBJECT_TYPE_BUFFER; }
+    template<> VkObjectType getType<VkCommandPool        >() { return VK_OBJECT_TYPE_COMMAND_POOL; }
+    template<> VkObjectType getType<VkDescriptorPool     >() { return VK_OBJECT_TYPE_DESCRIPTOR_POOL; }
+    template<> VkObjectType getType<VkDescriptorSet      >() { return VK_OBJECT_TYPE_DESCRIPTOR_SET; }
+    template<> VkObjectType getType<VkDescriptorSetLayout>() { return VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT; }
+    template<> VkObjectType getType<VkDeviceMemory       >() { return VK_OBJECT_TYPE_DEVICE_MEMORY; }
+    template<> VkObjectType getType<VkFence              >() { return VK_OBJECT_TYPE_FENCE; }
+    template<> VkObjectType getType<VkFramebuffer        >() { return VK_OBJECT_TYPE_FRAMEBUFFER; }
+    template<> VkObjectType getType<VkImage              >() { return VK_OBJECT_TYPE_IMAGE; }
+    template<> VkObjectType getType<VkImageView          >() { return VK_OBJECT_TYPE_IMAGE_VIEW; }
+    template<> VkObjectType getType<VkPipeline           >() { return VK_OBJECT_TYPE_PIPELINE; }
+    template<> VkObjectType getType<VkPipelineCache      >() { return VK_OBJECT_TYPE_PIPELINE_CACHE; }
+    template<> VkObjectType getType<VkPipelineLayout     >() { return VK_OBJECT_TYPE_PIPELINE_LAYOUT; }
+    template<> VkObjectType getType<VkQueryPool          >() { return VK_OBJECT_TYPE_QUERY_POOL; }
+    template<> VkObjectType getType<VkRenderPass         >() { return VK_OBJECT_TYPE_RENDER_PASS; }
+    template<> VkObjectType getType<VkSampler            >() { return VK_OBJECT_TYPE_SAMPLER; }
+    template<> VkObjectType getType<VkSemaphore          >() { return VK_OBJECT_TYPE_SEMAPHORE; }
+    template<> VkObjectType getType<VkShaderModule       >() { return VK_OBJECT_TYPE_SHADER_MODULE; }
+    template<> VkObjectType getType<VkSurfaceKHR         >() { return VK_OBJECT_TYPE_SURFACE_KHR; }
+    template<> VkObjectType getType<VkSwapchainKHR       >() { return VK_OBJECT_TYPE_SWAPCHAIN_KHR; }
+
     RHIContext_vk::RHIContext_vk(bx::AllocatorI* _allocator)
         : RHIContext(_allocator)
         , m_nwh(nullptr)
@@ -1177,7 +1249,7 @@ namespace kage { namespace vk
         m_gfxFamilyIdx = getGraphicsFamilyIndex(m_physicalDevice);
         assert(m_gfxFamilyIdx != VK_QUEUE_FAMILY_IGNORED);
 
-        m_device = kage::createDevice(m_instance, m_physicalDevice, m_gfxFamilyIdx, m_supportMeshShading);
+        m_device = kage::vk::createDevice(m_instance, m_physicalDevice, m_gfxFamilyIdx, m_supportMeshShading);
         assert(m_device);
         
         // only single device used in this application.
@@ -1199,7 +1271,7 @@ namespace kage { namespace vk
         // fill the image to barrier
         for (uint32_t ii = 0; ii < m_swapchain.m_swapchainImageCount; ++ii)
         {
-            m_barrierDispatcher.addImage(m_swapchain.m_swapchainImages[ii]
+            m_barrierDispatcher.track(m_swapchain.m_swapchainImages[ii]
                 , VK_IMAGE_ASPECT_COLOR_BIT
                 , { 0, VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT }
             );
@@ -1245,7 +1317,7 @@ namespace kage { namespace vk
 
         BufferAliasInfo scratchAlias;
         scratchAlias.size = 128 * 1024 * 1024; // 128M
-        m_scratchBuffer = kage::createBuffer(scratchAlias, m_memProps, m_device, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        m_scratchBuffer = kage::vk::createBuffer(scratchAlias, m_memProps, m_device, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
         
         m_cmdList = BX_NEW(m_pAllocator, CmdList_vk)(m_cmdBuffer, this);
 
@@ -1291,7 +1363,7 @@ namespace kage { namespace vk
             // fill the image to barrier
             for (uint32_t ii = 0; ii < m_swapchain.m_swapchainImageCount; ++ii)
             {
-                m_barrierDispatcher.addImage(m_swapchain.m_swapchainImages[ii]
+                m_barrierDispatcher.track(m_swapchain.m_swapchainImages[ii]
                     , VK_IMAGE_ASPECT_COLOR_BIT
                     , { 0, VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT }
                 );
@@ -1393,8 +1465,6 @@ namespace kage { namespace vk
             double timeStart = double(timeStamps[ii - 1]) * m_phyDeviceProps.limits.timestampPeriod * 1e-6;
             double timeEnd = double(timeStamps[ii]) * m_phyDeviceProps.limits.timestampPeriod * 1e-6;
 
-
-            //m_passTime.find(passId)->second = timeEnd - timeStart;
             m_passTime.insert({ passId, timeEnd - timeStart });
         }
 
@@ -1441,7 +1511,7 @@ namespace kage { namespace vk
         {
             stl::vector<Buffer_vk> bufs;
             bufs.emplace_back(m_scratchBuffer);
-            kage::destroyBuffer(m_device, bufs);
+            kage::vk::destroyBuffer(m_device, bufs);
         }
 
         if (m_cmdBuffer)
@@ -1612,8 +1682,6 @@ namespace kage { namespace vk
         m_imgAliasGroups.clear();
         m_bufIdToAliasGroupIdx.clear();
         m_bufAliasGroups.clear();
-
-        m_pWindow = nullptr;
     }
 
     bool RHIContext_vk::checkSupports(VulkanSupportExtension _ext)
@@ -1675,10 +1743,10 @@ namespace kage { namespace vk
         // re-create buffer if new size is larger than the old one
         if (buf.size != _size && baseBuf.size < _size)
         {
-            m_barrierDispatcher.removeBuffer(buf.buffer);
+            m_barrierDispatcher.untrack(buf.buffer);
 
             stl::vector<Buffer_vk> buffers(1, buf);
-            kage::destroyBuffer(m_device, buffers);
+            kage::vk::destroyBuffer(m_device, buffers);
 
             // recreate buffer
             BufferAliasInfo info{};
@@ -1686,11 +1754,11 @@ namespace kage { namespace vk
             info.bufId = _hBuf.id;
 
 
-            Buffer_vk newBuf = kage::createBuffer(info, m_memProps, m_device, getBufferUsageFlags(createInfo.usage), getMemPropFlags(createInfo.memFlags));
+            Buffer_vk newBuf = kage::vk::createBuffer(info, m_memProps, m_device, getBufferUsageFlags(createInfo.usage), getMemPropFlags(createInfo.memFlags));
             m_bufferContainer.update(_hBuf.id, newBuf);
 
             ResInteractDesc interact{ createInfo.barrierState };
-            m_barrierDispatcher.addBuffer(
+            m_barrierDispatcher.track(
                 newBuf.buffer
                 , { getAccessFlags(interact.access), getPipelineStageFlags(interact.stage) }
                 , newBuf.buffer
@@ -1763,7 +1831,7 @@ namespace kage { namespace vk
         }
 
         VkPipelineBindPoint bindPoint = getBindPoint(shaders);
-        Program_vk prog = kage::createProgram(m_device, bindPoint, shaders, info.sizePushConstants);
+        Program_vk prog = kage::vk::createProgram(m_device, bindPoint, shaders, info.sizePushConstants);
 
         m_programContainer.addOrUpdate(info.progId, prog);
         m_programShaderIds.emplace_back(shaderIds);
@@ -1858,7 +1926,8 @@ namespace kage { namespace vk
             };
 
             VkPipelineCache cache{};
-            pipeline = kage::createGraphicsPipeline(m_device, cache, program.layout, renderInfo, shaders, hasVIS ? &vtxInputCreateInfo : nullptr, pipelineSpecData, configs);
+            cache.vk = 0;
+            pipeline = kage::vk::createGraphicsPipeline(m_device, cache, program.layout, renderInfo, shaders, hasVIS ? &vtxInputCreateInfo : nullptr, pipelineSpecData, configs);
             assert(pipeline);
         }
         else if (passMeta.queue == PassExeQueue::compute)
@@ -1878,7 +1947,8 @@ namespace kage { namespace vk
             Shader_vk shader = m_shaderContainer.getIdToData(shaderIds[0]);
 
             VkPipelineCache cache{};
-            pipeline = kage::createComputePipeline(m_device, cache, program.layout, shader, pipelineSpecData);
+            cache.vk = 0;
+            pipeline = kage::vk::createComputePipeline(m_device, cache, program.layout, shader, pipelineSpecData);
             assert(pipeline);
         }
 
@@ -2039,7 +2109,7 @@ namespace kage { namespace vk
         ImgInitProps_vk initPorps = getImageInitProp(info, m_imageFormat, m_depthFormat);
 
         stl::vector<Image_vk> images;
-        kage::createImage(images, infoList, m_device, m_memProps, initPorps);
+        kage::vk::createImage(images, infoList, m_device, m_memProps, initPorps);
         assert(images.size() == info.resCount);
 
         m_imageInitPropContainer.addOrUpdate(info.imgId, info);
@@ -2059,7 +2129,7 @@ namespace kage { namespace vk
             const ImageViewHandle imgView = info.mipViews[ii];
             const ImageViewDesc& viewDesc = m_imageViewDescContainer.getIdToData(imgView.id);
 
-            VkImageView view_vk = kage::createImageView(m_device, baseImage.image, baseImage.format, viewDesc.baseMip, viewDesc.mipLevels);
+            VkImageView view_vk = kage::vk::createImageView(m_device, baseImage.image, baseImage.format, viewDesc.baseMip, viewDesc.mipLevels);
             m_imageViewContainer.addOrUpdate(imgView.id, view_vk);
         }
 
@@ -2072,7 +2142,7 @@ namespace kage { namespace vk
         {
             ResInteractDesc interact{ info.barrierState };
 
-            m_barrierDispatcher.addImage(images[ii].image
+            m_barrierDispatcher.track(images[ii].image
                 , getImageAspectFlags(images[ii].aspectMask)
                 , { getAccessFlags(interact.access), getImageLayout(interact.layout) ,getPipelineStageFlags(interact.stage) }
                 , baseImage.image
@@ -2100,7 +2170,7 @@ namespace kage { namespace vk
         stl::vector<BufferAliasInfo> infoList(resArr, resArr + info.resCount);
 
         stl::vector<Buffer_vk> buffers;
-        kage::createBuffer(buffers, infoList, m_memProps, m_device, getBufferUsageFlags(info.usage), getMemPropFlags(info.memFlags));
+        kage::vk::createBuffer(buffers, infoList, m_memProps, m_device, getBufferUsageFlags(info.usage), getMemPropFlags(info.memFlags));
 
         assert(buffers.size() == info.resCount);
 
@@ -2120,7 +2190,7 @@ namespace kage { namespace vk
         for (int ii = 0; ii < info.resCount; ++ii)
         {
             ResInteractDesc interact{ info.barrierState };
-            m_barrierDispatcher.addBuffer(buffers[ii].buffer
+            m_barrierDispatcher.track(buffers[ii].buffer
                 , { getAccessFlags(interact.access), getPipelineStageFlags(interact.stage) }
                 , baseBuffer.buffer
             );
@@ -2146,7 +2216,7 @@ namespace kage { namespace vk
         SamplerMetaData meta;
         bx::read(&_reader, meta, nullptr);
 
-        VkSampler sampler = kage::createSampler(m_device, getSamplerReductionMode( meta.reductionMode));
+        VkSampler sampler = kage::vk::createSampler(m_device, getSamplerReductionMode( meta.reductionMode));
         assert(sampler);
 
         m_samplerContainer.addOrUpdate(meta.samplerId, sampler);
@@ -2193,7 +2263,7 @@ namespace kage { namespace vk
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
-        m_instance = kage::createInstance();
+        m_instance = kage::vk::createInstance();
         assert(m_instance);
 
         volkLoadInstanceOnly(m_instance);
@@ -2205,7 +2275,7 @@ namespace kage { namespace vk
         uint32_t deviceCount = sizeof(physicalDevices) / sizeof(physicalDevices[0]);
         VK_CHECK(vkEnumeratePhysicalDevices(m_instance, &deviceCount, physicalDevices));
 
-        m_physicalDevice = kage::pickPhysicalDevice(physicalDevices, deviceCount);
+        m_physicalDevice = kage::vk::pickPhysicalDevice(physicalDevices, deviceCount);
         assert(m_physicalDevice);
     }
 
@@ -2223,14 +2293,14 @@ namespace kage { namespace vk
                 images.push_back(m_imageContainer.getIdToData(aliasInfo.imgId));
             }
 
-            // remove barriers
+            // remove barrier tracking
             for (const Image_vk& img : images)
             {
-                m_barrierDispatcher.removeImage(img.image);
+                m_barrierDispatcher.untrack(img.image);
             }
 
             // destroy Image
-            kage::destroyImage(m_device, images);
+            kage::vk::destroyImage(m_device, images);
             
             // destroy image views
             uint16_t baseId = m_aliasToBaseImages.getIdToData(id);
@@ -2259,7 +2329,7 @@ namespace kage { namespace vk
 
             //image
             stl::vector<Image_vk> images;
-            kage::createImage(images, aliases, m_device, m_memProps, initPorps);
+            kage::vk::createImage(images, aliases, m_device, m_memProps, initPorps);
 
             for (uint16_t ii = 0 ; ii < aliases.size(); ++ii)
             {
@@ -2276,7 +2346,7 @@ namespace kage { namespace vk
                 for (ImageViewHandle view : viewHandles)
                 {
                     const ImageViewDesc& viewDesc = m_imageViewDescContainer.getIdToData(view.id);
-                    VkImageView view_vk = kage::createImageView(m_device, baseImg.image, baseImg.format, viewDesc.baseMip, viewDesc.mipLevels);
+                    VkImageView view_vk = kage::vk::createImageView(m_device, baseImg.image, baseImg.format, viewDesc.baseMip, viewDesc.mipLevels);
                     m_imageViewContainer.update(view.id, view_vk);
                 }
             }
@@ -2285,7 +2355,7 @@ namespace kage { namespace vk
             {
                 ResInteractDesc interact{ createInfo.barrierState };
 
-                m_barrierDispatcher.addImage(images[ii].image
+                m_barrierDispatcher.track(images[ii].image
                     , getImageAspectFlags(images[ii].aspectMask)
                     , { getAccessFlags(interact.access), getImageLayout(interact.layout) ,getPipelineStageFlags(interact.stage) }
                     , baseImg.image
@@ -2689,14 +2759,14 @@ namespace kage { namespace vk
         }
     }
 
-    const kage::Shader_vk& RHIContext_vk::getShader(const ShaderHandle _hShader) const
+    const Shader_vk& RHIContext_vk::getShader(const ShaderHandle _hShader) const
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
         return m_shaderContainer.getIdToData(_hShader.id);
     }
 
-    const kage::Program_vk& RHIContext_vk::getProgram(const PassHandle _hPass) const
+    const Program_vk& RHIContext_vk::getProgram(const PassHandle _hPass) const
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
@@ -3190,12 +3260,24 @@ namespace kage { namespace vk
         m_barrierDispatcher.dispatch(m_cmdBuffer);
     }
 
-    void BarrierDispatcher::addImage(const VkImage _img, const ImageAspectFlags _aspect, BarrierState_vk _barrierState, const VkImage _baseImg/* = 0*/)
+
+    template<typename Ty>
+    void RHIContext_vk::release(Ty& _object)
+    {
+        if (VK_NULL_HANDLE != _object)
+        {
+            m_cmd.release(uint64_t(_object), getType<Ty>());
+            _object = VK_NULL_HANDLE;
+        }
+    }
+
+
+    void BarrierDispatcher::track(const VkImage _img, const ImageAspectFlags _aspect, BarrierState_vk _barrierState, const VkImage _baseImg/* = 0*/)
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
-        assert(m_imgAspectFlags.find(_img) == end(m_imgAspectFlags));
-        assert(m_imgBarrierStatus.find(_img) == end(m_imgBarrierStatus));
+        assert(m_imgAspectFlags.find(_img) == m_imgAspectFlags.end());
+        assert(m_imgBarrierStatus.find(_img) == m_imgBarrierStatus.end());
 
         m_imgAspectFlags.insert({ _img, getImageAspectFlags(_aspect) });
         m_imgBarrierStatus.insert({ _img , _barrierState });
@@ -3211,20 +3293,39 @@ namespace kage { namespace vk
         }
     }
 
-    void BarrierDispatcher::removeBuffer(const VkBuffer _buf)
+    void BarrierDispatcher::untrack(const VkBuffer _buf)
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
-        m_aliasToBaseBuffers.erase(_buf);
-        m_bufBarrierStatus.erase(_buf);
+        {
+            auto it = m_aliasToBaseBuffers.find(_buf);
+            m_aliasToBaseBuffers.erase(it);
+        }
+
+        {
+            auto it = m_bufBarrierStatus.find(_buf);
+            m_bufBarrierStatus.erase(it);
+        }
     }
 
-    void BarrierDispatcher::removeImage(const VkImage _img)
+    void BarrierDispatcher::untrack(const VkImage _img)
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
-        m_aliasToBaseImages.erase(_img);
-        m_imgAspectFlags.erase(_img);
+        {
+            auto it = m_aliasToBaseImages.find(_img);
+            m_aliasToBaseImages.erase(it);
+        }
+
+        {
+            auto it = m_imgAspectFlags.find(_img);
+            m_imgAspectFlags.erase(it);
+        }
+
+        {
+            auto it = m_imgBarrierStatus.find(_img);
+            m_imgBarrierStatus.erase(it);
+        }
     }
 
     BarrierDispatcher::~BarrierDispatcher()
@@ -3232,11 +3333,11 @@ namespace kage { namespace vk
         clear();
     }
 
-    void BarrierDispatcher::addBuffer(const VkBuffer _buf, BarrierState_vk _barrierState, const VkBuffer _baseBuf/* = 0*/)
+    void BarrierDispatcher::track(const VkBuffer _buf, BarrierState_vk _barrierState, const VkBuffer _baseBuf/* = 0*/)
     {
         VKZ_ZoneScopedC(Color::indian_red);
-
-        assert(m_bufBarrierStatus.find(_buf) == end(m_bufBarrierStatus));
+        
+        assert(m_bufBarrierStatus.find(_buf) == m_bufBarrierStatus.end());
 
         m_bufBarrierStatus.insert({ _buf , _barrierState });
 
@@ -3254,14 +3355,15 @@ namespace kage { namespace vk
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
-        assert(m_bufBarrierStatus.find(_buf) != end(m_bufBarrierStatus));
+        auto pair = m_bufBarrierStatus.find(_buf);
+        assert(pair != m_bufBarrierStatus.end());
 
         const size_t idx = getElemIndex(m_dispatchBuffers, _buf);
         if (kInvalidHandle == idx)
         {
             m_dispatchBuffers.emplace_back(_buf);
 
-            const BarrierState_vk src = m_bufBarrierStatus.at(_buf);
+            const BarrierState_vk src = pair->second;
             m_srcBufBarriers.emplace_back(src);
 
             m_dstBufBarriers.push_back({ _dst.accessMask , _dst.stageMask });
@@ -3278,8 +3380,10 @@ namespace kage { namespace vk
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
-        assert(m_imgAspectFlags.find(_img) != end(m_imgAspectFlags));
-        assert(m_imgBarrierStatus.find(_img) != end(m_imgBarrierStatus));
+        assert(m_imgAspectFlags.find(_img) != m_imgAspectFlags.end());
+
+        auto barrierPair = m_imgBarrierStatus.find(_img);
+        assert(barrierPair != m_imgBarrierStatus.end());
 
         const size_t idx = getElemIndex(m_dispatchImages, _img);
 
@@ -3289,7 +3393,7 @@ namespace kage { namespace vk
 
             m_imgAspects.emplace_back(_aspect);
 
-            BarrierState_vk src = m_imgBarrierStatus.at(_img);
+            BarrierState_vk src = barrierPair->second;
             m_srcImgBarriers.emplace_back(src);
 
             m_dstImgBarriers.push_back({ _dst.accessMask, _dst.imgLayout, _dst.stageMask });
@@ -3303,6 +3407,18 @@ namespace kage { namespace vk
             dst.stageMask |= _dst.stageMask;
             dst.imgLayout = _dst.imgLayout; // use the new destinate layout instead
         }
+    }
+
+    void BarrierDispatcher::dispatchGlobalBarrier(const VkCommandBuffer& _cmdBuffer, const BarrierState_vk& _src, const BarrierState_vk& _dst)
+    {
+        VkMemoryBarrier2 ba = memoryBarrier(
+            _src.accessMask
+            , _dst.accessMask
+            , _src.stageMask
+            , _dst.stageMask
+        );
+
+        pipelineBarrier(_cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 1, &ba, 0, nullptr, 0, nullptr);
     }
 
     void BarrierDispatcher::dispatch(const VkCommandBuffer& _cmdBuffer)
@@ -3329,14 +3445,30 @@ namespace kage { namespace vk
             
             imgBarriers.emplace_back(barrier);
 
-            m_imgAspectFlags.at(img) = aspect;
-            m_imgBarrierStatus.at(img) = dst;
-
-            if (m_aliasToBaseImages.find(img) != end(m_aliasToBaseImages))
             {
-                const VkImage baseImg = m_aliasToBaseImages.at(img);
-                m_baseImgAspectFlags.at(baseImg) = aspect;
-                m_baseImgBarrierStatus.at(baseImg) = dst;
+                auto aspectPair = m_imgAspectFlags.find(img);
+                aspectPair->second = aspect;
+            }
+
+            {
+                auto barrierPair = m_imgBarrierStatus.find(img);
+                barrierPair->second = dst;
+            }
+
+            auto baseImgPair = m_aliasToBaseImages.find(img);
+            if (baseImgPair != m_aliasToBaseImages.end())
+            {
+                const VkImage baseImg = baseImgPair->second;
+
+                {
+                    auto aspectPair = m_baseImgAspectFlags.find(img);
+                    aspectPair->second = aspect;
+                }
+
+                {
+                    auto barrierPair = m_baseImgBarrierStatus.find(img);
+                    barrierPair->second = dst;
+                }
             }
         }
 
@@ -3354,16 +3486,30 @@ namespace kage { namespace vk
 
             bufBarriers.emplace_back(barrier);
 
-            m_bufBarrierStatus.at(buf) = dst;
-
-            if(m_aliasToBaseBuffers.find(buf) != end(m_aliasToBaseBuffers))
             {
-                const VkBuffer baseBuf = m_aliasToBaseBuffers.at(buf);
-                m_baseBufBarrierStatus.at(baseBuf) = dst;
+                auto barrierPair = m_bufBarrierStatus.find(buf);
+                barrierPair->second = dst;
+            }
+
+            auto baseBufPair = m_aliasToBaseBuffers.find(buf);
+            if(baseBufPair != m_aliasToBaseBuffers.end())
+            {
+                const VkBuffer baseBuf = baseBufPair->second;
+                
+                {
+                    auto barrierPair = m_baseBufBarrierStatus.find(buf);
+                    barrierPair->second = dst;
+                }
             }
         }
         
-        pipelineBarrier(_cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, (uint32_t)bufBarriers.size(), bufBarriers.data(), (uint32_t)imgBarriers.size(), imgBarriers.data());
+        pipelineBarrier(
+            _cmdBuffer
+            , VK_DEPENDENCY_BY_REGION_BIT
+            , 0, nullptr
+            , bufBarriers.size(), bufBarriers.data()
+            , imgBarriers.size(), imgBarriers.data()
+        );
         
         // clear all once barriers dispatched
         clear();
@@ -3379,36 +3525,67 @@ namespace kage { namespace vk
             return m_dstImgBarriers[idx].imgLayout;
         }
 
-        return m_imgBarrierStatus.at(_img).imgLayout;
-        
+        auto barrierPair = m_imgBarrierStatus.find(_img);
+        if (barrierPair != m_imgBarrierStatus.end())
+        {
+            return barrierPair->second.imgLayout;
+        }
+
+        assert(0);
+        return VK_IMAGE_LAYOUT_UNDEFINED;
     }
 
     const BarrierState_vk BarrierDispatcher::getBarrierState(const VkImage _img) const
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
-        return m_imgBarrierStatus.at(_img);
+        auto barrierPair = m_imgBarrierStatus.find(_img);
+        if (barrierPair != m_imgBarrierStatus.end())
+        {
+            return barrierPair->second;
+        }
+        
+        assert(0);
+        return BarrierState_vk{};
     }
 
     const BarrierState_vk BarrierDispatcher::getBarrierState(const VkBuffer _buf) const
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
-        return m_bufBarrierStatus.at(_buf);
+        auto barrierPair = m_bufBarrierStatus.find(_buf);
+        if (barrierPair != m_bufBarrierStatus.end())
+        {
+            return barrierPair->second;
+        }
+
+        return BarrierState_vk{};
     }
 
     const BarrierState_vk BarrierDispatcher::getBaseBarrierState(const VkImage _img) const
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
-        return m_baseImgBarrierStatus.at(_img);
+        auto barrierPair = m_baseImgBarrierStatus.find(_img);
+        if (barrierPair != m_baseImgBarrierStatus.end())
+        {
+            return barrierPair->second;
+        }
+
+        return BarrierState_vk{};
     }
 
     const BarrierState_vk BarrierDispatcher::getBaseBarrierState(const VkBuffer _buf) const
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
-        return m_baseBufBarrierStatus.at(_buf);
+        auto barrierPair = m_baseBufBarrierStatus.find(_buf);
+        if (barrierPair != m_baseBufBarrierStatus.end())
+        {
+            return barrierPair->second;
+        }
+
+        return BarrierState_vk{};
     }
 
     void BarrierDispatcher::clear()
@@ -3423,6 +3600,244 @@ namespace kage { namespace vk
         m_dispatchBuffers.clear();
         m_srcBufBarriers.clear();
         m_dstBufBarriers.clear();
+    }
+
+    void CommandQueue_vk::init(uint32_t _familyIdx, VkQueue _queue, uint32_t _numFramesInFlight)
+    {
+        m_queueFamilyIdx = _familyIdx;
+        m_queue = _queue;
+        m_numFramesInFlight = bx::clamp<uint32_t>(_numFramesInFlight, 1, kMaxNumFrameLatency);
+        m_activeCommandBuffer = VK_NULL_HANDLE;
+
+        reset();
+    }
+
+    void CommandQueue_vk::reset()
+    {
+        shutdown();
+
+        m_currentFrameInFlight = 0;
+        m_consumeIndex = 0;
+
+        m_numSignalSemaphores = 0;
+        m_numWaitSemaphores = 0;
+
+        m_activeCommandBuffer = VK_NULL_HANDLE;
+        m_currentFence = VK_NULL_HANDLE;
+        m_completedFence = VK_NULL_HANDLE;
+
+        m_submitted = 0;
+
+        VkCommandPoolCreateInfo cpci;
+        cpci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        cpci.pNext = NULL;
+        cpci.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+        cpci.queueFamilyIndex = m_queueFamilyIdx;
+
+        VkCommandBufferAllocateInfo cbai;
+        cbai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        cbai.pNext = NULL;
+        cbai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        cbai.commandBufferCount = 1;
+
+        VkFenceCreateInfo fci;
+        fci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        fci.pNext = NULL;
+        fci.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+        for (uint32_t ii = 0; ii < m_numFramesInFlight; ++ii)
+        {
+            VK_CHECK(vkCreateCommandPool(
+                s_renderVK->m_device
+                , &cpci
+                , s_renderVK->m_allocatorCb
+                , &m_commandList[ii].m_commandPool
+            ));
+
+            cbai.commandPool = m_commandList[ii].m_commandPool;
+
+            VK_CHECK( vkAllocateCommandBuffers(
+                s_renderVK->m_device
+                , &cbai
+                , &m_commandList[ii].m_commandBuffer
+            ));
+
+            VK_CHECK(vkCreateFence(
+                s_renderVK->m_device
+                , &fci
+                , s_renderVK->m_allocatorCb
+                , &m_commandList[ii].m_fence
+            ));
+        }
+    }
+
+    void CommandQueue_vk::shutdown()
+    {
+        kick(true);
+        finish(true);
+
+        for (uint32_t ii = 0; ii < m_numFramesInFlight; ++ii)
+        {
+            vkDestroy(m_commandList[ii].m_fence);
+            m_commandList[ii].m_commandBuffer = VK_NULL_HANDLE;
+            vkDestroy(m_commandList[ii].m_commandPool);
+        }
+    }
+
+    void CommandQueue_vk::alloc(VkCommandBuffer* _cmdBuf)
+    {
+        if (m_activeCommandBuffer == VK_NULL_HANDLE)
+        {
+            const VkDevice device = s_renderVK->m_device;
+            CommandList& commandList = m_commandList[m_currentFrameInFlight];
+
+            VK_CHECK(vkWaitForFences(device, 1, &commandList.m_fence, VK_TRUE, UINT64_MAX));
+
+            VK_CHECK(vkResetCommandPool(device, commandList.m_commandPool, 0));
+
+            VkCommandBufferBeginInfo cbi;
+            cbi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+            cbi.pNext = NULL;
+            cbi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+            cbi.pInheritanceInfo = NULL;
+
+            VK_CHECK(vkBeginCommandBuffer(commandList.m_commandBuffer, &cbi));
+
+            m_activeCommandBuffer = commandList.m_commandBuffer;
+            m_currentFence = commandList.m_fence;
+        }
+
+        if (NULL != _cmdBuf)
+        {
+            *_cmdBuf = m_activeCommandBuffer;
+        }
+    }
+
+    void CommandQueue_vk::addWaitSamaphore(VkSemaphore _semaphore, VkPipelineStageFlags _stage)
+    {
+        BX_ASSERT(m_numWaitSemaphores < BX_COUNTOF(m_waitSemaphores), "Too many wait semaphores.");
+
+        m_waitSemaphores[m_numWaitSemaphores] = _semaphore;
+        m_waitSemaphoreStages[m_numWaitSemaphores] = _stage;
+        m_numWaitSemaphores++;
+    }
+
+    void CommandQueue_vk::addSignalSemaphore(VkSemaphore _semaphore)
+    {
+        BX_ASSERT(m_numSignalSemaphores < BX_COUNTOF(m_signalSemaphores), "Too many signal semaphores.");
+
+        m_signalSemaphores[m_numSignalSemaphores] = _semaphore;
+        m_numSignalSemaphores++;
+    }
+
+    void CommandQueue_vk::kick(bool _wait)
+    {
+        if (VK_NULL_HANDLE != m_activeCommandBuffer)
+        {
+            const VkDevice device = s_renderVK->m_device;
+
+            s_renderVK->m_barrierDispatcher.dispatchGlobalBarrier(
+                m_activeCommandBuffer
+                , { 0, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT }
+                , { 0, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT }
+            );
+
+            VK_CHECK(vkEndCommandBuffer(m_activeCommandBuffer));
+
+            m_completedFence = m_currentFence;
+            m_currentFence = VK_NULL_HANDLE;
+
+            VK_CHECK(vkResetFences(device, 1, &m_completedFence));
+
+            VkSubmitInfo si;
+            si.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+            si.pNext = NULL;
+            si.waitSemaphoreCount = m_numWaitSemaphores;
+            si.pWaitSemaphores = &m_waitSemaphores[0];
+            si.pWaitDstStageMask = m_waitSemaphoreStages;
+            si.commandBufferCount = 1;
+            si.pCommandBuffers = &m_activeCommandBuffer;
+            si.signalSemaphoreCount = m_numSignalSemaphores;
+            si.pSignalSemaphores = &m_signalSemaphores[0];
+
+            m_numWaitSemaphores = 0;
+            m_numSignalSemaphores = 0;
+
+            VK_CHECK(vkQueueSubmit(m_queue, 1, &si, m_completedFence));
+
+            if (_wait)
+            {
+                VK_CHECK(vkWaitForFences(device, 1, &m_completedFence, VK_TRUE, UINT64_MAX));
+            }
+
+            m_activeCommandBuffer = VK_NULL_HANDLE;
+
+            m_currentFrameInFlight = (m_currentFrameInFlight + 1) % m_numFramesInFlight;
+            m_submitted++;
+        }
+    }
+
+    void CommandQueue_vk::finish(bool _finishAll)
+    {
+        if (_finishAll)
+        {
+            for (uint32_t ii = 0; ii < m_numFramesInFlight; ++ii)
+            {
+                consume();
+            }
+
+            m_consumeIndex = m_currentFrameInFlight;
+        }
+        else
+        {
+            consume();
+        }
+    }
+
+    void CommandQueue_vk::release(uint64_t _handle, VkObjectType _type)
+    {
+        Resource resource;
+        resource.m_type = _type;
+        resource.m_handle = _handle;
+        m_release[m_currentFrameInFlight].push_back(resource);
+    }
+
+    void CommandQueue_vk::consume()
+    {
+        m_consumeIndex = (m_consumeIndex + 1) % m_numFramesInFlight;
+        /*
+        for (const Resource& resource : m_release[m_consumeIndex])
+        {
+            switch (resource.m_type)
+            {
+            case VK_OBJECT_TYPE_BUFFER:                destroy<VkBuffer             >(resource.m_handle); break;
+            case VK_OBJECT_TYPE_IMAGE_VIEW:            destroy<VkImageView          >(resource.m_handle); break;
+            case VK_OBJECT_TYPE_IMAGE:                 destroy<VkImage              >(resource.m_handle); break;
+            case VK_OBJECT_TYPE_FRAMEBUFFER:           destroy<VkFramebuffer        >(resource.m_handle); break;
+            case VK_OBJECT_TYPE_PIPELINE_LAYOUT:       destroy<VkPipelineLayout     >(resource.m_handle); break;
+            case VK_OBJECT_TYPE_PIPELINE:              destroy<VkPipeline           >(resource.m_handle); break;
+            case VK_OBJECT_TYPE_DESCRIPTOR_SET:        destroy<VkDescriptorSet      >(resource.m_handle); break;
+            case VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT: destroy<VkDescriptorSetLayout>(resource.m_handle); break;
+            case VK_OBJECT_TYPE_RENDER_PASS:           destroy<VkRenderPass         >(resource.m_handle); break;
+            case VK_OBJECT_TYPE_SAMPLER:               destroy<VkSampler            >(resource.m_handle); break;
+            case VK_OBJECT_TYPE_SEMAPHORE:             destroy<VkSemaphore          >(resource.m_handle); break;
+            case VK_OBJECT_TYPE_SURFACE_KHR:           destroy<VkSurfaceKHR         >(resource.m_handle); break;
+            case VK_OBJECT_TYPE_SWAPCHAIN_KHR:         destroy<VkSwapchainKHR       >(resource.m_handle); break;
+            case VK_OBJECT_TYPE_DEVICE_MEMORY:         destroy<VkDeviceMemory       >(resource.m_handle); break;
+            default:
+                BX_ASSERT(false, "Invalid resource type: %d", resource.m_type);
+                break;
+            }
+        }
+        */
+    }
+
+    template<typename Ty>
+    void CommandQueue_vk::destroy(uint64_t _handle)
+    {
+        typedef decltype(Ty::vk) vk_t;
+        Ty obj = vk_t(_handle);
+        vkDestroy(obj);
     }
 } // namespace vk
 } // namespace kage

@@ -9,7 +9,7 @@
 #endif
 
 
-namespace kage
+namespace kage { namespace vk
 {
     // https://www.khronos.org/registry/spir-v/specs/1.0/SPIRV.pdf
     struct Id
@@ -557,5 +557,5 @@ namespace kage
 
         return layout;
     }
-
+}
 } // namespace kage

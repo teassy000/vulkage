@@ -296,8 +296,8 @@ void vkz_updateUIRenderData(UIRendering& _ui)
         return;
     }
 
-    VkDeviceSize vbSize = imDrawData->TotalVtxCount * sizeof(ImDrawVert);
-    VkDeviceSize ibSize = imDrawData->TotalIdxCount * sizeof(ImDrawIdx);
+    size_t vbSize = imDrawData->TotalVtxCount * sizeof(ImDrawVert);
+    size_t ibSize = imDrawData->TotalIdxCount * sizeof(ImDrawIdx);
 
     if (vbSize == 0 || ibSize == 0)
         return;

@@ -7,13 +7,6 @@ char(*countof_helper(T(&_Array)[Size]))[Size];
 
 #define NO_VTABLE __declspec(novtable)
 
-#define VKZ_DELETE(ptr) \
-    do { \
-            if (ptr != nullptr) { \
-                delete ptr; \
-                ptr = nullptr; \
-            } \
-    } while (false)
 
 #define VKZ_DELETE_ARRAY(ptr) \
     do { \
@@ -22,9 +15,3 @@ char(*countof_helper(T(&_Array)[Size]))[Size];
                 ptr = nullptr; \
             } \
     } while (false)
-
-
-///
-#define VKZ_DECLARE_TAG(_name)  \
-	struct    _name ## Tag {}; \
-	constexpr _name ## Tag _name

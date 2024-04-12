@@ -9,9 +9,13 @@
 #include <string>
 #include "profiler.h"
 
-namespace kage
+namespace kage { namespace vk
 {
-    VkDeviceMemory allocVkMemory(const VkDevice _device, size_t _size, uint32_t _memTypeIdx)
+    VkDeviceMemory allocVkMemory(
+        const VkDevice _device
+        , size_t _size
+        , uint32_t _memTypeIdx
+    )
     {
         VkMemoryAllocateInfo allocInfo = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
         allocInfo.allocationSize = _size;
@@ -25,16 +29,25 @@ namespace kage
         return memory;
     }
 
-    void freeVkMemory(const VkDevice _device, VkDeviceMemory _mem)
+
+    void freeVkMemory(
+        const VkDevice _device
+        , VkDeviceMemory _mem
+    )
     {
         vkFreeMemory(_device, _mem, nullptr);
         VKZ_ProfFree((void*)_mem);
     }
 
-    uint32_t selectMemoryType(const VkPhysicalDeviceMemoryProperties& memoryProps, uint32_t memoryTypeBits, VkMemoryPropertyFlags flags)
+
+    uint32_t selectMemoryType(
+        const VkPhysicalDeviceMemoryProperties& _props
+        , uint32_t _typeBits
+        , VkMemoryPropertyFlags _flags
+    )
     {
-        for (uint32_t i = 0; i < memoryProps.memoryTypeCount; ++i) {
-            if ((memoryTypeBits & (1 << i)) != 0 && (memoryProps.memoryTypes[i].propertyFlags & flags) == flags) {
+        for (uint32_t i = 0; i < _props.memoryTypeCount; ++i) {
+            if ((_typeBits & (1 << i)) != 0 && (_props.memoryTypes[i].propertyFlags & _flags) == _flags) {
                 return i;
             }
         }
@@ -43,8 +56,15 @@ namespace kage
         return ~0u;
     }
 
-    void createBuffer(stl::vector<Buffer_vk>& _results, const stl::vector<BufferAliasInfo> _infos, const VkPhysicalDeviceMemoryProperties& _memProps
-            , const VkDevice _device, const VkBufferUsageFlags _usage, const VkMemoryPropertyFlags _memFlags)
+
+    void createBuffer(
+        stl::vector<Buffer_vk>& _results
+        , const stl::vector<BufferAliasInfo> _infos
+        , const VkPhysicalDeviceMemoryProperties& _memProps
+        , const VkDevice _device
+        , const VkBufferUsageFlags _usage
+        , const VkMemoryPropertyFlags _memFlags
+    )
     {
         if (_infos.empty())
         {
@@ -101,16 +121,32 @@ namespace kage
         _results = std::move(results);
     }
 
-    Buffer_vk createBuffer(const BufferAliasInfo& info, const VkPhysicalDeviceMemoryProperties& _memProps, VkDevice _device, VkBufferUsageFlags _usage, VkMemoryPropertyFlags _memFlags)
+
+    Buffer_vk createBuffer(
+        const BufferAliasInfo& _info
+        , const VkPhysicalDeviceMemoryProperties& _props
+        , VkDevice _device
+        , VkBufferUsageFlags _usage
+        , VkMemoryPropertyFlags _memFlags
+    )
     {
         stl::vector<Buffer_vk> results;
-        stl::vector<BufferAliasInfo> infos{1, info };
-        createBuffer(results, infos, _memProps, _device, _usage, _memFlags);
+        stl::vector<BufferAliasInfo> infos{1, _info };
+        createBuffer(results, infos, _props, _device, _usage, _memFlags);
 
         return results[0];
     }
 
-    void fillBuffer(VkDevice _device, VkCommandPool _cmdPool, VkCommandBuffer _cmdBuffer, VkQueue _queue, const Buffer_vk& _buffer, uint32_t _value, size_t _size)
+
+    void fillBuffer(
+        VkDevice _device
+        , VkCommandPool _cmdPool
+        , VkCommandBuffer _cmdBuffer
+        , VkQueue _queue
+        , const Buffer_vk& _buffer
+        , uint32_t _value
+        , size_t _size
+    )
     {
         assert(_size > 0);
 
@@ -126,7 +162,7 @@ namespace kage
         VkBufferMemoryBarrier2 copyBarrier = bufferBarrier(_buffer.buffer,
             VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
             VK_ACCESS_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
-        pipelineBarrier(_cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 1, &copyBarrier, 0, 0);
+        pipelineBarrier(_cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, nullptr, 1, &copyBarrier, 0, nullptr);
 
         VK_CHECK(vkEndCommandBuffer(_cmdBuffer));
 
@@ -140,18 +176,27 @@ namespace kage
         VK_CHECK(vkDeviceWaitIdle(_device));
     }
 
+
     // only for non-coherent buffer 
-    void flushBuffer(VkDevice device, const Buffer_vk& buffer, uint32_t offset /* = 0*/)
+    void flushBuffer(
+        VkDevice _device
+        , const Buffer_vk& _buffer
+        , uint32_t _offset /* = 0*/
+    )
     {
         VkMappedMemoryRange range = { VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE };
-        range.memory = buffer.memory;
+        range.memory = _buffer.memory;
         range.size = VK_WHOLE_SIZE;
-        range.offset = offset;
+        range.offset = _offset;
 
-        VK_CHECK(vkFlushMappedMemoryRanges(device, 1, &range));
+        VK_CHECK(vkFlushMappedMemoryRanges(_device, 1, &range));
     }
 
-    void destroyBuffer(const VkDevice _device, const stl::vector<Buffer_vk>& _buffers)
+
+    void destroyBuffer(
+        const VkDevice _device
+        , const stl::vector<Buffer_vk>& _buffers
+    )
     {
         assert(!_buffers.empty());
         
@@ -167,16 +212,22 @@ namespace kage
         }
     }
 
-    VkBufferMemoryBarrier2 bufferBarrier(VkBuffer buffer, VkAccessFlags2 srcAccessMask, VkPipelineStageFlags2 srcStage, VkAccessFlags2 dstAccessMask, VkPipelineStageFlags2 dstStage)
+    VkBufferMemoryBarrier2 bufferBarrier(
+        VkBuffer _buffer
+        , VkAccessFlags2 _srcAccessMask
+        , VkPipelineStageFlags2 _srcStage
+        , VkAccessFlags2 _dstAccessMask
+        , VkPipelineStageFlags2 _dstStage
+    )
     {
         VkBufferMemoryBarrier2 result = { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2 };
-        result.srcAccessMask = srcAccessMask;
-        result.dstAccessMask = dstAccessMask;
-        result.srcStageMask = srcStage;
-        result.dstStageMask = dstStage;
+        result.srcAccessMask = _srcAccessMask;
+        result.dstAccessMask = _dstAccessMask;
+        result.srcStageMask = _srcStage;
+        result.dstStageMask = _dstStage;
         result.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         result.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        result.buffer = buffer;
+        result.buffer = _buffer;
         result.offset = 0;
         result.size = VK_WHOLE_SIZE;
 
@@ -184,7 +235,13 @@ namespace kage
     }
 
 
-    void createImage(stl::vector<Image_vk>& _results, const stl::vector<ImageAliasInfo>& _infos, const VkDevice _device, const VkPhysicalDeviceMemoryProperties& _memProps, const ImgInitProps_vk& _initProps)
+    void createImage(
+        stl::vector<Image_vk>& _results
+        , const stl::vector<ImageAliasInfo>& _infos
+        , const VkDevice _device
+        , const VkPhysicalDeviceMemoryProperties& _memProps
+        , const ImgInitProps_vk& _initProps
+    )
     {
         if (_infos.empty())
         {
@@ -256,7 +313,13 @@ namespace kage
         _results = std::move(results);
     }
 
-    kage::Image_vk createImage(const ImageAliasInfo& _info, const VkDevice _device, const VkPhysicalDeviceMemoryProperties& _memProps, const ImgInitProps_vk& _initProps)
+
+    Image_vk createImage(
+        const ImageAliasInfo& _info
+        , const VkDevice _device
+        , const VkPhysicalDeviceMemoryProperties& _memProps
+        , const ImgInitProps_vk& _initProps
+    )
     {
         stl::vector<Image_vk> results;
         createImage(results, {1, _info}, _device, _memProps, _initProps);
@@ -265,24 +328,16 @@ namespace kage
         return results[0];
     }
 
-    void loadKtxFromFile(ktxTexture** texture, const char* path)
-    {
-        assert(path);
 
-        ktxResult result = KTX_SUCCESS;
-        result = ktxTexture_CreateFromNamedFile(path, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, texture);
-        assert(result == KTX_SUCCESS);
-    }
-
-
-    void destroyImage(const VkDevice _device, const stl::vector<Image_vk>& _images)
+    void destroyImage(
+        const VkDevice _device
+        , const stl::vector<Image_vk>& _images
+    )
     {
         assert(!_images.empty());
 
-
         // If a memory object is mapped at the time it is freed, it is implicitly unmapped.
         // https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/vkFreeMemory.html
-        
         Image_vk baseImg = _images[0];
         freeVkMemory(_device, baseImg.memory);
 
@@ -293,59 +348,92 @@ namespace kage
         }
     }
 
-    VkImageView createImageView(VkDevice device, VkImage image, VkFormat format, uint32_t baseMipLevel, uint32_t levelCount, VkImageViewType viewType /*= VK_IMAGE_VIEW_TYPE_2D*/)
+
+    VkImageView createImageView(
+        VkDevice _device
+        , VkImage _image
+        , VkFormat _format
+        , uint32_t _baseMipLevel
+        , uint32_t _levelCount
+        , VkImageViewType _viewType /*= VK_IMAGE_VIEW_TYPE_2D*/
+    )
     {
-        VkImageAspectFlags aspectMask = (format == VK_FORMAT_D32_SFLOAT) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+        VkImageAspectFlags aspectMask = (_format == VK_FORMAT_D32_SFLOAT) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
 
         VkImageViewCreateInfo createInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-        createInfo.image = image;
-        createInfo.viewType = viewType;
-        createInfo.format = format;
+        createInfo.image = _image;
+        createInfo.viewType = _viewType;
+        createInfo.format = _format;
         createInfo.subresourceRange.aspectMask = aspectMask;
-        createInfo.subresourceRange.baseMipLevel = baseMipLevel;
-        createInfo.subresourceRange.levelCount = levelCount;
-        createInfo.subresourceRange.layerCount = ((viewType == VK_IMAGE_VIEW_TYPE_CUBE) ? 6 : 1);
+        createInfo.subresourceRange.baseMipLevel = _baseMipLevel;
+        createInfo.subresourceRange.levelCount = _levelCount;
+        createInfo.subresourceRange.layerCount = ((_viewType == VK_IMAGE_VIEW_TYPE_CUBE) ? 6 : 1);
 
         VkImageView imageView = 0;
-        VK_CHECK(vkCreateImageView(device, &createInfo, 0, &imageView));
+        VK_CHECK(vkCreateImageView(_device, &createInfo, 0, &imageView));
         return imageView;
     }
 
-    VkImageMemoryBarrier2 imageBarrier(VkImage image, VkImageAspectFlags aspectMask,
-        VkAccessFlags2 srcAccessMask, VkImageLayout oldLayout, VkPipelineStageFlags2 srcStage,
-        VkAccessFlags2 dstAccessMask,  VkImageLayout newLayout, VkPipelineStageFlags2 dstStage)
+
+    VkImageMemoryBarrier2 imageBarrier(
+        VkImage _image
+        , VkImageAspectFlags _aspectMask
+        , VkAccessFlags2 _srcAccessMask
+        , VkImageLayout _oldLayout
+        , VkPipelineStageFlags2 _srcStage
+        , VkAccessFlags2 _dstAccessMask
+        ,  VkImageLayout _newLayout
+        , VkPipelineStageFlags2 _dstStage
+    )
     {
         VkImageMemoryBarrier2 result = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
     
-        result.srcAccessMask = srcAccessMask;
-        result.dstAccessMask = dstAccessMask;
-        result.oldLayout = oldLayout;
-        result.newLayout = newLayout;
-        result.srcStageMask = srcStage;
-        result.dstStageMask = dstStage;
+        result.srcAccessMask = _srcAccessMask;
+        result.dstAccessMask = _dstAccessMask;
+        result.oldLayout = _oldLayout;
+        result.newLayout = _newLayout;
+        result.srcStageMask = _srcStage;
+        result.dstStageMask = _dstStage;
         result.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         result.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        result.image = image;
-        result.subresourceRange.aspectMask = aspectMask;
+        result.image = _image;
+        result.subresourceRange.aspectMask = _aspectMask;
         result.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
         result.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
 
         return result;
     }
 
-    void pipelineBarrier(VkCommandBuffer cmdBuffer, VkDependencyFlags flags, size_t bufferBarrierCount, const VkBufferMemoryBarrier2* bufferBarriers, const uint32_t imageBarrierCount, const VkImageMemoryBarrier2* imageBarriers)
+
+    void pipelineBarrier(
+        VkCommandBuffer _cmdBuffer
+        , VkDependencyFlags _flags
+        , size_t _memBarrierCount
+        , const VkMemoryBarrier2* _memBarriers
+        , size_t _bufferBarrierCount
+        , const VkBufferMemoryBarrier2* _bufferBarriers
+        , size_t _imageBarrierCount
+        , const VkImageMemoryBarrier2* _imageBarriers
+    )
     {
-        VkDependencyInfo dependencyInfo = { VK_STRUCTURE_TYPE_DEPENDENCY_INFO_KHR };
-        dependencyInfo.dependencyFlags = flags;
-        dependencyInfo.bufferMemoryBarrierCount = (uint32_t)bufferBarrierCount;
-        dependencyInfo.pBufferMemoryBarriers = bufferBarriers;
-        dependencyInfo.imageMemoryBarrierCount = (uint32_t)imageBarrierCount;
-        dependencyInfo.pImageMemoryBarriers = imageBarriers;
+        VkDependencyInfo di = { VK_STRUCTURE_TYPE_DEPENDENCY_INFO_KHR };
+        di.dependencyFlags = _flags;
+
+        di.memoryBarrierCount = (uint32_t)_memBarrierCount;
+        di.pMemoryBarriers = _memBarriers;
+        di.bufferMemoryBarrierCount = (uint32_t)_bufferBarrierCount;
+        di.pBufferMemoryBarriers = _bufferBarriers;
+        di.imageMemoryBarrierCount = (uint32_t)_imageBarrierCount;
+        di.pImageMemoryBarriers = _imageBarriers;
     
-        vkCmdPipelineBarrier2(cmdBuffer, &dependencyInfo);
+        vkCmdPipelineBarrier2(_cmdBuffer, &di);
     }
 
-    VkSampler createSampler(VkDevice device, VkSamplerReductionMode reductionMode /*= VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE*/)
+
+    VkSampler createSampler(
+        VkDevice _device
+        , VkSamplerReductionMode _reductionMode /*= VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE*/
+    )
     {
         VkSamplerCreateInfo createInfo = { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 
@@ -359,17 +447,34 @@ namespace kage
         createInfo.maxLod = 16.f; // required by occlusion culling, or tiny object will just culled since greater pyramid lod does not exist;
 
         VkSamplerReductionModeCreateInfoEXT createInfoReduction = { VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO_EXT };
-        if (reductionMode != VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE)
+        if (_reductionMode != VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE)
         {
-            createInfoReduction.reductionMode = reductionMode;
+            createInfoReduction.reductionMode = _reductionMode;
             createInfo.pNext = &createInfoReduction;
         }
 
         VkSampler sampler = 0;
-        VK_CHECK(vkCreateSampler(device, &createInfo, 0, &sampler));
+        VK_CHECK(vkCreateSampler(_device, &createInfo, 0, &sampler));
 
         return sampler;
     }
 
 
+    VkMemoryBarrier2 memoryBarrier(
+        VkAccessFlags2 _srcAccessMask
+        , VkAccessFlags2 _dstAccessMask
+        , VkPipelineStageFlags2 _srcStage
+        , VkPipelineStageFlags2 _dstStage
+    )
+    {
+        VkMemoryBarrier2 result = { VK_STRUCTURE_TYPE_MEMORY_BARRIER_2 };
+
+        result.srcAccessMask = _srcAccessMask;
+        result.dstAccessMask = _dstAccessMask;
+        result.srcStageMask = _srcStage;
+        result.dstStageMask = _dstStage;
+
+        return result;
+    }
+}
 } // namespace kage

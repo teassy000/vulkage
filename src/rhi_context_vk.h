@@ -3,6 +3,8 @@
 #include "common.h"
 #include "util.h"
 
+#include "volk.h"
+
 #include "vk_resource.h"
 #include "vk_device.h"
 #include "vk_swapchain.h"
@@ -10,12 +12,18 @@
 #include "vk_swapchain.h"
 
 #include "kage_inner.h"
+#include "kage_rhi_vk.h"
 
 #include "rhi_context.h"
 #include "cmd_list_vk.h"
 
 namespace kage { namespace vk
 {
+    template<typename Ty>
+    void release(Ty)
+    {
+    }
+
     enum class ShaderStage_vk : uint16_t
     {
         Invalid = 1 << 0,
@@ -127,14 +135,16 @@ namespace kage { namespace vk
     public:
         ~BarrierDispatcher();
 
-        void addBuffer(const VkBuffer _img, BarrierState_vk _barrierState, const VkBuffer _baseBuf = 0);
-        void addImage(const VkImage _img, const ImageAspectFlags _aspect, BarrierState_vk _barrierState, const VkImage _baseImg = 0);
+        void track(const VkBuffer _buf, BarrierState_vk _barrierState, const VkBuffer _baseBuf = 0);
+        void track(const VkImage _img, const ImageAspectFlags _aspect, BarrierState_vk _barrierState, const VkImage _baseImg = 0);
 
-        void removeBuffer(const VkBuffer _buf);
-        void removeImage(const VkImage _img);
+        void untrack(const VkBuffer _buf);
+        void untrack(const VkImage _img);
 
         void barrier(const VkBuffer _buf, const BarrierState_vk& _dst);
         void barrier(const VkImage _img, VkImageAspectFlags _dstAspect, const BarrierState_vk& _dstBarrier);
+
+        void dispatchGlobalBarrier(const VkCommandBuffer& _cmdBuffer, const BarrierState_vk& _src, const BarrierState_vk& _dst);
 
         void dispatch(const VkCommandBuffer& _cmdBuffer);
 
@@ -156,17 +166,79 @@ namespace kage { namespace vk
         stl::vector<BarrierState_vk> m_srcBufBarriers;
         stl::vector<BarrierState_vk> m_dstBufBarriers;
 
-        std::unordered_map<VkImage, VkImage> m_aliasToBaseImages;
-        std::unordered_map<VkBuffer, VkBuffer> m_aliasToBaseBuffers;
+        stl::unordered_map<VkImage, VkImage> m_aliasToBaseImages;
+        stl::unordered_map<VkBuffer, VkBuffer> m_aliasToBaseBuffers;
 
-        std::unordered_map<VkImage, VkImageAspectFlags> m_imgAspectFlags;
-        std::unordered_map<VkImage, BarrierState_vk> m_imgBarrierStatus;
-        std::unordered_map<VkBuffer, BarrierState_vk> m_bufBarrierStatus;
+        stl::unordered_map<VkImage, VkImageAspectFlags> m_imgAspectFlags;
+        stl::unordered_map<VkImage, BarrierState_vk> m_imgBarrierStatus;
+        stl::unordered_map<VkBuffer, BarrierState_vk> m_bufBarrierStatus;
 
-        std::unordered_map<VkImage, VkImageAspectFlags> m_baseImgAspectFlags;
-        std::unordered_map<VkImage, BarrierState_vk> m_baseImgBarrierStatus;
-        std::unordered_map<VkBuffer, BarrierState_vk> m_baseBufBarrierStatus;
+        stl::unordered_map<VkImage, VkImageAspectFlags> m_baseImgAspectFlags;
+        stl::unordered_map<VkImage, BarrierState_vk> m_baseImgBarrierStatus;
+        stl::unordered_map<VkBuffer, BarrierState_vk> m_baseBufBarrierStatus;
     };
+
+    struct CommandQueue_vk
+    {
+        void init(uint32_t _familyIdx, VkQueue _queue, uint32_t _numFramesInFlight);
+        void reset();
+        void shutdown();
+
+        void alloc(VkCommandBuffer* _cmdBuf);
+        void addWaitSamaphore(VkSemaphore _semaphore, VkPipelineStageFlags _stage);
+        void addSignalSemaphore(VkSemaphore _semaphore);
+
+        void kick(bool _wait);
+        void finish(bool _finishAll);
+
+        void release(uint64_t _handle, VkObjectType _type);
+        void consume();
+
+        uint32_t m_queueFamilyIdx;
+        VkQueue m_queue;
+
+        uint32_t m_numFramesInFlight;
+
+        uint32_t m_currentFrameInFlight;
+        uint32_t m_consumeIndex;
+
+        VkCommandBuffer m_activeCommandBuffer;
+
+        VkFence m_currentFence;
+        VkFence m_completedFence;
+
+        uint64_t m_submitted;
+
+        struct CommandList
+        {
+            VkCommandPool m_commandPool = VK_NULL_HANDLE;
+            VkCommandBuffer m_commandBuffer = VK_NULL_HANDLE;
+            VkFence m_fence = VK_NULL_HANDLE;
+        };
+
+        CommandList m_commandList[kMaxNumFrameLatency];
+
+        uint32_t             m_numWaitSemaphores;
+        VkSemaphore          m_waitSemaphores[kMaxNumFrameBuffers];
+        VkPipelineStageFlags m_waitSemaphoreStages[kMaxNumFrameBuffers];
+        uint32_t             m_numSignalSemaphores;
+        VkSemaphore          m_signalSemaphores[kMaxNumFrameBuffers];
+
+        struct Resource
+        {
+            VkObjectType m_type;
+            uint64_t m_handle;
+        };
+
+        typedef stl::vector<Resource> ResourceArray;
+        ResourceArray m_release[kMaxNumFrameLatency];
+
+    private:
+        template<typename Ty>
+        void destroy(uint64_t _handle);
+
+    };
+
 
     struct RHIContext_vk : public RHIContext
     {
@@ -281,6 +353,9 @@ namespace kage { namespace vk
             return m_imageContainer.getIdToData(_imgId);
         }
 
+        template<typename Ty>
+        void release(Ty& _object);
+
         ContinuousMap<uint16_t, Buffer_vk> m_bufferContainer;
         ContinuousMap<uint16_t, Image_vk> m_imageContainer;
         ContinuousMap<uint16_t, Shader_vk> m_shaderContainer;
@@ -314,11 +389,11 @@ namespace kage { namespace vk
 
         RHIBrief m_brief;
 
-        // glfw data
-        GLFWwindow* m_pWindow;
         void* m_nwh;
 
         // vulkan context data
+        VkAllocationCallbacks* m_allocatorCb;
+
         VkInstance m_instance;
         VkDevice m_device;
         VkPhysicalDevice m_physicalDevice;
@@ -327,6 +402,8 @@ namespace kage { namespace vk
         VkPhysicalDeviceProperties m_phyDeviceProps;
 
         Swapchain_vk m_swapchain;
+
+        CommandQueue_vk m_cmd;
 
         VkQueue m_queue;
         VkCommandPool   m_cmdPool;
@@ -370,5 +447,7 @@ namespace kage { namespace vk
         VKZ_ProfCtxType* m_tracyVkCtx;
 #endif //TRACY_ENABLE
     };
+
+
 } // namespace vk
 } // namespace kage

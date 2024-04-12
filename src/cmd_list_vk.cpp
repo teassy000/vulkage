@@ -82,10 +82,10 @@ namespace kage { namespace vk
     void CmdList_vk::bindVertexBuffer(uint32_t _firstBinding, uint32_t _bindingCount, const BufferHandle* _pBuffers, const uint64_t* _pOffsets)
     {
         // get buffers
-        stl::vector<VkBuffer> buffers(_bindingCount);
+        stl::vector<VkBuffer> bufs(_bindingCount);
         for (uint32_t ii = 0; ii < _bindingCount; ++ii)
         {
-            buffers[ii] = m_pRhiCtx->getVkBuffer(_pBuffers[ii]);
+            bufs[ii] = m_pRhiCtx->getVkBuffer(_pBuffers[ii]);
         }
 
         // get offsets
@@ -95,7 +95,7 @@ namespace kage { namespace vk
             offsets[ii] = _pOffsets[ii];
         }
 
-        vkCmdBindVertexBuffers(m_cmdBuf, _firstBinding, _bindingCount, buffers.data(), offsets.data());
+        vkCmdBindVertexBuffers(m_cmdBuf, _firstBinding, _bindingCount, &bufs[0], offsets.data());
     }
 
     void CmdList_vk::bindIndexBuffer(BufferHandle _buffer, int64_t _offset, IndexType _idxType)

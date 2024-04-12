@@ -1,7 +1,8 @@
 #pragma once
 #include "common.h"
+#include "kage_rhi_vk.h"
 
-namespace kage
+namespace kage { namespace vk
 {
     struct Shader_vk
     {
@@ -97,5 +98,5 @@ namespace kage
             image.imageLayout = imageLayout;
         }
     };
-
+}
 }

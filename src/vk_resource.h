@@ -1,10 +1,10 @@
 #pragma once
 
 #include "kage_inner.h"
+#include "kage_rhi_vk.h"
 
-namespace kage
+namespace kage { namespace vk
 {
-
     struct Buffer_vk
     {
         uint16_t resId;
@@ -16,16 +16,52 @@ namespace kage
         uint32_t fillVal;
     };
 
-    Buffer_vk createBuffer(const BufferAliasInfo& info, const VkPhysicalDeviceMemoryProperties& _memProps, VkDevice _device, VkBufferUsageFlags _usage, VkMemoryPropertyFlags _memFlags);
-    void createBuffer(stl::vector<Buffer_vk>& _results, const stl::vector<BufferAliasInfo> _infos, const VkPhysicalDeviceMemoryProperties& _memProps, VkDevice _device, VkBufferUsageFlags _usage, VkMemoryPropertyFlags _memFlags);
+    Buffer_vk createBuffer(
+        const BufferAliasInfo& _info
+        , const VkPhysicalDeviceMemoryProperties& _memProps
+        , VkDevice _device
+        , VkBufferUsageFlags _usage
+        , VkMemoryPropertyFlags _memFlags
+    );
+    
+    void createBuffer(
+        stl::vector<Buffer_vk>& _results
+        , const stl::vector<BufferAliasInfo> _infos
+        , const VkPhysicalDeviceMemoryProperties& _memProps
+        , VkDevice _device
+        , VkBufferUsageFlags _usage
+        , VkMemoryPropertyFlags _memFlags
+    );
 
-    void fillBuffer(VkDevice _device, VkCommandPool _cmdPool, VkCommandBuffer _cmdBuffer, VkQueue _queue, const Buffer_vk& _buffer, uint32_t _value, size_t _size);
-    void flushBuffer(VkDevice device, const Buffer_vk& buffer, uint32_t offset = 0);
+    void fillBuffer(
+        VkDevice _device
+        , VkCommandPool _cmdPool
+        , VkCommandBuffer _cmdBuffer
+        , VkQueue _queue
+        , const Buffer_vk& _buffer
+        , uint32_t _value
+        , size_t _size
+    );
+
+    void flushBuffer(
+        VkDevice _device
+        , const Buffer_vk& _buffer
+        , uint32_t _offset = 0
+    );
 
     // destroy a list of buffers, which shares the same memory
-    void destroyBuffer(const VkDevice _device, const stl::vector<Buffer_vk>& _buffers);
+    void destroyBuffer(
+        const VkDevice _device
+        , const stl::vector<Buffer_vk>& _buffers
+    );
 
-    VkBufferMemoryBarrier2 bufferBarrier(VkBuffer buffer, VkAccessFlags2 srcAccessMask, VkPipelineStageFlags2 srcStage, VkAccessFlags2 dstAccessMask, VkPipelineStageFlags2 dstStage);
+    VkBufferMemoryBarrier2 bufferBarrier(
+        VkBuffer buffer
+        , VkAccessFlags2 srcAccessMask
+        , VkPipelineStageFlags2 srcStage
+        , VkAccessFlags2 dstAccessMask
+        , VkPipelineStageFlags2 dstStage
+    );
 
     struct Image_vk
     {
@@ -65,20 +101,72 @@ namespace kage
         VkImageAspectFlags  aspectMask{ VK_IMAGE_ASPECT_COLOR_BIT };
     };
 
-    Image_vk createImage(const ImageAliasInfo& info, const VkDevice _device, const VkPhysicalDeviceMemoryProperties& _memProps, const ImgInitProps_vk& _initProps);
-    void createImage(stl::vector<Image_vk>& _results, const stl::vector<ImageAliasInfo>& _infos, const VkDevice _device, const VkPhysicalDeviceMemoryProperties& _memProps, const ImgInitProps_vk& _initProps);
+    Image_vk createImage(
+        const ImageAliasInfo& info
+        , const VkDevice _device
+        , const VkPhysicalDeviceMemoryProperties& _memProps
+        , const ImgInitProps_vk& _initProps
+    );
+    
+    void createImage(
+        stl::vector<Image_vk>& _results
+        , const stl::vector<ImageAliasInfo>& _infos
+        , const VkDevice _device
+        , const VkPhysicalDeviceMemoryProperties& _memProps
+        , const ImgInitProps_vk& _initProps
+    );
+    
     // destroy a list of buffers, which shares the same memory
-    void destroyImage(const VkDevice _device, const stl::vector<Image_vk>& _images);
+    void destroyImage(
+        const VkDevice _device
+        , const stl::vector<Image_vk>& _images
+    );
 
 
-    VkImageView createImageView(VkDevice device, VkImage image, VkFormat format, uint32_t baseMipLevel, uint32_t levelCount, VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D);
+    VkImageView createImageView(
+        VkDevice _device
+        , VkImage _image
+        , VkFormat _format
+        , uint32_t _baseMipLevel
+        , uint32_t _levelCount
+        , VkImageViewType _viewType = VK_IMAGE_VIEW_TYPE_2D
+    );
 
-    VkImageMemoryBarrier2 imageBarrier(VkImage image, VkImageAspectFlags aspectMask, VkAccessFlags2 srcAccessMask, VkImageLayout oldLayout, VkPipelineStageFlags2 srcStage, VkAccessFlags2 dstAccessMask, VkImageLayout newLayout, VkPipelineStageFlags2 dstStage);
-    void pipelineBarrier(VkCommandBuffer cmdBuffer, VkDependencyFlags flags, size_t bufferBarrierCount, const VkBufferMemoryBarrier2* bufferBarriers, const uint32_t imageBarrierCount, const VkImageMemoryBarrier2* imageBarriers);
+    VkImageMemoryBarrier2 imageBarrier(
+        VkImage                     _image
+        , VkImageAspectFlags        _aspectMask
+        , VkAccessFlags2            _srcAccessMask
+        , VkImageLayout             _oldLayout
+        , VkPipelineStageFlags2     _srcStage
+        , VkAccessFlags2            _dstAccessMask
+        , VkImageLayout             _newLayout
+        , VkPipelineStageFlags2     _dstStage
+    );
 
-    uint32_t calculateMipLevelCount(uint32_t width, uint32_t height);
+    void pipelineBarrier(
+        VkCommandBuffer _cmdBuffer
+        , VkDependencyFlags _flags
+        , size_t _memBarrierCount
+        , const VkMemoryBarrier2* _memBarriers
+        , size_t _bufferBarrierCount
+        , const VkBufferMemoryBarrier2* _bufferBarriers
+        , size_t _imageBarrierCount
+        , const VkImageMemoryBarrier2* _imageBarriers
+    );
 
-    VkSampler createSampler(VkDevice device, VkSamplerReductionMode reductionMode = VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE);
+
+    VkSampler createSampler(
+        VkDevice                    _device
+        , VkSamplerReductionMode    _reductionMode = VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE
+    );
 
 
+    // global barrier
+    VkMemoryBarrier2 memoryBarrier(
+        VkAccessFlags2              _srcAccessMask
+        , VkAccessFlags2            _dstAccessMask
+        , VkPipelineStageFlags2     _srcStage
+        , VkPipelineStageFlags2     _dstStage
+    );
+}
 }

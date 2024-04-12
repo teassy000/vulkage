@@ -1,15 +1,13 @@
 #pragma once
 
-#include "common.h"
 #include "config.h"
+#include "common.h"
+
 #include "kage_structs.h"
-
-
-using GLFWwindow = struct GLFWwindow;
+#include "kage_rhi_vk.h"
 
 namespace kage { namespace vk
 {
-
 
     enum class SwapchainStatus_vk : uint32_t
     {
@@ -31,16 +29,16 @@ namespace kage { namespace vk
         }
 
         VkResult create(void* _nwh);
+        void destroy();
 
         void createSwapchain();
-
         void createSurface();
 
         VkFormat getSwapchainFormat();
-
         SwapchainStatus_vk getSwapchainStatus();
 
-        void destroy();
+        void releaseSwapchain();
+        void releaseSurface();
 
         void* m_nwh;
         VkSwapchainKHR m_swapchain;

@@ -3,12 +3,12 @@
 
 #include "macro.h"
 
-#include <GLFW/glfw3.h>
-#include <GLFW/glfw3native.h>
-
 #include <glm/common.hpp> // for glm::max
 
 #include "rhi_context_vk.h"
+
+#include <windows.h>
+
 
 namespace kage { namespace vk
 {
@@ -119,7 +119,7 @@ namespace kage { namespace vk
             message(error, "create swapchain failed! %d > %d", m_swapchainImageCount, COUNTOF(m_swapchainImages));
         }
 
-        VK_CHECK(vkGetSwapchainImagesKHR(device, m_swapchain, &m_swapchainImageCount, m_swapchainImages));
+        VK_CHECK(vkGetSwapchainImagesKHR(device, m_swapchain, &m_swapchainImageCount, &m_swapchainImages[0]));
     }
 
     void Swapchain_vk::createSurface()
@@ -129,7 +129,7 @@ namespace kage { namespace vk
 
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
         VkWin32SurfaceCreateInfoKHR info = { VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR };
-        info.hinstance = GetModuleHandle(0);
+        info.hinstance = (HINSTANCE)GetModuleHandle(0);
         info.hwnd = (HWND)m_nwh;
         VkSurfaceKHR surface;
         VK_CHECK(vkCreateWin32SurfaceKHR(instance, &info, 0, &surface));
@@ -182,19 +182,28 @@ namespace kage { namespace vk
         }
 
         // destroy old swapchain
+        releaseSwapchain();
 
         // create new
+        createSwapchain();
 
         return SwapchainStatus_vk::resize;
     }
 
+    void Swapchain_vk::releaseSwapchain()
+    {
+        release(m_swapchain);
+    }
+
+    void Swapchain_vk::releaseSurface()
+    {
+        release(m_surface);
+    }
+
     void Swapchain_vk::destroy()
     {
-        const VkDevice device = s_renderVK->m_device;
-        const VkInstance instance = s_renderVK->m_instance;
-
-        vkDestroySwapchainKHR(device, m_swapchain, nullptr);
-        vkDestroySurfaceKHR(instance, m_surface, nullptr);
+        releaseSwapchain();
+        releaseSurface();
     }
 
 } // namespace vk

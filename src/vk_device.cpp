@@ -8,7 +8,7 @@
 #include <windows.h>
 #endif
 
-namespace kage
+namespace kage{ namespace vk
 {
 
     static VkBool32 debugReportCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage, void* pUserData)
@@ -237,4 +237,5 @@ namespace kage
 
         return device;
     }
+}
 } // namespace kage

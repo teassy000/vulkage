@@ -1,8 +1,9 @@
 #pragma once
 
 #include "common.h"
+#include "kage_rhi_vk.h"
 
-namespace kage
+namespace kage { namespace vk
 {
     VkInstance createInstance();
     VkDebugReportCallbackEXT registerDebugCallback(VkInstance instance);
@@ -14,4 +15,6 @@ namespace kage
     VkDebugReportCallbackEXT registerDebugCallback(VkInstance instance);
 
     VkDevice createDevice(VkInstance instance, VkPhysicalDevice physicalDevice, uint32_t familyIndex, bool meshShadingSupported);
+
+}
 } // namespace kage
