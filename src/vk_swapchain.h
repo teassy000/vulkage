@@ -34,6 +34,9 @@ namespace kage { namespace vk
         void createSwapchain();
         void createSurface();
 
+        bool acquire(VkCommandBuffer _cmdBuf);
+        void present();
+
         VkFormat getSwapchainFormat();
         SwapchainStatus_vk getSwapchainStatus();
 
@@ -48,7 +51,12 @@ namespace kage { namespace vk
         VkImage m_swapchainImages[kMaxNumOfBackBuffers];
         uint32_t m_swapchainImageCount;
 
+        uint32_t m_swapchainImageIndex;
+
         Resolution m_resolution;
+
+        VkSemaphore m_waitSemaphore;
+        VkSemaphore m_signalSemaphore;
     };
 
 } // namespace vk

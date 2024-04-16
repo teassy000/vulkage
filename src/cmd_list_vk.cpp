@@ -4,6 +4,8 @@
 
 namespace kage { namespace vk
 {
+    extern RHIContext_vk* s_renderVK;
+
     VkIndexType getIndexType(IndexType _type)
     {
         switch (_type)
@@ -41,29 +43,29 @@ namespace kage { namespace vk
 
     void CmdList_vk::pushConstants(const PassHandle _hPass, const void* _data, uint32_t _size)
     {
-        const Program_vk& prog = m_pRhiCtx->getProgram(_hPass);
+        const Program_vk& prog = s_renderVK->getProgram(_hPass);
 
         vkCmdPushConstants(m_cmdBuf, prog.layout, prog.pushConstantStages, 0, _size, _data);
     }
 
     void CmdList_vk::pushDescriptorSets(const PassHandle _hPass)
     {
-        m_pRhiCtx->pushDescriptorSetWithTemplates(m_cmdBuf, _hPass.id);
+        s_renderVK->pushDescriptorSetWithTemplates(m_cmdBuf, _hPass.id);
     }
 
     void CmdList_vk::pushDescriptorSetWithTemplate(const PassHandle _hPass, const DescriptorSet* _descSets, uint32_t _count)
     {
-        const Program_vk& prog = m_pRhiCtx->getProgram(_hPass);
+        const Program_vk& prog = s_renderVK->getProgram(_hPass);
         stl::vector<DescriptorInfo> descInfos(_count);
         for (uint32_t ii = 0; ii < _count; ++ii)
         {
             if (_descSets[ii].type == ResourceType::image)
             {
-                descInfos[ii] = m_pRhiCtx->getImageDescInfo( _descSets[ii].img ,  _descSets[ii].imgView , _descSets[ii].sampler);
+                descInfos[ii] = s_renderVK->getImageDescInfo( _descSets[ii].img ,  _descSets[ii].imgView , _descSets[ii].sampler);
             }
             else if (_descSets[ii].type == ResourceType::buffer)
             {
-                descInfos[ii] = m_pRhiCtx->getBufferDescInfo( _descSets[ii].buf );
+                descInfos[ii] = s_renderVK->getBufferDescInfo( _descSets[ii].buf );
             }
             else
             {
@@ -76,7 +78,7 @@ namespace kage { namespace vk
 
     void CmdList_vk::sampleImage(ImageHandle _hImg, uint32_t _binding, SamplerReductionMode _reductionMode)
     {
-        const VkImage& img = m_pRhiCtx->getVkImage(_hImg);
+        const VkImage& img = s_renderVK->getVkImage(_hImg);
     }
 
     void CmdList_vk::bindVertexBuffer(uint32_t _firstBinding, uint32_t _bindingCount, const BufferHandle* _pBuffers, const uint64_t* _pOffsets)
@@ -85,7 +87,7 @@ namespace kage { namespace vk
         stl::vector<VkBuffer> bufs(_bindingCount);
         for (uint32_t ii = 0; ii < _bindingCount; ++ii)
         {
-            bufs[ii] = m_pRhiCtx->getVkBuffer(_pBuffers[ii]);
+            bufs[ii] = s_renderVK->getVkBuffer(_pBuffers[ii]);
         }
 
         // get offsets
@@ -101,7 +103,7 @@ namespace kage { namespace vk
     void CmdList_vk::bindIndexBuffer(BufferHandle _buffer, int64_t _offset, IndexType _idxType)
     {
         // get buffer
-        VkBuffer buf = m_pRhiCtx->getVkBuffer(_buffer);
+        VkBuffer buf = s_renderVK->getVkBuffer(_buffer);
         // get idx type
         vkCmdBindIndexBuffer(m_cmdBuf, buf, _offset, getIndexType(_idxType));
     }
@@ -128,7 +130,7 @@ namespace kage { namespace vk
 
     void CmdList_vk::dispatch(const ShaderHandle _hShader, uint32_t _groupX, uint32_t _groupY, uint32_t _groupZ)
     {
-        const Shader_vk& shader = m_pRhiCtx->getShader(_hShader);
+        const Shader_vk& shader = s_renderVK->getShader(_hShader);
 
         vkCmdDispatch(m_cmdBuf
             , calcGroupCount(_groupX, shader.localSizeX)
@@ -139,12 +141,12 @@ namespace kage { namespace vk
 
     void CmdList_vk::beginRendering(PassHandle _hPass)
     {
-        m_pRhiCtx->beginRendering(m_cmdBuf, _hPass.id);
+        s_renderVK->beginRendering(m_cmdBuf, _hPass.id);
     }
 
     void CmdList_vk::endRendering()
     {
-        m_pRhiCtx->endRendering(m_cmdBuf);
+        s_renderVK->endRendering(m_cmdBuf);
     }
 
     void CmdList_vk::draw()
@@ -174,23 +176,28 @@ namespace kage { namespace vk
 
     void CmdList_vk::drawMeshTaskIndirect(BufferHandle _hBuf, uint32_t _offset, uint32_t _drawCount, uint32_t _stride)
     {
-        VkBuffer buf = m_pRhiCtx->getVkBuffer(_hBuf);
+        VkBuffer buf = s_renderVK->getVkBuffer(_hBuf);
         vkCmdDrawMeshTasksIndirectEXT(m_cmdBuf, buf, _offset, _drawCount, _stride);
     }
 
     void CmdList_vk::barrier(BufferHandle _hBuf, AccessFlags _access, PipelineStageFlags _stage)
     {
-        m_pRhiCtx->barrier(_hBuf, _access, _stage);
+        s_renderVK->barrier(_hBuf, _access, _stage);
     }
 
     void CmdList_vk::barrier(ImageHandle _hImg, AccessFlags _access, ImageLayout _layout, PipelineStageFlags _stage)
     {
-        m_pRhiCtx->barrier(_hImg, _access, _layout, _stage);
+        s_renderVK->barrier(_hImg, _access, _layout, _stage);
     }
 
     void CmdList_vk::dispatchBarriers()
     {
-        m_pRhiCtx->dispatchBarriers();
+        s_renderVK->dispatchBarriers();
+    }
+
+    void CmdList_vk::update(VkCommandBuffer& _vkCmdBuf)
+    {
+        m_cmdBuf = _vkCmdBuf;
     }
 
 } // namespace vk

@@ -1462,15 +1462,6 @@ namespace kage
 
         return vecSize;
     }
-    
-    /*
-    uint32_t insertResInteract(UniDataContainer<PassHandle, stl::vector<PassResInteract>>& _container
-        , const PassHandle _hPass, const uint16_t _resId, const SamplerHandle _hSampler, const ResInteractDesc& _interact
-        )
-    {
-        return insertResInteract(_container, _hPass, _resId, _hSampler, _interact);
-    }
-    */
 
     uint32_t insertWriteResAlias(ContinuousMap<PassHandle, stl::vector<WriteOperationAlias>>& _container, const PassHandle _hPass, const uint16_t _resIn, const uint16_t _resOut)
     {
@@ -1504,8 +1495,8 @@ namespace kage
 
         ResInteractDesc interact{};
         interact.binding = kDescriptorSetBindingDontCare;
-        interact.stage = PipelineStageFlagBits::none;
-        interact.access = AccessFlagBits::none;
+        interact.stage = PipelineStageFlagBits::vertex_input;
+        interact.access = AccessFlagBits::vertex_attribute_read;
 
         passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _hBuf.id, { kInvalidHandle }, interact);
 
@@ -1521,8 +1512,8 @@ namespace kage
 
         ResInteractDesc interact{};
         interact.binding = kDescriptorSetBindingDontCare;
-        interact.stage = PipelineStageFlagBits::none;
-        interact.access = AccessFlagBits::none;
+        interact.stage = PipelineStageFlagBits::vertex_input;
+        interact.access = AccessFlagBits::index_read;
 
         passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _hBuf.id, { kInvalidHandle }, interact);
 

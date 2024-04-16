@@ -510,7 +510,8 @@ namespace kage
         uint32_t height{ 1440 };
         uint32_t reset{ 0 };
         ResourceFormat format{ ResourceFormat::r8g8b8a8_unorm };
-        uint8_t  numBackBuffers{ 2 };
+        uint8_t numBackBuffers{ 2 };
+        uint8_t maxFrameLatency{ kMaxNumFrameLatency };
     };
 
     struct Init

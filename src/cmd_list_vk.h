@@ -10,9 +10,8 @@ namespace kage { namespace vk
     class CmdList_vk : public CommandListI
     {
     public:
-        CmdList_vk(VkCommandBuffer& _vkCmdBuf, RHIContext_vk* _pCtx)
+        CmdList_vk(VkCommandBuffer& _vkCmdBuf)
             : m_cmdBuf{ _vkCmdBuf }
-            , m_pRhiCtx{ _pCtx }
         {
         }
 
@@ -53,9 +52,10 @@ namespace kage { namespace vk
         void barrier(BufferHandle _hBuf, AccessFlags _access, PipelineStageFlags _stage) override;
         void barrier(ImageHandle _hImg, AccessFlags _access, ImageLayout _layout, PipelineStageFlags _stage) override;
         void dispatchBarriers() override;
+
+        void update(VkCommandBuffer& _vkCmdBuf);
     private:
         VkCommandBuffer m_cmdBuf{ VK_NULL_HANDLE };
-        RHIContext_vk* m_pRhiCtx{ nullptr };
     };
 } // namespace vk
 } // namespace kage

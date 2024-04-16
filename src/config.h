@@ -38,5 +38,7 @@ namespace kage
     constexpr unsigned int kMaxNumOfBackBuffers = 16;
     constexpr unsigned int kMaxNumFrameLatency = 3;
     constexpr unsigned int kMaxNumFrameBuffers = 128;
-    
+
+    constexpr unsigned int kScratchBufferSize = 128*1024*1024; // 128m
+    constexpr unsigned int kMaxNumBufferInScratchBuffer = 1024;
 }

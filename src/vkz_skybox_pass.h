@@ -12,6 +12,9 @@ struct SkyboxRendering
 
     kage::SamplerHandle cubemapSampler;
 
+    kage::BufferHandle idxBuf;
+    kage::BufferHandle vtxBuf;
+
     kage::ImageHandle color;
     kage::ImageHandle cubemap;
     kage::BufferHandle trans;

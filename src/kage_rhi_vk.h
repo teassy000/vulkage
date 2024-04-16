@@ -33,10 +33,10 @@ namespace kage { namespace vk
 		Vk##_name(::Vk##_name _vk) : vk(_vk) {}                  \
 		operator ::Vk##_name() { return vk; }                    \
 		operator ::Vk##_name() const { return vk; }              \
-		operator size_t() const { return (size_t)vk; }           \
-		bool operator == (const Vk##_name& _other) const { return vk == _other.vk; }   \
 		::Vk##_name* operator &() { return &vk; }                \
 		const ::Vk##_name* operator &() const { return &vk; }    \
+		operator size_t() const { return (size_t)vk; }           \
+		bool operator == (const Vk##_name& _other) const { return vk == _other.vk; }   \
 	};                                                           \
 	BX_STATIC_ASSERT(sizeof(::Vk##_name) == sizeof(Vk##_name) ); \
 	void vkDestroy(Vk##_name&);                                  \

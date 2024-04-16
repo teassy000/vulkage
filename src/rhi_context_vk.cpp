@@ -19,7 +19,7 @@ namespace kage { namespace vk
 	{                                                                                   \
 		if (VK_NULL_HANDLE != _obj)                                                     \
 		{                                                                               \
-			vkDestroy##_name(s_renderVK->m_device, _obj, s_renderVK->m_allocatorCb); \
+			vkDestroy##_name(s_renderVK->m_device, _obj.vk, s_renderVK->m_allocatorCb); \
 			_obj = VK_NULL_HANDLE;                                                      \
 		}                                                                               \
 	}                                                                                   \
@@ -36,7 +36,7 @@ namespace kage { namespace vk
     {
         if (VK_NULL_HANDLE != _obj)
         {
-            vkDestroySurfaceKHR(s_renderVK->m_instance, _obj, s_renderVK->m_allocatorCb);
+            vkDestroySurfaceKHR(s_renderVK->m_instance, _obj.vk, s_renderVK->m_allocatorCb);
             _obj = VK_NULL_HANDLE;
         }
     }
@@ -45,7 +45,16 @@ namespace kage { namespace vk
     {
         if (VK_NULL_HANDLE != _obj)
         {
-            vkFreeMemory(s_renderVK->m_device, _obj, s_renderVK->m_allocatorCb);
+            vkFreeMemory(s_renderVK->m_device, _obj.vk, s_renderVK->m_allocatorCb);
+            _obj = VK_NULL_HANDLE;
+        }
+    }
+
+    void vkDestroy(VkDescriptorSet& _obj)
+    {
+        if (VK_NULL_HANDLE != _obj)
+        {
+            vkFreeDescriptorSets(s_renderVK->m_device, s_renderVK->m_descPool, 1, &_obj);
             _obj = VK_NULL_HANDLE;
         }
     }
@@ -56,6 +65,11 @@ namespace kage { namespace vk
     }
 
     void release(VkDeviceMemory& _obj)
+    {
+        s_renderVK->release(_obj);
+    }
+
+    void release(VkDescriptorSet& _obj)
     {
         s_renderVK->release(_obj);
     }
@@ -1108,29 +1122,6 @@ namespace kage { namespace vk
         return extSupported;
     }
 
-    VkSemaphore createSemaphore(VkDevice device)
-    {
-
-        VkSemaphoreCreateInfo createInfo = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-        VkSemaphore semaphore = 0;
-        VK_CHECK(vkCreateSemaphore(device, &createInfo, 0, &semaphore));
-
-        return semaphore;
-    }
-
-    VkCommandPool createCommandPool(VkDevice device, uint32_t familyIndex)
-    {
-
-        VkCommandPoolCreateInfo createInfo = { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
-        createInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-        createInfo.queueFamilyIndex = familyIndex;
-
-        VkCommandPool cmdPool = 0;
-        VK_CHECK(vkCreateCommandPool(device, &createInfo, 0, &cmdPool));
-
-        return cmdPool;
-    }
-
     ImgInitProps_vk getImageInitProp(const ImageCreateInfo& info, VkFormat _defaultColorFormat, VkFormat _defaultDepthFormat)
     {
         ImgInitProps_vk props{};
@@ -1199,15 +1190,12 @@ namespace kage { namespace vk
         , m_physicalDevice{ VK_NULL_HANDLE }
         , m_surface{ VK_NULL_HANDLE }
         , m_queue{ VK_NULL_HANDLE }
-        , m_cmdPool{ VK_NULL_HANDLE }
         , m_cmdBuffer{ VK_NULL_HANDLE }
-        , m_acquirSemaphore{ VK_NULL_HANDLE }
-        , m_releaseSemaphore{ VK_NULL_HANDLE }
         , m_imageFormat{ VK_FORMAT_UNDEFINED }
         , m_depthFormat{ VK_FORMAT_UNDEFINED }
-        , m_swapchain{}
         , m_gfxFamilyIdx{ VK_QUEUE_FAMILY_IGNORED }
         , m_cmdList{nullptr}
+        , m_allocatorCb{nullptr}
 #if _DEBUG
         , m_debugCallback{ VK_NULL_HANDLE }
 #endif
@@ -1255,12 +1243,6 @@ namespace kage { namespace vk
         // only single device used in this application.
         volkLoadDevice(m_device);
 
-        m_acquirSemaphore = createSemaphore(m_device);
-        assert(m_acquirSemaphore);
-
-        m_releaseSemaphore = createSemaphore(m_device);
-        assert(m_releaseSemaphore);
-
         m_nwh = _wnd;
 
         m_swapchain.create(m_nwh);
@@ -1281,15 +1263,19 @@ namespace kage { namespace vk
         assert(m_queue);
 
 
-        m_cmdPool = createCommandPool(m_device, m_gfxFamilyIdx);
-        assert(m_cmdPool);
+        {
+            m_numFramesInFlight = _resolution.maxFrameLatency == 0
+                ? kMaxNumFrameLatency
+                : _resolution.maxFrameLatency
+                ;
 
-        VkCommandBufferAllocateInfo allocateInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
-        allocateInfo.commandPool = m_cmdPool;
-        allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        allocateInfo.commandBufferCount = 1;
+            m_cmd.init(m_gfxFamilyIdx, m_queue, m_numFramesInFlight);
 
-        VK_CHECK(vkAllocateCommandBuffers(m_device, &allocateInfo, &m_cmdBuffer));
+            m_cmd.alloc(&m_cmdBuffer);
+
+            m_cmdList = BX_NEW(m_pAllocator, CmdList_vk)(m_cmdBuffer);
+        }
+
 
         {
             uint32_t descriptorCount = 512;
@@ -1314,12 +1300,7 @@ namespace kage { namespace vk
 
         vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &m_memProps);
 
-
-        BufferAliasInfo scratchAlias;
-        scratchAlias.size = 128 * 1024 * 1024; // 128M
-        m_scratchBuffer = kage::vk::createBuffer(scratchAlias, m_memProps, m_device, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-        
-        m_cmdList = BX_NEW(m_pAllocator, CmdList_vk)(m_cmdBuffer, this);
+        m_scratchBuffer.create();
 
         VKZ_ProfVkContext(m_tracyVkCtx, m_physicalDevice, m_device, m_queue, m_cmdBuffer);
     }
@@ -1372,10 +1353,7 @@ namespace kage { namespace vk
             recreateSwapchainImages();
         }
 
-        uint32_t imageIndex = 0;
-        VK_CHECK(vkAcquireNextImageKHR(m_device, m_swapchain.m_swapchain, ~0ull, m_acquirSemaphore, VK_NULL_HANDLE, &imageIndex));
-
-        VK_CHECK(vkResetCommandPool(m_device, m_cmdPool, 0));
+        m_swapchain.acquire(m_cmdBuffer);
 
         VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
         beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
@@ -1385,7 +1363,6 @@ namespace kage { namespace vk
 
         // zone the command buffer to fix tracy tracking issue
         {
-            VK_CHECK(vkBeginCommandBuffer(m_cmdBuffer, &beginInfo));
             VKZ_VkZoneC(m_tracyVkCtx, m_cmdBuffer, "main command buffer", Color::blue);
 
             vkCmdResetQueryPool(m_cmdBuffer, m_queryPoolTimeStamp, 0, m_queryTimeStampCount);
@@ -1413,46 +1390,27 @@ namespace kage { namespace vk
             }
 
             // to swapchain
-            drawToSwapchain(imageIndex);
-        }
-        VKZ_VkCollect(m_tracyVkCtx, m_cmdBuffer);
-        VK_CHECK(vkEndCommandBuffer(m_cmdBuffer));
-
-        // submit
-        {
-            VKZ_ZoneScopedNC("submit", Color::green);
-            VkPipelineStageFlags submitStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-
-            VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-            submitInfo.waitSemaphoreCount = 1;
-            submitInfo.pWaitSemaphores = &m_acquirSemaphore;
-            submitInfo.pWaitDstStageMask = &submitStageMask;
-            submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &m_cmdBuffer;
-            submitInfo.signalSemaphoreCount = 1;
-            submitInfo.pSignalSemaphores = &m_releaseSemaphore;
-
-            VK_CHECK(vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE));
+            drawToSwapchain(m_swapchain.m_swapchainImageIndex);
         }
 
-        // present
-        {
-            VKZ_ZoneScopedNC("present", Color::light_yellow);
-            VkPresentInfoKHR presentInfo = { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
-            presentInfo.swapchainCount = 1;
-            presentInfo.pSwapchains = &m_swapchain.m_swapchain;
-            presentInfo.pImageIndices = &imageIndex;
-            presentInfo.pWaitSemaphores = &m_releaseSemaphore;
-            presentInfo.waitSemaphoreCount = 1;
+        m_cmd.addWaitSemaphore(m_swapchain.m_waitSemaphore, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+        m_cmd.addSignalSemaphore(m_swapchain.m_signalSemaphore);
 
-            VK_CHECK(vkQueuePresentKHR(m_queue, &presentInfo));
-        }
+        m_cmd.kick();
+        m_cmd.alloc(&m_cmdBuffer);
+        m_cmdList->update(m_cmdBuffer);
+
+        m_swapchain.present();
+
 
         // wait
         {
             VKZ_ZoneScopedNC("wait", Color::blue);
             VK_CHECK(vkDeviceWaitIdle(m_device)); // TODO: a fence here?
         }
+
+
+        m_cmd.finish();
 
         // set the time stamp data
         m_passTime.clear();
@@ -1507,35 +1465,9 @@ namespace kage { namespace vk
             m_descPool = VK_NULL_HANDLE;
         }
 
-        if (m_scratchBuffer.buffer)
-        {
-            stl::vector<Buffer_vk> bufs;
-            bufs.emplace_back(m_scratchBuffer);
-            kage::vk::destroyBuffer(m_device, bufs);
-        }
-
         if (m_cmdBuffer)
         {
-            vkFreeCommandBuffers(m_device, m_cmdPool, 1, &m_cmdBuffer);
             m_cmdBuffer = VK_NULL_HANDLE;
-        }
-
-        if (m_cmdPool)
-        {
-            vkDestroyCommandPool(m_device, m_cmdPool, 0);
-            m_cmdPool = VK_NULL_HANDLE;
-        }
-
-        if (m_releaseSemaphore)
-        {
-            vkDestroySemaphore(m_device, m_releaseSemaphore, 0);
-            m_releaseSemaphore = VK_NULL_HANDLE;
-        }
-
-        if (m_acquirSemaphore)
-        {
-            vkDestroySemaphore(m_device, m_acquirSemaphore, 0);
-            m_acquirSemaphore = VK_NULL_HANDLE;
         }
 
         m_swapchain.destroy();
@@ -2364,43 +2296,44 @@ namespace kage { namespace vk
         }
     }
 
-    void RHIContext_vk::uploadBuffer(const uint16_t _bufId, const void* data, uint32_t size)
+    void RHIContext_vk::uploadBuffer(const uint16_t _bufId, const void* _data, uint32_t _size)
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
-        assert(size > 0);
-        assert(m_scratchBuffer.data);
-        assert(m_scratchBuffer.size > size);
+        assert(_size > 0);
 
-        memcpy(m_scratchBuffer.data, data, size);
+        /*
+        BufferAliasInfo bai;
+        bai.size = _size;
+        Buffer_vk scratch = kage::vk::createBuffer(
+            bai
+            , m_memProps
+            , m_device
+            , VK_BUFFER_USAGE_TRANSFER_SRC_BIT
+            , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        );
+
+        memcpy(scratch.data, data, _size);
+        */
+
+        VkDeviceSize offset = 0;
+        m_scratchBuffer.occupy(offset, _data, _size);
+        VkBufferCopy region = { offset , 0, VkDeviceSize(_size) };
 
         const Buffer_vk& buffer = getBuffer(_bufId);
-
-        VK_CHECK(vkResetCommandPool(m_device, m_cmdPool, 0));
-
-        VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-        VK_CHECK(vkBeginCommandBuffer(m_cmdBuffer, &beginInfo));
-
-        VkBufferCopy region = { 0, 0, VkDeviceSize(size) };
-        vkCmdCopyBuffer(m_cmdBuffer, m_scratchBuffer.buffer, buffer.buffer, 1, &region);
-
+        
         m_barrierDispatcher.barrier(buffer.buffer,
-            { VK_ACCESS_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT }
+            { VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT }
         );
         m_barrierDispatcher.dispatch(m_cmdBuffer);
 
-        VK_CHECK(vkEndCommandBuffer(m_cmdBuffer));
+        vkCmdCopyBuffer(m_cmdBuffer, m_scratchBuffer.get(), buffer.buffer, 1, &region);
 
-        VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-
-        submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &m_cmdBuffer;
-
-        VK_CHECK(vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE));
-
-        VK_CHECK(vkDeviceWaitIdle(m_device));
+        // write flush
+        m_barrierDispatcher.barrier(buffer.buffer,
+            { VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT }
+        );
+        m_barrierDispatcher.dispatch(m_cmdBuffer);
     }
 
     void RHIContext_vk::fillBuffer(const uint16_t _bufId, const uint32_t _value, uint32_t _size)
@@ -2411,28 +2344,18 @@ namespace kage { namespace vk
 
         const Buffer_vk& buf = getBuffer(_bufId);
 
-        VK_CHECK(vkResetCommandPool(m_device, m_cmdPool, 0));
-
-        VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-        VK_CHECK(vkBeginCommandBuffer(m_cmdBuffer, &beginInfo));
-
-        vkCmdFillBuffer(m_cmdBuffer, buf.buffer, 0, _size, _value);
-
         m_barrierDispatcher.barrier(buf.buffer,
-            //{ VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT },
-            { VK_ACCESS_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT }
+            { VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT }
         );
         m_barrierDispatcher.dispatch(m_cmdBuffer);
 
-        VK_CHECK(vkEndCommandBuffer(m_cmdBuffer));
+        vkCmdFillBuffer(m_cmdBuffer, buf.buffer, 0, _size, _value);
 
-        VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-        submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &m_cmdBuffer;
-        VK_CHECK(vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE));
-
-        VK_CHECK(vkDeviceWaitIdle(m_device));
+        // write flush
+        m_barrierDispatcher.barrier(buf.buffer,
+            { VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT }
+        );
+        m_barrierDispatcher.dispatch(m_cmdBuffer);
     }
 
     void RHIContext_vk::uploadImage(const uint16_t _imgId, const void* _data, uint32_t _size)
@@ -2440,20 +2363,24 @@ namespace kage { namespace vk
         VKZ_ZoneScopedC(Color::indian_red);
 
         assert(_size > 0);
-        assert(m_scratchBuffer.data);
-        assert(m_scratchBuffer.size > _size);
 
-        memcpy(m_scratchBuffer.data, _data, _size);
+        
+        BufferAliasInfo bai;
+        bai.size = _size;
+        Buffer_vk scratch = kage::vk::createBuffer(
+            bai
+            , m_memProps
+            , m_device
+            , VK_BUFFER_USAGE_TRANSFER_SRC_BIT
+            , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        );
+
+
+        memcpy(scratch.data, _data, _size);
+
 
         const Image_vk& vkImg = getImage(_imgId);
         const ImageCreateInfo& imgInfo = m_imageInitPropContainer.getIdToData(_imgId);
-
-        VK_CHECK(vkResetCommandPool(m_device, m_cmdPool, 0));
-
-        VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-        VK_CHECK(vkBeginCommandBuffer(m_cmdBuffer, &beginInfo));
 
         m_barrierDispatcher.barrier(vkImg.image
             , vkImg.aspectMask
@@ -2463,24 +2390,24 @@ namespace kage { namespace vk
         m_barrierDispatcher.dispatch(m_cmdBuffer);
 
         VkBufferImageCopy region = {};
+        region.bufferOffset = 0;
         region.imageSubresource.aspectMask = vkImg.aspectMask;
         region.imageSubresource.layerCount = vkImg.numLayers;
         region.imageExtent.width = vkImg.width;
         region.imageExtent.height = vkImg.height;
         region.imageExtent.depth = 1;
-        vkCmdCopyBufferToImage(m_cmdBuffer, m_scratchBuffer.buffer, vkImg.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+        vkCmdCopyBufferToImage(m_cmdBuffer, scratch.buffer, vkImg.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+        
+        // write flush
+        m_barrierDispatcher.barrier(vkImg.image
+            , vkImg.aspectMask
+            , { VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT }
+        );
 
-
-        VK_CHECK(vkEndCommandBuffer(m_cmdBuffer));
-
-        VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-
-        submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &m_cmdBuffer;
-
-        VK_CHECK(vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE));
-
-        VK_CHECK(vkDeviceWaitIdle(m_device));
+        message(info, "release buffer: 0x%llx", scratch.buffer);
+        
+        release(scratch.buffer);
+        release(scratch.memory);
     }
 
     void RHIContext_vk::checkUnmatchedBarriers(uint16_t _passId)
@@ -2584,7 +2511,7 @@ namespace kage { namespace vk
             }
         }
 
-        //message(info, "+++++++ mismatched barriers +++++++++++++++++++++");
+        message(info, "+++++++ mismatched barriers +++++++++++++++++++++");
         m_barrierDispatcher.dispatch(m_cmdBuffer);
     }
 
@@ -3366,7 +3293,7 @@ namespace kage { namespace vk
             const BarrierState_vk src = pair->second;
             m_srcBufBarriers.emplace_back(src);
 
-            m_dstBufBarriers.push_back({ _dst.accessMask , _dst.stageMask });
+            m_dstBufBarriers.emplace_back(BarrierState_vk{ _dst.accessMask , _dst.stageMask });
         }
         else
         {
@@ -3411,6 +3338,7 @@ namespace kage { namespace vk
 
     void BarrierDispatcher::dispatchGlobalBarrier(const VkCommandBuffer& _cmdBuffer, const BarrierState_vk& _src, const BarrierState_vk& _dst)
     {
+        return;
         VkMemoryBarrier2 ba = memoryBarrier(
             _src.accessMask
             , _dst.accessMask
@@ -3446,12 +3374,12 @@ namespace kage { namespace vk
             imgBarriers.emplace_back(barrier);
 
             {
-                auto aspectPair = m_imgAspectFlags.find(img);
+                auto& aspectPair = m_imgAspectFlags.find(img);
                 aspectPair->second = aspect;
             }
 
             {
-                auto barrierPair = m_imgBarrierStatus.find(img);
+                auto& barrierPair = m_imgBarrierStatus.find(img);
                 barrierPair->second = dst;
             }
 
@@ -3461,12 +3389,12 @@ namespace kage { namespace vk
                 const VkImage baseImg = baseImgPair->second;
 
                 {
-                    auto aspectPair = m_baseImgAspectFlags.find(img);
+                    auto& aspectPair = m_baseImgAspectFlags.find(img);
                     aspectPair->second = aspect;
                 }
 
                 {
-                    auto barrierPair = m_baseImgBarrierStatus.find(img);
+                    auto& barrierPair = m_baseImgBarrierStatus.find(img);
                     barrierPair->second = dst;
                 }
             }
@@ -3487,7 +3415,7 @@ namespace kage { namespace vk
             bufBarriers.emplace_back(barrier);
 
             {
-                auto barrierPair = m_bufBarrierStatus.find(buf);
+                auto& barrierPair = m_bufBarrierStatus.find(buf);
                 barrierPair->second = dst;
             }
 
@@ -3497,7 +3425,7 @@ namespace kage { namespace vk
                 const VkBuffer baseBuf = baseBufPair->second;
                 
                 {
-                    auto barrierPair = m_baseBufBarrierStatus.find(buf);
+                    auto& barrierPair = m_baseBufBarrierStatus.find(buf);
                     barrierPair->second = dst;
                 }
             }
@@ -3713,7 +3641,7 @@ namespace kage { namespace vk
         }
     }
 
-    void CommandQueue_vk::addWaitSamaphore(VkSemaphore _semaphore, VkPipelineStageFlags _stage)
+    void CommandQueue_vk::addWaitSemaphore(VkSemaphore _semaphore, VkPipelineStageFlags _stage)
     {
         BX_ASSERT(m_numWaitSemaphores < BX_COUNTOF(m_waitSemaphores), "Too many wait semaphores.");
 
@@ -3735,6 +3663,7 @@ namespace kage { namespace vk
         if (VK_NULL_HANDLE != m_activeCommandBuffer)
         {
             const VkDevice device = s_renderVK->m_device;
+
 
             s_renderVK->m_barrierDispatcher.dispatchGlobalBarrier(
                 m_activeCommandBuffer
@@ -3805,7 +3734,7 @@ namespace kage { namespace vk
     void CommandQueue_vk::consume()
     {
         m_consumeIndex = (m_consumeIndex + 1) % m_numFramesInFlight;
-        /*
+        
         for (const Resource& resource : m_release[m_consumeIndex])
         {
             switch (resource.m_type)
@@ -3829,15 +3758,62 @@ namespace kage { namespace vk
                 break;
             }
         }
-        */
+        
     }
 
-    template<typename Ty>
-    void CommandQueue_vk::destroy(uint64_t _handle)
+
+    void ScractchBuffer::create()
     {
-        typedef decltype(Ty::vk) vk_t;
-        Ty obj = vk_t(_handle);
-        vkDestroy(obj);
+        const VkPhysicalDeviceMemoryProperties memProps = s_renderVK->m_memProps;
+        const VkDevice device = s_renderVK->m_device;
+
+        BufferAliasInfo bai;
+        bai.size = kScratchBufferSize;
+        m_buffer = kage::vk::createBuffer(
+            bai
+            , memProps
+            , device
+            , VK_BUFFER_USAGE_TRANSFER_SRC_BIT
+            , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        );
+        m_size = bai.size;
+
+        reset();
     }
+
+    bool ScractchBuffer::occupy(VkDeviceSize& _offset, const void* _data, uint32_t _size)
+    {
+        if (VK_NULL_HANDLE == m_buffer.buffer)
+        {
+            return false;
+        }
+
+        if (m_offset + _size > m_size)
+        {
+            return false;
+        }
+
+        memcpy(m_buffer.data, _data, _size);
+
+        _offset = (VkDeviceSize)m_offset;
+
+        m_offset += _size;
+
+        return true;
+    }
+
+    void ScractchBuffer::reset()
+    {
+        m_offset = 0;
+    }
+
+    void ScractchBuffer::destroy()
+    {
+        reset();
+
+        release(m_buffer.buffer);
+        release(m_buffer.memory);
+    }
+
 } // namespace vk
 } // namespace kage

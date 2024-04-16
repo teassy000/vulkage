@@ -185,11 +185,11 @@ namespace kage { namespace vk
         void shutdown();
 
         void alloc(VkCommandBuffer* _cmdBuf);
-        void addWaitSamaphore(VkSemaphore _semaphore, VkPipelineStageFlags _stage);
+        void addWaitSemaphore(VkSemaphore _semaphore, VkPipelineStageFlags _stage);
         void addSignalSemaphore(VkSemaphore _semaphore);
 
-        void kick(bool _wait);
-        void finish(bool _finishAll);
+        void kick(bool _wait = false);
+        void finish(bool _finishAll = false);
 
         void release(uint64_t _handle, VkObjectType _type);
         void consume();
@@ -235,10 +235,40 @@ namespace kage { namespace vk
 
     private:
         template<typename Ty>
-        void destroy(uint64_t _handle);
+        void destroy(uint64_t _handle)
+        {
+            using vk_t = decltype(Ty::vk);
+            Ty obj = vk_t(_handle);
+            vkDestroy(obj);
+        }
+
 
     };
 
+    struct ScractchBuffer
+    {
+        void create();
+        bool occupy(VkDeviceSize& _offset, const void* _data, uint32_t _size);
+
+        void reset();
+        void destroy();
+
+        VkBuffer get() const
+        {
+            return m_buffer.buffer;
+        }
+
+        VkBufferCopy getRegion() const
+        {
+            return m_activeRegion;
+        }
+
+        Buffer_vk m_buffer;
+        uint32_t m_size;
+        uint32_t m_offset;
+        
+        VkBufferCopy m_activeRegion;
+    };
 
     struct RHIContext_vk : public RHIContext
     {
@@ -356,6 +386,7 @@ namespace kage { namespace vk
         template<typename Ty>
         void release(Ty& _object);
 
+
         ContinuousMap<uint16_t, Buffer_vk> m_bufferContainer;
         ContinuousMap<uint16_t, Image_vk> m_imageContainer;
         ContinuousMap<uint16_t, Shader_vk> m_shaderContainer;
@@ -369,8 +400,6 @@ namespace kage { namespace vk
         ContinuousMap<uint16_t, ImageCreateInfo> m_imageInitPropContainer;
 
         stl::unordered_set<uint16_t> m_swapchainImageIds;
-
-        Buffer_vk m_scratchBuffer;
 
         stl::vector<stl::vector<uint16_t>> m_programShaderIds;
         stl::vector<uint32_t>           m_progThreadCount;
@@ -391,6 +420,8 @@ namespace kage { namespace vk
 
         void* m_nwh;
 
+        ScractchBuffer m_scratchBuffer;
+
         // vulkan context data
         VkAllocationCallbacks* m_allocatorCb;
 
@@ -403,19 +434,19 @@ namespace kage { namespace vk
 
         Swapchain_vk m_swapchain;
 
+        uint32_t m_numFramesInFlight{ kMaxNumFrameLatency };
         CommandQueue_vk m_cmd;
+        VkCommandBuffer m_cmdBuffer;
 
         VkQueue m_queue;
-        VkCommandPool   m_cmdPool;
-        VkCommandBuffer m_cmdBuffer;
+
+        //VkCommandPool   m_cmdPool;
+
         VkDescriptorPool m_descPool;
 
         uint32_t m_swapChainImageIndex{0};
 
         Resolution m_resolution;
-
-        VkSemaphore m_acquirSemaphore;
-        VkSemaphore m_releaseSemaphore;
 
         VkFormat m_imageFormat;
         VkFormat m_depthFormat;

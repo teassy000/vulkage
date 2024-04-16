@@ -79,7 +79,7 @@ void initSkyboxPass(SkyboxRendering& _skybox, const kage::BufferHandle _trans, c
 
     kage::bindBuffer(pass, _trans
         , 0
-        , kage::PipelineStageFlagBits::task_shader
+        , kage::PipelineStageFlagBits::vertex_shader
         , kage::AccessFlagBits::shader_read
     );
 
@@ -96,6 +96,9 @@ void initSkyboxPass(SkyboxRendering& _skybox, const kage::BufferHandle _trans, c
     _skybox.prog = prog;
     _skybox.vs = vs;
     _skybox.fs = fs;
+
+    _skybox.vtxBuf = vtxBuf;
+    _skybox.idxBuf = idxBuf;
 
     _skybox.color = _color;
     _skybox.cubemap = cubemap;

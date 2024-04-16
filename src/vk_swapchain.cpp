@@ -31,6 +31,7 @@ namespace kage { namespace vk
 
     VkResult Swapchain_vk::create(void* _nwh)
     {
+        const VkDevice device = s_renderVK->m_device;
         const VkPhysicalDevice physicalDevice = s_renderVK->m_physicalDevice;
         const uint32_t queueFamilyIdx = s_renderVK->m_gfxFamilyIdx;
         
@@ -43,6 +44,16 @@ namespace kage { namespace vk
         assert(presentSupported);
 
         createSwapchain();
+
+        {
+            VkSemaphoreCreateInfo ci = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+            VK_CHECK(vkCreateSemaphore(device, &ci, 0, &m_waitSemaphore));
+        }
+
+        {
+            VkSemaphoreCreateInfo ci = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+            VK_CHECK(vkCreateSemaphore(device, &ci, 0, &m_signalSemaphore));
+        }
 
         return VK_SUCCESS;
     }
@@ -140,6 +151,50 @@ namespace kage { namespace vk
 #endif
     }
 
+    bool Swapchain_vk::acquire(VkCommandBuffer _cmdBuf)
+    {
+        if (VK_NULL_HANDLE == m_swapchain)
+        {
+            return false;
+        }
+
+        const VkDevice device = s_renderVK->m_device;
+
+        VK_CHECK(vkAcquireNextImageKHR(
+            device
+            , m_swapchain
+            , ~0ull
+            , m_waitSemaphore
+            , VK_NULL_HANDLE
+            , &m_swapchainImageIndex
+        ));
+
+        //TODO: fence here?
+
+
+        return true;
+    }
+
+    void Swapchain_vk::present()
+    {
+        if (VK_NULL_HANDLE ==  m_swapchain)
+        {
+            return;
+        }
+
+        const VkQueue queue = s_renderVK->m_queue;
+
+        VKZ_ZoneScopedNC("present", Color::light_yellow);
+        VkPresentInfoKHR presentInfo = { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
+        presentInfo.swapchainCount = 1;
+        presentInfo.pSwapchains = &m_swapchain;
+        presentInfo.pImageIndices = &m_swapchainImageIndex;
+        presentInfo.pWaitSemaphores = &m_signalSemaphore;
+        presentInfo.waitSemaphoreCount = 1;
+
+        VK_CHECK(vkQueuePresentKHR(queue, &presentInfo));
+    }
+
     VkFormat Swapchain_vk::getSwapchainFormat()
     {
         const VkPhysicalDevice physicalDevice = s_renderVK->m_physicalDevice;
@@ -204,6 +259,8 @@ namespace kage { namespace vk
     {
         releaseSwapchain();
         releaseSurface();
+
+        m_nwh = nullptr;
     }
 
 } // namespace vk
