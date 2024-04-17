@@ -440,8 +440,6 @@ namespace kage { namespace vk
 
         VkQueue m_queue;
 
-        //VkCommandPool   m_cmdPool;
-
         VkDescriptorPool m_descPool;
 
         uint32_t m_swapChainImageIndex{0};

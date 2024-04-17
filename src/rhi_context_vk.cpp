@@ -2302,7 +2302,7 @@ namespace kage { namespace vk
 
         assert(_size > 0);
 
-        /*
+
         BufferAliasInfo bai;
         bai.size = _size;
         Buffer_vk scratch = kage::vk::createBuffer(
@@ -2313,12 +2313,10 @@ namespace kage { namespace vk
             , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
         );
 
-        memcpy(scratch.data, data, _size);
-        */
 
-        VkDeviceSize offset = 0;
-        m_scratchBuffer.occupy(offset, _data, _size);
-        VkBufferCopy region = { offset , 0, VkDeviceSize(_size) };
+        memcpy(scratch.data, _data, _size);
+
+        VkBufferCopy region = { 0 , 0, VkDeviceSize(_size) };
 
         const Buffer_vk& buffer = getBuffer(_bufId);
         
@@ -2327,13 +2325,16 @@ namespace kage { namespace vk
         );
         m_barrierDispatcher.dispatch(m_cmdBuffer);
 
-        vkCmdCopyBuffer(m_cmdBuffer, m_scratchBuffer.get(), buffer.buffer, 1, &region);
+        vkCmdCopyBuffer(m_cmdBuffer, scratch.buffer, buffer.buffer, 1, &region);
 
         // write flush
         m_barrierDispatcher.barrier(buffer.buffer,
             { VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT }
         );
         m_barrierDispatcher.dispatch(m_cmdBuffer);
+
+        release(scratch.buffer);
+        release(scratch.memory);
     }
 
     void RHIContext_vk::fillBuffer(const uint16_t _bufId, const uint32_t _value, uint32_t _size)
@@ -3758,7 +3759,7 @@ namespace kage { namespace vk
                 break;
             }
         }
-        
+        m_release[m_consumeIndex].clear();
     }
 
 
