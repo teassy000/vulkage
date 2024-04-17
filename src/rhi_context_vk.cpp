@@ -1208,8 +1208,6 @@ namespace kage { namespace vk
         VKZ_ZoneScopedC(Color::indian_red);
 
         shutdown();
-
-        VKZ_ProfDestroyContext(m_tracyVkCtx);
     }
 
     void RHIContext_vk::init(const Resolution& _resolution, void* _wnd)
@@ -1262,6 +1260,7 @@ namespace kage { namespace vk
         vkGetDeviceQueue(m_device, m_gfxFamilyIdx, 0, &m_queue);
         assert(m_queue);
 
+        initTracy(m_queue, m_gfxFamilyIdx);
 
         {
             m_numFramesInFlight = _resolution.maxFrameLatency == 0
@@ -1300,9 +1299,8 @@ namespace kage { namespace vk
 
         vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &m_memProps);
 
-        m_scratchBuffer.create();
+        m_scratchBuffer.create(128, kMaxDrawCalls);
 
-        VKZ_ProfVkContext(m_tracyVkCtx, m_physicalDevice, m_device, m_queue, m_cmdBuffer);
     }
 
     void RHIContext_vk::bake()
@@ -1464,6 +1462,8 @@ namespace kage { namespace vk
             vkDestroyDescriptorPool(m_device, m_descPool, 0);
             m_descPool = VK_NULL_HANDLE;
         }
+
+        destroyTracy();
 
         if (m_cmdBuffer)
         {
@@ -3200,6 +3200,51 @@ namespace kage { namespace vk
     }
 
 
+    void RHIContext_vk::initTracy(VkQueue _queue, uint32_t _familyIdx)
+    {
+#if TRACY_ENABLE
+        VkCommandPoolCreateInfo cpci = { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
+        cpci.pNext = NULL;
+        cpci.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        cpci.queueFamilyIndex = _familyIdx;
+
+        VK_CHECK(vkCreateCommandPool(
+            m_device
+            , &cpci
+            , m_allocatorCb
+            , &m_tracyCmdPool
+        ));
+
+        VkCommandBufferAllocateInfo cbai = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
+        cbai.pNext = NULL;
+        cbai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        cbai.commandBufferCount = 1;
+        cbai.commandPool = m_tracyCmdPool;
+
+        VK_CHECK(vkAllocateCommandBuffers(
+            m_device
+            , &cbai
+            , &m_tracyCmdBuf
+        ));
+
+        VKZ_ProfVkContext(m_tracyVkCtx, m_physicalDevice, m_device, _queue, m_tracyCmdBuf);
+#else
+        ;
+#endif
+    }
+
+    void RHIContext_vk::destroyTracy()
+    {
+#if TRACY_ENABLE
+        release(m_tracyCmdPool);
+        VKZ_ProfDestroyContext(m_tracyVkCtx);
+
+        m_tracyCmdBuf = VK_NULL_HANDLE;
+#else
+        ;
+#endif
+    }
+
     void BarrierDispatcher::track(const VkImage _img, const ImageAspectFlags _aspect, BarrierState_vk _barrierState, const VkImage _baseImg/* = 0*/)
     {
         VKZ_ZoneScopedC(Color::indian_red);
@@ -3557,20 +3602,17 @@ namespace kage { namespace vk
 
         m_submitted = 0;
 
-        VkCommandPoolCreateInfo cpci;
-        cpci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        VkCommandPoolCreateInfo cpci = { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
         cpci.pNext = NULL;
         cpci.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
         cpci.queueFamilyIndex = m_queueFamilyIdx;
 
-        VkCommandBufferAllocateInfo cbai;
-        cbai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        VkCommandBufferAllocateInfo cbai = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
         cbai.pNext = NULL;
         cbai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         cbai.commandBufferCount = 1;
 
-        VkFenceCreateInfo fci;
-        fci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        VkFenceCreateInfo fci = { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
         fci.pNext = NULL;
         fci.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
@@ -3763,38 +3805,44 @@ namespace kage { namespace vk
     }
 
 
-    void ScractchBuffer::create()
-    {
+    void ScratchBuffer::create(uint32_t _size, uint32_t _count)
+{
         const VkPhysicalDeviceMemoryProperties memProps = s_renderVK->m_memProps;
+        const VkPhysicalDeviceLimits& limits = s_renderVK->m_phyDeviceProps.limits;
         const VkDevice device = s_renderVK->m_device;
 
+        const uint32_t align = uint32_t(limits.minUniformBufferOffsetAlignment);
+        const uint32_t entrySz = bx::strideAlign(_size, align);
+        const uint32_t totalSz = entrySz * _count;
+
         BufferAliasInfo bai;
-        bai.size = kScratchBufferSize;
-        m_buffer = kage::vk::createBuffer(
+        bai.size = totalSz;
+        m_buf = kage::vk::createBuffer(
             bai
             , memProps
             , device
             , VK_BUFFER_USAGE_TRANSFER_SRC_BIT
             , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
         );
-        m_size = bai.size;
+
+        m_offset = 0;
 
         reset();
     }
 
-    bool ScractchBuffer::occupy(VkDeviceSize& _offset, const void* _data, uint32_t _size)
+    bool ScratchBuffer::occupy(VkDeviceSize& _offset, const void* _data, uint32_t _size)
     {
-        if (VK_NULL_HANDLE == m_buffer.buffer)
+        if (VK_NULL_HANDLE == m_buf.buffer)
         {
             return false;
         }
 
-        if (m_offset + _size > m_size)
+        if (m_offset + _size > m_buf.size)
         {
             return false;
         }
 
-        memcpy(m_buffer.data, _data, _size);
+        memcpy(m_buf.data, _data, _size);
 
         _offset = (VkDeviceSize)m_offset;
 
@@ -3803,17 +3851,24 @@ namespace kage { namespace vk
         return true;
     }
 
-    void ScractchBuffer::reset()
+    void ScratchBuffer::flush()
+    {
+        const VkDevice device = s_renderVK->m_device;
+
+        kage::vk::flushBuffer(device, m_buf);
+    }
+
+    void ScratchBuffer::reset()
     {
         m_offset = 0;
     }
 
-    void ScractchBuffer::destroy()
+    void ScratchBuffer::destroy()
     {
         reset();
 
-        release(m_buffer.buffer);
-        release(m_buffer.memory);
+        release(m_buf.buffer);
+        release(m_buf.memory);
     }
 
 } // namespace vk

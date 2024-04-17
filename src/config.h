@@ -41,4 +41,6 @@ namespace kage
 
     constexpr unsigned int kScratchBufferSize = 128*1024*1024; // 128m
     constexpr unsigned int kMaxNumBufferInScratchBuffer = 1024;
+
+    constexpr unsigned int kMaxDrawCalls = ((64 << 10) - 1); // 65535
 }

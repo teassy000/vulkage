@@ -245,29 +245,22 @@ namespace kage { namespace vk
 
     };
 
-    struct ScractchBuffer
+    struct ScratchBuffer
     {
-        void create();
+        void create(uint32_t _size, uint32_t _count);
         bool occupy(VkDeviceSize& _offset, const void* _data, uint32_t _size);
+        void flush();
 
         void reset();
         void destroy();
 
         VkBuffer get() const
         {
-            return m_buffer.buffer;
+            return m_buf.buffer;
         }
 
-        VkBufferCopy getRegion() const
-        {
-            return m_activeRegion;
-        }
-
-        Buffer_vk m_buffer;
-        uint32_t m_size;
+        Buffer_vk m_buf;
         uint32_t m_offset;
-        
-        VkBufferCopy m_activeRegion;
     };
 
     struct RHIContext_vk : public RHIContext
@@ -420,7 +413,7 @@ namespace kage { namespace vk
 
         void* m_nwh;
 
-        ScractchBuffer m_scratchBuffer;
+        ScratchBuffer m_scratchBuffer;
 
         // vulkan context data
         VkAllocationCallbacks* m_allocatorCb;
@@ -472,8 +465,13 @@ namespace kage { namespace vk
         VkDebugReportCallbackEXT m_debugCallback;
 #endif //!_DEBUG
 
+        // tracy
+        void initTracy(VkQueue _queue, uint32_t _familyIdx);
+        void destroyTracy();
 #if TRACY_ENABLE
-        VKZ_ProfCtxType* m_tracyVkCtx;
+        VKZ_ProfCtxType* m_tracyVkCtx = nullptr;
+        VkCommandPool m_tracyCmdPool = VK_NULL_HANDLE;
+        VkCommandBuffer m_tracyCmdBuf = VK_NULL_HANDLE;
 #endif //TRACY_ENABLE
     };
 
