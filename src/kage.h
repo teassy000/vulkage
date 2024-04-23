@@ -71,7 +71,7 @@ namespace kage
 
     void bake();
     void run();
-    void reset(uint32_t _width, uint32_t _height);
+    void reset(uint32_t _width, uint32_t _height, uint32_t _reset);
     void shutdown();
 
     // callback func pointers

@@ -26,8 +26,6 @@ namespace kage
         register_image_view,
         register_sampler,
 
-        store_back_buffer,
-
         force_alias_buffer,
         force_alias_image,
 
@@ -441,8 +439,6 @@ namespace kage
         stl::vector< PassMetaDataRef>       m_sparse_pass_data_ref;
         stl::vector< SamplerMetaData >      m_sparse_sampler_meta;
         stl::vector< ImageViewDesc >        m_sparse_img_view_desc;
-
-        stl::unordered_set< uint16_t >      m_backBufferSet;
         
         stl::vector< std::string>           m_shader_path;
 

@@ -29,13 +29,14 @@ namespace kage { namespace vk
         return VK_PRESENT_MODE_FIFO_KHR;
     }
 
-    VkResult Swapchain_vk::create(void* _nwh)
+    VkResult Swapchain_vk::create(void* _nwh, const Resolution& _resolution)
     {
         const VkDevice device = s_renderVK->m_device;
         const VkPhysicalDevice physicalDevice = s_renderVK->m_physicalDevice;
         const uint32_t queueFamilyIdx = s_renderVK->m_gfxFamilyIdx;
         
         m_nwh = _nwh;
+        m_resolution = _resolution;
 
         createSurface();
 
@@ -45,17 +46,39 @@ namespace kage { namespace vk
 
         createSwapchain();
 
-        {
-            VkSemaphoreCreateInfo ci = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-            VK_CHECK(vkCreateSemaphore(device, &ci, 0, &m_waitSemaphore));
-        }
-
-        {
-            VkSemaphoreCreateInfo ci = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-            VK_CHECK(vkCreateSemaphore(device, &ci, 0, &m_signalSemaphore));
-        }
 
         return VK_SUCCESS;
+    }
+
+    void Swapchain_vk::update(void* _nwh, const Resolution& _resolution)
+    {
+        const bool recreateSurface = false
+            || m_nwh != _nwh
+            ;
+
+        const bool recreateSwapchain = false
+            || m_resolution.format != _resolution.format
+            || m_resolution.width != _resolution.width
+            || m_resolution.height != _resolution.height
+            || recreateSurface
+            ;
+
+        m_nwh = _nwh;
+        m_resolution = _resolution;
+
+        if (recreateSwapchain)
+        {
+            releaseSwapchain();
+
+            if (recreateSurface)
+            {
+                m_sci.oldSwapchain = VK_NULL_HANDLE;
+                releaseSurface();
+                s_renderVK->kick(true);
+                createSurface();
+            }
+            createSwapchain();
+        }
     }
 
     void Swapchain_vk::createSwapchain()
@@ -66,10 +89,16 @@ namespace kage { namespace vk
         VkSurfaceCapabilitiesKHR surfaceCaps;
         VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, m_surface, &surfaceCaps));
 
-        uint32_t width = surfaceCaps.currentExtent.width;
-        uint32_t height = surfaceCaps.currentExtent.height;
-
-        assert(width == m_resolution.width || height == m_resolution.height);
+        const uint32_t width = bx::clamp<uint32_t>(
+            m_resolution.width
+            , surfaceCaps.minImageExtent.width
+            , surfaceCaps.maxImageExtent.width
+        );
+        const uint32_t height = bx::clamp<uint32_t>(
+            m_resolution.height
+            , surfaceCaps.minImageExtent.height
+            , surfaceCaps.maxImageExtent.height
+        );
 
         VkFormat format = getSwapchainFormat();
 
@@ -131,6 +160,18 @@ namespace kage { namespace vk
         }
 
         VK_CHECK(vkGetSwapchainImagesKHR(device, m_swapchain, &m_swapchainImageCount, &m_swapchainImages[0]));
+
+        {
+            VkSemaphoreCreateInfo ci = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+            VK_CHECK(vkCreateSemaphore(device, &ci, 0, &m_waitSemaphore));
+        }
+
+        {
+            VkSemaphoreCreateInfo ci = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+            VK_CHECK(vkCreateSemaphore(device, &ci, 0, &m_signalSemaphore));
+        }
+        m_shouldPresent = false;
+        m_shouldRecreateSwapchain = false;
     }
 
     void Swapchain_vk::createSurface()
@@ -153,31 +194,39 @@ namespace kage { namespace vk
 
     bool Swapchain_vk::acquire(VkCommandBuffer _cmdBuf)
     {
-        if (VK_NULL_HANDLE == m_swapchain)
+        if (   VK_NULL_HANDLE == m_swapchain
+            || m_shouldRecreateSwapchain
+            )
         {
             return false;
         }
 
-        const VkDevice device = s_renderVK->m_device;
+        if (!m_shouldPresent)
+        {
+            const VkDevice device = s_renderVK->m_device;
 
-        VK_CHECK(vkAcquireNextImageKHR(
-            device
-            , m_swapchain
-            , ~0ull
-            , m_waitSemaphore
-            , VK_NULL_HANDLE
-            , &m_swapchainImageIndex
-        ));
+            VK_CHECK(vkAcquireNextImageKHR(
+                device
+                , m_swapchain
+                , ~0ull
+                , m_waitSemaphore
+                , VK_NULL_HANDLE
+                , &m_swapchainImageIndex
+            ));
 
-        //TODO: fence here?
+            m_shouldPresent = true;
 
+            //TODO: fence here?
 
+        }
         return true;
     }
 
     void Swapchain_vk::present()
     {
-        if (VK_NULL_HANDLE ==  m_swapchain)
+        if (VK_NULL_HANDLE ==  m_swapchain
+            && m_shouldPresent
+            )
         {
             return;
         }
@@ -192,7 +241,20 @@ namespace kage { namespace vk
         presentInfo.pWaitSemaphores = &m_signalSemaphore;
         presentInfo.waitSemaphoreCount = 1;
 
-        VK_CHECK(vkQueuePresentKHR(queue, &presentInfo));
+        VkResult result = vkQueuePresentKHR(queue, &presentInfo);
+
+        switch (result)
+        {
+        case VK_ERROR_OUT_OF_DATE_KHR:
+            m_shouldRecreateSwapchain = true;
+            break;
+        default:
+            BX_ASSERT(VK_SUCCESS == result, "vkQueuePresentKHR(...); VK error 0x%x", result);
+            break;
+        }
+
+        m_shouldPresent = false;
+        //m_signalSemaphore = VK_NULL_HANDLE;
     }
 
     VkFormat Swapchain_vk::getSwapchainFormat()
@@ -225,22 +287,28 @@ namespace kage { namespace vk
         VkSurfaceCapabilitiesKHR surfaceCaps;
         VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, m_surface, &surfaceCaps));
 
-        if (m_resolution.width == surfaceCaps.currentExtent.width 
-            && m_resolution.height == surfaceCaps.currentExtent.height)
+
+        const uint32_t width = bx::clamp<uint32_t>(
+            m_resolution.width
+            , surfaceCaps.minImageExtent.width
+            , surfaceCaps.maxImageExtent.width
+        );
+        const uint32_t height = bx::clamp<uint32_t>(
+            m_resolution.height
+            , surfaceCaps.minImageExtent.height
+            , surfaceCaps.maxImageExtent.height
+        );
+
+        if (m_resolution.width == width
+            && m_resolution.height == height)
         {
             return SwapchainStatus_vk::ready;
         }
 
-        if (surfaceCaps.currentExtent.width == 0 || surfaceCaps.currentExtent.height == 0)
+        if (width == 0 || height == 0)
         {
             return SwapchainStatus_vk::not_ready;
         }
-
-        // destroy old swapchain
-        releaseSwapchain();
-
-        // create new
-        createSwapchain();
 
         return SwapchainStatus_vk::resize;
     }

@@ -63,7 +63,6 @@ namespace kage
         m_sparse_img_view_desc.clear();
         m_sparse_pass_data_ref.clear();
         
-        m_backBufferSet.clear();
         m_shader_path.clear();
         m_combinedResId.clear();
         m_vtxBindingDesc.clear();
@@ -145,11 +144,6 @@ namespace kage
             }
             case MagicTag::register_image_view: {
                 registerImageView(reader);
-                break;
-            }
-            // back-buffers
-            case MagicTag::store_back_buffer: {
-                storeBackBuffer(reader);
                 break;
             }
             // Alias
@@ -368,15 +362,6 @@ namespace kage
 
         m_hImgView.push_back({ meta.imgViewId });
         m_sparse_img_view_desc[meta.imgViewId] = meta;
-    }
-
-    void Framegraph::storeBackBuffer(bx::MemoryReader& _reader)
-    {
-        VKZ_ZoneScopedC(Color::light_yellow);
-        uint16_t id;
-        bx::read(&_reader, id, nullptr);
-
-        m_backBufferSet.insert( id );
     }
 
     const ResInteractDesc merge(const ResInteractDesc& _desc0, const ResInteractDesc& _desc1)
@@ -1753,7 +1738,6 @@ namespace kage
 
         // setup image view metas
         stl::vector<ImageViewDesc> imgViewDescs{};
-        stl::vector<uint16_t> backbuffers{};
         imgViewDescs.reserve(m_sparse_img_view_desc.size());
         for (const ImgBucket& bkt : m_imgBuckets)
         {
@@ -1764,12 +1748,6 @@ namespace kage
                 for (uint32_t ii = 0 ; ii < info.viewCount; ++ii )
                 {
                     imgViewDescs.push_back(m_sparse_img_view_desc[info.mipViews[ii].id]);
-                }
-
-                // if it is back buffer
-                if (m_backBufferSet.find(cid.id) != m_backBufferSet.end() )
-                {
-                    backbuffers.push_back(cid.id);
                 }
             }
         }
@@ -1833,19 +1811,6 @@ namespace kage
 
             bx::write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end, nullptr);
         }
-
-        if (!backbuffers.empty())
-        {
-            bx::write(&m_rhiMemWriter, RHIContextOpMagic::set_back_buffers, nullptr);
-
-            uint32_t count = (uint32_t)backbuffers.size();
-            bx::write(&m_rhiMemWriter, count, nullptr);
-
-            bx::write(&m_rhiMemWriter, (void*)backbuffers.data(), int32_t(sizeof(uint16_t) * backbuffers.size()), nullptr);
-
-            bx::write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end, nullptr);
-        }
-
     }
 
     void Framegraph::createShaders()

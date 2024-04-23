@@ -27,8 +27,6 @@ namespace kage
         create_sampler,
         create_image_view,
 
-        set_back_buffers,
-
         set_brief,
 
         end,
@@ -133,7 +131,7 @@ namespace kage
         virtual bool checkSupports(VulkanSupportExtension _ext) = 0;
 
         // swapchain 
-        virtual void updateResolution(uint32_t _width, uint32_t _height) = 0;
+        virtual void updateResolution(const Resolution& _resolution) = 0;
 
         // update resources
         virtual void updatePushConstants(PassHandle _hPass, const void* _data, uint32_t _size) = 0;
@@ -155,7 +153,6 @@ namespace kage
         virtual void createBuffer(bx::MemoryReader& reader) = 0;
         virtual void createSampler(bx::MemoryReader& _reader) = 0;
         virtual void createImageView(bx::MemoryReader& _reader) = 0;
-        virtual void setBackBuffers(bx::MemoryReader& _reader) = 0;
         virtual void setBrief(bx::MemoryReader& reader) = 0;
     };
 
@@ -185,7 +182,7 @@ namespace kage
 
 
         bool checkSupports(VulkanSupportExtension _ext) override { return false; }
-        void updateResolution(uint32_t _width, uint32_t _height) override {};
+        void updateResolution(const Resolution& _resolution) override {};
 
         // update 
         void updatePushConstants(PassHandle _hPass, const void* _data, uint32_t _size) override;
@@ -206,7 +203,6 @@ namespace kage
         void createBuffer(bx::MemoryReader& reader) override {};
         void createSampler(bx::MemoryReader& _reader) override {};
         void createImageView(bx::MemoryReader& _reader) override {};
-        void setBackBuffers(bx::MemoryReader& _reader) override {};
         void setBrief(bx::MemoryReader& reader) override {};
 
         ConstantsMemoryBlock m_constantsMemBlock;

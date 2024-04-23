@@ -241,8 +241,6 @@ namespace kage { namespace vk
             Ty obj = vk_t(_handle);
             vkDestroy(obj);
         }
-
-
     };
 
     struct ScratchBuffer
@@ -271,11 +269,12 @@ namespace kage { namespace vk
         void init(const Resolution& _resolution, void* _wnd) override;
         void bake() override;
         bool render() override;
+        void kick(bool _finishAll = false);
         void shutdown();
 
         bool checkSupports(VulkanSupportExtension _ext) override;
 
-        void updateResolution(uint32_t _width, uint32_t _height) override;
+        void updateResolution(const Resolution& _resolution) override;
 
         void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ) override;
         void updateBuffer(BufferHandle _hBuf,  const void* _data, uint32_t _size) override;
@@ -319,11 +318,12 @@ namespace kage { namespace vk
         void createBuffer(bx::MemoryReader& _reader) override;
         void createSampler(bx::MemoryReader& _reader) override;
         void createImageView(bx::MemoryReader& _reader) override;
-        void setBackBuffers(bx::MemoryReader& _reader) override;
         void setBrief(bx::MemoryReader& _reader) override;
 
         void createInstance();
         void createPhysicalDevice();
+
+        void recreateSwapchain(const Resolution& _resolution);
 
         void recreateSwapchainImages();
 
@@ -392,8 +392,6 @@ namespace kage { namespace vk
         ContinuousMap<uint16_t, BufferCreateInfo> m_bufferCreateInfoContainer;
         ContinuousMap<uint16_t, ImageCreateInfo> m_imageInitPropContainer;
 
-        stl::unordered_set<uint16_t> m_swapchainImageIds;
-
         stl::vector<stl::vector<uint16_t>> m_programShaderIds;
         stl::vector<uint32_t>           m_progThreadCount;
 
@@ -413,7 +411,7 @@ namespace kage { namespace vk
 
         void* m_nwh;
 
-        ScratchBuffer m_scratchBuffer;
+        ScratchBuffer m_scratchBuffer[kMaxNumFrameLatency];
 
         // vulkan context data
         VkAllocationCallbacks* m_allocatorCb;

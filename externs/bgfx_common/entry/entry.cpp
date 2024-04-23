@@ -756,7 +756,7 @@ restart:
 		{
 			_reset = s_reset;
 
-			kage::reset(_width, _height); //kage: TODO: process the _reset flags here
+			kage::reset(_width, _height, _reset); //kage: TODO: process the _reset flags here
 			inputSetMouseResolution(uint16_t(_width), uint16_t(_height) );
 		}
 
@@ -936,7 +936,7 @@ restart:
 		{
 			_reset = s_reset;
 
-			kage::reset(s_window[0].m_width, s_window[0].m_height); //kage: TODO: process the _reset flags here
+			kage::reset(s_window[0].m_width, s_window[0].m_height, _reset); //kage: TODO: process the _reset flags here
 			inputSetMouseResolution(uint16_t(s_window[0].m_width), uint16_t(s_window[0].m_height) );
 		}
 

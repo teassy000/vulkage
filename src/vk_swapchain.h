@@ -25,10 +25,13 @@ namespace kage { namespace vk
             , m_nwh{ nullptr }
             , m_swapchainImages{}
             , m_swapchainImageCount{ 0 }
+            , m_shouldRecreateSwapchain{true}
+            , m_shouldPresent{false}
         {
         }
 
-        VkResult create(void* _nwh);
+        VkResult create(void* _nwh, const Resolution& _resolution);
+        void update(void* _nwh, const Resolution& _resolution);
         void destroy();
 
         void createSwapchain();
@@ -57,6 +60,9 @@ namespace kage { namespace vk
 
         VkSemaphore m_waitSemaphore;
         VkSemaphore m_signalSemaphore;
+
+        bool m_shouldRecreateSwapchain;
+        bool m_shouldPresent;
     };
 
 } // namespace vk

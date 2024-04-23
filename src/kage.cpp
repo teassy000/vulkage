@@ -459,14 +459,13 @@ namespace kage
         void storeImageData();
         void storeAliasData();
         void storeSamplerData();
-        void storeBackBufferData();
 
         void init(const Init& _init);
         bool shouldClose();
 
         void run();
         void bake();
-        void reset(uint32_t _windth, uint32_t _height);
+        void reset(uint32_t _windth, uint32_t _height, uint32_t _reset);
         void render();
         void shutdown();
 
@@ -1316,18 +1315,6 @@ namespace kage
         }
     }
 
-    void Context::storeBackBufferData()
-    {
-        for (ImageHandle hImg : m_backBuffers)
-        {
-            MagicTag magic{ MagicTag::store_back_buffer };
-            bx::write(m_fgMemWriter, magic, nullptr);
-            bx::write(m_fgMemWriter, hImg.id, nullptr);
-            bx::write(m_fgMemWriter, MagicTag::magic_body_end, nullptr);
-        }
-
-    }
-
     BufferHandle Context::aliasBuffer(const BufferHandle _baseBuf)
     {
         uint16_t aliasId = m_bufferHandles.alloc();
@@ -1916,13 +1903,16 @@ namespace kage
         m_rhiContext->bake();
     }
 
-    void Context::reset(uint32_t _windth, uint32_t _height)
+    void Context::reset(uint32_t _windth, uint32_t _height, uint32_t _reset)
     {
-        m_rhiContext->updateResolution(_windth, _height);
+        m_resolution.width = _windth;
+        m_resolution.height = _height;
+        m_resolution.reset = _reset;
     }
 
     void Context::render()
     {
+        m_rhiContext->updateResolution(m_resolution);
         m_rhiContext->render();
     }
 
@@ -2162,9 +2152,9 @@ namespace kage
         s_ctx->bake();
     }
 
-    void reset(uint32_t _width, uint32_t _height)
+    void reset(uint32_t _width, uint32_t _height, uint32_t _reset)
     {
-        s_ctx->reset(_width, _height);
+        s_ctx->reset(_width, _height, _reset);
     }
 
     void run()

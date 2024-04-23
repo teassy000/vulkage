@@ -1243,7 +1243,7 @@ namespace kage { namespace vk
 
         m_nwh = _wnd;
 
-        m_swapchain.create(m_nwh);
+        m_swapchain.create(m_nwh, _resolution);
 
         m_imageFormat = m_swapchain.getSwapchainFormat();
         m_depthFormat = VK_FORMAT_D32_SFLOAT;
@@ -1299,8 +1299,10 @@ namespace kage { namespace vk
 
         vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &m_memProps);
 
-        m_scratchBuffer.create(128, kMaxDrawCalls);
-
+        for (uint32_t ii = 0; ii < m_numFramesInFlight; ++ii)
+        {
+            m_scratchBuffer[ii].create(128, kMaxDrawCalls);
+        }
     }
 
     void RHIContext_vk::bake()
@@ -1336,22 +1338,12 @@ namespace kage { namespace vk
         if(swapchainStatus == SwapchainStatus_vk::resize)
         {
             return true;
-            // TODO: remove old swapchain images from barriers first
-            assert(0);
-
-            // fill the image to barrier
-            for (uint32_t ii = 0; ii < m_swapchain.m_swapchainImageCount; ++ii)
-            {
-                m_barrierDispatcher.track(m_swapchain.m_swapchainImages[ii]
-                    , VK_IMAGE_ASPECT_COLOR_BIT
-                    , { 0, VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT }
-                );
-            }
-
-            recreateSwapchainImages();
         }
 
-        m_swapchain.acquire(m_cmdBuffer);
+        if (!m_swapchain.acquire(m_cmdBuffer))
+        {
+            return true;
+        }
 
         VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
         beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
@@ -1399,7 +1391,7 @@ namespace kage { namespace vk
         m_cmdList->update(m_cmdBuffer);
 
         m_swapchain.present();
-
+        m_cmd.finish();
 
         // wait
         {
@@ -1408,7 +1400,7 @@ namespace kage { namespace vk
         }
 
 
-        m_cmd.finish();
+
 
         // set the time stamp data
         m_passTime.clear();
@@ -1425,6 +1417,14 @@ namespace kage { namespace vk
         }
 
         return true;
+    }
+
+    void RHIContext_vk::kick(bool _finishAll /*= false*/)
+    {
+        m_cmd.kick(_finishAll);
+        m_cmd.alloc(&m_cmdBuffer);
+        m_cmdList->update(m_cmdBuffer);
+        m_cmd.finish(_finishAll);
     }
 
     void RHIContext_vk::shutdown()
@@ -1625,10 +1625,35 @@ namespace kage { namespace vk
         return checkExtSupportness(supportedExtensions, extName);
     }
 
-    void RHIContext_vk::updateResolution(uint32_t _width, uint32_t _height)
-    {
-        m_resolution.width = _width;
-        m_resolution.height = _height;
+    void RHIContext_vk::updateResolution(const Resolution& _resolution)
+{
+        if (_resolution.width != m_resolution.width
+            || _resolution.height != m_resolution.height
+            || _resolution.reset != m_resolution.reset
+            || m_swapchain.m_shouldRecreateSwapchain
+            )
+        {
+            // untrack old swapchain images
+            for (uint32_t ii = 0; ii < m_swapchain.m_swapchainImageCount; ++ii)
+            {
+                m_barrierDispatcher.untrack(m_swapchain.m_swapchainImages[ii]);
+            }
+
+            m_swapchain.update(m_nwh, _resolution);
+
+            // track new images
+            for (uint32_t ii = 0; ii < m_swapchain.m_swapchainImageCount; ++ii)
+            {
+                m_barrierDispatcher.track(m_swapchain.m_swapchainImages[ii]
+                    , VK_IMAGE_ASPECT_COLOR_BIT
+                    , { 0, VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT }
+                );
+            }
+
+            m_resolution = _resolution;
+        }
+
+
     }
 
     void RHIContext_vk::updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ)
@@ -1661,6 +1686,13 @@ namespace kage { namespace vk
             return;
         }
 
+        /// TEMP CHANGE
+        if (m_swapchain.getSwapchainStatus() != SwapchainStatus_vk::ready)
+        {
+            message(info, "updateBuffer will not perform! Swapchain is not ready");
+            return;
+        }
+
         const Buffer_vk& buf = m_bufferContainer.getIdToData(_hBuf.id);
         uint16_t baseBufId = m_aliasToBaseBuffers.getIdToData(_hBuf.id);
         const Buffer_vk& baseBuf = m_bufferContainer.getIdToData(baseBufId);
@@ -1679,6 +1711,9 @@ namespace kage { namespace vk
 
             stl::vector<Buffer_vk> buffers(1, buf);
             kage::vk::destroyBuffer(m_device, buffers);
+//             release(buf.buffer);
+//             release(buf.memory);
+
 
             // recreate buffer
             BufferAliasInfo info{};
@@ -1711,6 +1746,13 @@ namespace kage { namespace vk
         if (!m_passContainer.exist(_hPass.id))
         {
             message(info, "update will not perform for pass %d! It might be useless after render pass sorted", _hPass.id);
+            return;
+        }
+
+        /// TEMP CHANGE
+        if (m_swapchain.getSwapchainStatus() != SwapchainStatus_vk::ready)
+        {
+            message(info, "updateBuffer will not perform! Swapchain is not ready");
             return;
         }
 
@@ -2165,22 +2207,6 @@ namespace kage { namespace vk
         m_imageViewDescContainer.addOrUpdate(desc.imgViewId, desc);
     }
 
-    void RHIContext_vk::setBackBuffers(bx::MemoryReader& _reader)
-    {
-        VKZ_ZoneScopedC(Color::indian_red);
-
-        uint32_t count;
-        bx::read(&_reader, count, nullptr);
-
-        stl::vector<uint16_t> ids(count);
-        bx::read(&_reader, ids.data(), count * sizeof(uint16_t), nullptr);
-
-        for (uint16_t id : ids)
-        {
-            m_swapchainImageIds.insert(id);
-        }
-    }
-
     void RHIContext_vk::setBrief(bx::MemoryReader& _reader)
     {
         VKZ_ZoneScopedC(Color::indian_red);
@@ -2211,6 +2237,32 @@ namespace kage { namespace vk
         assert(m_physicalDevice);
     }
 
+    void RHIContext_vk::recreateSwapchain(const Resolution& _resolution)
+{
+
+        // untrack old swapchain images
+        for (uint32_t ii = 0; ii < m_swapchain.m_swapchainImageCount; ++ii)
+        {
+            m_barrierDispatcher.untrack(m_swapchain.m_swapchainImages[ii]);
+        }
+
+        // destroy old swapchain
+        m_swapchain.releaseSwapchain();
+
+        // create new
+        m_swapchain.createSwapchain();
+
+        // track new images
+        for (uint32_t ii = 0; ii < m_swapchain.m_swapchainImageCount; ++ii)
+        {
+            m_barrierDispatcher.track(m_swapchain.m_swapchainImages[ii]
+                , VK_IMAGE_ASPECT_COLOR_BIT
+                , { 0, VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT }
+            );
+        }
+    }
+
+    /*
     void RHIContext_vk::recreateSwapchainImages()
     {
         // destroy images
@@ -2295,7 +2347,7 @@ namespace kage { namespace vk
             }
         }
     }
-
+    */
     void RHIContext_vk::uploadBuffer(const uint16_t _bufId, const void* _data, uint32_t _size)
     {
         VKZ_ZoneScopedC(Color::indian_red);
@@ -2312,7 +2364,6 @@ namespace kage { namespace vk
             , VK_BUFFER_USAGE_TRANSFER_SRC_BIT
             , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
         );
-
 
         memcpy(scratch.data, _data, _size);
 
@@ -2615,7 +2666,6 @@ namespace kage { namespace vk
             }
         }
 
-        //message(info, "========= after pass %d ======================================", _passId);
         m_barrierDispatcher.dispatch(m_cmdBuffer);
     }
 
@@ -3272,12 +3322,18 @@ namespace kage { namespace vk
 
         {
             auto it = m_aliasToBaseBuffers.find(_buf);
-            m_aliasToBaseBuffers.erase(it);
+            if (it != m_aliasToBaseBuffers.end())
+            {
+                m_aliasToBaseBuffers.erase(it);
+            }
         }
 
         {
             auto it = m_bufBarrierStatus.find(_buf);
-            m_bufBarrierStatus.erase(it);
+            if (it != m_bufBarrierStatus.end())
+            {
+                m_bufBarrierStatus.erase(it);
+            }
         }
     }
 
@@ -3287,17 +3343,26 @@ namespace kage { namespace vk
 
         {
             auto it = m_aliasToBaseImages.find(_img);
-            m_aliasToBaseImages.erase(it);
+            if (it != m_aliasToBaseImages.end())
+            {
+                m_aliasToBaseImages.erase(it);
+            }
         }
 
         {
             auto it = m_imgAspectFlags.find(_img);
-            m_imgAspectFlags.erase(it);
+            if (it != m_imgAspectFlags.end())
+            {
+                m_imgAspectFlags.erase(it);
+            }
         }
 
         {
             auto it = m_imgBarrierStatus.find(_img);
-            m_imgBarrierStatus.erase(it);
+            if (it != m_imgBarrierStatus.end())
+            {
+                m_imgBarrierStatus.erase(it);
+            }
         }
     }
 
