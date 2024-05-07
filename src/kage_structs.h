@@ -520,6 +520,7 @@ namespace kage
 
         void * windowHandle{ nullptr };
         const char* name{ nullptr };
+        uint32_t minCmdBufSize;
     };
 
     struct VertexBindingDesc

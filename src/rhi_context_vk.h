@@ -261,6 +261,7 @@ namespace kage { namespace vk
         uint32_t m_offset;
     };
 
+
     struct RHIContext_vk : public RHIContext
     {
         RHIContext_vk(bx::AllocatorI* _allocator);
@@ -322,8 +323,6 @@ namespace kage { namespace vk
 
         void createInstance();
         void createPhysicalDevice();
-
-        void recreateSwapchain(const Resolution& _resolution);
 
         void recreateSwapchainImages();
 

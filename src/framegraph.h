@@ -440,7 +440,7 @@ namespace kage
         stl::vector< SamplerMetaData >      m_sparse_sampler_meta;
         stl::vector< ImageViewDesc >        m_sparse_img_view_desc;
         
-        stl::vector< std::string>           m_shader_path;
+        stl::vector< String>                m_shader_path;
 
         stl::vector< CombinedResID>         m_combinedResId;
 

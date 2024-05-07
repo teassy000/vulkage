@@ -12,9 +12,17 @@ namespace kage
         parseOp();
     }
 
-    void RHIContext::updatePushConstants(PassHandle _hPass, const void* _data, uint32_t _size)
+    extern void release(const Memory* _mem);
+
+    void RHIContext::updateConstants(const PassHandle _hPass, const Memory* _mem)
     {
-         m_constantsMemBlock.updateConstantData(_hPass, _data, _size);
+        m_constantsMemBlock.updateConstantData(_hPass, _mem->data, _mem->size);
+        release(_mem);
+    }
+
+    void RHIContext::update(const BufferHandle _hBuf, const Memory* _mem, const uint32_t _offset)
+    {
+
     }
 
     void RHIContext::parseOp()

@@ -207,7 +207,7 @@ namespace kage
         
         char path[kMaxPathLen];
         bx::read(&_reader, (void*)(path), info.strLen, nullptr);
-        path[info.strLen] = '\0'; // null-terminated string
+        path[info.strLen] = '\0';
 
         m_shader_path.emplace_back(path);
         m_sparse_shader_info[info.shaderId].createInfo = info;
@@ -1845,18 +1845,18 @@ namespace kage
             const ShaderInfo& info = m_sparse_shader_info[shader.id];
             assert(shader.id == info.createInfo.shaderId);
 
-            std::string& path = m_shader_path[info.pathIdx];
+            String& path = m_shader_path[info.pathIdx];
             
             ShaderCreateInfo createInfo;
             createInfo.shaderId = info.createInfo.shaderId;
-            createInfo.pathLen = (uint16_t)path.length();
+            createInfo.pathLen = (uint16_t)path.getLength();
 
             RHIContextOpMagic magic{ RHIContextOpMagic::create_shader };
             bx::write(&m_rhiMemWriter, magic, nullptr);
 
             bx::write(&m_rhiMemWriter, createInfo, nullptr);
 
-            bx::write(&m_rhiMemWriter, (void*)path.c_str(), (int32_t)path.length(), nullptr);
+            bx::write(&m_rhiMemWriter, (void*)path.getCPtr(), (int32_t)path.getLength(), nullptr);
 
             bx::write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end, nullptr);
         }

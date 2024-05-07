@@ -17,6 +17,7 @@
 #include "bx/settings.h"
 #include "bx/string.h"
 #include "bx/handlealloc.h"
+#include "command_buffer.h"
 
 
 namespace kage
@@ -109,13 +110,10 @@ namespace kage
         }
     }
 
-
     static void shutdownAllocator()
     {
         g_bxAllocator = nullptr;
     }
-
-    using String = bx::StringT<&g_bxAllocator>;
 
     struct NameMgr
     {
@@ -394,7 +392,6 @@ namespace kage
         bool isAliasFromImage(const ImageHandle _hBase, const ImageHandle _hAlias);
 
         // Context API
-        void setWindowName(const char* _name);
         void setNativeWindowHandle(void* _hWnd);
 
         bool checkSupports(VulkanSupportExtension _ext);
@@ -445,10 +442,14 @@ namespace kage
         void updateCustomRenderFuncData(const PassHandle _hPass, const Memory* _dataMem);
 
         void updateBuffer(const BufferHandle _hbuf, const Memory* _mem);
+        void update(const BufferHandle _hBuf, const Memory* _mem, const uint32_t _offset, const uint32_t _size);
 
         void updatePushConstants(const PassHandle _hPass, const Memory* _mem);
 
         void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ);
+
+        // submit
+        void submit();
 
         // actual write to memory
         void storeBrief();
@@ -461,7 +462,6 @@ namespace kage
         void storeSamplerData();
 
         void init(const Init& _init);
-        bool shouldClose();
 
         void run();
         void bake();
@@ -473,6 +473,8 @@ namespace kage
         bool isRenderGraphDataDirty() const { return m_isRenderGraphDataDirty; }
 
         double getPassTime(const PassHandle _hPass);
+
+        CommandBuffer& getCommandBuffer(CommandBuffer::Enum _command);
 
         bx::HandleAllocT<kMaxNumOfShaderHandle> m_shaderHandles;
         bx::HandleAllocT<kMaxNumOfProgramHandle> m_programHandles;
@@ -486,7 +488,7 @@ namespace kage
         uint32_t m_presentMipLevel{ 0 };
 
         // resource Info
-        ContinuousMap<ShaderHandle, std::string> m_shaderDescs;
+        ContinuousMap<ShaderHandle, String> m_shaderDescs;
         ContinuousMap<ProgramHandle, ProgramDesc> m_programDescs;
         ContinuousMap<BufferHandle, BufferMetaData> m_bufferMetas;
         ContinuousMap<ImageHandle, ImageMetaData> m_imageMetas;
@@ -544,6 +546,8 @@ namespace kage
         NameMgr* m_pNameManager{ nullptr };
 
         void* m_nativeWnd{ nullptr };
+
+        CommandBuffer m_cmdBuffer{};
     };
 
     bool Context::isCompute(const PassHandle _hPass)
@@ -669,11 +673,18 @@ namespace kage
             return ShaderHandle{ kInvalidHandle };
         }
 
-        m_shaderDescs.addOrUpdate({ idx }, _path);
-        
+        String path{ _path };
+        m_shaderDescs.addOrUpdate({ idx }, path);
+
         setName(m_pNameManager, _name, strlen(_name), handle);
 
         setRenderGraphDataDirty();
+
+        int32_t len = path.getLength();
+        CommandBuffer& cb = getCommandBuffer(CommandBuffer::create_shader);
+        cb.write(len);
+        cb.write(_path, len);
+        cb.tile();
 
         return handle;
     }
@@ -989,7 +1000,7 @@ namespace kage
         for (uint16_t ii = 0; ii < shaderCount; ++ii)
         {
             ShaderHandle shader { (m_shaderHandles.getHandleAt(ii)) };
-            const std::string& path = m_shaderDescs.getIdToData(shader);
+            const String& path = m_shaderDescs.getIdToData(shader);
 
             // magic tag
             MagicTag magic{ MagicTag::register_shader };
@@ -997,10 +1008,10 @@ namespace kage
 
             FGShaderCreateInfo info;
             info.shaderId = shader.id;
-            info.strLen = (uint16_t)strnlen_s(path.c_str(), kMaxPathLen);
+            info.strLen = (uint16_t)path.getLength();
 
             bx::write(m_fgMemWriter, info, nullptr);
-            bx::write(m_fgMemWriter, (void*)path.c_str(), (int32_t)info.strLen, nullptr);
+            bx::write(m_fgMemWriter, (void*)path.getCPtr(), (int32_t)info.strLen, nullptr);
 
             bx::write(m_fgMemWriter, MagicTag::magic_body_end, nullptr);
         }
@@ -1816,6 +1827,12 @@ namespace kage
         release(_mem);
     }
 
+    void Context::update(const BufferHandle _hBuf, const Memory* _mem, const uint32_t _offset, const uint32_t _size)
+    {
+
+
+    }
+
     void Context::updatePushConstants(const PassHandle _hPass, const Memory* _mem)
     {
         if (isRenderGraphDataDirty())
@@ -1824,8 +1841,10 @@ namespace kage
             return;
         }
 
-        m_rhiContext->updatePushConstants(_hPass, _mem->data, _mem->size);
-        release(_mem);
+        //m_rhiContext->updatePushConstants(_hPass, _mem->data, _mem->size);
+        //release(_mem);
+
+        m_rhiContext->updateConstants(_hPass, _mem);
     }
 
     void Context::updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ)
@@ -1838,6 +1857,12 @@ namespace kage
 
         m_rhiContext->updateThreadCount(_hPass, _threadCountX, _threadCountY, _threadCountZ);
     }
+
+    void Context::submit()
+    {
+
+    }
+
     namespace vk
     {
         extern RHIContext* rendererCreate(const Resolution& _config, void* _wnd);
@@ -1853,6 +1878,9 @@ namespace kage
         m_nativeWnd = _init.windowHandle;
 
         m_rhiContext = vk::rendererCreate(m_resolution, m_nativeWnd);
+
+        m_cmdBuffer.init(_init.minCmdBufSize);
+        m_cmdBuffer.start();
 
         m_frameGraph = BX_NEW(getAllocator(), Framegraph)(getAllocator(), m_rhiContext->memoryBlock());
 
@@ -1935,6 +1963,13 @@ namespace kage
     double Context::getPassTime(const PassHandle _hPass)
     {
         return m_rhiContext->getPassTime(_hPass);
+    }
+
+    CommandBuffer& Context::getCommandBuffer(CommandBuffer::Enum _cmd)
+    {
+        uint8_t cmd = static_cast<uint8_t>(_cmd);
+        m_cmdBuffer.write(cmd);
+        return m_cmdBuffer;
     }
 
     // ================================================
@@ -2098,6 +2133,26 @@ namespace kage
         s_ctx->updateCustomRenderFuncData(_hPass, _dataMem);
     }
 
+    void update(const BufferHandle _buf, const Memory* _mem, uint32_t _offset /*= 0*/, uint32_t _size /*= 0*/)
+    {
+        const uint32_t offset = 
+              (_offset == 0) 
+            ? 0 
+            : _offset;
+
+        const uint32_t size = 
+              (_size == 0) 
+            ? _mem->size 
+            : bx::clamp(_size, 0, _mem->size);
+
+        s_ctx->update(_buf, _mem, offset, size);
+    }
+
+    void update(const ImageHandle _img, const Memory* _mem)
+    {
+
+    }
+
     const Memory* alloc(uint32_t _sz)
     {
         if (_sz < 0)
@@ -2155,6 +2210,11 @@ namespace kage
     void reset(uint32_t _width, uint32_t _height, uint32_t _reset)
     {
         s_ctx->reset(_width, _height, _reset);
+    }
+
+    void submit()
+    {
+        s_ctx->submit();
     }
 
     void run()

@@ -17,7 +17,8 @@ namespace kage
     constexpr unsigned int kInitialFrameGraphMemSize = 16 * 1024; // 16k
 
     constexpr unsigned int kInitialConstantsTotalMemSize = 1024; // 1k
-    constexpr unsigned int kInitialUniformTotalMemSize = 16 * 1024; // 16k
+    constexpr unsigned int kInitialUniformMemSize = 16 * 1024; // 16k
+    constexpr unsigned int kInitialStorageMemSize = 128 * 1024 * 1024; // 128M
 
     constexpr unsigned int kMaxPathLen = 256;
     constexpr unsigned int kMaxNumOfStageInPorgram = 6;

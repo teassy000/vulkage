@@ -40,15 +40,13 @@ namespace kage
         uint16_t    offset;
     };
 
-    class UniformMemoryBlock
+    struct UniformMemoryBlock
     {
-    public:
         UniformMemoryBlock(bx::AllocatorI* _allocator)
             : m_pbxAllocator{ _allocator }
             , m_pUniformData{ nullptr }
         {
-            m_pUniformData = (Memory*)bx::alloc(m_pbxAllocator, kInitialUniformTotalMemSize);// BX_NEW(m_pbxAllocator, bx::MemoryBlock)(m_pbxAllocator);
-            //m_pUniformData->expand(kInitialUniformTotalMemSize);
+            m_pUniformData = (Memory*)bx::alloc(m_pbxAllocator, kInitialUniformMemSize);
         }
 
         ~UniformMemoryBlock()
@@ -68,7 +66,6 @@ namespace kage
         const void* getUniformData(const PassHandle _hPass);
         void updateUniformData(const PassHandle _hPass, const void* _data, uint32_t _size);
 
-    private:
         bx::AllocatorI* m_pbxAllocator;
         Memory* m_pUniformData;
 
@@ -76,16 +73,15 @@ namespace kage
         stl::vector<UniformBuffer> m_uniforms;
     };
 
-    struct Constants
+    struct ConstantsMemoryBlock
     {
-        uint16_t    passId;
-        uint32_t    size;
-        int64_t     offset;
-    };
+        struct Constants
+        {
+            uint16_t    passId;
+            uint32_t    size;
+            int64_t     offset;
+        };
 
-    class ConstantsMemoryBlock
-    {
-    public:
         ConstantsMemoryBlock(bx::AllocatorI* _allocator)
             : m_pbxAllocator{ _allocator }
             , m_pConstantData{ nullptr }
@@ -110,13 +106,66 @@ namespace kage
         const void* getConstantData(const PassHandle _hPass) const;
         void updateConstantData(const PassHandle _hPass, const void* _data, uint32_t _size);
 
-    private:
         bx::AllocatorI* m_pbxAllocator;
         bx::MemoryBlockI* m_pConstantData;
         bx::MemoryWriter* m_pWriter;
 
         stl::vector<PassHandle> m_passes;
         stl::vector<Constants> m_constants;
+
+        uint32_t m_usedSize;
+    };
+
+    struct BufferInfoToUpdate
+    {
+        BufferHandle m_hBuf;
+        uint32_t m_offset;
+        uint32_t m_size;
+
+        uint32_t m_lastSize;
+    };
+
+
+
+    struct BufferMemoryPerFrame
+    {
+        struct BufferInfo
+        {
+            BufferHandle m_hBuf;
+            uint32_t m_offset;
+            uint32_t m_size;
+        };
+
+        BufferMemoryPerFrame(bx::AllocatorI* _allocator)
+            : m_pbxAllocator{ _allocator }
+            , m_pBuffer{ nullptr }
+            , m_pWriter{ nullptr }
+            , m_usedSize{ 0 }
+        {
+            m_pBuffer = BX_NEW(m_pbxAllocator, bx::MemoryBlock)(m_pbxAllocator);
+            m_pBuffer->more(kInitialStorageMemSize);
+
+            m_pWriter = BX_NEW(m_pbxAllocator, bx::MemoryWriter)(m_pBuffer);
+        }
+
+        ~BufferMemoryPerFrame()
+        {
+            bx::deleteObject(m_pbxAllocator, m_pWriter);
+            bx::deleteObject(m_pbxAllocator, m_pBuffer);
+        }
+
+        void addBuffer(const BufferHandle _hBuf, uint32_t _size);
+
+        const uint32_t getBufferSize(const BufferHandle _hBuf) const;
+        const void* getBufferData(const BufferHandle _hBuf) const;
+        void updateBufferData(const BufferHandle _hBuf, const void* _data, uint32_t _size);
+
+        bx::AllocatorI* m_pbxAllocator;
+        bx::MemoryBlockI* m_pBuffer;
+        bx::MemoryWriter* m_pWriter;
+
+        stl::vector<BufferHandle> m_buffers;
+        stl::vector<BufferInfo> m_bufferInfos;
 
         uint32_t m_usedSize;
     };
@@ -134,9 +183,11 @@ namespace kage
         virtual void updateResolution(const Resolution& _resolution) = 0;
 
         // update resources
-        virtual void updatePushConstants(PassHandle _hPass, const void* _data, uint32_t _size) = 0;
         virtual void updateUniform(PassHandle _hPass, const void* _data, uint32_t _size) = 0;
         virtual void updateBuffer(BufferHandle _hBuf, const void* _data, uint32_t _size) = 0;
+
+        virtual void updateConstants(const PassHandle _hPass, const Memory* _mem) = 0;
+        virtual void update(const BufferHandle _hBuf, const Memory* _mem, const uint32_t _offset) = 0;
 
         // update settings
         virtual void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ) = 0;
@@ -185,12 +236,14 @@ namespace kage
         void updateResolution(const Resolution& _resolution) override {};
 
         // update 
-        void updatePushConstants(PassHandle _hPass, const void* _data, uint32_t _size) override;
         void updateUniform(PassHandle _hPass, const void* _data, uint32_t _size) override {};
         void updateBuffer(BufferHandle _hBuf, const void* _data, uint32_t _size) override {};
         void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ) override {};
         
         void updateCustomFuncData(const PassHandle _hPass, const void* _data, uint32_t _size) override {};
+
+        void updateConstants(const PassHandle _hPass, const Memory* _mem) override;
+        void update(const BufferHandle _hBuf, const Memory* _mem, const uint32_t _offset) override;
 
         double getPassTime(const PassHandle _hPass) override { return 0.0; }
 
@@ -205,7 +258,9 @@ namespace kage
         void createImageView(bx::MemoryReader& _reader) override {};
         void setBrief(bx::MemoryReader& reader) override {};
 
+        // permanent
         ConstantsMemoryBlock m_constantsMemBlock;
+
         bx::AllocatorI* m_pAllocator;
 
         bx::MemoryBlockI*   m_pMemBlockBaked;

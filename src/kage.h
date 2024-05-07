@@ -59,17 +59,21 @@ namespace kage
 
     void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ);
 
+    void update(const BufferHandle _buf, const Memory* _mem, uint32_t _offset = 0, uint32_t _size = 0);
+    void update(const ImageHandle _img, const Memory* _mem);
+
+
     // memory related
     const Memory* alloc(uint32_t _sz);
     const Memory* copy(const void* _data, uint32_t _sz);
     const Memory* copy(const Memory* _mem);
     const Memory* makeRef(const void* _data, uint32_t _sz, ReleaseFn _releaseFn = nullptr, void* _userData = nullptr);
 
-
     // basic functions
     bool init(kage::Init _config = {});
 
     void bake();
+    void submit();
     void run();
     void reset(uint32_t _width, uint32_t _height, uint32_t _reset);
     void shutdown();

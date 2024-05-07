@@ -1107,7 +1107,6 @@ namespace kage { namespace vk
         bool extSupported = false;
         for (const auto& extension : props) {
             if (strcmp(extension.extensionName, extName) != 0) {
-                //if (std::string(extension.extensionName) == extName) {
                 extSupported = true;
                 break;
             }
@@ -1399,9 +1398,6 @@ namespace kage { namespace vk
             VK_CHECK(vkDeviceWaitIdle(m_device)); // TODO: a fence here?
         }
 
-
-
-
         // set the time stamp data
         m_passTime.clear();
         stl::vector<uint64_t> timeStamps(queryIdx);
@@ -1652,8 +1648,6 @@ namespace kage { namespace vk
 
             m_resolution = _resolution;
         }
-
-
     }
 
     void RHIContext_vk::updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ)
@@ -2235,31 +2229,6 @@ namespace kage { namespace vk
 
         m_physicalDevice = kage::vk::pickPhysicalDevice(physicalDevices, deviceCount);
         assert(m_physicalDevice);
-    }
-
-    void RHIContext_vk::recreateSwapchain(const Resolution& _resolution)
-{
-
-        // untrack old swapchain images
-        for (uint32_t ii = 0; ii < m_swapchain.m_swapchainImageCount; ++ii)
-        {
-            m_barrierDispatcher.untrack(m_swapchain.m_swapchainImages[ii]);
-        }
-
-        // destroy old swapchain
-        m_swapchain.releaseSwapchain();
-
-        // create new
-        m_swapchain.createSwapchain();
-
-        // track new images
-        for (uint32_t ii = 0; ii < m_swapchain.m_swapchainImageCount; ++ii)
-        {
-            m_barrierDispatcher.track(m_swapchain.m_swapchainImages[ii]
-                , VK_IMAGE_ASPECT_COLOR_BIT
-                , { 0, VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT }
-            );
-        }
     }
 
     /*

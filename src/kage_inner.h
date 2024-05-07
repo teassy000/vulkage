@@ -299,6 +299,8 @@ namespace kage
         }
     };
 
+
+    using String = bx::StringT<&g_bxAllocator>;
     
     const char* getName(ShaderHandle _hShader);
     const char* getName(ProgramHandle _hProg);

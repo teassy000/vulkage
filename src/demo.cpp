@@ -158,7 +158,9 @@ namespace
             vkz_updateImGui(demoData.input, demoData.renderOptions, demoData.profiling, demoData.logic);
             vkz_updateUIRenderData(ui);
 
+            kage::update(transformBuf, memTransform);
 
+            kage::submit();
             // render
             kage::run();
 
