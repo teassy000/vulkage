@@ -76,12 +76,6 @@ namespace kage
             write(reinterpret_cast<const uint8_t*>(&_data), sizeof(Ty));
         }
 
-        void tile()
-        {
-            uint8_t cmd = static_cast<uint8_t>(cmd_tail);
-            write(cmd);
-        }
-
         void read(void* _data, uint32_t _size)
         {
             BX_ASSERT(m_pos + _size <= m_size

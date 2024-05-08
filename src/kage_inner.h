@@ -48,6 +48,7 @@ namespace kage
 
     struct ImageMetaData : public ImageDesc
     {
+        ImageMetaData() {};
         ImageMetaData(const ImageDesc& desc) : ImageDesc(desc) {}
 
         uint16_t    imgId{ kInvalidHandle };
@@ -60,9 +61,38 @@ namespace kage
         ImageAspectFlags    aspectFlags{ 0 };
     };
 
+    struct ImageCreate
+    {
+        uint32_t width{ 0 };
+        uint32_t height{ 0 };
+        uint32_t depth{ 1 };
+        uint16_t numLayers{ 1 };
+        uint16_t numMips{ 1 };
+
+        ImageType           type{ ImageType::type_2d };
+        ImageViewType       viewType{ ImageViewType::type_2d };
+        ImageLayout         layout{ ImageLayout::undefined };
+        ResourceFormat      format{ ResourceFormat::undefined };
+        ImageUsageFlags     usage{ ImageUsageFlagBits::color_attachment };
+        ImageAspectFlags    aspect{ 0 };
+
+        ResourceLifetime    lifetime{ ResourceLifetime::transition };
+
+        const Memory*       mem{nullptr};
+    };
+
+    struct SpecImageViewsCreate
+    {
+        SpecImageViewsCreate() {};
+        ImageHandle         image{ kInvalidHandle };
+        uint32_t            viewCount{ 0 };
+        ImageViewHandle     views[kMaxNumOfImageMipLevel]{ kInvalidHandle };
+    };
+
     struct BufferMetaData : public BufferDesc
     {
-        BufferMetaData(const BufferDesc& desc) : BufferDesc(desc) {}
+        BufferMetaData() {};
+        BufferMetaData(const BufferDesc& desc) : BufferDesc(desc) {};
 
         void*       pData{ nullptr };
         uint16_t    bufId{ kInvalidHandle };
@@ -116,15 +146,17 @@ namespace kage
 
     struct ImageViewDesc
     {
+        ImageViewDesc() {};
+
         uint16_t    imgId{ kInvalidHandle };
         uint16_t    imgViewId{ kInvalidHandle };
-        uint32_t    baseMip;
-        uint32_t    mipLevels;
+        uint32_t    baseMip{0};
+        uint32_t    mipLevel{ 0 };
 
         inline bool operator == (const ImageViewDesc& rhs) const {
             return imgId == rhs.imgId &&
                 baseMip == rhs.baseMip &&
-                mipLevels == rhs.mipLevels;
+                mipLevel == rhs.mipLevel;
         }
 
         inline bool operator != (const ImageViewDesc& rhs) const {
@@ -134,7 +166,9 @@ namespace kage
 
     inline ImageViewDesc defaultImageView(const ImageHandle _hImg)
     {
-        return { _hImg.id, 0, kAllMipLevel };
+        ImageViewDesc desc;
+
+        return desc;
     }
 
     struct BufferCreateInfo : public BufferDesc
@@ -171,6 +205,8 @@ namespace kage
 
     struct SamplerDesc
     {
+        SamplerDesc() {};
+
         SamplerFilter filter{ SamplerFilter::nearest };
         SamplerAddressMode addressMode{ SamplerAddressMode::clamp_to_edge };
         SamplerReductionMode reductionMode{ SamplerReductionMode::weighted_average };
@@ -212,7 +248,7 @@ namespace kage
     using RenderFuncPtr = void (*)(CommandListI& _cmdList, const void* _data, uint32_t _size);
     struct PassMetaData : public PassDesc
     {
-        PassMetaData() = default;
+        PassMetaData() {};
         PassMetaData(const PassDesc& desc) : PassDesc(desc) {}
 
         uint16_t    passId{ kInvalidHandle };

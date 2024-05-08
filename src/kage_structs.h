@@ -616,7 +616,7 @@ namespace kage
         ImageUsageFlags usage{ ImageUsageFlagBits::color_attachment };
 
         uint32_t        viewCount{ 0 };
-        ImageViewHandle mipViews[kMaxNumOfImageMipLevel]{ kInvalidHandle };
+        ImageViewHandle views[kMaxNumOfImageMipLevel]{ kInvalidHandle };
     };
 
     struct PassDesc

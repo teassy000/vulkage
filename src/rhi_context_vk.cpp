@@ -2094,16 +2094,16 @@ namespace kage { namespace vk
         const Image_vk& baseImage = getImage(info.imgId, true);
         for (uint32_t ii = 0; ii < info.viewCount; ++ii)
         {
-            const ImageViewHandle imgView = info.mipViews[ii];
+            const ImageViewHandle imgView = info.views[ii];
             const ImageViewDesc& viewDesc = m_imageViewDescContainer.getIdToData(imgView.id);
 
-            VkImageView view_vk = kage::vk::createImageView(m_device, baseImage.image, baseImage.format, viewDesc.baseMip, viewDesc.mipLevels);
+            VkImageView view_vk = kage::vk::createImageView(m_device, baseImage.image, baseImage.format, viewDesc.baseMip, viewDesc.mipLevel);
             m_imageViewContainer.addOrUpdate(imgView.id, view_vk);
         }
 
         m_imgToViewGroupIdx.insert({ info.imgId, (uint16_t)m_imgViewGroups.size() });
 
-        stl::vector<ImageViewHandle> viewHandles(info.mipViews, info.mipViews + info.viewCount);
+        stl::vector<ImageViewHandle> viewHandles(info.views, info.views + info.viewCount);
         m_imgViewGroups.push_back(viewHandles);
 
         for (int ii = 0; ii < info.resCount; ++ii)

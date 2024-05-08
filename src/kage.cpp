@@ -371,8 +371,6 @@ namespace kage
         free(getAllocator(), mem);
     }
 
-    constexpr uint8_t kTouched = 1;
-    constexpr uint8_t kUnTouched = 0;
 
     struct Context
     {
@@ -488,13 +486,20 @@ namespace kage
         uint32_t m_presentMipLevel{ 0 };
 
         // resource Info
-        ContinuousMap<ShaderHandle, String> m_shaderDescs;
-        ContinuousMap<ProgramHandle, ProgramDesc> m_programDescs;
-        ContinuousMap<BufferHandle, BufferMetaData> m_bufferMetas;
-        ContinuousMap<ImageHandle, ImageMetaData> m_imageMetas;
         ContinuousMap<PassHandle, PassMetaData> m_passMetas;
-        ContinuousMap<SamplerHandle, SamplerDesc> m_samplerDescs;
-        ContinuousMap<ImageViewHandle, ImageViewDesc> m_imageViewDesc;
+
+        // resource Info
+        String                  m_shaderPathesArr[kMaxNumOfShaderHandle];
+        ProgramDesc             m_programDescsArr[kMaxNumOfProgramHandle];
+        BufferMetaData          m_bufferMetasArr[kMaxNumOfBufferHandle];
+        ImageMetaData           m_imageMetasArr[kMaxNumOfImageHandle];
+        SpecImageViewsCreate    m_specImageViewCreatesArr[kMaxNumOfImageHandle];
+        PassMetaData            m_passMetasArr[kMaxNumOfPassHandle];
+        SamplerDesc             m_samplerDescsArr[kMaxNumOfSamplerHandle];
+        ImageViewDesc           m_imageViewDescArr[kMaxNumOfImageViewHandle];
+        
+        // 1-operation pass: blit/copy/fill 
+        bool                m_oneOpPassTouchedArr[kMaxNumOfPassHandle];
 
         // alias
         stl::unordered_map<uint16_t, BufferHandle> m_bufferAliasMapToBase;
@@ -511,18 +516,12 @@ namespace kage
         ContinuousMap<PassHandle, stl::vector<WriteOperationAlias>> m_writeForcedBufferAliases; // add a dependency line to the write resource
         ContinuousMap<PassHandle, stl::vector<WriteOperationAlias>> m_writeForcedImageAliases; // add a dependency line to the write resource
 
-        // back buffers
-        stl::vector<ImageHandle> m_backBuffers;
-
         // binding
         ContinuousMap<PassHandle, stl::vector<uint32_t>> m_usedBindPoints;
         ContinuousMap<PassHandle, stl::vector<uint32_t>> m_usedAttchBindPoints;
 
         // push constants
         ContinuousMap<ProgramHandle, void *> m_pushConstants;
-
-        // 1-operation pass: blit/copy/fill 
-        ContinuousMap<PassHandle, uint8_t> m_oneOpPassTouched;
 
         // Memories
         stl::vector<const Memory*> m_inputMemories;
@@ -552,25 +551,25 @@ namespace kage
 
     bool Context::isCompute(const PassHandle _hPass)
     {
-        const PassMetaData& meta = m_passMetas.getIdToData(_hPass);
+        const PassMetaData& meta = m_passMetasArr[_hPass.id];
         return meta.queue == PassExeQueue::compute;
     }
 
     bool Context::isGraphics(const PassHandle _hPass)
     {
-        const PassMetaData& meta = m_passMetas.getIdToData(_hPass);
+        const PassMetaData& meta = m_passMetasArr[_hPass.id];
         return meta.queue == PassExeQueue::graphics;
     }
 
     bool Context::isFillBuffer(const PassHandle _hPass)
     {
-        const PassMetaData& meta = m_passMetas.getIdToData(_hPass);
+        const PassMetaData& meta = m_passMetasArr[_hPass.id];
         return meta.queue == PassExeQueue::fill_buffer;
     }
 
     bool Context::isOneOpPass(const PassHandle _hPass)
     {
-        const PassMetaData& meta = m_passMetas.getIdToData(_hPass);
+        const PassMetaData& meta = m_passMetasArr[_hPass.id];
 
         return (
             meta.queue == PassExeQueue::fill_buffer
@@ -590,14 +589,18 @@ namespace kage
 
     bool Context::isDepthStencil(const ImageHandle _hImg)
     {
-        const ImageMetaData& meta = m_imageMetas.getIdToData(_hImg);
-        return meta.usage & ImageUsageFlagBits::depth_stencil_attachment;
+        const ImageMetaData& meta = m_imageMetasArr[_hImg.id];
+        
+        return 
+            0 != (meta.usage & ImageUsageFlagBits::depth_stencil_attachment);
     }
 
     bool Context::isColorAttachment(const ImageHandle _hImg)
     {
-        const ImageMetaData& meta = m_imageMetas.getIdToData(_hImg);
-        return meta.usage & ImageUsageFlagBits::color_attachment;
+        const ImageMetaData& meta = m_imageMetasArr[_hImg.id];
+        
+        return 
+            0 != (meta.usage & ImageUsageFlagBits::color_attachment);
     }
 
     bool Context::isNormalImage(const ImageHandle _hImg)
@@ -674,7 +677,7 @@ namespace kage
         }
 
         String path{ _path };
-        m_shaderDescs.addOrUpdate({ idx }, path);
+        m_shaderPathesArr[idx] = path;
 
         setName(m_pNameManager, _name, strlen(_name), handle);
 
@@ -682,9 +685,9 @@ namespace kage
 
         int32_t len = path.getLength();
         CommandBuffer& cb = getCommandBuffer(CommandBuffer::create_shader);
+        cb.write(handle);
         cb.write(len);
         cb.write(_path, len);
-        cb.tile();
 
         return handle;
     }
@@ -698,6 +701,7 @@ namespace kage
         if (!isValid(handle))
         {
             message(error, "create ProgramHandle failed!");
+            release(_mem);
             return ProgramHandle{ kInvalidHandle };
         }
 
@@ -706,12 +710,18 @@ namespace kage
         desc.shaderNum = _shaderNum;
         desc.sizePushConstants = _sizePushConstants;
         memcpy_s(desc.shaderIds, COUNTOF(desc.shaderIds), _mem->data, _mem->size);
-        release(_mem);
-        m_programDescs.addOrUpdate({ idx }, desc);
+
+        m_programDescsArr[idx] = desc;
 
         setName(m_pNameManager, _name, strlen(_name), handle);
 
         setRenderGraphDataDirty();
+
+        CommandBuffer& cb = getCommandBuffer(CommandBuffer::create_program);
+        cb.write(handle);
+        cb.write(_shaderNum);
+        cb.write(_sizePushConstants);
+        cb.write(_mem);
 
         return handle;
     }
@@ -730,13 +740,18 @@ namespace kage
 
         PassMetaData meta{ _desc };
         meta.passId = idx;
-        m_passMetas.addOrUpdate({ idx }, meta);
+        //m_passMetas.addOrUpdate({ idx }, meta);
 
-        m_oneOpPassTouched.addOrUpdate({ idx }, kUnTouched);
+        m_passMetasArr[idx] = meta;
+        m_oneOpPassTouchedArr[idx] = false;
 
         setName(m_pNameManager, _name, strlen(_name), handle);
 
         setRenderGraphDataDirty();
+
+        CommandBuffer& cb = getCommandBuffer(CommandBuffer::create_pass);
+        cb.write(handle);
+        cb.write(_desc);
 
         return handle;
     }
@@ -750,6 +765,7 @@ namespace kage
         if (!isValid(handle))
         {
             message(error, "create BufferHandle failed!");
+            release(_mem);
             return BufferHandle{ kInvalidHandle };
         }
 
@@ -765,11 +781,17 @@ namespace kage
             m_inputMemories.push_back(_mem);
         }
 
-        m_bufferMetas.addOrUpdate({ idx }, meta);
+        m_bufferMetasArr[idx] = meta;
 
         setName(m_pNameManager, _name, strlen(_name), handle);
 
         setRenderGraphDataDirty();
+
+        CommandBuffer& cb = getCommandBuffer(CommandBuffer::create_buffer);
+        cb.write(handle);
+        cb.write(_desc);
+        cb.write(_mem); //TODO: process usage later
+        cb.write(_lifetime);
 
         return handle;
     }
@@ -800,11 +822,32 @@ namespace kage
             m_inputMemories.push_back(_mem);
         }
 
-        m_imageMetas.addOrUpdate({ idx }, meta);
+        m_imageMetasArr[idx] = meta;
 
         setName(m_pNameManager, _name, strlen(_name), handle);
 
         setRenderGraphDataDirty();
+        
+        ImageCreate ic{};
+        ic.width = _desc.width;
+        ic.height = _desc.height;
+        ic.depth = _desc.depth;
+        ic.numLayers = _desc.numLayers;
+        ic.numMips = _desc.numMips;
+
+        ic.type = _desc.type;
+        ic.viewType = _desc.viewType;
+        ic.layout = _desc.layout;
+        ic.format = _desc.format;
+        ic.usage = _desc.usage;
+        ic.aspect = ImageAspectFlagBits::color;
+
+        ic.lifetime = _lifetime;
+        ic.mem = _mem;
+
+        CommandBuffer& cb = getCommandBuffer(CommandBuffer::create_image);
+        cb.write(handle);
+        cb.write(ic);
 
         return handle;
     }
@@ -842,13 +885,33 @@ namespace kage
         meta.aspectFlags = ImageAspectFlagBits::color;
         meta.lifetime = _lifetime;
 
-        m_imageMetas.addOrUpdate(handle, meta);
+        //m_imageMetas.addOrUpdate(handle, meta);
 
-        m_backBuffers.push_back(handle);
+        m_imageMetasArr[idx] = meta;
 
         setName(m_pNameManager, _name, strlen(_name), handle);
 
         setRenderGraphDataDirty();
+
+        ImageCreate ic{};
+        ic.width = _desc.width;
+        ic.height = _desc.height;
+        ic.depth = _desc.depth;
+        ic.numLayers = _desc.numLayers;
+        ic.numMips = _desc.numMips;
+
+        ic.type = _desc.type;
+        ic.viewType = _desc.viewType;
+        ic.layout = _desc.layout;
+        ic.format = ResourceFormat::undefined;
+        ic.usage = ImageUsageFlagBits::color_attachment | _desc.usage;
+        ic.aspect = ImageAspectFlagBits::color;
+
+        ic.lifetime = _lifetime;
+
+        CommandBuffer& cb = getCommandBuffer(CommandBuffer::create_image);
+        cb.write(handle);
+        cb.write(ic);
 
         return handle;
     }
@@ -887,13 +950,33 @@ namespace kage
         meta.aspectFlags = ImageAspectFlagBits::depth;
         meta.lifetime = _lifetime;
 
-        m_imageMetas.addOrUpdate(handle, meta);
+        //m_imageMetas.addOrUpdate(handle, meta);
 
-        m_backBuffers.push_back(handle);
+        m_imageMetasArr[idx] = meta;
+
         setName(m_pNameManager, _name, strlen(_name), handle);
 
-
         setRenderGraphDataDirty();
+
+        ImageCreate ic{};
+        ic.width = _desc.width;
+        ic.height = _desc.height;
+        ic.depth = _desc.depth;
+        ic.numLayers = _desc.numLayers;
+        ic.numMips = _desc.numMips;
+
+        ic.type = _desc.type;
+        ic.viewType = _desc.viewType;
+        ic.layout = _desc.layout;
+        ic.format = ResourceFormat::d32;
+        ic.usage = ImageUsageFlagBits::depth_stencil_attachment | _desc.usage;
+        ic.aspect = ImageAspectFlagBits::depth;
+
+        ic.lifetime = _lifetime;
+
+        CommandBuffer& cb = getCommandBuffer(CommandBuffer::create_image);
+        cb.write(handle);
+        cb.write(ic);
 
         return handle;
     }
@@ -915,19 +998,28 @@ namespace kage
             return ImageViewHandle{ kInvalidHandle };
         }
 
-        ImageViewDesc desc{ _hImg.id, idx, _baseMip, _mipLevel };
-        m_imageViewDesc.addOrUpdate({ idx }, desc);
+        ImageViewDesc desc;
+        desc.imgId      = _hImg.id;
+        desc.imgViewId  = idx;
+        desc.baseMip    = _baseMip;
+        desc.mipLevel   = _mipLevel;
 
+        //m_imageViewDesc.addOrUpdate({ idx }, desc);
+        m_imageViewDescArr[idx] = desc;
 
-        ImageMetaData& imgMeta = m_imageMetas.getDataRef(_hImg);
+        ImageMetaData& imgMeta = m_imageMetasArr[_hImg.id]; // m_imageMetas.getDataRef(_hImg);
         if (imgMeta.viewCount >= kMaxNumOfImageMipLevel)
         {
             message(error, "too many mip views for image!");
             return ImageViewHandle{ kInvalidHandle };
         }
 
-        imgMeta.mipViews[imgMeta.viewCount] = handle;
+        imgMeta.views[imgMeta.viewCount] = handle;
         imgMeta.viewCount++;
+
+        SpecImageViewsCreate& specIV = m_specImageViewCreatesArr[_hImg.id];
+        specIV.views[specIV.viewCount] = handle;
+        specIV.viewCount++;
 
         setName(m_pNameManager, _name, strlen(_name), handle);
 
@@ -943,7 +1035,8 @@ namespace kage
         for (uint16_t ii = 0; ii < m_samplerHandles.getNumHandles(); ++ii)
         {
             SamplerHandle handle{ m_samplerHandles.getHandleAt(ii) };
-            const SamplerDesc& desc = m_samplerDescs.getIdToData(handle);
+
+            const SamplerDesc& desc = m_samplerDescsArr[handle.id];
 
             if (desc == _desc)
             {
@@ -961,8 +1054,16 @@ namespace kage
                 message(error, "create SamplerHandle failed!");
                 return SamplerHandle{ kInvalidHandle };
             }
-            
-            m_samplerDescs.addOrUpdate({ samplerId }, _desc);
+
+            m_samplerDescsArr[samplerId] = _desc;
+
+            setRenderGraphDataDirty();
+
+            CommandBuffer& cb = getCommandBuffer(CommandBuffer::create_sampler);
+            cb.write(SamplerHandle{ samplerId });
+            cb.write(_desc.filter);
+            cb.write(_desc.addressMode);
+            cb.write(_desc.reductionMode);
         }
 
         return SamplerHandle{ samplerId };
@@ -1000,7 +1101,7 @@ namespace kage
         for (uint16_t ii = 0; ii < shaderCount; ++ii)
         {
             ShaderHandle shader { (m_shaderHandles.getHandleAt(ii)) };
-            const String& path = m_shaderDescs.getIdToData(shader);
+            const String& path = m_shaderPathesArr[shader.id];
 
             // magic tag
             MagicTag magic{ MagicTag::register_shader };
@@ -1024,7 +1125,7 @@ namespace kage
         for (uint16_t ii = 0; ii < programCount; ++ii)
         {
             ProgramHandle program { (m_programHandles.getHandleAt(ii)) };
-            const ProgramDesc& desc = m_programDescs.getIdToData(program);
+            const ProgramDesc& desc = m_programDescsArr[program.id];
 
             // magic tag
             MagicTag magic{ MagicTag::register_program };
@@ -1062,7 +1163,7 @@ namespace kage
             };
 
             PassHandle pass{ (m_passHandles.getHandleAt(ii)) };
-            const PassMetaData& passMeta = m_passMetas.getIdToData(pass);
+            const PassMetaData& passMeta = m_passMetasArr[pass.id];
 
             assert(getResInteractNum(m_writeImages, pass) == passMeta.writeImageNum);
             assert(getResInteractNum(m_readImages, pass) == passMeta.readImageNum);
@@ -1161,7 +1262,7 @@ namespace kage
         for (uint16_t ii = 0; ii < bufCount; ++ii)
         {
             BufferHandle buf { (m_bufferHandles.getHandleAt(ii)) };
-            const BufferMetaData& meta = m_bufferMetas.getIdToData(buf);
+            const BufferMetaData& meta = m_bufferMetasArr[buf.id];//m_bufferMetas.getIdToData(buf);
 
             // frame graph data
             MagicTag magic{ MagicTag::register_buffer };
@@ -1191,8 +1292,8 @@ namespace kage
 
         for (uint16_t ii = 0; ii < imgCount; ++ii)
         {
-            ImageHandle img { (m_imageHandles.getHandleAt(ii)) };
-            const ImageMetaData& meta = m_imageMetas.getIdToData(img);
+            ImageHandle hImg { (m_imageHandles.getHandleAt(ii)) };
+            const ImageMetaData& meta = m_imageMetasArr[hImg.id]; //m_imageMetas.getIdToData(img);
 
             // frame graph data
             MagicTag magic{ MagicTag::register_image };
@@ -1224,7 +1325,7 @@ namespace kage
 
             for (uint32_t mipIdx = 0; mipIdx < kMaxNumOfImageMipLevel; ++ mipIdx)
             {
-                info.mipViews[mipIdx] = mipIdx < info.viewCount ? meta.mipViews[mipIdx] : ImageViewHandle{kInvalidHandle};
+                info.views[mipIdx] = mipIdx < info.viewCount ? meta.views[mipIdx] : ImageViewHandle{kInvalidHandle};
             }
 
             bx::write(m_fgMemWriter, info, nullptr);
@@ -1237,7 +1338,7 @@ namespace kage
         for (uint16_t ii = 0; ii < imgViewCount; ++ ii)
         {
             ImageViewHandle imgView { (m_imageViewHandles.getHandleAt(ii)) };
-            const ImageViewDesc& desc = m_imageViewDesc.getIdToData(imgView);
+            const ImageViewDesc& desc = m_imageViewDescArr[imgView.id]; //m_imageViewDesc.getIdToData(imgView);
 
             // frame graph data
             bx::write(m_fgMemWriter, MagicTag::register_image_view, nullptr);
@@ -1281,8 +1382,8 @@ namespace kage
         // images
         for (uint16_t ii = 0; ii < m_aliasImages.size(); ++ii)
         {
-            ImageHandle img  = m_aliasImages.getIdAt(ii);
-            const stl::vector<ImageHandle>& aliasVec = m_aliasImages.getIdToData(img);
+            ImageHandle hImg  = m_aliasImages.getIdAt(ii);
+            const stl::vector<ImageHandle>& aliasVec = m_aliasImages.getIdToData(hImg);
 
             if (aliasVec.empty())
             {
@@ -1290,14 +1391,14 @@ namespace kage
             }
 
 
-            const ImageMetaData& meta = m_imageMetas.getIdToData(img);
+            const ImageMetaData& meta = m_imageMetasArr[hImg.id]; //m_imageMetas.getIdToData(img);
             MagicTag magic{ MagicTag::force_alias_image };
             bx::write(m_fgMemWriter, magic, nullptr);
 
             // info
             ResAliasInfo info;
             info.aliasNum = (uint16_t)aliasVec.size();
-            info.resBase = img.id;
+            info.resBase = hImg.id;
             bx::write(m_fgMemWriter, info, nullptr);
 
             // actual alias indexes
@@ -1312,12 +1413,13 @@ namespace kage
         for (uint16_t ii = 0; ii < m_samplerHandles.getNumHandles(); ++ii )
         {
             uint16_t samplerId = m_samplerHandles.getHandleAt(ii);
-            const SamplerDesc& desc = m_samplerDescs.getIdToData({ samplerId });
+
+            const SamplerDesc& desc = m_samplerDescsArr[samplerId];
 
             // magic tag
             bx::write(m_fgMemWriter, MagicTag::register_sampler, nullptr);
 
-            SamplerMetaData meta{desc};
+            SamplerMetaData meta{ desc };
             meta.samplerId = samplerId;
 
             bx::write(m_fgMemWriter, meta, nullptr);
@@ -1354,9 +1456,9 @@ namespace kage
             m_aliasBuffers.addOrUpdate({ actualBase }, aliasVec);
         }
 
-        BufferMetaData meta = { m_bufferMetas.getIdToData(actualBase) };
+        BufferMetaData meta = m_bufferMetasArr[actualBase];
         meta.bufId = aliasId;
-        m_bufferMetas.addOrUpdate({ aliasId }, meta);
+        m_bufferMetasArr[aliasId] = meta;
 
         bx::StringView baseName = getName(actualBase);
         setName(getNameManager(), baseName.getPtr(), baseName.getLength(), BufferHandle{ aliasId }, true);
@@ -1394,9 +1496,10 @@ namespace kage
             m_aliasImages.addOrUpdate({ actualBase }, aliasVec);
         }
 
-        ImageMetaData meta = { m_imageMetas.getIdToData(actualBase) };
+        ImageMetaData meta = m_imageMetasArr[actualBase.id];// m_imageMetas.getIdToData(actualBase);
         meta.imgId = aliasId;
-        m_imageMetas.addOrUpdate({ aliasId }, meta);
+        m_imageMetasArr[aliasId] = meta;
+        //m_imageMetas.addOrUpdate({ aliasId }, meta);
 
         bx::StringView baseName = getName(actualBase);
         setName(getNameManager(), baseName.getPtr(), baseName.getLength(), ImageHandle{ aliasId }, true);
@@ -1486,7 +1589,7 @@ namespace kage
 
     void Context::bindVertexBuffer(const PassHandle _hPass, const BufferHandle _hBuf, const uint32_t _vtxCount)
     {
-        PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
+        PassMetaData& passMeta = m_passMetasArr[_hPass.id];
         passMeta.vertexBufferId = _hBuf.id;
 
         passMeta.vertexCount = _vtxCount;
@@ -1503,7 +1606,7 @@ namespace kage
 
     void Context::bindIndexBuffer(const PassHandle _hPass, const BufferHandle _hBuf, const uint32_t _idxCount)
     {
-        PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
+        PassMetaData& passMeta = m_passMetasArr[_hPass.id];
         passMeta.indexBufferId = _hBuf.id;
 
         passMeta.indexCount = _idxCount;
@@ -1522,7 +1625,7 @@ namespace kage
     {
         assert(isGraphics(_hPass));
 
-        PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
+        PassMetaData& passMeta = m_passMetasArr[_hPass.id];
         passMeta.indirectBufferId = _hBuf.id;
         passMeta.indirectBufOffset = _offset;
         passMeta.indirectBufStride = _stride;
@@ -1567,7 +1670,7 @@ namespace kage
         interact.stage = _stage;
         interact.access = _access;
 
-        PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
+        PassMetaData& passMeta = m_passMetasArr[_hPass.id];
         if (isRead(_access))
         {
             passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _buf.id, { kInvalidHandle }, interact);
@@ -1610,7 +1713,7 @@ namespace kage
         interact.access = AccessFlagBits::shader_read;
         interact.layout = _layout;
 
-        PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
+        PassMetaData& passMeta = m_passMetasArr[_hPass.id];
         passMeta.readImageNum = insertResInteract(m_readImages, _hPass, _hImg.id, sampler, interact);
         passMeta.sampleImageNum++; // Note: is this the only way to read texture?
 
@@ -1628,8 +1731,8 @@ namespace kage
             return;
         }
 
-        ImageMetaData& meta = m_imageMetas.getDataRef(_hImg);
-        PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
+        const ImageMetaData& imgMeta = m_imageMetasArr[_hImg.id];
+        PassMetaData& passMeta = m_passMetasArr[_hPass.id];
 
         ResInteractDesc interact{};
         interact.binding = _binding; 
@@ -1642,12 +1745,12 @@ namespace kage
         {
             if (isGraphics(_hPass) && isDepthStencil(_hImg))
             {
-                assert((meta.aspectFlags & ImageAspectFlagBits::depth) > 0);
+                assert((imgMeta.aspectFlags & ImageAspectFlagBits::depth) != 0);
                 interact.access |= AccessFlagBits::depth_stencil_attachment_read;
             }
             else if (isGraphics(_hPass) && isColorAttachment(_hImg))
             {
-                assert((meta.aspectFlags & ImageAspectFlagBits::color) > 0);
+                assert((imgMeta.aspectFlags & ImageAspectFlagBits::color) != 0);
                 interact.access |= AccessFlagBits::color_attachment_read;
             }
 
@@ -1668,7 +1771,7 @@ namespace kage
             }
             else if (isCompute(_hPass) && isNormalImage(_hImg))
             {
-                const ImageViewDesc& imgViewDesc = isValid(_hImgView) ? m_imageViewDesc.getIdToData(_hImgView) : defaultImageView(_hImg);
+                const ImageViewDesc& imgViewDesc = isValid(_hImgView) ? m_imageViewDescArr[_hImgView.id] : defaultImageView(_hImg);
 
                 passMeta.writeImageNum = insertResInteract(m_writeImages, _hPass, _hImg.id, { kInvalidHandle }, interact);
                 passMeta.writeImgAliasNum = insertWriteResAlias(m_writeForcedImageAliases, _hPass, _hImg.id, _outAlias.id);
@@ -1692,7 +1795,7 @@ namespace kage
         void * mem = alloc(getAllocator(), _dataMem->size);
         memcpy(mem, _dataMem->data, _dataMem->size);
 
-        PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
+        PassMetaData& passMeta = m_passMetasArr[_hPass.id];
         passMeta.renderFunc = _func;
         passMeta.renderFuncDataPtr = mem;
         passMeta.renderFuncDataSize = _dataMem->size;
@@ -1711,8 +1814,8 @@ namespace kage
         assert(isGraphics(_hPass));
         assert(isValid(_outAlias));
 
-        ImageMetaData& meta = m_imageMetas.getDataRef(_hImg);
-        PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
+        const ImageMetaData& imgMeta = m_imageMetasArr[_hImg.id];
+        PassMetaData& passMeta = m_passMetasArr[_hPass.id];
 
         ResInteractDesc interact{};
         interact.binding = _attachmentIdx;
@@ -1721,7 +1824,7 @@ namespace kage
 
         if (isDepthStencil(_hImg))
         {
-            assert((meta.aspectFlags & ImageAspectFlagBits::depth) > 0);
+            assert((imgMeta.aspectFlags & ImageAspectFlagBits::depth) != 0);
             assert(kInvalidHandle == passMeta.writeDepthId);
 
             passMeta.writeDepthId = _hImg.id;
@@ -1729,7 +1832,7 @@ namespace kage
         }
         else if (isColorAttachment(_hImg))
         {
-            assert((meta.aspectFlags & ImageAspectFlagBits::color) > 0);
+            assert((imgMeta.aspectFlags & ImageAspectFlagBits::color) != 0);
             interact.layout = ImageLayout::color_attachment_optimal;
         }
         else
@@ -1758,16 +1861,16 @@ namespace kage
             return;
         }
 
-        if (m_oneOpPassTouched.getIdToData(_hPass) == kTouched)
+        if (m_oneOpPassTouchedArr[_hPass.id])
         {
             message(DebugMessageType::error, "one op pass already touched!");
             return;
         }
 
-        BufferMetaData& bufMeta = m_bufferMetas.getDataRef(_hBuf);
+        BufferMetaData& bufMeta = m_bufferMetasArr[_hBuf.id];
         bufMeta.fillVal = _value;
 
-        PassMetaData& passMeta = m_passMetas.getDataRef(_hPass);
+        PassMetaData& passMeta = m_passMetasArr[_hPass.id];
 
         ResInteractDesc interact{};
         interact.binding = kDescriptorSetBindingDontCare;
@@ -1778,26 +1881,23 @@ namespace kage
         passMeta.writeBufAliasNum = insertWriteResAlias(m_writeForcedBufferAliases, _hPass, _hBuf.id, _outAlias.id);
         assert(passMeta.writeBufferNum == passMeta.writeBufAliasNum);
 
-        m_oneOpPassTouched.update(_hPass, kTouched);
-        setRenderGraphDataDirty();
-    }
-
-    void Context::setMultiFrame(ImageHandle _img)
-    {
-        ImageMetaData meta = m_imageMetas.getIdToData(_img);
-        meta.lifetime = ResourceLifetime::non_transition;
-
-        m_imageMetas.update(_img, meta);
+        m_oneOpPassTouchedArr[_hPass.id] = true;
 
         setRenderGraphDataDirty();
     }
 
-    void Context::setMultiFrame(BufferHandle _buf)
+    void Context::setMultiFrame(ImageHandle _hImg)
     {
-        BufferMetaData meta = m_bufferMetas.getIdToData(_buf);
+        ImageMetaData& meta = m_imageMetasArr[_hImg.id];
         meta.lifetime = ResourceLifetime::non_transition;
 
-        m_bufferMetas.update(_buf, meta);
+        setRenderGraphDataDirty();
+    }
+
+    void Context::setMultiFrame(BufferHandle _hBuf)
+    {
+        BufferMetaData& meta = m_bufferMetasArr[_hBuf.id];
+        meta.lifetime = ResourceLifetime::non_transition;
 
         setRenderGraphDataDirty();
     }
@@ -1975,12 +2075,10 @@ namespace kage
     // ================================================
     static Context* s_ctx = nullptr;
 
-
     bool checkSupports(VulkanSupportExtension _ext)
     {
         return s_ctx->checkSupports(_ext);
     }
-
 
     ShaderHandle registShader(const char* _name, const char* _path)
     {

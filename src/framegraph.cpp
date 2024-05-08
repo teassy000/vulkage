@@ -1451,7 +1451,7 @@ namespace kage
 
         for (uint32_t mipIdx = 0; mipIdx < kMaxNumOfImageMipLevel; ++mipIdx)
         {
-            _bkt.desc.mipViews[mipIdx] = mipIdx < _bkt.desc.viewCount ? _info.mipViews[mipIdx] : ImageViewHandle{ kInvalidHandle };
+            _bkt.desc.views[mipIdx] = mipIdx < _bkt.desc.viewCount ? _info.views[mipIdx] : ImageViewHandle{ kInvalidHandle };
         }
 
         _bkt.aspectFlags = _info.aspectFlags;
@@ -1747,7 +1747,7 @@ namespace kage
 
                 for (uint32_t ii = 0 ; ii < info.viewCount; ++ii )
                 {
-                    imgViewDescs.push_back(m_sparse_img_view_desc[info.mipViews[ii].id]);
+                    imgViewDescs.push_back(m_sparse_img_view_desc[info.views[ii].id]);
                 }
             }
         }
@@ -1794,7 +1794,7 @@ namespace kage
             info.viewCount = bkt.desc.viewCount;
             for (uint32_t mipIdx = 0; mipIdx < kMaxNumOfImageMipLevel; ++mipIdx)
             {
-                info.mipViews[mipIdx] = mipIdx < info.viewCount ? bkt.desc.mipViews[mipIdx] : ImageViewHandle{ kInvalidHandle };
+                info.views[mipIdx] = mipIdx < info.viewCount ? bkt.desc.views[mipIdx] : ImageViewHandle{ kInvalidHandle };
             }
 
             bx::write(&m_rhiMemWriter, info, nullptr);
