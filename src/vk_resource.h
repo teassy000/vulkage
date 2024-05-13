@@ -72,10 +72,11 @@ namespace kage { namespace vk
         VkImageView defaultView;
         VkDeviceMemory memory;
         VkImageAspectFlags  aspectMask;
+        VkImageViewType     viewType;
         VkFormat            format;
 
-        uint32_t numMips;
-        uint32_t numLayers;
+        uint16_t numMips;
+        uint16_t numLayers;
         uint32_t width, height;
     };
 
@@ -86,8 +87,8 @@ namespace kage { namespace vk
 
     struct ImgInitProps_vk
     {
-        uint32_t numMips;
-        uint32_t numLayers;
+        uint16_t numMips;
+        uint16_t numLayers;
 
         uint32_t width;
         uint32_t height;

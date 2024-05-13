@@ -305,6 +305,7 @@ namespace kage { namespace vk
 
             img.aspectMask = _initProps.aspectMask;
             img.format = _initProps.format;
+            img.viewType = _initProps.viewType;
 
             img.numMips = _initProps.numMips;
             img.numLayers = _initProps.numLayers;

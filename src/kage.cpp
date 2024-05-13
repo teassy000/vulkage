@@ -974,7 +974,7 @@ namespace kage
         return handle;
     }
 
-    kage::ImageViewHandle Context::registImageView(const char* _name, const ImageHandle _hImg, const uint32_t _baseMip, const uint32_t _mipLevel)
+    ImageViewHandle Context::registImageView(const char* _name, const ImageHandle _hImg, const uint32_t _baseMip, const uint32_t _mipLevel)
     {
         if (!isValid(_hImg))
         {
@@ -1932,9 +1932,6 @@ namespace kage
             return;
         }
 
-        //m_rhiContext->updatePushConstants(_hPass, _mem->data, _mem->size);
-        //release(_mem);
-
         m_rhiContext->updateConstants(_hPass, _mem);
     }
 
@@ -2111,7 +2108,7 @@ namespace kage
         return s_ctx->registDepthStencil(_name, _desc, _lifetime);
     }
 
-    kage::ImageViewHandle registImageView(const char* _name, const ImageHandle _hImg, const uint32_t _baseMip, const uint32_t _mipLevel)
+    ImageViewHandle registImageView(const char* _name, const ImageHandle _hImg, const uint32_t _baseMip, const uint32_t _mipLevel)
     {
         return s_ctx->registImageView(_name, _hImg, _baseMip, _mipLevel);
     }

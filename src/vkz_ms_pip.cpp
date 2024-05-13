@@ -29,20 +29,20 @@ void meshShading_renderFunc(kage::CommandListI& _cmdList, const void* _data, uin
 
     _cmdList.pushConstants(msd.pass, &msd.globals, sizeof(GlobalsVKZ));
 
-    kage::CommandListI::DescriptorSet descs[] = 
-    { 
-        {msd.meshDrawCmdBuffer}, 
-        {msd.meshBuffer}, 
-        {msd.meshDrawBuffer}, 
-        {msd.meshletBuffer}, 
-        {msd.meshletDataBuffer}, 
-        {msd.vtxBuffer}, 
-        {msd.transformBuffer}, 
-        {msd.meshletVisBuffer}, 
+    kage::CommandListI::DescSet desc2s[] =
+    {
+        {msd.meshDrawCmdBuffer},
+        {msd.meshBuffer},
+        {msd.meshDrawBuffer},
+        {msd.meshletBuffer},
+        {msd.meshletDataBuffer},
+        {msd.vtxBuffer},
+        {msd.transformBuffer},
+        {msd.meshletVisBuffer},
         {msd.pyramid, msd.pyramidSampler}
     };
 
-    _cmdList.pushDescriptorSetWithTemplate(msd.pass, descs, COUNTOF(descs));
+    _cmdList.pushDescriptorSetWithTemplate(msd.pass, desc2s, COUNTOF(desc2s));
 
     _cmdList.drawMeshTaskIndirect(msd.meshDrawCmdCountBuffer, 4, 1, 0);
 

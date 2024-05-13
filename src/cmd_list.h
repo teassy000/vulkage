@@ -7,54 +7,52 @@ namespace kage
     class CommandListI
     {
     public:
-        struct DescriptorSet
+        struct DescSet
         {
-            union 
+            union
             {
-                BufferHandle buf{kInvalidHandle};
+                BufferHandle buf{ kInvalidHandle };
                 ImageHandle img;
             };
 
-            SamplerHandle sampler{ kInvalidHandle };
-            ImageViewHandle imgView{ kInvalidHandle };
-            ResourceType type{ ResourceType::undefined };
+            SamplerHandle   sampler{ kInvalidHandle };
+            uint16_t        mip{ kAllMips };
+            ResourceType    type{ ResourceType::undefined };
 
-            DescriptorSet(BufferHandle _hBuf)
+            DescSet(BufferHandle _hBuf)
             {
                 buf = _hBuf;
                 type = ResourceType::buffer;
             }
 
-            DescriptorSet(ImageHandle _hImg, ImageViewHandle _hImgView, SamplerHandle _hSampler)
+            DescSet(ImageHandle _hImg, uint16_t _mip, SamplerHandle _hSampler)
             {
                 img = _hImg;
-                imgView = _hImgView;
+                mip = _mip;
                 type = ResourceType::image;
                 sampler = _hSampler;
             }
 
-            DescriptorSet(ImageHandle _hImg, SamplerHandle _hSampler)
+            DescSet(ImageHandle _hImg, SamplerHandle _hSampler)
             {
                 img = _hImg;
                 sampler = _hSampler;
                 type = ResourceType::image;
             }
 
-            DescriptorSet(ImageHandle _hImg, ImageViewHandle _hView)
+            DescSet(ImageHandle _hImg, uint16_t _mip)
             {
                 img = _hImg;
-                imgView = _hView;
+                mip = _mip;
                 type = ResourceType::image;
             }
-
-
         };
     public: 
         virtual void setViewPort(uint32_t _firstViewport, uint32_t _viewportCount, const Viewport* _pViewports) = 0;
         virtual void setScissorRect(uint32_t _firstScissor, uint32_t _scissorCount, const Rect2D* _pScissors) = 0;
         virtual void pushConstants(const PassHandle _hPass, const void* _data, uint32_t _size) = 0;
         virtual void pushDescriptorSets(const PassHandle _hPass) = 0;
-        virtual void pushDescriptorSetWithTemplate(const PassHandle _hPass, const DescriptorSet* _descSets, uint32_t _count) = 0;
+        virtual void pushDescriptorSetWithTemplate(const PassHandle _hPass, const DescSet* _descSets, uint32_t _count) = 0;
         virtual void sampleImage(ImageHandle _hImg, uint32_t _binding, SamplerReductionMode _reductionMode) = 0;
 
         // resource binding

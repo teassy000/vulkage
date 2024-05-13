@@ -20,7 +20,7 @@ namespace kage { namespace vk
         void pushConstants(const PassHandle _hPass, const void* _data, uint32_t _size) override;
         void pushDescriptorSets(const PassHandle _pass) override;
 
-        void pushDescriptorSetWithTemplate(const PassHandle _hPass, const DescriptorSet* _descSets, uint32_t _count) override;
+        void pushDescriptorSetWithTemplate(const PassHandle _hPass, const DescSet* _descSets, uint32_t _count) override;
 
         void sampleImage(ImageHandle _hImg, uint32_t _binding, SamplerReductionMode _reductionMode) override;
 

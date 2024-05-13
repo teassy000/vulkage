@@ -2,6 +2,8 @@
 
 #include "volk.h"
 #include "bx/bx.h"
+#include "common.h"
+#include "bx/handlealloc.h"
 
 #define VK_DESTROY                                \
 			VK_DESTROY_FUNC(Buffer);              \
@@ -48,5 +50,161 @@ VK_DESTROY_FUNC(DescriptorSet);
 
 #undef VK_DESTROY_FUNC
 
+template <typename Ty, uint16_t MaxHandleT>
+class StateCacheLru
+{
+public:
+    Ty* add(uint64_t _key, const Ty& _value, uint16_t _parent)
+    {
+        uint16_t handle = m_alloc.alloc();
+        if (UINT16_MAX == handle)
+        {
+            uint16_t back = m_alloc.getBack();
+            invalidate(back);
+            handle = m_alloc.alloc();
+        }
+
+        BX_ASSERT(UINT16_MAX != handle, "Failed to find handle.");
+
+        Data& data = m_data[handle];
+        data.m_hash = _key;
+        data.m_value = _value;
+        data.m_parent = _parent;
+        m_hashMap.insert(stl::make_pair(_key, handle));
+
+        return bx::addressOf(m_data[handle].m_value);
+    }
+
+    Ty* find(uint64_t _key)
+    {
+        HashMap::iterator it = m_hashMap.find(_key);
+        if (it != m_hashMap.end())
+        {
+            uint16_t handle = it->second;
+            m_alloc.touch(handle);
+            return bx::addressOf(m_data[handle].m_value);
+        }
+
+        return NULL;
+    }
+
+    void invalidate(uint64_t _key)
+    {
+        HashMap::iterator it = m_hashMap.find(_key);
+        if (it != m_hashMap.end())
+        {
+            uint16_t handle = it->second;
+            m_alloc.free(handle);
+            m_hashMap.erase(it);
+            release(m_data[handle].m_value);
+        }
+    }
+
+    void invalidate(uint16_t _handle)
+    {
+        if (m_alloc.isValid(_handle))
+        {
+            m_alloc.free(_handle);
+            Data& data = m_data[_handle];
+            m_hashMap.erase(m_hashMap.find(data.m_hash));
+            release(data.m_value);
+        }
+    }
+
+    void invalidateWithParent(uint16_t _parent)
+    {
+        for (uint16_t ii = 0; ii < m_alloc.getNumHandles();)
+        {
+            uint16_t handle = m_alloc.getHandleAt(ii);
+            Data& data = m_data[handle];
+
+            if (data.m_parent == _parent)
+            {
+                m_alloc.free(handle);
+                m_hashMap.erase(m_hashMap.find(data.m_hash));
+                release(data.m_value);
+            }
+            else
+            {
+                ++ii;
+            }
+        }
+    }
+
+    void invalidate()
+    {
+        for (uint16_t ii = 0, num = m_alloc.getNumHandles(); ii < num; ++ii)
+        {
+            uint16_t handle = m_alloc.getHandleAt(ii);
+            Data& data = m_data[handle];
+            release(data.m_value);
+        }
+
+        m_hashMap.clear();
+        m_alloc.reset();
+    }
+
+    uint32_t getCount() const
+    {
+        return uint32_t(m_hashMap.size());
+    }
+
+private:
+    typedef stl::unordered_map<uint64_t, uint16_t> HashMap;
+    HashMap m_hashMap;
+    bx::HandleAllocLruT<MaxHandleT> m_alloc;
+    struct Data
+    {
+        uint64_t m_hash;
+        Ty m_value;
+        uint16_t m_parent;
+    };
+
+    Data m_data[MaxHandleT];
+};
+
+class StateCache
+{
+public:
+    void add(uint64_t _key, uint16_t _value)
+    {
+        invalidate(_key);
+        m_hashMap.insert(stl::make_pair(_key, _value));
+    }
+
+    uint16_t find(uint64_t _key)
+    {
+        HashMap::iterator it = m_hashMap.find(_key);
+        if (it != m_hashMap.end())
+        {
+            return it->second;
+        }
+
+        return UINT16_MAX;
+    }
+
+    void invalidate(uint64_t _key)
+    {
+        HashMap::iterator it = m_hashMap.find(_key);
+        if (it != m_hashMap.end())
+        {
+            m_hashMap.erase(it);
+        }
+    }
+
+    void invalidate()
+    {
+        m_hashMap.clear();
+    }
+
+    uint32_t getCount() const
+    {
+        return uint32_t(m_hashMap.size());
+    }
+
+private:
+    typedef stl::unordered_map<uint64_t, uint16_t> HashMap;
+    HashMap m_hashMap;
+};
 }
 }

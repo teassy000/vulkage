@@ -14,7 +14,7 @@ void pyramid_renderFunc(kage::CommandListI& _cmdList, const void* _data, uint32_
     PyramidRendering pyramid{};
     bx::read(&reader, pyramid, nullptr);
 
-    for (uint32_t ii = 0; ii < pyramid.levels; ++ii)
+    for (uint16_t ii = 0; ii < pyramid.levels; ++ii)
     {
         _cmdList.barrier(pyramid.image, kage::AccessFlagBits::shader_write, kage::ImageLayout::general, kage::PipelineStageFlagBits::compute_shader);
         _cmdList.dispatchBarriers();
@@ -29,14 +29,18 @@ void pyramid_renderFunc(kage::CommandListI& _cmdList, const void* _data, uint32_
 
         kage::ImageViewHandle srcImgView = ii == 0 ? kage::ImageViewHandle{kage::kInvalidHandle} : pyramid.imgMips[ii - 1];
 
+        uint16_t srcMip = 
+            ii == 0
+            ? kage::kAllMips
+            : (ii - 1);
 
-        kage::CommandListI::DescriptorSet desc[] =
+        kage::CommandListI::DescSet desc2[] =
         {
-            {srcImg, srcImgView, pyramid.sampler},
-            {pyramid.image, pyramid.imgMips[ii]}
+            {srcImg, srcMip, pyramid.sampler},
+            {pyramid.image, ii}
         };
 
-        _cmdList.pushDescriptorSetWithTemplate(pyramid.pass, desc, COUNTOF(desc));
+        _cmdList.pushDescriptorSetWithTemplate(pyramid.pass, desc2, COUNTOF(desc2));
         _cmdList.dispatch(pyramid.cs, levelWidth, levelHeight, 1);
 
         _cmdList.barrier(pyramid.image, kage::AccessFlagBits::shader_read, kage::ImageLayout::general, kage::PipelineStageFlagBits::compute_shader);

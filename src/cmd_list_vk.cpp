@@ -53,19 +53,20 @@ namespace kage { namespace vk
         s_renderVK->pushDescriptorSetWithTemplates(m_cmdBuf, _hPass.id);
     }
 
-    void CmdList_vk::pushDescriptorSetWithTemplate(const PassHandle _hPass, const DescriptorSet* _descSets, uint32_t _count)
+    void CmdList_vk::pushDescriptorSetWithTemplate(const PassHandle _hPass, const DescSet* _descSets, uint32_t _count)
     {
         const Program_vk& prog = s_renderVK->getProgram(_hPass);
         stl::vector<DescriptorInfo> descInfos(_count);
+
         for (uint32_t ii = 0; ii < _count; ++ii)
         {
             if (_descSets[ii].type == ResourceType::image)
             {
-                descInfos[ii] = s_renderVK->getImageDescInfo( _descSets[ii].img ,  _descSets[ii].imgView , _descSets[ii].sampler);
+                descInfos[ii] = s_renderVK->getImageDescInfo2(_descSets[ii].img, _descSets[ii].mip, _descSets[ii].sampler);
             }
             else if (_descSets[ii].type == ResourceType::buffer)
             {
-                descInfos[ii] = s_renderVK->getBufferDescInfo( _descSets[ii].buf );
+                descInfos[ii] = s_renderVK->getBufferDescInfo(_descSets[ii].buf);
             }
             else
             {

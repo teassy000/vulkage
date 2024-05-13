@@ -302,7 +302,7 @@ namespace kage { namespace vk
         void beginRendering(const VkCommandBuffer& _cmdBuf, const uint16_t _passId) const;
         void endRendering(const VkCommandBuffer& _cmdBuf) const;
 
-        const DescriptorInfo getImageDescInfo(const ImageHandle _hImg, const ImageViewHandle _hImgView, const SamplerHandle _hSampler) const;
+        const DescriptorInfo getImageDescInfo2(const ImageHandle _hImg, uint16_t _mip, const SamplerHandle _hSampler);
         const DescriptorInfo getBufferDescInfo(const BufferHandle _hBuf) const;
 
         // barriers
@@ -320,6 +320,8 @@ namespace kage { namespace vk
         void createSampler(bx::MemoryReader& _reader) override;
         void createImageView(bx::MemoryReader& _reader) override;
         void setBrief(bx::MemoryReader& _reader) override;
+
+        VkImageView getCachedImageView(const ImageHandle _hImg, uint16_t _mip, uint16_t _numMips, VkImageViewType _type);
 
         void createInstance();
         void createPhysicalDevice();
@@ -385,7 +387,8 @@ namespace kage { namespace vk
         ContinuousMap<uint16_t, Program_vk> m_programContainer;
         ContinuousMap<uint16_t, PassInfo_vk> m_passContainer;
         ContinuousMap<uint16_t, VkSampler> m_samplerContainer;
-        ContinuousMap<uint16_t, VkImageView> m_imageViewContainer;
+
+        StateCacheLru<VkImageView, 1024> m_imgViewCache;
 
         ContinuousMap<uint16_t, ImageViewDesc> m_imageViewDescContainer;
         ContinuousMap<uint16_t, BufferCreateInfo> m_bufferCreateInfoContainer;
@@ -396,9 +399,6 @@ namespace kage { namespace vk
 
         ContinuousMap< uint16_t, uint16_t> m_aliasToBaseImages;
         ContinuousMap< uint16_t, uint16_t> m_aliasToBaseBuffers;
-
-        stl::unordered_map<uint16_t, uint16_t> m_imgToViewGroupIdx;
-        stl::vector<stl::vector<ImageViewHandle>> m_imgViewGroups;
 
         stl::unordered_map<uint16_t, uint32_t> m_imgIdToAliasGroupIdx;
         stl::vector<stl::vector<ImageAliasInfo>> m_imgAliasGroups;

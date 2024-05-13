@@ -10,6 +10,8 @@ namespace kage
     static const uint32_t kInvalidDescriptorSetIndex = UINT32_MAX;
     static const uint32_t kDescriptorSetBindingDontCare = UINT32_MAX - 1;
 
+    static const uint16_t kAllMips = UINT16_MAX;
+
 
     template <class HandleType>
     struct NO_VTABLE Handle {
@@ -300,7 +302,7 @@ namespace kage
             max_enum = 0x7fff,
         };
     }
-    using ImageAspectFlags = uint16_t;
+    using ImageAspectFlags  = uint16_t;
 
     namespace MemoryPropFlagBits
     {

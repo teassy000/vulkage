@@ -7,6 +7,7 @@
 #include "rhi_context_vk.h"
 
 #include <algorithm> //sort
+#include "bx/hash.h"
 
 
 namespace kage { namespace vk
@@ -1510,21 +1511,10 @@ namespace kage { namespace vk
                 vkDestroyImageView(m_device, img.defaultView, nullptr);
                 img.defaultView = VK_NULL_HANDLE;
             }
+            m_imgViewCache.invalidateWithParent(imgId);
         }
         m_imageContainer.clear();
 
-        // image views
-        for (uint32_t ii = 0; ii < m_imageViewContainer.size(); ++ii)
-        {
-            uint16_t imgViewId = m_imageViewContainer.getIdAt(ii);
-            VkImageView& view = m_imageViewContainer.getDataRef(imgViewId);
-            if (view)
-            {
-                vkDestroyImageView(m_device, view, nullptr);
-                view = VK_NULL_HANDLE;
-            }
-        }
-        m_imageViewContainer.clear();
 
         // samplers
         for (uint32_t ii = 0; ii < m_samplerContainer.size(); ++ii)
@@ -1604,8 +1594,6 @@ namespace kage { namespace vk
 
         m_aliasToBaseBuffers.clear();
         m_aliasToBaseImages.clear();
-        m_imgToViewGroupIdx.clear();
-        m_imgViewGroups.clear();
         m_imgIdToAliasGroupIdx.clear();
         m_imgAliasGroups.clear();
         m_bufIdToAliasGroupIdx.clear();
@@ -2090,21 +2078,7 @@ namespace kage { namespace vk
         }
         m_imgAliasGroups.emplace_back(infoList);
 
-
         const Image_vk& baseImage = getImage(info.imgId, true);
-        for (uint32_t ii = 0; ii < info.viewCount; ++ii)
-        {
-            const ImageViewHandle imgView = info.views[ii];
-            const ImageViewDesc& viewDesc = m_imageViewDescContainer.getIdToData(imgView.id);
-
-            VkImageView view_vk = kage::vk::createImageView(m_device, baseImage.image, baseImage.format, viewDesc.baseMip, viewDesc.mipLevel);
-            m_imageViewContainer.addOrUpdate(imgView.id, view_vk);
-        }
-
-        m_imgToViewGroupIdx.insert({ info.imgId, (uint16_t)m_imgViewGroups.size() });
-
-        stl::vector<ImageViewHandle> viewHandles(info.views, info.views + info.viewCount);
-        m_imgViewGroups.push_back(viewHandles);
 
         for (int ii = 0; ii < info.resCount; ++ii)
         {
@@ -2209,6 +2183,42 @@ namespace kage { namespace vk
         bx::read(&_reader, brief, nullptr);
 
         m_brief = brief;
+    }
+
+    VkImageView RHIContext_vk::getCachedImageView(const ImageHandle _hImg, uint16_t _mip, uint16_t _numMips, VkImageViewType _type)
+    {
+        VKZ_ZoneScopedC(Color::indian_red);
+
+        const Image_vk& img = getImage(_hImg.id, true);
+
+        bx::HashMurmur2A hash;
+        hash.begin();
+        hash.add(_hImg.id);
+        hash.add(_mip);
+        hash.add(_numMips);
+        hash.add(_type);
+
+        uint32_t hashKey = hash.end();
+
+        VkImageView* viewCached = m_imgViewCache.find(hashKey);
+
+        if (nullptr != viewCached)
+        {
+            return *viewCached;
+        }
+
+        VkImageView view = kage::vk::createImageView(
+            m_device
+            , img.image
+            , img.format
+            , _mip
+            , _numMips
+            , _type
+        );
+
+        m_imgViewCache.add(hashKey, view, _hImg.id);
+
+        return view;
     }
 
     void RHIContext_vk::createInstance()
@@ -2780,7 +2790,7 @@ namespace kage { namespace vk
         vkCmdEndRendering(_cmdBuf);
     }
 
-    const DescriptorInfo RHIContext_vk::getImageDescInfo(const ImageHandle _hImg, const ImageViewHandle _hImgView, const SamplerHandle _hSampler) const
+    const DescriptorInfo RHIContext_vk::getImageDescInfo2(const ImageHandle _hImg, uint16_t _mip, const SamplerHandle _hSampler)
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
@@ -2789,17 +2799,22 @@ namespace kage { namespace vk
         {
             sampler = m_samplerContainer.getIdToData(_hSampler.id);
         }
-        
+
         const Image_vk& img = getImage(_hImg.id);
 
-        VkImageView view = img.defaultView;
-        if (m_imageViewContainer.exist(_hImgView.id))
+        VkImageView view = VK_NULL_HANDLE;
+
+        if (kAllMips == _mip)
         {
-            view = m_imageViewContainer.getIdToData(_hImgView.id);
+            view = getCachedImageView(_hImg, 0, img.numMips, img.viewType);
         }
-        
+        else
+        {
+            view = getCachedImageView(_hImg, _mip, 1, img.viewType);
+        }
+
         VkImageLayout layout = m_barrierDispatcher.getDstImageLayout(img.image);
-        
+
         return { sampler, view, layout };
     }
 
