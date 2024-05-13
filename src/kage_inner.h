@@ -136,33 +136,6 @@ namespace kage
         }
     };
 
-    struct ImageViewDesc
-    {
-        ImageViewDesc() {};
-
-        uint16_t    imgId{ kInvalidHandle };
-        uint16_t    imgViewId{ kInvalidHandle };
-        uint32_t    baseMip{0};
-        uint32_t    mipLevel{ 0 };
-
-        inline bool operator == (const ImageViewDesc& rhs) const {
-            return imgId == rhs.imgId &&
-                baseMip == rhs.baseMip &&
-                mipLevel == rhs.mipLevel;
-        }
-
-        inline bool operator != (const ImageViewDesc& rhs) const {
-            return !(*this == rhs);
-        }
-    };
-
-    inline ImageViewDesc defaultImageView(const ImageHandle _hImg)
-    {
-        ImageViewDesc desc;
-
-        return desc;
-    }
-
     struct BufferCreateInfo : public BufferDesc
     {
         uint16_t    bufId{ kInvalidHandle };
@@ -295,7 +268,6 @@ namespace kage
         static const char* kImage = "[img]";
         static const char* kBuffer = "[buf]";
         static const char* kSampler = "[samp]";
-        static const char* kImageView = "[imgv]";
 
         // tag for alias: buffer, image
         static const char* kAlias = "[alias]";
@@ -311,7 +283,6 @@ namespace kage
         image,
         buffer,
         sampler,
-        image_view,
     };
 
     struct HandleSignature

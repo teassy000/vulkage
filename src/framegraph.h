@@ -435,7 +435,6 @@ namespace kage
         stl::vector< FGImageCreateInfo >    m_sparse_img_info;
         stl::vector< PassMetaDataRef>       m_sparse_pass_data_ref;
         stl::vector< SamplerMetaData >      m_sparse_sampler_meta;
-        stl::vector< ImageViewDesc >        m_sparse_img_view_desc;
         
         stl::vector< String>                m_shader_path;
 

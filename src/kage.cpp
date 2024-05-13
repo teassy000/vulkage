@@ -214,10 +214,6 @@ namespace kage
         {
             _inStr.append(NameTags::kSampler);
         }
-        else if (HandleType::image_view == _type)
-        {
-            _inStr.append(NameTags::kImageView);
-        }
     }
 
     inline void setName(NameMgr* _nameMngr, const char* _name, const size_t _len, PassHandle _hPass)
@@ -470,7 +466,6 @@ namespace kage
         bx::HandleAllocT<kMaxNumOfPassHandle> m_passHandles;
         bx::HandleAllocT<kMaxNumOfBufferHandle> m_bufferHandles;
         bx::HandleAllocT<kMaxNumOfImageHandle> m_imageHandles;
-        bx::HandleAllocT<kMaxNumOfImageViewHandle> m_imageViewHandles;
         bx::HandleAllocT<kMaxNumOfSamplerHandle> m_samplerHandles;
         
         ImageHandle m_presentImage{kInvalidHandle};
@@ -483,7 +478,6 @@ namespace kage
         ImageMetaData           m_imageMetas[kMaxNumOfImageHandle];
         PassMetaData            m_passMetas[kMaxNumOfPassHandle];
         SamplerDesc             m_samplerDescs[kMaxNumOfSamplerHandle];
-        ImageViewDesc           m_imageViewDesc[kMaxNumOfImageViewHandle];
         
         // 1-operation pass: blit/copy/fill 
         bool                m_oneOpPassTouchedArr[kMaxNumOfPassHandle];
@@ -1019,7 +1013,6 @@ namespace kage
         brief.shaderNum = m_shaderHandles.getNumHandles();
         brief.programNum = m_programHandles.getNumHandles();
         brief.samplerNum = m_samplerHandles.getNumHandles();
-        brief.imgViewNum = m_imageViewHandles.getNumHandles();
 
         brief.presentImage = m_presentImage.id;
         brief.presentMipLevel = m_presentMipLevel;
@@ -1262,8 +1255,6 @@ namespace kage
 
             bx::write(m_fgMemWriter, MagicTag::magic_body_end, nullptr);
         }
-
-        uint16_t imgViewCount = m_imageViewHandles.getNumHandles();
     }
 
     void Context::storeAliasData()

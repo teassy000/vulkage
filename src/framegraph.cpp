@@ -59,7 +59,6 @@ namespace kage
         m_sparse_buf_info.clear();
         m_sparse_img_info.clear();
         m_sparse_sampler_meta.clear();
-        m_sparse_img_view_desc.clear();
         m_sparse_pass_data_ref.clear();
         
         m_shader_path.clear();
@@ -183,7 +182,6 @@ namespace kage
         m_sparse_buf_info.resize(brief.bufNum);
         m_sparse_img_info.resize(brief.imgNum);
         m_sparse_sampler_meta.resize(brief.samplerNum);
-        m_sparse_img_view_desc.resize(brief.imgViewNum);
 
         m_sparse_pass_data_ref.resize(brief.passNum);
 
