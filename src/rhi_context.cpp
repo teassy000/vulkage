@@ -57,9 +57,6 @@ namespace kage
             case RHIContextOpMagic::create_sampler:
                 createSampler(reader);
                 break;
-            case RHIContextOpMagic::create_image_view:
-                createImageView(reader);
-                break;
             case RHIContextOpMagic::set_brief:
                 setBrief(reader);
                 break;

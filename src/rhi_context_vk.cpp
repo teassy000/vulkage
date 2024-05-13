@@ -1585,7 +1585,6 @@ namespace kage { namespace vk
         }
 
         // descriptor set layout
-        m_imageViewDescContainer.clear();
         m_bufferCreateInfoContainer.clear();
         m_imageInitPropContainer.clear();
 
@@ -2162,17 +2161,6 @@ namespace kage { namespace vk
         assert(sampler);
 
         m_samplerContainer.addOrUpdate(meta.samplerId, sampler);
-    }
-
-    void RHIContext_vk::createImageView(bx::MemoryReader& _reader)
-    {
-        VKZ_ZoneScopedC(Color::indian_red);
-
-        ImageViewDesc desc;
-        bx::read(&_reader, desc, nullptr);
-
-        // only store the descriptor, will do the real creation during image creation
-        m_imageViewDescContainer.addOrUpdate(desc.imgViewId, desc);
     }
 
     void RHIContext_vk::setBrief(bx::MemoryReader& _reader)

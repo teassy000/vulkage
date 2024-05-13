@@ -23,7 +23,6 @@ namespace kage
         register_pass,
         register_buffer,
         register_image,
-        register_image_view,
         register_sampler,
 
         force_alias_buffer,
@@ -185,7 +184,6 @@ namespace kage
         void registerImage(bx::MemoryReader& _reader);
 
         void registerSampler(bx::MemoryReader& _reader);
-        void registerImageView(bx::MemoryReader& _reader);
         
         void storeBackBuffer(bx::MemoryReader& _reader);
 
@@ -429,7 +427,6 @@ namespace kage
         stl::vector< BufferHandle >     m_hBuf;
         stl::vector< ImageHandle >      m_hTex;
         stl::vector< SamplerHandle >    m_hSampler;
-        stl::vector< ImageViewHandle>   m_hImgView;
 
         stl::vector< ShaderInfo >           m_sparse_shader_info;
         stl::vector< ProgramInfo>           m_sparse_program_info;

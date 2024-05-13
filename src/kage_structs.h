@@ -53,7 +53,6 @@ namespace kage
     using BufferHandle = Handle<struct BufferHandleTag>;
     using ImageHandle = Handle<struct TextureHandleTag>;
 
-    using ImageViewHandle = Handle<struct ImageViewHandleTag>; 
     using SamplerHandle = Handle<struct SamplerHandleTag>;
 
     enum class VulkanSupportExtension : uint16_t
@@ -616,9 +615,6 @@ namespace kage
         ImageLayout     layout{ ImageLayout::undefined };
         ResourceFormat  format{ ResourceFormat::undefined };
         ImageUsageFlags usage{ ImageUsageFlagBits::color_attachment };
-
-        uint32_t        viewCount{ 0 };
-        ImageViewHandle views[kMaxNumOfImageMipLevel]{ kInvalidHandle };
     };
 
     struct PassDesc

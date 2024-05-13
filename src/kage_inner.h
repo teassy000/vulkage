@@ -81,14 +81,6 @@ namespace kage
         const Memory*       mem{nullptr};
     };
 
-    struct SpecImageViewsCreate
-    {
-        SpecImageViewsCreate() {};
-        ImageHandle         image{ kInvalidHandle };
-        uint32_t            viewCount{ 0 };
-        ImageViewHandle     views[kMaxNumOfImageMipLevel]{ kInvalidHandle };
-    };
-
     struct BufferMetaData : public BufferDesc
     {
         BufferMetaData() {};
@@ -343,6 +335,5 @@ namespace kage
     const char* getName(PassHandle _hPass);
     const char* getName(ImageHandle _hImg);
     const char* getName(BufferHandle _hBuf);
-    const char* getName(ImageViewHandle _hImgView);
     const char* getName(SamplerHandle _hSampler);
 } // namespace kage

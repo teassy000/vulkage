@@ -126,7 +126,6 @@ namespace kage
         void setName(const char* _name, const int32_t _len, ImageHandle _hImage, bool _isAlias) { setName(_name, _len, { HandleType::image, _hImage.id }, _isAlias) ; }
         void setName(const char* _name, const int32_t _len, BufferHandle _hBuffer, bool _isAlias) { setName(_name, _len, { HandleType::buffer, _hBuffer.id }, _isAlias); }
         void setName(const char* _name, const int32_t _len, SamplerHandle _hSampler) { setName(_name, _len, { HandleType::sampler, _hSampler.id }); }
-        void setName(const char* _name, const int32_t _len, ImageViewHandle _hImageView) { setName(_name, _len, { HandleType::image_view , _hImageView.id }); }
 
         const char* getName(PassHandle _hPass) const { return getName({ HandleType::pass, _hPass.id }); }
         const char* getName(ShaderHandle _hShader) const { return getName({ HandleType::shader, _hShader.id }); }
@@ -134,7 +133,6 @@ namespace kage
         const char* getName(ImageHandle _hImage) const { return getName({ HandleType::image, _hImage.id }); }
         const char* getName(BufferHandle _hBuffer) const { return getName({ HandleType::buffer, _hBuffer.id }); }
         const char* getName(SamplerHandle _hSampler) const { return getName({ HandleType::sampler, _hSampler.id }); }
-        const char* getName(ImageViewHandle _hImageView) const { return getName({ HandleType::image_view, _hImageView.id }); }
 
     private:
         void setName(const char* _name, const int32_t _len, const HandleSignature _signature, bool _isAlias = false);
@@ -250,11 +248,6 @@ namespace kage
     void setName(NameMgr* _nameMngr, const char* _name, const size_t _len, SamplerHandle _hSampler)
     {
         _nameMngr->setName(_name, (int32_t)_len, _hSampler);
-    }
-
-    void setName(NameMgr* _nameMngr, const char* _name, const size_t _len, ImageViewHandle _hImageView)
-    {
-        _nameMngr->setName(_name, (int32_t)_len, _hImageView);
     }
 
     static NameMgr* s_nameManager = nullptr;
@@ -405,8 +398,6 @@ namespace kage
         ImageHandle registRenderTarget(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime);
         ImageHandle registDepthStencil(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime);
 
-        ImageViewHandle registImageView(const char* _name, const ImageHandle _hImg, const uint32_t _baseMip, const uint32_t _mipLevel);
-
         SamplerHandle requestSampler(const SamplerDesc& _desc);
 
         BufferHandle aliasBuffer(const BufferHandle _baseBuf);
@@ -422,7 +413,7 @@ namespace kage
         void bindBuffer(PassHandle _hPass, BufferHandle _buf, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, const BufferHandle _outAlias);
         SamplerHandle sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, ImageLayout _layout, SamplerReductionMode _reductionMode);
         void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout
-            , const ImageHandle _outAlias, const ImageViewHandle _hImgView);
+            , const ImageHandle _outAlias);
 
         void setCustomRenderFunc(const PassHandle _hPass, RenderFuncPtr _func, const Memory* _dataMem);
 
@@ -490,7 +481,6 @@ namespace kage
         ProgramDesc             m_programDescs[kMaxNumOfProgramHandle];
         BufferMetaData          m_bufferMetas[kMaxNumOfBufferHandle];
         ImageMetaData           m_imageMetas[kMaxNumOfImageHandle];
-        SpecImageViewsCreate    m_specImageViewCreates[kMaxNumOfImageHandle];
         PassMetaData            m_passMetas[kMaxNumOfPassHandle];
         SamplerDesc             m_samplerDescs[kMaxNumOfSamplerHandle];
         ImageViewDesc           m_imageViewDesc[kMaxNumOfImageViewHandle];
@@ -974,52 +964,6 @@ namespace kage
         return handle;
     }
 
-    ImageViewHandle Context::registImageView(const char* _name, const ImageHandle _hImg, const uint32_t _baseMip, const uint32_t _mipLevel)
-    {
-        if (!isValid(_hImg))
-        {
-            message(error, "_hImg must be valid to create image view");
-            return ImageViewHandle{ kInvalidHandle };
-        }
-
-        uint16_t idx = m_imageViewHandles.alloc();
-        ImageViewHandle handle { idx };
-        // check if img view is valid
-        if (!isValid(handle))
-        {
-            message(error, "create ImageViewHandle failed!");
-            return ImageViewHandle{ kInvalidHandle };
-        }
-
-        ImageViewDesc desc;
-        desc.imgId      = _hImg.id;
-        desc.imgViewId  = idx;
-        desc.baseMip    = _baseMip;
-        desc.mipLevel   = _mipLevel;
-
-        m_imageViewDesc[idx] = desc;
-
-        ImageMetaData& imgMeta = m_imageMetas[_hImg.id];
-        if (imgMeta.viewCount >= kMaxNumOfImageMipLevel)
-        {
-            message(error, "too many mip views for image!");
-            return ImageViewHandle{ kInvalidHandle };
-        }
-
-        imgMeta.views[imgMeta.viewCount] = handle;
-        imgMeta.viewCount++;
-
-        SpecImageViewsCreate& specIV = m_specImageViewCreates[_hImg.id];
-        specIV.views[specIV.viewCount] = handle;
-        specIV.viewCount++;
-
-        setName(m_pNameManager, _name, strlen(_name), handle);
-
-        setRenderGraphDataDirty();
-
-        return handle;
-    }
-
     SamplerHandle Context::requestSampler(const SamplerDesc& _desc)
     {
         // find if the sampler already exist
@@ -1309,16 +1253,10 @@ namespace kage
             info.lifetime = meta.lifetime;
             info.bpp = meta.bpp;
             info.aspectFlags = meta.aspectFlags;
-            info.viewCount = meta.viewCount;
 
             info.initialState.access = AccessFlagBits::none;
             info.initialState.layout = ImageLayout::undefined;
             info.initialState.stage = PipelineStageFlagBits::none;
-
-            for (uint32_t mipIdx = 0; mipIdx < kMaxNumOfImageMipLevel; ++ mipIdx)
-            {
-                info.views[mipIdx] = mipIdx < info.viewCount ? meta.views[mipIdx] : ImageViewHandle{kInvalidHandle};
-            }
 
             bx::write(m_fgMemWriter, info, nullptr);
 
@@ -1326,19 +1264,6 @@ namespace kage
         }
 
         uint16_t imgViewCount = m_imageViewHandles.getNumHandles();
-
-        for (uint16_t ii = 0; ii < imgViewCount; ++ ii)
-        {
-            ImageViewHandle imgView { (m_imageViewHandles.getHandleAt(ii)) };
-            const ImageViewDesc& desc = m_imageViewDesc[imgView.id];
-
-            // frame graph data
-            bx::write(m_fgMemWriter, MagicTag::register_image_view, nullptr);
-
-            bx::write(m_fgMemWriter, desc, nullptr);
-
-            bx::write(m_fgMemWriter, MagicTag::magic_body_end, nullptr);
-        }
     }
 
     void Context::storeAliasData()
@@ -1714,7 +1639,7 @@ namespace kage
     }
 
     void Context::bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout
-        , const ImageHandle _outAlias, const ImageViewHandle _hImgView)
+        , const ImageHandle _outAlias)
     {
         if (!availableBinding(m_usedBindPoints, _hPass, _binding))
         {
@@ -1762,8 +1687,6 @@ namespace kage
             }
             else if (isCompute(_hPass) && isNormalImage(_hImg))
             {
-                const ImageViewDesc& imgViewDesc = isValid(_hImgView) ? m_imageViewDesc[_hImgView.id] : defaultImageView(_hImg);
-
                 passMeta.writeImageNum = insertResInteract(m_writeImages, _hPass, _hImg.id, { kInvalidHandle }, interact);
                 passMeta.writeImgAliasNum = insertWriteResAlias(m_writeForcedImageAliases, _hPass, _hImg.id, _outAlias.id);
 
@@ -2108,11 +2031,6 @@ namespace kage
         return s_ctx->registDepthStencil(_name, _desc, _lifetime);
     }
 
-    ImageViewHandle registImageView(const char* _name, const ImageHandle _hImg, const uint32_t _baseMip, const uint32_t _mipLevel)
-    {
-        return s_ctx->registImageView(_name, _hImg, _baseMip, _mipLevel);
-    }
-
     PassHandle registPass(const char* _name, PassDesc _desc)
     {
         return s_ctx->registPass(_name, _desc);
@@ -2159,9 +2077,9 @@ namespace kage
     }
 
     void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout
-        , const ImageHandle _outAlias /*= {kInvalidHandle}*/, const ImageViewHandle _hImgView/* = {kInvalidHandle}*/)
+        , const ImageHandle _outAlias /*= {kInvalidHandle}*/)
     {
-        s_ctx->bindImage(_hPass, _hImg, _binding, _stage, _access, _layout, _outAlias, _hImgView);
+        s_ctx->bindImage(_hPass, _hImg, _binding, _stage, _access, _layout, _outAlias);
     }
 
     void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx, const ImageHandle _outAlias)
@@ -2341,10 +2259,6 @@ namespace kage
         return getNameManager()->getName(_hImg);
     }
 
-    const char* getName(ImageViewHandle _hImgView)
-    {
-        return getNameManager()->getName(_hImgView);
-    }
     const char* getName(SamplerHandle _hSampler)
     {
         return getNameManager()->getName(_hSampler);

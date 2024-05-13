@@ -27,8 +27,6 @@ void pyramid_renderFunc(kage::CommandListI& _cmdList, const void* _data, uint32_
 
         kage::ImageHandle srcImg = (ii == 0) ? pyramid.inDepth : pyramid.image;
 
-        kage::ImageViewHandle srcImgView = ii == 0 ? kage::ImageViewHandle{kage::kInvalidHandle} : pyramid.imgMips[ii - 1];
-
         uint16_t srcMip = 
             ii == 0
             ? kage::kAllMips
@@ -112,11 +110,6 @@ void preparePyramid(PyramidRendering& _pyramid, uint32_t _width, uint32_t _heigh
     _pyramid.levels = levels;
 
     _pyramid.imgOutAlias = outAlias;
-
-    for (uint32_t ii = 0; ii < levels; ++ii)
-    {
-        _pyramid.imgMips[ii] = kage::registImageView("pyramidMips", img, ii, 1);
-    }
 }
 
 void setPyramidPassDependency(PyramidRendering& _pyramid, const kage::ImageHandle _inDepth)

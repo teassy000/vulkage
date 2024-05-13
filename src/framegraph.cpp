@@ -52,7 +52,6 @@ namespace kage
         m_hBuf.clear();
         m_hTex.clear();
         m_hSampler.clear();
-        m_hImgView.clear();
 
         m_sparse_shader_info.clear();
         m_sparse_program_info.clear();
@@ -140,10 +139,6 @@ namespace kage
             }
             case MagicTag::register_sampler: {
                 registerSampler(reader);
-                break;
-            }
-            case MagicTag::register_image_view: {
-                registerImageView(reader);
                 break;
             }
             // Alias
@@ -352,16 +347,6 @@ namespace kage
 
         m_hSampler.push_back({ meta.samplerId });
         m_sparse_sampler_meta[meta.samplerId] = meta;
-    }
-
-    void Framegraph::registerImageView(bx::MemoryReader& _reader)
-    {
-        VKZ_ZoneScopedC(Color::light_yellow);
-        ImageViewDesc meta;
-        bx::read(&_reader, meta, nullptr);
-
-        m_hImgView.push_back({ meta.imgViewId });
-        m_sparse_img_view_desc[meta.imgViewId] = meta;
     }
 
     const ResInteractDesc merge(const ResInteractDesc& _desc0, const ResInteractDesc& _desc1)
@@ -1446,13 +1431,6 @@ namespace kage
         _bkt.desc.format = _info.format;
         _bkt.desc.usage = _info.usage;
         _bkt.desc.layout = _info.layout;
-        _bkt.desc.viewCount = _info.viewCount;
-
-
-        for (uint32_t mipIdx = 0; mipIdx < kMaxNumOfImageMipLevel; ++mipIdx)
-        {
-            _bkt.desc.views[mipIdx] = mipIdx < _bkt.desc.viewCount ? _info.views[mipIdx] : ImageViewHandle{ kInvalidHandle };
-        }
 
         _bkt.aspectFlags = _info.aspectFlags;
         _bkt.initialBarrierState = _info.initialState;
@@ -1736,34 +1714,6 @@ namespace kage
     {
         VKZ_ZoneScopedC(Color::light_yellow);
 
-        // setup image view metas
-        stl::vector<ImageViewDesc> imgViewDescs{};
-        imgViewDescs.reserve(m_sparse_img_view_desc.size());
-        for (const ImgBucket& bkt : m_imgBuckets)
-        {
-            for (const CombinedResID cid : bkt.reses)
-            {
-                const FGImageCreateInfo& info = m_sparse_img_info[cid.id];
-
-                for (uint32_t ii = 0 ; ii < info.viewCount; ++ii )
-                {
-                    imgViewDescs.push_back(m_sparse_img_view_desc[info.views[ii].id]);
-                }
-            }
-        }
-
-        for (ImageViewDesc desc : imgViewDescs)
-        {
-            RHIContextOpMagic magic{ RHIContextOpMagic::create_image_view };
-
-            bx::write(&m_rhiMemWriter, magic, nullptr);
-
-            bx::write(&m_rhiMemWriter, desc, nullptr);
-
-            bx::write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end, nullptr);
-        }
-
-
         for (const ImgBucket& bkt : m_imgBuckets)
         {
             RHIContextOpMagic magic{ RHIContextOpMagic::create_image };
@@ -1790,12 +1740,6 @@ namespace kage
 
             info.aspectFlags = bkt.aspectFlags;
             info.barrierState = bkt.initialBarrierState;
-
-            info.viewCount = bkt.desc.viewCount;
-            for (uint32_t mipIdx = 0; mipIdx < kMaxNumOfImageMipLevel; ++mipIdx)
-            {
-                info.views[mipIdx] = mipIdx < info.viewCount ? bkt.desc.views[mipIdx] : ImageViewHandle{ kInvalidHandle };
-            }
 
             bx::write(&m_rhiMemWriter, info, nullptr);
 

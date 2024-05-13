@@ -318,7 +318,6 @@ namespace kage { namespace vk
         void createImage(bx::MemoryReader& _reader) override;
         void createBuffer(bx::MemoryReader& _reader) override;
         void createSampler(bx::MemoryReader& _reader) override;
-        void createImageView(bx::MemoryReader& _reader) override;
         void setBrief(bx::MemoryReader& _reader) override;
 
         VkImageView getCachedImageView(const ImageHandle _hImg, uint16_t _mip, uint16_t _numMips, VkImageViewType _type);
@@ -390,7 +389,6 @@ namespace kage { namespace vk
 
         StateCacheLru<VkImageView, 1024> m_imgViewCache;
 
-        ContinuousMap<uint16_t, ImageViewDesc> m_imageViewDescContainer;
         ContinuousMap<uint16_t, BufferCreateInfo> m_bufferCreateInfoContainer;
         ContinuousMap<uint16_t, ImageCreateInfo> m_imageInitPropContainer;
 

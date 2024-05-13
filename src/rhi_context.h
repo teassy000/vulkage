@@ -25,7 +25,6 @@ namespace kage
         create_program,
         create_shader,
         create_sampler,
-        create_image_view,
 
         set_brief,
 
@@ -203,7 +202,6 @@ namespace kage
         virtual void createImage(bx::MemoryReader& reader) = 0;
         virtual void createBuffer(bx::MemoryReader& reader) = 0;
         virtual void createSampler(bx::MemoryReader& _reader) = 0;
-        virtual void createImageView(bx::MemoryReader& _reader) = 0;
         virtual void setBrief(bx::MemoryReader& reader) = 0;
     };
 
@@ -255,7 +253,6 @@ namespace kage
         void createImage(bx::MemoryReader& reader) override {};
         void createBuffer(bx::MemoryReader& reader) override {};
         void createSampler(bx::MemoryReader& _reader) override {};
-        void createImageView(bx::MemoryReader& _reader) override {};
         void setBrief(bx::MemoryReader& reader) override {};
 
         // permanent
