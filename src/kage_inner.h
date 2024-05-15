@@ -36,6 +36,7 @@ namespace kage
             return loc_c < rhs_c;
         }
     };
+
     inline bool isBuffer(const CombinedResID& _id)
     {
         return _id.type == ResourceType::buffer;
@@ -221,7 +222,7 @@ namespace kage
         // graphics pass specific
         uint16_t    vertexBufferId{ kInvalidHandle };
         uint16_t    indexBufferId{ kInvalidHandle };
-        
+
         uint16_t    indirectBufferId{ kInvalidHandle };
         uint16_t    indirectCountBufferId{ kInvalidHandle };
 

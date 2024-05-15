@@ -184,7 +184,6 @@ void vkz_prepareUI(UIRendering& _ui, kage::ImageHandle _color, kage::ImageHandle
     kage::sampleImage(pass, fontImage
         , 0
         , kage::PipelineStageFlagBits::fragment_shader
-        , kage::ImageLayout::general
         , kage::SamplerReductionMode::weighted_average
     );
 

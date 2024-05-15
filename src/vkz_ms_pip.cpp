@@ -134,7 +134,6 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
     kage::SamplerHandle pyrSampler =  kage::sampleImage(pass, _initData.pyramid
         , 8
         , kage::PipelineStageFlagBits::fragment_shader
-        , kage::ImageLayout::shader_read_only_optimal
         , kage::SamplerReductionMode::weighted_average);
 
     kage::setIndirectBuffer(pass, _initData.meshDrawCmdCountBuffer, 4, 1, 0);

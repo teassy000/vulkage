@@ -59,7 +59,6 @@ void prepareCullingComp(CullingComp& _cullingComp, const CullingCompInitData& _i
     kage::sampleImage(pass, _initData.pyramid
         , 6
         , kage::PipelineStageFlagBits::compute_shader
-        , kage::ImageLayout::general
         , kage::SamplerReductionMode::min);
 
     _cullingComp.cs = cs;

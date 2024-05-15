@@ -407,7 +407,7 @@ namespace kage
         void setIndirectCountBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset);
 
         void bindBuffer(PassHandle _hPass, BufferHandle _buf, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, const BufferHandle _outAlias);
-        SamplerHandle sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, ImageLayout _layout, SamplerReductionMode _reductionMode);
+        SamplerHandle sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, SamplerReductionMode _reductionMode);
         void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout
             , const ImageHandle _outAlias);
 
@@ -528,6 +528,7 @@ namespace kage
         void* m_nativeWnd{ nullptr };
 
         CommandBuffer m_cmdBuffer{};
+        CommandBuffer m_fgDoneCmdBuffer{};
     };
 
     bool Context::isCompute(const PassHandle _hPass)
@@ -701,8 +702,8 @@ namespace kage
         CommandBuffer& cb = getCommandBuffer(CommandBuffer::create_program);
         cb.write(handle);
         cb.write(_shaderNum);
-        cb.write(_sizePushConstants);
         cb.write(_mem);
+        cb.write(_sizePushConstants);
 
         return handle;
     }
@@ -1373,6 +1374,10 @@ namespace kage
 
         setRenderGraphDataDirty();
 
+        CommandBuffer& cb = getCommandBuffer(CommandBuffer::alias_buffer);
+        cb.write(BufferHandle{ aliasId });
+        cb.write(actualBase);
+
         return { aliasId };
     }
 
@@ -1412,6 +1417,10 @@ namespace kage
         setName(getNameManager(), baseName.getPtr(), baseName.getLength(), ImageHandle{ aliasId }, true);
 
         setRenderGraphDataDirty();
+
+        CommandBuffer& cb = getCommandBuffer(CommandBuffer::alias_image);
+        cb.write(BufferHandle{ aliasId });
+        cb.write(actualBase);
 
         return { aliasId };
     }
@@ -1600,7 +1609,7 @@ namespace kage
         }
     }
 
-    SamplerHandle Context::sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, ImageLayout _layout, SamplerReductionMode _reductionMode)
+    SamplerHandle Context::sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, SamplerReductionMode _reductionMode)
     {
         if (!availableBinding(m_usedBindPoints, _hPass, _binding))
         {
@@ -1618,7 +1627,7 @@ namespace kage
         interact.binding = _binding;
         interact.stage = _stage;
         interact.access = AccessFlagBits::shader_read;
-        interact.layout = _layout;
+        interact.layout = ImageLayout::shader_read_only_optimal;
 
         PassMetaData& passMeta = m_passMetas[_hPass.id];
         passMeta.readImageNum = insertResInteract(m_readImages, _hPass, _hImg.id, sampler, interact);
@@ -1906,6 +1915,8 @@ namespace kage
             bake();
         }
 
+        //m_frameGraph->process(m_cmdBuffer, m_fgDoneCmdBuffer);
+
         render();
     }
 
@@ -2062,9 +2073,9 @@ namespace kage
         s_ctx->bindBuffer(_hPass, _hBuf, _binding, _stage, _access, _outAlias);
     }
 
-    SamplerHandle sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, ImageLayout _layout, SamplerReductionMode _reductionMode)
+    SamplerHandle sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, SamplerReductionMode _reductionMode)
     {
-        return s_ctx->sampleImage(_hPass, _hImg, _binding, _stage, _layout, _reductionMode);
+        return s_ctx->sampleImage(_hPass, _hImg, _binding, _stage, _reductionMode);
     }
 
     void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout

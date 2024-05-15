@@ -86,7 +86,6 @@ void initSkyboxPass(SkyboxRendering& _skybox, const kage::BufferHandle _trans, c
     _skybox.cubemapSampler = kage::sampleImage(pass, cubemap
         , 1
         , kage::PipelineStageFlagBits::fragment_shader
-        , kage::ImageLayout::shader_read_only_optimal
         , kage::SamplerReductionMode::weighted_average
     );
 

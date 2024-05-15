@@ -8,21 +8,23 @@ namespace kage
     {
         enum Enum
         {
-            cmd_tail,
-            
             set_brief,
 
             create_pass,
             create_image,
             create_buffer,
-            create_descriptor_set,
             create_program,
             create_shader,
             create_sampler,
-            create_image_view,
 
             alias_image,
             alias_buffer,
+
+            bind_buffer,
+            bind_image,
+            bind_render_target,
+            bind_depth_stencil,
+
 
             update_image,
             update_buffer,

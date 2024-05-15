@@ -6,6 +6,7 @@
 
 #include "bx/allocator.h"
 #include "bx/readerwriter.h"
+#include "command_buffer.h"
 
 namespace kage
 {
@@ -488,5 +489,33 @@ namespace kage
         stl::vector< ImgBucket>          m_imgBuckets;
     };
 
+    struct FGPassInfo
+    {
+        PassHandle id;
+    };
+
+    struct FGImageInfo
+    {
+        ImageHandle id;
+    };
+
+    struct FGBufferInfo
+    {
+        BufferHandle id;
+    };
+
+    struct FrameGraph2
+    {
+        void process(CommandBuffer& _in, CommandBuffer& out);
+        void exeCommands(CommandBuffer& _in);
+
+        void buildGraph();
+
+        FrameGraphBrief m_brief;
+
+        FGPassInfo  m_passInfo[kMaxNumOfPassHandle];
+        FGImageInfo m_imageInfo[kMaxNumOfImageHandle];
+        FGBufferInfo m_bufferInfo[kMaxNumOfBufferHandle];
+    };
 
 }; // namespace kage
