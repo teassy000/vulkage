@@ -183,15 +183,27 @@ namespace kage
 
         // update resources
         virtual void updateUniform(PassHandle _hPass, const void* _data, uint32_t _size) = 0;
-        virtual void updateBuffer(BufferHandle _hBuf, const void* _data, uint32_t _size) = 0;
+        virtual void updateBuffer(
+            const BufferHandle _hBuf
+            , const Memory* _mem
+            , const uint32_t _offset
+            , const uint32_t _size
+        ) = 0;
 
         virtual void updateConstants(const PassHandle _hPass, const Memory* _mem) = 0;
-        virtual void update(const BufferHandle _hBuf, const Memory* _mem, const uint32_t _offset) = 0;
+
+        virtual void updateImage(
+            const ImageHandle _hImg
+            , const uint32_t _width
+            , const uint32_t _height
+            , const uint32_t _depth
+            , const Memory* _mem
+        ) = 0;
 
         // update settings
         virtual void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ) = 0;
 
-        virtual void updateCustomFuncData(const PassHandle _hPass, const void* _data, uint32_t _size) = 0;
+        virtual void updateCustomFuncData(const PassHandle _hPass, const Memory* _mem) = 0;
 
         // naive profiling
         virtual double getPassTime(const PassHandle _hPass) = 0;
@@ -235,13 +247,25 @@ namespace kage
 
         // update 
         void updateUniform(PassHandle _hPass, const void* _data, uint32_t _size) override {};
-        void updateBuffer(BufferHandle _hBuf, const void* _data, uint32_t _size) override {};
+        void updateBuffer(
+            const BufferHandle _hBuf
+            , const Memory* _mem
+            , const uint32_t _offset
+            , const uint32_t _size
+        ) override {};
         void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ) override {};
         
-        void updateCustomFuncData(const PassHandle _hPass, const void* _data, uint32_t _size) override {};
+        void updateCustomFuncData(const PassHandle _hPass, const Memory* _mem) override {};
 
         void updateConstants(const PassHandle _hPass, const Memory* _mem) override;
-        void update(const BufferHandle _hBuf, const Memory* _mem, const uint32_t _offset) override;
+
+        void updateImage(
+            const ImageHandle _hImg
+            , const uint32_t _width
+            , const uint32_t _height
+            , const uint32_t _depth
+            , const Memory* _mem
+        ) override {};
 
         double getPassTime(const PassHandle _hPass) override { return 0.0; }
 

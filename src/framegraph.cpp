@@ -158,10 +158,15 @@ namespace kage
                     // skip;
                 }
                 break;
+            case CommandBuffer::end:
+                {
+                    finish = true;
+                }
+                break;
             default:
                 break;
             }
-        } while (finish);
+        } while (!finish);
     }
 
     void Framegraph::shutdown()

@@ -278,8 +278,22 @@ namespace kage { namespace vk
         void updateResolution(const Resolution& _resolution) override;
 
         void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ) override;
-        void updateBuffer(BufferHandle _hBuf,  const void* _data, uint32_t _size) override;
-        void updateCustomFuncData(const PassHandle _hPass, const void* _data, uint32_t _size) override;
+        void updateBuffer(
+            const BufferHandle _hBuf
+            , const Memory* _mem
+            , const uint32_t _offset
+            , const uint32_t _size
+        ) override;
+        void updateCustomFuncData(const PassHandle _hPass, const Memory* _mem) override;
+
+        void updateImage(
+            const ImageHandle _hImg
+            , const uint32_t _width
+            , const uint32_t _height
+            , const uint32_t _depth
+            , const Memory* _mem
+        ) override;
+
 
         VkBuffer getVkBuffer(const BufferHandle _hBuf) const
         {
@@ -320,6 +334,7 @@ namespace kage { namespace vk
         void createSampler(bx::MemoryReader& _reader) override;
         void setBrief(bx::MemoryReader& _reader) override;
 
+        VkSampler getCachedSampler(SamplerFilter _filter, SamplerAddressMode _addrMd, SamplerReductionMode _reduMd);
         VkImageView getCachedImageView(const ImageHandle _hImg, uint16_t _mip, uint16_t _numMips, VkImageViewType _type);
 
         void createInstance();
@@ -387,6 +402,7 @@ namespace kage { namespace vk
         ContinuousMap<uint16_t, PassInfo_vk> m_passContainer;
         ContinuousMap<uint16_t, VkSampler> m_samplerContainer;
 
+        StateCacheT<VkSampler> m_samplerCache;
         StateCacheLru<VkImageView, 1024> m_imgViewCache;
 
         ContinuousMap<uint16_t, BufferCreateInfo> m_bufferCreateInfoContainer;

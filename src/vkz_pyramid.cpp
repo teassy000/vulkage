@@ -46,6 +46,7 @@ void pyramid_renderFunc(kage::CommandListI& _cmdList, const void* _data, uint32_
     }
 }
 
+
 uint32_t previousPow2_py(uint32_t v)
 {
     uint32_t r = 1;
@@ -135,3 +136,4 @@ void setPyramidPassDependency(PyramidRendering& _pyramid, const kage::ImageHandl
 
     kage::setCustomRenderFunc(_pyramid.pass, pyramid_renderFunc, mem);
 }
+

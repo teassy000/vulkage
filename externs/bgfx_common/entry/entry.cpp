@@ -493,7 +493,7 @@ BX_PRAGMA_DIAGNOSTIC_POP();
 		_app->init(_argc, _argv, s_width, s_height);
 		
 		// TODO: update the engine via update() function
-		//bgfx::frame();
+		//kage::frame();
 
 #if BX_PLATFORM_EMSCRIPTEN
 		s_app = _app;
@@ -756,7 +756,7 @@ restart:
 		{
 			_reset = s_reset;
 
-			kage::reset(_width, _height, _reset); //kage: TODO: process the _reset flags here
+			kage::reset(_width, _height, _reset);
 			inputSetMouseResolution(uint16_t(_width), uint16_t(_height) );
 		}
 
@@ -936,7 +936,7 @@ restart:
 		{
 			_reset = s_reset;
 
-			kage::reset(s_window[0].m_width, s_window[0].m_height, _reset); //kage: TODO: process the _reset flags here
+			kage::reset(s_window[0].m_width, s_window[0].m_height, _reset);
 			inputSetMouseResolution(uint16_t(s_window[0].m_width), uint16_t(s_window[0].m_height) );
 		}
 

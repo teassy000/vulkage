@@ -8,6 +8,8 @@ namespace kage
     {
         enum Enum
         {
+            cb_reserve,
+
             set_brief,
 
             create_pass,
@@ -20,16 +22,24 @@ namespace kage
             alias_image,
             alias_buffer,
 
-            bind_buffer,
-            bind_image,
-            bind_render_target,
-            bind_depth_stencil,
-
-
             update_image,
             update_buffer,
 
+            flush_resource_barrier,
+            push_constants,
+            push_descriptor_set,
+            set_thread_count,
+            update_custom_render_func_data,
+            dispatch,
+
             end,
+
+            destroy_pass,
+            destroy_image,
+            destroy_buffer,
+            destroy_program,
+            destroy_shader,
+            destroy_sampler,
         };
 
         CommandBuffer()

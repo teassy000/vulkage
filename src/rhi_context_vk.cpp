@@ -1657,7 +1657,12 @@ namespace kage { namespace vk
         passInfo.config.threadCountZ = _threadCountZ;
     }
 
-    void RHIContext_vk::updateBuffer(BufferHandle _hBuf, const void* _data, uint32_t _size)
+    void RHIContext_vk::updateBuffer(
+        const BufferHandle _hBuf
+        , const Memory* _mem
+        , const uint32_t _offset
+        , const uint32_t _size
+    )
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
@@ -1686,23 +1691,29 @@ namespace kage { namespace vk
         }
 
         // re-create buffer if new size is larger than the old one
-        if (buf.size != _size && baseBuf.size < _size)
+        if (buf.size != _mem->size && baseBuf.size < _mem->size)
         {
             m_barrierDispatcher.untrack(buf.buffer);
 
             stl::vector<Buffer_vk> buffers(1, buf);
             kage::vk::destroyBuffer(m_device, buffers);
-//             release(buf.buffer);
-//             release(buf.memory);
+            //             release(buf.buffer);
+            //             release(buf.memory);
 
 
             // recreate buffer
             BufferAliasInfo info{};
-            info.size = _size;
+            info.size = _mem->size;
             info.bufId = _hBuf.id;
 
 
-            Buffer_vk newBuf = kage::vk::createBuffer(info, m_memProps, m_device, getBufferUsageFlags(createInfo.usage), getMemPropFlags(createInfo.memFlags));
+            Buffer_vk newBuf = kage::vk::createBuffer(
+                info
+                , m_memProps
+                , m_device
+                , getBufferUsageFlags(createInfo.usage)
+                , getMemPropFlags(createInfo.memFlags)
+            );
             m_bufferContainer.update(_hBuf.id, newBuf);
 
             ResInteractDesc interact{ createInfo.barrierState };
@@ -1714,16 +1725,16 @@ namespace kage { namespace vk
         }
 
         const Buffer_vk& newBuf = m_bufferContainer.getIdToData(_hBuf.id);
-        uploadBuffer(_hBuf.id, _data, _size);
+        uploadBuffer(_hBuf.id, _mem->data, _mem->size);
 
         flushBuffer(m_device, newBuf);
     }
 
-    void RHIContext_vk::updateCustomFuncData(const PassHandle _hPass, const void* _data, uint32_t _size)
+    void RHIContext_vk::updateCustomFuncData(const PassHandle _hPass, const Memory* _mem)
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
-        assert(_data != nullptr);
+        assert(_mem != nullptr);
         if (!m_passContainer.exist(_hPass.id))
         {
             message(info, "update will not perform for pass %d! It might be useless after render pass sorted", _hPass.id);
@@ -1744,11 +1755,16 @@ namespace kage { namespace vk
             free(allocator(), passInfo.renderFuncDataPtr);
         }
 
-        void * mem = alloc(allocator(), _size);
-        memcpy(mem, _data, _size);
+        void * mem = alloc(allocator(), _mem->size);
+        memcpy(mem, _mem->data, _mem->size);
 
         passInfo.renderFuncDataPtr = mem;
-        passInfo.renderFuncDataSize = _size;
+        passInfo.renderFuncDataSize = _mem->size;
+    }
+
+    void RHIContext_vk::updateImage(const ImageHandle _hImg, const uint32_t _width, const uint32_t _height, const uint32_t _depth, const Memory* _mem)
+    {
+
     }
 
     void RHIContext_vk::createShader(bx::MemoryReader& _reader)
@@ -2171,6 +2187,34 @@ namespace kage { namespace vk
         bx::read(&_reader, brief, nullptr);
 
         m_brief = brief;
+    }
+
+    VkSampler RHIContext_vk::getCachedSampler(SamplerFilter _filter, SamplerAddressMode _addrMd, SamplerReductionMode _reduMd)
+    {
+        VKZ_ZoneScopedC(Color::indian_red);
+
+        bx::HashMurmur2A hash;
+        hash.begin();
+        hash.add(_filter);
+        hash.add(_addrMd);
+        hash.add(_reduMd);
+
+        uint32_t hashKey = hash.end();
+
+        VkSampler samplerCached = m_samplerCache.find(hashKey);
+        if (0 != samplerCached)
+        {
+            return samplerCached;
+        }
+
+        VkSampler sampler = kage::vk::createSampler(
+            m_device
+            , getSamplerReductionMode(_reduMd)
+        );
+
+        m_samplerCache.add(hashKey, sampler);
+
+        return sampler;
     }
 
     VkImageView RHIContext_vk::getCachedImageView(const ImageHandle _hImg, uint16_t _mip, uint16_t _numMips, VkImageViewType _type)

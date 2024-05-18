@@ -426,15 +426,21 @@ namespace kage
 
         void updateCustomRenderFuncData(const PassHandle _hPass, const Memory* _dataMem);
 
-        void updateBuffer(const BufferHandle _hbuf, const Memory* _mem);
+        void updateBuffer(const BufferHandle _hbuf, const Memory* _mem, const uint32_t _offset, const uint32_t _size);
         void update(const BufferHandle _hBuf, const Memory* _mem, const uint32_t _offset, const uint32_t _size);
+        void update(const ImageHandle _hImg 
+            , uint16_t _width
+            , uint16_t _height
+            , uint16_t _depth
+            , const Memory* _mem);
+
 
         void updatePushConstants(const PassHandle _hPass, const Memory* _mem);
 
         void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ);
 
-        // submit
-        void submit();
+        // renderer execute commands
+        void rendererExecCmds(CommandBuffer& _cmdBuf);
 
         // actual write to memory
         void storeBrief();
@@ -448,10 +454,12 @@ namespace kage
 
         void init(const Init& _init);
 
-        void run();
-        void bake();
-        void reset(uint32_t _windth, uint32_t _height, uint32_t _reset);
         void render();
+        void bake();
+        void frame();
+
+        void reset(uint32_t _windth, uint32_t _height, uint32_t _reset);
+        void rhi_render();
         void shutdown();
 
         void setRenderGraphDataDirty() { m_isRenderGraphDataDirty = true; }
@@ -527,8 +535,9 @@ namespace kage
 
         void* m_nativeWnd{ nullptr };
 
-        CommandBuffer m_cmdBuffer{};
-        CommandBuffer m_fgDoneCmdBuffer{};
+        // frame 
+        CommandBuffer m_cmdPre{};
+        CommandBuffer m_cmdPost{};
     };
 
     bool Context::isCompute(const PassHandle _hPass)
@@ -1826,25 +1835,49 @@ namespace kage
 
     void Context::updateCustomRenderFuncData(const PassHandle _hPass, const Memory* _dataMem)
     {
-        m_rhiContext->updateCustomFuncData(_hPass, _dataMem->data, _dataMem->size);
-        release(_dataMem);
+        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::update_custom_render_func_data);
+        cmd.write(_hPass);
+        cmd.write(_dataMem);
     }
 
-    void Context::updateBuffer(const BufferHandle _hbuf, const Memory* _mem)
+    void Context::updateBuffer(const BufferHandle _hBuf, const Memory* _mem, const uint32_t _offset, const uint32_t _size)
     {
         if (_mem == nullptr)
         {
             return;
         }
 
-        m_rhiContext->updateBuffer(_hbuf, _mem->data, _mem->size);
-        release(_mem);
+        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::update_buffer);
+        cmd.write(_hBuf);
+        cmd.write(_mem);
+        cmd.write(_offset);
+        cmd.write(_size);
+        
     }
 
     void Context::update(const BufferHandle _hBuf, const Memory* _mem, const uint32_t _offset, const uint32_t _size)
     {
+        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::update_buffer);
+        cmd.write(_hBuf);
+        cmd.write(_mem);
+        cmd.write(_offset);
+        cmd.write(_size);
+    }
 
-
+    void Context::update(
+        const ImageHandle _hImg
+        , uint16_t _width
+        , uint16_t _height
+        , uint16_t _depth
+        , const Memory* _mem
+    )
+    {
+        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::update_image);
+        cmd.write(_hImg);
+        cmd.write(_width);
+        cmd.write(_height);
+        cmd.write(_depth);
+        cmd.write(_mem);
     }
 
     void Context::updatePushConstants(const PassHandle _hPass, const Memory* _mem)
@@ -1855,7 +1888,9 @@ namespace kage
             return;
         }
 
-        m_rhiContext->updateConstants(_hPass, _mem);
+        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::push_constants);
+        cmd.write(_hPass);
+        cmd.write(_mem);
     }
 
     void Context::updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ)
@@ -1866,11 +1901,229 @@ namespace kage
             return;
         }
 
-        m_rhiContext->updateThreadCount(_hPass, _threadCountX, _threadCountY, _threadCountZ);
+        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::set_thread_count);
+        cmd.write(_hPass);
+        cmd.write(_threadCountX);
+        cmd.write(_threadCountY);
+        cmd.write(_threadCountZ);
     }
 
-    void Context::submit()
+    void Context::rendererExecCmds(CommandBuffer& _cmdbuf)
     {
+        VKZ_ZoneScopedC(Color::green);
+
+        _cmdbuf.reset();
+
+        bool finish = false;
+
+        if (nullptr == m_rhiContext)
+        {
+            assert(0);
+            return;
+        }
+
+        do
+        {
+            uint8_t cmd;
+            _cmdbuf.read(cmd);
+
+            switch (cmd)
+            {
+            case CommandBuffer::set_brief:
+                {
+                    _cmdbuf.skip<FrameGraphBrief>();
+                }
+                break;
+            case CommandBuffer::create_pass:
+                {
+                    PassHandle handle;
+                    _cmdbuf.read(handle);
+
+                    PassDesc desc;
+                    _cmdbuf.read(desc);
+                }
+                break;
+            case CommandBuffer::create_image:
+                {
+                    ImageHandle handle;
+                    _cmdbuf.read(handle);
+
+                    ImageCreate ic;
+                    _cmdbuf.read(ic);
+                }
+                break;
+            case CommandBuffer::create_buffer:
+                {
+                    BufferHandle handle;
+                    _cmdbuf.read(handle);
+
+                    BufferDesc bd;
+                    _cmdbuf.read(bd);
+
+                    _cmdbuf.skip<const Memory*>();
+
+                    ResourceLifetime lt;
+                    _cmdbuf.read(lt);
+                }
+                break;
+            case CommandBuffer::create_program:
+                {
+                    ProgramHandle handle;
+                    _cmdbuf.read(handle);
+
+                    uint16_t shaderNum;
+                    _cmdbuf.read(shaderNum);
+
+                    const Memory* mem;
+                    _cmdbuf.read(mem);
+
+                    uint32_t spc;
+                    _cmdbuf.read(spc);
+                }
+                break;
+            case CommandBuffer::create_shader:
+                {
+                    ShaderHandle handle;
+                    _cmdbuf.read(handle);
+
+                    const char* path;
+                    _cmdbuf.read(path);
+                }
+                break;
+            case CommandBuffer::create_sampler:
+                {
+                    _cmdbuf.skip<SamplerHandle>();
+                    _cmdbuf.skip<SamplerFilter>();
+                    _cmdbuf.skip<SamplerAddressMode>();
+                    _cmdbuf.skip<SamplerReductionMode>();
+                }
+                break;
+            case CommandBuffer::alias_image:
+                {
+                    _cmdbuf.skip<ImageHandle>(); // alias
+                    _cmdbuf.skip<ImageHandle>(); // base
+                }
+                break;
+            case CommandBuffer::alias_buffer:
+                {
+                    BufferHandle id;
+                    _cmdbuf.read(id);
+
+                    BufferHandle base;
+                    _cmdbuf.read(base);
+                }
+                break;
+            case CommandBuffer::update_image:
+                {
+                    ImageHandle id;
+                    _cmdbuf.read(id);
+
+                    uint16_t width;
+                    _cmdbuf.read(width);
+
+                    uint16_t height;
+                    _cmdbuf.read(height);
+
+                    uint16_t depth;
+                    _cmdbuf.read(depth);
+
+                    const Memory* mem;
+                    _cmdbuf.read(mem);
+
+                    m_rhiContext->updateImage(id, width, height, depth, mem);
+                }
+                break;
+            case CommandBuffer::update_buffer:
+                {
+                    BufferHandle id;
+                    _cmdbuf.read(id);
+
+                    const Memory* mem;
+                    _cmdbuf.read(mem);
+
+                    uint32_t offset;
+                    _cmdbuf.read(offset);
+
+                    uint32_t size;
+                    _cmdbuf.read(size);
+
+                    m_rhiContext->updateBuffer(id, mem, offset, size);
+                    release(mem);
+                }
+                break;
+            case CommandBuffer::flush_resource_barrier:
+                {
+                    PassHandle id;
+                    _cmdbuf.read(id);
+
+                    //m_rhiContext->flushResourceBarrier(id);
+                }
+                break;
+            case CommandBuffer::push_constants:
+                {
+                    PassHandle id;
+                    _cmdbuf.read(id);
+
+                    const Memory* mem;
+                    _cmdbuf.read(mem);
+
+                    m_rhiContext->updateConstants(id, mem);
+                }
+                break;
+            case CommandBuffer::push_descriptor_set:
+                {
+                    PassHandle id;
+                    _cmdbuf.read(id);
+
+                    const Memory* mem;
+                    _cmdbuf.read(mem);
+
+                    //m_rhiContext->updateDescriptorSet(id, mem);
+                }
+                break;
+            case CommandBuffer::set_thread_count:
+                {
+                    PassHandle id;
+                    _cmdbuf.read(id);
+
+                    uint32_t x;
+                    _cmdbuf.read(x);
+
+                    uint32_t y;
+                    _cmdbuf.read(y);
+
+                    uint32_t z;
+                    _cmdbuf.read(z);
+
+                    m_rhiContext->updateThreadCount(id, x, y, z);
+                }
+                break;
+            case CommandBuffer::update_custom_render_func_data:
+                {
+                    PassHandle pass;
+                    _cmdbuf.read(pass);
+
+                    const Memory* mem;
+                    _cmdbuf.read(mem);
+
+                    m_rhiContext->updateCustomFuncData(pass, mem);
+                    release(mem);
+                }
+                break;
+            case CommandBuffer::dispatch:
+                {
+            
+                }
+                break;
+            case CommandBuffer::end:
+                {
+                    finish = true;
+                }
+                break;
+            default:
+                break;
+            }
+        } while (!finish);
 
     }
 
@@ -1890,8 +2143,11 @@ namespace kage
 
         m_rhiContext = vk::rendererCreate(m_resolution, m_nativeWnd);
 
-        m_cmdBuffer.init(_init.minCmdBufSize);
-        m_cmdBuffer.start();
+        m_cmdPre.init(_init.minCmdBufSize);
+        m_cmdPost.init(_init.minCmdBufSize);
+        
+        m_cmdPre.start();
+        m_cmdPost.start();
 
         m_frameGraph = BX_NEW(getAllocator(), Framegraph)(getAllocator(), m_rhiContext->memoryBlock());
 
@@ -1901,9 +2157,12 @@ namespace kage
         setRenderGraphDataDirty();
     }
 
-    void Context::run()
+    void Context::render()
     {
+        m_cmdPre.finish();
+        m_cmdPost.finish();
 
+        
         if (kInvalidHandle == m_presentImage.id)
         {
             message(error, "result render target is not set!");
@@ -1917,7 +2176,9 @@ namespace kage
 
         //m_frameGraph->process(m_cmdBuffer, m_fgDoneCmdBuffer);
 
-        render();
+        rhi_render();
+        m_cmdPre.start();
+        m_cmdPost.start();
     }
 
     void Context::bake()
@@ -1944,6 +2205,11 @@ namespace kage
         m_rhiContext->bake();
     }
 
+    void Context::frame()
+    {
+
+    }
+
     void Context::reset(uint32_t _windth, uint32_t _height, uint32_t _reset)
     {
         m_resolution.width = _windth;
@@ -1951,14 +2217,20 @@ namespace kage
         m_resolution.reset = _reset;
     }
 
-    void Context::render()
+    void Context::rhi_render()
     {
+        rendererExecCmds(m_cmdPre);
+
         m_rhiContext->updateResolution(m_resolution);
         m_rhiContext->render();
+
+        rendererExecCmds(m_cmdPost);
     }
 
     void Context::shutdown()
     {
+        m_cmdPre.finish();
+
         bx::deleteObject(m_pAllocator, m_frameGraph);
         vk::rendererDestroy();
         bx::deleteObject(m_pAllocator, m_fgMemWriter);
@@ -1980,9 +2252,11 @@ namespace kage
 
     CommandBuffer& Context::getCommandBuffer(CommandBuffer::Enum _cmd)
     {
+        CommandBuffer& cmdbuf = _cmd < CommandBuffer::end ? m_cmdPre : m_cmdPost;
+
         uint8_t cmd = static_cast<uint8_t>(_cmd);
-        m_cmdBuffer.write(cmd);
-        return m_cmdBuffer;
+        cmdbuf.write(cmd);
+        return cmdbuf;
     }
 
     // ================================================
@@ -2129,9 +2403,19 @@ namespace kage
         s_ctx->updateThreadCount(_hPass, _threadCountX, _threadCountY, _threadCountZ);
     }
 
-    void updateBuffer(const BufferHandle _hbuf, const Memory* _mem)
+    void updateBuffer(const BufferHandle _hBuf, const Memory* _mem, uint32_t _offset /*= 0*/, uint32_t _size /*= 0*/)
     {
-        s_ctx->updateBuffer(_hbuf, _mem);
+        const uint32_t offset =
+            (_offset == 0)
+            ? 0
+            : _offset;
+
+        const uint32_t size =
+            (_size == 0)
+            ? _mem->size
+            : bx::clamp(_size, 0, _mem->size);
+
+        s_ctx->updateBuffer(_hBuf, _mem, offset, size);
     }
 
     void updateCustomRenderFuncData(const PassHandle _hPass, const Memory* _dataMem)
@@ -2154,9 +2438,15 @@ namespace kage
         s_ctx->update(_buf, _mem, offset, size);
     }
 
-    void update(const ImageHandle _img, const Memory* _mem)
+    void update(
+        const ImageHandle _hImg
+        , uint16_t _width
+        , uint16_t _height
+        , uint16_t _depth
+        , const Memory* _mem /* = nullptr */
+    )
     {
-
+        s_ctx->update(_hImg, _width, _height, _depth, _mem); 
     }
 
     const Memory* alloc(uint32_t _sz)
@@ -2218,14 +2508,14 @@ namespace kage
         s_ctx->reset(_width, _height, _reset);
     }
 
-    void submit()
+    void frame()
     {
-        s_ctx->submit();
+        s_ctx->frame();
     }
 
-    void run()
+    void render()
     {
-        s_ctx->run();
+        s_ctx->render();
     }
 
     void shutdown()

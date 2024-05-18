@@ -20,11 +20,6 @@ namespace kage
         release(_mem);
     }
 
-    void RHIContext::update(const BufferHandle _hBuf, const Memory* _mem, const uint32_t _offset)
-    {
-
-    }
-
     void RHIContext::parseOp()
     {
         assert(m_pMemBlockBaked != nullptr);

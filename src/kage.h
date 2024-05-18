@@ -11,7 +11,7 @@ namespace kage
     using ShaderHandleList = std::initializer_list<const ShaderHandle>;
     // rendering info
     bool checkSupports(VulkanSupportExtension _ext);
-    
+
     // resource management functions
     ShaderHandle registShader(const char* _name, const char* _path);
     ProgramHandle registProgram(const char* _name, ShaderHandleList _shaders, const uint32_t _sizePushConstants = 0);
@@ -32,7 +32,7 @@ namespace kage
     void setIndirectBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset, uint32_t _stride, uint32_t _maxCount);
     void setIndirectCountBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset);
 
-    void bindBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, const BufferHandle _outAlias = {kInvalidHandle});
+    void bindBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, const BufferHandle _outAlias = { kInvalidHandle });
     void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout
         , const ImageHandle _outAlias = { kInvalidHandle });
 
@@ -52,13 +52,25 @@ namespace kage
     void setPresentImage(ImageHandle _rt, uint32_t _mipLv = 0);
 
     void updateCustomRenderFuncData(const PassHandle _hPass, const Memory* _dataMem);
-    void updateBuffer(const BufferHandle _buffer, const Memory* _mem);
+    
+    void updateBuffer(
+        const BufferHandle _buf
+        , const Memory* _mem
+        , uint32_t _offset = 0
+        , uint32_t _size = 0
+    );
+
     void updatePushConstants(const PassHandle _hPass, const Memory* _mem);
 
     void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ);
 
-    void update(const BufferHandle _buf, const Memory* _mem, uint32_t _offset = 0, uint32_t _size = 0);
-    void update(const ImageHandle _img, const Memory* _mem);
+    void update(
+        const ImageHandle _hImg
+        , uint16_t _width
+        , uint16_t _height
+        , uint16_t _depth
+        , const Memory* _mem = nullptr
+    );
 
 
     // memory related
@@ -71,20 +83,10 @@ namespace kage
     bool init(kage::Init _config = {});
 
     void bake();
-    void submit();
-    void run();
+    void frame();
+    void render();
     void reset(uint32_t _width, uint32_t _height, uint32_t _reset);
     void shutdown();
-
-    // callback func pointers
-    using KeyCallbackFunc = void (*)(KeyEnum _key, KeyState _action, KeyModFlags _mods);
-    void setKeyCallback(KeyCallbackFunc _func);
-
-    using MouseMoveCallbackFunc = void (*)(double _x, double _y);
-    void setMouseMoveCallback(MouseMoveCallbackFunc _func);
-
-    using MouseButtonCallbackFunc = void (*)(int, int, int);
-    void setMouseButtonCallback(MouseButtonCallbackFunc _func);
 
     // naive profiling data
     double getPassTime(const PassHandle _hPass);
