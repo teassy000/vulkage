@@ -194,9 +194,9 @@ namespace kage
 
         virtual void updateImage(
             const ImageHandle _hImg
-            , const uint32_t _width
-            , const uint32_t _height
-            , const uint32_t _depth
+            , const uint16_t _width
+            , const uint16_t _height
+            , const uint16_t _mips
             , const Memory* _mem
         ) = 0;
 
@@ -261,9 +261,9 @@ namespace kage
 
         void updateImage(
             const ImageHandle _hImg
-            , const uint32_t _width
-            , const uint32_t _height
-            , const uint32_t _depth
+            , const uint16_t _width
+            , const uint16_t _height
+            , const uint16_t _mips
             , const Memory* _mem
         ) override {};
 

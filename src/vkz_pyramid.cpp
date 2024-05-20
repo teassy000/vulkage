@@ -137,3 +137,19 @@ void setPyramidPassDependency(PyramidRendering& _pyramid, const kage::ImageHandl
     kage::setCustomRenderFunc(_pyramid.pass, pyramid_renderFunc, mem);
 }
 
+void updatePyramid(PyramidRendering& _pyramid, uint32_t _width, uint32_t _height)
+{
+    if ( _width != _pyramid.width || _height != _pyramid.height )
+    {
+        uint32_t level_width = previousPow2_py(_width);
+        uint32_t level_height = previousPow2_py(_height);
+        uint32_t levels = calculateMipLevelCount_py(level_width, level_height);
+
+        _pyramid.width = level_width;
+        _pyramid.height = level_height;
+        _pyramid.levels = levels;
+
+        kage::updateImage2D(_pyramid.image, level_width, level_height, levels);
+    }
+}
+

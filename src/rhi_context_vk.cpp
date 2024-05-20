@@ -83,6 +83,7 @@ namespace kage { namespace vk
         
         return s_renderVK;
     }
+
     void rendererDestroy()
     {
         s_renderVK->shutdown();
@@ -1585,18 +1586,14 @@ namespace kage { namespace vk
         }
 
         // descriptor set layout
-        m_bufferCreateInfoContainer.clear();
-        m_imageInitPropContainer.clear();
+        m_bufferCreateInfos.clear();
+        m_imgCreateInfos.clear();
 
         m_programShaderIds.clear();
         m_progThreadCount.clear();
 
         m_aliasToBaseBuffers.clear();
         m_aliasToBaseImages.clear();
-        m_imgIdToAliasGroupIdx.clear();
-        m_imgAliasGroups.clear();
-        m_bufIdToAliasGroupIdx.clear();
-        m_bufAliasGroups.clear();
     }
 
     bool RHIContext_vk::checkSupports(VulkanSupportExtension _ext)
@@ -1633,6 +1630,14 @@ namespace kage { namespace vk
                 );
             }
 
+            // update attachments
+            for (uint32_t ii = 0; ii < m_colorAttchBase.size(); ++ii)
+            {
+                const ImageHandle& hImg = m_colorAttchBase[ii];
+                const stl::vector<ImageHandle>& attchImages = m_imgToAliases.find(hImg)->second;
+                updateImageWithAlias(hImg, _resolution.width, _resolution.height, 1, nullptr, attchImages);
+            }
+
             m_resolution = _resolution;
         }
     }
@@ -1657,6 +1662,31 @@ namespace kage { namespace vk
         passInfo.config.threadCountZ = _threadCountZ;
     }
 
+    void RHIContext_vk::updateCustomFuncData(const PassHandle _hPass, const Memory* _mem)
+    {
+        VKZ_ZoneScopedC(Color::indian_red);
+
+        assert(_mem != nullptr);
+        if (!m_passContainer.exist(_hPass.id))
+        {
+            message(info, "update will not perform for pass %d! It might be useless after render pass sorted", _hPass.id);
+            return;
+        }
+
+        PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
+        
+        if (nullptr != passInfo.renderFuncDataPtr)
+        {
+            free(allocator(), passInfo.renderFuncDataPtr);
+        }
+
+        void * mem = alloc(allocator(), _mem->size);
+        memcpy(mem, _mem->data, _mem->size);
+
+        passInfo.renderFuncDataPtr = mem;
+        passInfo.renderFuncDataSize = _mem->size;
+    }
+
     void RHIContext_vk::updateBuffer(
         const BufferHandle _hBuf
         , const Memory* _mem
@@ -1672,18 +1702,11 @@ namespace kage { namespace vk
             return;
         }
 
-        /// TEMP CHANGE
-        if (m_swapchain.getSwapchainStatus() != SwapchainStatus_vk::ready)
-        {
-            message(info, "updateBuffer will not perform! Swapchain is not ready");
-            return;
-        }
-
         const Buffer_vk& buf = m_bufferContainer.getIdToData(_hBuf.id);
         uint16_t baseBufId = m_aliasToBaseBuffers.getIdToData(_hBuf.id);
         const Buffer_vk& baseBuf = m_bufferContainer.getIdToData(baseBufId);
 
-        const BufferCreateInfo& createInfo = m_bufferCreateInfoContainer.getDataRef(baseBufId);
+        const BufferCreateInfo& createInfo = m_bufferCreateInfos.getDataRef(baseBufId);
         if (!(createInfo.memFlags & MemoryPropFlagBits::host_visible))
         {
             message(info, "updateBuffer will not perform for buffer %d! Buffer must be host visible so we can map to host memory", _hBuf.id);
@@ -1695,17 +1718,14 @@ namespace kage { namespace vk
         {
             m_barrierDispatcher.untrack(buf.buffer);
 
-            stl::vector<Buffer_vk> buffers(1, buf);
-            kage::vk::destroyBuffer(m_device, buffers);
-            //             release(buf.buffer);
-            //             release(buf.memory);
-
+            Buffer_vk& bufToRelease = m_bufferContainer.getDataRef(_hBuf.id);
+            release(bufToRelease.buffer);
+            release(bufToRelease.memory);
 
             // recreate buffer
             BufferAliasInfo info{};
             info.size = _mem->size;
             info.bufId = _hBuf.id;
-
 
             Buffer_vk newBuf = kage::vk::createBuffer(
                 info
@@ -1730,41 +1750,92 @@ namespace kage { namespace vk
         flushBuffer(m_device, newBuf);
     }
 
-    void RHIContext_vk::updateCustomFuncData(const PassHandle _hPass, const Memory* _mem)
+    void RHIContext_vk::updateImage(
+        const ImageHandle _hImg
+        , const uint16_t _width
+        , const uint16_t _height
+        , const uint16_t _mips
+        , const Memory* _mem
+    )
+    {
+        ImageHandle baseImg = { m_aliasToBaseImages.getIdToData(_hImg.id) };
+        const stl::vector<ImageHandle>& aliasRef = m_imgToAliases.find(baseImg)->second;
+
+        updateImageWithAlias(_hImg, _width, _height, _mips, _mem, aliasRef);
+    }
+
+    void RHIContext_vk::updateImageWithAlias(
+        const ImageHandle _hImg
+        , const uint16_t _width
+        , const uint16_t _height
+        , const uint16_t _mips
+        , const Memory* _mem
+        , const stl::vector<ImageHandle>& _alias
+    )
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
-        assert(_mem != nullptr);
-        if (!m_passContainer.exist(_hPass.id))
+        if (!m_imageContainer.exist(_hImg.id))
         {
-            message(info, "update will not perform for pass %d! It might be useless after render pass sorted", _hPass.id);
+            message(info, "updateImage will not perform for image %d! It might be useless after render pass sorted", _hImg.id);
             return;
         }
 
-        /// TEMP CHANGE
-        if (m_swapchain.getSwapchainStatus() != SwapchainStatus_vk::ready)
+        const ImageHandle baseImg = { m_aliasToBaseImages.getIdToData(_hImg.id) };
+        const Image_vk& baseImgVk = m_imageContainer.getIdToData(baseImg.id);
+
+        // re-create image if new size is different from the old one
+        if (baseImgVk.width != _width || baseImgVk.height != _height)
         {
-            message(info, "updateBuffer will not perform! Swapchain is not ready");
-            return;
+            stl::vector<ImageAliasInfo> aliasInfos;
+            {
+                Image_vk& imgVk = m_imageContainer.getDataRef(baseImg.id);
+                release(imgVk.memory);
+            }
+
+            for (const ImageHandle& img : _alias)
+            {
+                ImageAliasInfo ali{};
+                ali.imgId = img.id;
+                aliasInfos.push_back(ali);
+
+                Image_vk& imgVk = m_imageContainer.getDataRef(img.id);
+
+                m_barrierDispatcher.untrack(imgVk.image);
+                release(imgVk.defaultView);
+                release(imgVk.image);
+            }
+
+            ImageCreateInfo& ci = m_imgCreateInfos.getDataRef(_hImg.id);
+            ci.width = _width;
+            ci.height = _height;
+            ci.numMips = _mips;
+
+            // recreate image
+            ImgInitProps_vk initPorps = getImageInitProp(ci, m_imageFormat, m_depthFormat);
+
+            stl::vector<Image_vk> imageVks;
+            kage::vk::createImage(imageVks, aliasInfos, m_device, m_memProps, initPorps);
+            assert(imageVks.size() == ci.resCount);
+
+            ResInteractDesc interact{ ci.barrierState };
+            for (uint16_t ii = 0; ii < _alias.size(); ++ii)
+            {
+                m_imageContainer.update({ _alias[ii].id }, imageVks[ii]);
+
+                m_barrierDispatcher.track(
+                    imageVks[ii].image
+                    , getImageAspectFlags(initPorps.aspectMask)
+                    , { getAccessFlags(interact.access), getPipelineStageFlags(interact.stage) }
+                    , baseImgVk.image
+                );
+            }
         }
 
-        PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
-        
-        if (nullptr != passInfo.renderFuncDataPtr)
+        if (_mem != nullptr)
         {
-            free(allocator(), passInfo.renderFuncDataPtr);
+            uploadImage(_hImg.id, _mem->data, _mem->size);
         }
-
-        void * mem = alloc(allocator(), _mem->size);
-        memcpy(mem, _mem->data, _mem->size);
-
-        passInfo.renderFuncDataPtr = mem;
-        passInfo.renderFuncDataSize = _mem->size;
-    }
-
-    void RHIContext_vk::updateImage(const ImageHandle _hImg, const uint32_t _width, const uint32_t _height, const uint32_t _depth, const Memory* _mem)
-    {
-
     }
 
     void RHIContext_vk::createShader(bx::MemoryReader& _reader)
@@ -2083,15 +2154,13 @@ namespace kage { namespace vk
         kage::vk::createImage(images, infoList, m_device, m_memProps, initPorps);
         assert(images.size() == info.resCount);
 
-        m_imageInitPropContainer.addOrUpdate(info.imgId, info);
+        m_imgCreateInfos.addOrUpdate(info.imgId, info);
 
         for (int ii = 0; ii < info.resCount; ++ii)
         {
             m_imageContainer.addOrUpdate(resArr[ii].imgId, images[ii]);
             m_aliasToBaseImages.addOrUpdate(resArr[ii].imgId, info.imgId);
-            m_imgIdToAliasGroupIdx.insert({ resArr[ii].imgId, (uint32_t)m_imgAliasGroups.size() });
         }
-        m_imgAliasGroups.emplace_back(infoList);
 
         const Image_vk& baseImage = getImage(info.imgId, true);
 
@@ -2099,10 +2168,38 @@ namespace kage { namespace vk
         {
             ResInteractDesc interact{ info.barrierState };
 
-            m_barrierDispatcher.track(images[ii].image
+            m_barrierDispatcher.track(
+                images[ii].image
                 , getImageAspectFlags(images[ii].aspectMask)
                 , { getAccessFlags(interact.access), getImageLayout(interact.layout) ,getPipelineStageFlags(interact.stage) }
                 , baseImage.image
+            );
+        }
+
+        {
+            if (info.usage & ImageUsageFlagBits::color_attachment)
+            {
+                m_colorAttchBase.push_back({ info.imgId });
+            }
+
+            if (info.usage & ImageUsageFlagBits::depth_stencil_attachment)
+            {
+                m_depthAttchBase.push_back({ info.imgId });
+            }
+
+            if (info.usage & ImageUsageFlagBits::storage)
+            {
+                m_depthAttchBase.push_back({ info.imgId });
+            }
+
+            stl::vector<ImageHandle> alias;
+            for (uint16_t ii = 0; ii < info.resCount; ++ii)
+            {
+                alias.push_back({ resArr[ii].imgId });
+            }
+
+            m_imgToAliases.insert(
+                stl::make_pair<ImageHandle, stl::vector<ImageHandle>>({ info.imgId }, alias)
             );
         }
 
@@ -2110,6 +2207,7 @@ namespace kage { namespace vk
         {
             uploadImage(info.imgId, info.pData, info.size);
         }
+
         VKZ_DELETE_ARRAY(resArr);
     }
 
@@ -2136,12 +2234,9 @@ namespace kage { namespace vk
             buffers[ii].fillVal = info.fillVal;
             m_bufferContainer.addOrUpdate(resArr[ii].bufId, buffers[ii]);
             m_aliasToBaseBuffers.addOrUpdate(resArr[ii].bufId, info.bufId);
-
-            m_bufIdToAliasGroupIdx.insert({ resArr[ii].bufId, (uint16_t)m_bufAliasGroups.size() });
         }
-        m_bufAliasGroups.emplace_back(infoList);
 
-        m_bufferCreateInfoContainer.addOrUpdate(info.bufId, info);
+        m_bufferCreateInfos.addOrUpdate(info.bufId, info);
 
         const Buffer_vk& baseBuffer = getBuffer(info.bufId);
         for (int ii = 0; ii < info.resCount; ++ii)
@@ -2152,8 +2247,6 @@ namespace kage { namespace vk
                 , baseBuffer.buffer
             );
         }
-
-        VKZ_DELETE_ARRAY(resArr);
         
         // initialize buffer
         if (info.pData != nullptr)
@@ -2164,6 +2257,8 @@ namespace kage { namespace vk
         {
             fillBuffer(info.bufId, info.fillVal, info.size);
         }
+
+        VKZ_DELETE_ARRAY(resArr);
     }
 
     void RHIContext_vk::createSampler(bx::MemoryReader& _reader)
@@ -2273,92 +2368,6 @@ namespace kage { namespace vk
         assert(m_physicalDevice);
     }
 
-    /*
-    void RHIContext_vk::recreateSwapchainImages()
-    {
-        // destroy images
-        for (uint16_t id : m_swapchainImageIds)
-        {
-            uint32_t aliasGroupIdx = m_imgIdToAliasGroupIdx.find(id)->second;
-            const stl::vector<ImageAliasInfo>& aliases = m_imgAliasGroups[aliasGroupIdx];
-
-            stl::vector<Image_vk> images;
-            for (ImageAliasInfo aliasInfo : aliases)
-            {
-                images.push_back(m_imageContainer.getIdToData(aliasInfo.imgId));
-            }
-
-            // remove barrier tracking
-            for (const Image_vk& img : images)
-            {
-                m_barrierDispatcher.untrack(img.image);
-            }
-
-            // destroy Image
-            kage::vk::destroyImage(m_device, images);
-            
-            // destroy image views
-            uint16_t baseId = m_aliasToBaseImages.getIdToData(id);
-            auto it = m_imgToViewGroupIdx.find(baseId);
-            if (it != m_imgToViewGroupIdx.end())
-            {
-                const stl::vector<ImageViewHandle>& viewHandles = m_imgViewGroups[it->second];
-                for (ImageViewHandle view : viewHandles)
-                {
-                    vkDestroyImageView(m_device, m_imageViewContainer.getIdToData(view.id), nullptr);
-                }
-            }
-        }
-        // create images
-        for (uint16_t id : m_swapchainImageIds)
-        {
-            uint32_t aliasGroupIdx = m_imgIdToAliasGroupIdx.find(id)->second;
-            const stl::vector<ImageAliasInfo>& aliases = m_imgAliasGroups[aliasGroupIdx];
-
-            uint16_t baseId = m_aliasToBaseImages.getIdToData(id);
-            ImageCreateInfo& createInfo = m_imageInitPropContainer.getDataRef(baseId);
-            createInfo.width = m_swapchain.m_resolution.width;
-            createInfo.height = m_swapchain.m_resolution.height;
-
-            ImgInitProps_vk initPorps = getImageInitProp(createInfo, m_imageFormat, m_depthFormat);
-
-            //image
-            stl::vector<Image_vk> images;
-            kage::vk::createImage(images, aliases, m_device, m_memProps, initPorps);
-
-            for (uint16_t ii = 0 ; ii < aliases.size(); ++ii)
-            {
-                m_imageContainer.update(aliases[ii].imgId, images[ii]);
-            }
-
-            // views
-            const Image_vk& baseImg = m_imageContainer.getIdToData(baseId);
-            auto it = m_imgToViewGroupIdx.find(baseId);
-            if (it != m_imgToViewGroupIdx.end())
-            {
-                const stl::vector<ImageViewHandle>& viewHandles = m_imgViewGroups[it->second];
-
-                for (ImageViewHandle view : viewHandles)
-                {
-                    const ImageViewDesc& viewDesc = m_imageViewDescContainer.getIdToData(view.id);
-                    VkImageView view_vk = kage::vk::createImageView(m_device, baseImg.image, baseImg.format, viewDesc.baseMip, viewDesc.mipLevels);
-                    m_imageViewContainer.update(view.id, view_vk);
-                }
-            }
-
-            for (int ii = 0; ii < aliases.size(); ++ii)
-            {
-                ResInteractDesc interact{ createInfo.barrierState };
-
-                m_barrierDispatcher.track(images[ii].image
-                    , getImageAspectFlags(images[ii].aspectMask)
-                    , { getAccessFlags(interact.access), getImageLayout(interact.layout) ,getPipelineStageFlags(interact.stage) }
-                    , baseImg.image
-                );
-            }
-        }
-    }
-    */
     void RHIContext_vk::uploadBuffer(const uint16_t _bufId, const void* _data, uint32_t _size)
     {
         VKZ_ZoneScopedC(Color::indian_red);
@@ -2441,9 +2450,8 @@ namespace kage { namespace vk
 
         memcpy(scratch.data, _data, _size);
 
-
         const Image_vk& vkImg = getImage(_imgId);
-        const ImageCreateInfo& imgInfo = m_imageInitPropContainer.getIdToData(_imgId);
+        const ImageCreateInfo& imgInfo = m_imgCreateInfos.getIdToData(_imgId);
 
         m_barrierDispatcher.barrier(vkImg.image
             , vkImg.aspectMask
@@ -3097,7 +3105,7 @@ namespace kage { namespace vk
     bool RHIContext_vk::checkCopyableToSwapchain(const uint16_t _imgId) const
     {
         const uint16_t baseId = m_aliasToBaseImages.getIdToData(_imgId);
-        const ImageCreateInfo& srcInfo = m_imageInitPropContainer.getIdToData(baseId);
+        const ImageCreateInfo& srcInfo = m_imgCreateInfos.getIdToData(baseId);
         
         bool result = true;
         
@@ -3116,7 +3124,7 @@ namespace kage { namespace vk
     bool RHIContext_vk::checkBlitableToSwapchain(const uint16_t _imgId) const
     {
         const uint16_t baseId = m_aliasToBaseImages.getIdToData(_imgId);
-        const ImageCreateInfo& srcInfo = m_imageInitPropContainer.getIdToData(baseId);
+        const ImageCreateInfo& srcInfo = m_imgCreateInfos.getIdToData(baseId);
 
         bool result = true;
 

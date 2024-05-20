@@ -158,11 +158,10 @@ namespace
             vkz_updateImGui(demoData.input, demoData.renderOptions, demoData.profiling, demoData.logic);
             vkz_updateUIRenderData(ui);
 
-            //kage::update(transformBuf, memTransform);
+            updatePyramid(pyramid, m_width, m_height);
 
             // render
             kage::render();
-
 
             static float avgCpuTime = 0.0f;
             avgCpuTime = avgCpuTime * 0.95f + (deltaTimeMS) * 0.05f;

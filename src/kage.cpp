@@ -427,12 +427,10 @@ namespace kage
         void updateCustomRenderFuncData(const PassHandle _hPass, const Memory* _dataMem);
 
         void updateBuffer(const BufferHandle _hbuf, const Memory* _mem, const uint32_t _offset, const uint32_t _size);
-        void update(const BufferHandle _hBuf, const Memory* _mem, const uint32_t _offset, const uint32_t _size);
-        void update(const ImageHandle _hImg 
+        void updateImage(const ImageHandle _hImg 
             , uint16_t _width
             , uint16_t _height
-            , uint16_t _depth
-            , const Memory* _mem);
+            , uint16_t _mips, const Memory* _mem);
 
 
         void updatePushConstants(const PassHandle _hPass, const Memory* _mem);
@@ -1852,23 +1850,13 @@ namespace kage
         cmd.write(_mem);
         cmd.write(_offset);
         cmd.write(_size);
-        
     }
 
-    void Context::update(const BufferHandle _hBuf, const Memory* _mem, const uint32_t _offset, const uint32_t _size)
-    {
-        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::update_buffer);
-        cmd.write(_hBuf);
-        cmd.write(_mem);
-        cmd.write(_offset);
-        cmd.write(_size);
-    }
-
-    void Context::update(
+    void Context::updateImage(
         const ImageHandle _hImg
         , uint16_t _width
         , uint16_t _height
-        , uint16_t _depth
+        , uint16_t _mips
         , const Memory* _mem
     )
     {
@@ -1876,7 +1864,7 @@ namespace kage
         cmd.write(_hImg);
         cmd.write(_width);
         cmd.write(_height);
-        cmd.write(_depth);
+        cmd.write(_mips);
         cmd.write(_mem);
     }
 
@@ -2024,13 +2012,13 @@ namespace kage
                     uint16_t height;
                     _cmdbuf.read(height);
 
-                    uint16_t depth;
-                    _cmdbuf.read(depth);
+                    uint16_t mips;
+                    _cmdbuf.read(mips);
 
                     const Memory* mem;
                     _cmdbuf.read(mem);
 
-                    m_rhiContext->updateImage(id, width, height, depth, mem);
+                    m_rhiContext->updateImage(id, width, height, mips, mem);
                 }
                 break;
             case CommandBuffer::update_buffer:
@@ -2162,7 +2150,6 @@ namespace kage
         m_cmdPre.finish();
         m_cmdPost.finish();
 
-        
         if (kInvalidHandle == m_presentImage.id)
         {
             message(error, "result render target is not set!");
@@ -2177,6 +2164,7 @@ namespace kage
         //m_frameGraph->process(m_cmdBuffer, m_fgDoneCmdBuffer);
 
         rhi_render();
+
         m_cmdPre.start();
         m_cmdPost.start();
     }
@@ -2219,9 +2207,9 @@ namespace kage
 
     void Context::rhi_render()
     {
-        rendererExecCmds(m_cmdPre);
-
         m_rhiContext->updateResolution(m_resolution);
+
+        rendererExecCmds(m_cmdPre);
         m_rhiContext->render();
 
         rendererExecCmds(m_cmdPost);
@@ -2403,7 +2391,17 @@ namespace kage
         s_ctx->updateThreadCount(_hPass, _threadCountX, _threadCountY, _threadCountZ);
     }
 
-    void updateBuffer(const BufferHandle _hBuf, const Memory* _mem, uint32_t _offset /*= 0*/, uint32_t _size /*= 0*/)
+    void updateCustomRenderFuncData(const PassHandle _hPass, const Memory* _dataMem)
+    {
+        s_ctx->updateCustomRenderFuncData(_hPass, _dataMem);
+    }
+
+    void updateBuffer(
+        const BufferHandle _hBuf
+        , const Memory* _mem
+        , uint32_t _offset /*= 0*/
+        , uint32_t _size /*= 0*/
+    )
     {
         const uint32_t offset =
             (_offset == 0)
@@ -2418,35 +2416,15 @@ namespace kage
         s_ctx->updateBuffer(_hBuf, _mem, offset, size);
     }
 
-    void updateCustomRenderFuncData(const PassHandle _hPass, const Memory* _dataMem)
-    {
-        s_ctx->updateCustomRenderFuncData(_hPass, _dataMem);
-    }
-
-    void update(const BufferHandle _buf, const Memory* _mem, uint32_t _offset /*= 0*/, uint32_t _size /*= 0*/)
-    {
-        const uint32_t offset = 
-              (_offset == 0) 
-            ? 0 
-            : _offset;
-
-        const uint32_t size = 
-              (_size == 0) 
-            ? _mem->size 
-            : bx::clamp(_size, 0, _mem->size);
-
-        s_ctx->update(_buf, _mem, offset, size);
-    }
-
-    void update(
+    void updateImage2D(
         const ImageHandle _hImg
         , uint16_t _width
         , uint16_t _height
-        , uint16_t _depth
-        , const Memory* _mem /* = nullptr */
+        , uint16_t _mips
+        , const Memory* _mem /*= nullptr */
     )
     {
-        s_ctx->update(_hImg, _width, _height, _depth, _mem); 
+        s_ctx->updateImage(_hImg, _width, _height, _mips, _mem);
     }
 
     const Memory* alloc(uint32_t _sz)

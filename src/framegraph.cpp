@@ -1562,8 +1562,6 @@ namespace kage
         _bkt.baseImgId = _info.imgId;
         _bkt.reses = _reses;
         _bkt.forceAliased = _forceAliased;
-
-
     }
 
     void Framegraph::aliasBuffers(stl::vector<BufBucket>& _buckets, const stl::vector<uint16_t>& _sortedBufList)

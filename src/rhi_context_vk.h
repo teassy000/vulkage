@@ -278,22 +278,32 @@ namespace kage { namespace vk
         void updateResolution(const Resolution& _resolution) override;
 
         void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ) override;
+
+        void updateCustomFuncData(const PassHandle _hPass, const Memory* _mem) override;
+
         void updateBuffer(
             const BufferHandle _hBuf
             , const Memory* _mem
             , const uint32_t _offset
             , const uint32_t _size
         ) override;
-        void updateCustomFuncData(const PassHandle _hPass, const Memory* _mem) override;
 
         void updateImage(
             const ImageHandle _hImg
-            , const uint32_t _width
-            , const uint32_t _height
-            , const uint32_t _depth
+            , const uint16_t _width
+            , const uint16_t _height
+            , const uint16_t _mips
             , const Memory* _mem
         ) override;
 
+        void updateImageWithAlias(
+            const ImageHandle _hImg
+            , const uint16_t _width
+            , const uint16_t _height
+            , const uint16_t _mips
+            , const Memory* _mem
+            , const stl::vector<ImageHandle>& _alias
+        );
 
         VkBuffer getVkBuffer(const BufferHandle _hBuf) const
         {
@@ -405,8 +415,8 @@ namespace kage { namespace vk
         StateCacheT<VkSampler> m_samplerCache;
         StateCacheLru<VkImageView, 1024> m_imgViewCache;
 
-        ContinuousMap<uint16_t, BufferCreateInfo> m_bufferCreateInfoContainer;
-        ContinuousMap<uint16_t, ImageCreateInfo> m_imageInitPropContainer;
+        ContinuousMap<uint16_t, BufferCreateInfo> m_bufferCreateInfos;
+        ContinuousMap<uint16_t, ImageCreateInfo> m_imgCreateInfos;
 
         stl::vector<stl::vector<uint16_t>> m_programShaderIds;
         stl::vector<uint32_t>           m_progThreadCount;
@@ -414,11 +424,11 @@ namespace kage { namespace vk
         ContinuousMap< uint16_t, uint16_t> m_aliasToBaseImages;
         ContinuousMap< uint16_t, uint16_t> m_aliasToBaseBuffers;
 
-        stl::unordered_map<uint16_t, uint32_t> m_imgIdToAliasGroupIdx;
-        stl::vector<stl::vector<ImageAliasInfo>> m_imgAliasGroups;
+        stl::vector<ImageHandle> m_colorAttchBase;
+        stl::vector<ImageHandle> m_depthAttchBase;
+        stl::vector<ImageHandle> m_storageImageBase;
 
-        stl::unordered_map<uint16_t, uint16_t> m_bufIdToAliasGroupIdx;
-        stl::vector<stl::vector<BufferAliasInfo>> m_bufAliasGroups;
+        stl::unordered_map<ImageHandle, stl::vector<ImageHandle>> m_imgToAliases;
 
         RHIBrief m_brief;
 

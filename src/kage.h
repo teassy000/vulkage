@@ -52,7 +52,16 @@ namespace kage
     void setPresentImage(ImageHandle _rt, uint32_t _mipLv = 0);
 
     void updateCustomRenderFuncData(const PassHandle _hPass, const Memory* _dataMem);
-    
+
+    void updatePushConstants(const PassHandle _hPass, const Memory* _mem);
+
+    void updateThreadCount(
+        const PassHandle _hPass
+        , const uint32_t _threadCountX
+        , const uint32_t _threadCountY
+        , const uint32_t _threadCountZ
+    );
+
     void updateBuffer(
         const BufferHandle _buf
         , const Memory* _mem
@@ -60,15 +69,11 @@ namespace kage
         , uint32_t _size = 0
     );
 
-    void updatePushConstants(const PassHandle _hPass, const Memory* _mem);
-
-    void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ);
-
-    void update(
+    void updateImage2D(
         const ImageHandle _hImg
         , uint16_t _width
         , uint16_t _height
-        , uint16_t _depth
+        , uint16_t _mips
         , const Memory* _mem = nullptr
     );
 
