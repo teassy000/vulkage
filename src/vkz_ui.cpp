@@ -223,7 +223,7 @@ void vkz_updateImGuiContent(DebugRenderOptionsData& _rod, const DebugProfilingDa
     VKZ_ZoneScopedC(kage::Color::blue);;
 
     ImGui::NewFrame();
-    ImGui::SetNextWindowSize({ 400, 450 }, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize({ 400, 200 }, ImGuiCond_FirstUseEver);
     ImGui::Begin("info:");
 
     ImGui::Text("fps: [%.2f]", 1000.f / _pd.avgCpuTime);
@@ -241,6 +241,7 @@ void vkz_updateImGuiContent(DebugRenderOptionsData& _rod, const DebugProfilingDa
 
     ImGui::Text("ui: [%.3f]ms", _pd.uiTime);
 
+    /*
     if (ImGui::TreeNode("Static Data:"))
     {
         ImGui::Text("primitives : [%d]", _pd.primitiveCount);
@@ -270,7 +271,7 @@ void vkz_updateImGuiContent(DebugRenderOptionsData& _rod, const DebugProfilingDa
         ImGui::Text("dir: %.2f, %.2f, %.2f", _ld.cameraFront.x, _ld.cameraFront.y, _ld.cameraFront.z);
         ImGui::TreePop();
     }
-
+    */
     ImGui::End();
 }
 
