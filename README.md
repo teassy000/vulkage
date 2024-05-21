@@ -67,11 +67,11 @@ Supports:
 
 #### screen shots
 
-![near](.\screenshot\near.png)
+![near](./screenshot/near.png)
 
-![avg](.\screenshot\avg.png)
+![avg](./screenshot/avg.png)
 
-![far](.\screenshot\far.png)
+![far](./screenshot/far.png)
 
 
 
