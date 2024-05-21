@@ -217,9 +217,11 @@ void prepareTaskSubmit(TaskSubmit& _taskSubmit, kage::BufferHandle _drawCmdBuf, 
     _taskSubmit.drawCmdBufferOutAlias = drawCmdBufferOutAlias;
 }
 
-void updateMeshShadingConstants(MeshShading& _meshShading, const GlobalsVKZ& _globals)
+void updateMeshShadingConstants(MeshShading& _meshShading, const GlobalsVKZ& _globals, uint16_t _width, uint16_t _height)
 {
     _meshShading.globals = _globals;
+    _meshShading.width = _width;
+    _meshShading.height = _height;
 
     const kage::Memory* mem = kage::alloc(sizeof(MeshShading));
     memcpy(mem->data, &_meshShading, mem->size);

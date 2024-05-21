@@ -1638,6 +1638,13 @@ namespace kage { namespace vk
                 updateImageWithAlias(hImg, _resolution.width, _resolution.height, 1, nullptr, attchImages);
             }
 
+            for (uint32_t ii = 0; ii < m_depthAttchBase.size(); ++ii)
+            {
+                const ImageHandle& hImg = m_depthAttchBase[ii];
+                const stl::vector<ImageHandle>& attchImages = m_imgToAliases.find(hImg)->second;
+                updateImageWithAlias(hImg, _resolution.width, _resolution.height, 1, nullptr, attchImages);
+            }
+
             m_resolution = _resolution;
         }
     }

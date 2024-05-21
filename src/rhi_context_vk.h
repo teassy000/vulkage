@@ -350,8 +350,6 @@ namespace kage { namespace vk
         void createInstance();
         void createPhysicalDevice();
 
-        void recreateSwapchainImages();
-
         // private pass
         // e.g. upload buffer, copy image, etc.
         // 

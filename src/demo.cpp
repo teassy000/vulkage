@@ -137,8 +137,8 @@ namespace
 
             if (supportMeshShading)
             {
-                updateMeshShadingConstants(meshShading, demoData.globals);
-                updateMeshShadingConstants(meshShadingLate, demoData.globals);
+                updateMeshShadingConstants(meshShading, demoData.globals, m_width, m_height);
+                updateMeshShadingConstants(meshShadingLate, demoData.globals, m_width, m_height);
             }
             else
             {
