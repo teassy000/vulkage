@@ -8,10 +8,22 @@ char(*countof_helper(T(&_Array)[Size]))[Size];
 #define NO_VTABLE __declspec(novtable)
 
 
-#define VKZ_DELETE_ARRAY(ptr) \
+#define KAGE_DELETE_ARRAY(ptr) \
     do { \
             if (ptr != nullptr) { \
                 delete[] ptr; \
                 ptr = nullptr; \
             } \
     } while (false)
+
+
+#ifdef _DEBUG
+
+#define KAGE_DEBUG 1
+
+#else
+
+#define KAGE_DEBUG 0
+
+#endif //_DEBUG
+

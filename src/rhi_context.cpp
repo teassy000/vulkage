@@ -12,12 +12,9 @@ namespace kage
         parseOp();
     }
 
-    extern void release(const Memory* _mem);
-
     void RHIContext::updateConstants(const PassHandle _hPass, const Memory* _mem)
     {
-        m_constantsMemBlock.updateConstantData(_hPass, _mem->data, _mem->size);
-        release(_mem);
+        m_constantsMemBlock.update(_hPass, _mem->data, _mem->size);
     }
 
     void RHIContext::parseOp()
@@ -133,7 +130,7 @@ namespace kage
         return pC;
     }
 
-    void ConstantsMemoryBlock::updateConstantData(const PassHandle _hPass, const void* _data, uint32_t _size)
+    void ConstantsMemoryBlock::update(const PassHandle _hPass, const void* _data, uint32_t _size)
     {
         const uint16_t idx = (uint16_t)getElemIndex(m_passes, _hPass);
         if (kInvalidIndex == idx) {
@@ -141,7 +138,7 @@ namespace kage
         }
         assert(m_constants[idx].size == _size);
 
-        m_pWriter->seek(m_constants[idx].offset,bx::Whence::Begin);
+        m_pWriter->seek(m_constants[idx].offset, bx::Whence::Begin);
         bx::write(m_pWriter, _data, _size, nullptr);
     }
 

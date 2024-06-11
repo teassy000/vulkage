@@ -8,6 +8,7 @@
 
 #include <algorithm> //sort
 #include "bx/hash.h"
+#include "command_buffer.h"
 
 
 namespace kage { namespace vk
@@ -16,18 +17,19 @@ namespace kage { namespace vk
 
 
 #define VK_DESTROY_FUNC(_name)                                                          \
-	void vkDestroy(Vk##_name& _obj)                                                     \
-	{                                                                                   \
-		if (VK_NULL_HANDLE != _obj)                                                     \
-		{                                                                               \
-			vkDestroy##_name(s_renderVK->m_device, _obj.vk, s_renderVK->m_allocatorCb); \
-			_obj = VK_NULL_HANDLE;                                                      \
-		}                                                                               \
-	}                                                                                   \
-	void release(Vk##_name& _obj)                                                       \
-	{                                                                                   \
-		s_renderVK->release(_obj);                                                      \
-	}
+    void vkDestroy(Vk##_name& _obj)                                                     \
+    {                                                                                   \
+        VKZ_ZoneScopedC(Color::indian_red);                                             \
+        if (VK_NULL_HANDLE != _obj)                                                     \
+        {                                                                               \
+            vkDestroy##_name(s_renderVK->m_device, _obj.vk, s_renderVK->m_allocatorCb); \
+            _obj = VK_NULL_HANDLE;                                                      \
+        }                                                                               \
+    }                                                                                   \
+    void release(Vk##_name& _obj)                                                       \
+    {                                                                                   \
+        s_renderVK->release(_obj);                                                      \
+    }
 
     VK_DESTROY
 
@@ -35,6 +37,7 @@ namespace kage { namespace vk
 
     void vkDestroy(VkSurfaceKHR& _obj)
     {
+        VKZ_ZoneScopedC(Color::indian_red);
         if (VK_NULL_HANDLE != _obj)
         {
             vkDestroySurfaceKHR(s_renderVK->m_instance, _obj.vk, s_renderVK->m_allocatorCb);
@@ -44,15 +47,18 @@ namespace kage { namespace vk
 
     void vkDestroy(VkDeviceMemory& _obj)
     {
+        VKZ_ZoneScopedC(Color::indian_red);
         if (VK_NULL_HANDLE != _obj)
         {
             vkFreeMemory(s_renderVK->m_device, _obj.vk, s_renderVK->m_allocatorCb);
+            VKZ_ProfFree((void*)_obj.vk);
             _obj = VK_NULL_HANDLE;
         }
     }
 
     void vkDestroy(VkDescriptorSet& _obj)
     {
+        VKZ_ZoneScopedC(Color::indian_red);
         if (VK_NULL_HANDLE != _obj)
         {
             vkFreeDescriptorSets(s_renderVK->m_device, s_renderVK->m_descPool, 1, &_obj);
@@ -709,6 +715,57 @@ namespace kage { namespace vk
         return flags;
     }
 
+    VkAccessFlags getBindingAccess(BindingAccess _access)
+    {
+        VkAccessFlags flags = 0;
+
+        switch (_access)
+        {
+        case kage::BindingAccess::read:
+            flags = VK_ACCESS_SHADER_READ_BIT;
+            break;
+        case kage::BindingAccess::write:
+            flags = VK_ACCESS_SHADER_WRITE_BIT;
+            break;
+        case kage::BindingAccess::read_write:
+            flags = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+            break;
+        default:
+            message(error, "invalid binding access enum! _access : %d", _access);
+            break;
+        }
+
+        if (BindingAccess::read == _access)
+        {
+            flags = VK_ACCESS_SHADER_READ_BIT;
+        }
+
+        return flags;
+        
+    }
+
+    VkImageLayout getBindingLayout(BindingAccess _access)
+    {
+        VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+        switch (_access)
+        {
+            case BindingAccess::read:
+                layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                break;
+            case BindingAccess::write:
+                layout = VK_IMAGE_LAYOUT_GENERAL;
+                break;
+            case BindingAccess::read_write:
+                layout = VK_IMAGE_LAYOUT_GENERAL;
+                break;
+            default:
+                break;
+        }
+
+        return layout;
+    }
+
     VkPipelineStageFlags getPipelineStageFlags(PipelineStageFlags _flags)
     {
         VkPipelineStageFlags flags = 0;
@@ -1183,6 +1240,28 @@ namespace kage { namespace vk
     template<> VkObjectType getType<VkSurfaceKHR         >() { return VK_OBJECT_TYPE_SURFACE_KHR; }
     template<> VkObjectType getType<VkSwapchainKHR       >() { return VK_OBJECT_TYPE_SWAPCHAIN_KHR; }
 
+    template<typename Ty>
+    static void setDebugObjName(VkDevice _device, Ty _obj, const char* _format, ...)
+    {
+        if (BX_ENABLED(KAGE_DEBUG))
+        {
+            va_list args;
+            va_start(args, _format);
+            char str[2048];
+
+            int32_t size = bx::min<int32_t>(sizeof(str) - 1, bx::vsnprintf(str, sizeof(str), _format, args));
+            vsprintf(str, _format, args);
+            va_end(args);
+
+            VkDebugUtilsObjectNameInfoEXT info = { VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
+            info.objectType = getType<Ty>();
+            info.objectHandle = (uint64_t)(_obj.vk);
+            info.pObjectName = str;
+
+            VK_CHECK(vkSetDebugUtilsObjectNameEXT(_device, &info));
+        }
+    }
+
     RHIContext_vk::RHIContext_vk(bx::AllocatorI* _allocator)
         : RHIContext(_allocator)
         , m_nwh(nullptr)
@@ -1197,9 +1276,7 @@ namespace kage { namespace vk
         , m_gfxFamilyIdx{ VK_QUEUE_FAMILY_IGNORED }
         , m_cmdList{nullptr}
         , m_allocatorCb{nullptr}
-#if _DEBUG
         , m_debugCallback{ VK_NULL_HANDLE }
-#endif
     {
         VKZ_ZoneScopedC(Color::indian_red);
     }
@@ -1219,9 +1296,11 @@ namespace kage { namespace vk
 
         this->createInstance();
 
-#if _DEBUG
-        m_debugCallback = registerDebugCallback(m_instance);
-#endif
+        if (BX_ENABLED(KAGE_DEBUG))
+        {
+            m_debugCallback = registerDebugCallback(m_instance);
+        }
+
         createPhysicalDevice();
 
         stl::vector<VkExtensionProperties> supportedExtensions;
@@ -1304,6 +1383,9 @@ namespace kage { namespace vk
         {
             m_scratchBuffer[ii].create(128, kMaxDrawCalls);
         }
+
+        m_frameRecCmds.init();
+
     }
 
     void RHIContext_vk::bake()
@@ -1346,6 +1428,8 @@ namespace kage { namespace vk
             return true;
         }
 
+        m_frameRecCmds.baginRender();
+
         VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
         beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
@@ -1367,8 +1451,10 @@ namespace kage { namespace vk
 
                 VKZ_VkZoneTransient(m_tracyVkCtx, var, m_cmdBuffer, pn);
 
-                //checkUnmatchedBarriers(passId);
+
                 createBarriers(passId);
+                checkUnmatchedBarriers(passId);
+
                 m_barrierDispatcher.dispatch(m_cmdBuffer);
 
                 executePass(passId);
@@ -1413,6 +1499,8 @@ namespace kage { namespace vk
 
             m_passTime.insert({ passId, timeEnd - timeStart });
         }
+
+        m_frameRecCmds.endRender();
 
         return true;
     }
@@ -1598,6 +1686,7 @@ namespace kage { namespace vk
 
     bool RHIContext_vk::checkSupports(VulkanSupportExtension _ext)
     {
+        VKZ_ZoneScopedC(Color::indian_red);
         const char* extName = getExtName(_ext);
         stl::vector<VkExtensionProperties> supportedExtensions;
         enumrateDeviceExtPorps(m_physicalDevice, supportedExtensions);
@@ -1606,7 +1695,8 @@ namespace kage { namespace vk
     }
 
     void RHIContext_vk::updateResolution(const Resolution& _resolution)
-{
+    {
+        VKZ_ZoneScopedC(Color::indian_red);
         if (_resolution.width != m_resolution.width
             || _resolution.height != m_resolution.height
             || _resolution.reset != m_resolution.reset
@@ -1765,6 +1855,8 @@ namespace kage { namespace vk
         , const Memory* _mem
     )
     {
+        VKZ_ZoneScopedC(Color::indian_red);
+
         ImageHandle baseImg = { m_aliasToBaseImages.getIdToData(_hImg.id) };
         const stl::vector<ImageHandle>& aliasRef = m_imgToAliases.find(baseImg)->second;
 
@@ -1800,6 +1892,8 @@ namespace kage { namespace vk
                 release(imgVk.memory);
             }
 
+            const BarrierState_vk baseBarrier = m_barrierDispatcher.getBaseBarrierState(baseImgVk.image);
+
             for (const ImageHandle& img : _alias)
             {
                 ImageAliasInfo ali{};
@@ -1833,7 +1927,7 @@ namespace kage { namespace vk
                 m_barrierDispatcher.track(
                     imageVks[ii].image
                     , getImageAspectFlags(initPorps.aspectMask)
-                    , { getAccessFlags(interact.access), getPipelineStageFlags(interact.stage) }
+                    , baseBarrier
                     , baseImgVk.image
                 );
             }
@@ -2082,6 +2176,7 @@ namespace kage { namespace vk
                     }
                 } 
 
+
                 offset += _ids.size();
             };
 
@@ -2215,7 +2310,7 @@ namespace kage { namespace vk
             uploadImage(info.imgId, info.pData, info.size);
         }
 
-        VKZ_DELETE_ARRAY(resArr);
+        KAGE_DELETE_ARRAY(resArr);
     }
 
     void RHIContext_vk::createBuffer(bx::MemoryReader& _reader)
@@ -2265,7 +2360,7 @@ namespace kage { namespace vk
             fillBuffer(info.bufId, info.fillVal, info.size);
         }
 
-        VKZ_DELETE_ARRAY(resArr);
+        KAGE_DELETE_ARRAY(resArr);
     }
 
     void RHIContext_vk::createSampler(bx::MemoryReader& _reader)
@@ -2289,6 +2384,206 @@ namespace kage { namespace vk
         bx::read(&_reader, brief, nullptr);
 
         m_brief = brief;
+    }
+
+    void RHIContext_vk::setName(Handle _h, const char* _name, uint32_t _len)
+    {
+        switch (_h.type)
+        {
+        case Handle::Shader:
+            {
+                if (m_shaderContainer.exist(_h.id))
+                {
+                    const Shader_vk& shader = m_shaderContainer.getIdToData(_h.id);
+                    setDebugObjName(m_device, shader.module, "%.*s", _len, _name);
+                }
+            }
+            break;
+        case Handle::Program:
+            {
+                if (m_programContainer.exist(_h.id))
+                {
+                    const Program_vk& prog = m_programContainer.getIdToData(_h.id);
+                    setDebugObjName(m_device, prog.layout, "%.*s", _len, _name);
+                }
+            }
+            break;
+        case Handle::Pass:
+            {
+                // do nothing here
+                ;
+            }
+            break;
+        case Handle::Buffer:
+            {
+                if (m_bufferContainer.exist(_h.id))
+                {
+                    const Buffer_vk& buf = m_bufferContainer.getIdToData(_h.id);
+                    setDebugObjName(m_device, buf.buffer, "%.*s", _len, _name);
+                }
+            }
+            break;
+        case Handle::Image:
+            {
+                if (m_shaderContainer.exist(_h.id))
+                {
+                    const Image_vk& img = m_imageContainer.getIdToData(_h.id);
+                    setDebugObjName(m_device, img.image, "%.*s", _len, _name);
+                }
+            }
+            break;
+        default:
+            BX_ASSERT(false, "invalid handle type? %d", _h.type);
+            break;
+        }
+    }
+
+    void RHIContext_vk::setRecord(PassHandle _hPass, const Memory* _mem)
+    {
+        VKZ_ZoneScopedC(Color::indian_red);
+
+        if (!m_passContainer.exist(_hPass.id))
+        {
+            message(
+                warning
+                , "setRecord will not perform for pass %d! It might be useless after render pass sorted"
+                , _hPass.id
+            );
+            return;
+        }
+        
+        m_frameRecCmds.record(_hPass, _mem);
+
+        PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
+        passInfo.recorded = true;
+    }
+
+    void RHIContext_vk::setConstants(PassHandle _hPass, const Memory* _mem)
+    {
+        VKZ_ZoneScopedC(Color::indian_red);
+
+        if (!m_passContainer.exist(_hPass.id))
+        {
+            message(
+                warning
+                , "setConstants will not perform for pass %d! It might be useless after render pass sorted"
+                , _hPass.id
+            );
+            return;
+        }
+
+        const PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
+        const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
+
+        vkCmdPushConstants(
+            m_cmdBuffer
+            , prog.layout
+            , prog.pushConstantStages
+            , 0
+            , _mem->size
+            , _mem->data
+        );
+    }
+
+    void RHIContext_vk::setDescriptorSet(PassHandle _hPass, const Memory* _mem)
+    {
+        VKZ_ZoneScopedC(Color::indian_red);
+
+        if (!m_passContainer.exist(_hPass.id))
+        {
+            message(
+                warning
+                , "setDescriptorSet will not perform for pass %d! It might be useless after render pass sorted"
+                , _hPass.id
+            );
+            return;
+        }
+
+        uint32_t count = _mem->size / sizeof(Binding);
+        Binding* bds = (Binding*)_mem->data;
+        m_descSets.assign(bds, bds + count);
+
+        stl::vector<DescriptorInfo> descInfos(count);
+        for (uint32_t ii = 0; ii < descInfos.size(); ++ii)
+        {
+            const Binding& b = bds[ii];
+
+            DescriptorInfo info;
+            if (ResourceType::image == b.type)
+            {
+                info = getImageDescInfo(b.img, b.mip, b.sampler);
+            }
+            else if (ResourceType::buffer == b.type)
+            {
+                info = getBufferDescInfo(b.buf);
+            }
+            
+            descInfos[ii] = info;
+        }
+
+        PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
+        const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
+        vkCmdPushDescriptorSetWithTemplateKHR(m_cmdBuffer, prog.updateTemplate, prog.layout, 0, descInfos.data());
+    }
+
+    void RHIContext_vk::setViewRect(PassHandle _hPass, uint32_t _x, uint32_t _y, uint32_t _width, uint32_t _height)
+    {
+
+    }
+
+    void RHIContext_vk::dispatch(PassHandle _hPass, uint32_t _x, uint32_t _y, uint32_t _z)
+    {
+        VKZ_ZoneScopedC(Color::indian_red);
+
+        if (!m_passContainer.exist(_hPass.id))
+        {
+            message(
+                warning
+                , "dispatch will not perform for pass %d! It might be useless after render pass sorted"
+                , _hPass.id
+            );
+            return;
+        }
+
+        // flush barriers
+        //message(info, "-------- dispatch barrier ------------------------");
+        createBarriersRec(_hPass);
+        m_barrierDispatcher.dispatch(m_cmdBuffer);
+
+        // get the dispatch size
+        PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
+        const uint16_t progIdx = (uint16_t)m_programContainer.getIdIndex(passInfo.programId);
+        const stl::vector<uint16_t>& shaderIds = m_programShaderIds[progIdx];
+        assert(shaderIds.size() == 1);
+        const Shader_vk& shader = m_shaderContainer.getIdToData(shaderIds[0]);
+
+        // dispatch
+        vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, passInfo.pipeline);
+        vkCmdDispatch(
+            m_cmdBuffer
+            , calcGroupCount(_x, shader.localSizeX)
+            , calcGroupCount(_y, shader.localSizeY)
+            , calcGroupCount(_z, shader.localSizeZ)
+        );
+
+        //message(info, "-------- flush ---------------------");
+        flushWriteBarriersRec(_hPass);
+        m_barrierDispatcher.dispatch(m_cmdBuffer);
+    }
+
+    void RHIContext_vk::draw(PassHandle _hPass, uint32_t _vtxCount, uint32_t _instCount, uint32_t _firstIdx, uint32_t _firstInst)
+    {
+
+    }
+
+    void RHIContext_vk::drawIndexed(PassHandle _hPass, uint32_t _idxCount, uint32_t _instCount, uint32_t _firstIdx, uint32_t _vtxOffset, uint32_t _firstInst)
+    {
+
+    }
+
+    void RHIContext_vk::drawIndirect(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset, uint32_t _drawCount)
+    {
+
     }
 
     VkSampler RHIContext_vk::getCachedSampler(SamplerFilter _filter, SamplerAddressMode _addrMd, SamplerReductionMode _reduMd)
@@ -2381,7 +2676,6 @@ namespace kage { namespace vk
 
         assert(_size > 0);
 
-
         BufferAliasInfo bai;
         bai.size = _size;
         Buffer_vk scratch = kage::vk::createBuffer(
@@ -2392,7 +2686,7 @@ namespace kage { namespace vk
             , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
         );
 
-        memcpy(scratch.data, _data, _size);
+        bx::memCopy(scratch.data, _data, _size);
 
         VkBufferCopy region = { 0 , 0, VkDeviceSize(_size) };
 
@@ -2492,6 +2786,10 @@ namespace kage { namespace vk
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
+        bool shouldCheck = true;
+        if (!shouldCheck)
+            return;
+
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 
         // flush in out resources
@@ -2589,7 +2887,7 @@ namespace kage { namespace vk
             }
         }
 
-        message(info, "+++++++ mismatched barriers +++++++++++++++++++++");
+        //message(info, "+++++++ mismatched barriers +++++++++++++++++++++");
         m_barrierDispatcher.dispatch(m_cmdBuffer);
     }
 
@@ -2604,10 +2902,7 @@ namespace kage { namespace vk
         {
             uint16_t depth = passInfo.writeDepth.first;
 
-            uint16_t baseDepth = m_aliasToBaseImages.getIdToData(depth);
-
             BarrierState_vk dst = passInfo.writeDepth.second;
-
             const Image_vk& img = getImage(depth);
             m_barrierDispatcher.barrier(img.image, img.aspectMask, dst);
         }
@@ -2616,7 +2911,6 @@ namespace kage { namespace vk
         for (uint32_t ii = 0; ii < passInfo.writeColors.size(); ++ii)
         {
             uint16_t id = passInfo.writeColors.getIdAt(ii);
-            uint16_t baseImg = m_aliasToBaseImages.getIdToData(id);
 
             BarrierState_vk dst = passInfo.writeColors.getIdToData(id);
             const Image_vk& img = getImage(id);
@@ -2693,6 +2987,97 @@ namespace kage { namespace vk
         }
 
         m_barrierDispatcher.dispatch(m_cmdBuffer);
+    }
+
+    void RHIContext_vk::createBarriersRec(const PassHandle _hPass)
+    {
+
+        const PassInfo_vk& passInfo = m_passContainer.getIdToData(_hPass.id);
+        for (const Binding& binding : m_descSets)
+        {
+            BarrierState_vk bs{};
+            bs.accessMask = getBindingAccess(binding.access);
+            bs.stageMask = getPipelineStageFlags(binding.stage);
+
+            if (ResourceType::image == binding.type)
+            {
+                bs.imgLayout = getBindingLayout(binding.access);
+
+                const Image_vk& img = getImage(binding.img.id);
+                m_barrierDispatcher.barrier(
+                    img.image
+                    , img.aspectMask
+                    , bs);
+
+                //message(info, "*** set barrier for img: %s, access: %d, stage: %d, layout: %d"
+                //    , getName(binding.img)
+                //    , bs.accessMask
+                //    , bs.stageMask
+                //    , bs.imgLayout
+                //);
+            }
+            else if (ResourceType::buffer == binding.type)
+            {
+                const Buffer_vk& buf = getBuffer(binding.buf.id);
+                m_barrierDispatcher.barrier(buf.buffer, bs);
+
+                //message(info, "*** set barrier for buf: %s, access: %d, stage: %d"
+                //    , getName(binding.buf)
+                //    , bs.accessMask
+                //    , bs.stageMask
+                //);
+            }
+        }
+    }
+
+    void RHIContext_vk::flushWriteBarriersRec(const PassHandle _hPass)
+    {
+        stl::vector<Binding> bindings;
+        bindings.reserve(m_descSets.size());
+        for (const Binding& b : m_descSets)
+        {
+            if (b.access == BindingAccess::write 
+                || b.access == BindingAccess::read_write)
+            {
+                bindings.push_back(b);
+            }
+        }
+
+        for (const Binding& b : bindings)
+        {
+            BarrierState_vk bs{};
+            bs.accessMask = getBindingAccess(b.access);
+            bs.stageMask = getPipelineStageFlags(b.stage);
+
+            if (ResourceType::image == b.type)
+            {
+                bs.imgLayout = getBindingLayout(b.access);
+
+                const Image_vk& img = getImage(b.img.id);
+                m_barrierDispatcher.barrier(
+                    img.image
+                    , img.aspectMask
+                    , bs);
+
+                //message(info, "*** flush barrier for img: %s, access: %d, stage: %d, layout: %d"
+                //    , getName(b.img)
+                //    , bs.accessMask
+                //    , bs.stageMask
+                //    , bs.imgLayout
+                //);
+            }
+            else if (ResourceType::buffer == b.type)
+            {
+                const Buffer_vk& buf = getBuffer(b.buf.id);
+                m_barrierDispatcher.barrier(buf.buffer, bs);
+
+                //message(info, "*** flush barrier for buf: %s, access: %d, stage: %d"
+                //    , getName(b.buf)
+                //    , bs.accessMask
+                //    , bs.stageMask
+                //);
+            }
+        }
     }
 
     void RHIContext_vk::pushDescriptorSetWithTemplates(const uint16_t _passId)
@@ -2837,7 +3222,7 @@ namespace kage { namespace vk
         vkCmdEndRendering(_cmdBuf);
     }
 
-    const DescriptorInfo RHIContext_vk::getImageDescInfo2(const ImageHandle _hImg, uint16_t _mip, const SamplerHandle _hSampler)
+    const DescriptorInfo RHIContext_vk::getImageDescInfo(const ImageHandle _hImg, uint16_t _mip, const SamplerHandle _hSampler)
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
@@ -2929,6 +3314,12 @@ namespace kage { namespace vk
         VKZ_ZoneScopedC(Color::indian_red);
 
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
+
+
+        if (passInfo.recorded)
+        {
+            execRecCmds({ _passId });
+        }
 
         if (passInfo.renderFunc != nullptr)
         {
@@ -3280,6 +3671,68 @@ namespace kage { namespace vk
         }
     }
 
+    void RHIContext_vk::execRecCmds(PassHandle _hPass)
+    {
+        CommandBuffer& cmdBuf = m_frameRecCmds.getCmd(_hPass);
+
+        bool done = false;
+
+        m_descSets.clear();
+
+        do 
+        {
+            uint8_t cmd;
+            cmdBuf.read(cmd);
+
+            switch (cmd)
+            {
+            case CommandBuffer::record_set_constants:
+                {
+                    const Memory* mem;
+                    cmdBuf.read(mem);
+
+                    setConstants(_hPass, mem);
+                }
+                break;
+            case CommandBuffer::record_set_descriptor:
+                {
+                    const Memory* mem;
+                    cmdBuf.read(mem);
+
+                    setDescriptorSet(_hPass, mem);
+                }
+                break;
+            case CommandBuffer::record_dispatch:
+                {
+                    uint32_t x;
+                    cmdBuf.read(x);
+
+                    uint32_t y;
+                    cmdBuf.read(y);
+
+                    uint32_t z;
+                    cmdBuf.read(z);
+
+                    dispatch(_hPass, x, y, z);
+                }
+                break;
+            case CommandBuffer::record_end:
+                {
+                    done = true;
+                }
+                break;
+            case CommandBuffer::end:
+                {
+                    done = true;
+                }
+                break;
+            default:
+                assert(0);
+                break;
+            }
+
+        } while (!done);
+    }
 
     void RHIContext_vk::initTracy(VkQueue _queue, uint32_t _familyIdx)
     {
@@ -3430,12 +3883,12 @@ namespace kage { namespace vk
         const size_t idx = getElemIndex(m_dispatchBuffers, _buf);
         if (kInvalidHandle == idx)
         {
-            m_dispatchBuffers.emplace_back(_buf);
+            m_dispatchBuffers.push_back(_buf);
 
             const BarrierState_vk src = pair->second;
-            m_srcBufBarriers.emplace_back(src);
+            m_srcBufBarriers.push_back(src);
 
-            m_dstBufBarriers.emplace_back(BarrierState_vk{ _dst.accessMask , _dst.stageMask });
+            m_dstBufBarriers.push_back(BarrierState_vk{ _dst.accessMask , _dst.stageMask });
         }
         else
         {
@@ -3458,12 +3911,12 @@ namespace kage { namespace vk
 
         if (kInvalidHandle == idx)
         {
-            m_dispatchImages.emplace_back(_img);
+            m_dispatchImages.push_back(_img);
 
-            m_imgAspects.emplace_back(_aspect);
+            m_imgAspects.push_back(_aspect);
 
             BarrierState_vk src = barrierPair->second;
-            m_srcImgBarriers.emplace_back(src);
+            m_srcImgBarriers.push_back(src);
 
             m_dstImgBarriers.push_back({ _dst.accessMask, _dst.imgLayout, _dst.stageMask });
         }
@@ -3615,7 +4068,6 @@ namespace kage { namespace vk
             return barrierPair->second;
         }
         
-        assert(0);
         return BarrierState_vk{};
     }
 
@@ -3965,6 +4417,58 @@ namespace kage { namespace vk
 
         release(m_buf.buffer);
         release(m_buf.memory);
+    }
+
+    void FrameRecCmds::init()
+    {
+        m_cmdBuffer.init(kRendererCommandBufferInitSize);
+        m_cmdBuffer.start();
+    }
+
+    void FrameRecCmds::record(const PassHandle _hPass, const Memory* _mem)
+    {
+        RecCmdInfo rec;
+        rec.startPos = m_cmdBuffer.getPos();
+        rec.size = _mem->size;
+
+        m_cmdBuffer.write(_mem->data, _mem->size);
+
+        rec.endPos = m_cmdBuffer.getPos();
+
+        BX_ASSERT(rec.endPos - rec.startPos == rec.size
+            , "The recorded size is mis-matched. endPos - startPos(%d) != size(%d)"
+            , rec.endPos - rec.startPos
+            , rec.size
+        );
+
+        // insert the record, m_recCmdInfo will be clear every frame
+        m_recCmdInfo.insert({ _hPass, rec });
+    }
+
+    kage::CommandBuffer& FrameRecCmds::getCmd(const PassHandle _hPass)
+    {
+        const RecCmdInfoMap::iterator it = m_recCmdInfo.find(_hPass);
+
+        BX_ASSERT(it != m_recCmdInfo.end()
+            , "The pass handle is not found in the recorded commands."
+        );
+
+        const RecCmdInfo& rec = it->second;
+
+        m_cmdBuffer.seek(rec.startPos);
+
+        return m_cmdBuffer;
+    }
+
+    void FrameRecCmds::baginRender()
+    {
+        m_cmdBuffer.finish();
+    }
+
+    void FrameRecCmds::endRender()
+    {
+        m_recCmdInfo.clear();
+        m_cmdBuffer.start();
     }
 
 } // namespace vk

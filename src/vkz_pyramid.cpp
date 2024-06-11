@@ -16,7 +16,11 @@ void pyramid_renderFunc(kage::CommandListI& _cmdList, const void* _data, uint32_
 
     for (uint16_t ii = 0; ii < pyramid.levels; ++ii)
     {
-        _cmdList.barrier(pyramid.image, kage::AccessFlagBits::shader_write, kage::ImageLayout::general, kage::PipelineStageFlagBits::compute_shader);
+        _cmdList.barrier(pyramid.image
+            , kage::AccessFlagBits::shader_write | kage::AccessFlagBits::shader_read
+            , kage::ImageLayout::general
+            , kage::PipelineStageFlagBits::compute_shader
+        );
         _cmdList.dispatchBarriers();
 
         uint32_t levelWidth = glm::max(1u, pyramid.width >> ii);
@@ -41,11 +45,53 @@ void pyramid_renderFunc(kage::CommandListI& _cmdList, const void* _data, uint32_
         _cmdList.pushDescriptorSetWithTemplate(pyramid.pass, desc2, COUNTOF(desc2));
         _cmdList.dispatch(pyramid.cs, levelWidth, levelHeight, 1);
 
-        _cmdList.barrier(pyramid.image, kage::AccessFlagBits::shader_read, kage::ImageLayout::general, kage::PipelineStageFlagBits::compute_shader);
+        _cmdList.barrier(
+            pyramid.image
+            , kage::AccessFlagBits::shader_write | kage::AccessFlagBits::shader_read
+            , kage::ImageLayout::general
+            , kage::PipelineStageFlagBits::compute_shader
+        );
         _cmdList.dispatchBarriers();
     }
 }
 
+void renderPyr(const PyramidRendering& _pyramid)
+{
+    kage::startRec(_pyramid.pass);
+
+    for (uint16_t ii = 0; ii < _pyramid.levels; ++ii)
+    {
+        uint32_t levelWidth = glm::max(1u, _pyramid.width >> ii);
+        uint32_t levelHeight = glm::max(1u, _pyramid.height >> ii);
+
+        vec2 levelSize = vec2(levelWidth, levelHeight);
+        const kage::Memory* mem = kage::alloc(sizeof(vec2));
+        bx::memCopy(mem->data, &levelSize, mem->size);
+
+        kage::setConstants(mem);
+
+        kage::ImageHandle srcImg = (ii == 0) ? _pyramid.inDepth : _pyramid.image;
+
+        uint16_t srcMip =
+            ii == 0
+            ? kage::kAllMips
+            : (ii - 1);
+
+        using Stage = kage::PipelineStageFlagBits::Enum;
+
+        kage::Binding binds[] =
+        {
+            {srcImg, srcMip, _pyramid.sampler, Stage::compute_shader},
+            {_pyramid.image, ii, Stage::compute_shader}
+        };
+
+        kage::setBindings(binds, COUNTOF(binds));
+
+        kage::dispatch(levelWidth, levelHeight, 1);
+    }
+
+    kage::endRec();
+}
 
 uint32_t previousPow2_py(uint32_t v)
 {
@@ -85,6 +131,7 @@ void preparePyramid(PyramidRendering& _pyramid, uint32_t _width, uint32_t _heigh
     desc.numLayers = 1;
     desc.numMips = levels;
     desc.usage = kage::ImageUsageFlagBits::transfer_src | kage::ImageUsageFlagBits::sampled | kage::ImageUsageFlagBits::storage;
+    desc.layout = kage::ImageLayout::general;
 
     kage::ImageHandle img = kage::registTexture("pyramid", desc, nullptr, kage::ResourceLifetime::non_transition);
     kage::ImageHandle outAlias = kage::alias(img);
@@ -134,22 +181,24 @@ void setPyramidPassDependency(PyramidRendering& _pyramid, const kage::ImageHandl
     const kage::Memory* mem = kage::alloc(sizeof(PyramidRendering));
     memcpy(mem->data, &_pyramid, mem->size);
 
-    kage::setCustomRenderFunc(_pyramid.pass, pyramid_renderFunc, mem);
+    //kage::setCustomRenderFunc(_pyramid.pass, pyramid_renderFunc, mem);
 }
 
 void updatePyramid(PyramidRendering& _pyramid, uint32_t _width, uint32_t _height)
 {
-    if ( _width != _pyramid.width || _height != _pyramid.height )
-    {
-        uint32_t level_width = previousPow2_py(_width);
-        uint32_t level_height = previousPow2_py(_height);
-        uint32_t levels = calculateMipLevelCount_py(level_width, level_height);
 
+    const uint32_t level_width = previousPow2_py(_width);
+    const uint32_t level_height = previousPow2_py(_height);
+    const uint32_t levels = calculateMipLevelCount_py(level_width, level_height);
+    if (level_width != _pyramid.width || level_height != _pyramid.height)
+    {
         _pyramid.width = level_width;
         _pyramid.height = level_height;
         _pyramid.levels = levels;
 
         kage::updateImage2D(_pyramid.image, level_width, level_height, levels);
     }
+
+    renderPyr(_pyramid);
 }
 

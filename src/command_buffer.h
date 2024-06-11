@@ -22,15 +22,32 @@ namespace kage
             alias_image,
             alias_buffer,
 
+            set_name,
+
             update_image,
             update_buffer,
-
-            flush_resource_barrier,
-            push_constants,
-            push_descriptor_set,
-            set_thread_count,
+            update_thread_count,
             update_custom_render_func_data,
-            dispatch,
+            update_constants,
+
+            record,
+
+            record_start,
+
+            record_set_constants,
+            record_set_descriptor,
+            record_set_view_rect,
+
+            record_blit,
+            record_copy,
+            record_fill_buffer,
+
+            record_dispatch,
+            record_draw,
+            record_draw_indirect,
+            record_draw_indexed,
+
+            record_end,
 
             end,
 
@@ -157,6 +174,22 @@ namespace kage
             {
                 resize();
             }
+        }
+
+        uint32_t getPos() const
+        {
+            return m_pos;
+        }
+
+        uint32_t seek(uint32_t _pos)
+        {
+            BX_ASSERT( _pos < m_size
+                , "CommandBuffer::setPos error (pos: %d, size: %d)."
+                , _pos
+                , m_size
+            );
+            m_pos = _pos;
+            return m_pos;
         }
 
         uint8_t* m_buffer;

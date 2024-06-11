@@ -62,7 +62,7 @@ namespace kage { namespace vk
         {
             if (_descSets[ii].type == ResourceType::image)
             {
-                descInfos[ii] = s_renderVK->getImageDescInfo2(_descSets[ii].img, _descSets[ii].mip, _descSets[ii].sampler);
+                descInfos[ii] = s_renderVK->getImageDescInfo(_descSets[ii].img, _descSets[ii].mip, _descSets[ii].sampler);
             }
             else if (_descSets[ii].type == ResourceType::buffer)
             {

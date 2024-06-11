@@ -115,147 +115,99 @@ namespace kage
         g_bxAllocator = nullptr;
     }
 
-    struct NameMgr
+
+    namespace NameTags
     {
-        NameMgr();
-        ~NameMgr();
+        // tag for varies of handle 
+        static const char* kShader = "[]";
+        static const char* kPass = "[]";
+        static const char* kProgram = "[]";
+        static const char* kImage = "[]";
+        static const char* kBuffer = "[]";
+        static const char* kSampler = "[]";
 
-        void setName(const char* _name, const int32_t _len, PassHandle _hPass) { setName(_name, _len, { HandleType::pass, _hPass.id }); }
-        void setName(const char* _name, const int32_t _len, ShaderHandle _hShader) { setName(_name, _len, { HandleType::shader, _hShader.id }); }
-        void setName(const char* _name, const int32_t _len, ProgramHandle _hProgram) { setName(_name, _len, { HandleType::program, _hProgram.id }); }
-        void setName(const char* _name, const int32_t _len, ImageHandle _hImage, bool _isAlias) { setName(_name, _len, { HandleType::image, _hImage.id }, _isAlias) ; }
-        void setName(const char* _name, const int32_t _len, BufferHandle _hBuffer, bool _isAlias) { setName(_name, _len, { HandleType::buffer, _hBuffer.id }, _isAlias); }
-        void setName(const char* _name, const int32_t _len, SamplerHandle _hSampler) { setName(_name, _len, { HandleType::sampler, _hSampler.id }); }
+        // tag for alias: buffer, image
+        static const char* kAlias = "[alias]";
 
-        const char* getName(PassHandle _hPass) const { return getName({ HandleType::pass, _hPass.id }); }
-        const char* getName(ShaderHandle _hShader) const { return getName({ HandleType::shader, _hShader.id }); }
-        const char* getName(ProgramHandle _hProgram) const { return getName({ HandleType::program, _hProgram.id }); }
-        const char* getName(ImageHandle _hImage) const { return getName({ HandleType::image, _hImage.id }); }
-        const char* getName(BufferHandle _hBuffer) const { return getName({ HandleType::buffer, _hBuffer.id }); }
-        const char* getName(SamplerHandle _hSampler) const { return getName({ HandleType::sampler, _hSampler.id }); }
+        static const char* nameTags[] = {
+            kShader,
+            kProgram,
+            kPass,
+            kBuffer,
+            kImage,
+            kSampler,
+            kAlias,
+        };
+    }
 
-    private:
-        void setName(const char* _name, const int32_t _len, const HandleSignature _signature, bool _isAlias = false);
-
-        const char* getName(const HandleSignature id) const;
-
-        void getPrefix(String& _outStr, HandleType _type, bool _isAlias);
-
-    private:
-        stl::unordered_map<HandleSignature, String> _idToName;
+    static Handle::TypeName s_aliasName = {"Als", "Alias"};
+    static Handle::TypeName s_typeNames[] = {
+        { "Sh",     "Shader" },
+        { "Pa",     "Program" },
+        { "Pr",     "Pass" },
+        { "B",      "Buffer" },
+        { "I",      "Image" },
+        { "?",      "?"},
     };
 
-    NameMgr::NameMgr()
+    const Handle::TypeName& Handle::getTypeName(Handle::Enum _enum)
     {
-        _idToName.clear();
+        BX_ASSERT(_enum < Handle::Count, "Invalid Handle::Enum %d!", _enum);
+        return s_typeNames[bx::min(_enum, Handle::Count)];
     }
 
-    NameMgr::~NameMgr()
+    struct NameMgr
     {
-        _idToName.clear();
-    }
-
-    void NameMgr::setName(const char* _name, const int32_t _len, const HandleSignature _signature, bool _isAlias /* = false */)
-    {
-        if (_signature.type == HandleType::unknown)
+        NameMgr()
         {
-            message(error, "invalid handle type");
-            return;
+            m_handleToName.clear();
         }
 
-        String name;
-        getPrefix(name, _signature.type, _isAlias);
-        name.append(_name);
-
-        _idToName.insert({ _signature, name });
-    }
-
-    const char* NameMgr::getName(const HandleSignature id) const
-    {
-        const String& str = _idToName.find(id)->second;
-        return str.getCPtr();
-    }
-
-    void NameMgr::getPrefix(String& _inStr, HandleType _type, bool _isAlias)
-    {
-        if (HandleType::unknown == _type)
+        ~NameMgr()
         {
-            message(error, "invalid handle type");
-            return;
+            m_handleToName.clear();
         }
 
-        if (_isAlias)
+        void setName(const char* _name, const int32_t _len, const Handle _h, bool _alias)
         {
-            _inStr.append(NameTags::kAlias);
-            return;
+            String name;
+            getPrefix(name, _h, _alias);
+            name.append("_");
+            name.append(_name);
+
+            m_handleToName.insert({ _h, name });
         }
 
-        if (HandleType::pass == _type)
+        const char* getName(const Handle _h) const
         {
-            _inStr.append(NameTags::kRenderPass);
-        }
-        else if (HandleType::shader == _type)
-        {
-            _inStr.append(NameTags::kShader);
-        }
-        else if (HandleType::program == _type)
-        {
-            _inStr.append(NameTags::kProgram);
-        }
-        else if (HandleType::image == _type)
-        {
-            _inStr.append(NameTags::kImage);
-        }
-        else if (HandleType::buffer == _type)
-        {
-            _inStr.append(NameTags::kBuffer);
-        }
-        else if (HandleType::sampler == _type)
-        {
-            _inStr.append(NameTags::kSampler);
-        }
-    }
+            HandleNameMap::const_iterator it = m_handleToName.find(_h);
 
-    inline void setName(NameMgr* _nameMngr, const char* _name, const size_t _len, PassHandle _hPass)
-    {
-        _nameMngr->setName(_name, (int32_t)_len, _hPass);
-    }
+            BX_ASSERT(m_handleToName.end() != it
+                , "Request Name for: %d_%d which is not set yet!"
+                , _h.getTypeName()
+                , _h.id
+            );
 
-    void setName(NameMgr* _nameMngr, const char* _name, const size_t _len, ShaderHandle _hShader)
-    {
-        _nameMngr->setName(_name, (int32_t)_len, _hShader);
-    }
-
-    void setName(NameMgr* _nameMngr, const char* _name, const size_t _len, ProgramHandle _hProgram)
-    {
-        _nameMngr->setName(_name, (int32_t)_len, _hProgram);
-    }
-
-    void setName(NameMgr* _nameMngr, const char* _name, const size_t _len, ImageHandle _hImage, bool _isAlias = false)
-    {
-        _nameMngr->setName(_name, (int32_t)_len, _hImage, _isAlias);
-    }
-
-    void setName(NameMgr* _nameMngr, const char* _name, const size_t _len, BufferHandle _hBuffer, bool _isAlias = false)
-    {
-        _nameMngr->setName(_name, (int32_t)_len, _hBuffer, _isAlias);
-    }
-
-    void setName(NameMgr* _nameMngr, const char* _name, const size_t _len, SamplerHandle _hSampler)
-    {
-        _nameMngr->setName(_name, (int32_t)_len, _hSampler);
-    }
-
-    static NameMgr* s_nameManager = nullptr;
-    static NameMgr* getNameManager()
-    {
-        if (s_nameManager == nullptr)
-        {
-            s_nameManager = BX_NEW(getAllocator(), NameMgr)();
+            const String& str = it->second;
+            return str.getCPtr();
         }
 
-        return s_nameManager;
-    }
+        void getPrefix(String& _outStr, Handle _h, bool _isAlias)
+        {
+            // if it's aliased resource, just add alias tag since the old name already contains the type tag
+            if (_isAlias)
+            {
+                _outStr.append(s_aliasName.abbrName);
+                return;
+            }
+
+            const Handle::TypeName& typeName = _h.getTypeName();
+            _outStr.append(typeName.abbrName);
+        }
+
+        using HandleNameMap = stl::unordered_map<Handle, String>;
+        HandleNameMap m_handleToName;
+    };
 
     uint16_t getBytesPerPixel(ResourceFormat _format)
     {
@@ -360,6 +312,12 @@ namespace kage
         free(getAllocator(), mem);
     }
 
+    struct RecordingCmd
+    {
+        uint32_t startPos;
+        uint32_t endPos;
+        uint32_t size;
+    };
 
     struct Context
     {
@@ -398,6 +356,9 @@ namespace kage
 
         BufferHandle aliasBuffer(const BufferHandle _baseBuf);
         ImageHandle aliasImage(const ImageHandle  _baseImg);
+
+        void setName(Handle _h, const char* _name, const size_t _len, bool _alias = false);
+        const bx::StringView getName(Handle _h);
 
         // read-only data, no barrier required
         void bindVertexBuffer(const PassHandle _hPass, const BufferHandle _hBuf, const uint32_t _vtxCount);
@@ -465,7 +426,62 @@ namespace kage
 
         double getPassTime(const PassHandle _hPass);
 
-        CommandBuffer& getCommandBuffer(CommandBuffer::Enum _command);
+        CommandBuffer& getCommandBuffer(CommandBuffer::Enum _cmd);
+
+        // Render API Begin
+        void startRec(const PassHandle _hPass);
+
+        void setConstants(const Memory* _mem);
+
+        void setDescriptorSets(const Binding* _desc, uint16_t _count);
+
+        void setBuffer(
+            const BufferHandle _hBuf
+            , const uint32_t _binding
+            , const PipelineStageFlags _stage
+            , const AccessFlags _access
+            , const BufferHandle _outAlias
+        );
+
+        void setImage(
+            const ImageHandle _hImg
+            , const uint32_t _binding
+            , const PipelineStageFlags _stage
+            , const AccessFlags _access
+            , const ImageLayout _layout
+            , const ImageHandle _outAlias
+        );
+
+        void dispatch(
+            const uint32_t _groupCountX
+            , const uint32_t _groupCountY
+            , const uint32_t _groupCountZ
+        );
+
+        void setViewRect(
+            uint32_t _x
+            , uint32_t _y
+            , uint32_t _width
+            , uint32_t _height
+        );
+
+        void draw(
+            const uint32_t _vertexCount
+            , const uint32_t _instanceCount
+            , const uint32_t _firstVertex
+            , const uint32_t _firstInstance
+        );
+
+        void draw(
+            const BufferHandle _hIndirectBuf
+            , const uint32_t _offset
+            , const uint32_t _count
+            , const uint32_t _stride
+        );
+
+        void endRec();
+
+        // Render API Ends
 
         bx::HandleAllocT<kMaxNumOfShaderHandle> m_shaderHandles;
         bx::HandleAllocT<kMaxNumOfProgramHandle> m_programHandles;
@@ -477,6 +493,8 @@ namespace kage
         ImageHandle m_presentImage{kInvalidHandle};
         uint32_t m_presentMipLevel{ 0 };
 
+        NameMgr* m_nameManager;
+
         // resource Info
         String                  m_shaderPathes[kMaxNumOfShaderHandle];
         ProgramDesc             m_programDescs[kMaxNumOfProgramHandle];
@@ -484,6 +502,10 @@ namespace kage
         ImageMetaData           m_imageMetas[kMaxNumOfImageHandle];
         PassMetaData            m_passMetas[kMaxNumOfPassHandle];
         SamplerDesc             m_samplerDescs[kMaxNumOfSamplerHandle];
+
+        // running Pass
+        PassHandle              m_recordingPass{ kInvalidHandle };
+        RecordingCmd            m_recordingCmds[kMaxNumOfPassHandle];
         
         // 1-operation pass: blit/copy/fill 
         bool                m_oneOpPassTouchedArr[kMaxNumOfPassHandle];
@@ -512,6 +534,8 @@ namespace kage
 
         // Memories
         stl::vector<const Memory*> m_inputMemories;
+        // transient Memories
+        stl::vector<const Memory*> m_transientMemories;
 
         // render data status
         bool    m_isRenderGraphDataDirty{ false };
@@ -528,13 +552,11 @@ namespace kage
 
         bx::AllocatorI* m_pAllocator{ nullptr };
 
-        // name manager
-        NameMgr* m_pNameManager{ nullptr };
-
         void* m_nativeWnd{ nullptr };
 
         // frame 
         CommandBuffer m_cmdPre{};
+        CommandBuffer m_cmdRecording{};
         CommandBuffer m_cmdPost{};
     };
 
@@ -668,7 +690,7 @@ namespace kage
         String path{ _path };
         m_shaderPathes[idx] = path;
 
-        setName(m_pNameManager, _name, strlen(_name), handle);
+        setName(handle, _name, strlen(_name));
 
         setRenderGraphDataDirty();
 
@@ -702,7 +724,7 @@ namespace kage
 
         m_programDescs[idx] = desc;
 
-        setName(m_pNameManager, _name, strlen(_name), handle);
+        setName(handle, _name, strlen(_name));
 
         setRenderGraphDataDirty();
 
@@ -734,7 +756,7 @@ namespace kage
         m_passMetas[idx] = meta;
         m_oneOpPassTouchedArr[idx] = false;
 
-        setName(m_pNameManager, _name, strlen(_name), handle);
+        setName(handle, _name, strlen(_name));
 
         setRenderGraphDataDirty();
 
@@ -772,7 +794,7 @@ namespace kage
 
         m_bufferMetas[idx] = meta;
 
-        setName(m_pNameManager, _name, strlen(_name), handle);
+        setName(handle, _name, strlen(_name));
 
         setRenderGraphDataDirty();
 
@@ -813,7 +835,7 @@ namespace kage
 
         m_imageMetas[idx] = meta;
 
-        setName(m_pNameManager, _name, strlen(_name), handle);
+        setName(handle, _name, strlen(_name));
 
         setRenderGraphDataDirty();
         
@@ -876,7 +898,7 @@ namespace kage
 
         m_imageMetas[idx] = meta;
 
-        setName(m_pNameManager, _name, strlen(_name), handle);
+        setName(handle, _name, strlen(_name));
 
         setRenderGraphDataDirty();
 
@@ -939,7 +961,7 @@ namespace kage
 
         m_imageMetas[idx] = meta;
 
-        setName(m_pNameManager, _name, strlen(_name), handle);
+        setName(handle, _name, strlen(_name));
 
         setRenderGraphDataDirty();
 
@@ -1347,43 +1369,45 @@ namespace kage
     BufferHandle Context::aliasBuffer(const BufferHandle _baseBuf)
     {
         uint16_t aliasId = m_bufferHandles.alloc();
+        BufferHandle aliasHandle{ aliasId };
 
         auto actualBaseMap = m_bufferAliasMapToBase.find(_baseBuf.id);
 
-        BufferHandle actualBase = _baseBuf;
+        BufferHandle rootBase = _baseBuf;
         // check if the base buffer is an alias
         if (m_bufferAliasMapToBase.end() != actualBaseMap)
         {
-            actualBase = actualBaseMap->second;
+            rootBase = actualBaseMap->second;
         }
 
-        m_bufferAliasMapToBase.insert({ aliasId, actualBase });
+        m_bufferAliasMapToBase.insert({ aliasId, rootBase });
 
-        if (m_aliasBuffers.exist(actualBase))
+        if (m_aliasBuffers.exist(rootBase))
         {
-            stl::vector<BufferHandle>& aliasVecRef = m_aliasBuffers.getDataRef(actualBase);
-            aliasVecRef.emplace_back(BufferHandle{ aliasId });
+            stl::vector<BufferHandle>& aliasVecRef = m_aliasBuffers.getDataRef(rootBase);
+            aliasVecRef.emplace_back(aliasHandle);
         }
         else 
         {
             stl::vector<BufferHandle> aliasVec{};
-            aliasVec.emplace_back(BufferHandle{ aliasId });
+            aliasVec.emplace_back(aliasHandle);
 
-            m_aliasBuffers.addOrUpdate({ actualBase }, aliasVec);
+            m_aliasBuffers.addOrUpdate({ rootBase }, aliasVec);
         }
 
-        BufferMetaData meta = m_bufferMetas[actualBase];
+        BufferMetaData meta = m_bufferMetas[rootBase];
         meta.bufId = aliasId;
         m_bufferMetas[aliasId] = meta;
 
-        bx::StringView baseName = getName(actualBase);
-        setName(getNameManager(), baseName.getPtr(), baseName.getLength(), BufferHandle{ aliasId }, true);
+        bx::StringView baseName = getName(rootBase);
+        //setName(getNameManager(), baseName.getPtr(), baseName.getLength(), BufferHandle{ aliasId }, true);
+        setName(aliasHandle, baseName.getPtr(), baseName.getLength(), true);
 
         setRenderGraphDataDirty();
 
         CommandBuffer& cb = getCommandBuffer(CommandBuffer::alias_buffer);
         cb.write(BufferHandle{ aliasId });
-        cb.write(actualBase);
+        cb.write(rootBase);
 
         return { aliasId };
     }
@@ -1391,6 +1415,7 @@ namespace kage
     ImageHandle Context::aliasImage(const ImageHandle _baseImg)
     {
         uint16_t aliasId = m_imageHandles.alloc();
+        ImageHandle aliasHandle{ aliasId };
 
         auto actualBaseMap = m_imageAliasMapToBase.find(_baseImg.id);
 
@@ -1406,12 +1431,12 @@ namespace kage
         if (m_aliasImages.exist(actualBase))
         {
             stl::vector<ImageHandle>& aliasVecRef = m_aliasImages.getDataRef(actualBase);
-            aliasVecRef.emplace_back(ImageHandle{ aliasId });
+            aliasVecRef.emplace_back(aliasHandle);
         }
         else
         {
             stl::vector<ImageHandle> aliasVec{};
-            aliasVec.emplace_back(ImageHandle{ aliasId });
+            aliasVec.emplace_back(aliasHandle);
 
             m_aliasImages.addOrUpdate({ actualBase }, aliasVec);
         }
@@ -1421,15 +1446,34 @@ namespace kage
         m_imageMetas[aliasId] = meta;
 
         bx::StringView baseName = getName(actualBase);
-        setName(getNameManager(), baseName.getPtr(), baseName.getLength(), ImageHandle{ aliasId }, true);
+        setName(aliasHandle, baseName.getPtr(), baseName.getLength(), true);
 
         setRenderGraphDataDirty();
 
         CommandBuffer& cb = getCommandBuffer(CommandBuffer::alias_image);
-        cb.write(BufferHandle{ aliasId });
+        cb.write(aliasHandle);
         cb.write(actualBase);
 
         return { aliasId };
+    }
+
+    void Context::setName(Handle _h, const char* _name, const size_t _len, bool _alias /*= false*/)
+    {
+        m_nameManager->setName( _name, (uint32_t)_len, _h, _alias);
+
+        bx::StringView name = getName(_h);
+
+        int32_t len = (int32_t)name.getLength();
+        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::set_name);
+        cmd.write(_h);
+        cmd.write(len);
+        cmd.write(name.getPtr(), len);
+        
+    }
+
+    const bx::StringView Context::getName(Handle _h)
+    {
+        return m_nameManager->getName(_h);
     }
 
     uint32_t availableBinding(ContinuousMap<PassHandle, stl::vector<uint32_t>>& _container, const PassHandle _hPass, const uint32_t _binding)
@@ -1876,7 +1920,7 @@ namespace kage
             return;
         }
 
-        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::push_constants);
+        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::update_constants);
         cmd.write(_hPass);
         cmd.write(_mem);
     }
@@ -1889,7 +1933,7 @@ namespace kage
             return;
         }
 
-        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::set_thread_count);
+        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::update_thread_count);
         cmd.write(_hPass);
         cmd.write(_threadCountX);
         cmd.write(_threadCountY);
@@ -2001,6 +2045,19 @@ namespace kage
                     _cmdbuf.read(base);
                 }
                 break;
+
+            case CommandBuffer::set_name:
+                {
+                    Handle h;
+                    _cmdbuf.read(h);
+
+                    int32_t len;
+                    _cmdbuf.read(len);
+
+                    const char* name = (const char*)_cmdbuf.skip((uint32_t)len);
+                    m_rhiContext->setName(h, name, len - 1);
+                }
+                break;
             case CommandBuffer::update_image:
                 {
                     ImageHandle id;
@@ -2039,15 +2096,7 @@ namespace kage
                     release(mem);
                 }
                 break;
-            case CommandBuffer::flush_resource_barrier:
-                {
-                    PassHandle id;
-                    _cmdbuf.read(id);
-
-                    //m_rhiContext->flushResourceBarrier(id);
-                }
-                break;
-            case CommandBuffer::push_constants:
+            case CommandBuffer::update_constants:
                 {
                     PassHandle id;
                     _cmdbuf.read(id);
@@ -2056,20 +2105,10 @@ namespace kage
                     _cmdbuf.read(mem);
 
                     m_rhiContext->updateConstants(id, mem);
+                    release(mem);
                 }
                 break;
-            case CommandBuffer::push_descriptor_set:
-                {
-                    PassHandle id;
-                    _cmdbuf.read(id);
-
-                    const Memory* mem;
-                    _cmdbuf.read(mem);
-
-                    //m_rhiContext->updateDescriptorSet(id, mem);
-                }
-                break;
-            case CommandBuffer::set_thread_count:
+            case CommandBuffer::update_thread_count:
                 {
                     PassHandle id;
                     _cmdbuf.read(id);
@@ -2098,9 +2137,64 @@ namespace kage
                     release(mem);
                 }
                 break;
-            case CommandBuffer::dispatch:
+            case CommandBuffer::record_start:
                 {
-            
+                    PassHandle pass;
+                    _cmdbuf.read(pass);
+
+                    _cmdbuf.skip<uint64_t>();
+
+                    const RecordingCmd rec = m_recordingCmds[pass];
+
+                    assert(rec.startPos == _cmdbuf.getPos());
+
+                    const Memory* mem = alloc(rec.size);
+                    _cmdbuf.read(mem->data, mem->size);
+
+                    assert(rec.endPos == _cmdbuf.getPos());
+
+                    m_rhiContext->setRecord(pass, mem);
+                    release(mem);
+                }
+                break;
+            case CommandBuffer::record_set_constants:
+                {
+                    assert(0);
+                }
+                break;
+            case CommandBuffer::record_set_descriptor:
+                {
+                    assert(0);
+                }
+                break;
+            case CommandBuffer::record_set_view_rect:
+                {
+                    assert(0);
+                }
+                break;
+            case CommandBuffer::record_dispatch:
+                {
+                    assert(0);
+                }
+                break;
+            case CommandBuffer::record_draw:
+                {
+                    assert(0);
+                }
+                break;
+            case CommandBuffer::record_draw_indexed:
+                {
+                    assert(0);
+                }
+                break;
+            case CommandBuffer::record_draw_indirect:
+                {
+                    assert(0);
+                }
+                break;
+            case CommandBuffer::record_end:
+                {
+                    ;
                 }
                 break;
             case CommandBuffer::end:
@@ -2124,7 +2218,6 @@ namespace kage
     void Context::init(const Init& _init)
     {
         m_pAllocator = getAllocator();
-        m_pNameManager = getNameManager();
 
         m_resolution = _init.resolution;
         m_nativeWnd = _init.windowHandle;
@@ -2132,9 +2225,11 @@ namespace kage
         m_rhiContext = vk::rendererCreate(m_resolution, m_nativeWnd);
 
         m_cmdPre.init(_init.minCmdBufSize);
+        m_cmdRecording.init(_init.minCmdBufSize);
         m_cmdPost.init(_init.minCmdBufSize);
         
         m_cmdPre.start();
+        m_cmdRecording.start();
         m_cmdPost.start();
 
         m_frameGraph = BX_NEW(getAllocator(), Framegraph)(getAllocator(), m_rhiContext->memoryBlock());
@@ -2142,12 +2237,17 @@ namespace kage
         m_pFgMemBlock = m_frameGraph->getMemoryBlock();
         m_fgMemWriter = BX_NEW(getAllocator(), bx::MemoryWriter)(m_pFgMemBlock);
 
+        m_nameManager = BX_NEW(getAllocator(), NameMgr)();
+
+        m_transientMemories.clear();
+
         setRenderGraphDataDirty();
     }
 
     void Context::render()
     {
         m_cmdPre.finish();
+        m_cmdRecording.finish();
         m_cmdPost.finish();
 
         if (kInvalidHandle == m_presentImage.id)
@@ -2165,7 +2265,15 @@ namespace kage
 
         rhi_render();
 
+        // free transistent memories
+        for (const Memory* pMem : m_transientMemories)
+        {
+            release(pMem);
+        }
+        m_transientMemories.clear();
+
         m_cmdPre.start();
+        m_cmdRecording.start();
         m_cmdPost.start();
     }
 
@@ -2210,6 +2318,8 @@ namespace kage
         m_rhiContext->updateResolution(m_resolution);
 
         rendererExecCmds(m_cmdPre);
+
+        rendererExecCmds(m_cmdRecording);
         m_rhiContext->render();
 
         rendererExecCmds(m_cmdPost);
@@ -2218,10 +2328,13 @@ namespace kage
     void Context::shutdown()
     {
         m_cmdPre.finish();
+        m_cmdRecording.finish();
+        m_cmdPost.finish();
 
         bx::deleteObject(m_pAllocator, m_frameGraph);
         vk::rendererDestroy();
         bx::deleteObject(m_pAllocator, m_fgMemWriter);
+        bx::deleteObject(m_pAllocator, m_nameManager);
 
         // free memories
         for (const Memory* pMem : m_inputMemories)
@@ -2240,11 +2353,121 @@ namespace kage
 
     CommandBuffer& Context::getCommandBuffer(CommandBuffer::Enum _cmd)
     {
-        CommandBuffer& cmdbuf = _cmd < CommandBuffer::end ? m_cmdPre : m_cmdPost;
+        CommandBuffer& cmdbuf = 
+            _cmd < CommandBuffer::end 
+            ?   _cmd < CommandBuffer::record
+                ? m_cmdPre
+                : m_cmdRecording
+            : m_cmdPost;
 
         uint8_t cmd = static_cast<uint8_t>(_cmd);
         cmdbuf.write(cmd);
         return cmdbuf;
+    }
+
+    void Context::startRec(const PassHandle _hPass)
+    {
+        if (isValid(m_recordingPass))
+        {
+            message(DebugMessageType::error
+                , "pass [%d:%s] already started!"
+                , m_recordingPass.id
+                , getName(m_recordingPass)
+            );
+            return;
+        }
+
+        m_recordingPass = _hPass;
+
+        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::record_start);
+        
+        cmd.write(_hPass);
+        cmd.write(uint64_t(0)); // skip the alignment so the sub-command would be aligned.
+
+        RecordingCmd& rec = m_recordingCmds[_hPass];
+        rec.startPos = cmd.getPos();
+        rec.endPos = 0;
+        rec.size = 0;
+    }
+
+    void Context::setConstants(const Memory* _mem)
+    {
+        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::record_set_constants);
+        cmd.write(_mem);
+
+        m_transientMemories.push_back(_mem);
+    }
+
+    void Context::setDescriptorSets(const Binding* _desc, uint16_t _count)
+    {
+        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::record_set_descriptor);
+
+        const uint32_t sz = sizeof(Binding) * _count;
+        const Memory* mem = alloc(sz);
+        bx::memCopy(mem->data, _desc, mem->size);
+
+        cmd.write(mem);
+
+        m_transientMemories.push_back(mem);
+    }
+
+    void Context::setBuffer(const BufferHandle _hBuf, const uint32_t _binding, const PipelineStageFlags _stage, const AccessFlags _access, const BufferHandle _outAlias)
+    {
+
+    }
+
+    void Context::setImage(const ImageHandle _hImg, const uint32_t _binding, const PipelineStageFlags _stage, const AccessFlags _access, const ImageLayout _layout, const ImageHandle _outAlias)
+    {
+
+    }
+
+    void Context::dispatch(const uint32_t _groupCountX, const uint32_t _groupCountY, const uint32_t _groupCountZ)
+    {
+        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::record_dispatch);
+
+        cmd.write(_groupCountX);
+        cmd.write(_groupCountY);
+        cmd.write(_groupCountZ);
+    }
+
+    void Context::setViewRect(uint32_t _x, uint32_t _y, uint32_t _width, uint32_t _height)
+    {
+        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::record_set_view_rect);
+        
+        cmd.write(_x);
+        cmd.write(_y);
+        cmd.write(_width);
+        cmd.write(_height);
+    }
+
+
+    void Context::draw( const uint32_t _vertexCount, const uint32_t _instanceCount, const uint32_t _firstVertex, const uint32_t _firstInstance)
+    {
+
+    }
+
+    void Context::draw( const BufferHandle _hIndirectBuf, const uint32_t _offset, const uint32_t _count, const uint32_t _stride)
+    {
+
+    }
+
+    void Context::endRec()
+    {
+        if (!isValid(m_recordingPass))
+        {
+            message(DebugMessageType::error, "no pass is start yet, why ending?");
+            return;
+        }
+
+        // the recorded commands contains all tags start from record_start to record_end, includes record_end.
+        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::record_end);
+
+        RecordingCmd& rec = m_recordingCmds[m_recordingPass];
+        rec.endPos = cmd.getPos();
+        rec.size = rec.endPos - rec.startPos;
+
+
+        m_recordingPass = { kInvalidHandle };
     }
 
     // ================================================
@@ -2427,6 +2650,70 @@ namespace kage
         s_ctx->updateImage(_hImg, _width, _height, _mips, _mem);
     }
 
+    void startRec(const PassHandle _hPass)
+    {
+        s_ctx->startRec(_hPass);
+    }
+
+    void setConstants( const Memory* _mem )
+    {
+        s_ctx->setConstants(_mem);
+    }
+
+    void setBindings( Binding* _desc , uint16_t _count )
+    {
+        s_ctx->setDescriptorSets(_desc, _count);
+    }
+
+    void dispatch(
+        const uint32_t _groupCountX
+        , const uint32_t _groupCountY
+        , const uint32_t _groupCountZ
+    )
+    {
+        s_ctx->dispatch(_groupCountX, _groupCountY, _groupCountZ);
+    }
+
+    void setViewRect(
+        uint32_t _x
+        , uint32_t _y
+        , uint32_t _width
+        , uint32_t _height
+    )
+    {
+        s_ctx->setViewRect(_x, _y, _width, _height);
+    }
+
+    void draw(
+        const uint32_t _vertexCount
+        , const uint32_t _instanceCount
+        , const uint32_t _firstVertex
+        , const uint32_t _firstInstance
+    )
+    {
+        s_ctx->draw(_vertexCount, _instanceCount, _firstVertex, _firstInstance);
+    }
+
+    void draw(
+        const BufferHandle _hIndirectBuf
+        , const uint32_t _offset
+        , const uint32_t _count
+        , const uint32_t _stride
+    )
+    {
+        s_ctx->draw(_hIndirectBuf, _offset, _count, _stride);
+    }
+
+    void endRec()
+    {
+        s_ctx->endRec();
+    }
+
+    const char* getName(Handle _h)
+    {
+        return s_ctx->getName(_h).getPtr();
+    }
+
     const Memory* alloc(uint32_t _sz)
     {
         if (_sz < 0)
@@ -2499,39 +2786,8 @@ namespace kage
     void shutdown()
     {
         bx::deleteObject(getAllocator(), s_ctx);
-        bx::deleteObject(getAllocator(), s_nameManager);
 
         shutdownAllocator();
-    }
-
-    const char* getName(ShaderHandle _hShader)
-    {
-        return getNameManager()->getName(_hShader);
-    }
-
-    const char* getName(ProgramHandle _hProg)
-    {
-        return getNameManager()->getName(_hProg);
-    }
-    
-    const char* getName(PassHandle _hPass)
-    {
-        return getNameManager()->getName(_hPass);
-    }
-
-    const char* getName(BufferHandle _hBuf)
-    {
-        return getNameManager()->getName(_hBuf);
-    }
-
-    const char* getName(ImageHandle _hImg)
-    {
-        return getNameManager()->getName(_hImg);
-    }
-
-    const char* getName(SamplerHandle _hSampler)
-    {
-        return getNameManager()->getName(_hSampler);
     }
 
     double getPassTime(const PassHandle _hPass)

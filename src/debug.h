@@ -15,10 +15,6 @@ namespace kage
 		assert(result == VK_SUCCESS);\
 	} while (0)
 
-#ifdef _DEBUG
     void message(DebugMessageType type, const char* format, ...);
-#else
-    void message(DebugMessageType type, const char* format, ...);
-#endif // _DEBUG
 
 }

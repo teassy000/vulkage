@@ -14,6 +14,7 @@ namespace kage
             light_yellow = 0xffffe0,
             cyan = 0x00ffff,
             indian_red = 0xcd5c5c,
+            light_coral = 0xf08080,
         };
     }
 };

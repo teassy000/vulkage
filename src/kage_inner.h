@@ -11,6 +11,86 @@ namespace kage
 {
     extern bx::AllocatorI* g_bxAllocator;
 
+    struct Handle
+    {
+        struct TypeName
+        {
+            const char* abbrName;
+            const char* fullName;
+        };
+
+        enum Enum : uint16_t
+        {
+            Shader,
+            Program,
+            Pass,
+            Buffer,
+            Image,
+
+            Count,
+        };
+
+        template<typename Ty>
+        static constexpr Enum toEnum();
+
+        Handle() = default;
+
+        template<typename Ty>
+        Handle(Ty _h) 
+            : id(_h.id)
+            , type(toEnum<Ty>())
+        {
+        }
+
+        Enum getType() const 
+        { 
+            return (Enum)type;
+        }
+
+        static const TypeName& getTypeName(Handle::Enum _enum);
+
+        const TypeName& getTypeName() const
+        {
+            return getTypeName(getType());
+        }
+
+        inline bool operator == (const Handle& _rhs) const {
+            return id == _rhs.id && type == _rhs.type;
+        }
+
+        inline bool operator != (const Handle& _rhs) const {
+            return id != _rhs.id;
+        }
+
+        inline bool operator < (const Handle& _rhs) const {
+            return id < _rhs.id;
+        }
+
+        inline operator size_t() const {
+            return ((size_t)type << 16) | id;
+        }
+
+
+        uint16_t id{ kInvalidHandle };
+        uint16_t type{ Count };
+    };
+
+#define IMPLEMENT_HANDLE(_name)                                     \
+	template<>                                                      \
+	constexpr Handle::Enum Handle::toEnum<_name##Handle>()          \
+	{                                                               \
+		return Handle::_name;                                       \
+	}                                                               \
+
+    IMPLEMENT_HANDLE(Shader);
+    IMPLEMENT_HANDLE(Program);
+    IMPLEMENT_HANDLE(Pass);
+    IMPLEMENT_HANDLE(Buffer);
+    IMPLEMENT_HANDLE(Image);
+
+#undef IMPLEMENT_HANDLE
+    
+
     struct CombinedResID
     {
         uint16_t        id{kInvalidHandle};
@@ -152,6 +232,13 @@ namespace kage
         uint32_t    size{ 0 };
     };
 
+    struct BufferAliasInfo2
+    {
+        BufferHandle    handle{ kInvalidHandle };
+        uint32_t        size{ 0 };
+
+    };
+
     struct ImageCreateInfo : public ImageDesc
     {
         uint16_t    imgId{ kInvalidHandle };
@@ -260,20 +347,6 @@ namespace kage
         uint32_t presentMipLevel{ 0 };
     };
 
-    namespace NameTags
-    {
-        // tag for varies of handle 
-        static const char* kShader = "[sh]";
-        static const char* kRenderPass = "[pass]";
-        static const char* kProgram = "[prog]";
-        static const char* kImage = "[img]";
-        static const char* kBuffer = "[buf]";
-        static const char* kSampler = "[samp]";
-
-        // tag for alias: buffer, image
-        static const char* kAlias = "[alias]";
-    }
-
     enum class HandleType : uint16_t
     {
         unknown = 0,
@@ -286,26 +359,9 @@ namespace kage
         sampler,
     };
 
-    struct HandleSignature
-    {
-        HandleType  type;
-        uint16_t    id;
-
-        // for tinystl::hash(const T& value)
-        // which requires to cast to size_t
-        operator size_t() const
-        {
-            return ((size_t)(type) << 16) | id;
-        }
-    };
-
 
     using String = bx::StringT<&g_bxAllocator>;
     
-    const char* getName(ShaderHandle _hShader);
-    const char* getName(ProgramHandle _hProg);
-    const char* getName(PassHandle _hPass);
-    const char* getName(ImageHandle _hImg);
-    const char* getName(BufferHandle _hBuf);
-    const char* getName(SamplerHandle _hSampler);
+    const char* getName(Handle _h);
+
 } // namespace kage

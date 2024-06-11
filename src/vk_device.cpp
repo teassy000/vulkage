@@ -48,32 +48,33 @@ namespace kage{ namespace vk
         VkInstanceCreateInfo createInfo = { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
         createInfo.pApplicationInfo = &appInfo;
 
-#ifdef _DEBUG
-        const char* debugLayers[] = {
-            "VK_LAYER_KHRONOS_validation",
-        };
-        createInfo.ppEnabledLayerNames = debugLayers;
-        createInfo.enabledLayerCount = sizeof(debugLayers) / sizeof(debugLayers[0]);
+        if (BX_ENABLED(KAGE_DEBUG))
+        {
+            const char* debugLayers[] = {
+                "VK_LAYER_KHRONOS_validation",
+            };
+            createInfo.ppEnabledLayerNames = debugLayers;
+            createInfo.enabledLayerCount = sizeof(debugLayers) / sizeof(debugLayers[0]);
 
 
-        VkValidationFeatureEnableEXT enabledValidationFeatures[] = {
-            VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT,
-            VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT,
-        };
+            VkValidationFeatureEnableEXT enabledValidationFeatures[] = {
+                VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT,
+                VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT,
+            };
 
-        VkValidationFeaturesEXT validationFeatures = { VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT };
-        validationFeatures.enabledValidationFeatureCount = sizeof(enabledValidationFeatures) / sizeof(enabledValidationFeatures[0]);
-        validationFeatures.pEnabledValidationFeatures = enabledValidationFeatures;
+            VkValidationFeaturesEXT validationFeatures = { VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT };
+            validationFeatures.enabledValidationFeatureCount = sizeof(enabledValidationFeatures) / sizeof(enabledValidationFeatures[0]);
+            validationFeatures.pEnabledValidationFeatures = enabledValidationFeatures;
 
-        createInfo.pNext = &validationFeatures;
-
-#endif
+            createInfo.pNext = &validationFeatures;
+        }
 
         const char* extensions[] = {
             VK_KHR_SURFACE_EXTENSION_NAME,
     #ifdef VK_USE_PLATFORM_WIN32_KHR
             VK_KHR_WIN32_SURFACE_EXTENSION_NAME,
     #endif // VK_USE_PLATFORM_WIN32_KHR
+            VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
             VK_EXT_DEBUG_REPORT_EXTENSION_NAME,
             VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
         };

@@ -16,6 +16,7 @@
 
 #include "rhi_context.h"
 #include "cmd_list_vk.h"
+#include "command_buffer.h"
 
 namespace kage { namespace vk
 {
@@ -44,10 +45,6 @@ namespace kage { namespace vk
 
     struct BarrierState_vk
     {
-        VkAccessFlags           accessMask;
-        VkImageLayout           imgLayout;
-        VkPipelineStageFlags    stageMask;
-
         inline BarrierState_vk()
             : accessMask(0)
             , imgLayout(VK_IMAGE_LAYOUT_UNDEFINED)
@@ -77,6 +74,10 @@ namespace kage { namespace vk
         inline bool operator != (const BarrierState_vk& rhs) const {
             return !(*this == rhs);
         }
+
+        VkAccessFlags           accessMask;
+        VkImageLayout           imgLayout;
+        VkPipelineStageFlags    stageMask;
     };
 
     struct PassInfo_vk : PassDesc
@@ -126,6 +127,10 @@ namespace kage { namespace vk
         // bindings
         stl::vector<std::pair<uint32_t, CombinedResID>> bindingToColorIds;
         stl::vector<std::pair<uint32_t, CombinedResID>> bindingToResIds;
+
+        // push desc sets
+        stl::vector<Binding> pushDescSets;
+        bool recorded{ false };
 
         PassConfig config{};
     };
@@ -261,6 +266,30 @@ namespace kage { namespace vk
         uint32_t m_offset;
     };
 
+    struct FrameRecCmds
+    {
+        struct RecCmdInfo
+        {
+            uint32_t startPos;
+            uint32_t endPos;
+            uint32_t size;
+        };
+
+        void init();
+
+        void record(const PassHandle _hPass, const Memory* _mem);
+
+        CommandBuffer& getCmd(const PassHandle _hPass);
+
+        void baginRender();
+        void endRender();
+
+        using  RecCmdInfoMap = stl::unordered_map<PassHandle, RecCmdInfo>;
+        RecCmdInfoMap m_recCmdInfo;
+
+        CommandBuffer m_cmdBuffer;
+    };
+
 
     struct RHIContext_vk : public RHIContext
     {
@@ -326,7 +355,7 @@ namespace kage { namespace vk
         void beginRendering(const VkCommandBuffer& _cmdBuf, const uint16_t _passId) const;
         void endRendering(const VkCommandBuffer& _cmdBuf) const;
 
-        const DescriptorInfo getImageDescInfo2(const ImageHandle _hImg, uint16_t _mip, const SamplerHandle _hSampler);
+        const DescriptorInfo getImageDescInfo(const ImageHandle _hImg, uint16_t _mip, const SamplerHandle _hSampler);
         const DescriptorInfo getBufferDescInfo(const BufferHandle _hBuf) const;
 
         // barriers
@@ -344,6 +373,61 @@ namespace kage { namespace vk
         void createSampler(bx::MemoryReader& _reader) override;
         void setBrief(bx::MemoryReader& _reader) override;
 
+        void setName(Handle _h, const char* _name, uint32_t _len) override;
+
+        // rendering command start
+        void setRecord(PassHandle _hPass, const Memory* _mem) override;
+
+        void setConstants(
+            PassHandle _hPass
+            , const Memory* _mem
+        );
+        
+        void setDescriptorSet(
+            PassHandle _hPass
+            , const Memory* _mem
+        );
+        
+        void setViewRect(
+            PassHandle _hPass
+            , uint32_t _x
+            , uint32_t _y
+            , uint32_t _width
+            , uint32_t _height
+        );
+
+        void dispatch(
+            PassHandle _hPass
+            , uint32_t _x
+            , uint32_t _y
+            , uint32_t _z
+        );
+
+        void draw(
+            PassHandle _hPass
+            , uint32_t _vtxCount
+            , uint32_t _instCount
+            , uint32_t _firstIdx
+            , uint32_t _firstInst
+        );
+
+        void drawIndexed(
+            PassHandle _hPass
+            , uint32_t _idxCount
+            , uint32_t _instCount
+            , uint32_t _firstIdx
+            , uint32_t _vtxOffset
+            , uint32_t _firstInst
+        );
+
+        void drawIndirect(
+            PassHandle _hPass
+            , BufferHandle _hBuf
+            , uint32_t _offset
+            , uint32_t _drawCount
+        );
+        
+        // rendering command end
         VkSampler getCachedSampler(SamplerFilter _filter, SamplerAddressMode _addrMd, SamplerReductionMode _reduMd);
         VkImageView getCachedImageView(const ImageHandle _hImg, uint16_t _mip, uint16_t _numMips, VkImageViewType _type);
 
@@ -361,6 +445,10 @@ namespace kage { namespace vk
         void checkUnmatchedBarriers(uint16_t _passId);
         void createBarriers(uint16_t _passId);
         void flushWriteBarriers(uint16_t _passId);
+
+        // barriers for rec
+        void createBarriersRec(const PassHandle _hPass);
+        void flushWriteBarriersRec(const PassHandle _hPass);
 
         // push descriptor set with templates
         void pushDescriptorSetWithTemplates(const uint16_t _passId);
@@ -402,6 +490,9 @@ namespace kage { namespace vk
         template<typename Ty>
         void release(Ty& _object);
 
+        // rec
+        void execRecCmds(PassHandle _hPass);
+        stl::vector<Binding> m_descSets;
 
         ContinuousMap<uint16_t, Buffer_vk> m_bufferContainer;
         ContinuousMap<uint16_t, Image_vk> m_imageContainer;
@@ -479,10 +570,8 @@ namespace kage { namespace vk
         VkQueryPool m_queryPoolStatistics;
         uint32_t m_queryStatisticsCount{ 0 };
 
-
-#if _DEBUG
+        FrameRecCmds m_frameRecCmds;
         VkDebugReportCallbackEXT m_debugCallback;
-#endif //!_DEBUG
 
         // tracy
         void initTracy(VkQueue _queue, uint32_t _familyIdx);

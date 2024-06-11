@@ -12,29 +12,21 @@ namespace kage
 
     static const uint16_t kAllMips = UINT16_MAX;
 
+#define KAGE_HANDLE(_name)                                                              \
+    struct _name {                                                                      \
+        uint16_t id;                                                                    \
+        bool operator == (const _name& rhs) const { return id == rhs.id; };             \
+        bool operator < (const _name& rhs) const { return id < rhs.id; };               \
+        operator size_t() const { return id; };                                         \
+    };                                                                                  \
+    bool inline isValid(const _name _handle) {return kInvalidHandle != _handle.id;};    \
 
-    template <class HandleType>
-    struct NO_VTABLE Handle {
-        uint16_t id;
-
-        bool operator == (const Handle<HandleType>& rhs) const {
-            return id == rhs.id;
-        }
-
-        bool operator < (const Handle<HandleType>& rhs) const {
-            return id < rhs.id;
-        }
-
-        operator size_t() const
-        {
-            return id;
-        }
-    };
-
-    template <class HandleType>
-    bool inline isValid(const Handle<HandleType>& handle) {
-        return kInvalidHandle != handle.id;
-    }
+    KAGE_HANDLE(ShaderHandle);
+    KAGE_HANDLE(ProgramHandle);
+    KAGE_HANDLE(PassHandle);
+    KAGE_HANDLE(BufferHandle);
+    KAGE_HANDLE(ImageHandle);
+    KAGE_HANDLE(SamplerHandle);
 
     using ReleaseFn = void (*)(void* _ptr, void* _userData);
 
@@ -46,14 +38,7 @@ namespace kage
         uint32_t size;
     };
 
-    using ShaderHandle = Handle<struct ShaderHandleTag>;
-    using ProgramHandle = Handle<struct ProgramHandleTag>;
-    using PassHandle = Handle<struct PassHandleTag>;
 
-    using BufferHandle = Handle<struct BufferHandleTag>;
-    using ImageHandle = Handle<struct TextureHandleTag>;
-
-    using SamplerHandle = Handle<struct SamplerHandleTag>;
 
     enum class VulkanSupportExtension : uint16_t
     {
@@ -266,7 +251,6 @@ namespace kage
         };
     }
     using BufferUsageFlags = uint16_t;
-
 
     namespace ImageUsageFlagBits
     {
@@ -504,6 +488,14 @@ namespace kage
         key_max_enum = 0xffffffff,
     };
 
+    enum class BindingAccess : uint16_t
+    {
+        read,
+        write,
+        read_write,
+        binding_access_max = 0x7fff,
+    };
+
 
     struct Resolution
     {
@@ -633,5 +625,55 @@ namespace kage
         PassConfig      passConfig{};
     };
 
+    struct Binding
+    {
+        union
+        {
+            BufferHandle buf{ kInvalidHandle };
+            ImageHandle img;
+        };
+
+        SamplerHandle   sampler{ kInvalidHandle };
+        uint16_t        mip{ kAllMips };
+        ResourceType    type{ ResourceType::undefined };
+        BindingAccess   access{ BindingAccess::read };
+        PipelineStageFlags stage{ PipelineStageFlagBits::none };
+
+        Binding(BufferHandle _hBuf, BindingAccess _access, PipelineStageFlags _stages)
+        {
+            buf = _hBuf;
+            type = ResourceType::buffer;
+            access = _access;
+            stage = _stages;
+        }
+
+        Binding(ImageHandle _hImg, uint16_t _mip, SamplerHandle _hSampler, PipelineStageFlags _stages)
+        {
+            img = _hImg;
+            mip = _mip;
+            type = ResourceType::image;
+            sampler = _hSampler;
+            access = BindingAccess::read;
+            stage = _stages;
+        }
+
+        Binding(ImageHandle _hImg, SamplerHandle _hSampler, PipelineStageFlags _stages)
+        {
+            img = _hImg;
+            sampler = _hSampler;
+            type = ResourceType::image;
+            access = BindingAccess::read;
+            stage = _stages;
+        }
+
+        Binding(ImageHandle _hImg, uint16_t _mip, PipelineStageFlags _stages)
+        {
+            img = _hImg;
+            mip = _mip;
+            type = ResourceType::image;
+            access = BindingAccess::write;
+            stage = _stages;
+        }
+    };
 
 } // namespace kage

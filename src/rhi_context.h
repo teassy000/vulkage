@@ -103,7 +103,7 @@ namespace kage
 
         const uint32_t getConstantSize(const PassHandle _hPass) const;
         const void* getConstantData(const PassHandle _hPass) const;
-        void updateConstantData(const PassHandle _hPass, const void* _data, uint32_t _size);
+        void update(const PassHandle _hPass, const void* _data, uint32_t _size);
 
         bx::AllocatorI* m_pbxAllocator;
         bx::MemoryBlockI* m_pConstantData;
@@ -123,8 +123,6 @@ namespace kage
 
         uint32_t m_lastSize;
     };
-
-
 
     struct BufferMemoryPerFrame
     {
@@ -169,55 +167,7 @@ namespace kage
         uint32_t m_usedSize;
     };
 
-
-    struct RHIContextI
-    {
-        virtual void init(const Resolution& _resolution, void* _wnd) = 0;
-        virtual void bake() = 0;
-        virtual bool render() = 0;
-        // check supports
-        virtual bool checkSupports(VulkanSupportExtension _ext) = 0;
-
-        // swapchain 
-        virtual void updateResolution(const Resolution& _resolution) = 0;
-
-        // update resources
-        virtual void updateUniform(PassHandle _hPass, const void* _data, uint32_t _size) = 0;
-        virtual void updateBuffer(
-            const BufferHandle _hBuf
-            , const Memory* _mem
-            , const uint32_t _offset
-            , const uint32_t _size
-        ) = 0;
-
-        virtual void updateConstants(const PassHandle _hPass, const Memory* _mem) = 0;
-
-        virtual void updateImage(
-            const ImageHandle _hImg
-            , const uint16_t _width
-            , const uint16_t _height
-            , const uint16_t _mips
-            , const Memory* _mem
-        ) = 0;
-
-        // update settings
-        virtual void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ) = 0;
-
-        virtual void updateCustomFuncData(const PassHandle _hPass, const Memory* _mem) = 0;
-
-        // naive profiling
-        virtual double getPassTime(const PassHandle _hPass) = 0;
-
-        virtual void createShader(bx::MemoryReader& reader) = 0;
-        virtual void createProgram(bx::MemoryReader& reader) = 0;
-        virtual void createPass(bx::MemoryReader& reader) = 0;
-        virtual void createImage(bx::MemoryReader& reader) = 0;
-        virtual void createBuffer(bx::MemoryReader& reader) = 0;
-        virtual void createSampler(bx::MemoryReader& _reader) = 0;
-        virtual void setBrief(bx::MemoryReader& reader) = 0;
-    };
-
-    struct RHIContext : public RHIContextI
+    struct RHIContext
     {
         RHIContext(bx::AllocatorI* _allocator)
             : m_pAllocator{ _allocator }
@@ -236,48 +186,55 @@ namespace kage
         inline bx::MemoryBlockI* memoryBlock() const {return m_pMemBlockBaked;}
         inline bx::AllocatorI* allocator() const { return m_pAllocator; }
 
-        void init(const Resolution& _resolution, void* _wnd) override {};
+        virtual void init(const Resolution& _resolution, void* _wnd) {};
 
-        void bake() override;
-        bool render() override { return false; }
+        virtual void bake();
+        virtual bool render() { return false; }
 
 
-        bool checkSupports(VulkanSupportExtension _ext) override { return false; }
-        void updateResolution(const Resolution& _resolution) override {};
+        virtual bool checkSupports(VulkanSupportExtension _ext) { return false; }
+        virtual void updateResolution(const Resolution& _resolution) {};
 
         // update 
-        void updateUniform(PassHandle _hPass, const void* _data, uint32_t _size) override {};
-        void updateBuffer(
+        virtual void updateUniform(PassHandle _hPass, const void* _data, uint32_t _size) {};
+        virtual void updateBuffer(
             const BufferHandle _hBuf
             , const Memory* _mem
             , const uint32_t _offset
             , const uint32_t _size
-        ) override {};
-        void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ) override {};
+        ) {};
+        virtual void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ) {};
         
-        void updateCustomFuncData(const PassHandle _hPass, const Memory* _mem) override {};
+        virtual void updateCustomFuncData(const PassHandle _hPass, const Memory* _mem) {};
 
-        void updateConstants(const PassHandle _hPass, const Memory* _mem) override;
+        virtual void updateConstants(const PassHandle _hPass, const Memory* _mem);
 
-        void updateImage(
+        virtual void updateImage(
             const ImageHandle _hImg
             , const uint16_t _width
             , const uint16_t _height
             , const uint16_t _mips
             , const Memory* _mem
-        ) override {};
+        ) {};
 
-        double getPassTime(const PassHandle _hPass) override { return 0.0; }
+        virtual double getPassTime(const PassHandle _hPass) { return 0.0; }
 
         void parseOp();
 
-        void createShader(bx::MemoryReader& reader) override {};
-        void createProgram(bx::MemoryReader& reader) override {};
-        void createPass(bx::MemoryReader& reader) override {};
-        void createImage(bx::MemoryReader& reader) override {};
-        void createBuffer(bx::MemoryReader& reader) override {};
-        void createSampler(bx::MemoryReader& _reader) override {};
-        void setBrief(bx::MemoryReader& reader) override {};
+        virtual void createShader(bx::MemoryReader& reader) {};
+        virtual void createProgram(bx::MemoryReader& reader) {};
+        virtual void createPass(bx::MemoryReader& reader) {};
+        virtual void createImage(bx::MemoryReader& reader) {};
+        virtual void createBuffer(bx::MemoryReader& reader) {};
+        virtual void createSampler(bx::MemoryReader& _reader) {};
+        virtual void setBrief(bx::MemoryReader& reader) {};
+
+        virtual void setName(Handle _h, const char* _name, uint32_t _len) {};
+
+        // rendering commands
+        virtual void setRecord(PassHandle _hPass, const Memory* mem) {};
+        // -- rendering commands ends
+
 
         // permanent
         ConstantsMemoryBlock m_constantsMemBlock;

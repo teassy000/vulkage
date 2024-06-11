@@ -32,11 +32,32 @@ namespace kage
     void setIndirectBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset, uint32_t _stride, uint32_t _maxCount);
     void setIndirectCountBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset);
 
-    void bindBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, const BufferHandle _outAlias = { kInvalidHandle });
-    void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout
-        , const ImageHandle _outAlias = { kInvalidHandle });
+    void bindBuffer(
+        PassHandle _hPass
+        , BufferHandle _hBuf
+        , uint32_t _binding
+        , PipelineStageFlags _stage
+        , AccessFlags _access
+        , const BufferHandle _outAlias = { kInvalidHandle }
+    );
 
-    SamplerHandle sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, SamplerReductionMode _reductionMode);
+    void bindImage(
+        PassHandle _hPass
+        , ImageHandle _hImg
+        , uint32_t _binding
+        , PipelineStageFlags _stage
+        , AccessFlags _access
+        , ImageLayout _layout
+        , const ImageHandle _outAlias = { kInvalidHandle }
+    );
+
+    SamplerHandle sampleImage(
+        PassHandle _hPass
+        , ImageHandle _hImg
+        , uint32_t _binding
+        , PipelineStageFlags _stage
+        , SamplerReductionMode _reductionMode
+    );
 
     void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx, const ImageHandle _outAlias = { kInvalidHandle });
 
@@ -77,6 +98,42 @@ namespace kage
         , const Memory* _mem = nullptr
     );
 
+    // APIs that would used in the render loop
+    void startRec(const PassHandle _hPass);
+
+    void setConstants(const Memory* _mem);
+
+    void setBindings(Binding* _desc, uint16_t _count);
+
+    void dispatch(
+        const uint32_t _groupCountX
+        , const uint32_t _groupCountY
+        , const uint32_t _groupCountZ
+    );
+
+    void setViewRect(
+        uint32_t _x
+        , uint32_t _y
+        , uint32_t _width
+        , uint32_t _height
+    );
+
+    void draw(
+        const uint32_t _vertexCount
+        , const uint32_t _instanceCount
+        , const uint32_t _firstVertex
+        , const uint32_t _firstInstance
+    );
+
+    void draw(
+        const BufferHandle _hIndirectBuf
+        , const uint32_t _offset
+        , const uint32_t _count
+        , const uint32_t _stride
+    );
+
+    void endRec();
+    // loop API Ends
 
     // memory related
     const Memory* alloc(uint32_t _sz);

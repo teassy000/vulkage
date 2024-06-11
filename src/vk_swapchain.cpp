@@ -9,7 +9,6 @@
 
 #include <windows.h>
 
-
 namespace kage { namespace vk
 {
     extern RHIContext_vk* s_renderVK;
