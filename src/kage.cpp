@@ -458,9 +458,20 @@ namespace kage
             , const uint32_t _groupCountZ
         );
 
-        void setViewRect(
-            uint32_t _x
-            , uint32_t _y
+        void setVertexBuffer(BufferHandle _hBuf);
+
+        void setIndexBuffer(BufferHandle _hBuf, uint32_t _offset, IndexType _type);
+
+        void setViewport(
+            int32_t _x
+            , int32_t _y
+            , uint32_t _width
+            , uint32_t _height
+        );
+
+        void setScissor(
+            int32_t _x
+            , int32_t _y
             , uint32_t _width
             , uint32_t _height
         );
@@ -478,6 +489,15 @@ namespace kage
             , const uint32_t _count
             , const uint32_t _stride
         );
+
+        void draw(
+            const uint32_t _indexCount
+            , const uint32_t _instanceCount
+            , const uint32_t _firstIndex
+            , const int32_t _vertexOffset
+            , const uint32_t _firstInstance
+        );
+
 
         void endRec();
 
@@ -2055,7 +2075,7 @@ namespace kage
                     _cmdbuf.read(len);
 
                     const char* name = (const char*)_cmdbuf.skip((uint32_t)len);
-                    m_rhiContext->setName(h, name, len - 1);
+                    m_rhiContext->setName(h, name, len);
                 }
                 break;
             case CommandBuffer::update_image:
@@ -2167,8 +2187,31 @@ namespace kage
                     assert(0);
                 }
                 break;
-            case CommandBuffer::record_set_view_rect:
+            case CommandBuffer::record_set_viewport:
                 {
+                    assert(0);
+                }
+                break;
+            case CommandBuffer::record_set_vertex_buffer:
+                {
+//                     BufferHandle vb;
+//                     _cmdbuf.read(vb);
+
+                    assert(0);
+                }
+                break;
+            case CommandBuffer::record_set_index_buffer:
+                {
+//                     BufferHandle ib;
+//                     _cmdbuf.read(ib);
+// 
+//                     uint32_t offset;
+//                     _cmdbuf.read(offset);
+// 
+//                     IndexType type;
+//                     _cmdbuf.read(type);
+
+
                     assert(0);
                 }
                 break;
@@ -2184,6 +2227,21 @@ namespace kage
                 break;
             case CommandBuffer::record_draw_indexed:
                 {
+//                     uint32_t indexCount;
+//                     _cmdbuf.read(indexCount);
+// 
+//                     uint32_t firstIndex;
+//                     _cmdbuf.read(firstIndex);
+// 
+//                     uint32_t vertexOffset;
+//                     _cmdbuf.read(vertexOffset);
+// 
+//                     uint32_t instanceCount;
+//                     _cmdbuf.read(instanceCount);
+// 
+//                     uint32_t firstInstance;
+//                     _cmdbuf.read(firstInstance);
+
                     assert(0);
                 }
                 break;
@@ -2194,6 +2252,7 @@ namespace kage
                 break;
             case CommandBuffer::record_end:
                 {
+                    
                     ;
                 }
                 break;
@@ -2430,9 +2489,25 @@ namespace kage
         cmd.write(_groupCountZ);
     }
 
-    void Context::setViewRect(uint32_t _x, uint32_t _y, uint32_t _width, uint32_t _height)
+    void Context::setVertexBuffer(BufferHandle _hBuf)
     {
-        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::record_set_view_rect);
+        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::record_set_vertex_buffer);
+
+        cmd.write(_hBuf);
+    }
+
+    void Context::setIndexBuffer(BufferHandle _hBuf, uint32_t _offset, IndexType _type)
+    {
+        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::record_set_index_buffer);
+
+        cmd.write(_hBuf);
+        cmd.write(_offset);
+        cmd.write(_type);
+    }
+
+    void Context::setViewport(int32_t _x, int32_t _y, uint32_t _width, uint32_t _height)
+    {
+        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::record_set_viewport);
         
         cmd.write(_x);
         cmd.write(_y);
@@ -2441,7 +2516,17 @@ namespace kage
     }
 
 
-    void Context::draw( const uint32_t _vertexCount, const uint32_t _instanceCount, const uint32_t _firstVertex, const uint32_t _firstInstance)
+    void Context::setScissor(int32_t _x, int32_t _y, uint32_t _width, uint32_t _height)
+    {
+        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::record_set_scissor);
+
+        cmd.write(_x);
+        cmd.write(_y);
+        cmd.write(_width);
+        cmd.write(_height);
+    }
+
+    void Context::draw(const uint32_t _vertexCount, const uint32_t _instanceCount, const uint32_t _firstVertex, const uint32_t _firstInstance)
     {
 
     }
@@ -2449,6 +2534,17 @@ namespace kage
     void Context::draw( const BufferHandle _hIndirectBuf, const uint32_t _offset, const uint32_t _count, const uint32_t _stride)
     {
 
+    }
+
+    void Context::draw(const uint32_t _indexCount, const uint32_t _instanceCount, const uint32_t _firstIndex, const int32_t _vertexOffset, const uint32_t _firstInstance)
+    {
+        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::record_draw_indexed);
+
+        cmd.write(_indexCount);
+        cmd.write(_instanceCount);
+        cmd.write(_firstIndex);
+        cmd.write(_vertexOffset);
+        cmd.write(_firstInstance);
     }
 
     void Context::endRec()
@@ -2461,6 +2557,7 @@ namespace kage
 
         // the recorded commands contains all tags start from record_start to record_end, includes record_end.
         CommandBuffer& cmd = getCommandBuffer(CommandBuffer::record_end);
+        cmd.write(uint64_t(0)); // skip the alignment so the sub-command would be aligned.
 
         RecordingCmd& rec = m_recordingCmds[m_recordingPass];
         rec.endPos = cmd.getPos();
@@ -2674,14 +2771,37 @@ namespace kage
         s_ctx->dispatch(_groupCountX, _groupCountY, _groupCountZ);
     }
 
-    void setViewRect(
-        uint32_t _x
-        , uint32_t _y
+
+    void setVertexBuffer(
+        BufferHandle _hBuf
+    )
+    {
+        s_ctx->setVertexBuffer(_hBuf);
+    }
+
+    void setIndexBuffer(
+        BufferHandle _hBuf
+        , uint32_t _offset
+        , IndexType _type
+    )
+    {
+        s_ctx->setIndexBuffer(_hBuf, _offset, _type);
+    }
+
+    void setViewport(
+        int32_t _x
+        , int32_t _y
         , uint32_t _width
         , uint32_t _height
     )
     {
-        s_ctx->setViewRect(_x, _y, _width, _height);
+        s_ctx->setViewport(_x, _y, _width, _height);
+    }
+
+
+    void setScissor(int32_t _x, int32_t _y, uint32_t _width, uint32_t _height)
+    {
+        s_ctx->setScissor(_x, _y, _width, _height);
     }
 
     void draw(
@@ -2693,6 +2813,19 @@ namespace kage
     {
         s_ctx->draw(_vertexCount, _instanceCount, _firstVertex, _firstInstance);
     }
+
+
+    void draw(
+        const uint32_t _indexCount
+        , const uint32_t _instanceCount
+        , const uint32_t _firstIndex
+        , const int32_t _vertexOffset
+        , const uint32_t _firstInstance
+    )
+    {
+        s_ctx->draw(_indexCount, _instanceCount, _firstIndex, _vertexOffset, _firstInstance);
+    }
+
 
     void draw(
         const BufferHandle _hIndirectBuf

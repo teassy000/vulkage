@@ -6,7 +6,7 @@ namespace kage { namespace vk
 {
     extern RHIContext_vk* s_renderVK;
 
-    VkIndexType getIndexType(IndexType _type)
+    VkIndexType getIndexType1(IndexType _type)
     {
         switch (_type)
         {
@@ -106,7 +106,7 @@ namespace kage { namespace vk
         // get buffer
         VkBuffer buf = s_renderVK->getVkBuffer(_buffer);
         // get idx type
-        vkCmdBindIndexBuffer(m_cmdBuf, buf, _offset, getIndexType(_idxType));
+        vkCmdBindIndexBuffer(m_cmdBuf, buf, _offset, getIndexType1(_idxType));
     }
 
     void CmdList_vk::fillBuffer()

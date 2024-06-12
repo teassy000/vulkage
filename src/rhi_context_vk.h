@@ -388,12 +388,32 @@ namespace kage { namespace vk
             , const Memory* _mem
         );
         
-        void setViewRect(
+        void setViewport(
             PassHandle _hPass
-            , uint32_t _x
-            , uint32_t _y
-            , uint32_t _width
-            , uint32_t _height
+            , int32_t _x
+            , int32_t _y
+            , uint32_t _w
+            , uint32_t _h
+        );
+
+        void setScissor(
+            PassHandle _hPass
+            , int32_t _x
+            , int32_t _y
+            , uint32_t _w
+            , uint32_t _h
+        );
+
+        void setVertexBuffer(
+            PassHandle _hPass
+            , BufferHandle _hBuf
+        );
+
+        void setIndexBuffer(
+            PassHandle _hPass
+            , BufferHandle _hBuf
+            , uint32_t _offset
+            , IndexType _type
         );
 
         void dispatch(

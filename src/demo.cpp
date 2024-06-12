@@ -156,7 +156,7 @@ namespace
             // update profiling data to GPU from last frame
 
             vkz_updateImGui(demoData.input, demoData.renderOptions, demoData.profiling, demoData.logic);
-            vkz_updateUIRenderData(ui);
+            kage_updateUI(ui);
 
             updatePyramid(pyramid, m_width, m_height);
 

@@ -111,13 +111,29 @@ namespace kage
         , const uint32_t _groupCountZ
     );
 
-    void setViewRect(
-        uint32_t _x
-        , uint32_t _y
+    void setVertexBuffer(BufferHandle _hBuf);
+    
+    void setIndexBuffer(
+        BufferHandle _hBuf
+        , uint32_t _offset
+        , IndexType _type
+    );
+    
+    void setViewport(
+        int32_t _x
+        , int32_t _y
         , uint32_t _width
         , uint32_t _height
     );
 
+    void setScissor(
+        int32_t _x
+        , int32_t _y
+        , uint32_t _width
+        , uint32_t _height
+    );
+
+    // draw
     void draw(
         const uint32_t _vertexCount
         , const uint32_t _instanceCount
@@ -125,6 +141,16 @@ namespace kage
         , const uint32_t _firstInstance
     );
 
+    // draw indexed
+    void draw(
+        const uint32_t _indexCount
+        , const uint32_t _instanceCount
+        , const uint32_t _firstIndex
+        , const int32_t _vertexOffset
+        , const uint32_t _firstInstance
+    );
+
+    // draw indirect
     void draw(
         const BufferHandle _hIndirectBuf
         , const uint32_t _offset

@@ -36,7 +36,11 @@ namespace kage
 
             record_set_constants,
             record_set_descriptor,
-            record_set_view_rect,
+            record_set_viewport,
+            record_set_scissor,
+
+            record_set_vertex_buffer,
+            record_set_index_buffer,
 
             record_blit,
             record_copy,

@@ -4,59 +4,10 @@
 
 #include "bx/readerwriter.h"
 
-
-void pyramid_renderFunc(kage::CommandListI& _cmdList, const void* _data, uint32_t _size)
-{
-    VKZ_ZoneScopedC(kage::Color::cyan);
-
-    bx::MemoryReader reader(_data, _size);
-
-    PyramidRendering pyramid{};
-    bx::read(&reader, pyramid, nullptr);
-
-    for (uint16_t ii = 0; ii < pyramid.levels; ++ii)
-    {
-        _cmdList.barrier(pyramid.image
-            , kage::AccessFlagBits::shader_write | kage::AccessFlagBits::shader_read
-            , kage::ImageLayout::general
-            , kage::PipelineStageFlagBits::compute_shader
-        );
-        _cmdList.dispatchBarriers();
-
-        uint32_t levelWidth = glm::max(1u, pyramid.width >> ii);
-        uint32_t levelHeight = glm::max(1u, pyramid.height>> ii);
-
-        vec2 levelSize = vec2(levelWidth, levelHeight);
-        _cmdList.pushConstants(pyramid.pass, &levelSize, sizeof(levelSize));
-
-        kage::ImageHandle srcImg = (ii == 0) ? pyramid.inDepth : pyramid.image;
-
-        uint16_t srcMip = 
-            ii == 0
-            ? kage::kAllMips
-            : (ii - 1);
-
-        kage::CommandListI::DescSet desc2[] =
-        {
-            {srcImg, srcMip, pyramid.sampler},
-            {pyramid.image, ii}
-        };
-
-        _cmdList.pushDescriptorSetWithTemplate(pyramid.pass, desc2, COUNTOF(desc2));
-        _cmdList.dispatch(pyramid.cs, levelWidth, levelHeight, 1);
-
-        _cmdList.barrier(
-            pyramid.image
-            , kage::AccessFlagBits::shader_write | kage::AccessFlagBits::shader_read
-            , kage::ImageLayout::general
-            , kage::PipelineStageFlagBits::compute_shader
-        );
-        _cmdList.dispatchBarriers();
-    }
-}
-
 void renderPyr(const PyramidRendering& _pyramid)
 {
+    VKZ_ZoneScopedC(kage::Color::blue);
+
     kage::startRec(_pyramid.pass);
 
     for (uint16_t ii = 0; ii < _pyramid.levels; ++ii)

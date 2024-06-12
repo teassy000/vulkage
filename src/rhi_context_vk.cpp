@@ -128,6 +128,19 @@ namespace kage { namespace vk
         }
     }
 
+    VkIndexType getIndexType(IndexType _type)
+    {
+        switch (_type)
+        {
+        case kage::IndexType::uint16:
+            return VK_INDEX_TYPE_UINT16;
+        case kage::IndexType::uint32:
+            return VK_INDEX_TYPE_UINT32;
+        default:
+            return VK_INDEX_TYPE_UINT16;
+        }
+    }
+
     VkBufferUsageFlags getBufferUsageFlags(BufferUsageFlags _usageFlags)
     {
         VkBufferUsageFlags usage = 0;
@@ -2526,9 +2539,86 @@ namespace kage { namespace vk
         vkCmdPushDescriptorSetWithTemplateKHR(m_cmdBuffer, prog.updateTemplate, prog.layout, 0, descInfos.data());
     }
 
-    void RHIContext_vk::setViewRect(PassHandle _hPass, uint32_t _x, uint32_t _y, uint32_t _width, uint32_t _height)
+    void RHIContext_vk::setViewport(PassHandle _hPass, int32_t _x, int32_t _y, uint32_t _w, uint32_t _h)
     {
+        VKZ_ZoneScopedC(Color::indian_red);
 
+        if (!m_passContainer.exist(_hPass.id))
+        {
+            message(
+                warning
+                , "setDescriptorSet will not perform for pass %d! It might be useless after render pass sorted"
+                , _hPass.id
+            );
+            return;
+        }
+
+        VkViewport viewport = { 
+            float(_x)
+            , float(_y)
+            , float(_w)
+            , float(_h)
+            , 0.f
+            , 1.f 
+        };
+        vkCmdSetViewport(m_cmdBuffer, 0, 1, &viewport);
+    }
+
+    void RHIContext_vk::setScissor(PassHandle _hPass, int32_t _x, int32_t _y, uint32_t _w, uint32_t _h)
+    {
+        VKZ_ZoneScopedC(Color::indian_red);
+
+        if (!m_passContainer.exist(_hPass.id))
+        {
+            message(
+                warning
+                , "setDescriptorSet will not perform for pass %d! It might be useless after render pass sorted"
+                , _hPass.id
+            );
+            return;
+        }
+
+        VkRect2D scissor = { { _x, _y }, { _w, _h } };
+        vkCmdSetScissor(m_cmdBuffer, 0, 1, &scissor);
+    }
+
+    void RHIContext_vk::setVertexBuffer(PassHandle _hPass, BufferHandle _hBuf)
+    {
+        VKZ_ZoneScopedC(Color::indian_red);
+
+        if (!m_passContainer.exist(_hPass.id))
+        {
+            message(
+                warning
+                , "setVertexBuffer will not perform for pass %d! It might be useless after render pass sorted"
+                , _hPass.id
+            );
+            return;
+        }
+        const Buffer_vk& buf = getBuffer(_hBuf.id);
+
+        VkDeviceSize offsets[1] = { 0 };
+        vkCmdBindVertexBuffers(m_cmdBuffer, 0, 1, &buf.buffer, offsets);
+    }
+
+    void RHIContext_vk::setIndexBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset, IndexType _type)
+    {
+        VKZ_ZoneScopedC(Color::indian_red);
+
+        if (!m_passContainer.exist(_hPass.id))
+        {
+            message(
+                warning
+                , "setIndexBuffer will not perform for pass %d! It might be useless after render pass sorted"
+                , _hPass.id
+            );
+            return;
+        }
+
+        const Buffer_vk& buf = getBuffer(_hBuf.id);
+        VkIndexType t = getIndexType(_type);
+
+        vkCmdBindIndexBuffer(m_cmdBuffer, buf.buffer, _offset, t);
     }
 
     void RHIContext_vk::dispatch(PassHandle _hPass, uint32_t _x, uint32_t _y, uint32_t _z)
@@ -2576,9 +2666,49 @@ namespace kage { namespace vk
 
     }
 
-    void RHIContext_vk::drawIndexed(PassHandle _hPass, uint32_t _idxCount, uint32_t _instCount, uint32_t _firstIdx, uint32_t _vtxOffset, uint32_t _firstInst)
+    void RHIContext_vk::drawIndexed(
+        PassHandle _hPass
+        , uint32_t _idxCount
+        , uint32_t _instCount
+        , uint32_t _firstIdx
+        , uint32_t _vtxOffset
+        , uint32_t _firstInst
+    )
     {
+        VKZ_ZoneScopedC(Color::indian_red);
 
+        if (!m_passContainer.exist(_hPass.id))
+        {
+            message(
+                warning
+                , "drawIndexed will not perform for pass %d! It might be cut after render pass sorted"
+                , _hPass.id
+            );
+            return;
+        }
+
+        createBarriersRec(_hPass);
+        m_barrierDispatcher.dispatch(m_cmdBuffer);
+
+        beginRendering(m_cmdBuffer, _hPass.id);
+
+        PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
+        const uint16_t progIdx = (uint16_t)m_programContainer.getIdIndex(passInfo.programId);
+
+        vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, passInfo.pipeline);
+        vkCmdDrawIndexed(
+            m_cmdBuffer
+            , _idxCount
+            , _instCount
+            , _firstIdx
+            , _vtxOffset
+            , _firstInst
+        );
+
+        endRendering(m_cmdBuffer);
+
+        flushWriteBarriersRec(_hPass);
+        m_barrierDispatcher.dispatch(m_cmdBuffer);
     }
 
     void RHIContext_vk::drawIndirect(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset, uint32_t _drawCount)
@@ -3319,6 +3449,7 @@ namespace kage { namespace vk
         if (passInfo.recorded)
         {
             execRecCmds({ _passId });
+            return;
         }
 
         if (passInfo.renderFunc != nullptr)
@@ -3372,7 +3503,6 @@ namespace kage { namespace vk
         vkCmdSetScissor(m_cmdBuffer, 0, 1, &scissor);
 
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
-        vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, passInfo.pipeline);
 
         pushDescriptorSetWithTemplates(_passId);
 
@@ -3392,6 +3522,8 @@ namespace kage { namespace vk
             const Buffer_vk& indexBuffer = getBuffer(passInfo.indexBufferId);
             vkCmdBindIndexBuffer(m_cmdBuffer, indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32); // TODO: do I need to expose the index type out?
         }
+
+        vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, passInfo.pipeline);
 
         if (kInvalidHandle != passInfo.indirectCountBufferId && kInvalidHandle != passInfo.indirectBufferId)
         {
@@ -3702,6 +3834,62 @@ namespace kage { namespace vk
                     setDescriptorSet(_hPass, mem);
                 }
                 break;
+            case CommandBuffer::record_set_viewport:
+                {
+                    int32_t x;
+                    cmdBuf.read(x);
+
+                    int32_t y;
+                    cmdBuf.read(y);
+
+                    uint32_t w;
+                    cmdBuf.read(w);
+
+                    uint32_t h;
+                    cmdBuf.read(h);
+
+                    setViewport(_hPass, x, y, w, h);
+                }
+                break;
+            case CommandBuffer::record_set_scissor:
+                {
+                    int32_t x;
+                    cmdBuf.read(x);
+
+                    int32_t y;
+                    cmdBuf.read(y);
+
+                    uint32_t w;
+                    cmdBuf.read(w);
+
+                    uint32_t h;
+                    cmdBuf.read(h);
+
+                    setScissor(_hPass, x, y, w, h);
+                }
+                break;
+            case CommandBuffer::record_set_vertex_buffer:
+                {
+                    BufferHandle buf;
+                    cmdBuf.read(buf);
+
+                    setVertexBuffer(_hPass, buf);
+                }
+                break;
+            case CommandBuffer::record_set_index_buffer:
+                {
+                    BufferHandle buf;
+                    cmdBuf.read(buf);
+
+                    uint32_t offset;
+                    cmdBuf.read(offset);
+
+                    IndexType t;
+                    cmdBuf.read(t);
+
+                    setIndexBuffer(_hPass, buf, offset, t);
+                }
+                break;
             case CommandBuffer::record_dispatch:
                 {
                     uint32_t x;
@@ -3716,8 +3904,30 @@ namespace kage { namespace vk
                     dispatch(_hPass, x, y, z);
                 }
                 break;
+            case CommandBuffer::record_draw_indexed:
+                {
+                    uint32_t indexCount;
+                    cmdBuf.read(indexCount);
+
+                    uint32_t instanceCount;
+                    cmdBuf.read(instanceCount);
+
+                    uint32_t firstIndex;
+                    cmdBuf.read(firstIndex);
+
+                    uint32_t vertexOffset;
+                    cmdBuf.read(vertexOffset);
+
+                    uint32_t firstInstance;
+                    cmdBuf.read(firstInstance);
+
+                    drawIndexed(_hPass, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+                }
+                break;
+
             case CommandBuffer::record_end:
                 {
+                    cmdBuf.skip<uint64_t>();
                     done = true;
                 }
                 break;

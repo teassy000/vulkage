@@ -27,6 +27,7 @@ struct UIRendering
 
     // image and for descriptor set push
     kage::ImageHandle fontImage{ kage::kInvalidHandle };
+    kage::SamplerHandle fontSampler{ kage::kInvalidHandle };
 
     kage::ImageHandle color{ kage::kInvalidHandle };
     kage::ImageHandle depth{ kage::kInvalidHandle };
@@ -41,4 +42,4 @@ void vkz_destroyUIRendering(UIRendering& ui);
 
 void vkz_updateImGui(const UIInput& input, DebugRenderOptionsData& rd, const DebugProfilingData& pd, const DebugLogicData& ld);
 
-void vkz_updateUIRenderData(UIRendering& ui);
+void kage_updateUI(UIRendering& ui);
