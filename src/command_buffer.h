@@ -50,6 +50,9 @@ namespace kage
             record_draw,
             record_draw_indirect,
             record_draw_indexed,
+            record_draw_mesh_task,
+            record_draw_mesh_task_indirect,
+            record_draw_mesh_task_indirect_count,
 
             record_end,
 

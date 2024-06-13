@@ -446,6 +446,14 @@ namespace kage { namespace vk
             , uint32_t _offset
             , uint32_t _drawCount
         );
+
+        void drawMeshTaskIndirect(
+            PassHandle _hPass
+            , BufferHandle _hBuf
+            , uint32_t _offset
+            , uint32_t _drawCount
+            , uint32_t _stride
+        );
         
         // rendering command end
         VkSampler getCachedSampler(SamplerFilter _filter, SamplerAddressMode _addrMd, SamplerReductionMode _reduMd);

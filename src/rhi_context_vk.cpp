@@ -2553,11 +2553,12 @@ namespace kage { namespace vk
             return;
         }
 
+        // flip the view port
         VkViewport viewport = { 
             float(_x)
-            , float(_y)
+            , float(_y+_h)
             , float(_w)
-            , float(_h)
+            , -float(_h)
             , 0.f
             , 1.f 
         };
@@ -2638,7 +2639,6 @@ namespace kage { namespace vk
         // flush barriers
         //message(info, "-------- dispatch barrier ------------------------");
         createBarriersRec(_hPass);
-        m_barrierDispatcher.dispatch(m_cmdBuffer);
 
         // get the dispatch size
         PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
@@ -2658,12 +2658,11 @@ namespace kage { namespace vk
 
         //message(info, "-------- flush ---------------------");
         flushWriteBarriersRec(_hPass);
-        m_barrierDispatcher.dispatch(m_cmdBuffer);
     }
 
     void RHIContext_vk::draw(PassHandle _hPass, uint32_t _vtxCount, uint32_t _instCount, uint32_t _firstIdx, uint32_t _firstInst)
     {
-
+        BX_ASSERT(false, "not implemented");
     }
 
     void RHIContext_vk::drawIndexed(
@@ -2688,7 +2687,6 @@ namespace kage { namespace vk
         }
 
         createBarriersRec(_hPass);
-        m_barrierDispatcher.dispatch(m_cmdBuffer);
 
         beginRendering(m_cmdBuffer, _hPass.id);
 
@@ -2708,12 +2706,47 @@ namespace kage { namespace vk
         endRendering(m_cmdBuffer);
 
         flushWriteBarriersRec(_hPass);
-        m_barrierDispatcher.dispatch(m_cmdBuffer);
     }
 
     void RHIContext_vk::drawIndirect(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset, uint32_t _drawCount)
     {
+        BX_ASSERT(false, "not implemented");
+    }
 
+    void RHIContext_vk::drawMeshTaskIndirect(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset, uint32_t _drawCount, uint32_t _stride)
+    {
+        VKZ_ZoneScopedC(Color::indian_red);
+
+        if (!m_passContainer.exist(_hPass.id))
+        {
+            message(
+                warning
+                , "drawMeshTaskIndirect will not perform for pass %d! It might be cut after render pass sorted"
+                , _hPass.id
+            );
+            return;
+        }
+
+        createBarriersRec(_hPass);
+
+        beginRendering(m_cmdBuffer, _hPass.id);
+
+        PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
+        const uint16_t progIdx = (uint16_t)m_programContainer.getIdIndex(passInfo.programId);
+        vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, passInfo.pipeline);
+
+        const Buffer_vk& buf = getBuffer(_hBuf.id);
+        vkCmdDrawMeshTasksIndirectEXT(
+            m_cmdBuffer
+            , buf.buffer
+            , _offset
+            , _drawCount
+            , _stride
+        );
+
+        endRendering(m_cmdBuffer);
+
+        flushWriteBarriersRec(_hPass);
     }
 
     VkSampler RHIContext_vk::getCachedSampler(SamplerFilter _filter, SamplerAddressMode _addrMd, SamplerReductionMode _reduMd)
@@ -3017,7 +3050,6 @@ namespace kage { namespace vk
             }
         }
 
-        //message(info, "+++++++ mismatched barriers +++++++++++++++++++++");
         m_barrierDispatcher.dispatch(m_cmdBuffer);
     }
 
@@ -3158,6 +3190,8 @@ namespace kage { namespace vk
                 //);
             }
         }
+
+        m_barrierDispatcher.dispatch(m_cmdBuffer);
     }
 
     void RHIContext_vk::flushWriteBarriersRec(const PassHandle _hPass)
@@ -3208,6 +3242,8 @@ namespace kage { namespace vk
                 //);
             }
         }
+
+        m_barrierDispatcher.dispatch(m_cmdBuffer);
     }
 
     void RHIContext_vk::pushDescriptorSetWithTemplates(const uint16_t _passId)
@@ -3924,7 +3960,23 @@ namespace kage { namespace vk
                     drawIndexed(_hPass, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
                 }
                 break;
+            case CommandBuffer::record_draw_mesh_task_indirect:
+                {
+                    BufferHandle buf;
+                    cmdBuf.read(buf);
 
+                    uint32_t offset;
+                    cmdBuf.read(offset);
+
+                    uint32_t drawCount;
+                    cmdBuf.read(drawCount);
+
+                    uint32_t stride;
+                    cmdBuf.read(stride);
+
+                    drawMeshTaskIndirect(_hPass, buf, offset, drawCount, stride);
+                }
+                break;
             case CommandBuffer::record_end:
                 {
                     cmdBuf.skip<uint64_t>();

@@ -27,15 +27,20 @@ void renderUI(const UIRendering& _ui)
         return;
     }
 
-    kage::setViewport(0, 0, (uint32_t)imDrawData->DisplaySize.x, (uint32_t)imDrawData->DisplaySize.y);
+    kage::setViewport(
+        (int32_t)imDrawData->DisplayPos.x
+        , (int32_t)imDrawData->DisplayPos.y
+        , (uint32_t)imDrawData->DisplaySize.x
+        , (uint32_t)imDrawData->DisplaySize.y
+    );
 
     kage::setVertexBuffer(_ui.vb);
     kage::setIndexBuffer(_ui.ib, 0, sizeof(ImDrawIdx) == 2 ? kage::IndexType::uint16 : kage::IndexType::uint32);
 
     const ImGuiIO& io = ImGui::GetIO();
     PushConstBlock c{};
-    c.scale = { 2.f / io.DisplaySize.x, 2.f / io.DisplaySize.y };
-    c.translate = { -1.f, -1.f };
+    c.scale = { 2.f / io.DisplaySize.x, -2.f / io.DisplaySize.y };
+    c.translate = { -1.f, 1.f }; // translate from x: [0,2] to [-1,1], y: [0,2] to [1,-1]
     const kage::Memory* mem = kage::alloc(sizeof(PushConstBlock));
     memcpy(mem->data, &c, mem->size);
     kage::setConstants(mem);

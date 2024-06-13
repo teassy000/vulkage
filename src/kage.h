@@ -158,6 +158,31 @@ namespace kage
         , const uint32_t _stride
     );
 
+    // draw mesh task
+    void drawMeshTask(
+        const uint32_t _groupCountX
+        , const uint32_t _groupCountY
+        , const uint32_t _groupCountZ
+    );
+
+    // draw mesh task indirect
+    void drawMeshTask(
+        const BufferHandle _hIndirectBuf
+        , const uint32_t _offset
+        , const uint32_t _count
+        , const uint32_t _stride
+    );
+
+    // draw mesh task indirect count
+    void drawMeshTask(
+        const BufferHandle _hIndirectBuf
+        , const uint32_t _offset
+        , const BufferHandle _countBuf
+        , const uint32_t _countOffset
+        , const uint32_t _maxCount
+        , const uint32_t _stride
+    );
+
     void endRec();
     // loop API Ends
 

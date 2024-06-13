@@ -6,51 +6,39 @@
 
 #include "bx/readerwriter.h"
 
-
-void meshShading_renderFunc(kage::CommandListI& _cmdList, const void* _data, uint32_t _size)
+void renderMS(const MeshShading& _ms)
 {
-    VKZ_ZoneScopedC(kage::Color::cyan);
+    VKZ_ZoneScopedC(kage::Color::blue);
 
-    bx::MemoryReader reader(_data, _size);
+    const kage::Memory* mem = kage::alloc(sizeof(GlobalsVKZ));
+    memcpy(mem->data, &_ms.globals, mem->size);
 
-    MeshShading msd;
-    bx::read(&reader, msd, nullptr);
-
-    _cmdList.barrier(msd.color, kage::AccessFlagBits::color_attachment_write, kage::ImageLayout::color_attachment_optimal, kage::PipelineStageFlagBits::color_attachment_output);
-    _cmdList.barrier(msd.depth, kage::AccessFlagBits::depth_stencil_attachment_write, kage::ImageLayout::depth_stencil_attachment_optimal, kage::PipelineStageFlagBits::late_fragment_tests);
-    _cmdList.dispatchBarriers();
-
-    _cmdList.beginRendering(msd.pass);
-
-    kage::Viewport viewport = { 0.f, (float)msd.height, (float)msd.width, -(float)msd.height, 0.f, 1.f };
-    kage::Rect2D scissor = { {0, 0}, {uint32_t(msd.width), uint32_t(msd.height)} };
-    _cmdList.setViewPort(0, 1, &viewport);
-    _cmdList.setScissorRect(0, 1, &scissor);
-
-    _cmdList.pushConstants(msd.pass, &msd.globals, sizeof(GlobalsVKZ));
-
-    kage::CommandListI::DescSet desc2s[] =
+    using Stage = kage::PipelineStageFlagBits::Enum;
+    using Access = kage::BindingAccess;
+    kage::Binding binds[] =
     {
-        {msd.meshDrawCmdBuffer},
-        {msd.meshBuffer},
-        {msd.meshDrawBuffer},
-        {msd.meshletBuffer},
-        {msd.meshletDataBuffer},
-        {msd.vtxBuffer},
-        {msd.transformBuffer},
-        {msd.meshletVisBuffer},
-        {msd.pyramid, msd.pyramidSampler}
+        {_ms.meshDrawCmdBuffer, Access::read,       Stage::task_shader | Stage::mesh_shader},
+        {_ms.meshBuffer,        Access::read,       Stage::task_shader | Stage::mesh_shader},
+        {_ms.meshDrawBuffer,    Access::read,       Stage::task_shader | Stage::mesh_shader},
+        {_ms.meshletBuffer,     Access::read,       Stage::task_shader | Stage::mesh_shader},
+        {_ms.meshletDataBuffer, Access::read,       Stage::task_shader | Stage::mesh_shader},
+        {_ms.vtxBuffer,         Access::read,       Stage::task_shader | Stage::mesh_shader},
+        {_ms.transformBuffer,   Access::read,       Stage::task_shader | Stage::mesh_shader | Stage::fragment_shader},
+        {_ms.meshletVisBuffer,  Access::read_write, Stage::task_shader | Stage::mesh_shader},
+        {_ms.pyramid,       _ms.pyramidSampler,     Stage::task_shader | Stage::mesh_shader}
     };
 
-    _cmdList.pushDescriptorSetWithTemplate(msd.pass, desc2s, COUNTOF(desc2s));
+    kage::startRec(_ms.pass);
 
-    _cmdList.drawMeshTaskIndirect(msd.meshDrawCmdCountBuffer, 4, 1, 0);
+    kage::setConstants(mem);
+    kage::setBindings(binds, COUNTOF(binds));
 
-    _cmdList.endRendering();
+    kage::setViewport(0, 0, _ms.width, _ms.height);
+    kage::setScissor(0, 0, _ms.width, _ms.height);
 
-    _cmdList.barrier(msd.meshletVisBufferOutAlias, kage::AccessFlagBits::shader_write, kage::PipelineStageFlagBits::mesh_shader);
-    _cmdList.barrier(msd.color, kage::AccessFlagBits::color_attachment_write, kage::ImageLayout::color_attachment_optimal, kage::PipelineStageFlagBits::color_attachment_output);
-    _cmdList.barrier(msd.depth, kage::AccessFlagBits::depth_stencil_attachment_write, kage::ImageLayout::depth_stencil_attachment_optimal, kage::PipelineStageFlagBits::late_fragment_tests);
+    kage::drawMeshTask(_ms.meshDrawCmdCountBuffer, 4, 1, 0);
+
+    kage::endRec();
 }
 
 void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t _width, uint32_t _height, const MeshShadingInitData _initData, bool _late /* = false*/)
@@ -168,10 +156,6 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
     _meshShading.meshletVisBufferOutAlias = mltVisBufOutAlias;
     _meshShading.colorOutAlias = colorOutAlias;
     _meshShading.depthOutAlias = depthOutAlias;
-
-    const kage::Memory* mem = kage::alloc(sizeof(MeshShading));
-    memcpy(mem->data, &_meshShading, mem->size);
-    kage::setCustomRenderFunc(pass, meshShading_renderFunc, mem);
 }
 
 void prepareTaskSubmit(TaskSubmit& _taskSubmit, kage::BufferHandle _drawCmdBuf, kage::BufferHandle _drawCmdCntBuf, bool _late /*= false*/)
@@ -223,7 +207,5 @@ void updateMeshShadingConstants(MeshShading& _meshShading, const GlobalsVKZ& _gl
     _meshShading.width = _width;
     _meshShading.height = _height;
 
-    const kage::Memory* mem = kage::alloc(sizeof(MeshShading));
-    memcpy(mem->data, &_meshShading, mem->size);
-    kage::updateCustomRenderFuncData(_meshShading.pass, mem);
+    renderMS(_meshShading);
 }
