@@ -204,8 +204,6 @@ namespace kage
             , const uint32_t _size
         ) {};
         virtual void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ) {};
-        
-        virtual void updateCustomFuncData(const PassHandle _hPass, const Memory* _mem) {};
 
         virtual void updateConstants(const PassHandle _hPass, const Memory* _mem);
 

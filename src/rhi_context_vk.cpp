@@ -1287,7 +1287,6 @@ namespace kage { namespace vk
         , m_imageFormat{ VK_FORMAT_UNDEFINED }
         , m_depthFormat{ VK_FORMAT_UNDEFINED }
         , m_gfxFamilyIdx{ VK_QUEUE_FAMILY_IGNORED }
-        , m_cmdList{nullptr}
         , m_allocatorCb{nullptr}
         , m_debugCallback{ VK_NULL_HANDLE }
     {
@@ -1364,8 +1363,6 @@ namespace kage { namespace vk
             m_cmd.init(m_gfxFamilyIdx, m_queue, m_numFramesInFlight);
 
             m_cmd.alloc(&m_cmdBuffer);
-
-            m_cmdList = BX_NEW(m_pAllocator, CmdList_vk)(m_cmdBuffer);
         }
 
 
@@ -1488,7 +1485,6 @@ namespace kage { namespace vk
 
         m_cmd.kick();
         m_cmd.alloc(&m_cmdBuffer);
-        m_cmdList->update(m_cmdBuffer);
 
         m_swapchain.present();
         m_cmd.finish();
@@ -1522,7 +1518,6 @@ namespace kage { namespace vk
     {
         m_cmd.kick(_finishAll);
         m_cmd.alloc(&m_cmdBuffer);
-        m_cmdList->update(m_cmdBuffer);
         m_cmd.finish(_finishAll);
     }
 
@@ -1537,12 +1532,6 @@ namespace kage { namespace vk
 
 
         vkDeviceWaitIdle(m_device);
-
-        if (m_cmdList)
-        {
-            bx::free(m_pAllocator, m_cmdList);
-            m_cmdList = nullptr;
-        }
 
         if (m_queryPoolTimeStamp)
         {
@@ -1635,11 +1624,6 @@ namespace kage { namespace vk
         {
             uint16_t passId = m_passContainer.getIdAt(ii);
             PassInfo_vk& pass = m_passContainer.getDataRef(passId);
-            if (pass.renderFuncDataPtr)
-            {
-                bx::free(m_pAllocator, pass.renderFuncDataPtr);
-            }
-            pass.renderFunc = nullptr;
 
             if (m_device && pass.pipeline)
             {
@@ -1770,31 +1754,6 @@ namespace kage { namespace vk
         passInfo.config.threadCountX = _threadCountX;
         passInfo.config.threadCountY = _threadCountY;
         passInfo.config.threadCountZ = _threadCountZ;
-    }
-
-    void RHIContext_vk::updateCustomFuncData(const PassHandle _hPass, const Memory* _mem)
-    {
-        VKZ_ZoneScopedC(Color::indian_red);
-
-        assert(_mem != nullptr);
-        if (!m_passContainer.exist(_hPass.id))
-        {
-            message(info, "update will not perform for pass %d! It might be useless after render pass sorted", _hPass.id);
-            return;
-        }
-
-        PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
-        
-        if (nullptr != passInfo.renderFuncDataPtr)
-        {
-            free(allocator(), passInfo.renderFuncDataPtr);
-        }
-
-        void * mem = alloc(allocator(), _mem->size);
-        memcpy(mem, _mem->data, _mem->size);
-
-        passInfo.renderFuncDataPtr = mem;
-        passInfo.renderFuncDataSize = _mem->size;
     }
 
     void RHIContext_vk::updateBuffer(
@@ -2126,10 +2085,6 @@ namespace kage { namespace vk
         passInfo.indirectMaxDrawCount = passMeta.indirectMaxDrawCount;
 
         passInfo.writeDepthId = passMeta.writeDepthId;
-
-        passInfo.renderFunc = passMeta.renderFunc;
-        passInfo.renderFuncDataPtr = passMeta.renderFuncDataPtr;
-        passInfo.renderFuncDataSize = passMeta.renderFuncDataSize;
 
         // desc part
         passInfo.programId = passMeta.programId;
@@ -3485,18 +3440,6 @@ namespace kage { namespace vk
         if (passInfo.recorded)
         {
             execRecCmds({ _passId });
-            return;
-        }
-
-        if (passInfo.renderFunc != nullptr)
-        {
-            if (PassExeQueue::graphics == passInfo.queue || PassExeQueue::compute == passInfo.queue)
-            {
-                const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
-                vkCmdBindPipeline(m_cmdBuffer, prog.bindPoint, passInfo.pipeline);
-            }
- 
-            passInfo.renderFunc(*m_cmdList, passInfo.renderFuncDataPtr, passInfo.renderFuncDataSize);
             return;
         }
 

@@ -15,7 +15,6 @@
 #include "kage_rhi_vk.h"
 
 #include "rhi_context.h"
-#include "cmd_list_vk.h"
 #include "command_buffer.h"
 
 namespace kage { namespace vk
@@ -99,10 +98,6 @@ namespace kage { namespace vk
 
         uint32_t indexCount{ 0 };
         uint32_t vertexCount{ 0 };
-
-        RenderFuncPtr renderFunc{ nullptr };
-        void * renderFuncDataPtr{ nullptr };
-        uint32_t renderFuncDataSize{ 0 };
 
         // barrier status expect in current pass
         std::pair<uint16_t, BarrierState_vk> writeDepth{ kInvalidHandle, {} };
@@ -307,8 +302,6 @@ namespace kage { namespace vk
         void updateResolution(const Resolution& _resolution) override;
 
         void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ) override;
-
-        void updateCustomFuncData(const PassHandle _hPass, const Memory* _mem) override;
 
         void updateBuffer(
             const BufferHandle _hBuf
@@ -586,9 +579,6 @@ namespace kage { namespace vk
 
         // barrier dispatcher
         BarrierDispatcher m_barrierDispatcher;
-
-        // custom command list
-        CmdList_vk*  m_cmdList;
 
         // naive profiling
         VkQueryPool m_queryPoolTimeStamp;

@@ -27,7 +27,6 @@ namespace kage
             update_image,
             update_buffer,
             update_thread_count,
-            update_custom_render_func_data,
             update_constants,
 
             record,

@@ -372,8 +372,6 @@ namespace kage
         void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout
             , const ImageHandle _outAlias);
 
-        void setCustomRenderFunc(const PassHandle _hPass, RenderFuncPtr _func, const Memory* _dataMem);
-
         void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx, const ImageHandle _outAlias);
 
         void resizeImage(ImageHandle _hImg, uint32_t _width, uint32_t _height);
@@ -384,8 +382,6 @@ namespace kage
         void setMultiFrame(BufferHandle _buf);
         
         void setPresentImage(ImageHandle _rt, uint32_t _mipLv);
-
-        void updateCustomRenderFuncData(const PassHandle _hPass, const Memory* _dataMem);
 
         void updateBuffer(const BufferHandle _hbuf, const Memory* _mem, const uint32_t _offset, const uint32_t _size);
         void updateImage(const ImageHandle _hImg 
@@ -1794,21 +1790,6 @@ namespace kage
         }
     }
 
-    void Context::setCustomRenderFunc(const PassHandle _hPass, RenderFuncPtr _func, const Memory* _dataMem)
-    {
-        assert(_func != nullptr);
-
-        void * mem = alloc(getAllocator(), _dataMem->size);
-        memcpy(mem, _dataMem->data, _dataMem->size);
-
-        PassMetaData& passMeta = m_passMetas[_hPass.id];
-        passMeta.renderFunc = _func;
-        passMeta.renderFuncDataPtr = mem;
-        passMeta.renderFuncDataSize = _dataMem->size;
-
-        release(_dataMem);
-    }
-
     void Context::setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx, const ImageHandle _outAlias)
     {
         if (isColorAttachment(_hImg) && !availableBinding(m_usedAttchBindPoints, _hPass, _attachmentIdx))
@@ -1914,13 +1895,6 @@ namespace kage
         m_presentMipLevel = _mipLv;
 
         setRenderGraphDataDirty();
-    }
-
-    void Context::updateCustomRenderFuncData(const PassHandle _hPass, const Memory* _dataMem)
-    {
-        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::update_custom_render_func_data);
-        cmd.write(_hPass);
-        cmd.write(_dataMem);
     }
 
     void Context::updateBuffer(const BufferHandle _hBuf, const Memory* _mem, const uint32_t _offset, const uint32_t _size)
@@ -2164,18 +2138,6 @@ namespace kage
                     _cmdbuf.read(z);
 
                     m_rhiContext->updateThreadCount(id, x, y, z);
-                }
-                break;
-            case CommandBuffer::update_custom_render_func_data:
-                {
-                    PassHandle pass;
-                    _cmdbuf.read(pass);
-
-                    const Memory* mem;
-                    _cmdbuf.read(mem);
-
-                    m_rhiContext->updateCustomFuncData(pass, mem);
-                    release(mem);
                 }
                 break;
             case CommandBuffer::record_start:
@@ -2717,11 +2679,6 @@ namespace kage
         ;
     }
 
-    void setCustomRenderFunc(const PassHandle _hPass, RenderFuncPtr _func, const Memory* _dataMem)
-    {
-        s_ctx->setCustomRenderFunc(_hPass, _func, _dataMem);
-    }
-
     void setPresentImage(ImageHandle _rt, uint32_t _mipLv /*= 0*/)
     {
         s_ctx->setPresentImage(_rt, _mipLv);
@@ -2735,11 +2692,6 @@ namespace kage
     void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ)
     {
         s_ctx->updateThreadCount(_hPass, _threadCountX, _threadCountY, _threadCountZ);
-    }
-
-    void updateCustomRenderFuncData(const PassHandle _hPass, const Memory* _dataMem)
-    {
-        s_ctx->updateCustomRenderFuncData(_hPass, _dataMem);
     }
 
     void updateBuffer(

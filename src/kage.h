@@ -4,7 +4,6 @@
 #include <initializer_list>
 
 #include "kage_structs.h"
-#include "cmd_list.h"
 
 namespace kage
 {
@@ -68,11 +67,7 @@ namespace kage
     void copyBuffer(const PassHandle _hPass, const BufferHandle _hSrc, const BufferHandle _hDst, const uint32_t _size);
     void blitImage(const PassHandle _hPass, const ImageHandle _hSrc, const ImageHandle _hDst);
 
-    using RenderFuncPtr = void (*)(CommandListI& _cmdList, const void* _data, uint32_t size);
-    void setCustomRenderFunc(const PassHandle _hPass, RenderFuncPtr _func, const Memory* _dataMem);
     void setPresentImage(ImageHandle _rt, uint32_t _mipLv = 0);
-
-    void updateCustomRenderFuncData(const PassHandle _hPass, const Memory* _dataMem);
 
     void updatePushConstants(const PassHandle _hPass, const Memory* _mem);
 

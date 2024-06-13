@@ -1,6 +1,5 @@
 #pragma once
 
-#include "cmd_list.h"
 #include "config.h"
 #include "kage.h"
 
@@ -298,7 +297,6 @@ namespace kage
     {
     };
 
-    using RenderFuncPtr = void (*)(CommandListI& _cmdList, const void* _data, uint32_t _size);
     struct PassMetaData : public PassDesc
     {
         PassMetaData() {};
@@ -334,10 +332,6 @@ namespace kage
         uint32_t    indirectCountBufOffset{ 0 };
         uint32_t    indirectMaxDrawCount{ 0 };
         uint32_t    indirectBufStride{ 0 };
-
-        RenderFuncPtr   renderFunc{ nullptr };
-        void* renderFuncDataPtr{ nullptr };
-        uint32_t renderFuncDataSize{ 0 };
     };
 
     struct RHIBrief
