@@ -128,11 +128,6 @@ void setPyramidPassDependency(PyramidRendering& _pyramid, const kage::ImageHandl
         , kage::ImageLayout::general
         , _pyramid.imgOutAlias
     );
-
-    const kage::Memory* mem = kage::alloc(sizeof(PyramidRendering));
-    memcpy(mem->data, &_pyramid, mem->size);
-
-    //kage::setCustomRenderFunc(_pyramid.pass, pyramid_renderFunc, mem);
 }
 
 void updatePyramid(PyramidRendering& _pyramid, uint32_t _width, uint32_t _height)

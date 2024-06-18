@@ -191,7 +191,6 @@ namespace kage
     bool init(kage::Init _config = {});
 
     void bake();
-    void frame();
     void render();
     void reset(uint32_t _width, uint32_t _height, uint32_t _reset);
     void shutdown();

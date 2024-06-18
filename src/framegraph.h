@@ -418,7 +418,7 @@ namespace kage
 
         bx::MemoryWriter m_rhiMemWriter;
 
-        CombinedResID  m_combinedPresentImage;
+        ImageHandle    m_presentImage{kInvalidHandle};
         uint32_t       m_presentMipLevel;
         PassHandle     m_finalPass{kInvalidHandle};
 

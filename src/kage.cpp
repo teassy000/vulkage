@@ -411,7 +411,6 @@ namespace kage
 
         void render();
         void bake();
-        void frame();
 
         void reset(uint32_t _windth, uint32_t _height, uint32_t _reset);
         void rhi_render();
@@ -2329,22 +2328,17 @@ namespace kage
         m_rhiContext->bake();
     }
 
-    void Context::frame()
-    {
-
-    }
-
     void Context::reset(uint32_t _windth, uint32_t _height, uint32_t _reset)
     {
         m_resolution.width = _windth;
         m_resolution.height = _height;
         m_resolution.reset = _reset;
+
+        m_rhiContext->updateResolution(m_resolution);
     }
 
     void Context::rhi_render()
     {
-        m_rhiContext->updateResolution(m_resolution);
-
         rendererExecCmds(m_cmdPre);
 
         rendererExecCmds(m_cmdRecording);
@@ -2422,6 +2416,10 @@ namespace kage
     {
         CommandBuffer& cmd = getCommandBuffer(CommandBuffer::record_set_constants);
         cmd.write(_mem);
+        cmd.write(_mem->data);
+        cmd.write(_mem->size);
+
+        BX_ASSERT(_mem->size < 256, "why the size exceed 256 for pass: %s", getName(m_recordingPass));
 
         m_transientMemories.push_back(_mem);
     }
@@ -2912,11 +2910,6 @@ namespace kage
     void reset(uint32_t _width, uint32_t _height, uint32_t _reset)
     {
         s_ctx->reset(_width, _height, _reset);
-    }
-
-    void frame()
-    {
-        s_ctx->frame();
     }
 
     void render()

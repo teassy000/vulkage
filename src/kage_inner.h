@@ -336,8 +336,8 @@ namespace kage
 
     struct RHIBrief
     {
-        uint16_t finalPassId{ kInvalidHandle };
-        uint16_t presentImageId{ kInvalidHandle };
+        PassHandle finalPass{ kInvalidHandle };
+        ImageHandle presentImage{ kInvalidHandle };
         uint32_t presentMipLevel{ 0 };
     };
 

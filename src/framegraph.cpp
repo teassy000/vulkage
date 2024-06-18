@@ -312,7 +312,7 @@ namespace kage
 
         m_sparse_pass_data_ref.resize(brief.passNum);
 
-        m_combinedPresentImage = CombinedResID{ brief.presentImage, ResourceType::image };
+        m_presentImage = { brief.presentImage };
         m_presentMipLevel = brief.presentMipLevel;
     }
 
@@ -710,7 +710,7 @@ namespace kage
             CombinedResID cid = resPassPair.first;
             uint16_t passIdx = resPassPair.second;
 
-            if (cid == m_combinedPresentImage)
+            if (cid.id == m_presentImage.id)
             {
                 m_finalPass = m_hPass[passIdx];
                 break;
@@ -2194,8 +2194,8 @@ namespace kage
         {
             bx::write(&m_rhiMemWriter, RHIContextOpMagic::set_brief, nullptr);
             RHIBrief brief;
-            brief.finalPassId = m_finalPass.id;
-            brief.presentImageId = m_combinedPresentImage.id;
+            brief.finalPass = m_finalPass;
+            brief.presentImage = m_presentImage;
             brief.presentMipLevel = m_presentMipLevel;
 
             bx::write(&m_rhiMemWriter, brief, nullptr);

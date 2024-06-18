@@ -16,6 +16,8 @@ namespace kage { namespace vk
         resize = 2u,
     };
 
+
+
     struct Swapchain_vk
     {
         Swapchain_vk()

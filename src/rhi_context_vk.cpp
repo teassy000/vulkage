@@ -81,6 +81,112 @@ namespace kage { namespace vk
         s_renderVK->release(_obj);
     }
 
+
+    struct DebugNames
+    {
+        using HashKey = uint32_t;
+        using NameMap = stl::unordered_map<HashKey, String>;
+
+        ~DebugNames()
+        {
+            m_names.clear();
+        }
+
+        template<typename Ty>
+        void setName(Ty _obj, const char* _name)
+        {
+            VkObjectType type = getType<Ty>();
+            uint64_t handle = (uint64_t)(_obj.vk);
+
+            bx::HashMurmur2A hash;
+            hash.begin();
+            hash.add(type);
+            hash.add(handle);
+
+            uint32_t hashKey = hash.end();
+            String str(_name);
+            m_names.insert({ hashKey, str });
+        }
+
+        template<typename Ty>
+        void unsetName(Ty _obj)
+        {
+            VkObjectType type = getType<Ty>();
+            uint64_t handle = (uint64_t)(_obj.vk);
+
+            bx::HashMurmur2A hash;
+            hash.begin();
+            hash.add(type);
+            hash.add(handle);
+
+            uint32_t hashKey = hash.end();
+
+            m_names.erase(hashKey);
+        }
+
+
+        template<typename Ty>
+        const char* getDebugName(Ty _obj)
+        {
+            VkObjectType type = getType<Ty>();
+            uint64_t handle = (uint64_t)(_obj.vk);
+
+            bx::HashMurmur2A hash;
+            hash.begin();
+            hash.add(type);
+            hash.add(handle);
+
+            uint32_t hashKey = hash.end();
+
+            NameMap::iterator it = m_names.find(hashKey);
+            if (m_names.end() != it)
+            {
+                return it->second.getCPtr();
+            }
+
+            return "";
+        }
+
+        NameMap m_names;
+    };
+
+    static DebugNames* s_debugNames{nullptr};
+
+    DebugNames* getDebugNames()
+    {
+        if (nullptr == s_debugNames)
+        {
+            s_debugNames = BX_NEW(g_bxAllocator, DebugNames);
+        }
+
+        return s_debugNames;
+    }
+
+
+    template<typename Ty>
+    void setLocalDebugName(Ty _obj, const char* _name)
+    {
+        getDebugNames()->setName(_obj, _name);
+    }
+
+    template<typename Ty>
+    void unsetLocalDebugName(Ty _obj)
+    {
+        getDebugNames()->unsetName(_obj);
+    }
+
+    template<typename Ty>
+    const char* getLocalDebugName(Ty _obj)
+    {
+        return getDebugNames()->getDebugName(_obj);
+    }
+
+    void shutdownLocalDebugName()
+    {
+        bx::deleteObject(g_bxAllocator, s_debugNames);
+        s_debugNames = nullptr;
+    }
+
     RHIContext* rendererCreate(const Resolution& _resolution, void* _wnd)
     {
         s_renderVK = BX_NEW(g_bxAllocator, RHIContext_vk)(g_bxAllocator);
@@ -92,6 +198,8 @@ namespace kage { namespace vk
 
     void rendererDestroy()
     {
+        shutdownLocalDebugName();
+
         s_renderVK->shutdown();
         bx::deleteObject(g_bxAllocator, s_renderVK);
         s_renderVK = nullptr;
@@ -1263,8 +1371,9 @@ namespace kage { namespace vk
             char str[2048];
 
             int32_t size = bx::min<int32_t>(sizeof(str) - 1, bx::vsnprintf(str, sizeof(str), _format, args));
-            vsprintf(str, _format, args);
             va_end(args);
+
+            setLocalDebugName(_obj, str);
 
             VkDebugUtilsObjectNameInfoEXT info = { VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
             info.objectType = getType<Ty>();
@@ -1337,13 +1446,26 @@ namespace kage { namespace vk
 
         m_swapchain.create(m_nwh, _resolution);
 
+
         m_imageFormat = m_swapchain.getSwapchainFormat();
         m_depthFormat = VK_FORMAT_D32_SFLOAT;
 
         // fill the image to barrier
         for (uint32_t ii = 0; ii < m_swapchain.m_swapchainImageCount; ++ii)
         {
-            m_barrierDispatcher.track(m_swapchain.m_swapchainImages[ii]
+            VkImage scimg = m_swapchain.m_swapchainImages[ii];
+            setDebugObjName(m_device, scimg, "Img_Swapchain_%d", ii);
+
+            /*
+            m_barrierDispatcher.track(
+                scimg
+                , VK_IMAGE_ASPECT_COLOR_BIT
+                , { 0, VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT }
+            );
+            */
+
+            m_barrierDispatcher.track(
+                scimg
                 , VK_IMAGE_ASPECT_COLOR_BIT
                 , { 0, VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT }
             );
@@ -1425,12 +1547,12 @@ namespace kage { namespace vk
 
         SwapchainStatus_vk swapchainStatus = m_swapchain.getSwapchainStatus();
         if (swapchainStatus == SwapchainStatus_vk::not_ready) {  // skip this frame
-            return true;
+            //return true;
         }
 
         if(swapchainStatus == SwapchainStatus_vk::resize)
         {
-            return true;
+            //return true;
         }
 
         if (!m_swapchain.acquire(m_cmdBuffer))
@@ -1463,7 +1585,7 @@ namespace kage { namespace vk
 
 
                 createBarriers(passId);
-                checkUnmatchedBarriers(passId);
+                //checkUnmatchedBarriers(passId);
 
                 m_barrierDispatcher.dispatch(m_cmdBuffer);
 
@@ -1711,23 +1833,25 @@ namespace kage { namespace vk
             // track new images
             for (uint32_t ii = 0; ii < m_swapchain.m_swapchainImageCount; ++ii)
             {
-                m_barrierDispatcher.track(m_swapchain.m_swapchainImages[ii]
+                VkImage scimg = m_swapchain.m_swapchainImages[ii];
+                setDebugObjName(m_device, scimg, "Img_Swapchain_%d", ii);
+
+                m_barrierDispatcher.track(
+                    m_swapchain.m_swapchainImages[ii]
                     , VK_IMAGE_ASPECT_COLOR_BIT
                     , { 0, VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT }
                 );
             }
 
             // update attachments
-            for (uint32_t ii = 0; ii < m_colorAttchBase.size(); ++ii)
+            for (const kage::ImageHandle & hImg : m_colorAttchBase)
             {
-                const ImageHandle& hImg = m_colorAttchBase[ii];
                 const stl::vector<ImageHandle>& attchImages = m_imgToAliases.find(hImg)->second;
                 updateImageWithAlias(hImg, _resolution.width, _resolution.height, 1, nullptr, attchImages);
             }
 
-            for (uint32_t ii = 0; ii < m_depthAttchBase.size(); ++ii)
+            for (const kage::ImageHandle & hImg : m_depthAttchBase)
             {
-                const ImageHandle& hImg = m_depthAttchBase[ii];
                 const stl::vector<ImageHandle>& attchImages = m_imgToAliases.find(hImg)->second;
                 updateImageWithAlias(hImg, _resolution.width, _resolution.height, 1, nullptr, attchImages);
             }
@@ -2312,7 +2436,8 @@ namespace kage { namespace vk
         for (int ii = 0; ii < info.resCount; ++ii)
         {
             ResInteractDesc interact{ info.barrierState };
-            m_barrierDispatcher.track(buffers[ii].buffer
+            m_barrierDispatcher.track(
+                buffers[ii].buffer
                 , { getAccessFlags(interact.access), getPipelineStageFlags(interact.stage) }
                 , baseBuffer.buffer
             );
@@ -2489,9 +2614,12 @@ namespace kage { namespace vk
             descInfos[ii] = info;
         }
 
-        PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
-        const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
-        vkCmdPushDescriptorSetWithTemplateKHR(m_cmdBuffer, prog.updateTemplate, prog.layout, 0, descInfos.data());
+        if(!descInfos.empty())
+        {
+            PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
+            const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
+            vkCmdPushDescriptorSetWithTemplateKHR(m_cmdBuffer, prog.updateTemplate, prog.layout, 0, descInfos.data());
+        }
     }
 
     void RHIContext_vk::setViewport(PassHandle _hPass, int32_t _x, int32_t _y, uint32_t _w, uint32_t _h)
@@ -2592,7 +2720,7 @@ namespace kage { namespace vk
         }
 
         // flush barriers
-        //message(info, "-------- dispatch barrier ------------------------");
+        //
         createBarriersRec(_hPass);
 
         // get the dispatch size
@@ -2872,7 +3000,8 @@ namespace kage { namespace vk
         const Image_vk& vkImg = getImage(_imgId);
         const ImageCreateInfo& imgInfo = m_imgCreateInfos.getIdToData(_imgId);
 
-        m_barrierDispatcher.barrier(vkImg.image
+        m_barrierDispatcher.barrier(
+            vkImg.image
             , vkImg.aspectMask
             , { VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT }
         );
@@ -2893,6 +3022,8 @@ namespace kage { namespace vk
             , vkImg.aspectMask
             , { VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT }
         );
+
+        m_barrierDispatcher.dispatch(m_cmdBuffer);
 
         message(info, "release buffer: 0x%llx", scratch.buffer);
         
@@ -3109,6 +3240,7 @@ namespace kage { namespace vk
     void RHIContext_vk::createBarriersRec(const PassHandle _hPass)
     {
 
+//        message(info, "- start dispatch barrier ------------------------");
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_hPass.id);
         for (const Binding& binding : m_descSets)
         {
@@ -3126,27 +3258,28 @@ namespace kage { namespace vk
                     , img.aspectMask
                     , bs);
 
-                //message(info, "*** set barrier for img: %s, access: %d, stage: %d, layout: %d"
-                //    , getName(binding.img)
-                //    , bs.accessMask
-                //    , bs.stageMask
-                //    , bs.imgLayout
-                //);
+//                 message(info, "*** set barrier for img: %s, access: %d, stage: %d, layout: %d"
+//                     , getName(binding.img)
+//                     , bs.accessMask
+//                     , bs.stageMask
+//                     , bs.imgLayout
+//                 );
             }
             else if (ResourceType::buffer == binding.type)
             {
                 const Buffer_vk& buf = getBuffer(binding.buf.id);
                 m_barrierDispatcher.barrier(buf.buffer, bs);
 
-                //message(info, "*** set barrier for buf: %s, access: %d, stage: %d"
-                //    , getName(binding.buf)
-                //    , bs.accessMask
-                //    , bs.stageMask
-                //);
+//                 message(info, "*** set barrier for buf: %s, access: %d, stage: %d"
+//                     , getName(binding.buf)
+//                     , bs.accessMask
+//                     , bs.stageMask
+//                 );
             }
         }
 
         m_barrierDispatcher.dispatch(m_cmdBuffer);
+        //message(info, "- end dispatch barrier ------------------------");
     }
 
     void RHIContext_vk::flushWriteBarriersRec(const PassHandle _hPass)
@@ -3246,7 +3379,7 @@ namespace kage { namespace vk
                 }
 
                 VkImageView view = img.defaultView;
-                VkImageLayout layout = m_barrierDispatcher.getDstImageLayout(img.image);
+                VkImageLayout layout = m_barrierDispatcher.getCurrentImageLayout(img.image);
                 DescriptorInfo info{ sampler, view, layout };
                 descInfos[ii] = info;
             }
@@ -3366,7 +3499,7 @@ namespace kage { namespace vk
             view = getCachedImageView(_hImg, _mip, 1, img.viewType);
         }
 
-        VkImageLayout layout = m_barrierDispatcher.getDstImageLayout(img.image);
+        VkImageLayout layout = m_barrierDispatcher.getCurrentImageLayout(img.image);
 
         return { sampler, view, layout };
     }
@@ -3611,9 +3744,9 @@ namespace kage { namespace vk
         vkCmdFillBuffer(m_cmdBuffer, buf.buffer, 0, buf.size, buf.fillVal);
     }
      
-    bool RHIContext_vk::checkCopyableToSwapchain(const uint16_t _imgId) const
+    bool RHIContext_vk::checkCopyableToSwapchain(const ImageHandle _hImg) const
     {
-        const uint16_t baseId = m_aliasToBaseImages.getIdToData(_imgId);
+        const uint16_t baseId = m_aliasToBaseImages.getIdToData(_hImg.id);
         const ImageCreateInfo& srcInfo = m_imgCreateInfos.getIdToData(baseId);
         
         bool result = true;
@@ -3630,9 +3763,9 @@ namespace kage { namespace vk
         return result;
     }
 
-    bool RHIContext_vk::checkBlitableToSwapchain(const uint16_t _imgId) const
+    bool RHIContext_vk::checkBlitableToSwapchain(const ImageHandle _hImg) const
     {
-        const uint16_t baseId = m_aliasToBaseImages.getIdToData(_imgId);
+        const uint16_t baseId = m_aliasToBaseImages.getIdToData(_hImg.id);
         const ImageCreateInfo& srcInfo = m_imgCreateInfos.getIdToData(baseId);
 
         bool result = true;
@@ -3651,11 +3784,11 @@ namespace kage { namespace vk
 
     void RHIContext_vk::drawToSwapchain(uint32_t _swapImgIdx)
     {
-        if (checkCopyableToSwapchain(m_brief.presentImageId))
+        if (checkCopyableToSwapchain(m_brief.presentImage))
         {
             copyToSwapchain(_swapImgIdx);
         }
-        else if (checkBlitableToSwapchain(m_brief.presentImageId))
+        else if (checkBlitableToSwapchain(m_brief.presentImage))
         {
             blitToSwapchain(_swapImgIdx);
         }
@@ -3670,14 +3803,14 @@ namespace kage { namespace vk
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
-        if (!m_imageContainer.exist(m_brief.presentImageId))
+        if (!m_imageContainer.exist(m_brief.presentImage.id))
         {
             message(DebugMessageType::error, "Does the presentImageId set correctly?");
             return;
         }
 
         // barriers
-        const Image_vk& presentImg = getImage(m_brief.presentImageId);
+        const Image_vk& presentImg = getImage(m_brief.presentImage.id);
         m_barrierDispatcher.barrier(
             presentImg.image, presentImg.aspectMask,
             { VK_ACCESS_TRANSFER_READ_BIT, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT }
@@ -3723,23 +3856,24 @@ namespace kage { namespace vk
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
-        if (!m_imageContainer.exist(m_brief.presentImageId))
+        if (!m_imageContainer.exist(m_brief.presentImage.id))
         {
             message(DebugMessageType::error, "Does the presentImageId set correctly?");
             return;
         }
         // add swapchain barrier
         // img to present
-        const Image_vk& presentImg = getImage(m_brief.presentImageId);
-
+        const Image_vk& presentImg = getImage(m_brief.presentImage.id);
         m_barrierDispatcher.barrier(
-            presentImg.image, presentImg.aspectMask,
+            presentImg.image
+            , presentImg.aspectMask,
             { VK_ACCESS_TRANSFER_READ_BIT, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT }
-        );
-        
-        // swapchain image
-        const VkImage& swapImg = m_swapchain.m_swapchainImages[_swapImgIdx];
 
+        );
+
+
+        // swapchain image
+        const VkImage swapImg = m_swapchain.m_swapchainImages[_swapImgIdx];
         m_barrierDispatcher.barrier(
             swapImg, VK_IMAGE_ASPECT_COLOR_BIT,
             { VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT }
@@ -3801,6 +3935,14 @@ namespace kage { namespace vk
                 {
                     const Memory* mem;
                     cmdBuf.read(mem);
+
+                    const uint8_t* data;
+                    cmdBuf.read(data);
+
+                    uint32_t size;
+                    cmdBuf.read(size);
+
+                    BX_ASSERT(mem->size < 256 , "why the size exceed 256 for pass: %s", getName(_hPass));
 
                     setConstants(_hPass, mem);
                 }
@@ -3967,8 +4109,6 @@ namespace kage { namespace vk
         ));
 
         VKZ_ProfVkContext(m_tracyVkCtx, m_physicalDevice, m_device, _queue, m_tracyCmdBuf);
-#else
-        ;
 #endif
     }
 
@@ -3984,23 +4124,57 @@ namespace kage { namespace vk
 #endif
     }
 
-    void BarrierDispatcher::track(const VkImage _img, const ImageAspectFlags _aspect, BarrierState_vk _barrierState, const VkImage _baseImg/* = 0*/)
+
+    BarrierDispatcher::~BarrierDispatcher()
+    {
+        clearPending();
+    }
+
+    void BarrierDispatcher::track(
+        const VkBuffer _buf
+        , BarrierState_vk _state
+        , const VkBuffer _baseBuf /* = VK_NULL_HANDLE */
+    )
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
-        assert(m_imgAspectFlags.find(_img) == m_imgAspectFlags.end());
-        assert(m_imgBarrierStatus.find(_img) == m_imgBarrierStatus.end());
+        BX_ASSERT(m_trackingBuffers.find(_buf) == m_trackingBuffers.end(), "buffer already tracked!");
 
-        m_imgAspectFlags.insert({ _img, getImageAspectFlags(_aspect) });
-        m_imgBarrierStatus.insert({ _img , _barrierState });
+        m_trackingBuffers.insert({ _buf , { _buf, _state } });
 
-        if (_baseImg != 0) {
+        if (VK_NULL_HANDLE != _baseBuf)
+        {
+            m_aliasToBaseBuffers.insert({ _buf, _baseBuf });
 
+            // if the buffer is the base buffer
+            if (_buf == _baseBuf)
+            {
+                m_baseBufferStatus.insert({ _baseBuf, { _baseBuf, _state} });
+            }
+        }
+    }
+
+    void BarrierDispatcher::track(
+        const VkImage _img
+        , const VkImageAspectFlags _aspect
+        , BarrierState_vk _barrierState
+        , const VkImage _baseImg /* = VK_NULL_HANDLE */
+    )
+    {
+        VKZ_ZoneScopedC(Color::indian_red);
+
+        BX_ASSERT(m_trackingImages.find(_img) == m_trackingImages.end(), "image already tracked!");
+
+        m_trackingImages.insert({ _img , { _img, _aspect, _barrierState} });
+
+        if (VK_NULL_HANDLE != _baseImg)
+        {
             m_aliasToBaseImages.insert({ _img, _baseImg });
+
+            // if the image is the base image
             if (_img == _baseImg)
             {
-                m_baseImgAspectFlags.insert({ _baseImg, getImageAspectFlags(_aspect) });
-                m_baseImgBarrierStatus.insert({ _baseImg , _barrierState });
+                m_baseImageStatus.insert({ _baseImg, { _baseImg, _aspect, _barrierState} });
             }
         }
     }
@@ -4009,19 +4183,25 @@ namespace kage { namespace vk
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
+        // untrack the status
         {
-            auto it = m_aliasToBaseBuffers.find(_buf);
-            if (it != m_aliasToBaseBuffers.end())
+            using Iter = decltype(m_trackingBuffers)::iterator;
+
+            Iter it = m_trackingBuffers.find(_buf);
+            if (it != m_trackingBuffers.end())
             {
-                m_aliasToBaseBuffers.erase(it);
+                m_trackingBuffers.erase(it);
             }
         }
 
+        // untrack the alias
         {
-            auto it = m_bufBarrierStatus.find(_buf);
-            if (it != m_bufBarrierStatus.end())
+            using Iter = decltype(m_aliasToBaseBuffers)::iterator;
+
+            Iter it = m_aliasToBaseBuffers.find(_buf);
+            if (it != m_aliasToBaseBuffers.end())
             {
-                m_bufBarrierStatus.erase(it);
+                m_aliasToBaseBuffers.erase(it);
             }
         }
     }
@@ -4030,50 +4210,25 @@ namespace kage { namespace vk
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
+        // untrack the status
         {
-            auto it = m_aliasToBaseImages.find(_img);
+            using Iter = decltype(m_trackingImages)::iterator;
+
+            Iter it = m_trackingImages.find(_img);
+            if (it != m_trackingImages.end())
+            {
+                m_trackingImages.erase(it);
+            }
+        }
+
+        // untrack the alias
+        {
+            using Iter = decltype(m_aliasToBaseImages)::iterator;
+
+            Iter it = m_aliasToBaseImages.find(_img);
             if (it != m_aliasToBaseImages.end())
             {
                 m_aliasToBaseImages.erase(it);
-            }
-        }
-
-        {
-            auto it = m_imgAspectFlags.find(_img);
-            if (it != m_imgAspectFlags.end())
-            {
-                m_imgAspectFlags.erase(it);
-            }
-        }
-
-        {
-            auto it = m_imgBarrierStatus.find(_img);
-            if (it != m_imgBarrierStatus.end())
-            {
-                m_imgBarrierStatus.erase(it);
-            }
-        }
-    }
-
-    BarrierDispatcher::~BarrierDispatcher()
-    {
-        clear();
-    }
-
-    void BarrierDispatcher::track(const VkBuffer _buf, BarrierState_vk _barrierState, const VkBuffer _baseBuf/* = 0*/)
-    {
-        VKZ_ZoneScopedC(Color::indian_red);
-        
-        assert(m_bufBarrierStatus.find(_buf) == m_bufBarrierStatus.end());
-
-        m_bufBarrierStatus.insert({ _buf , _barrierState });
-
-        if (_baseBuf != 0) {
-            m_aliasToBaseBuffers.insert({ _buf, _baseBuf });
-
-            if (_buf == _baseBuf)
-            {
-                m_baseBufBarrierStatus.insert({ _baseBuf , _barrierState });
             }
         }
     }
@@ -4082,63 +4237,61 @@ namespace kage { namespace vk
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
-        auto pair = m_bufBarrierStatus.find(_buf);
-        assert(pair != m_bufBarrierStatus.end());
+        BX_ASSERT(
+            m_trackingBuffers.find(_buf) != m_trackingBuffers.end()
+            , "buffer: %s not tracking! track it first!"
+            , getLocalDebugName(_buf)
+        );
 
-        const size_t idx = getElemIndex(m_dispatchBuffers, _buf);
-        if (kInvalidHandle == idx)
-        {
-            m_dispatchBuffers.push_back(_buf);
+        m_pendingBuffers.insert(_buf);
+        
+//         message(
+//             info
+//             , "Buffer Barrier: %016x, %s, access: %016x, stage: %016x "
+//             , _buf
+//             , getLocalDebugName(_buf)
+//             , _dst.accessMask
+//             , _dst.stageMask
+//         );
 
-            const BarrierState_vk src = pair->second;
-            m_srcBufBarriers.push_back(src);
+        BarrierState_vk& bs = m_trackingBuffers[_buf].dstState;
 
-            m_dstBufBarriers.push_back(BarrierState_vk{ _dst.accessMask , _dst.stageMask });
-        }
-        else
-        {
-            BarrierState_vk& dst = m_dstBufBarriers[idx];
-            dst.accessMask |= _dst.accessMask;
-            dst.stageMask |= _dst.stageMask;
-        }
+        bs.accessMask |= _dst.accessMask;
+        bs.stageMask |= _dst.stageMask;
     }
 
-    void BarrierDispatcher::barrier(const VkImage _img, VkImageAspectFlags _aspect, const BarrierState_vk& _dst)
+    void BarrierDispatcher::barrier(const VkImage _img, VkImageAspectFlags _dstAspect, const BarrierState_vk& _dstBarrier)
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
-        assert(m_imgAspectFlags.find(_img) != m_imgAspectFlags.end());
+        BX_ASSERT(
+            m_trackingImages.find(_img) != m_trackingImages.end()
+            , "image: %s not tracking! track it first!"
+            , getLocalDebugName(_img)
+        );
 
-        auto barrierPair = m_imgBarrierStatus.find(_img);
-        assert(barrierPair != m_imgBarrierStatus.end());
+        m_pendingImages.insert(_img);
 
-        const size_t idx = getElemIndex(m_dispatchImages, _img);
+//         message(
+//             info
+//             , "Image Barrier: 0x%016x, %s, access: 0x%016x, stage: 0x%016x, layout: 0x%016x"
+//             , _img
+//             , getLocalDebugName(_img)
+//             , _dstBarrier.accessMask
+//             , _dstBarrier.stageMask
+//             , _dstBarrier.imgLayout
+//         );
 
-        if (kInvalidHandle == idx)
-        {
-            m_dispatchImages.push_back(_img);
+        BarrierState_vk& src = m_trackingImages[_img].srcState;
+        BarrierState_vk& dst = m_trackingImages[_img].dstState;
 
-            m_imgAspects.push_back(_aspect);
-
-            BarrierState_vk src = barrierPair->second;
-            m_srcImgBarriers.push_back(src);
-
-            m_dstImgBarriers.push_back({ _dst.accessMask, _dst.imgLayout, _dst.stageMask });
-        }
-        else
-        {
-            assert(_aspect == m_imgAspects[idx]);
-
-            BarrierState_vk& dst = m_dstImgBarriers[idx];
-            dst.accessMask |= _dst.accessMask;
-            dst.stageMask |= _dst.stageMask;
-            dst.imgLayout = _dst.imgLayout; // use the new destinate layout instead
-        }
+        dst.accessMask |= _dstBarrier.accessMask;
+        dst.stageMask |= _dstBarrier.stageMask;
+        dst.imgLayout = _dstBarrier.imgLayout;
     }
 
     void BarrierDispatcher::dispatchGlobalBarrier(const VkCommandBuffer& _cmdBuffer, const BarrierState_vk& _src, const BarrierState_vk& _dst)
     {
-        return;
         VkMemoryBarrier2 ba = memoryBarrier(
             _src.accessMask
             , _dst.accessMask
@@ -4149,184 +4302,228 @@ namespace kage { namespace vk
         pipelineBarrier(_cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 1, &ba, 0, nullptr, 0, nullptr);
     }
 
+
     void BarrierDispatcher::dispatch(const VkCommandBuffer& _cmdBuffer)
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
-        if(m_dispatchBuffers.empty() && m_dispatchImages.empty())
+        if (m_pendingBuffers.empty() && m_pendingImages.empty())
         {
             return;
         }
 
+//        message(info, "- dispatch ------------------");
+
         stl::vector<VkImageMemoryBarrier2> imgBarriers;
-        for (uint32_t ii = 0; ii < m_dispatchImages.size(); ++ii)
+        for (const VkImage img : m_pendingImages)
         {
-            const VkImage& img = m_dispatchImages[ii];
-            const VkImageAspectFlags aspect = getImageAspectFlags(m_imgAspects[ii]);
-            BarrierState_vk src = m_srcImgBarriers[ii];
-            BarrierState_vk dst = m_dstImgBarriers[ii];
+            const ImageStatus& st = m_trackingImages[img];
+            
+            const VkImageAspectFlags aspect = st.aspect;
+            const BarrierState_vk src = st.srcState;
+            const BarrierState_vk dst = st.dstState;
 
             VkImageMemoryBarrier2 barrier = imageBarrier(
-                img, aspect,
-                src.accessMask, src.imgLayout, src.stageMask,
-                dst.accessMask, dst.imgLayout, dst.stageMask);
-            
+                st.image
+                , aspect
+                , src.accessMask, src.imgLayout, src.stageMask
+                , dst.accessMask, dst.imgLayout, dst.stageMask
+            );
+
             imgBarriers.emplace_back(barrier);
 
-            {
-                auto& aspectPair = m_imgAspectFlags.find(img);
-                aspectPair->second = aspect;
-            }
-
-            {
-                auto& barrierPair = m_imgBarrierStatus.find(img);
-                barrierPair->second = dst;
-            }
-
-            auto baseImgPair = m_aliasToBaseImages.find(img);
-            if (baseImgPair != m_aliasToBaseImages.end())
-            {
-                const VkImage baseImg = baseImgPair->second;
-
-                {
-                    auto& aspectPair = m_baseImgAspectFlags.find(img);
-                    aspectPair->second = aspect;
-                }
-
-                {
-                    auto& barrierPair = m_baseImgBarrierStatus.find(img);
-                    barrierPair->second = dst;
-                }
-            }
+//             message(
+//                 info
+//                 , "Image Barrier: 0x%016x, %s\n\
+//                     aspect: 0x%016x\n\
+//                     , [SRC] access: 0x%016x, stage: 0x%016x, layout: 0x%016x \n\
+//                     , [DST] access: 0x%016x, stage: 0x%016x, layout: 0x%016x"
+//                 , img
+//                 , getLocalDebugName(img)
+//                 , aspect
+//                 , src.accessMask, src.stageMask, src.imgLayout
+//                 , dst.accessMask, dst.stageMask, dst.imgLayout
+//             );
         }
 
         stl::vector<VkBufferMemoryBarrier2> bufBarriers;
-        for (uint32_t ii = 0; ii < m_dispatchBuffers.size(); ++ii)
+        for (const VkBuffer& buf : m_pendingBuffers)
         {
-            const VkBuffer& buf = m_dispatchBuffers[ii];
-            BarrierState_vk src = m_srcBufBarriers[ii];
-            BarrierState_vk dst = m_dstBufBarriers[ii];
+            const BufferStatus& st = m_trackingBuffers[buf];
+
+            const BarrierState_vk src = st.srcState;
+            const BarrierState_vk dst = st.dstState;
 
             VkBufferMemoryBarrier2 barrier = bufferBarrier(
-                buf,
-                src.accessMask, src.stageMask,
-                dst.accessMask, dst.stageMask);
+                st.buffer
+                , src.accessMask, src.stageMask
+                , dst.accessMask, dst.stageMask
+            );
 
             bufBarriers.emplace_back(barrier);
 
-            {
-                auto& barrierPair = m_bufBarrierStatus.find(buf);
-                barrierPair->second = dst;
-            }
-
-            auto baseBufPair = m_aliasToBaseBuffers.find(buf);
-            if(baseBufPair != m_aliasToBaseBuffers.end())
-            {
-                const VkBuffer baseBuf = baseBufPair->second;
-                
-                {
-                    auto& barrierPair = m_baseBufBarrierStatus.find(buf);
-                    barrierPair->second = dst;
-                }
-            }
+//             message(
+//                 info
+//                 , "Buffer Barrier: 0x%016x, %s\n\
+//                     , [SRC] access: 0x%016x, stage: 0x%016x\n\
+//                     , [DST] access: 0x%016x, stage: 0x%016x"
+//                 , buf
+//                 , getLocalDebugName(buf)
+//                 , src.accessMask, src.stageMask
+//                 , dst.accessMask, dst.stageMask
+//             );
         }
-        
+
         pipelineBarrier(
             _cmdBuffer
             , VK_DEPENDENCY_BY_REGION_BIT
-            , 0, nullptr
+            , 0
+            , nullptr
             , bufBarriers.size(), bufBarriers.data()
             , imgBarriers.size(), imgBarriers.data()
         );
-        
+
+        for (const VkImage img : m_pendingImages)
+        {
+            ImageStatus& st = m_trackingImages[img];
+
+            st.srcState = st.dstState;
+            st.dstState = BarrierState_vk{};
+
+            using MapIter = decltype(m_aliasToBaseImages)::const_iterator;
+            MapIter iter = m_aliasToBaseImages.find(img);
+            if (iter != m_aliasToBaseImages.end())
+            {
+                VkImage base = iter->second;
+
+                ImageStatus& baseSt = m_baseImageStatus[base];
+                baseSt = st;
+            }
+        }
+
+        for (const VkBuffer buf : m_pendingBuffers)
+        {
+            BufferStatus& st = m_trackingBuffers[buf];
+
+            st.srcState = st.dstState;
+            st.dstState = BarrierState_vk{};
+
+            using MapIter = decltype(m_aliasToBaseBuffers)::const_iterator;
+            MapIter iter = m_aliasToBaseBuffers.find(buf);
+            if (iter != m_aliasToBaseBuffers.end())
+            {
+                VkBuffer base = iter->second;
+
+                BufferStatus& baseSt = m_baseBufferStatus[base];
+                baseSt = st;
+            }
+        }
+
         // clear all once barriers dispatched
-        clear();
+        clearPending();
+
+//        message(info, "- dispatch +++++++++++++++++++++++++");
     }
 
-    const VkImageLayout BarrierDispatcher::getDstImageLayout(const VkImage _img) const
+    VkImageLayout BarrierDispatcher::getCurrentImageLayout(const VkImage _img) const
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
-        const size_t idx = getElemIndex(m_dispatchImages, _img);
-        if (kInvalidIndex != idx)
+        VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+        using CIter = decltype(m_trackingImages)::const_iterator;
+
+        CIter iter = m_trackingImages.find(_img);
+        if (iter != m_trackingImages.end())
         {
-            return m_dstImgBarriers[idx].imgLayout;
+            layout = iter->second.srcState.imgLayout;
         }
 
-        auto barrierPair = m_imgBarrierStatus.find(_img);
-        if (barrierPair != m_imgBarrierStatus.end())
-        {
-            return barrierPair->second.imgLayout;
-        }
-
-        assert(0);
-        return VK_IMAGE_LAYOUT_UNDEFINED;
+        return layout;
     }
 
-    const BarrierState_vk BarrierDispatcher::getBarrierState(const VkImage _img) const
+    BarrierState_vk BarrierDispatcher::getBarrierState(const VkImage _img) const
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
-        auto barrierPair = m_imgBarrierStatus.find(_img);
-        if (barrierPair != m_imgBarrierStatus.end())
+        BarrierState_vk result = {};
+
+        using CIter = decltype(m_trackingImages)::const_iterator;
+        CIter iter = m_trackingImages.find(_img);
+        if (iter != m_trackingImages.end())
         {
-            return barrierPair->second;
+            result = iter->second.dstState;
         }
-        
-        return BarrierState_vk{};
+
+        return result;
     }
 
-    const BarrierState_vk BarrierDispatcher::getBarrierState(const VkBuffer _buf) const
+    BarrierState_vk BarrierDispatcher::getBarrierState(const VkBuffer _buf) const
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
-        auto barrierPair = m_bufBarrierStatus.find(_buf);
-        if (barrierPair != m_bufBarrierStatus.end())
+        BarrierState_vk result = {};
+
+        using CIter = decltype(m_trackingBuffers)::const_iterator;
+        CIter iter = m_trackingBuffers.find(_buf);
+        if (iter != m_trackingBuffers.end())
         {
-            return barrierPair->second;
+            result = iter->second.dstState;
         }
 
-        return BarrierState_vk{};
+        return result;
     }
 
-    const BarrierState_vk BarrierDispatcher::getBaseBarrierState(const VkImage _img) const
+    BarrierState_vk BarrierDispatcher::getBaseBarrierState(const VkImage _img) const
+    {
+        VKZ_ZoneScopedC(Color::indian_red);
+        BarrierState_vk result = {};
+
+        using MapIter = decltype(m_aliasToBaseImages)::const_iterator;
+        MapIter iter = m_aliasToBaseImages.find(_img);
+        if (iter != m_aliasToBaseImages.end())
+        {
+            const VkImage baseImg = iter->second;
+
+            using CIter = decltype(m_baseImageStatus)::const_iterator;
+            CIter baseIter = m_baseImageStatus.find(baseImg);
+            if (baseIter != m_baseImageStatus.end())
+            {
+                result = baseIter->second.dstState;
+            }
+        }
+
+        return result;
+    }
+
+    BarrierState_vk BarrierDispatcher::getBaseBarrierState(const VkBuffer _buf) const
+    {
+        VKZ_ZoneScopedC(Color::indian_red);
+        BarrierState_vk result = {};
+
+        using MapIter = decltype(m_aliasToBaseBuffers)::const_iterator;
+        MapIter iter = m_aliasToBaseBuffers.find(_buf);
+        if (iter != m_aliasToBaseBuffers.end())
+        {
+            const VkBuffer baseBuf = iter->second;
+
+            using CIter = decltype(m_baseBufferStatus)::const_iterator;
+            CIter baseIter = m_baseBufferStatus.find(baseBuf);
+            if (baseIter != m_baseBufferStatus.end())
+            {
+                result = baseIter->second.dstState;
+            }
+        }
+
+        return result;
+    }
+
+    void BarrierDispatcher::clearPending()
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
-        auto barrierPair = m_baseImgBarrierStatus.find(_img);
-        if (barrierPair != m_baseImgBarrierStatus.end())
-        {
-            return barrierPair->second;
-        }
-
-        return BarrierState_vk{};
-    }
-
-    const BarrierState_vk BarrierDispatcher::getBaseBarrierState(const VkBuffer _buf) const
-    {
-        VKZ_ZoneScopedC(Color::indian_red);
-
-        auto barrierPair = m_baseBufBarrierStatus.find(_buf);
-        if (barrierPair != m_baseBufBarrierStatus.end())
-        {
-            return barrierPair->second;
-        }
-
-        return BarrierState_vk{};
-    }
-
-    void BarrierDispatcher::clear()
-    {
-        VKZ_ZoneScopedC(Color::indian_red);
-
-        m_dispatchImages.clear();
-        m_imgAspects.clear();
-        m_srcImgBarriers.clear();
-        m_dstImgBarriers.clear();
-        
-        m_dispatchBuffers.clear();
-        m_srcBufBarriers.clear();
-        m_dstBufBarriers.clear();
+        m_pendingBuffers.clear();
+        m_pendingImages.clear();
     }
 
     void CommandQueue_vk::init(uint32_t _familyIdx, VkQueue _queue, uint32_t _numFramesInFlight)
@@ -4650,7 +4847,7 @@ namespace kage { namespace vk
         m_recCmdInfo.insert({ _hPass, rec });
     }
 
-    kage::CommandBuffer& FrameRecCmds::getCmd(const PassHandle _hPass)
+    CommandBuffer& FrameRecCmds::getCmd(const PassHandle _hPass)
     {
         const RecCmdInfoMap::iterator it = m_recCmdInfo.find(_hPass);
 

@@ -130,52 +130,110 @@ namespace kage { namespace vk
         PassConfig config{};
     };
 
-    class BarrierDispatcher
+    struct BarrierDispatcher
     {
-    public:
+        struct ImageStatus
+        {
+            ImageStatus()
+                : image(VK_NULL_HANDLE)
+                , aspect(0)
+                , srcState()
+                , dstState()
+            {
+
+            }
+
+            ImageStatus(const VkImage _vk, VkImageAspectFlags _aspect, BarrierState_vk _state)
+                : image(_vk)
+                , aspect(_aspect)
+                , srcState(_state)
+                , dstState()
+            {
+            }
+
+            VkImage image;
+            VkImageAspectFlags aspect;
+            BarrierState_vk srcState;
+            BarrierState_vk dstState;
+        };
+
+        struct BufferStatus
+        {
+            BufferStatus()
+                : buffer(VK_NULL_HANDLE)
+                , srcState()
+                , dstState()
+            {
+            }
+
+            BufferStatus(const VkBuffer _vk, BarrierState_vk _state)
+                : buffer(_vk)
+                , srcState(_state)
+                , dstState()
+            {
+            }
+
+            VkBuffer buffer;
+            BarrierState_vk srcState;
+            BarrierState_vk dstState;
+        };
+
         ~BarrierDispatcher();
 
-        void track(const VkBuffer _buf, BarrierState_vk _barrierState, const VkBuffer _baseBuf = 0);
-        void track(const VkImage _img, const ImageAspectFlags _aspect, BarrierState_vk _barrierState, const VkImage _baseImg = 0);
+        void track(
+            const VkBuffer _buf
+            , BarrierState_vk _state
+            , const VkBuffer _baseBuf = { VK_NULL_HANDLE }
+        );
 
-        void untrack(const VkBuffer _buf);
-        void untrack(const VkImage _img);
+        void track(
+            const VkImage _img
+            , const VkImageAspectFlags _aspect
+            , BarrierState_vk _state
+            , const VkImage _baseBuf = { VK_NULL_HANDLE }
+        );
 
-        void barrier(const VkBuffer _buf, const BarrierState_vk& _dst);
-        void barrier(const VkImage _img, VkImageAspectFlags _dstAspect, const BarrierState_vk& _dstBarrier);
+        void untrack(const VkBuffer _hBuf);
+        void untrack(const VkImage _hImg);
 
-        void dispatchGlobalBarrier(const VkCommandBuffer& _cmdBuffer, const BarrierState_vk& _src, const BarrierState_vk& _dst);
+        void barrier(
+            const VkBuffer _hBuf
+            , const BarrierState_vk& _dst
+        );
+
+        void barrier(
+            const VkImage _hImg
+            , VkImageAspectFlags _dstAspect
+            , const BarrierState_vk& _dstBarrier
+        );
 
         void dispatch(const VkCommandBuffer& _cmdBuffer);
+        void dispatchGlobalBarrier(
+            const VkCommandBuffer& _cmdBuffer
+            , const BarrierState_vk& _src
+            , const BarrierState_vk& _dst
+        );
 
-        const VkImageLayout getDstImageLayout(const VkImage _img) const;
-        const BarrierState_vk getBarrierState(const VkImage _img) const;
-        const BarrierState_vk getBarrierState(const VkBuffer _buf) const;
+        VkImageLayout getCurrentImageLayout(const VkImage _img) const;
+        BarrierState_vk getBarrierState(const VkImage _img) const;
+        BarrierState_vk getBarrierState(const VkBuffer _buf) const;
 
-        const BarrierState_vk getBaseBarrierState(const VkImage _img) const;
-        const BarrierState_vk getBaseBarrierState(const VkBuffer _buf) const;
+        BarrierState_vk getBaseBarrierState(const VkImage _img) const;
+        BarrierState_vk getBaseBarrierState(const VkBuffer _buf) const;
     private:
-        void clear();
+        void clearPending();
 
-        stl::vector<VkImage> m_dispatchImages;
-        stl::vector<ImageAspectFlags> m_imgAspects;
-        stl::vector<BarrierState_vk> m_srcImgBarriers;
-        stl::vector<BarrierState_vk> m_dstImgBarriers;
-        
-        stl::vector<VkBuffer> m_dispatchBuffers;
-        stl::vector<BarrierState_vk> m_srcBufBarriers;
-        stl::vector<BarrierState_vk> m_dstBufBarriers;
+        stl::unordered_set<VkBuffer> m_pendingBuffers;
+        stl::unordered_set<VkImage> m_pendingImages;
 
-        stl::unordered_map<VkImage, VkImage> m_aliasToBaseImages;
         stl::unordered_map<VkBuffer, VkBuffer> m_aliasToBaseBuffers;
+        stl::unordered_map<VkImage, VkImage> m_aliasToBaseImages;
 
-        stl::unordered_map<VkImage, VkImageAspectFlags> m_imgAspectFlags;
-        stl::unordered_map<VkImage, BarrierState_vk> m_imgBarrierStatus;
-        stl::unordered_map<VkBuffer, BarrierState_vk> m_bufBarrierStatus;
+        stl::unordered_map<VkBuffer, BufferStatus> m_trackingBuffers;
+        stl::unordered_map<VkImage, ImageStatus> m_trackingImages;
 
-        stl::unordered_map<VkImage, VkImageAspectFlags> m_baseImgAspectFlags;
-        stl::unordered_map<VkImage, BarrierState_vk> m_baseImgBarrierStatus;
-        stl::unordered_map<VkBuffer, BarrierState_vk> m_baseBufBarrierStatus;
+        stl::unordered_map<VkBuffer, BufferStatus> m_baseBufferStatus;
+        stl::unordered_map<VkImage, ImageStatus> m_baseImageStatus;
     };
 
     struct CommandQueue_vk
@@ -285,12 +343,11 @@ namespace kage { namespace vk
         CommandBuffer m_cmdBuffer;
     };
 
-
     struct RHIContext_vk : public RHIContext
     {
         RHIContext_vk(bx::AllocatorI* _allocator);
-
         ~RHIContext_vk() override;
+
         void init(const Resolution& _resolution, void* _wnd) override;
         void bake() override;
         bool render() override;
@@ -482,8 +539,8 @@ namespace kage { namespace vk
         void exeBlit(const uint16_t _passId);
         void exeFillBuffer(const uint16_t _passId);
 
-        bool checkCopyableToSwapchain(const uint16_t _imgId) const;
-        bool checkBlitableToSwapchain(const uint16_t _imgId) const;
+        bool checkCopyableToSwapchain(const ImageHandle _hImg) const;
+        bool checkBlitableToSwapchain(const ImageHandle _hImg) const;
         void drawToSwapchain(uint32_t _swapImgIdx);
         void blitToSwapchain(uint32_t _swapImgIdx);
         void copyToSwapchain(uint32_t _swapImgIdx);
@@ -515,12 +572,12 @@ namespace kage { namespace vk
         void execRecCmds(PassHandle _hPass);
         stl::vector<Binding> m_descSets;
 
-        ContinuousMap<uint16_t, Buffer_vk> m_bufferContainer;
-        ContinuousMap<uint16_t, Image_vk> m_imageContainer;
-        ContinuousMap<uint16_t, Shader_vk> m_shaderContainer;
-        ContinuousMap<uint16_t, Program_vk> m_programContainer;
-        ContinuousMap<uint16_t, PassInfo_vk> m_passContainer;
-        ContinuousMap<uint16_t, VkSampler> m_samplerContainer;
+        ContinuousMap<uint16_t, Buffer_vk>      m_bufferContainer;
+        ContinuousMap<uint16_t, Image_vk>       m_imageContainer;
+        ContinuousMap<uint16_t, Shader_vk>      m_shaderContainer;
+        ContinuousMap<uint16_t, Program_vk>     m_programContainer;
+        ContinuousMap<uint16_t, PassInfo_vk>    m_passContainer;
+        ContinuousMap<uint16_t, VkSampler>      m_samplerContainer;
 
         StateCacheT<VkSampler> m_samplerCache;
         StateCacheLru<VkImageView, 1024> m_imgViewCache;
@@ -565,8 +622,6 @@ namespace kage { namespace vk
         VkQueue m_queue;
 
         VkDescriptorPool m_descPool;
-
-        uint32_t m_swapChainImageIndex{0};
 
         Resolution m_resolution;
 
