@@ -1805,8 +1805,7 @@ namespace kage
 
         ResInteractDesc interact{};
         interact.binding = _attachmentIdx;
-        interact.stage = PipelineStageFlagBits::color_attachment_output;
-        interact.access = AccessFlagBits::none;
+        
 
         if (isDepthStencil(_hImg))
         {
@@ -1815,11 +1814,15 @@ namespace kage
 
             passMeta.writeDepthId = _hImg.id;
             interact.layout = ImageLayout::depth_stencil_attachment_optimal;
+            interact.access = AccessFlagBits::depth_stencil_attachment_write;
+            interact.stage = PipelineStageFlagBits::late_fragment_tests;
         }
         else if (isColorAttachment(_hImg))
         {
             assert((imgMeta.aspectFlags & ImageAspectFlagBits::color) != 0);
             interact.layout = ImageLayout::color_attachment_optimal;
+            interact.access = AccessFlagBits::color_attachment_write;
+            interact.stage = PipelineStageFlagBits::color_attachment_output;
         }
         else
         {

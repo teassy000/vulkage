@@ -1547,12 +1547,12 @@ namespace kage { namespace vk
 
         SwapchainStatus_vk swapchainStatus = m_swapchain.getSwapchainStatus();
         if (swapchainStatus == SwapchainStatus_vk::not_ready) {  // skip this frame
-            //return true;
+            return true;
         }
 
         if(swapchainStatus == SwapchainStatus_vk::resize)
         {
-            //return true;
+            return true;
         }
 
         if (!m_swapchain.acquire(m_cmdBuffer))
@@ -1586,8 +1586,6 @@ namespace kage { namespace vk
 
                 createBarriers(passId);
                 //checkUnmatchedBarriers(passId);
-
-                m_barrierDispatcher.dispatch(m_cmdBuffer);
 
                 executePass(passId);
 
@@ -2596,30 +2594,7 @@ namespace kage { namespace vk
         Binding* bds = (Binding*)_mem->data;
         m_descSets.assign(bds, bds + count);
 
-        stl::vector<DescriptorInfo> descInfos(count);
-        for (uint32_t ii = 0; ii < descInfos.size(); ++ii)
-        {
-            const Binding& b = bds[ii];
 
-            DescriptorInfo info;
-            if (ResourceType::image == b.type)
-            {
-                info = getImageDescInfo(b.img, b.mip, b.sampler);
-            }
-            else if (ResourceType::buffer == b.type)
-            {
-                info = getBufferDescInfo(b.buf);
-            }
-            
-            descInfos[ii] = info;
-        }
-
-        if(!descInfos.empty())
-        {
-            PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
-            const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
-            vkCmdPushDescriptorSetWithTemplateKHR(m_cmdBuffer, prog.updateTemplate, prog.layout, 0, descInfos.data());
-        }
     }
 
     void RHIContext_vk::setViewport(PassHandle _hPass, int32_t _x, int32_t _y, uint32_t _w, uint32_t _h)
@@ -2719,9 +2694,8 @@ namespace kage { namespace vk
             return;
         }
 
-        // flush barriers
-        //
         createBarriersRec(_hPass);
+        lazySetDescriptorSet(_hPass);
 
         // get the dispatch size
         PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
@@ -2739,7 +2713,6 @@ namespace kage { namespace vk
             , calcGroupCount(_z, shader.localSizeZ)
         );
 
-        //message(info, "-------- flush ---------------------");
         flushWriteBarriersRec(_hPass);
     }
 
@@ -2770,6 +2743,7 @@ namespace kage { namespace vk
         }
 
         createBarriersRec(_hPass);
+        lazySetDescriptorSet(_hPass);
 
         beginRendering(m_cmdBuffer, _hPass.id);
 
@@ -2811,6 +2785,7 @@ namespace kage { namespace vk
         }
 
         createBarriersRec(_hPass);
+        lazySetDescriptorSet(_hPass);
 
         beginRendering(m_cmdBuffer, _hPass.id);
 
@@ -2941,7 +2916,7 @@ namespace kage { namespace vk
         m_barrierDispatcher.barrier(buffer.buffer,
             { VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT }
         );
-        m_barrierDispatcher.dispatch(m_cmdBuffer);
+        dispatchBarriers();
 
         vkCmdCopyBuffer(m_cmdBuffer, scratch.buffer, buffer.buffer, 1, &region);
 
@@ -2949,7 +2924,7 @@ namespace kage { namespace vk
         m_barrierDispatcher.barrier(buffer.buffer,
             { VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT }
         );
-        m_barrierDispatcher.dispatch(m_cmdBuffer);
+        dispatchBarriers();
 
         release(scratch.buffer);
         release(scratch.memory);
@@ -2966,7 +2941,7 @@ namespace kage { namespace vk
         m_barrierDispatcher.barrier(buf.buffer,
             { VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT }
         );
-        m_barrierDispatcher.dispatch(m_cmdBuffer);
+        dispatchBarriers();
 
         vkCmdFillBuffer(m_cmdBuffer, buf.buffer, 0, _size, _value);
 
@@ -2974,7 +2949,7 @@ namespace kage { namespace vk
         m_barrierDispatcher.barrier(buf.buffer,
             { VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT }
         );
-        m_barrierDispatcher.dispatch(m_cmdBuffer);
+        dispatchBarriers();
     }
 
     void RHIContext_vk::uploadImage(const uint16_t _imgId, const void* _data, uint32_t _size)
@@ -3006,7 +2981,7 @@ namespace kage { namespace vk
             , { VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT }
         );
 
-        m_barrierDispatcher.dispatch(m_cmdBuffer);
+        dispatchBarriers();
 
         VkBufferImageCopy region = {};
         region.bufferOffset = 0;
@@ -3023,7 +2998,7 @@ namespace kage { namespace vk
             , { VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT }
         );
 
-        m_barrierDispatcher.dispatch(m_cmdBuffer);
+        dispatchBarriers();
 
         message(info, "release buffer: 0x%llx", scratch.buffer);
         
@@ -3055,7 +3030,9 @@ namespace kage { namespace vk
 
             if (baseState != state)
             {
-                message(warning, "expect state mismatched for image %d, base %d", depthId, baseImg);
+                message(warning, "expect state mismatched for image %s, base %s"
+                    , getName(ImageHandle{depthId})
+                    , getName(ImageHandle{ baseImg.resId }));
                 m_barrierDispatcher.barrier(depthImg.image, baseImg.aspectMask, baseState);
             }
         }
@@ -3074,7 +3051,9 @@ namespace kage { namespace vk
 
             if (baseState != state)
             {
-                message(warning, "expect state mismatched for image %d, base %d", id, baseImgId);
+                message(warning, "expect state mismatched for image %s, base %s"
+                    , getName(ImageHandle{ id })
+                    , getName(ImageHandle{ baseImgId }));
                 m_barrierDispatcher.barrier(img.image, baseImg.aspectMask, baseState);
             }
         }
@@ -3093,7 +3072,10 @@ namespace kage { namespace vk
 
             if (baseState != state)
             {
-                message(warning, "expect state mismatched for buffer %d, base %d", id, baseBufId);
+                message(warning, "expect state mismatched for buffer %s, base %s"
+                    , getName(BufferHandle{ id })
+                    , getName(BufferHandle{ baseBufId }));
+
                 m_barrierDispatcher.barrier(buf.buffer, baseState);
             }
         }
@@ -3112,7 +3094,10 @@ namespace kage { namespace vk
 
             if (baseState != state)
             {
-                message(warning, "expect state mismatched for image %d, base %d", id, baseImgId);
+                message(warning, "expect state mismatched for image %s, base %s"
+                    , getName(ImageHandle{ id })
+                    , getName(ImageHandle{ baseImgId }));
+
                 m_barrierDispatcher.barrier(img.image, baseImg.aspectMask, baseState);
             }
         }
@@ -3131,18 +3116,21 @@ namespace kage { namespace vk
 
             if (baseState != state)
             {
-                message(warning, "expect state mismatched for buffer %d, base %d", id, baseBufId);
+                message(warning, "expect state mismatched for buffer %s, base %s"
+                    , getName(BufferHandle{ id })
+                    , getName(BufferHandle{ baseBufId }));
                 m_barrierDispatcher.barrier(buf.buffer, baseState);
             }
         }
 
-        m_barrierDispatcher.dispatch(m_cmdBuffer);
+        dispatchBarriers();
     }
 
     void RHIContext_vk::createBarriers(uint16_t _passId)
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
+        message(info, "createBarriers: pass %s ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~", getName(PassHandle{ _passId }));
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 
         // write depth
@@ -3195,12 +3183,15 @@ namespace kage { namespace vk
 
             m_barrierDispatcher.barrier(getBuffer(id).buffer, dst);
         }
+
+        message(info, "createBarriers ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
     }
 
     void RHIContext_vk::flushWriteBarriers(uint16_t _passId)
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
+        message(info, "flushWriteBarriers: pass %s ***********************", getName(PassHandle{ _passId }));
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 
         // flush in out resources
@@ -3234,13 +3225,13 @@ namespace kage { namespace vk
             }
         }
 
-        m_barrierDispatcher.dispatch(m_cmdBuffer);
+        message(info, "flushWriteBarriers***********************");
+        dispatchBarriers();
     }
 
     void RHIContext_vk::createBarriersRec(const PassHandle _hPass)
     {
-
-//        message(info, "- start dispatch barrier ------------------------");
+        message(info, "createBarriersRec: pass %s ------------------------", getName(_hPass));
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_hPass.id);
         for (const Binding& binding : m_descSets)
         {
@@ -3257,33 +3248,22 @@ namespace kage { namespace vk
                     img.image
                     , img.aspectMask
                     , bs);
-
-//                 message(info, "*** set barrier for img: %s, access: %d, stage: %d, layout: %d"
-//                     , getName(binding.img)
-//                     , bs.accessMask
-//                     , bs.stageMask
-//                     , bs.imgLayout
-//                 );
             }
             else if (ResourceType::buffer == binding.type)
             {
                 const Buffer_vk& buf = getBuffer(binding.buf.id);
                 m_barrierDispatcher.barrier(buf.buffer, bs);
-
-//                 message(info, "*** set barrier for buf: %s, access: %d, stage: %d"
-//                     , getName(binding.buf)
-//                     , bs.accessMask
-//                     , bs.stageMask
-//                 );
             }
         }
 
-        m_barrierDispatcher.dispatch(m_cmdBuffer);
-        //message(info, "- end dispatch barrier ------------------------");
+        message(info, "createBarriersRec end ------------------------");
+        dispatchBarriers();
     }
 
     void RHIContext_vk::flushWriteBarriersRec(const PassHandle _hPass)
     {
+
+        message(info, "flushWriteBarriersRec start, pass: %s =======================", getName(_hPass));
         stl::vector<Binding> bindings;
         bindings.reserve(m_descSets.size());
         for (const Binding& b : m_descSets)
@@ -3310,28 +3290,50 @@ namespace kage { namespace vk
                     img.image
                     , img.aspectMask
                     , bs);
-
-                //message(info, "*** flush barrier for img: %s, access: %d, stage: %d, layout: %d"
-                //    , getName(b.img)
-                //    , bs.accessMask
-                //    , bs.stageMask
-                //    , bs.imgLayout
-                //);
             }
             else if (ResourceType::buffer == b.type)
             {
                 const Buffer_vk& buf = getBuffer(b.buf.id);
                 m_barrierDispatcher.barrier(buf.buffer, bs);
-
-                //message(info, "*** flush barrier for buf: %s, access: %d, stage: %d"
-                //    , getName(b.buf)
-                //    , bs.accessMask
-                //    , bs.stageMask
-                //);
             }
         }
 
-        m_barrierDispatcher.dispatch(m_cmdBuffer);
+        // dispatchBarriers();
+        message(info, "flushWriteBarriersRec end =======================");
+    }
+
+    void RHIContext_vk::lazySetDescriptorSet(const PassHandle _hPass)
+    {
+        if (m_descSets.empty())
+        {
+            return;
+        }
+
+        const uint32_t count = (uint32_t)m_descSets.size();
+
+        stl::vector<DescriptorInfo> descInfos(count);
+        for (uint32_t ii = 0; ii < (uint32_t)m_descSets.size(); ++ii)
+        {
+            const Binding& b = m_descSets[ii];
+
+            DescriptorInfo info;
+            if (ResourceType::image == b.type)
+            {
+                info = getImageDescInfo(b.img, b.mip, b.sampler);
+            }
+            else if (ResourceType::buffer == b.type)
+            {
+                info = getBufferDescInfo(b.buf);
+            }
+
+            descInfos[ii] = info;
+        }
+
+        PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
+        const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
+        vkCmdPushDescriptorSetWithTemplateKHR(m_cmdBuffer, prog.updateTemplate, prog.layout, 0, descInfos.data());
+
+        m_descSets.clear();
     }
 
     void RHIContext_vk::pushDescriptorSetWithTemplates(const uint16_t _passId)
@@ -3513,25 +3515,6 @@ namespace kage { namespace vk
         return { buf.buffer };
     }
 
-    void RHIContext_vk::barrier(BufferHandle _hBuf, AccessFlags _access, PipelineStageFlags _stage)
-    {
-        const Buffer_vk& buf = getBuffer(_hBuf.id);
-        m_barrierDispatcher.barrier(
-            buf.buffer
-            , { getAccessFlags(_access), getPipelineStageFlags(_stage) }
-        );
-    }
-
-    void RHIContext_vk::barrier(ImageHandle _hImg, AccessFlags _access, ImageLayout _layout, PipelineStageFlags _stage)
-    {
-        const Image_vk& img = getImage(_hImg.id);
-        m_barrierDispatcher.barrier(
-            img.image
-            , img.aspectMask
-            , { getAccessFlags(_access), getImageLayout(_layout), getPipelineStageFlags(_stage) }
-        );
-    }
-
     void RHIContext_vk::dispatchBarriers()
     {
         m_barrierDispatcher.dispatch(m_cmdBuffer);
@@ -3575,6 +3558,9 @@ namespace kage { namespace vk
             execRecCmds({ _passId });
             return;
         }
+
+        // for each pass: only dispatch once before
+        dispatchBarriers();
 
         if (PassExeQueue::graphics == passInfo.queue)
         {
@@ -3823,7 +3809,7 @@ namespace kage { namespace vk
             { VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT }
         );
 
-        m_barrierDispatcher.dispatch(m_cmdBuffer);
+        dispatchBarriers();
 
         // blit image
         uint32_t levelWidth = glm::max(1u, presentImg.width >> m_brief.presentMipLevel);
@@ -3849,7 +3835,7 @@ namespace kage { namespace vk
             { 0, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT }
         );
 
-        m_barrierDispatcher.dispatch(m_cmdBuffer);
+        dispatchBarriers();
     }
 
     void RHIContext_vk::copyToSwapchain(uint32_t _swapImgIdx)
@@ -3879,7 +3865,7 @@ namespace kage { namespace vk
             { VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT }
         );
 
-        m_barrierDispatcher.dispatch(m_cmdBuffer);
+        dispatchBarriers();
 
         // copy to swapchain
         VkImageCopy copyRegion = {};
@@ -3902,7 +3888,7 @@ namespace kage { namespace vk
             { 0, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT }
         );
 
-        m_barrierDispatcher.dispatch(m_cmdBuffer);
+        dispatchBarriers();
     }
 
 
@@ -4233,6 +4219,267 @@ namespace kage { namespace vk
         }
     }
 
+    bool isStageShader(VkPipelineStageFlags _stage)
+    {
+        return bool (
+            _stage & (
+                VK_PIPELINE_STAGE_VERTEX_SHADER_BIT
+                | VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT
+                | VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT
+                | VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT
+                | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
+                | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
+                | VK_PIPELINE_STAGE_TASK_SHADER_BIT_EXT
+                | VK_PIPELINE_STAGE_MESH_SHADER_BIT_EXT
+                )
+            );
+    }
+
+    bool isStageTransfer(VkPipelineStageFlags _stage)
+    {
+        return bool (
+            _stage & (VK_PIPELINE_STAGE_TRANSFER_BIT)
+            );
+    }
+
+    bool isStageBottom(VkPipelineStageFlags _stage)
+    {
+        return bool (
+            _stage & (VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT)
+            );
+    }
+
+    bool isStageIndirect(VkPipelineStageFlags _stage)
+    {
+        return bool(
+            _stage & (VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT)
+            );
+    }
+
+    bool isStageVertexInput(VkPipelineStageFlags _stage)
+    {
+        return bool(
+            _stage & (VK_PIPELINE_STAGE_VERTEX_INPUT_BIT)
+            );
+    }
+
+    bool isStageMemory(VkPipelineStageFlags _stage)
+    {
+        return bool(
+            _stage & (VK_PIPELINE_STAGE_HOST_BIT)
+            );
+    }
+
+    bool isStageColorAttch(VkPipelineStageFlags _stage)
+    {
+        return bool(
+            _stage & ( VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT )
+            );
+    }
+
+    bool isStageDepthAttch(VkPipelineStageFlags _stage)
+    {
+        return bool(
+            _stage & ( 
+                VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT // depth
+                | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT // stencil
+                )
+            );
+    }
+
+    bool isAccessBinding(VkAccessFlags _access)
+    {
+        return bool(
+            _access & ( 
+                VK_ACCESS_SHADER_READ_BIT
+                | VK_ACCESS_SHADER_WRITE_BIT
+                )
+            );
+    }
+
+    bool isAccessColorAttch(VkAccessFlags _access)
+    {
+        return bool(
+            _access & (
+                VK_ACCESS_COLOR_ATTACHMENT_READ_BIT
+                | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
+                )
+            );
+    }
+
+    bool isAccessDepthAttch(VkAccessFlags _access)
+    {
+        return bool(
+            _access & (
+                VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT
+                | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT
+                )
+            );
+    }
+
+    bool isAccessTransfer(VkAccessFlags _access)
+    {
+        return bool(
+            _access & (
+                VK_ACCESS_TRANSFER_READ_BIT
+                | VK_ACCESS_TRANSFER_WRITE_BIT
+                )
+            );
+    }
+
+    bool isAccessIndirect(VkAccessFlags _access)
+    {
+        return bool(
+            _access & (
+                VK_ACCESS_INDIRECT_COMMAND_READ_BIT
+                )
+            );
+    }
+
+    bool isAccessVertexInput(VkAccessFlags _access)
+    {
+        return bool(
+            _access & (
+                VK_ACCESS_INDEX_READ_BIT
+                | VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT
+                )
+            );
+    }
+
+    bool isAccessMemory(VkAccessFlags _access)
+    {
+        return bool(
+            _access & (
+                VK_ACCESS_MEMORY_READ_BIT
+                | VK_ACCESS_MEMORY_WRITE_BIT
+                )
+            );
+    }
+
+    bool isLayoutColorAttch(VkImageLayout _layout)
+    {
+        return bool(
+            _layout & (
+                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+                )
+            );
+    }
+
+    bool isLayoutDepthAttch(VkImageLayout _layout)
+    {
+        return bool(
+            _layout & (
+                VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+                )
+            );
+    }
+
+    bool isLayoutTransfer(VkImageLayout _layout)
+    {
+        return bool(
+            _layout & (
+                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+                | VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+                )
+            );
+    }
+
+    bool isLayoutPresent(VkImageLayout _layout)
+    {
+        return bool(
+            _layout & (
+                VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+                )
+            );
+    }
+
+    bool isLayoutShader(VkImageLayout _layout)
+    {
+        return bool(
+            _layout & (
+                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+                | VK_IMAGE_LAYOUT_GENERAL
+                )
+            );
+    }
+
+
+    bool validateBufferStatus(VkAccessFlags _access, VkPipelineStageFlags _stage)
+    {
+        bool valid = true;
+
+        bool binding =      isAccessBinding(_access)     && isStageShader(_stage);
+        bool transfer =     isAccessTransfer(_access)    && isStageTransfer(_stage);
+        bool indirect =     isAccessIndirect(_access)    && isStageIndirect(_stage);
+        bool vertexInput =  isAccessVertexInput(_access) && isStageVertexInput(_stage);
+        bool memory =       isAccessMemory(_access)      && isStageMemory(_stage);
+
+        valid &= (binding || transfer || indirect || vertexInput || memory);
+
+        return valid;
+    }
+
+    bool validateImageStatus(VkAccessFlags _access, VkPipelineStageFlags _stage, VkImageLayout _layout)
+    {
+        bool valid = true;
+
+        bool binding =      isAccessBinding(_access)     && isStageShader(_stage)       && isLayoutShader(_layout);
+        bool colorAttch =   isAccessColorAttch(_access)  && isStageColorAttch(_stage)   && isLayoutColorAttch(_layout);
+        bool depthAttch =   isAccessDepthAttch(_access)  && isStageDepthAttch(_stage)   && isLayoutDepthAttch(_layout);
+        bool transfer =     isAccessTransfer(_access)    && isStageTransfer(_stage)     && isLayoutTransfer(_layout);
+        bool present =      true                         && isStageBottom(_stage)       && isLayoutPresent(_layout);
+
+        valid &= (binding || colorAttch || depthAttch || transfer || present);
+
+        return valid;
+    }
+
+    void BarrierDispatcher::validate(
+        const VkBuffer _buf
+        , const BarrierState_vk& _state
+    )
+    {
+        VKZ_ZoneScopedC(Color::indian_red);
+        
+        BX_ASSERT(
+            m_trackingBuffers.find(_buf) != m_trackingBuffers.end()
+            , "buffer: [%s] not tracking! track it first!"
+            , getLocalDebugName(_buf)
+        );
+
+        BX_ASSERT(
+            validateBufferStatus(_state.accessMask, _state.stageMask)
+            , "buffer: [%s] status not valid! access: 0x%016x, stage: 0x%016x"
+            , getLocalDebugName(_buf)
+            , _state.accessMask
+            , _state.stageMask
+        );
+    }
+
+    void BarrierDispatcher::validate(
+        const VkImage _img
+        , VkImageAspectFlags _dstAspect
+        , const BarrierState_vk& _dstBarrier
+    )
+    {
+        VKZ_ZoneScopedC(Color::indian_red);
+
+        BX_ASSERT(
+            m_trackingImages.find(_img) != m_trackingImages.end()
+            , "image: [%s] not tracking! track it first!"
+            , getLocalDebugName(_img)
+        );
+
+        BX_ASSERT(
+            validateImageStatus(_dstBarrier.accessMask, _dstBarrier.stageMask, _dstBarrier.imgLayout)
+            , "image: [%s] status not valid! access: 0x%016x, stage: 0x%016x, layout: 0x%016x"
+            , getLocalDebugName(_img)
+            , _dstBarrier.accessMask
+            , _dstBarrier.stageMask
+            , _dstBarrier.imgLayout
+        );
+    }
+
     void BarrierDispatcher::barrier(const VkBuffer _buf, const BarrierState_vk& _dst)
     {
         VKZ_ZoneScopedC(Color::indian_red);
@@ -4245,14 +4492,7 @@ namespace kage { namespace vk
 
         m_pendingBuffers.insert(_buf);
         
-//         message(
-//             info
-//             , "Buffer Barrier: %016x, %s, access: %016x, stage: %016x "
-//             , _buf
-//             , getLocalDebugName(_buf)
-//             , _dst.accessMask
-//             , _dst.stageMask
-//         );
+        validate(_buf, _dst);
 
         BarrierState_vk& bs = m_trackingBuffers[_buf].dstState;
 
@@ -4272,15 +4512,7 @@ namespace kage { namespace vk
 
         m_pendingImages.insert(_img);
 
-//         message(
-//             info
-//             , "Image Barrier: 0x%016x, %s, access: 0x%016x, stage: 0x%016x, layout: 0x%016x"
-//             , _img
-//             , getLocalDebugName(_img)
-//             , _dstBarrier.accessMask
-//             , _dstBarrier.stageMask
-//             , _dstBarrier.imgLayout
-//         );
+        validate(_img, _dstAspect, _dstBarrier);
 
         BarrierState_vk& src = m_trackingImages[_img].srcState;
         BarrierState_vk& dst = m_trackingImages[_img].dstState;
@@ -4312,7 +4544,7 @@ namespace kage { namespace vk
             return;
         }
 
-//        message(info, "- dispatch ------------------");
+        message(info, "- dispatch start ------------------");
 
         stl::vector<VkImageMemoryBarrier2> imgBarriers;
         for (const VkImage img : m_pendingImages)
@@ -4332,18 +4564,18 @@ namespace kage { namespace vk
 
             imgBarriers.emplace_back(barrier);
 
-//             message(
-//                 info
-//                 , "Image Barrier: 0x%016x, %s\n\
-//                     aspect: 0x%016x\n\
-//                     , [SRC] access: 0x%016x, stage: 0x%016x, layout: 0x%016x \n\
-//                     , [DST] access: 0x%016x, stage: 0x%016x, layout: 0x%016x"
-//                 , img
-//                 , getLocalDebugName(img)
-//                 , aspect
-//                 , src.accessMask, src.stageMask, src.imgLayout
-//                 , dst.accessMask, dst.stageMask, dst.imgLayout
-//             );
+            message(
+                info
+                , "Image Barrier: 0x%016x, %s\n\
+                    aspect: 0x%016x\n\
+                    , [SRC] access: 0x%016x, stage: 0x%016x, layout: 0x%016x \n\
+                    , [DST] access: 0x%016x, stage: 0x%016x, layout: 0x%016x"
+                , img
+                , getLocalDebugName(img)
+                , aspect
+                , src.accessMask, src.stageMask, src.imgLayout
+                , dst.accessMask, dst.stageMask, dst.imgLayout
+            );
         }
 
         stl::vector<VkBufferMemoryBarrier2> bufBarriers;
@@ -4362,16 +4594,16 @@ namespace kage { namespace vk
 
             bufBarriers.emplace_back(barrier);
 
-//             message(
-//                 info
-//                 , "Buffer Barrier: 0x%016x, %s\n\
-//                     , [SRC] access: 0x%016x, stage: 0x%016x\n\
-//                     , [DST] access: 0x%016x, stage: 0x%016x"
-//                 , buf
-//                 , getLocalDebugName(buf)
-//                 , src.accessMask, src.stageMask
-//                 , dst.accessMask, dst.stageMask
-//             );
+            message(
+                info
+                , "Buffer Barrier: 0x%016x, %s\n\
+                    , [SRC] access: 0x%016x, stage: 0x%016x\n\
+                    , [DST] access: 0x%016x, stage: 0x%016x"
+                , buf
+                , getLocalDebugName(buf)
+                , src.accessMask, src.stageMask
+                , dst.accessMask, dst.stageMask
+            );
         }
 
         pipelineBarrier(
@@ -4422,7 +4654,7 @@ namespace kage { namespace vk
         // clear all once barriers dispatched
         clearPending();
 
-//        message(info, "- dispatch +++++++++++++++++++++++++");
+        message(info, "- dispatch end ------------------");
     }
 
     VkImageLayout BarrierDispatcher::getCurrentImageLayout(const VkImage _img) const

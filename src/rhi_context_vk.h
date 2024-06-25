@@ -196,6 +196,19 @@ namespace kage { namespace vk
         void untrack(const VkBuffer _hBuf);
         void untrack(const VkImage _hImg);
 
+
+        void validate(
+            const VkBuffer _hBuf
+            , const BarrierState_vk& _state
+        );
+
+        void validate(
+            const VkImage _hImg
+            , VkImageAspectFlags _dstAspect
+            , const BarrierState_vk& _dstBarrier
+        );
+
+
         void barrier(
             const VkBuffer _hBuf
             , const BarrierState_vk& _dst
@@ -409,8 +422,6 @@ namespace kage { namespace vk
         const DescriptorInfo getBufferDescInfo(const BufferHandle _hBuf) const;
 
         // barriers
-        void barrier(BufferHandle _hBuf, AccessFlags _access, PipelineStageFlags _stage);
-        void barrier(ImageHandle _hImg, AccessFlags _access, ImageLayout _layout, PipelineStageFlags _stage);
         void dispatchBarriers();
 
         double getPassTime(const PassHandle _hPass) override;
@@ -527,6 +538,10 @@ namespace kage { namespace vk
         // barriers for rec
         void createBarriersRec(const PassHandle _hPass);
         void flushWriteBarriersRec(const PassHandle _hPass);
+
+        // lazy set desc after rec barrier
+        void lazySetDescriptorSet(const PassHandle _hPass);
+
 
         // push descriptor set with templates
         void pushDescriptorSetWithTemplates(const uint16_t _passId);
