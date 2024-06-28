@@ -448,7 +448,6 @@ namespace entry
 			glfwSetScrollCallback(m_window[0], scrollCb);
 			glfwSetCursorPosCallback(m_window[0], cursorPosCb);
 			glfwSetMouseButtonCallback(m_window[0], mouseButtonCb);
-			glfwSetWindowSizeCallback(m_window[0], windowSizeCb);
 			glfwSetDropCallback(m_window[0], dropFileCb);
 
 			m_eventQueue.postSizeEvent(handle, ENTRY_DEFAULT_WIDTH, ENTRY_DEFAULT_HEIGHT);
@@ -513,6 +512,9 @@ namespace entry
 							m_window[msg->m_handle.idx] = window;
 							m_eventQueue.postSizeEvent(msg->m_handle, msg->m_width, msg->m_height);
 							m_eventQueue.postWindowEvent(msg->m_handle, glfwNativeWindowHandle(window));
+
+							m_width = msg->m_width;
+							m_height = msg->m_height;
 						}
 						break;
 
@@ -609,6 +611,9 @@ namespace entry
 
 					delete msg;
 				}
+
+				// check the window size once each loop to avoid multiple resize events in same frame.
+				updateWindowSize(m_window[0]);
 			}
 
 			m_eventQueue.postExitEvent();
@@ -618,6 +623,22 @@ namespace entry
 			glfwTerminate();
 
 			return m_thread.getExitCode();
+		}
+
+		void updateWindowSize(GLFWwindow* _window)
+		{
+			int32_t width{ 0 };
+			int32_t height{ 0 };
+            glfwGetWindowSize(m_window[0], &width, &height);
+
+			if ( width != m_width || height != m_height)
+			{
+				m_width = width;
+                m_height = height;
+
+                WindowHandle handle = findHandle(_window);
+                m_eventQueue.postSizeEvent(handle, m_width, m_height);
+			}
 		}
 
 		WindowHandle findHandle(GLFWwindow* _window)
@@ -662,6 +683,9 @@ namespace entry
 		int32_t m_oldY;
 		int32_t m_oldWidth;
 		int32_t m_oldHeight;
+
+		int32_t m_width;
+		int32_t m_height;
 
 		double m_scrollPos;
 	};
