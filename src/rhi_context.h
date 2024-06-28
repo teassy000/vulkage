@@ -189,8 +189,7 @@ namespace kage
         virtual void init(const Resolution& _resolution, void* _wnd) {};
 
         virtual void bake();
-        virtual bool render() { return false; }
-
+        virtual bool run() { return false; };
 
         virtual bool checkSupports(VulkanSupportExtension _ext) { return false; }
         virtual void updateResolution(const Resolution& _resolution) {};
@@ -211,7 +210,6 @@ namespace kage
             const ImageHandle _hImg
             , const uint16_t _width
             , const uint16_t _height
-            , const uint16_t _mips
             , const Memory* _mem
         ) {};
 

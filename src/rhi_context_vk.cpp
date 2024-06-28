@@ -120,13 +120,17 @@ namespace kage { namespace vk
             hash.add(handle);
 
             uint32_t hashKey = hash.end();
-
-            m_names.erase(hashKey);
+            
+            NameMap::iterator it = m_names.find(hashKey);
+            if (m_names.end() != it)
+            {
+                m_names.erase(it);
+            }
         }
 
 
         template<typename Ty>
-        const char* getDebugName(Ty _obj)
+        const char* get(Ty _obj)
         {
             VkObjectType type = getType<Ty>();
             uint64_t handle = (uint64_t)(_obj.vk);
@@ -178,7 +182,7 @@ namespace kage { namespace vk
     template<typename Ty>
     const char* getLocalDebugName(Ty _obj)
     {
-        return getDebugNames()->getDebugName(_obj);
+        return getDebugNames()->get(_obj);
     }
 
     void shutdownLocalDebugName()
@@ -1384,6 +1388,21 @@ namespace kage { namespace vk
         }
     }
 
+    template<typename Ty>
+    static void refreshDebugNameObject(VkDevice _device, Ty _oldObj, Ty _newObj)
+    {
+
+        if (BX_ENABLED(KAGE_DEBUG))
+        {
+            const char* name = getLocalDebugName(_oldObj);
+            if (name)
+            {
+                setDebugObjName(_device, _newObj, "%s", name);
+                unsetLocalDebugName(_oldObj);
+            }
+        }
+    }
+
     RHIContext_vk::RHIContext_vk(bx::AllocatorI* _allocator)
         : RHIContext(_allocator)
         , m_nwh(nullptr)
@@ -1456,14 +1475,6 @@ namespace kage { namespace vk
             VkImage scimg = m_swapchain.m_swapchainImages[ii];
             setDebugObjName(m_device, scimg, "Img_Swapchain_%d", ii);
 
-            /*
-            m_barrierDispatcher.track(
-                scimg
-                , VK_IMAGE_ASPECT_COLOR_BIT
-                , { 0, VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT }
-            );
-            */
-
             m_barrierDispatcher.track(
                 scimg
                 , VK_IMAGE_ASPECT_COLOR_BIT
@@ -1535,6 +1546,17 @@ namespace kage { namespace vk
         assert(m_queryPoolStatistics);
     }
 
+    bool RHIContext_vk::run()
+    {
+        m_frameRecCmds.finish();
+
+        bool result = render();
+
+        m_frameRecCmds.start();
+
+        return result;
+    }
+
     bool RHIContext_vk::render()
     {
         VKZ_ZoneScopedC(Color::indian_red);
@@ -1545,22 +1567,10 @@ namespace kage { namespace vk
             return false;
         }
 
-        SwapchainStatus_vk swapchainStatus = m_swapchain.getSwapchainStatus();
-        if (swapchainStatus == SwapchainStatus_vk::not_ready) {  // skip this frame
-            return true;
-        }
-
-        if(swapchainStatus == SwapchainStatus_vk::resize)
-        {
-            return true;
-        }
-
         if (!m_swapchain.acquire(m_cmdBuffer))
         {
             return true;
         }
-
-        m_frameRecCmds.baginRender();
 
         VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
         beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
@@ -1575,17 +1585,17 @@ namespace kage { namespace vk
             vkCmdResetQueryPool(m_cmdBuffer, m_queryPoolTimeStamp, 0, m_queryTimeStampCount);
 
             vkCmdWriteTimestamp(m_cmdBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, m_queryPoolTimeStamp, queryIdx);
+            
             // render passes
             for (size_t ii = 0; ii < m_passContainer.size(); ++ii)
             {
                 uint16_t passId = m_passContainer.getIdAt(ii);
-                const char* pn = getName(PassHandle{ passId });
-
+                PassHandle p = PassHandle{ passId };
+                const char* pn = getName(p);
                 VKZ_VkZoneTransient(m_tracyVkCtx, var, m_cmdBuffer, pn);
-
+                message(info, "==== start pass : %s", pn);
 
                 createBarriers(passId);
-                //checkUnmatchedBarriers(passId);
 
                 executePass(passId);
 
@@ -1594,6 +1604,7 @@ namespace kage { namespace vk
 
                 // write time stamp
                 vkCmdWriteTimestamp(m_cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, m_queryPoolTimeStamp, ++queryIdx);
+                message(info, "==== end pass : %s", pn);
             }
 
             // to swapchain
@@ -1628,8 +1639,6 @@ namespace kage { namespace vk
 
             m_passTime.insert({ passId, timeEnd - timeStart });
         }
-
-        m_frameRecCmds.endRender();
 
         return true;
     }
@@ -1823,6 +1832,7 @@ namespace kage { namespace vk
             // untrack old swapchain images
             for (uint32_t ii = 0; ii < m_swapchain.m_swapchainImageCount; ++ii)
             {
+                unsetLocalDebugName(m_swapchain.m_swapchainImages[ii]);
                 m_barrierDispatcher.untrack(m_swapchain.m_swapchainImages[ii]);
             }
 
@@ -1844,17 +1854,23 @@ namespace kage { namespace vk
             // update attachments
             for (const kage::ImageHandle & hImg : m_colorAttchBase)
             {
-                const stl::vector<ImageHandle>& attchImages = m_imgToAliases.find(hImg)->second;
-                updateImageWithAlias(hImg, _resolution.width, _resolution.height, 1, nullptr, attchImages);
+                updateImage(hImg, _resolution.width, _resolution.height, nullptr);
             }
 
             for (const kage::ImageHandle & hImg : m_depthAttchBase)
             {
-                const stl::vector<ImageHandle>& attchImages = m_imgToAliases.find(hImg)->second;
-                updateImageWithAlias(hImg, _resolution.width, _resolution.height, 1, nullptr, attchImages);
+                updateImage(hImg, _resolution.width, _resolution.height, nullptr);
             }
 
             m_resolution = _resolution;
+            message(info,
+                "update m_resolution: width: %d, height: %d, reset: %016x"
+                , m_resolution.width
+                , m_resolution.height
+                , m_resolution.reset
+            );
+
+            m_updated = true;
         }
     }
 
@@ -1945,7 +1961,6 @@ namespace kage { namespace vk
         const ImageHandle _hImg
         , const uint16_t _width
         , const uint16_t _height
-        , const uint16_t _mips
         , const Memory* _mem
     )
     {
@@ -1954,14 +1969,13 @@ namespace kage { namespace vk
         ImageHandle baseImg = { m_aliasToBaseImages.getIdToData(_hImg.id) };
         const stl::vector<ImageHandle>& aliasRef = m_imgToAliases.find(baseImg)->second;
 
-        updateImageWithAlias(_hImg, _width, _height, _mips, _mem, aliasRef);
+        updateImageWithAlias(_hImg, _width, _height, _mem, aliasRef);
     }
 
     void RHIContext_vk::updateImageWithAlias(
         const ImageHandle _hImg
         , const uint16_t _width
         , const uint16_t _height
-        , const uint16_t _mips
         , const Memory* _mem
         , const stl::vector<ImageHandle>& _alias
     )
@@ -1975,19 +1989,15 @@ namespace kage { namespace vk
         }
 
         const ImageHandle baseImg = { m_aliasToBaseImages.getIdToData(_hImg.id) };
-        const Image_vk& baseImgVk = m_imageContainer.getIdToData(baseImg.id);
+        Image_vk baseImgVk = m_imageContainer.getIdToData(baseImg.id);
 
         // re-create image if new size is different from the old one
         if (baseImgVk.width != _width || baseImgVk.height != _height)
         {
-            stl::vector<ImageAliasInfo> aliasInfos;
-            {
-                Image_vk& imgVk = m_imageContainer.getDataRef(baseImg.id);
-                release(imgVk.memory);
-            }
-
             const BarrierState_vk baseBarrier = m_barrierDispatcher.getBaseBarrierState(baseImgVk.image);
 
+            stl::vector<VkImage> toRelease;
+            stl::vector<ImageAliasInfo> aliasInfos;
             for (const ImageHandle& img : _alias)
             {
                 ImageAliasInfo ali{};
@@ -1995,16 +2005,23 @@ namespace kage { namespace vk
                 aliasInfos.push_back(ali);
 
                 Image_vk& imgVk = m_imageContainer.getDataRef(img.id);
-
+                toRelease.push_back(imgVk.image);
+                
                 m_barrierDispatcher.untrack(imgVk.image);
+                
+                message(info, "release vk image : %04x, vk: 0x%p", img.id, imgVk.image);
+                
                 release(imgVk.defaultView);
                 release(imgVk.image);
+
+                m_imgViewCache.invalidateWithParent(img.id);
             }
+
+            release(baseImgVk.memory);
 
             ImageCreateInfo& ci = m_imgCreateInfos.getDataRef(_hImg.id);
             ci.width = _width;
             ci.height = _height;
-            ci.numMips = _mips;
 
             // recreate image
             ImgInitProps_vk initPorps = getImageInitProp(ci, m_imageFormat, m_depthFormat);
@@ -2024,6 +2041,10 @@ namespace kage { namespace vk
                     , baseBarrier
                     , baseImgVk.image
                 );
+
+                refreshDebugNameObject(m_device, toRelease[ii], imageVks[ii].image);
+
+                message(info, "update vk image : %04x, vk: 0x%p", _alias[ii].id, imageVks[ii].image);
             }
         }
 
@@ -2381,7 +2402,7 @@ namespace kage { namespace vk
 
             if (info.usage & ImageUsageFlagBits::storage)
             {
-                m_depthAttchBase.push_back({ info.imgId });
+                m_storageImageBase.push_back({ info.imgId });
             }
 
             stl::vector<ImageHandle> alias;
@@ -2542,7 +2563,7 @@ namespace kage { namespace vk
             );
             return;
         }
-        
+
         m_frameRecCmds.record(_hPass, _mem);
 
         PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
@@ -2999,8 +3020,6 @@ namespace kage { namespace vk
         );
 
         dispatchBarriers();
-
-        message(info, "release buffer: 0x%llx", scratch.buffer);
         
         release(scratch.buffer);
         release(scratch.memory);
@@ -3130,7 +3149,6 @@ namespace kage { namespace vk
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
-        message(info, "createBarriers: pass %s ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~", getName(PassHandle{ _passId }));
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 
         // write depth
@@ -3183,15 +3201,12 @@ namespace kage { namespace vk
 
             m_barrierDispatcher.barrier(getBuffer(id).buffer, dst);
         }
-
-        message(info, "createBarriers ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
     }
 
     void RHIContext_vk::flushWriteBarriers(uint16_t _passId)
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
-        message(info, "flushWriteBarriers: pass %s ***********************", getName(PassHandle{ _passId }));
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 
         // flush in out resources
@@ -3225,13 +3240,11 @@ namespace kage { namespace vk
             }
         }
 
-        message(info, "flushWriteBarriers***********************");
         dispatchBarriers();
     }
 
     void RHIContext_vk::createBarriersRec(const PassHandle _hPass)
     {
-        message(info, "createBarriersRec: pass %s ------------------------", getName(_hPass));
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_hPass.id);
         for (const Binding& binding : m_descSets)
         {
@@ -3256,14 +3269,11 @@ namespace kage { namespace vk
             }
         }
 
-        message(info, "createBarriersRec end ------------------------");
         dispatchBarriers();
     }
 
     void RHIContext_vk::flushWriteBarriersRec(const PassHandle _hPass)
     {
-
-        message(info, "flushWriteBarriersRec start, pass: %s =======================", getName(_hPass));
         stl::vector<Binding> bindings;
         bindings.reserve(m_descSets.size());
         for (const Binding& b : m_descSets)
@@ -3297,9 +3307,6 @@ namespace kage { namespace vk
                 m_barrierDispatcher.barrier(buf.buffer, bs);
             }
         }
-
-        // dispatchBarriers();
-        message(info, "flushWriteBarriersRec end =======================");
     }
 
     void RHIContext_vk::lazySetDescriptorSet(const PassHandle _hPass)
@@ -3316,17 +3323,19 @@ namespace kage { namespace vk
         {
             const Binding& b = m_descSets[ii];
 
-            DescriptorInfo info;
+            DescriptorInfo di;
             if (ResourceType::image == b.type)
             {
-                info = getImageDescInfo(b.img, b.mip, b.sampler);
+                di = getImageDescInfo(b.img, b.mip, b.sampler);
+                message(info, "set desc %02d with img: 0x%08x", ii, b.img);
             }
             else if (ResourceType::buffer == b.type)
             {
-                info = getBufferDescInfo(b.buf);
+                di = getBufferDescInfo(b.buf);
+                message(info, "set desc %02d with buf: 0x%08x", ii, b.buf);
             }
 
-            descInfos[ii] = info;
+            descInfos[ii] = di;
         }
 
         PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
@@ -3482,7 +3491,7 @@ namespace kage { namespace vk
     {
         VKZ_ZoneScopedC(Color::indian_red);
 
-        VkSampler sampler = nullptr;
+        VkSampler sampler = VK_NULL_HANDLE;
         if (m_samplerContainer.exist(_hSampler.id))
         {
             sampler = m_samplerContainer.getIdToData(_hSampler.id);
@@ -3921,12 +3930,6 @@ namespace kage { namespace vk
                 {
                     const Memory* mem;
                     cmdBuf.read(mem);
-
-                    const uint8_t* data;
-                    cmdBuf.read(data);
-
-                    uint32_t size;
-                    cmdBuf.read(size);
 
                     BX_ASSERT(mem->size < 256 , "why the size exceed 256 for pass: %s", getName(_hPass));
 
@@ -4449,7 +4452,7 @@ namespace kage { namespace vk
 
         BX_ASSERT(
             validateBufferStatus(_state.accessMask, _state.stageMask)
-            , "buffer: [%s] status not valid! access: 0x%016x, stage: 0x%016x"
+            , "buffer: [%s] status not valid! access: 0x%08x, stage: 0x%08x"
             , getLocalDebugName(_buf)
             , _state.accessMask
             , _state.stageMask
@@ -4472,7 +4475,7 @@ namespace kage { namespace vk
 
         BX_ASSERT(
             validateImageStatus(_dstBarrier.accessMask, _dstBarrier.stageMask, _dstBarrier.imgLayout)
-            , "image: [%s] status not valid! access: 0x%016x, stage: 0x%016x, layout: 0x%016x"
+            , "image: [%s] status not valid! access: 0x%08x, stage: 0x%08x, layout: 0x%08x"
             , getLocalDebugName(_img)
             , _dstBarrier.accessMask
             , _dstBarrier.stageMask
@@ -4566,10 +4569,10 @@ namespace kage { namespace vk
 
             message(
                 info
-                , "Image Barrier: 0x%016x, %s\n\
-                    aspect: 0x%016x\n\
-                    , [SRC] access: 0x%016x, stage: 0x%016x, layout: 0x%016x \n\
-                    , [DST] access: 0x%016x, stage: 0x%016x, layout: 0x%016x"
+                , "Image Barrier: 0x%08x, %s\n\
+                    aspect: 0x%08x\n\
+                    , [SRC] access: 0x%08x, stage: 0x%08x, layout: 0x%016lx \n\
+                    , [DST] access: 0x%08x, stage: 0x%08x, layout: 0x%016lx"
                 , img
                 , getLocalDebugName(img)
                 , aspect
@@ -4596,9 +4599,9 @@ namespace kage { namespace vk
 
             message(
                 info
-                , "Buffer Barrier: 0x%016x, %s\n\
-                    , [SRC] access: 0x%016x, stage: 0x%016x\n\
-                    , [DST] access: 0x%016x, stage: 0x%016x"
+                , "Buffer Barrier: 0x%08x, %s\n\
+                    , [SRC] access: 0x%08x, stage: 0x%08x\n\
+                    , [DST] access: 0x%08x, stage: 0x%08x"
                 , buf
                 , getLocalDebugName(buf)
                 , src.accessMask, src.stageMask
@@ -5056,7 +5059,7 @@ namespace kage { namespace vk
     void FrameRecCmds::init()
     {
         m_cmdBuffer.init(kRendererCommandBufferInitSize);
-        m_cmdBuffer.start();
+        start();
     }
 
     void FrameRecCmds::record(const PassHandle _hPass, const Memory* _mem)
@@ -5094,12 +5097,12 @@ namespace kage { namespace vk
         return m_cmdBuffer;
     }
 
-    void FrameRecCmds::baginRender()
+    void FrameRecCmds::finish()
     {
         m_cmdBuffer.finish();
     }
 
-    void FrameRecCmds::endRender()
+    void FrameRecCmds::start()
     {
         m_recCmdInfo.clear();
         m_cmdBuffer.start();

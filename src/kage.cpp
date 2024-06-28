@@ -143,8 +143,8 @@ namespace kage
     static Handle::TypeName s_aliasName = {"Als", "Alias"};
     static Handle::TypeName s_typeNames[] = {
         { "Sh",     "Shader" },
-        { "Pa",     "Program" },
-        { "Pr",     "Pass" },
+        { "Pr",     "Program" },
+        { "Pa",     "Pass" },
         { "B",      "Buffer" },
         { "I",      "Image" },
         { "?",      "?"},
@@ -387,7 +387,7 @@ namespace kage
         void updateImage(const ImageHandle _hImg 
             , uint16_t _width
             , uint16_t _height
-            , uint16_t _mips, const Memory* _mem);
+            , const Memory* _mem);
 
 
         void updatePushConstants(const PassHandle _hPass, const Memory* _mem);
@@ -1436,7 +1436,6 @@ namespace kage
         m_bufferMetas[aliasId] = meta;
 
         bx::StringView baseName = getName(rootBase);
-        //setName(getNameManager(), baseName.getPtr(), baseName.getLength(), BufferHandle{ aliasId }, true);
         setName(aliasHandle, baseName.getPtr(), baseName.getLength(), true);
 
         setRenderGraphDataDirty();
@@ -1917,7 +1916,6 @@ namespace kage
         const ImageHandle _hImg
         , uint16_t _width
         , uint16_t _height
-        , uint16_t _mips
         , const Memory* _mem
     )
     {
@@ -1925,7 +1923,6 @@ namespace kage
         cmd.write(_hImg);
         cmd.write(_width);
         cmd.write(_height);
-        cmd.write(_mips);
         cmd.write(_mem);
     }
 
@@ -2086,13 +2083,10 @@ namespace kage
                     uint16_t height;
                     _cmdbuf.read(height);
 
-                    uint16_t mips;
-                    _cmdbuf.read(mips);
-
                     const Memory* mem;
                     _cmdbuf.read(mem);
 
-                    m_rhiContext->updateImage(id, width, height, mips, mem);
+                    m_rhiContext->updateImage(id, width, height, mem);
                 }
                 break;
             case CommandBuffer::update_buffer:
@@ -2160,71 +2154,6 @@ namespace kage
 
                     m_rhiContext->setRecord(pass, mem);
                     release(mem);
-                }
-                break;
-            case CommandBuffer::record_set_constants:
-                {
-                    assert(0);
-                }
-                break;
-            case CommandBuffer::record_set_descriptor:
-                {
-                    assert(0);
-                }
-                break;
-            case CommandBuffer::record_set_viewport:
-                {
-                    assert(0);
-                }
-                break;
-            case CommandBuffer::record_set_vertex_buffer:
-                {
-                    assert(0);
-                }
-                break;
-            case CommandBuffer::record_set_index_buffer:
-                {
-                    assert(0);
-                }
-                break;
-            case CommandBuffer::record_dispatch:
-                {
-                    assert(0);
-                }
-                break;
-            case CommandBuffer::record_draw:
-                {
-                    assert(0);
-                }
-                break;
-            case CommandBuffer::record_draw_indexed:
-                {
-                    assert(0);
-                }
-                break;
-            case CommandBuffer::record_draw_indirect:
-                {
-                    assert(0);
-                }
-                break;
-            case CommandBuffer::record_draw_mesh_task:
-                {
-                    assert(0);
-                }
-                break;
-            case CommandBuffer::record_draw_mesh_task_indirect:
-                {
-                    assert(0);
-                }
-                break;
-            case CommandBuffer::record_draw_mesh_task_indirect_count:
-                {
-                    assert(0);
-                }
-                break;
-            case CommandBuffer::record_end:
-                {
-                    ;
                 }
                 break;
             case CommandBuffer::end:
@@ -2295,7 +2224,7 @@ namespace kage
 
         rhi_render();
 
-        // free transistent memories
+        // free transient memories
         for (const Memory* pMem : m_transientMemories)
         {
             release(pMem);
@@ -2333,6 +2262,8 @@ namespace kage
 
     void Context::reset(uint32_t _windth, uint32_t _height, uint32_t _reset)
     {
+        message(DebugMessageType::info, "reset!");
+
         m_resolution.width = _windth;
         m_resolution.height = _height;
         m_resolution.reset = _reset;
@@ -2342,12 +2273,16 @@ namespace kage
 
     void Context::rhi_render()
     {
+        message(DebugMessageType::info, "start rendering");
+
         rendererExecCmds(m_cmdPre);
 
         rendererExecCmds(m_cmdRecording);
-        m_rhiContext->render();
+        m_rhiContext->run();
 
         rendererExecCmds(m_cmdPost);
+
+        message(DebugMessageType::info, "finish rendering");
     }
 
     void Context::shutdown()
@@ -2397,12 +2332,14 @@ namespace kage
             message(DebugMessageType::error
                 , "pass [%d:%s] already started!"
                 , m_recordingPass.id
-                , getName(m_recordingPass)
+                , getName(m_recordingPass).getPtr()
             );
             return;
         }
 
         m_recordingPass = _hPass;
+
+        message(info, "start rec pass %s", getName(m_recordingPass).getPtr());
 
         CommandBuffer& cmd = getCommandBuffer(CommandBuffer::record_start);
         
@@ -2419,10 +2356,6 @@ namespace kage
     {
         CommandBuffer& cmd = getCommandBuffer(CommandBuffer::record_set_constants);
         cmd.write(_mem);
-        cmd.write(_mem->data);
-        cmd.write(_mem->size);
-
-        BX_ASSERT(_mem->size < 256, "why the size exceed 256 for pass: %s", getName(m_recordingPass));
 
         m_transientMemories.push_back(_mem);
     }
@@ -2719,11 +2652,10 @@ namespace kage
         const ImageHandle _hImg
         , uint16_t _width
         , uint16_t _height
-        , uint16_t _mips
         , const Memory* _mem /*= nullptr */
     )
     {
-        s_ctx->updateImage(_hImg, _width, _height, _mips, _mem);
+        s_ctx->updateImage(_hImg, _width, _height, _mem);
     }
 
     void startRec(const PassHandle _hPass)

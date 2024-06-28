@@ -347,8 +347,8 @@ namespace kage { namespace vk
 
         CommandBuffer& getCmd(const PassHandle _hPass);
 
-        void baginRender();
-        void endRender();
+        void finish();
+        void start();
 
         using  RecCmdInfoMap = stl::unordered_map<PassHandle, RecCmdInfo>;
         RecCmdInfoMap m_recCmdInfo;
@@ -363,7 +363,9 @@ namespace kage { namespace vk
 
         void init(const Resolution& _resolution, void* _wnd) override;
         void bake() override;
-        bool render() override;
+        bool run() override;
+        
+        bool render();
         void kick(bool _finishAll = false);
         void shutdown();
 
@@ -384,7 +386,6 @@ namespace kage { namespace vk
             const ImageHandle _hImg
             , const uint16_t _width
             , const uint16_t _height
-            , const uint16_t _mips
             , const Memory* _mem
         ) override;
 
@@ -392,7 +393,6 @@ namespace kage { namespace vk
             const ImageHandle _hImg
             , const uint16_t _width
             , const uint16_t _height
-            , const uint16_t _mips
             , const Memory* _mem
             , const stl::vector<ImageHandle>& _alias
         );
@@ -639,6 +639,8 @@ namespace kage { namespace vk
         VkDescriptorPool m_descPool;
 
         Resolution m_resolution;
+
+        bool m_updated = false;
 
         VkFormat m_imageFormat;
         VkFormat m_depthFormat;

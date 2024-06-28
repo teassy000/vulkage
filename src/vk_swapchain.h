@@ -9,15 +9,6 @@
 namespace kage { namespace vk
 {
 
-    enum class SwapchainStatus_vk : uint32_t
-    {
-        ready = 0u,
-        not_ready = 1u,
-        resize = 2u,
-    };
-
-
-
     struct Swapchain_vk
     {
         Swapchain_vk()
@@ -43,7 +34,6 @@ namespace kage { namespace vk
         void present();
 
         VkFormat getSwapchainFormat();
-        SwapchainStatus_vk getSwapchainStatus();
 
         void releaseSwapchain();
         void releaseSurface();

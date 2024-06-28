@@ -89,7 +89,6 @@ namespace kage
         const ImageHandle _hImg
         , uint16_t _width
         , uint16_t _height
-        , uint16_t _mips
         , const Memory* _mem = nullptr
     );
 

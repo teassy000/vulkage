@@ -71,11 +71,16 @@ namespace kage { namespace vk
 
             if (recreateSurface)
             {
-                m_sci.oldSwapchain = VK_NULL_HANDLE;
                 releaseSurface();
                 s_renderVK->kick(true);
+                m_sci.oldSwapchain = VK_NULL_HANDLE;
                 createSurface();
             }
+
+            // wait for the next frame to recreate swapchain
+            s_renderVK->kick(true);
+            m_sci.oldSwapchain = VK_NULL_HANDLE;
+            
             createSwapchain();
         }
     }
@@ -97,6 +102,11 @@ namespace kage { namespace vk
             m_resolution.height
             , surfaceCaps.minImageExtent.height
             , surfaceCaps.maxImageExtent.height
+        );
+
+        BX_ASSERT( 
+            (width == m_resolution.width && height == m_resolution.height)
+            , "extent should match with the surfce"
         );
 
         VkFormat format = getSwapchainFormat();
@@ -277,39 +287,6 @@ namespace kage { namespace vk
         }
 
         return formats[0].format;
-    }
-
-    kage::vk::SwapchainStatus_vk Swapchain_vk::getSwapchainStatus()
-    {
-        const VkPhysicalDevice physicalDevice = s_renderVK->m_physicalDevice;
-
-        VkSurfaceCapabilitiesKHR surfaceCaps;
-        VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, m_surface, &surfaceCaps));
-
-
-        const uint32_t width = bx::clamp<uint32_t>(
-            m_resolution.width
-            , surfaceCaps.minImageExtent.width
-            , surfaceCaps.maxImageExtent.width
-        );
-        const uint32_t height = bx::clamp<uint32_t>(
-            m_resolution.height
-            , surfaceCaps.minImageExtent.height
-            , surfaceCaps.maxImageExtent.height
-        );
-
-        if (m_resolution.width == width
-            && m_resolution.height == height)
-        {
-            return SwapchainStatus_vk::ready;
-        }
-
-        if (width == 0 || height == 0)
-        {
-            return SwapchainStatus_vk::not_ready;
-        }
-
-        return SwapchainStatus_vk::resize;
     }
 
     void Swapchain_vk::releaseSwapchain()
