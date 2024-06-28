@@ -479,6 +479,9 @@ namespace entry
 					}
 				}
 
+                // check the window size once each loop to avoid multiple resize events in same frame.
+                updateWindowSize(m_window[0]);
+
 				while (Msg* msg = m_msgs.pop())
 				{
 					switch (msg->m_type)
@@ -611,9 +614,6 @@ namespace entry
 
 					delete msg;
 				}
-
-				// check the window size once each loop to avoid multiple resize events in same frame.
-				updateWindowSize(m_window[0]);
 			}
 
 			m_eventQueue.postExitEvent();
