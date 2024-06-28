@@ -142,7 +142,7 @@ void updatePyramid(PyramidRendering& _pyramid, uint32_t _width, uint32_t _height
         _pyramid.height = level_height;
         _pyramid.levels = levels;
 
-        kage::updateImage2D(_pyramid.image, level_width, level_height, levels);
+        kage::updateImage2D(_pyramid.image, level_width, level_height);
     }
 
     renderPyr(_pyramid);
