@@ -4,9 +4,9 @@ namespace kage
 {
     enum DebugMessageType
     {
-        info = 0u,
-        warning = 1u,
-        error = 2u,
+        info,
+        warning,
+        error,
     };
 
 #define VK_CHECK(call) \

@@ -12,11 +12,17 @@
 
 namespace kage {
 
+    constexpr DebugMessageType c_debugLv = DebugMessageType::warning;
 
     void message(DebugMessageType type, const char* format, ...)
     {
         if (BX_ENABLED(KAGE_DEBUG))
         {
+            if (type < c_debugLv)
+            {
+                return;
+            }
+
             // parsing args
             va_list args;
             va_start(args, format);
