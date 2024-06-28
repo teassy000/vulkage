@@ -132,7 +132,6 @@ void setPyramidPassDependency(PyramidRendering& _pyramid, const kage::ImageHandl
 
 void updatePyramid(PyramidRendering& _pyramid, uint32_t _width, uint32_t _height)
 {
-
     const uint32_t level_width = previousPow2_py(_width);
     const uint32_t level_height = previousPow2_py(_height);
     const uint32_t levels = calculateMipLevelCount_py(level_width, level_height);

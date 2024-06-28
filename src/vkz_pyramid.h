@@ -5,16 +5,15 @@
 
 
 struct PyramidRendering {
-    kage::ImageHandle inDepth{ kage::kInvalidHandle };
+    kage::PassHandle pass;
+    kage::ProgramHandle program;
+    kage::ShaderHandle cs;
 
+    kage::ImageHandle inDepth{ kage::kInvalidHandle };
     kage::ImageHandle image{ kage::kInvalidHandle };
     kage::ImageHandle imgOutAlias{ kage::kInvalidHandle };
     kage::SamplerHandle sampler{ kage::kInvalidHandle };
 
-    kage::ProgramHandle program;
-    kage::ShaderHandle cs;
-    kage::PassHandle pass;
-    
     uint32_t width;
     uint32_t height;
     uint32_t levels;

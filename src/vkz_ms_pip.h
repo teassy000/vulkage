@@ -26,12 +26,13 @@ struct MeshShadingInitData
 
 struct MeshShading
 {
+    kage::PassHandle pass;
+
     kage::ShaderHandle taskShader;
     kage::ShaderHandle meshShader;
     kage::ShaderHandle fragShader;
 
     kage::ProgramHandle program;
-    kage::PassHandle pass;
 
     // read-only
     kage::BufferHandle vtxBuffer;

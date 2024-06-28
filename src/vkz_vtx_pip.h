@@ -21,10 +21,10 @@ struct VtxShadingInitData
 struct VtxShading
 {
     // read-only
+    kage::PassHandle pass;
     kage::ShaderHandle vtxShader;
     kage::ShaderHandle fragShader;
     kage::ProgramHandle prog;
-    kage::PassHandle pass;
 
     kage::BufferHandle idxBuf;
     kage::BufferHandle vtxBuf;
