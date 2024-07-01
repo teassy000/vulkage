@@ -54,7 +54,7 @@ namespace kage
                 break;
                 // End
             case RHIContextOpMagic::invalid_magic:
-                message(DebugMessageType::warning, "invalid magic tag, data incorrect!");
+                message(DebugMsgType::warning, "invalid magic tag, data incorrect!");
             case RHIContextOpMagic::end:
             default:
                 finished = true;

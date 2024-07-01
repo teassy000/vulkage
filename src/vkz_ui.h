@@ -4,20 +4,14 @@
 #include "uidata.h"
 #include "kage_math.h"
 
-struct PushConstBlock {
-    glm::vec2 scale;
-    glm::vec2 translate;
-};
-
 struct UIRendering
 {
+    kage::PassHandle pass{ kage::kInvalidHandle };
     kage::ProgramHandle program{ kage::kInvalidHandle };
 
     // shaders
     kage::ShaderHandle vs{ kage::kInvalidHandle };
     kage::ShaderHandle fs{ kage::kInvalidHandle };
-
-    kage::PassHandle pass{ kage::kInvalidHandle };
 
     // vertex buffer and index buffer
     kage::BufferHandle vb{ kage::kInvalidHandle };
@@ -37,9 +31,20 @@ struct UIRendering
 };
 
 
-void vkz_prepareUI(UIRendering& _ui, kage::ImageHandle _color, kage::ImageHandle _depth, float _scale = 1.f, bool _useChinese = false);
-void vkz_destroyUIRendering(UIRendering& ui);
+void prepareUI(
+    UIRendering& _ui
+    , kage::ImageHandle _color
+    , kage::ImageHandle _depth
+    , float _scale = 1.f
+    , bool _useChinese = false
+);
 
-void vkz_updateImGui(const UIInput& input, DebugRenderOptionsData& rd, const DebugProfilingData& pd, const DebugLogicData& ld);
+void destroyUI(UIRendering& _ui);
 
-void kage_updateUI(UIRendering& ui);
+void updateUI(
+    UIRendering& _ui
+    , const UIInput& _input
+    , DebugRenderOptionsData& _rd
+    , const DebugProfilingData& _pd
+    , const DebugLogicData& _ld
+);

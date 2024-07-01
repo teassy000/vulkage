@@ -11,7 +11,7 @@ struct alignas(16) TransformData
     vec3 cameraPos;
 };
 
-struct alignas(16) MeshDrawCullVKZ
+struct alignas(16) MeshDrawCull
 {
     float P00, P11;
     float znear, zfar;
@@ -25,7 +25,7 @@ struct alignas(16) MeshDrawCullVKZ
     int32_t enableMeshletOcclusion;
 };
 
-struct alignas(16) GlobalsVKZ
+struct alignas(16) Globals
 {
     mat4 projection;
 
@@ -36,7 +36,7 @@ struct alignas(16) GlobalsVKZ
     int enableMeshletOcclusion;
 };
 
-struct MeshDrawCommandVKZ
+struct MeshDrawCommand
 {
     uint32_t    drawId;
     uint32_t    taskOffset;
@@ -64,42 +64,16 @@ struct DemoData
     DebugLogicData logic;
 
     // constants
-    GlobalsVKZ globals;
-    MeshDrawCullVKZ drawCull;
+    Globals globals;
+    MeshDrawCull drawCull;
 
     // uniform
     TransformData trans;
-
-    uint32_t width;
-    uint32_t height;
 };
 
 
-inline uint32_t previousPow2_new(uint32_t v)
-{
-    uint32_t r = 1;
-
-    while (r < v)
-        r <<= 1;
-    r >>= 1;
-    return r;
-}
-
-inline uint32_t calculateMipLevelCount_new(uint32_t width, uint32_t height)
-{
-    uint32_t result = 0;
-    while (width > 1 || height > 1)
-    {
-        result++;
-        width >>= 1;
-        height >>= 1;
-    }
-
-    return result;
-}
-
 // left handed?
-inline mat4 perspectiveProjection2(float fovY, float aspectWbyH, float zNear)
+inline mat4 perspectiveProjection(float fovY, float aspectWbyH, float zNear)
 {
     float f = 1.0f / tanf(fovY / 2.0f);
 
@@ -110,20 +84,7 @@ inline mat4 perspectiveProjection2(float fovY, float aspectWbyH, float zNear)
         0.0f, 0.0f, zNear, 0.0f);
 }
 
-inline vec4 normalizePlane2(vec4 p)
+inline vec4 normalizePlane(vec4 p)
 {
     return p / glm::length(p);
-}
-
-inline uint32_t calculateMipLevelCount2(uint32_t width, uint32_t height)
-{
-    uint32_t result = 0;
-    while (width > 1 || height > 1)
-    {
-        result++;
-        width >>= 1;
-        height >>= 1;
-    }
-
-    return result;
 }

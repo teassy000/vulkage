@@ -43,20 +43,20 @@ namespace
             config.name = "vulkage demo";
             config.windowHandle = entry::getNativeWindowHandle(entry::kDefaultWindowHandle);
 
-            demoData.width = _width;
-            demoData.height = _height;
+            m_width = _width;
+            m_height = _height;
 
             entry::setMouseLock(entry::kDefaultWindowHandle, true);
 
             kage::init(config);
             
-            supportMeshShading = kage::checkSupports(kage::VulkanSupportExtension::ext_mesh_shader);
+            m_supportMeshShading = kage::checkSupports(kage::VulkanSupportExtension::ext_mesh_shader);
 
             initScene();
 
             // ui data
-            demoData.input.width = (float)_width;
-            demoData.input.height = (float)_height;
+            m_demoData.input.width = (float)_width;
+            m_demoData.input.height = (float)_height;
 
             // basic data
             freeCameraInit();
@@ -85,95 +85,47 @@ namespace
 
             freeCameraUpdate(deltaTimeMS, m_mouseState, m_reset);
 
+            updatePyramid(m_pyramid, m_width, m_height);
 
-            float znear = .1f;
-            mat4 projection = perspectiveProjection2(glm::radians(70.f), (float)demoData.width / (float)demoData.height, znear);
-            mat4 projectionT = glm::transpose(projection);
-            vec4 frustumX = normalizePlane2(projectionT[3] - projectionT[0]);
-            vec4 frustumY = normalizePlane2(projectionT[3] - projectionT[1]);
+            refreshData();
 
-            uint32_t pyramidLevelWidth = previousPow2_new(demoData.width);
-            uint32_t pyramidLevelHeight = previousPow2_new(demoData.height);
+            updateCullingConstants(m_culling, m_demoData.drawCull);
+            updateCullingConstants(m_cullingLate, m_demoData.drawCull);
 
-
-            freeCameraGetViewMatrix(demoData.trans.view);
-            demoData.trans.proj = projection;
-
-            bx::Vec3 cameraPos = freeCameraGetPos();
-            demoData.trans.cameraPos.x = cameraPos.x;
-            demoData.trans.cameraPos.y = cameraPos.y;
-            demoData.trans.cameraPos.z = cameraPos.z;
-
-            demoData.drawCull.P00 = projection[0][0];
-            demoData.drawCull.P11 = projection[1][1];
-            demoData.drawCull.zfar = 10000.f; //scene.drawDistance;
-            demoData.drawCull.znear = znear;
-            demoData.drawCull.pyramidWidth = (float)pyramidLevelWidth;
-            demoData.drawCull.pyramidHeight = (float)pyramidLevelHeight;
-            demoData.drawCull.frustum[0] = frustumX.x;
-            demoData.drawCull.frustum[1] = frustumX.z;
-            demoData.drawCull.frustum[2] = frustumY.y;
-            demoData.drawCull.frustum[3] = frustumY.z;
-            demoData.drawCull.enableCull = 1;
-            demoData.drawCull.enableLod = 1;
-            demoData.drawCull.enableOcclusion = 1;
-            demoData.drawCull.enableMeshletOcclusion = 1;
-
-            updateCullingConstants(culling, demoData.drawCull);
-            updateCullingConstants(cullingLate, demoData.drawCull);
-
-            demoData.globals.projection = projection;
-            demoData.globals.zfar = 10000.f;//scene.drawDistance;
-            demoData.globals.znear = znear;
-            demoData.globals.frustum[0] = frustumX.x;
-            demoData.globals.frustum[1] = frustumX.z;
-            demoData.globals.frustum[2] = frustumY.y;
-            demoData.globals.frustum[3] = frustumY.z;
-            demoData.globals.pyramidWidth = (float)pyramidLevelWidth;
-            demoData.globals.pyramidHeight = (float)pyramidLevelHeight;
-            demoData.globals.screenWidth = (float)demoData.width;
-            demoData.globals.screenHeight = (float)demoData.height;
-            demoData.globals.enableMeshletOcclusion = 1;
-
-            if (supportMeshShading)
+            if (m_supportMeshShading)
             {
-                updateMeshShadingConstants(meshShading, demoData.globals, m_width, m_height);
-                updateMeshShadingConstants(meshShadingLate, demoData.globals, m_width, m_height);
+                updateMeshShadingConstants(m_meshShading, m_demoData.globals);
+                updateMeshShadingConstants(m_meshShadingLate, m_demoData.globals);
             }
             else
             {
-                updateVtxShadingConstants(vtxShading, demoData.globals);
-                updateVtxShadingConstants(vtxShadingLate, demoData.globals);
+                updateVtxShadingConstants(m_vtxShading, m_demoData.globals);
+                updateVtxShadingConstants(m_vtxShadingLate, m_demoData.globals);
             }
 
-            kage::updateThreadCount(culling.pass, (uint32_t)scene.meshDraws.size(), 1, 1);
-            kage::updateThreadCount(cullingLate.pass, (uint32_t)scene.meshDraws.size(), 1, 1);
+            kage::updateThreadCount(m_culling.pass, (uint32_t)m_scene.meshDraws.size(), 1, 1);
+            kage::updateThreadCount(m_cullingLate.pass, (uint32_t)m_scene.meshDraws.size(), 1, 1);
 
             const kage::Memory* memTransform = kage::alloc(sizeof(TransformData));
-            memcpy_s(memTransform->data, memTransform->size, &demoData.trans, sizeof(TransformData));
-            kage::updateBuffer(transformBuf, memTransform);
+            memcpy_s(memTransform->data, memTransform->size, &m_demoData.trans, sizeof(TransformData));
+            kage::updateBuffer(m_transformBuf, memTransform);
 
-            // update profiling data to GPU from last frame
-
-            vkz_updateImGui(demoData.input, demoData.renderOptions, demoData.profiling, demoData.logic);
-            kage_updateUI(ui);
-
-            updatePyramid(pyramid, m_width, m_height);
+            updateUI(m_ui, m_demoData.input, m_demoData.renderOptions, m_demoData.profiling, m_demoData.logic);
 
             // render
             kage::render();
 
             static float avgCpuTime = 0.0f;
             avgCpuTime = avgCpuTime * 0.95f + (deltaTimeMS) * 0.05f;
-            demoData.profiling.avgCpuTime = avgCpuTime;
-            demoData.profiling.cullEarlyTime = (float)kage::getPassTime(culling.pass);
-            demoData.profiling.drawEarlyTime = (float)kage::getPassTime(meshShading.pass);
-            demoData.profiling.cullLateTime = (float)kage::getPassTime(cullingLate.pass);
-            demoData.profiling.drawLateTime = (float)kage::getPassTime(meshShadingLate.pass);
-            demoData.profiling.pyramidTime = (float)kage::getPassTime(pyramid.pass);
-            demoData.profiling.uiTime = (float)kage::getPassTime(ui.pass);
+            m_demoData.profiling.avgCpuTime = avgCpuTime;
+            m_demoData.profiling.cullEarlyTime = (float)kage::getPassTime(m_culling.pass);
+            m_demoData.profiling.drawEarlyTime = (float)kage::getPassTime(m_meshShading.pass);
+            m_demoData.profiling.cullLateTime = (float)kage::getPassTime(m_cullingLate.pass);
+            m_demoData.profiling.drawLateTime = (float)kage::getPassTime(m_meshShadingLate.pass);
+            m_demoData.profiling.pyramidTime = (float)kage::getPassTime(m_pyramid.pass);
+            m_demoData.profiling.uiTime = (float)kage::getPassTime(m_ui.pass);
 
-            VKZ_FrameMark;
+            KG_FrameMark;
 
             return true;
         }
@@ -189,7 +141,7 @@ namespace
         bool initScene()
         {
             const char* pathes[] = { "../data/kitten.obj" };
-            bool lmr = loadScene(scene, pathes, COUNTOF(pathes), supportMeshShading);
+            bool lmr = loadScene(m_scene, pathes, COUNTOF(pathes), m_supportMeshShading);
             return lmr;
         }
 
@@ -197,26 +149,26 @@ namespace
         {
             // mesh data
             {
-                const kage::Memory* memMeshBuf = kage::alloc((uint32_t)(sizeof(Mesh) * scene.geometry.meshes.size()));
-                memcpy(memMeshBuf->data, scene.geometry.meshes.data(), memMeshBuf->size);
+                const kage::Memory* memMeshBuf = kage::alloc((uint32_t)(sizeof(Mesh) * m_scene.geometry.meshes.size()));
+                memcpy(memMeshBuf->data, m_scene.geometry.meshes.data(), memMeshBuf->size);
 
                 kage::BufferDesc meshBufDesc;
                 meshBufDesc.size = memMeshBuf->size;
                 meshBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
                 meshBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
-                meshBuf = kage::registBuffer("mesh", meshBufDesc, memMeshBuf);
+                m_meshBuf = kage::registBuffer("mesh", meshBufDesc, memMeshBuf);
             }
 
             // mesh draw instance buffer
             {
-                const kage::Memory* memMeshDrawBuf = kage::alloc((uint32_t)(scene.meshDraws.size() * sizeof(MeshDraw)));
-                memcpy(memMeshDrawBuf->data, scene.meshDraws.data(), memMeshDrawBuf->size);
+                const kage::Memory* memMeshDrawBuf = kage::alloc((uint32_t)(m_scene.meshDraws.size() * sizeof(MeshDraw)));
+                memcpy(memMeshDrawBuf->data, m_scene.meshDraws.data(), memMeshDrawBuf->size);
 
                 kage::BufferDesc meshDrawBufDesc;
                 meshDrawBufDesc.size = memMeshDrawBuf->size;
                 meshDrawBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
                 meshDrawBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
-                meshDrawBuf = kage::registBuffer("meshDraw", meshDrawBufDesc, memMeshDrawBuf);
+                m_meshDrawBuf = kage::registBuffer("meshDraw", meshDrawBufDesc, memMeshDrawBuf);
             }
 
             // mesh draw instance buffer
@@ -225,7 +177,7 @@ namespace
                 meshDrawCmdBufDesc.size = 128 * 1024 * 1024; // 128M
                 meshDrawCmdBufDesc.usage = kage::BufferUsageFlagBits::indirect | kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
                 meshDrawCmdBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
-                meshDrawCmdBuf = kage::registBuffer("meshDrawCmd", meshDrawCmdBufDesc);
+                m_meshDrawCmdBuf = kage::registBuffer("meshDrawCmd", meshDrawCmdBufDesc);
             }
 
             // mesh draw instance count buffer
@@ -234,75 +186,75 @@ namespace
                 meshDrawCmdCountBufDesc.size = 16;
                 meshDrawCmdCountBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::indirect | kage::BufferUsageFlagBits::transfer_dst;
                 meshDrawCmdCountBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
-                meshDrawCmdCountBuf = kage::registBuffer("meshDrawCmdCount", meshDrawCmdCountBufDesc);
-                meshDrawCmdCountBufAfterFill = kage::alias(meshDrawCmdCountBuf);
-                meshDrawCmdCountBufAfterFillLate = kage::alias(meshDrawCmdCountBuf);
+                m_meshDrawCmdCountBuf = kage::registBuffer("meshDrawCmdCount", meshDrawCmdCountBufDesc);
+                m_meshDrawCmdCountBufAfterFill = kage::alias(m_meshDrawCmdCountBuf);
+                m_meshDrawCmdCountBufAfterFillLate = kage::alias(m_meshDrawCmdCountBuf);
             }
 
             // mesh draw instance visibility buffer
             {
                 kage::BufferDesc meshDrawVisBufDesc;
-                meshDrawVisBufDesc.size = uint32_t(scene.drawCount * sizeof(uint32_t));
+                meshDrawVisBufDesc.size = uint32_t(m_scene.drawCount * sizeof(uint32_t));
                 meshDrawVisBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::indirect | kage::BufferUsageFlagBits::transfer_dst;
                 meshDrawVisBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
-                meshDrawVisBuf = kage::registBuffer("meshDrawVis", meshDrawVisBufDesc);
+                m_meshDrawVisBuf = kage::registBuffer("meshDrawVis", meshDrawVisBufDesc);
             }
 
             // meshlet visibility buffer
             {
                 kage::BufferDesc meshletVisBufDesc;
-                meshletVisBufDesc.size = (scene.meshletVisibilityCount + 31) / 32 * sizeof(uint32_t);
+                meshletVisBufDesc.size = (m_scene.meshletVisibilityCount + 31) / 32 * sizeof(uint32_t);
                 meshletVisBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::indirect | kage::BufferUsageFlagBits::transfer_dst;
                 meshletVisBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
-                meshletVisBuf = kage::registBuffer("meshletVis", meshletVisBufDesc);
+                m_meshletVisBuf = kage::registBuffer("meshletVis", meshletVisBufDesc);
             }
 
             // index buffer
             {
-                const kage::Memory* memIdxBuf = kage::alloc((uint32_t)(scene.geometry.indices.size() * sizeof(uint32_t)));
-                memcpy(memIdxBuf->data, scene.geometry.indices.data(), memIdxBuf->size);
+                const kage::Memory* memIdxBuf = kage::alloc((uint32_t)(m_scene.geometry.indices.size() * sizeof(uint32_t)));
+                memcpy(memIdxBuf->data, m_scene.geometry.indices.data(), memIdxBuf->size);
 
                 kage::BufferDesc idxBufDesc;
                 idxBufDesc.size = memIdxBuf->size;
                 idxBufDesc.usage = kage::BufferUsageFlagBits::index | kage::BufferUsageFlagBits::transfer_dst;
                 idxBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
-                idxBuf = kage::registBuffer("idx", idxBufDesc, memIdxBuf);
+                m_idxBuf = kage::registBuffer("idx", idxBufDesc, memIdxBuf);
             }
 
             // vertex buffer
             {
-                const kage::Memory* memVtxBuf = kage::alloc((uint32_t)(scene.geometry.vertices.size() * sizeof(Vertex)));
-                memcpy(memVtxBuf->data, scene.geometry.vertices.data(), memVtxBuf->size);
+                const kage::Memory* memVtxBuf = kage::alloc((uint32_t)(m_scene.geometry.vertices.size() * sizeof(Vertex)));
+                memcpy(memVtxBuf->data, m_scene.geometry.vertices.data(), memVtxBuf->size);
 
                 kage::BufferDesc vtxBufDesc;
                 vtxBufDesc.size = memVtxBuf->size;
                 vtxBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
                 vtxBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
-                vtxBuf = kage::registBuffer("vtx", vtxBufDesc, memVtxBuf);
+                m_vtxBuf = kage::registBuffer("vtx", vtxBufDesc, memVtxBuf);
             }
 
             // meshlet buffer
             {
-                const kage::Memory* memMeshletBuf = kage::alloc((uint32_t)(scene.geometry.meshlets.size() * sizeof(Meshlet)));
-                memcpy(memMeshletBuf->data, scene.geometry.meshlets.data(), memMeshletBuf->size);
+                const kage::Memory* memMeshletBuf = kage::alloc((uint32_t)(m_scene.geometry.meshlets.size() * sizeof(Meshlet)));
+                memcpy(memMeshletBuf->data, m_scene.geometry.meshlets.data(), memMeshletBuf->size);
 
                 kage::BufferDesc meshletBufferDesc;
                 meshletBufferDesc.size = memMeshletBuf->size;
                 meshletBufferDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
                 meshletBufferDesc.memFlags = kage::MemoryPropFlagBits::device_local;
-                meshletBuffer = kage::registBuffer("meshlet_buffer", meshletBufferDesc, memMeshletBuf);
+                m_meshletBuffer = kage::registBuffer("meshlet_buffer", meshletBufferDesc, memMeshletBuf);
             }
 
             // meshlet data buffer
             {
-                const kage::Memory* memMeshletDataBuf = kage::alloc((uint32_t)(scene.geometry.meshletdata.size() * sizeof(uint32_t)));
-                memcpy(memMeshletDataBuf->data, scene.geometry.meshletdata.data(), memMeshletDataBuf->size);
+                const kage::Memory* memMeshletDataBuf = kage::alloc((uint32_t)(m_scene.geometry.meshletdata.size() * sizeof(uint32_t)));
+                memcpy(memMeshletDataBuf->data, m_scene.geometry.meshletdata.data(), memMeshletDataBuf->size);
 
                 kage::BufferDesc meshletDataBufferDesc;
                 meshletDataBufferDesc.size = memMeshletDataBuf->size;
                 meshletDataBufferDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
                 meshletDataBufferDesc.memFlags = kage::MemoryPropFlagBits::device_local;
-                meshletDataBuffer = kage::registBuffer("meshlet_data_buffer", meshletDataBufferDesc, memMeshletDataBuf);
+                m_meshletDataBuffer = kage::registBuffer("meshlet_data_buffer", meshletDataBufferDesc, memMeshletDataBuf);
             }
 
             // transform
@@ -311,7 +263,7 @@ namespace
                 transformBufDesc.size = (uint32_t)(sizeof(TransformData));
                 transformBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
                 transformBufDesc.memFlags = kage::MemoryPropFlagBits::device_local | kage::MemoryPropFlagBits::host_visible;
-                transformBuf = kage::registBuffer("transform", transformBufDesc);
+                m_transformBuf = kage::registBuffer("transform", transformBufDesc);
             }
         }
 
@@ -323,7 +275,7 @@ namespace
                 rtDesc.numLayers = 1;
                 rtDesc.numMips = 1;
                 rtDesc.usage = kage::ImageUsageFlagBits::transfer_src;
-                color = kage::registRenderTarget("color", rtDesc, kage::ResourceLifetime::non_transition);
+                m_color = kage::registRenderTarget("color", rtDesc, kage::ResourceLifetime::non_transition);
             }
 
             {
@@ -332,164 +284,210 @@ namespace
                 dpDesc.numLayers = 1;
                 dpDesc.numMips = 1;
                 dpDesc.usage = kage::ImageUsageFlagBits::transfer_src | kage::ImageUsageFlagBits::sampled;
-                depth = kage::registDepthStencil("depth", dpDesc, kage::ResourceLifetime::non_transition);
+                m_depth = kage::registDepthStencil("depth", dpDesc, kage::ResourceLifetime::non_transition);
             }
         }
 
         void createPasses()
         {
-            preparePyramid(pyramid, demoData.width, demoData.height);
+            preparePyramid(m_pyramid, m_width, m_height);
 
             // culling pass
             {
                 CullingCompInitData cullingInit{};
-                cullingInit.meshBuf = meshBuf;
-                cullingInit.meshDrawBuf = meshDrawBuf;
-                cullingInit.transBuf = transformBuf;
-                cullingInit.pyramid = pyramid.image;
-                cullingInit.meshDrawCmdBuf = meshDrawCmdBuf;
-                cullingInit.meshDrawCmdCountBuf = meshDrawCmdCountBufAfterFill;
-                cullingInit.meshDrawVisBuf = meshDrawVisBuf;
+                cullingInit.meshBuf = m_meshBuf;
+                cullingInit.meshDrawBuf = m_meshDrawBuf;
+                cullingInit.transBuf = m_transformBuf;
+                cullingInit.pyramid = m_pyramid.image;
+                cullingInit.meshDrawCmdBuf = m_meshDrawCmdBuf;
+                cullingInit.meshDrawCmdCountBuf = m_meshDrawCmdCountBufAfterFill;
+                cullingInit.meshDrawVisBuf = m_meshDrawVisBuf;
 
-                prepareCullingComp(culling, cullingInit, false, supportMeshShading);
+                prepareCullingComp(m_culling, cullingInit, false, m_supportMeshShading);
             }
 
             // skybox pass
             {
-                kage::ImageHandle sbColorIn = color;
-                initSkyboxPass(skybox, transformBuf, sbColorIn);
+                kage::ImageHandle sbColorIn = m_color;
+                initSkyboxPass(m_skybox, m_transformBuf, sbColorIn);
             }
 
             // draw early pass
-            if (!supportMeshShading)
+            if (!m_supportMeshShading)
             {
                 VtxShadingInitData vsInit{};
 
-                vsInit.idxBuf = idxBuf;
-                vsInit.vtxBuf = vtxBuf;
-                vsInit.meshDrawBuf = meshDrawBuf;
-                vsInit.meshDrawCmdBuf = culling.meshDrawCmdBufOutAlias;
-                vsInit.transformBuf = transformBuf;
-                vsInit.meshDrawCmdCountBuf = culling.meshDrawCmdCountBufOutAlias;
-                vsInit.color = skybox.colorOutAlias;
-                vsInit.depth = depth;
+                vsInit.idxBuf = m_idxBuf;
+                vsInit.vtxBuf = m_vtxBuf;
+                vsInit.meshDrawBuf = m_meshDrawBuf;
+                vsInit.meshDrawCmdBuf = m_culling.meshDrawCmdBufOutAlias;
+                vsInit.transformBuf = m_transformBuf;
+                vsInit.meshDrawCmdCountBuf = m_culling.meshDrawCmdCountBufOutAlias;
+                vsInit.color = m_skybox.colorOutAlias;
+                vsInit.depth = m_depth;
 
-                prepareVtxShading(vtxShading, scene, vsInit);
+                prepareVtxShading(m_vtxShading, m_scene, vsInit);
             }
             else
             {
-                prepareTaskSubmit(taskSubmit, culling.meshDrawCmdBufOutAlias, culling.meshDrawCmdCountBufOutAlias);
+                prepareTaskSubmit(m_taskSubmit, m_culling.meshDrawCmdBufOutAlias, m_culling.meshDrawCmdCountBufOutAlias);
 
                 MeshShadingInitData msInit{};
-                msInit.vtxBuffer = vtxBuf;
-                msInit.meshBuffer = meshBuf;
-                msInit.meshletBuffer = meshletBuffer;
-                msInit.meshletDataBuffer = meshletDataBuffer;
-                msInit.meshDrawBuffer = meshDrawBuf;
-                msInit.meshDrawCmdBuffer = taskSubmit.drawCmdBufferOutAlias;
-                msInit.meshDrawCmdCountBuffer = culling.meshDrawCmdCountBufOutAlias;
-                msInit.meshletVisBuffer = meshletVisBuf;
-                msInit.transformBuffer = transformBuf;
+                msInit.vtxBuffer = m_vtxBuf;
+                msInit.meshBuffer = m_meshBuf;
+                msInit.meshletBuffer = m_meshletBuffer;
+                msInit.meshletDataBuffer = m_meshletDataBuffer;
+                msInit.meshDrawBuffer = m_meshDrawBuf;
+                msInit.meshDrawCmdBuffer = m_taskSubmit.drawCmdBufferOutAlias;
+                msInit.meshDrawCmdCountBuffer = m_culling.meshDrawCmdCountBufOutAlias;
+                msInit.meshletVisBuffer = m_meshletVisBuf;
+                msInit.transformBuffer = m_transformBuf;
 
-                msInit.pyramid = pyramid.image;
+                msInit.pyramid = m_pyramid.image;
 
-                msInit.color = skybox.colorOutAlias;
-                msInit.depth = depth;
-                prepareMeshShading(meshShading, scene, demoData.width, demoData.height, msInit);
+                msInit.color = m_skybox.colorOutAlias;
+                msInit.depth = m_depth;
+                prepareMeshShading(m_meshShading, m_scene, m_width, m_height, msInit);
             }
 
             // pyramid pass
-            setPyramidPassDependency(pyramid, supportMeshShading ? meshShading.depthOutAlias : vtxShading.depthOutAlias);
+            setPyramidPassDependency(m_pyramid, m_supportMeshShading ? m_meshShading.depthOutAlias : m_vtxShading.depthOutAlias);
 
             // culling late pass
             {
                 CullingCompInitData cullingInit{};
-                cullingInit.meshBuf = meshBuf;
-                cullingInit.meshDrawBuf = meshDrawBuf;
-                cullingInit.transBuf = transformBuf;
-                cullingInit.pyramid = pyramid.imgOutAlias;
-                cullingInit.meshDrawCmdBuf = supportMeshShading ? taskSubmit.drawCmdBufferOutAlias : culling.meshDrawCmdBufOutAlias;
-                cullingInit.meshDrawCmdCountBuf = meshDrawCmdCountBufAfterFillLate;
-                cullingInit.meshDrawVisBuf = culling.meshDrawVisBufOutAlias;
+                cullingInit.meshBuf = m_meshBuf;
+                cullingInit.meshDrawBuf = m_meshDrawBuf;
+                cullingInit.transBuf = m_transformBuf;
+                cullingInit.pyramid = m_pyramid.imgOutAlias;
+                cullingInit.meshDrawCmdBuf = m_supportMeshShading ? m_taskSubmit.drawCmdBufferOutAlias : m_culling.meshDrawCmdBufOutAlias;
+                cullingInit.meshDrawCmdCountBuf = m_meshDrawCmdCountBufAfterFillLate;
+                cullingInit.meshDrawVisBuf = m_culling.meshDrawVisBufOutAlias;
 
-                prepareCullingComp(cullingLate, cullingInit, true, supportMeshShading);
+                prepareCullingComp(m_cullingLate, cullingInit, true, m_supportMeshShading);
             }
 
             // draw late
-            if (!supportMeshShading)
+            if (!m_supportMeshShading)
             {
                 VtxShadingInitData vsInit{};
 
-                vsInit.idxBuf = idxBuf;
-                vsInit.vtxBuf = vtxBuf;
-                vsInit.meshDrawBuf = meshDrawBuf;
-                vsInit.meshDrawCmdBuf = cullingLate.meshDrawCmdBufOutAlias;
-                vsInit.transformBuf = transformBuf;
-                vsInit.meshDrawCmdCountBuf = cullingLate.meshDrawCmdCountBufOutAlias;
-                vsInit.color = vtxShading.colorOutAlias;
-                vsInit.depth = vtxShading.depthOutAlias;
+                vsInit.idxBuf = m_idxBuf;
+                vsInit.vtxBuf = m_vtxBuf;
+                vsInit.meshDrawBuf = m_meshDrawBuf;
+                vsInit.meshDrawCmdBuf = m_cullingLate.meshDrawCmdBufOutAlias;
+                vsInit.transformBuf = m_transformBuf;
+                vsInit.meshDrawCmdCountBuf = m_cullingLate.meshDrawCmdCountBufOutAlias;
+                vsInit.color = m_vtxShading.colorOutAlias;
+                vsInit.depth = m_vtxShading.depthOutAlias;
 
-                prepareVtxShading(vtxShadingLate, scene, vsInit, true);
+                prepareVtxShading(m_vtxShadingLate, m_scene, vsInit, true);
             }
             else
             {
-                prepareTaskSubmit(taskSubmitLate, cullingLate.meshDrawCmdBufOutAlias, cullingLate.meshDrawCmdCountBufOutAlias, true);
+                prepareTaskSubmit(m_taskSubmitLate, m_cullingLate.meshDrawCmdBufOutAlias, m_cullingLate.meshDrawCmdCountBufOutAlias, true);
 
                 MeshShadingInitData msInit{};
-                msInit.vtxBuffer = vtxBuf;
-                msInit.meshBuffer = meshBuf;
-                msInit.meshletBuffer = meshletBuffer;
-                msInit.meshletDataBuffer = meshletDataBuffer;
-                msInit.meshDrawBuffer = meshDrawBuf;
-                msInit.meshDrawCmdBuffer = taskSubmitLate.drawCmdBufferOutAlias;
-                msInit.meshDrawCmdCountBuffer = cullingLate.meshDrawCmdCountBufOutAlias;
-                msInit.meshletVisBuffer = meshShading.meshletVisBufferOutAlias;
-                msInit.transformBuffer = transformBuf;
+                msInit.vtxBuffer = m_vtxBuf;
+                msInit.meshBuffer = m_meshBuf;
+                msInit.meshletBuffer = m_meshletBuffer;
+                msInit.meshletDataBuffer = m_meshletDataBuffer;
+                msInit.meshDrawBuffer = m_meshDrawBuf;
+                msInit.meshDrawCmdBuffer = m_taskSubmitLate.drawCmdBufferOutAlias;
+                msInit.meshDrawCmdCountBuffer = m_cullingLate.meshDrawCmdCountBufOutAlias;
+                msInit.meshletVisBuffer = m_meshShading.meshletVisBufferOutAlias;
+                msInit.transformBuffer = m_transformBuf;
 
-                msInit.pyramid = pyramid.imgOutAlias;
+                msInit.pyramid = m_pyramid.imgOutAlias;
 
-                msInit.color = meshShading.colorOutAlias;
-                msInit.depth = meshShading.depthOutAlias;
-                prepareMeshShading(meshShadingLate, scene, demoData.width, demoData.height, msInit, true);
+                msInit.color = m_meshShading.colorOutAlias;
+                msInit.depth = m_meshShading.depthOutAlias;
+                prepareMeshShading(m_meshShadingLate, m_scene, m_width, m_height, msInit, true);
             }
 
             {
                 kage::PassDesc passDesc;
                 passDesc.queue = kage::PassExeQueue::fill_buffer;
 
-                pass_fill_dccb = kage::registPass("fill_dccb", passDesc);
+                m_fillDCCBPass = kage::registPass("fill_dccb", passDesc);
 
-                kage::fillBuffer(pass_fill_dccb, meshDrawCmdCountBuf, 0, sizeof(uint32_t), 0, meshDrawCmdCountBufAfterFill);
+                kage::fillBuffer(m_fillDCCBPass, m_meshDrawCmdCountBuf, 0, sizeof(uint32_t), 0, m_meshDrawCmdCountBufAfterFill);
             }
 
             {
                 kage::PassDesc passDesc;
                 passDesc.queue = kage::PassExeQueue::fill_buffer;
 
-                pass_fill_dccb_late = kage::registPass("fill_dccb_late", passDesc);
+                m_fillDCCBPassLate = kage::registPass("fill_dccb_late", passDesc);
 
-                kage::BufferHandle dccb = culling.meshDrawCmdCountBufOutAlias;
-                kage::fillBuffer(pass_fill_dccb_late, dccb, 0, sizeof(uint32_t), 0, meshDrawCmdCountBufAfterFillLate);
+                kage::BufferHandle dccb = m_culling.meshDrawCmdCountBufOutAlias;
+                kage::fillBuffer(m_fillDCCBPassLate, dccb, 0, sizeof(uint32_t), 0, m_meshDrawCmdCountBufAfterFillLate);
             }
 
             {
-                kage::ImageHandle uiColorIn = supportMeshShading ? meshShadingLate.colorOutAlias : vtxShadingLate.colorOutAlias;
-                kage::ImageHandle uiDepthIn = supportMeshShading ? meshShadingLate.depthOutAlias : vtxShadingLate.depthOutAlias;
+                kage::ImageHandle uiColorIn = m_supportMeshShading ? m_meshShadingLate.colorOutAlias : m_vtxShadingLate.colorOutAlias;
+                kage::ImageHandle uiDepthIn = m_supportMeshShading ? m_meshShadingLate.depthOutAlias : m_vtxShadingLate.depthOutAlias;
 
-                vkz_prepareUI(ui, uiColorIn, uiDepthIn, 1.3f);
+                prepareUI(m_ui, uiColorIn, uiDepthIn, 1.3f);
             }
         }
 
         void postSetting()
         {
-            kage::setPresentImage(ui.colorOutAlias);
+            kage::setPresentImage(m_ui.colorOutAlias);
 
             kage::bake();
         }
 
-        Scene scene{};
-        DemoData demoData{};
-        bool supportMeshShading;
+        void refreshData()
+        {
+            float znear = .1f;
+            mat4 projection = perspectiveProjection(glm::radians(70.f), (float)m_width / (float)m_height, znear);
+            mat4 projectionT = glm::transpose(projection);
+            vec4 frustumX = normalizePlane(projectionT[3] - projectionT[0]);
+            vec4 frustumY = normalizePlane(projectionT[3] - projectionT[1]);
+
+            freeCameraGetViewMatrix(m_demoData.trans.view);
+            m_demoData.trans.proj = projection;
+
+            bx::Vec3 cameraPos = freeCameraGetPos();
+            m_demoData.trans.cameraPos.x = cameraPos.x;
+            m_demoData.trans.cameraPos.y = cameraPos.y;
+            m_demoData.trans.cameraPos.z = cameraPos.z;
+
+            m_demoData.drawCull.P00 = projection[0][0];
+            m_demoData.drawCull.P11 = projection[1][1];
+            m_demoData.drawCull.zfar = m_scene.drawDistance;
+            m_demoData.drawCull.znear = znear;
+            m_demoData.drawCull.pyramidWidth = (float)m_pyramid.width;
+            m_demoData.drawCull.pyramidHeight = (float)m_pyramid.height;
+            m_demoData.drawCull.frustum[0] = frustumX.x;
+            m_demoData.drawCull.frustum[1] = frustumX.z;
+            m_demoData.drawCull.frustum[2] = frustumY.y;
+            m_demoData.drawCull.frustum[3] = frustumY.z;
+            m_demoData.drawCull.enableCull = 1;
+            m_demoData.drawCull.enableLod = 1;
+            m_demoData.drawCull.enableOcclusion = 1;
+            m_demoData.drawCull.enableMeshletOcclusion = 1;
+
+
+            m_demoData.globals.projection = projection;
+            m_demoData.globals.zfar = m_scene.drawDistance;
+            m_demoData.globals.znear = znear;
+            m_demoData.globals.frustum[0] = frustumX.x;
+            m_demoData.globals.frustum[1] = frustumX.z;
+            m_demoData.globals.frustum[2] = frustumY.y;
+            m_demoData.globals.frustum[3] = frustumY.z;
+            m_demoData.globals.pyramidWidth = (float)m_pyramid.width;
+            m_demoData.globals.pyramidHeight = (float)m_pyramid.height;
+            m_demoData.globals.screenWidth = (float)m_width;
+            m_demoData.globals.screenHeight = (float)m_height;
+            m_demoData.globals.enableMeshletOcclusion = 1;
+        }
+
+        Scene m_scene{};
+        DemoData m_demoData{};
+        bool m_supportMeshShading;
 
         uint32_t m_width;
         uint32_t m_height;
@@ -497,45 +495,43 @@ namespace
         uint32_t m_reset;
         entry::MouseState m_mouseState;
 
-
-        kage::BufferHandle meshBuf;
-        kage::BufferHandle meshDrawBuf;
-        kage::BufferHandle meshDrawCmdBuf;
-        kage::BufferHandle meshDrawCmdCountBuf;
-        kage::BufferHandle meshDrawVisBuf;
-        kage::BufferHandle meshletVisBuf;
-        kage::BufferHandle idxBuf;
-        kage::BufferHandle vtxBuf;
-        kage::BufferHandle meshletBuffer;
-        kage::BufferHandle meshletDataBuffer;
-
-        kage::BufferHandle transformBuf;
+        kage::BufferHandle m_meshBuf;
+        kage::BufferHandle m_meshDrawBuf;
+        kage::BufferHandle m_meshDrawCmdBuf;
+        kage::BufferHandle m_meshDrawCmdCountBuf;
+        kage::BufferHandle m_meshDrawVisBuf;
+        kage::BufferHandle m_meshletVisBuf;
+        kage::BufferHandle m_idxBuf;
+        kage::BufferHandle m_vtxBuf;
+        kage::BufferHandle m_meshletBuffer;
+        kage::BufferHandle m_meshletDataBuffer;
+        kage::BufferHandle m_transformBuf;
 
         // aliases
-        kage::BufferHandle meshDrawCmdCountBufAfterFill;
-        kage::BufferHandle meshDrawCmdCountBufAfterFillLate;
+        kage::BufferHandle m_meshDrawCmdCountBufAfterFill;
+        kage::BufferHandle m_meshDrawCmdCountBufAfterFillLate;
 
         // images
-        kage::ImageHandle color;
-        kage::ImageHandle depth;
+        kage::ImageHandle m_color;
+        kage::ImageHandle m_depth;
 
         // passes
-        kage::PassHandle pass_fill_dccb;
-        kage::PassHandle pass_fill_dccb_late;
+        kage::PassHandle m_fillDCCBPass;
+        kage::PassHandle m_fillDCCBPassLate;
 
-        PyramidRendering pyramid{};
+        Pyramid m_pyramid{};
         
-        TaskSubmit taskSubmit{};
-        TaskSubmit taskSubmitLate{};
-        CullingComp culling{};
-        CullingComp cullingLate{};
-        MeshShading meshShading{};
-        MeshShading meshShadingLate{};
-        VtxShading vtxShading{};
-        VtxShading vtxShadingLate{};
-        SkyboxRendering skybox{};
+        TaskSubmit m_taskSubmit{};
+        TaskSubmit m_taskSubmitLate{};
+        Culling m_culling{};
+        Culling m_cullingLate{};
+        MeshShading m_meshShading{};
+        MeshShading m_meshShadingLate{};
+        VtxShading m_vtxShading{};
+        VtxShading m_vtxShadingLate{};
+        Skybox m_skybox{};
 
-        UIRendering ui{};
+        UIRendering m_ui{};
     };
 }
 

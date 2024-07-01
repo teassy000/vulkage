@@ -2,11 +2,13 @@
 
 namespace kage
 {
-    enum DebugMessageType
+    enum DebugMsgType : uint16_t
     {
         info,
+        essential,
         warning,
         error,
+        count,
     };
 
 #define VK_CHECK(call) \
@@ -15,6 +17,6 @@ namespace kage
 		assert(result == VK_SUCCESS);\
 	} while (0)
 
-    void message(DebugMessageType type, const char* format, ...);
+    void message(DebugMsgType type, const char* format, ...);
 
 }

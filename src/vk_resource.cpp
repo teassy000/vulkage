@@ -17,7 +17,7 @@ namespace kage { namespace vk
         , uint32_t _memTypeIdx
     )
     {
-        VKZ_ZoneScopedC(Color::light_coral);
+        KG_ZoneScopedC(Color::light_coral);
 
         VkMemoryAllocateInfo allocInfo = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
         allocInfo.allocationSize = _size;
@@ -26,7 +26,7 @@ namespace kage { namespace vk
         VkDeviceMemory memory = 0;
         VK_CHECK(vkAllocateMemory(_device, &allocInfo, nullptr, &memory));
         
-        VKZ_ProfAlloc((void*)memory, _size);
+        KG_ProfAlloc((void*)memory, _size);
 
         return memory;
     }
@@ -37,10 +37,10 @@ namespace kage { namespace vk
         , VkDeviceMemory _mem
     )
     {
-        VKZ_ZoneScopedC(Color::light_coral);
+        KG_ZoneScopedC(Color::light_coral);
 
         vkFreeMemory(_device, _mem, nullptr);
-        VKZ_ProfFree((void*)_mem);
+        KG_ProfFree((void*)_mem);
     }
 
 
@@ -50,7 +50,7 @@ namespace kage { namespace vk
         , VkMemoryPropertyFlags _flags
     )
     {
-        VKZ_ZoneScopedC(Color::light_coral);
+        KG_ZoneScopedC(Color::light_coral);
 
         for (uint32_t i = 0; i < _props.memoryTypeCount; ++i) {
             if ((_typeBits & (1 << i)) != 0 && (_props.memoryTypes[i].propertyFlags & _flags) == _flags) {
@@ -72,7 +72,7 @@ namespace kage { namespace vk
         , const VkMemoryPropertyFlags _memFlags
     )
     {
-        VKZ_ZoneScopedC(Color::light_coral);
+        KG_ZoneScopedC(Color::light_coral);
 
         if (_infos.empty())
         {
@@ -138,7 +138,7 @@ namespace kage { namespace vk
         , VkMemoryPropertyFlags _memFlags
     )
     {
-        VKZ_ZoneScopedC(Color::light_coral);
+        KG_ZoneScopedC(Color::light_coral);
 
         stl::vector<Buffer_vk> results;
         stl::vector<BufferAliasInfo> infos{1, _info };
@@ -158,7 +158,7 @@ namespace kage { namespace vk
         , size_t _size
     )
     {
-        VKZ_ZoneScopedC(Color::light_coral);
+        KG_ZoneScopedC(Color::light_coral);
 
         assert(_size > 0);
 
@@ -196,7 +196,7 @@ namespace kage { namespace vk
         , uint32_t _offset /* = 0*/
     )
     {
-        VKZ_ZoneScopedC(Color::light_coral);
+        KG_ZoneScopedC(Color::light_coral);
 
         VkMappedMemoryRange range = { VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE };
         range.memory = _buffer.memory;
@@ -212,7 +212,7 @@ namespace kage { namespace vk
         , const stl::vector<Buffer_vk>& _buffers
     )
     {
-        VKZ_ZoneScopedC(Color::light_coral);
+        KG_ZoneScopedC(Color::light_coral);
 
         assert(!_buffers.empty());
         
@@ -236,7 +236,7 @@ namespace kage { namespace vk
         , VkPipelineStageFlags2 _dstStage
     )
     {
-        VKZ_ZoneScopedC(Color::light_coral);
+        KG_ZoneScopedC(Color::light_coral);
 
         VkBufferMemoryBarrier2 result = { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2 };
         result.srcAccessMask = _srcAccessMask;
@@ -261,7 +261,7 @@ namespace kage { namespace vk
         , const ImgInitProps_vk& _initProps
     )
     {
-        VKZ_ZoneScopedC(Color::light_coral);
+        KG_ZoneScopedC(Color::light_coral);
 
         if (_infos.empty())
         {
@@ -342,7 +342,7 @@ namespace kage { namespace vk
         , const ImgInitProps_vk& _initProps
     )
     {
-        VKZ_ZoneScopedC(Color::light_coral);
+        KG_ZoneScopedC(Color::light_coral);
 
         stl::vector<Image_vk> results;
         createImage(results, {1, _info}, _device, _memProps, _initProps);
@@ -357,7 +357,7 @@ namespace kage { namespace vk
         , const stl::vector<Image_vk>& _images
     )
     {
-        VKZ_ZoneScopedC(Color::light_coral);
+        KG_ZoneScopedC(Color::light_coral);
 
         assert(!_images.empty());
 
@@ -382,7 +382,7 @@ namespace kage { namespace vk
         , VkImageViewType _viewType /*= VK_IMAGE_VIEW_TYPE_2D*/
     )
     {
-        VKZ_ZoneScopedC(Color::light_coral);
+        KG_ZoneScopedC(Color::light_coral);
 
         VkImageAspectFlags aspectMask = (_format == VK_FORMAT_D32_SFLOAT) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
 
@@ -412,7 +412,7 @@ namespace kage { namespace vk
         , VkPipelineStageFlags2 _dstStage
     )
     {
-        VKZ_ZoneScopedC(Color::light_coral);
+        KG_ZoneScopedC(Color::light_coral);
 
         VkImageMemoryBarrier2 result = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
     
@@ -444,7 +444,7 @@ namespace kage { namespace vk
         , const VkImageMemoryBarrier2* _imageBarriers
     )
     {
-        VKZ_ZoneScopedC(Color::light_coral);
+        KG_ZoneScopedC(Color::light_coral);
 
         VkDependencyInfo di = { VK_STRUCTURE_TYPE_DEPENDENCY_INFO_KHR };
         di.dependencyFlags = _flags;
@@ -465,7 +465,7 @@ namespace kage { namespace vk
         , VkSamplerReductionMode _reductionMode /*= VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE*/
     )
     {
-        VKZ_ZoneScopedC(Color::light_coral);
+        KG_ZoneScopedC(Color::light_coral);
 
         VkSamplerCreateInfo createInfo = { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 
@@ -499,7 +499,7 @@ namespace kage { namespace vk
         , VkPipelineStageFlags2 _dstStage
     )
     {
-        VKZ_ZoneScopedC(Color::light_coral);
+        KG_ZoneScopedC(Color::light_coral);
 
         VkMemoryBarrier2 result = { VK_STRUCTURE_TYPE_MEMORY_BARRIER_2 };
 

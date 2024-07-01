@@ -39,7 +39,7 @@ namespace kage
             {
                 if (nullptr != _ptr)
                 {
-                    VKZ_ProfFree(_ptr);
+                    KG_ProfFree(_ptr);
                     if (kDefaultAlign >= _align)
                     {
                         ::free(_ptr);
@@ -66,21 +66,21 @@ namespace kage
                     ret = _aligned_malloc(_sz, _align);
                 }
 
-                VKZ_ProfAlloc(ret, _sz);
+                KG_ProfAlloc(ret, _sz);
                 return ret;
             }
 
             if (kDefaultAlign >= _align)
             {
-                VKZ_ProfFree(_ptr);
+                KG_ProfFree(_ptr);
                 void* ret = ::realloc(_ptr, _sz);
-                VKZ_ProfAlloc(ret, _sz);
+                KG_ProfAlloc(ret, _sz);
                 return ret;
             }
 
-            VKZ_ProfFree(_ptr);
+            KG_ProfFree(_ptr);
             void* ret = _aligned_realloc(_ptr, _sz, _align);
-            VKZ_ProfAlloc(ret, _sz);
+            KG_ProfAlloc(ret, _sz);
             return ret;
         }
 
@@ -1663,7 +1663,7 @@ namespace kage
     {
         if (!availableBinding(m_usedBindPoints, _hPass, _binding))
         {
-            message(DebugMessageType::error, "trying to binding the same point: %d", _binding);
+            message(DebugMsgType::error, "trying to binding the same point: %d", _binding);
             return;
         }
 
@@ -1683,7 +1683,7 @@ namespace kage
         {
             if (!isValid(_outAlias))
             {
-                message(DebugMessageType::error, "the _outAlias must be valid if trying to write to resource in pass");
+                message(DebugMsgType::error, "the _outAlias must be valid if trying to write to resource in pass");
                 return;
             }
 
@@ -1699,7 +1699,7 @@ namespace kage
     {
         if (!availableBinding(m_usedBindPoints, _hPass, _binding))
         {
-            message(DebugMessageType::error, "trying to binding the same point: %d", _binding);
+            message(DebugMsgType::error, "trying to binding the same point: %d", _binding);
             return { kInvalidHandle };
         }
 
@@ -1729,7 +1729,7 @@ namespace kage
     {
         if (!availableBinding(m_usedBindPoints, _hPass, _binding))
         {
-            message(DebugMessageType::error, "trying to binding the same point: %d", _binding);
+            message(DebugMsgType::error, "trying to binding the same point: %d", _binding);
             return;
         }
 
@@ -1764,12 +1764,12 @@ namespace kage
         {
             if (!isValid(_outAlias))
             {
-                message(DebugMessageType::error, "the _outAlias must be valid if trying to write to resource in pass");
+                message(DebugMsgType::error, "the _outAlias must be valid if trying to write to resource in pass");
             }
 
             if (isGraphics(_hPass))
             {
-                message(DebugMessageType::error, "Graphics pass not allowed to write to texture via bind! try to use setAttachmentOutput instead.");
+                message(DebugMsgType::error, "Graphics pass not allowed to write to texture via bind! try to use setAttachmentOutput instead.");
             }
             else if (isCompute(_hPass) && isNormalImage(_hImg))
             {
@@ -1782,7 +1782,7 @@ namespace kage
             }
             else
             {
-                message(DebugMessageType::error, "write to an attachment via binding? nope!");
+                message(DebugMsgType::error, "write to an attachment via binding? nope!");
                 assert(0);
             }
         }
@@ -1792,7 +1792,7 @@ namespace kage
     {
         if (isColorAttachment(_hImg) && !availableBinding(m_usedAttchBindPoints, _hPass, _attachmentIdx))
         {
-            message(DebugMessageType::error, "trying to binding the same point: %d", _attachmentIdx);
+            message(DebugMsgType::error, "trying to binding the same point: %d", _attachmentIdx);
             return;
         }
 
@@ -1845,13 +1845,13 @@ namespace kage
 
         if (!isFillBuffer(_hPass))
         {
-            message(DebugMessageType::error, "pass type is not match to operation");
+            message(DebugMsgType::error, "pass type is not match to operation");
             return;
         }
 
         if (m_oneOpPassTouchedArr[_hPass.id])
         {
-            message(DebugMessageType::error, "one op pass already touched!");
+            message(DebugMsgType::error, "one op pass already touched!");
             return;
         }
 
@@ -1956,7 +1956,7 @@ namespace kage
 
     void Context::rendererExecCmds(CommandBuffer& _cmdbuf)
     {
-        VKZ_ZoneScopedC(Color::green);
+        KG_ZoneScopedC(Color::green);
 
         _cmdbuf.reset();
 
@@ -2262,7 +2262,7 @@ namespace kage
 
     void Context::reset(uint32_t _windth, uint32_t _height, uint32_t _reset)
     {
-        message(DebugMessageType::info, "reset!");
+        message(DebugMsgType::essential, "reset!");
 
         m_resolution.width = _windth;
         m_resolution.height = _height;
@@ -2273,7 +2273,7 @@ namespace kage
 
     void Context::rhi_render()
     {
-        message(DebugMessageType::info, "start rendering");
+        message(DebugMsgType::essential, "start rendering");
 
         rendererExecCmds(m_cmdPre);
 
@@ -2282,7 +2282,7 @@ namespace kage
 
         rendererExecCmds(m_cmdPost);
 
-        message(DebugMessageType::info, "finish rendering");
+        message(DebugMsgType::essential, "finish rendering");
     }
 
     void Context::shutdown()
@@ -2329,7 +2329,7 @@ namespace kage
     {
         if (isValid(m_recordingPass))
         {
-            message(DebugMessageType::error
+            message(DebugMsgType::error
                 , "pass [%d:%s] already started!"
                 , m_recordingPass.id
                 , getName(m_recordingPass).getPtr()
@@ -2474,7 +2474,7 @@ namespace kage
     {
         if (!isValid(m_recordingPass))
         {
-            message(DebugMessageType::error, "no pass is start yet, why ending?");
+            message(DebugMsgType::error, "no pass is start yet, why ending?");
             return;
         }
 

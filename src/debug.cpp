@@ -12,9 +12,31 @@
 
 namespace kage {
 
-    constexpr DebugMessageType c_debugLv = DebugMessageType::warning;
+    constexpr DebugMsgType c_debugLv = DebugMsgType::essential;
 
-    void message(DebugMessageType type, const char* format, ...)
+    struct DebugMsgName
+    {
+        DebugMsgType    type;
+        const char*     name;
+    };
+
+    static const DebugMsgName s_debugMsgName[] =
+    {
+        { DebugMsgType::info,       "info" },
+        { DebugMsgType::essential,  "essential" },
+        { DebugMsgType::warning,    "warning" },
+        { DebugMsgType::error,      "error" },
+        { DebugMsgType::count,      "unknown" },
+    };
+
+    static const char* getDebugMsgName(DebugMsgType _type)
+    {
+        BX_ASSERT(_type < DebugMsgType::count, "invalid debug message type %d", _type);
+        const DebugMsgName& n = s_debugMsgName[bx::min(_type, DebugMsgType::count)];
+        return n.name;
+    }
+
+    void message(DebugMsgType type, const char* format, ...)
     {
         if (BX_ENABLED(KAGE_DEBUG))
         {
@@ -30,12 +52,7 @@ namespace kage {
             vsprintf(str, format, args);
             va_end(args);
 
-            const char* ts =
-                type == DebugMessageType::info
-                ? "info"
-                : type == DebugMessageType::warning
-                ? "warning"
-                : "error";
+            const char* ts = getDebugMsgName(type);
 
             char out[4096];
             snprintf(out, COUNTOF(out), "[kage::%s]: %s\n", ts, str);
@@ -46,7 +63,7 @@ namespace kage {
             OutputDebugStringA(out);
 #endif // _WIN32
 
-            BX_ASSERT(type < DebugMessageType::error, "%s", out);
+            BX_ASSERT(type < DebugMsgType::error, "%s", out);
         }
     }
 

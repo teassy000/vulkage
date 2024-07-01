@@ -3,7 +3,7 @@
 #include "kage.h"
 #include "mesh.h"
 
-struct SkyboxRendering
+struct Skybox
 {
     kage::PassHandle pass;
     kage::ProgramHandle prog;
@@ -23,7 +23,7 @@ struct SkyboxRendering
 };
 
 void initSkyboxPass(
-    SkyboxRendering& _skybox
+    Skybox& _skybox
     , const kage::BufferHandle _trans
     , const kage::ImageHandle _color
 );

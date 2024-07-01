@@ -17,13 +17,13 @@ namespace kage
 {
     Framegraph::~Framegraph()
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
         shutdown();
     }
 
     void Framegraph::bake()
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
         // prepare
         parseOp();
 
@@ -171,7 +171,7 @@ namespace kage
 
     void Framegraph::shutdown()
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
 
         m_hShader.clear();
         m_hProgram.clear();
@@ -225,7 +225,7 @@ namespace kage
 
     void Framegraph::parseOp()
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
         assert(m_pMemBlock != nullptr);
         bx::MemoryReader reader(m_pMemBlock->more(), m_pMemBlock->getSize());
 
@@ -278,7 +278,7 @@ namespace kage
             }
             // End
             case MagicTag::invalid_magic:
-                message(DebugMessageType::warning, "invalid magic tag, data incorrect!");
+                message(DebugMsgType::warning, "invalid magic tag, data incorrect!");
             case MagicTag::end:
             default:
                 finished = true;
@@ -298,7 +298,7 @@ namespace kage
 
     void Framegraph::setBrief(bx::MemoryReader& _reader)
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
         FrameGraphBrief brief;
         bx::read(&_reader, brief, nullptr);
 
@@ -319,7 +319,7 @@ namespace kage
 
     void Framegraph::registerShader(bx::MemoryReader& _reader)
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
         FGShaderCreateInfo info;
         bx::read(&_reader, info, nullptr);
 
@@ -336,7 +336,7 @@ namespace kage
 
     void Framegraph::registerProgram(bx::MemoryReader& _reader)
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
         FGProgCreateInfo regInfo;
         bx::read(&_reader, regInfo, nullptr);
 
@@ -352,7 +352,7 @@ namespace kage
 
     void Framegraph::registerPass(bx::MemoryReader& _reader)
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
         PassMetaData passMeta;
         bx::read(&_reader, passMeta, nullptr);
 
@@ -428,7 +428,7 @@ namespace kage
 
     void Framegraph::registerBuffer(bx::MemoryReader& _reader)
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
         FGBufferCreateInfo info;
         bx::read(&_reader, info, nullptr);
 
@@ -447,7 +447,7 @@ namespace kage
 
     void Framegraph::registerImage(bx::MemoryReader& _reader)
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
         FGImageCreateInfo info;
         bx::read(&_reader, info, nullptr);
 
@@ -466,7 +466,7 @@ namespace kage
 
     void Framegraph::registerSampler(bx::MemoryReader& _reader)
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
         SamplerMetaData meta;
         bx::read(&_reader, meta, nullptr);
 
@@ -476,7 +476,7 @@ namespace kage
 
     const ResInteractDesc merge(const ResInteractDesc& _desc0, const ResInteractDesc& _desc1)
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
         ResInteractDesc desc = _desc0;
 
         desc.access |= _desc1.access;
@@ -492,7 +492,7 @@ namespace kage
 
     const ResInteractDesc mergeIfNoConflict(const ResInteractDesc& _desc0, const ResInteractDesc& _desc1)
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
         ResInteractDesc retVar = _desc1;
 
         if (_desc0.layout == retVar.layout)
@@ -500,29 +500,29 @@ namespace kage
 
             if (_desc0.binding == retVar.binding)
             {
-                message(DebugMessageType::info, "resource interaction in current pass already exist! Now merging!");
+                message(DebugMsgType::info, "resource interaction in current pass already exist! Now merging!");
                 retVar = merge(_desc0, retVar);
             }
             else
             {
                 if (isValidBinding(_desc0.binding)) {
-                    message(DebugMessageType::info, "resource interaction in current pass already exist! Old: %d, New: %d, Using: %d", _desc0.binding, retVar.binding, _desc0.binding);
+                    message(DebugMsgType::info, "resource interaction in current pass already exist! Old: %d, New: %d, Using: %d", _desc0.binding, retVar.binding, _desc0.binding);
                     retVar = merge(_desc0, retVar);
                     retVar.binding = _desc0.binding;
                 }
                 else if (isValidBinding(retVar.binding)) {
-                    message(DebugMessageType::info, "resource interaction in current pass already exist! Now merging!");
+                    message(DebugMsgType::info, "resource interaction in current pass already exist! Now merging!");
                     retVar = merge(_desc0, retVar);
 
                 }
                 else {
-                    message(DebugMessageType::error, "resource interaction in current pass already exist! conflicts detected!");
+                    message(DebugMsgType::error, "resource interaction in current pass already exist! conflicts detected!");
                 }
             }
         }
         else
         {
-            message(DebugMessageType::error, "resource interaction in current pass already exist! conflicts detected!");
+            message(DebugMsgType::error, "resource interaction in current pass already exist! conflicts detected!");
         }
 
         return retVar;
@@ -530,7 +530,7 @@ namespace kage
 
     uint32_t Framegraph::readResource(const stl::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type)
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
         const size_t hPassIdx = getElemIndex(m_hPass, { _passId });
         assert(hPassIdx != kInvalidIndex);
 
@@ -574,7 +574,7 @@ namespace kage
 
     uint32_t Framegraph::writeResource(const stl::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type)
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
         const size_t hPassIdx = getElemIndex(m_hPass, { _passId });
         assert(hPassIdx != kInvalidIndex);
 
@@ -611,7 +611,7 @@ namespace kage
 
     uint32_t Framegraph::writeResForceAlias(const stl::vector<WriteOperationAlias>& _aliasMapVec, const uint16_t _passId, const ResourceType _type)
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
         const size_t hPassIdx =getElemIndex(m_hPass, { _passId });
         assert(hPassIdx != kInvalidIndex);
 
@@ -636,7 +636,7 @@ namespace kage
 
     void Framegraph::aliasResForce(bx::MemoryReader& _reader, ResourceType _type)
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
         ResAliasInfo info;
         bx::read(&_reader, info, nullptr);
 
@@ -668,7 +668,7 @@ namespace kage
 
     bool Framegraph::isForceAliased(const CombinedResID& _res_0, const CombinedResID _res_1) const
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
         const CombinedResID base_0 = m_forceAliasMapToBase.find(_res_0)->second;
         const CombinedResID base_1 = m_forceAliasMapToBase.find(_res_1)->second;
 
@@ -677,7 +677,7 @@ namespace kage
 
     void Framegraph::buildGraph()
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
         stl::unordered_map<CombinedResID, uint16_t> linear_writeResPassIdxMap;
 
         stl::unordered_set<CombinedResID> writeOpInSetO{};
@@ -756,7 +756,7 @@ namespace kage
 
     void Framegraph::calcPriority()
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
         uint16_t passNum = (uint16_t)m_hPass.size();
 
         for (uint16_t ii = 0; ii < passNum; ++ ii)
@@ -767,7 +767,7 @@ namespace kage
 
     void Framegraph::calcCombinations(stl::vector<stl::vector<uint16_t>>& _vecs, const stl::vector<uint16_t>& _inVec)
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
         uint16_t n = (uint16_t)_inVec.size();
         stl::vector<uint16_t> indices(n, 0);
         stl::vector<uint16_t> nums (_inVec);
@@ -807,7 +807,7 @@ namespace kage
 
     uint16_t Framegraph::findCommonParent(const uint16_t _a, uint16_t _b, const stl::unordered_map<uint16_t, uint16_t>& _sortedParentMap, const uint16_t _root)
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
         uint16_t commonNode = _root;
 
         uint16_t bp = 0;
@@ -838,7 +838,7 @@ namespace kage
 
     uint16_t Framegraph::validateSortedPasses(const stl::vector<uint16_t>& _sortedPassIdxes, const stl::unordered_map<uint16_t, uint16_t>& _sortedParentMap)
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
 
         for (uint16_t idx : _sortedPassIdxes)
         {
@@ -925,7 +925,7 @@ namespace kage
 
     void Framegraph::reverseTraversalDFSWithBackTrack()
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
 
         uint16_t passNum = (uint16_t)m_hPass.size();
         uint16_t commonIdx = kInvalidIndex;
@@ -1048,7 +1048,7 @@ namespace kage
 
     void Framegraph::buildMaxLevelList(stl::vector<uint16_t>& _maxLvLst)
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
 
         for (uint16_t passIdx : m_sortedPassIdx)
         {
@@ -1066,7 +1066,7 @@ namespace kage
 
     void Framegraph::formatDependency(const stl::vector<uint16_t>& _maxLvLst)
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
 
         // initialize the dependency level
         const uint16_t maxLv = *std::max_element(_maxLvLst.begin(), _maxLvLst.end());
@@ -1135,7 +1135,7 @@ namespace kage
 
     void Framegraph::fillNearestSyncPass()
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
 
         // init nearest sync pass
         m_nearestSyncPassIdx.resize(m_sortedPass.size());
@@ -1178,7 +1178,7 @@ namespace kage
 
     void Framegraph::optimizeSyncPass()
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
 
         for (uint16_t pIdx : m_sortedPassIdx)
         {
@@ -1209,7 +1209,7 @@ namespace kage
 
     void Framegraph::postParse()
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
 
         stl::vector<CombinedResID> plainAliasRes;
         stl::vector<uint16_t> plainAliasResIdx;
@@ -1251,7 +1251,7 @@ namespace kage
 
     void Framegraph::buildResLifetime()
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
 
         stl::vector<CombinedResID> resInUseUniList;
         stl::vector<CombinedResID> resToOptmUniList; // all used resources except: force alias, multi-frame, read-only
@@ -1464,7 +1464,7 @@ namespace kage
 
     void Framegraph::fillBucketReadonly()
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
 
         for (const CombinedResID cid : m_resInUseReadonlyList)
         {
@@ -1492,7 +1492,7 @@ namespace kage
 
     void Framegraph::fillBucketMultiFrame()
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
 
         for (const CombinedResID cid : m_resInUseMultiframeList)
         {
@@ -1520,7 +1520,7 @@ namespace kage
 
     void Framegraph::createBufBkt(BufBucket& _bkt, const FGBufferCreateInfo& _info, const stl::vector<CombinedResID>& _reses, const bool _forceAliased /*= false*/)
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
 
         assert(!_reses.empty());
 
@@ -1538,7 +1538,7 @@ namespace kage
 
     void Framegraph::createImgBkt(ImgBucket& _bkt, const FGImageCreateInfo& _info, const stl::vector<CombinedResID>& _reses, const bool _forceAliased /*= false*/)
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
 
         assert(!_reses.empty());
 
@@ -1566,7 +1566,7 @@ namespace kage
 
     void Framegraph::aliasBuffers(stl::vector<BufBucket>& _buckets, const stl::vector<uint16_t>& _sortedBufList)
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
 
         stl::vector<uint16_t> restRes = _sortedBufList;
 
@@ -1631,7 +1631,7 @@ namespace kage
 
     void Framegraph::aliasImages(stl::vector<ImgBucket>& _buckets,const stl::vector< FGImageCreateInfo >& _infos, const stl::vector<uint16_t>& _sortedTexList, const ResourceType _type)
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
 
         stl::vector<uint16_t> restRes = _sortedTexList;
 
@@ -1698,7 +1698,7 @@ namespace kage
 
     void Framegraph::fillBufferBuckets()
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
 
         // sort the resource by size
         stl::vector<uint16_t> sortedBufIdx;
@@ -1722,7 +1722,7 @@ namespace kage
 
     void Framegraph::fillImageBuckets()
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
 
         const ResourceType type = ResourceType::image;
 
@@ -1753,7 +1753,7 @@ namespace kage
 
     void Framegraph::optimizeSync()
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
 
         // calc max level list
         stl::vector<uint16_t> maxLvLst(m_sortedPassIdx.size(), 0);
@@ -1771,7 +1771,7 @@ namespace kage
 
     void Framegraph::optimizeAlias()
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
 
         buildResLifetime();
 
@@ -1792,7 +1792,7 @@ namespace kage
 
     void Framegraph::createBuffers()
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
 
         for (const BufBucket& bkt : m_bufBuckets)
         {
@@ -1835,7 +1835,7 @@ namespace kage
 
     void Framegraph::createImages()
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
 
         for (const ImgBucket& bkt : m_imgBuckets)
         {
@@ -1882,7 +1882,7 @@ namespace kage
 
     void Framegraph::createShaders()
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
 
         stl::vector<ProgramHandle> usedProgram{};
         stl::vector<ShaderHandle> usedShaders{};
@@ -1954,7 +1954,7 @@ namespace kage
 
     void Framegraph::createSamplers()
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
 
         stl::unordered_set<uint16_t> usedSamplers{};
         for (PassHandle pass : m_sortedPass)
@@ -1984,7 +1984,7 @@ namespace kage
 
     void Framegraph::createPasses()
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
 
         stl::vector<PassMetaData> passMetaDataVec{};
         stl::vector<stl::vector<VertexBindingDesc>> passVertexBinding(m_sortedPass.size());
@@ -2056,7 +2056,7 @@ namespace kage
                     }
                     else
                     {
-                        kage::message(DebugMessageType::error, "invalid write resource mapping: Res %4d, PassExeQueue: %d\n", writeRes.id, passMeta.queue);
+                        kage::message(DebugMsgType::error, "invalid write resource mapping: Res %4d, PassExeQueue: %d\n", writeRes.id, passMeta.queue);
                     }
                 }
 
@@ -2182,7 +2182,7 @@ namespace kage
 
     void Framegraph::createResources()
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
 
         createBuffers();
         createImages();
@@ -2208,7 +2208,7 @@ namespace kage
 
     bool Framegraph::isBufInfoAliasable(uint16_t _idx, const BufBucket& _bucket, const stl::vector<CombinedResID> _resInCurrStack) const
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
 
         // size check in current stack
         const FGBufferCreateInfo& info = m_sparse_buf_info[_idx];
@@ -2229,7 +2229,7 @@ namespace kage
 
     bool Framegraph::isImgInfoAliasable(uint16_t _ImgId, const ImgBucket& _bucket, const stl::vector<CombinedResID> _resInCurrStack) const
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
 
         bool bCondMatch = true;
 
@@ -2253,7 +2253,7 @@ namespace kage
 
     bool Framegraph::isStackAliasable(const CombinedResID& _res, const stl::vector<CombinedResID>& _reses) const
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
 
         bool bStackMatch = true;
         
@@ -2274,7 +2274,7 @@ namespace kage
 
     bool Framegraph::isAliasable(const CombinedResID& _res, const BufBucket& _bucket, const stl::vector<CombinedResID>& _resInCurrStack) const
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
 
         // no stack checking for stacks, because each stack only contains 1 resource
         // bool bInfoMatch = isBufInfoAliasable(_res.id, _bucket, _resInCurrStack);
@@ -2287,7 +2287,7 @@ namespace kage
 
     bool Framegraph::isAliasable(const CombinedResID& _res, const ImgBucket& _bucket, const stl::vector<CombinedResID>& _resInCurrStack) const
     {
-        VKZ_ZoneScopedC(Color::light_yellow);
+        KG_ZoneScopedC(Color::light_yellow);
 
         // no stack checking for stacks, because each stack only contains 1 resource
         // bool bInfoMatch = isImgInfoAliasable(_res.id, _bucket, _resInCurrStack);

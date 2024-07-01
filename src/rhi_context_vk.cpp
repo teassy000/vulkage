@@ -19,7 +19,7 @@ namespace kage { namespace vk
 #define VK_DESTROY_FUNC(_name)                                                          \
     void vkDestroy(Vk##_name& _obj)                                                     \
     {                                                                                   \
-        VKZ_ZoneScopedC(Color::indian_red);                                             \
+        KG_ZoneScopedC(Color::indian_red);                                             \
         if (VK_NULL_HANDLE != _obj)                                                     \
         {                                                                               \
             vkDestroy##_name(s_renderVK->m_device, _obj.vk, s_renderVK->m_allocatorCb); \
@@ -37,7 +37,7 @@ namespace kage { namespace vk
 
     void vkDestroy(VkSurfaceKHR& _obj)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
         if (VK_NULL_HANDLE != _obj)
         {
             vkDestroySurfaceKHR(s_renderVK->m_instance, _obj.vk, s_renderVK->m_allocatorCb);
@@ -47,18 +47,18 @@ namespace kage { namespace vk
 
     void vkDestroy(VkDeviceMemory& _obj)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
         if (VK_NULL_HANDLE != _obj)
         {
             vkFreeMemory(s_renderVK->m_device, _obj.vk, s_renderVK->m_allocatorCb);
-            VKZ_ProfFree((void*)_obj.vk);
+            KG_ProfFree((void*)_obj.vk);
             _obj = VK_NULL_HANDLE;
         }
     }
 
     void vkDestroy(VkDescriptorSet& _obj)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
         if (VK_NULL_HANDLE != _obj)
         {
             vkFreeDescriptorSets(s_renderVK->m_device, s_renderVK->m_descPool, 1, &_obj);
@@ -1418,19 +1418,19 @@ namespace kage { namespace vk
         , m_allocatorCb{nullptr}
         , m_debugCallback{ VK_NULL_HANDLE }
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
     }
 
     RHIContext_vk::~RHIContext_vk()
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         shutdown();
     }
 
     void RHIContext_vk::init(const Resolution& _resolution, void* _wnd)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         VK_CHECK(volkInitialize());
 
@@ -1533,7 +1533,7 @@ namespace kage { namespace vk
 
     void RHIContext_vk::bake()
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         RHIContext::bake();
 
@@ -1559,11 +1559,11 @@ namespace kage { namespace vk
 
     bool RHIContext_vk::render()
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         if (m_passContainer.size() < 1)
         {
-            message(DebugMessageType::error, "no pass needs to execute in context!");
+            message(DebugMsgType::error, "no pass needs to execute in context!");
             return false;
         }
 
@@ -1580,7 +1580,7 @@ namespace kage { namespace vk
 
         // zone the command buffer to fix tracy tracking issue
         {
-            VKZ_VkZoneC(m_tracyVkCtx, m_cmdBuffer, "main command buffer", Color::blue);
+            KG_VkZoneC(m_tracyVkCtx, m_cmdBuffer, "main command buffer", Color::blue);
 
             vkCmdResetQueryPool(m_cmdBuffer, m_queryPoolTimeStamp, 0, m_queryTimeStampCount);
 
@@ -1592,7 +1592,7 @@ namespace kage { namespace vk
                 uint16_t passId = m_passContainer.getIdAt(ii);
                 PassHandle p = PassHandle{ passId };
                 const char* pn = getName(p);
-                VKZ_VkZoneTransient(m_tracyVkCtx, var, m_cmdBuffer, pn);
+                KG_VkZoneTransient(m_tracyVkCtx, var, m_cmdBuffer, pn);
                 message(info, "==== start pass : %s", pn);
 
                 createBarriers(passId);
@@ -1622,7 +1622,7 @@ namespace kage { namespace vk
 
         // wait
         {
-            VKZ_ZoneScopedNC("wait", Color::blue);
+            KG_ZoneScopedNC("wait", Color::blue);
             VK_CHECK(vkDeviceWaitIdle(m_device)); // TODO: a fence here?
         }
 
@@ -1652,7 +1652,7 @@ namespace kage { namespace vk
 
     void RHIContext_vk::shutdown()
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         if (!m_device)
         {
@@ -1812,7 +1812,7 @@ namespace kage { namespace vk
 
     bool RHIContext_vk::checkSupports(VulkanSupportExtension _ext)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
         const char* extName = getExtName(_ext);
         stl::vector<VkExtensionProperties> supportedExtensions;
         enumrateDeviceExtPorps(m_physicalDevice, supportedExtensions);
@@ -1822,7 +1822,7 @@ namespace kage { namespace vk
 
     void RHIContext_vk::updateResolution(const Resolution& _resolution)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
         if (_resolution.width != m_resolution.width
             || _resolution.height != m_resolution.height
             || _resolution.reset != m_resolution.reset
@@ -1876,7 +1876,7 @@ namespace kage { namespace vk
 
     void RHIContext_vk::updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         if (!m_passContainer.exist(_hPass.id))
         {
@@ -1901,7 +1901,7 @@ namespace kage { namespace vk
         , const uint32_t _size
     )
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         if (!m_bufferContainer.exist(_hBuf.id))
         {
@@ -1964,7 +1964,7 @@ namespace kage { namespace vk
         , const Memory* _mem
     )
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         ImageHandle baseImg = { m_aliasToBaseImages.getIdToData(_hImg.id) };
         const stl::vector<ImageHandle>& aliasRef = m_imgToAliases.find(baseImg)->second;
@@ -1980,7 +1980,7 @@ namespace kage { namespace vk
         , const stl::vector<ImageHandle>& _alias
     )
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         if (!m_imageContainer.exist(_hImg.id))
         {
@@ -2056,7 +2056,7 @@ namespace kage { namespace vk
 
     void RHIContext_vk::createShader(bx::MemoryReader& _reader)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         ShaderCreateInfo info;
         bx::read(&_reader, info, nullptr);
@@ -2074,7 +2074,7 @@ namespace kage { namespace vk
 
     void RHIContext_vk::createProgram(bx::MemoryReader& _reader)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         ProgramCreateInfo info;
         bx::read(&_reader, info, nullptr);
@@ -2099,7 +2099,7 @@ namespace kage { namespace vk
 
     void RHIContext_vk::createPass(bx::MemoryReader& _reader)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         PassMetaData passMeta;
         bx::read(&_reader, passMeta, nullptr);
@@ -2350,7 +2350,7 @@ namespace kage { namespace vk
 
     void RHIContext_vk::createImage(bx::MemoryReader& _reader)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         ImageCreateInfo info;
         bx::read(&_reader, info, nullptr);
@@ -2426,7 +2426,7 @@ namespace kage { namespace vk
 
     void RHIContext_vk::createBuffer(bx::MemoryReader& _reader)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         BufferCreateInfo info;
         bx::read(&_reader, info, nullptr);
@@ -2477,7 +2477,7 @@ namespace kage { namespace vk
 
     void RHIContext_vk::createSampler(bx::MemoryReader& _reader)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         SamplerMetaData meta;
         bx::read(&_reader, meta, nullptr);
@@ -2490,7 +2490,7 @@ namespace kage { namespace vk
 
     void RHIContext_vk::setBrief(bx::MemoryReader& _reader)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         RHIBrief brief;
         bx::read(&_reader, brief, nullptr);
@@ -2552,7 +2552,7 @@ namespace kage { namespace vk
 
     void RHIContext_vk::setRecord(PassHandle _hPass, const Memory* _mem)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         if (!m_passContainer.exist(_hPass.id))
         {
@@ -2572,7 +2572,7 @@ namespace kage { namespace vk
 
     void RHIContext_vk::setConstants(PassHandle _hPass, const Memory* _mem)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         if (!m_passContainer.exist(_hPass.id))
         {
@@ -2599,7 +2599,7 @@ namespace kage { namespace vk
 
     void RHIContext_vk::setDescriptorSet(PassHandle _hPass, const Memory* _mem)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         if (!m_passContainer.exist(_hPass.id))
         {
@@ -2620,7 +2620,7 @@ namespace kage { namespace vk
 
     void RHIContext_vk::setViewport(PassHandle _hPass, int32_t _x, int32_t _y, uint32_t _w, uint32_t _h)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         if (!m_passContainer.exist(_hPass.id))
         {
@@ -2646,7 +2646,7 @@ namespace kage { namespace vk
 
     void RHIContext_vk::setScissor(PassHandle _hPass, int32_t _x, int32_t _y, uint32_t _w, uint32_t _h)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         if (!m_passContainer.exist(_hPass.id))
         {
@@ -2664,7 +2664,7 @@ namespace kage { namespace vk
 
     void RHIContext_vk::setVertexBuffer(PassHandle _hPass, BufferHandle _hBuf)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         if (!m_passContainer.exist(_hPass.id))
         {
@@ -2683,7 +2683,7 @@ namespace kage { namespace vk
 
     void RHIContext_vk::setIndexBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset, IndexType _type)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         if (!m_passContainer.exist(_hPass.id))
         {
@@ -2703,7 +2703,7 @@ namespace kage { namespace vk
 
     void RHIContext_vk::dispatch(PassHandle _hPass, uint32_t _x, uint32_t _y, uint32_t _z)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         if (!m_passContainer.exist(_hPass.id))
         {
@@ -2751,7 +2751,7 @@ namespace kage { namespace vk
         , uint32_t _firstInst
     )
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         if (!m_passContainer.exist(_hPass.id))
         {
@@ -2793,7 +2793,7 @@ namespace kage { namespace vk
 
     void RHIContext_vk::drawMeshTaskIndirect(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset, uint32_t _drawCount, uint32_t _stride)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         if (!m_passContainer.exist(_hPass.id))
         {
@@ -2830,7 +2830,7 @@ namespace kage { namespace vk
 
     VkSampler RHIContext_vk::getCachedSampler(SamplerFilter _filter, SamplerAddressMode _addrMd, SamplerReductionMode _reduMd)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         bx::HashMurmur2A hash;
         hash.begin();
@@ -2858,7 +2858,7 @@ namespace kage { namespace vk
 
     VkImageView RHIContext_vk::getCachedImageView(const ImageHandle _hImg, uint16_t _mip, uint16_t _numMips, VkImageViewType _type)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         const Image_vk& img = getImage(_hImg.id, true);
 
@@ -2894,7 +2894,7 @@ namespace kage { namespace vk
 
     void RHIContext_vk::createInstance()
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         m_instance = kage::vk::createInstance();
         assert(m_instance);
@@ -2914,7 +2914,7 @@ namespace kage { namespace vk
 
     void RHIContext_vk::uploadBuffer(const uint16_t _bufId, const void* _data, uint32_t _size)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         assert(_size > 0);
 
@@ -2953,7 +2953,7 @@ namespace kage { namespace vk
 
     void RHIContext_vk::fillBuffer(const uint16_t _bufId, const uint32_t _value, uint32_t _size)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         assert(_size > 0);
 
@@ -2975,7 +2975,7 @@ namespace kage { namespace vk
 
     void RHIContext_vk::uploadImage(const uint16_t _imgId, const void* _data, uint32_t _size)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         assert(_size > 0);
 
@@ -3027,7 +3027,7 @@ namespace kage { namespace vk
 
     void RHIContext_vk::checkUnmatchedBarriers(uint16_t _passId)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         bool shouldCheck = true;
         if (!shouldCheck)
@@ -3147,7 +3147,7 @@ namespace kage { namespace vk
 
     void RHIContext_vk::createBarriers(uint16_t _passId)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 
@@ -3205,7 +3205,7 @@ namespace kage { namespace vk
 
     void RHIContext_vk::flushWriteBarriers(uint16_t _passId)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 
@@ -3347,14 +3347,14 @@ namespace kage { namespace vk
 
     void RHIContext_vk::pushDescriptorSetWithTemplates(const uint16_t _passId)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         pushDescriptorSetWithTemplates(m_cmdBuffer, { _passId });
     }
 
     void RHIContext_vk::pushDescriptorSetWithTemplates(const VkCommandBuffer& _cmdBuf, const uint16_t _passId) const
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 
@@ -3403,7 +3403,7 @@ namespace kage { namespace vk
             }
             else
             {
-                message(DebugMessageType::error, "not a valid resource type!");
+                message(DebugMsgType::error, "not a valid resource type!");
             }
         }
         if (!descInfos.empty())
@@ -3415,14 +3415,14 @@ namespace kage { namespace vk
 
     const Shader_vk& RHIContext_vk::getShader(const ShaderHandle _hShader) const
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         return m_shaderContainer.getIdToData(_hShader.id);
     }
 
     const Program_vk& RHIContext_vk::getProgram(const PassHandle _hPass) const
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         assert(m_passContainer.exist(_hPass.id));
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_hPass.id);
@@ -3433,7 +3433,7 @@ namespace kage { namespace vk
 
     void RHIContext_vk::beginRendering(const VkCommandBuffer& _cmdBuf, const uint16_t _passId) const
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 
@@ -3482,14 +3482,14 @@ namespace kage { namespace vk
 
     void RHIContext_vk::endRendering(const VkCommandBuffer& _cmdBuf) const
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         vkCmdEndRendering(_cmdBuf);
     }
 
     const DescriptorInfo RHIContext_vk::getImageDescInfo(const ImageHandle _hImg, uint16_t _mip, const SamplerHandle _hSampler)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         VkSampler sampler = VK_NULL_HANDLE;
         if (m_samplerContainer.exist(_hSampler.id))
@@ -3517,7 +3517,7 @@ namespace kage { namespace vk
 
     const DescriptorInfo RHIContext_vk::getBufferDescInfo(const BufferHandle _hBuf) const
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         const Buffer_vk& buf = getBuffer(_hBuf.id);
 
@@ -3541,7 +3541,7 @@ namespace kage { namespace vk
 
     void RHIContext_vk::pushConstants(const uint16_t _passId)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
         const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
@@ -3557,7 +3557,7 @@ namespace kage { namespace vk
 
     void RHIContext_vk::executePass(const uint16_t _passId)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 
@@ -3589,13 +3589,13 @@ namespace kage { namespace vk
         }
         else
         {
-            message(DebugMessageType::error, "not a valid execute queue! where does this pass belong?");
+            message(DebugMsgType::error, "not a valid execute queue! where does this pass belong?");
         }
     }
 
     void RHIContext_vk::exeGraphic(const uint16_t _passId)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         beginRendering(m_cmdBuffer, _passId);
 
@@ -3696,7 +3696,7 @@ namespace kage { namespace vk
 
     void RHIContext_vk::exeCompute(const uint16_t _passId)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 
@@ -3730,7 +3730,7 @@ namespace kage { namespace vk
 
     void RHIContext_vk::exeFillBuffer(const uint16_t _passId)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
         CombinedResID res = passInfo.oneOpWriteRes;
@@ -3796,11 +3796,11 @@ namespace kage { namespace vk
 
     void RHIContext_vk::blitToSwapchain(uint32_t _swapImgIdx)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         if (!m_imageContainer.exist(m_brief.presentImage.id))
         {
-            message(DebugMessageType::error, "Does the presentImageId set correctly?");
+            message(DebugMsgType::error, "Does the presentImageId set correctly?");
             return;
         }
 
@@ -3849,11 +3849,11 @@ namespace kage { namespace vk
 
     void RHIContext_vk::copyToSwapchain(uint32_t _swapImgIdx)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         if (!m_imageContainer.exist(m_brief.presentImage.id))
         {
-            message(DebugMessageType::error, "Does the presentImageId set correctly?");
+            message(DebugMsgType::error, "Does the presentImageId set correctly?");
             return;
         }
         // add swapchain barrier
@@ -4097,7 +4097,7 @@ namespace kage { namespace vk
             , &m_tracyCmdBuf
         ));
 
-        VKZ_ProfVkContext(m_tracyVkCtx, m_physicalDevice, m_device, _queue, m_tracyCmdBuf);
+        KG_ProfVkContext(m_tracyVkCtx, m_physicalDevice, m_device, _queue, m_tracyCmdBuf);
 #endif
     }
 
@@ -4105,7 +4105,7 @@ namespace kage { namespace vk
     {
 #if TRACY_ENABLE
         release(m_tracyCmdPool);
-        VKZ_ProfDestroyContext(m_tracyVkCtx);
+        KG_ProfDestroyContext(m_tracyVkCtx);
 
         m_tracyCmdBuf = VK_NULL_HANDLE;
 #else
@@ -4125,7 +4125,7 @@ namespace kage { namespace vk
         , const VkBuffer _baseBuf /* = VK_NULL_HANDLE */
     )
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         BX_ASSERT(m_trackingBuffers.find(_buf) == m_trackingBuffers.end(), "buffer already tracked!");
 
@@ -4150,7 +4150,7 @@ namespace kage { namespace vk
         , const VkImage _baseImg /* = VK_NULL_HANDLE */
     )
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         BX_ASSERT(m_trackingImages.find(_img) == m_trackingImages.end(), "image already tracked!");
 
@@ -4170,7 +4170,7 @@ namespace kage { namespace vk
 
     void BarrierDispatcher::untrack(const VkBuffer _buf)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         // untrack the status
         {
@@ -4197,7 +4197,7 @@ namespace kage { namespace vk
 
     void BarrierDispatcher::untrack(const VkImage _img)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         // untrack the status
         {
@@ -4442,7 +4442,7 @@ namespace kage { namespace vk
         , const BarrierState_vk& _state
     )
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
         
         BX_ASSERT(
             m_trackingBuffers.find(_buf) != m_trackingBuffers.end()
@@ -4465,7 +4465,7 @@ namespace kage { namespace vk
         , const BarrierState_vk& _dstBarrier
     )
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         BX_ASSERT(
             m_trackingImages.find(_img) != m_trackingImages.end()
@@ -4485,7 +4485,7 @@ namespace kage { namespace vk
 
     void BarrierDispatcher::barrier(const VkBuffer _buf, const BarrierState_vk& _dst)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         BX_ASSERT(
             m_trackingBuffers.find(_buf) != m_trackingBuffers.end()
@@ -4505,7 +4505,7 @@ namespace kage { namespace vk
 
     void BarrierDispatcher::barrier(const VkImage _img, VkImageAspectFlags _dstAspect, const BarrierState_vk& _dstBarrier)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         BX_ASSERT(
             m_trackingImages.find(_img) != m_trackingImages.end()
@@ -4540,7 +4540,7 @@ namespace kage { namespace vk
 
     void BarrierDispatcher::dispatch(const VkCommandBuffer& _cmdBuffer)
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         if (m_pendingBuffers.empty() && m_pendingImages.empty())
         {
@@ -4662,7 +4662,7 @@ namespace kage { namespace vk
 
     VkImageLayout BarrierDispatcher::getCurrentImageLayout(const VkImage _img) const
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
 
@@ -4679,7 +4679,7 @@ namespace kage { namespace vk
 
     BarrierState_vk BarrierDispatcher::getBarrierState(const VkImage _img) const
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         BarrierState_vk result = {};
 
@@ -4695,7 +4695,7 @@ namespace kage { namespace vk
 
     BarrierState_vk BarrierDispatcher::getBarrierState(const VkBuffer _buf) const
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         BarrierState_vk result = {};
 
@@ -4711,7 +4711,7 @@ namespace kage { namespace vk
 
     BarrierState_vk BarrierDispatcher::getBaseBarrierState(const VkImage _img) const
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
         BarrierState_vk result = {};
 
         using MapIter = decltype(m_aliasToBaseImages)::const_iterator;
@@ -4733,7 +4733,7 @@ namespace kage { namespace vk
 
     BarrierState_vk BarrierDispatcher::getBaseBarrierState(const VkBuffer _buf) const
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
         BarrierState_vk result = {};
 
         using MapIter = decltype(m_aliasToBaseBuffers)::const_iterator;
@@ -4755,7 +4755,7 @@ namespace kage { namespace vk
 
     void BarrierDispatcher::clearPending()
     {
-        VKZ_ZoneScopedC(Color::indian_red);
+        KG_ZoneScopedC(Color::indian_red);
 
         m_pendingBuffers.clear();
         m_pendingImages.clear();

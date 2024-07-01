@@ -62,10 +62,7 @@ struct MeshShading
     kage::ImageHandle colorOutAlias;
     kage::ImageHandle depthOutAlias;
 
-    uint32_t width;
-    uint32_t height;
-
-    GlobalsVKZ globals;
+    Globals globals;
 };
 
 struct MeshShadingConfig
@@ -90,4 +87,4 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
 
 void prepareTaskSubmit(TaskSubmit& _taskSubmit, kage::BufferHandle _drawCmdBuf, kage::BufferHandle _drawCmdCntBuf, bool _late = false);
 
-void updateMeshShadingConstants(MeshShading& _meshShading, const GlobalsVKZ& _globals, uint16_t _width, uint16_t _height);
+void updateMeshShadingConstants(MeshShading& _meshShading, const Globals& _globals);

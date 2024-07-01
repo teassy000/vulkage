@@ -4,9 +4,9 @@
 
 #include "bx/readerwriter.h"
 
-void renderPyr(const PyramidRendering& _pyramid)
+void recPyr(const Pyramid& _pyramid)
 {
-    VKZ_ZoneScopedC(kage::Color::blue);
+    KG_ZoneScopedC(kage::Color::blue);
 
     kage::startRec(_pyramid.pass);
 
@@ -67,7 +67,7 @@ uint32_t calculateMipLevelCount_py(uint32_t width, uint32_t height)
     return result;
 }
 
-void preparePyramid(PyramidRendering& _pyramid, uint32_t _width, uint32_t _height)
+void preparePyramid(Pyramid& _pyramid, uint32_t _width, uint32_t _height)
 {
     uint32_t level_width = previousPow2_py(_width);
     uint32_t level_height = previousPow2_py(_height);
@@ -111,7 +111,7 @@ void preparePyramid(PyramidRendering& _pyramid, uint32_t _width, uint32_t _heigh
     _pyramid.imgOutAlias = outAlias;
 }
 
-void setPyramidPassDependency(PyramidRendering& _pyramid, const kage::ImageHandle _inDepth)
+void setPyramidPassDependency(Pyramid& _pyramid, const kage::ImageHandle _inDepth)
 {
     _pyramid.inDepth = _inDepth;
 
@@ -130,7 +130,7 @@ void setPyramidPassDependency(PyramidRendering& _pyramid, const kage::ImageHandl
     );
 }
 
-void updatePyramid(PyramidRendering& _pyramid, uint32_t _width, uint32_t _height)
+void updatePyramid(Pyramid& _pyramid, uint32_t _width, uint32_t _height)
 {
     const uint32_t level_width = previousPow2_py(_width);
     const uint32_t level_height = previousPow2_py(_height);
@@ -144,6 +144,6 @@ void updatePyramid(PyramidRendering& _pyramid, uint32_t _width, uint32_t _height
         kage::updateImage2D(_pyramid.image, level_width, level_height);
     }
 
-    renderPyr(_pyramid);
+    recPyr(_pyramid);
 }
 

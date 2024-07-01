@@ -1,9 +1,9 @@
 #include "vkz_culling_pass.h"
 
-void prepareCullingComp(CullingComp& _cullingComp, const CullingCompInitData& _initData, bool _late /*= false*/, bool _task /*= false*/)
+void prepareCullingComp(Culling& _cullingComp, const CullingCompInitData& _initData, bool _late /*= false*/, bool _task /*= false*/)
 {
     kage::ShaderHandle cs = kage::registShader("mesh_draw_cmd_shader", "shaders/drawcmd.comp.spv");
-    kage::ProgramHandle prog = kage::registProgram("mesh_draw_cmd_prog", { cs }, sizeof(MeshDrawCullVKZ));
+    kage::ProgramHandle prog = kage::registProgram("mesh_draw_cmd_prog", { cs }, sizeof(MeshDrawCull));
 
     int pipelineSpecs[] = { _late, _task };
 
@@ -79,11 +79,11 @@ void prepareCullingComp(CullingComp& _cullingComp, const CullingCompInitData& _i
     _cullingComp.meshDrawCull = {};
 }
 
-void updateCullingConstants(CullingComp& _cullingComp, const MeshDrawCullVKZ& _drawCull)
+void updateCullingConstants(Culling& _cullingComp, const MeshDrawCull& _drawCull)
 {
     _cullingComp.meshDrawCull = _drawCull;
 
-    const kage::Memory* mem = kage::alloc(sizeof(MeshDrawCullVKZ));
+    const kage::Memory* mem = kage::alloc(sizeof(MeshDrawCull));
     memcpy(mem->data, &_drawCull, mem->size);
     kage::updatePushConstants(_cullingComp.pass, mem);
 }

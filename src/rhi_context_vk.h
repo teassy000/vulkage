@@ -667,7 +667,7 @@ namespace kage { namespace vk
         void initTracy(VkQueue _queue, uint32_t _familyIdx);
         void destroyTracy();
 #if TRACY_ENABLE
-        VKZ_ProfCtxType* m_tracyVkCtx = nullptr;
+        KG_ProfCtxType* m_tracyVkCtx = nullptr;
         VkCommandPool m_tracyCmdPool = VK_NULL_HANDLE;
         VkCommandBuffer m_tracyCmdBuf = VK_NULL_HANDLE;
 #endif //TRACY_ENABLE

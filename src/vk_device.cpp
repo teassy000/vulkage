@@ -13,11 +13,11 @@ namespace kage{ namespace vk
 
     static VkBool32 debugReportCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage, void* pUserData)
     {
-        DebugMessageType msgType = flags & VK_DEBUG_REPORT_ERROR_BIT_EXT
-            ? DebugMessageType::error
+        DebugMsgType msgType = flags & VK_DEBUG_REPORT_ERROR_BIT_EXT
+            ? DebugMsgType::error
             : (flags & (VK_DEBUG_REPORT_WARNING_BIT_EXT | VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT))
-            ? DebugMessageType::warning
-            : DebugMessageType::info;
+            ? DebugMsgType::warning
+            : DebugMsgType::info;
 
         kage::message(msgType, "%s\n", pMessage);
 

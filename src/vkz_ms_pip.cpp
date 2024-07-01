@@ -8,9 +8,9 @@
 
 void renderMS(const MeshShading& _ms)
 {
-    VKZ_ZoneScopedC(kage::Color::blue);
+    KG_ZoneScopedC(kage::Color::blue);
 
-    const kage::Memory* mem = kage::alloc(sizeof(GlobalsVKZ));
+    const kage::Memory* mem = kage::alloc(sizeof(Globals));
     memcpy(mem->data, &_ms.globals, mem->size);
 
     using Stage = kage::PipelineStageFlagBits::Enum;
@@ -33,8 +33,8 @@ void renderMS(const MeshShading& _ms)
     kage::setConstants(mem);
     kage::setBindings(binds, COUNTOF(binds));
 
-    kage::setViewport(0, 0, _ms.width, _ms.height);
-    kage::setScissor(0, 0, _ms.width, _ms.height);
+    kage::setViewport(0, 0, (uint32_t)_ms.globals.screenWidth, (uint32_t)_ms.globals.screenHeight);
+    kage::setScissor(0, 0, (uint32_t)_ms.globals.screenWidth, (uint32_t)_ms.globals.screenHeight);
 
     kage::drawMeshTask(_ms.meshDrawCmdCountBuffer, 4, 1, 0);
 
@@ -48,7 +48,7 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
     kage::ShaderHandle fs = kage::registShader("mesh_frag_shader", "shaders/meshlet.frag.spv");
 
 
-    kage::ProgramHandle prog = kage::registProgram("mesh_prog", { ts, ms, fs }, sizeof(GlobalsVKZ));
+    kage::ProgramHandle prog = kage::registProgram("mesh_prog", { ts, ms, fs }, sizeof(Globals));
 
     int pipelineSpecs[] = { _late, true };
 
@@ -130,9 +130,6 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
     kage::setAttachmentOutput(pass, _initData.depth, 0, depthOutAlias);
 
     // set the data
-    _meshShading.width = _width;
-    _meshShading.height = _height;
-
     _meshShading.taskShader = ts;
     _meshShading.meshShader = ms;
     _meshShading.fragShader = fs;
@@ -201,11 +198,9 @@ void prepareTaskSubmit(TaskSubmit& _taskSubmit, kage::BufferHandle _drawCmdBuf, 
     _taskSubmit.drawCmdBufferOutAlias = drawCmdBufferOutAlias;
 }
 
-void updateMeshShadingConstants(MeshShading& _meshShading, const GlobalsVKZ& _globals, uint16_t _width, uint16_t _height)
+void updateMeshShadingConstants(MeshShading& _meshShading, const Globals& _globals)
 {
     _meshShading.globals = _globals;
-    _meshShading.width = _width;
-    _meshShading.height = _height;
 
     renderMS(_meshShading);
 }

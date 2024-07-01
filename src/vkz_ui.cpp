@@ -14,9 +14,15 @@ constexpr uint32_t kInitialIndexBufferSize = 1024 * 1024; // 1MB
 
 using Stage = kage::PipelineStageFlagBits::Enum;
 
-void renderUI(const UIRendering& _ui)
+
+struct PushConstBlock {
+    glm::vec2 scale;
+    glm::vec2 translate;
+};
+
+void recordUI(const UIRendering& _ui)
 {
-    VKZ_ZoneScopedC(kage::Color::blue);
+    KG_ZoneScopedC(kage::Color::blue);
 
     kage::startRec(_ui.pass);
 
@@ -77,9 +83,9 @@ void renderUI(const UIRendering& _ui)
     kage::endRec();
 }
 
-void vkz_prepareUI(UIRendering& _ui, kage::ImageHandle _color, kage::ImageHandle _depth, float _scale /*= 1.f*/, bool _useChinese /*= false*/)
+void prepareUI(UIRendering& _ui, kage::ImageHandle _color, kage::ImageHandle _depth, float _scale /*= 1.f*/, bool _useChinese /*= false*/)
 {
-    VKZ_ZoneScopedC(kage::Color::blue);
+    KG_ZoneScopedC(kage::Color::blue);
 
     ImGui::CreateContext();
 
@@ -191,9 +197,9 @@ void vkz_prepareUI(UIRendering& _ui, kage::ImageHandle _color, kage::ImageHandle
     kage::setAttachmentOutput(_ui.pass, _depth, 0, depthOutAlias);
 }
 
-void vkz_destroyUIRendering(UIRendering& _ui)
+void destroyUI(UIRendering& _ui)
 {
-    VKZ_ZoneScopedC(kage::Color::blue);;
+    KG_ZoneScopedC(kage::Color::blue);;
 
     if (ImGui::GetCurrentContext()) {
         ImGui::DestroyContext();
@@ -202,9 +208,9 @@ void vkz_destroyUIRendering(UIRendering& _ui)
     _ui = {};
 }
 
-void vkz_updateImGuiIO(const UIInput& input)
+void updateImGuiIO(const UIInput& input)
 {
-    VKZ_ZoneScopedC(kage::Color::blue);;
+    KG_ZoneScopedC(kage::Color::blue);;
 
     ImGuiIO& io = ImGui::GetIO();
 
@@ -216,9 +222,9 @@ void vkz_updateImGuiIO(const UIInput& input)
     io.MouseDown[2] = input.mouseButtons.middle;
 }
 
-void vkz_updateImGuiContent(DebugRenderOptionsData& _rod, const DebugProfilingData& _pd, const DebugLogicData& _ld)
+void updateImGuiContent(DebugRenderOptionsData& _rod, const DebugProfilingData& _pd, const DebugLogicData& _ld)
 {
-    VKZ_ZoneScopedC(kage::Color::blue);;
+    KG_ZoneScopedC(kage::Color::blue);;
 
     ImGui::NewFrame();
     ImGui::SetNextWindowSize({ 400, 450 }, ImGuiCond_FirstUseEver);
@@ -273,20 +279,20 @@ void vkz_updateImGuiContent(DebugRenderOptionsData& _rod, const DebugProfilingDa
     ImGui::End();
 }
 
-void vkz_updateImGui(const UIInput& input, DebugRenderOptionsData& rd, const DebugProfilingData& pd, const DebugLogicData& ld)
+void updateImGui(const UIInput& input, DebugRenderOptionsData& rd, const DebugProfilingData& pd, const DebugLogicData& ld)
 {
-    VKZ_ZoneScopedC(kage::Color::blue);
+    KG_ZoneScopedC(kage::Color::blue);
 
-    vkz_updateImGuiIO(input);
+    updateImGuiIO(input);
 
-    vkz_updateImGuiContent(rd, pd, ld);
+    updateImGuiContent(rd, pd, ld);
 
     ImGui::Render();
 }
 
-void vkz_updateUIRenderData(UIRendering& _ui)
+void updateUIRenderData(UIRendering& _ui)
 {
-    VKZ_ZoneScopedC(kage::Color::blue);;
+    KG_ZoneScopedC(kage::Color::blue);;
 
     ImDrawData* imDrawData = ImGui::GetDrawData();
 
@@ -325,8 +331,15 @@ void vkz_updateUIRenderData(UIRendering& _ui)
 }
 
 
-void kage_updateUI(UIRendering& _ui)
+void updateUI(
+    UIRendering& _ui
+    , const UIInput& _input
+    , DebugRenderOptionsData& _rd
+    , const DebugProfilingData& _pd
+    , const DebugLogicData& _ld
+)
 {
-    vkz_updateUIRenderData(_ui);
-    renderUI(_ui);
+    updateImGui(_input, _rd, _pd, _ld);
+    updateUIRenderData(_ui);
+    recordUI(_ui);
 }

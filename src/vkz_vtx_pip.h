@@ -45,10 +45,10 @@ struct VtxShading
     kage::ImageHandle colorOutAlias;
     kage::ImageHandle depthOutAlias;
 
-    GlobalsVKZ globals;
+    Globals globals;
 };
 
 
 void prepareVtxShading(VtxShading& _vtxShading, const Scene& _scene, const VtxShadingInitData& _initData, bool _late = false);
 
-void updateVtxShadingConstants(VtxShading& _vtxShading, const GlobalsVKZ& _globals);
+void updateVtxShadingConstants(VtxShading& _vtxShading, const Globals& _globals);

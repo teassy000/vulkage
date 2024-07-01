@@ -3,7 +3,7 @@
 #include "mesh.h"
 #include "file_helper.h"
 
-void initSkyboxPass(SkyboxRendering& _skybox, const kage::BufferHandle _trans, const kage::ImageHandle _color)
+void initSkyboxPass(Skybox& _skybox, const kage::BufferHandle _trans, const kage::ImageHandle _color)
 {
     // shader
     kage::ShaderHandle vs = kage::registShader("skybox_vert_shader", "shaders/skybox.vert.spv");

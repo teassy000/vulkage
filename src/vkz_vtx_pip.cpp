@@ -6,7 +6,7 @@ void prepareVtxShading(VtxShading& _vtxShading, const Scene& _scene, const VtxSh
     // render shader
     kage::ShaderHandle vs = kage::registShader("mesh_vert_shader", "shaders/mesh.vert.spv");
     kage::ShaderHandle fs = kage::registShader("mesh_frag_shader", "shaders/mesh.frag.spv");
-    kage::ProgramHandle prog = kage::registProgram("mesh_prog", { vs, fs }, sizeof(GlobalsVKZ));
+    kage::ProgramHandle prog = kage::registProgram("mesh_prog", { vs, fs }, sizeof(Globals));
     // pass
     kage::PassDesc desc;
     desc.programId = prog.id;
@@ -52,7 +52,7 @@ void prepareVtxShading(VtxShading& _vtxShading, const Scene& _scene, const VtxSh
         , kage::AccessFlagBits::shader_read);
 
 
-    kage::setIndirectBuffer(pass, _initData.meshDrawCmdBuf, offsetof(MeshDrawCommandVKZ, indexCount), sizeof(MeshDrawCommandVKZ), (uint32_t)_scene.meshDraws.size());
+    kage::setIndirectBuffer(pass, _initData.meshDrawCmdBuf, offsetof(MeshDrawCommand, indexCount), sizeof(MeshDrawCommand), (uint32_t)_scene.meshDraws.size());
     kage::setIndirectCountBuffer(pass, _initData.meshDrawCmdCountBuf, 0);
 
     kage::setAttachmentOutput(pass, _initData.color, 0, colorOutAlias);
@@ -77,11 +77,11 @@ void prepareVtxShading(VtxShading& _vtxShading, const Scene& _scene, const VtxSh
     _vtxShading.depthOutAlias = depthOutAlias;
 }
 
-void updateVtxShadingConstants(VtxShading& _vtxShading, const GlobalsVKZ& _globals)
+void updateVtxShadingConstants(VtxShading& _vtxShading, const Globals& _globals)
 {
     _vtxShading.globals = _globals;
 
-    const kage::Memory* mem = kage::alloc(sizeof(GlobalsVKZ));
+    const kage::Memory* mem = kage::alloc(sizeof(Globals));
     memcpy(mem->data, &_globals, mem->size);
     kage::updatePushConstants(_vtxShading.pass, mem);
 }
