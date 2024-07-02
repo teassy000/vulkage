@@ -261,7 +261,7 @@ namespace
             {
                 kage::BufferDesc transformBufDesc;
                 transformBufDesc.size = (uint32_t)(sizeof(TransformData));
-                transformBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+                transformBufDesc.usage = kage::BufferUsageFlagBits::uniform | kage::BufferUsageFlagBits::transfer_dst;
                 transformBufDesc.memFlags = kage::MemoryPropFlagBits::device_local | kage::MemoryPropFlagBits::host_visible;
                 m_transformBuf = kage::registBuffer("transform", transformBufDesc);
             }

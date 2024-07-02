@@ -1936,8 +1936,6 @@ namespace kage { namespace vk
 
             Buffer_vk newBuf = kage::vk::createBuffer(
                 info
-                , m_memProps
-                , m_device
                 , getBufferUsageFlags(createInfo.usage)
                 , getMemPropFlags(createInfo.memFlags)
             );
@@ -1954,7 +1952,12 @@ namespace kage { namespace vk
         const Buffer_vk& newBuf = m_bufferContainer.getIdToData(_hBuf.id);
         uploadBuffer(_hBuf.id, _mem->data, _mem->size);
 
-        flushBuffer(m_device, newBuf);
+
+        if (0 == (createInfo.memFlags & MemoryPropFlagBits::host_coherent))
+        {
+            flushBuffer(newBuf);
+        }
+
     }
 
     void RHIContext_vk::updateImage(
@@ -2027,7 +2030,7 @@ namespace kage { namespace vk
             ImgInitProps_vk initPorps = getImageInitProp(ci, m_imageFormat, m_depthFormat);
 
             stl::vector<Image_vk> imageVks;
-            kage::vk::createImage(imageVks, aliasInfos, m_device, m_memProps, initPorps);
+            kage::vk::createImage(imageVks, aliasInfos, initPorps);
             assert(imageVks.size() == ci.resCount);
 
             ResInteractDesc interact{ ci.barrierState };
@@ -2364,7 +2367,7 @@ namespace kage { namespace vk
         ImgInitProps_vk initPorps = getImageInitProp(info, m_imageFormat, m_depthFormat);
 
         stl::vector<Image_vk> images;
-        kage::vk::createImage(images, infoList, m_device, m_memProps, initPorps);
+        kage::vk::createImage(images, infoList, initPorps);
         assert(images.size() == info.resCount);
 
         m_imgCreateInfos.addOrUpdate(info.imgId, info);
@@ -2438,7 +2441,7 @@ namespace kage { namespace vk
         stl::vector<BufferAliasInfo> infoList(resArr, resArr + info.resCount);
 
         stl::vector<Buffer_vk> buffers;
-        kage::vk::createBuffer(buffers, infoList, m_memProps, m_device, getBufferUsageFlags(info.usage), getMemPropFlags(info.memFlags));
+        kage::vk::createBuffer(buffers, infoList, getBufferUsageFlags(info.usage), getMemPropFlags(info.memFlags));
 
         assert(buffers.size() == info.resCount);
 
@@ -2482,7 +2485,7 @@ namespace kage { namespace vk
         SamplerMetaData meta;
         bx::read(&_reader, meta, nullptr);
 
-        VkSampler sampler = kage::vk::createSampler(m_device, getSamplerReductionMode( meta.reductionMode));
+        VkSampler sampler = kage::vk::createSampler(getSamplerReductionMode( meta.reductionMode));
         assert(sampler);
 
         m_samplerContainer.addOrUpdate(meta.samplerId, sampler);
@@ -2847,9 +2850,8 @@ namespace kage { namespace vk
         }
 
         VkSampler sampler = kage::vk::createSampler(
-            m_device
-            , getSamplerReductionMode(_reduMd)
-        );
+            getSamplerReductionMode(_reduMd)
+            );
 
         m_samplerCache.add(hashKey, sampler);
 
@@ -2879,13 +2881,12 @@ namespace kage { namespace vk
         }
 
         VkImageView view = kage::vk::createImageView(
-            m_device
-            , img.image
+            img.image
             , img.format
             , _mip
             , _numMips
             , _type
-        );
+            );
 
         m_imgViewCache.add(hashKey, view, _hImg.id);
 
@@ -2922,8 +2923,6 @@ namespace kage { namespace vk
         bai.size = _size;
         Buffer_vk scratch = kage::vk::createBuffer(
             bai
-            , m_memProps
-            , m_device
             , VK_BUFFER_USAGE_TRANSFER_SRC_BIT
             , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
         );
@@ -2984,8 +2983,6 @@ namespace kage { namespace vk
         bai.size = _size;
         Buffer_vk scratch = kage::vk::createBuffer(
             bai
-            , m_memProps
-            , m_device
             , VK_BUFFER_USAGE_TRANSFER_SRC_BIT
             , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
         );
@@ -5004,13 +5001,9 @@ namespace kage { namespace vk
         bai.size = totalSz;
         m_buf = kage::vk::createBuffer(
             bai
-            , memProps
-            , device
-            , VK_BUFFER_USAGE_TRANSFER_SRC_BIT
+            , VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
             , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
         );
-
-        m_offset = 0;
 
         reset();
     }
@@ -5040,7 +5033,7 @@ namespace kage { namespace vk
     {
         const VkDevice device = s_renderVK->m_device;
 
-        kage::vk::flushBuffer(device, m_buf);
+        kage::vk::flushBuffer(m_buf);
     }
 
     void ScratchBuffer::reset()

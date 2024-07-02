@@ -62,6 +62,22 @@ namespace kage { namespace vk
         }
     }
 
+    static VkDescriptorType getStorageDescriptorType(SpvStorageClass _sc)
+    {
+        switch (_sc)
+        {
+        case SpvStorageClassUniform:
+            return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        case SpvStorageClassUniformConstant:
+            return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        case SpvStorageClassStorageBuffer:
+            return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        default:
+            assert(!"Unknown resource type");
+            return VkDescriptorType(0);
+        }
+    }
+
 
     static void parseShader(Shader_vk& shader, const uint32_t* code, uint32_t codeSize)
     {
@@ -203,6 +219,11 @@ namespace kage { namespace vk
 
                 uint32_t typeKind = ids[ids[id.typeId].typeId].opcode;
                 VkDescriptorType resourceType = getDescriptorType(SpvOp(typeKind));
+
+                if (VK_DESCRIPTOR_TYPE_STORAGE_BUFFER == resourceType)
+                {
+                    resourceType = getStorageDescriptorType((SpvStorageClass)id.storageClass);
+                }
 
                 assert((shader.resourceMask & (1 << id.binding)) == 0 || shader.resourceTypes[id.binding] == resourceType);
 

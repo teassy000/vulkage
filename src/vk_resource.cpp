@@ -8,9 +8,12 @@
 #include <functional> // for hash
 #include <string>
 #include "profiler.h"
+#include "rhi_context_vk.h"
 
 namespace kage { namespace vk
 {
+    extern RHIContext_vk* s_renderVK;
+
     VkDeviceMemory allocVkMemory(
         const VkDevice _device
         , size_t _size
@@ -66,8 +69,6 @@ namespace kage { namespace vk
     void createBuffer(
         stl::vector<Buffer_vk>& _results
         , const stl::vector<BufferAliasInfo> _infos
-        , const VkPhysicalDeviceMemoryProperties& _memProps
-        , const VkDevice _device
         , const VkBufferUsageFlags _usage
         , const VkMemoryPropertyFlags _memFlags
     )
@@ -79,50 +80,59 @@ namespace kage { namespace vk
             return;
         }
 
-        assert(_results.empty());
-        
-        uint32_t size = (uint32_t)_infos.size();
-        stl::vector<Buffer_vk> results(size);
+        const VkPhysicalDeviceMemoryProperties& memProps = s_renderVK->m_memProps;
+        const VkDevice device = s_renderVK->m_device;
+        const VkPhysicalDeviceLimits& limits = s_renderVK->m_phyDeviceProps.limits;
 
-        for (uint32_t ii = 0; ii < size; ++ii)
+        // process 
+        _results.clear();
+
+        uint32_t infoCount = (uint32_t)_infos.size();
+        stl::vector<Buffer_vk> results(infoCount);
+
+        for (uint32_t ii = 0; ii < infoCount; ++ii)
         {
+            const uint32_t align = uint32_t(limits.nonCoherentAtomSize);
+            const uint32_t alignSize = bx::strideAlign(_infos[ii].size, align);
+
             VkBufferCreateInfo createInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
-            createInfo.size = _infos[ii].size;
+            createInfo.size = alignSize;
             createInfo.usage = _usage;
 
             Buffer_vk& buf = results[ii];
 
-            VK_CHECK(vkCreateBuffer(_device, &createInfo, nullptr, &(buf.buffer)));
+            VK_CHECK(vkCreateBuffer(device, &createInfo, nullptr, &(buf.buffer)));
+
+            buf.size = alignSize;
+            buf.resId = _infos[ii].bufId;
         }
 
         // allocate memory only for the first buffer
         VkBuffer& baseBuf = results[0].buffer;
 
         VkMemoryRequirements memoryReqs;
-        vkGetBufferMemoryRequirements(_device, baseBuf, &memoryReqs);
+        vkGetBufferMemoryRequirements(device, baseBuf, &memoryReqs);
 
-        uint32_t memoryTypeIdx = selectMemoryType(_memProps, memoryReqs.memoryTypeBits, _memFlags);
+        uint32_t memoryTypeIdx = selectMemoryType(memProps, memoryReqs.memoryTypeBits, _memFlags);
         assert(memoryTypeIdx != ~0u);
 
-        VkDeviceMemory memory = allocVkMemory(_device, memoryReqs.size, memoryTypeIdx);
+        VkDeviceMemory memory = allocVkMemory(device, memoryReqs.size, memoryTypeIdx);
 
         // all buffers share the same memory
-        for (uint32_t ii = 0; ii < size; ++ii)
+        for (uint32_t ii = 0; ii < infoCount; ++ii)
         {
             Buffer_vk& buf = results[ii];
-            VK_CHECK(vkBindBufferMemory(_device, buf.buffer, memory, 0));
+            VK_CHECK(vkBindBufferMemory(device, buf.buffer, memory, 0));
             buf.memory = memory;
-            buf.size = _infos[ii].size;
-            buf.resId = _infos[ii].bufId;
         }
 
         // map to local memory
         if (_memFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
         {
-            for (uint32_t ii = 0; ii < size; ++ii)
+            for (uint32_t ii = 0; ii < infoCount; ++ii)
             {
                 Buffer_vk& buf = results[ii];
-                VK_CHECK(vkMapMemory(_device, memory, 0, buf.size, 0, &(buf.data)));
+                VK_CHECK(vkMapMemory(device, memory, 0, buf.size, 0, &(buf.data)));
             }
         }
 
@@ -132,8 +142,6 @@ namespace kage { namespace vk
 
     Buffer_vk createBuffer(
         const BufferAliasInfo& _info
-        , const VkPhysicalDeviceMemoryProperties& _props
-        , VkDevice _device
         , VkBufferUsageFlags _usage
         , VkMemoryPropertyFlags _memFlags
     )
@@ -142,89 +150,49 @@ namespace kage { namespace vk
 
         stl::vector<Buffer_vk> results;
         stl::vector<BufferAliasInfo> infos{1, _info };
-        createBuffer(results, infos, _props, _device, _usage, _memFlags);
+        createBuffer(results, infos, _usage, _memFlags);
 
         return results[0];
     }
 
-
-    void fillBuffer(
-        VkDevice _device
-        , VkCommandPool _cmdPool
-        , VkCommandBuffer _cmdBuffer
-        , VkQueue _queue
-        , const Buffer_vk& _buffer
-        , uint32_t _value
-        , size_t _size
-    )
-    {
-        KG_ZoneScopedC(Color::light_coral);
-
-        assert(_size > 0);
-
-        VK_CHECK(vkResetCommandPool(_device, _cmdPool, 0));
-
-        VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-        VK_CHECK(vkBeginCommandBuffer(_cmdBuffer, &beginInfo));
-
-        vkCmdFillBuffer(_cmdBuffer, _buffer.buffer, 0, _size, _value);
-
-        VkBufferMemoryBarrier2 copyBarrier = bufferBarrier(_buffer.buffer,
-            VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-            VK_ACCESS_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
-        pipelineBarrier(_cmdBuffer, VK_DEPENDENCY_BY_REGION_BIT, 0, nullptr, 1, &copyBarrier, 0, nullptr);
-
-        VK_CHECK(vkEndCommandBuffer(_cmdBuffer));
-
-        VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-
-        submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &_cmdBuffer;
-
-        VK_CHECK(vkQueueSubmit(_queue, 1, &submitInfo, VK_NULL_HANDLE));
-
-        VK_CHECK(vkDeviceWaitIdle(_device));
-    }
-
-
     // only for non-coherent buffer 
     void flushBuffer(
-        VkDevice _device
-        , const Buffer_vk& _buffer
-        , uint32_t _offset /* = 0*/
+        const Buffer_vk& _buffer
+        , uint32_t _offset /*= 0 */
     )
     {
         KG_ZoneScopedC(Color::light_coral);
+
+        const VkDevice device = s_renderVK->m_device;
 
         VkMappedMemoryRange range = { VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE };
         range.memory = _buffer.memory;
         range.size = VK_WHOLE_SIZE;
         range.offset = _offset;
 
-        VK_CHECK(vkFlushMappedMemoryRanges(_device, 1, &range));
+        VK_CHECK(vkFlushMappedMemoryRanges(device, 1, &range));
     }
 
 
     void destroyBuffer(
-        const VkDevice _device
-        , const stl::vector<Buffer_vk>& _buffers
+        const stl::vector<Buffer_vk>& _buffers
     )
     {
         KG_ZoneScopedC(Color::light_coral);
 
         assert(!_buffers.empty());
+
+        const VkDevice device = s_renderVK->m_device;
         
         // depends on this doc:
         //    If a memory object is mapped at the time it is freed, it is implicitly unmapped.
         // https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/vkFreeMemory.html
         Buffer_vk baseBuf = _buffers[0];
-        freeVkMemory(_device, baseBuf.memory);
+        freeVkMemory(device, baseBuf.memory);
 
         for (const Buffer_vk& buf : _buffers)
         {
-            vkDestroyBuffer(_device, buf.buffer, 0);
+            vkDestroyBuffer(device, buf.buffer, 0);
         }
     }
 
@@ -256,8 +224,6 @@ namespace kage { namespace vk
     void createImage(
         stl::vector<Image_vk>& _results
         , const stl::vector<ImageAliasInfo>& _infos
-        , const VkDevice _device
-        , const VkPhysicalDeviceMemoryProperties& _memProps
         , const ImgInitProps_vk& _initProps
     )
     {
@@ -268,7 +234,10 @@ namespace kage { namespace vk
             return;
         }
 
-        assert(_results.empty());
+        const VkPhysicalDeviceMemoryProperties& memProps = s_renderVK->m_memProps;
+        const VkDevice device = s_renderVK->m_device;
+
+        _results.clear();
 
         uint32_t num = (uint32_t)_infos.size();
         stl::vector<Image_vk> results(num);
@@ -294,21 +263,21 @@ namespace kage { namespace vk
         for (uint32_t ii = 0; ii < num; ++ii)
         {
             Image_vk& img = results[ii];
-            VK_CHECK(vkCreateImage(_device, &createInfo, 0, &(img.image)));
+            VK_CHECK(vkCreateImage(device, &createInfo, 0, &(img.image)));
         }
 
         VkImage baseImg = results[0].image;
 
         VkMemoryRequirements memoryReqs;
-        vkGetImageMemoryRequirements(_device, baseImg, &memoryReqs);
+        vkGetImageMemoryRequirements(device, baseImg, &memoryReqs);
 
-        uint32_t memoryTypeIdx = selectMemoryType(_memProps, memoryReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        VkDeviceMemory memory = allocVkMemory(_device, memoryReqs.size, memoryTypeIdx);
+        uint32_t memoryTypeIdx = selectMemoryType(memProps, memoryReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        VkDeviceMemory memory = allocVkMemory(device, memoryReqs.size, memoryTypeIdx);
 
         for (uint32_t ii = 0; ii < num; ++ii)
         {
             Image_vk& img = results[ii];
-            VK_CHECK(vkBindImageMemory(_device, img.image, memory, 0));
+            VK_CHECK(vkBindImageMemory(device, img.image, memory, 0));
         }
 
         // setting for aliases
@@ -317,7 +286,7 @@ namespace kage { namespace vk
             Image_vk& img = results[ii];
 
             img.resId = _infos[ii].imgId;
-            img.defaultView = createImageView(_device, img.image, _initProps.format, 0, _initProps.numMips, _initProps.viewType); // ImageView bind to the image handle it self, should create a new one for alias
+            img.defaultView = createImageView(img.image, _initProps.format, 0, _initProps.numMips, _initProps.viewType); // ImageView bind to the image handle it self, should create a new one for alias
             img.memory = memory;
 
             img.width = _initProps.width;
@@ -337,15 +306,13 @@ namespace kage { namespace vk
 
     Image_vk createImage(
         const ImageAliasInfo& _info
-        , const VkDevice _device
-        , const VkPhysicalDeviceMemoryProperties& _memProps
         , const ImgInitProps_vk& _initProps
     )
     {
         KG_ZoneScopedC(Color::light_coral);
 
         stl::vector<Image_vk> results;
-        createImage(results, {1, _info}, _device, _memProps, _initProps);
+        createImage(results, {1, _info}, _initProps);
         assert(!results.empty());
 
         return results[0];
@@ -374,15 +341,16 @@ namespace kage { namespace vk
     }
 
     VkImageView createImageView(
-        VkDevice _device
-        , VkImage _image
+        VkImage _image
         , VkFormat _format
         , uint32_t _baseMipLevel
         , uint32_t _levelCount
-        , VkImageViewType _viewType /*= VK_IMAGE_VIEW_TYPE_2D*/
+        , VkImageViewType _viewType /*= VK_IMAGE_VIEW_TYPE_2D */
     )
     {
         KG_ZoneScopedC(Color::light_coral);
+
+        const VkDevice device = s_renderVK->m_device;
 
         VkImageAspectFlags aspectMask = (_format == VK_FORMAT_D32_SFLOAT) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
 
@@ -395,8 +363,8 @@ namespace kage { namespace vk
         createInfo.subresourceRange.levelCount = _levelCount;
         createInfo.subresourceRange.layerCount = ((_viewType == VK_IMAGE_VIEW_TYPE_CUBE) ? 6 : 1);
 
-        VkImageView imageView = 0;
-        VK_CHECK(vkCreateImageView(_device, &createInfo, 0, &imageView));
+        VkImageView imageView = VK_NULL_HANDLE;
+        VK_CHECK(vkCreateImageView(device, &createInfo, 0, &imageView));
         return imageView;
     }
 
@@ -461,11 +429,12 @@ namespace kage { namespace vk
 
 
     VkSampler createSampler(
-        VkDevice _device
-        , VkSamplerReductionMode _reductionMode /*= VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE*/
+        VkSamplerReductionMode _reductionMode /*= VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE */
     )
     {
         KG_ZoneScopedC(Color::light_coral);
+
+        const VkDevice device = s_renderVK->m_device;
 
         VkSamplerCreateInfo createInfo = { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 
@@ -486,7 +455,7 @@ namespace kage { namespace vk
         }
 
         VkSampler sampler = 0;
-        VK_CHECK(vkCreateSampler(_device, &createInfo, 0, &sampler));
+        VK_CHECK(vkCreateSampler(device, &createInfo, 0, &sampler));
 
         return sampler;
     }

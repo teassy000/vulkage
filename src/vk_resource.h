@@ -18,8 +18,6 @@ namespace kage { namespace vk
 
     Buffer_vk createBuffer(
         const BufferAliasInfo& _info
-        , const VkPhysicalDeviceMemoryProperties& _memProps
-        , VkDevice _device
         , VkBufferUsageFlags _usage
         , VkMemoryPropertyFlags _memFlags
     );
@@ -27,32 +25,18 @@ namespace kage { namespace vk
     void createBuffer(
         stl::vector<Buffer_vk>& _results
         , const stl::vector<BufferAliasInfo> _infos
-        , const VkPhysicalDeviceMemoryProperties& _memProps
-        , VkDevice _device
         , VkBufferUsageFlags _usage
         , VkMemoryPropertyFlags _memFlags
     );
 
-    void fillBuffer(
-        VkDevice _device
-        , VkCommandPool _cmdPool
-        , VkCommandBuffer _cmdBuffer
-        , VkQueue _queue
-        , const Buffer_vk& _buffer
-        , uint32_t _value
-        , size_t _size
-    );
-
     void flushBuffer(
-        VkDevice _device
-        , const Buffer_vk& _buffer
+        const Buffer_vk& _buffer
         , uint32_t _offset = 0
     );
 
     // destroy a list of buffers, which shares the same memory
     void destroyBuffer(
-        const VkDevice _device
-        , const stl::vector<Buffer_vk>& _buffers
+        const stl::vector<Buffer_vk>& _buffers
     );
 
     VkBufferMemoryBarrier2 bufferBarrier(
@@ -104,16 +88,12 @@ namespace kage { namespace vk
 
     Image_vk createImage(
         const ImageAliasInfo& info
-        , const VkDevice _device
-        , const VkPhysicalDeviceMemoryProperties& _memProps
         , const ImgInitProps_vk& _initProps
     );
     
     void createImage(
         stl::vector<Image_vk>& _results
         , const stl::vector<ImageAliasInfo>& _infos
-        , const VkDevice _device
-        , const VkPhysicalDeviceMemoryProperties& _memProps
         , const ImgInitProps_vk& _initProps
     );
     
@@ -125,8 +105,7 @@ namespace kage { namespace vk
 
 
     VkImageView createImageView(
-        VkDevice _device
-        , VkImage _image
+        VkImage _image
         , VkFormat _format
         , uint32_t _baseMipLevel
         , uint32_t _levelCount
@@ -157,8 +136,7 @@ namespace kage { namespace vk
 
 
     VkSampler createSampler(
-        VkDevice                    _device
-        , VkSamplerReductionMode    _reductionMode = VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE
+        VkSamplerReductionMode _reductionMode = VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE
     );
 
 
