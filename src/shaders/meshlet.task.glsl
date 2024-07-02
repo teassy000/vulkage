@@ -50,7 +50,7 @@ layout(binding = 3) readonly buffer Meshlets
     Meshlet meshlets[];
 };
 
-layout(binding = 6) readonly buffer Transform
+layout(binding = 6) readonly uniform Transform
 {
     TransformData trans;
 };

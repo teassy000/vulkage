@@ -30,7 +30,7 @@ layout(binding = 1) readonly buffer MeshDraws
     MeshDraw draws[];
 };
 
-layout(binding = 2) readonly buffer Transform
+layout(binding = 2) readonly uniform Transform
 {
     TransformData transform;
 };

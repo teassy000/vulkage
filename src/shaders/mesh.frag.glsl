@@ -12,7 +12,7 @@ layout (location = 2) in vec3 inNormal;
 
 layout (location = 0) out vec4 outputColor;
 
-layout (binding = 3) readonly buffer Transform 
+layout (binding = 3) readonly uniform Transform 
 {
     TransformData trans;
 };

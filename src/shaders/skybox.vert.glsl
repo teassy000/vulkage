@@ -8,7 +8,7 @@
 
 layout (location = 0) in vec3 inPos;
 
-layout (binding = 0) readonly buffer Transform
+layout (binding = 0) readonly uniform Transform
 {
 	TransformData trans;
 };

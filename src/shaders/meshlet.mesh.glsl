@@ -48,7 +48,7 @@ layout(binding = 5) readonly buffer Vertices
     Vertex vertices[];
 };
 
-layout(binding = 6) readonly buffer Transform
+layout(binding = 6) readonly uniform Transform
 {
     TransformData trans;
 };
