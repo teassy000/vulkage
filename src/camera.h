@@ -18,6 +18,5 @@ void freeCameraDestroy();
 void freeCameraGetViewMatrix(float* _mat);
 bx::Vec3 freeCameraGetPos();
 
-void freeCameraUpdate(float _delta, const entry::MouseState& _mouseState, bool _reset);
+void freeCameraUpdate(float _delta, const entry::MouseState& _mouseState);
 
-void freeCameraSetKeyState(uint8_t _key, bool _down);

@@ -83,7 +83,7 @@ namespace
             const double freq = double(bx::getHPFrequency());
             const float deltaTimeMS = float(frameTime / freq) * 1000.f;
 
-            freeCameraUpdate(deltaTimeMS, m_mouseState, m_reset);
+            freeCameraUpdate(deltaTimeMS, m_mouseState);
 
             updatePyramid(m_pyramid, m_width, m_height);
 

@@ -6,6 +6,8 @@
 #include "entry/input.h"
 #include "debug.h"
 
+void freeCameraSetKeyState(uint8_t _key, bool _down);
+
 int cmdMove(CmdContext* /*_context*/, void* /*_userData*/, int _argc, char const* const* _argv)
 {
     if (_argc > 1)
@@ -101,10 +103,8 @@ struct FreeCamera
     {
         reset();
 
-
-
         entry::MouseState mouseState;
-        update(0.0f, mouseState, true);
+        update(0.0f, mouseState);
 
         cmdAdd("move", cmdMove);
         cmdAdd("op", cmdOp);
@@ -125,13 +125,11 @@ struct FreeCamera
 
     void updateVecs()
     {
-        m_direction.x = bx::cos(bx::toRad(m_pitch)) * bx::cos(bx::toRad(m_yaw));
-        m_direction.y = bx::sin(bx::toRad(m_pitch));
-        m_direction.z = bx::cos(bx::toRad(m_pitch)) * bx::sin(bx::toRad(m_yaw));
-        
-        m_front = bx::normalize(m_direction);
+        m_front.x = bx::sin(bx::toRad(m_yaw));
+        m_front.y = bx::sin(bx::toRad(m_pitch));
+        m_front.z = bx::cos(bx::toRad(m_yaw)) * bx::cos(bx::toRad(m_pitch));
 
-        m_right = bx::normalize(bx::cross(m_up, m_direction));
+        m_right = bx::normalize(bx::cross(m_up, m_front));
     }
 
     void processKey(float _deltaTime)
@@ -177,110 +175,86 @@ struct FreeCamera
             reset();
             setKeyState(CAMERA_KEY_RESET, false);
         }
+
+        m_at = bx::add(m_pos, m_front);
     }
 
     void processMouse(float _xpos, float _ypos, bool _constrainPitch = true)
     {
-        float xoffset = _xpos - m_mousePrev.m_mx;
-        float yoffset = _ypos - m_mousePrev.m_my;
+        float xdelta = _xpos - cursorPos.x;
+        float ydelta = _ypos - cursorPos.y;
 
-        m_mousePrev.m_mx = m_mouseNow.m_mx;
-        m_mousePrev.m_my = m_mouseNow.m_my;
+        cursorPos.x = _xpos;
+        cursorPos.y = _ypos;
 
-        m_mouseNow.m_mx = int32_t(_xpos);
-        m_mouseNow.m_my = int32_t(_ypos);
+        xdelta *= m_mouseSpeed;
+        ydelta *= m_mouseSpeed;
 
-        xoffset *= m_mouseSpeed;
-        yoffset *= m_mouseSpeed;
-
-        m_yaw -= xoffset;
-        m_pitch -= yoffset;
+        m_yaw += xdelta; 
+        m_pitch -= ydelta; // reversed since the y-coordinates go from bottom to top
 
         if (_constrainPitch)
         {
-            if (m_pitch > 89.f)
-                m_pitch = 89.f;
-            if (m_pitch < -89.f)
-                m_pitch = -89.f;
+            m_pitch = bx::clamp(m_pitch, -89.5f, 89.5f);
         }
+
+        updateVecs();
     }
 
-    void update(float _delta, const entry::MouseState& _mouseState, bool _reset) 
+    void update(float _delta, const entry::MouseState& _mouseState) 
     {
         processMouse(float(_mouseState.m_mx), float(_mouseState.m_my), true);
-        updateVecs();
         processKey(_delta);
-
-        m_at = bx::add(m_pos, m_direction);
     }
 
     void getViewMat(float* _mat)
     {
-        bx::mtxLookAt(_mat, bx::load<bx::Vec3>(&m_pos.x), bx::load<bx::Vec3>(&m_at.x), bx::load<bx::Vec3>(&m_up.x));
+        bx::mtxLookAt(
+            _mat
+            , bx::load<bx::Vec3>(&m_pos.x)
+            , bx::load<bx::Vec3>(&m_at.x)
+            , bx::load<bx::Vec3>(&m_up.x)
+        );
     }
 
     void reset()
     {
-        m_mouseNow.m_mx = 0;
-        m_mouseNow.m_my = 0;
-        m_mouseNow.m_mz = 0;
-        m_mousePrev.m_mx = 0;
-        m_mousePrev.m_my = 0;
-        m_mousePrev.m_mz = 0;
-
         m_pos.x = 0.0f;
-        m_pos.y = 0.f;
-        m_pos.z = 20.0f;
+        m_pos.y = 0.0f;
+        m_pos.z = -10.0f;
 
-        m_up.x = 0.0f;
-        m_up.y = 1.0f;
-        m_up.z = 0.0f;
+        m_yaw = 0.001f;
+        m_pitch = 0.001f;
 
-        m_front.x = 0.0f;
-        m_front.y = 0.0f;
-        m_front.z = 1.0f;
-
-        m_right.x = 1.0f;
-        m_right.y = 0.0f;
-        m_right.z = 0.0f;
-
-        m_direction = m_front;
-        m_at = bx::add(m_pos, m_direction);
-
-        m_yaw = 0.01f;
-        m_pitch = 0.01f;
+        m_up = { 0.0f, 1.0f, 0.0f };
 
         m_mouseSpeed = 0.01f;
         m_gamepadSpeed = 0.01f;
         m_moveSpeed = 0.01f;
         m_keys = 0;
-        m_mouseDown = false;
+
+        updateVecs();
+
+        m_at = bx::add(m_pos, m_front);
     }
 
-    void setPos(const bx::Vec3& _pos)
-    {
-        m_pos = _pos;
-    }
+    bx::Vec3 m_mousePrev{ bx::InitZero };
+    bx::Vec3 cursorPos{ bx::InitZero };
 
-    MouseCoords m_mousePrev;
-    MouseCoords m_mouseNow;
+    bx::Vec3 m_pos{ bx::InitZero };
+    bx::Vec3 m_up{ bx::InitZero };
+    bx::Vec3 m_front{ bx::InitZero };
+    bx::Vec3 m_right{ bx::InitZero };
+    bx::Vec3 m_at{ bx::InitZero };
 
-    bx::Vec3 m_pos = bx::InitZero;
-    bx::Vec3 m_up = bx::InitZero;
-    bx::Vec3 m_front = bx::InitZero;
-    bx::Vec3 m_direction = bx::InitZero;
-    bx::Vec3 m_right = bx::InitZero;
-    bx::Vec3 m_at = bx::InitZero;
+    float m_yaw{ 0.f };
+    float m_pitch{ 0.f };
 
-    float m_yaw;
-    float m_pitch;
-
-    float m_mouseSpeed;
-    float m_gamepadSpeed;
-    float m_moveSpeed;
+    float m_mouseSpeed{ 0.f };
+    float m_gamepadSpeed{ 0.f };
+    float m_moveSpeed{ 0.f };
 
     uint8_t m_keys;
-    bool m_mouseDown;
 
     bool m_exit;
 };
@@ -304,9 +278,9 @@ void freeCameraGetViewMatrix(float* _mat)
     s_freeCamera->getViewMat(_mat);
 }
 
-void freeCameraUpdate(float _delta, const entry::MouseState& _mouseState, bool _reset)
+void freeCameraUpdate(float _delta, const entry::MouseState& _mouseState)
 {
-    s_freeCamera->update(_delta, _mouseState, _reset);
+    s_freeCamera->update(_delta, _mouseState);
 }
 
 void freeCameraSetKeyState(uint8_t _key, bool _down)
