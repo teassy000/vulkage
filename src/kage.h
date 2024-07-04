@@ -62,11 +62,6 @@ namespace kage
 
     void resizeImage(ImageHandle _hImg, uint32_t _width, uint32_t _height);
 
-    // following interface would trigger in a render pass, which means the render-graph would affect.
-    void fillBuffer(const PassHandle _hPass, const BufferHandle _hBuf, const uint32_t _offset, const uint32_t _size, const uint32_t _value, const BufferHandle _outAlias);
-    void copyBuffer(const PassHandle _hPass, const BufferHandle _hSrc, const BufferHandle _hDst, const uint32_t _size);
-    void blitImage(const PassHandle _hPass, const ImageHandle _hSrc, const ImageHandle _hDst);
-
     void setPresentImage(ImageHandle _rt, uint32_t _mipLv = 0);
 
     void updatePushConstants(const PassHandle _hPass, const Memory* _mem);
@@ -103,6 +98,11 @@ namespace kage
         const uint32_t _groupCountX
         , const uint32_t _groupCountY
         , const uint32_t _groupCountZ
+    );
+
+    void fillBuffer(
+        BufferHandle _hBuf
+        , uint32_t _value
     );
 
     void setVertexBuffer(BufferHandle _hBuf);

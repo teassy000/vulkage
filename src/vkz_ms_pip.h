@@ -73,10 +73,10 @@ struct MeshShadingConfig
 
 struct TaskSubmit
 {
+    kage::PassHandle pass;
+
     kage::ShaderHandle cs;
     kage::ProgramHandle prog;
-
-    kage::PassHandle pass;
 
     kage::BufferHandle drawCmdBuffer;
     kage::BufferHandle drawCmdCountBuffer;
@@ -87,4 +87,6 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
 
 void prepareTaskSubmit(TaskSubmit& _taskSubmit, kage::BufferHandle _drawCmdBuf, kage::BufferHandle _drawCmdCntBuf, bool _late = false);
 
-void updateMeshShadingConstants(MeshShading& _meshShading, const Globals& _globals);
+
+void updateTaskSubmit(const TaskSubmit& _taskSubmit);
+void updateMeshShading(MeshShading& _meshShading, const Globals& _globals);

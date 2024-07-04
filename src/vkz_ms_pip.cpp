@@ -6,15 +6,35 @@
 
 #include "bx/readerwriter.h"
 
-void renderMS(const MeshShading& _ms)
+using Stage = kage::PipelineStageFlagBits::Enum;
+using Access = kage::BindingAccess;
+
+void taskSubmitRec(const TaskSubmit& _ts)
+{
+    KG_ZoneScopedC(kage::Color::blue);
+
+    kage::Binding binds[] =
+    {
+        {_ts.drawCmdCountBuffer,    Access::read,   Stage::compute_shader},
+        {_ts.drawCmdBuffer,         Access::write,  Stage::compute_shader}
+    };
+
+    kage::startRec(_ts.pass);
+
+    kage::setBindings(binds, COUNTOF(binds));
+
+    kage::dispatch(1, 1, 1);
+
+    kage::endRec();
+}
+
+void meshShadingRec(const MeshShading& _ms)
 {
     KG_ZoneScopedC(kage::Color::blue);
 
     const kage::Memory* mem = kage::alloc(sizeof(Globals));
     memcpy(mem->data, &_ms.globals, mem->size);
 
-    using Stage = kage::PipelineStageFlagBits::Enum;
-    using Access = kage::BindingAccess;
     kage::Binding binds[] =
     {
         {_ms.meshDrawCmdBuffer, Access::read,       Stage::task_shader | Stage::mesh_shader},
@@ -198,9 +218,14 @@ void prepareTaskSubmit(TaskSubmit& _taskSubmit, kage::BufferHandle _drawCmdBuf, 
     _taskSubmit.drawCmdBufferOutAlias = drawCmdBufferOutAlias;
 }
 
-void updateMeshShadingConstants(MeshShading& _meshShading, const Globals& _globals)
+void updateTaskSubmit(const TaskSubmit& _taskSubmit)
+{
+    taskSubmitRec(_taskSubmit);
+}
+
+void updateMeshShading(MeshShading& _meshShading, const Globals& _globals)
 {
     _meshShading.globals = _globals;
 
-    renderMS(_meshShading);
+    meshShadingRec(_meshShading);
 }

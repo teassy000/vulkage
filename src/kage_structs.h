@@ -59,8 +59,6 @@ namespace kage
     {
         graphics = 0,
         compute,
-        copy,
-        fill_buffer,
         count,
     };
 

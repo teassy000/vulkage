@@ -27,6 +27,7 @@ struct Culling
     kage::BufferHandle transBuf;
 
     kage::ImageHandle pyramid;
+    kage::SamplerHandle pyrSampler;
 
     // read / write
     kage::BufferHandle meshDrawCmdBuf;
@@ -42,5 +43,5 @@ struct Culling
 
 void prepareCullingComp(Culling& _cullingComp, const CullingCompInitData& _initData, bool _late = false, bool _task = false);
 
-void updateCullingConstants(Culling& _cullingComp, const MeshDrawCull& _drawCull);
+void updateCulling(Culling& _cullingComp, const MeshDrawCull& _drawCull, uint32_t _drawCount);
 

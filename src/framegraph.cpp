@@ -1890,11 +1890,6 @@ namespace kage
         {
             const PassMetaData& passMeta = m_sparse_pass_meta[pass.id];
 
-            if (passMeta.queue == PassExeQueue::copy || passMeta.queue == PassExeQueue::fill_buffer)
-            {
-                continue;
-            }
-
             const ProgramInfo& progInfo = m_sparse_program_info[passMeta.programId];
             usedProgram.push_back({ passMeta.programId });
 
@@ -2046,7 +2041,7 @@ namespace kage
                         writeColor.addOrUpdate({ writeRes.id }, writeInteractPair->second);
                     }
                     else if (isNormalImage(writeRes)
-                        && (passMeta.queue == PassExeQueue::compute || passMeta.queue == PassExeQueue::copy))
+                        && (passMeta.queue == PassExeQueue::compute))
                     {
                         writeColor.addOrUpdate({ writeRes.id }, writeInteractPair->second);
                     }

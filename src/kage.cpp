@@ -376,8 +376,6 @@ namespace kage
 
         void resizeImage(ImageHandle _hImg, uint32_t _width, uint32_t _height);
 
-        void fillBuffer(const PassHandle _hPass, const BufferHandle _hBuf, const uint32_t _offset, const uint32_t _size, const uint32_t _value, const BufferHandle _outAlias);
-
         void setMultiFrame(ImageHandle _img);
         void setMultiFrame(BufferHandle _buf);
         
@@ -471,6 +469,11 @@ namespace kage
             , uint32_t _height
         );
 
+        void fillBuffer(
+            const BufferHandle _hBuf
+            , const uint32_t _value
+        );
+
         void draw(
             const uint32_t _vertexCount
             , const uint32_t _instanceCount
@@ -542,9 +545,6 @@ namespace kage
         // running Pass
         PassHandle              m_recordingPass{ kInvalidHandle };
         RecordingCmd            m_recordingCmds[kMaxNumOfPassHandle];
-        
-        // 1-operation pass: blit/copy/fill 
-        bool                m_oneOpPassTouchedArr[kMaxNumOfPassHandle];
 
         // alias
         stl::unordered_map<uint16_t, BufferHandle> m_bufferAliasMapToBase;
@@ -606,22 +606,6 @@ namespace kage
     {
         const PassMetaData& meta = m_passMetas[_hPass.id];
         return meta.queue == PassExeQueue::graphics;
-    }
-
-    bool Context::isFillBuffer(const PassHandle _hPass)
-    {
-        const PassMetaData& meta = m_passMetas[_hPass.id];
-        return meta.queue == PassExeQueue::fill_buffer;
-    }
-
-    bool Context::isOneOpPass(const PassHandle _hPass)
-    {
-        const PassMetaData& meta = m_passMetas[_hPass.id];
-
-        return (
-            meta.queue == PassExeQueue::fill_buffer
-            || meta.queue == PassExeQueue::copy
-            );
     }
 
     bool Context::isRead(const AccessFlags _access)
@@ -787,10 +771,8 @@ namespace kage
 
         PassMetaData meta{ _desc };
         meta.passId = idx;
-        //m_passMetas.addOrUpdate({ idx }, meta);
 
         m_passMetas[idx] = meta;
-        m_oneOpPassTouchedArr[idx] = false;
 
         setName(handle, _name, strlen(_name));
 
@@ -1225,7 +1207,7 @@ namespace kage
                 );
             }
 
-            // wirte res forced alias
+            // write res forced alias
             if (0 != passMeta.writeImgAliasNum)
             {
                 bx::write(
@@ -1840,40 +1822,6 @@ namespace kage
         assert(0);
     }
 
-    void Context::fillBuffer(const PassHandle _hPass, const BufferHandle _hBuf, const uint32_t _offset, const uint32_t _size, const uint32_t _value, const BufferHandle _outAlias)
-    {
-
-        if (!isFillBuffer(_hPass))
-        {
-            message(DebugMsgType::error, "pass type is not match to operation");
-            return;
-        }
-
-        if (m_oneOpPassTouchedArr[_hPass.id])
-        {
-            message(DebugMsgType::error, "one op pass already touched!");
-            return;
-        }
-
-        BufferMetaData& bufMeta = m_bufferMetas[_hBuf.id];
-        bufMeta.fillVal = _value;
-
-        PassMetaData& passMeta = m_passMetas[_hPass.id];
-
-        ResInteractDesc interact{};
-        interact.binding = kDescriptorSetBindingDontCare;
-        interact.stage = PipelineStageFlagBits::transfer;
-        interact.access = AccessFlagBits::transfer_write;
-
-        passMeta.writeBufferNum = insertResInteract(m_writeBuffers, _hPass, _hBuf.id, { kInvalidHandle }, interact);
-        passMeta.writeBufAliasNum = insertWriteResAlias(m_writeForcedBufferAliases, _hPass, _hBuf.id, _outAlias.id);
-        assert(passMeta.writeBufferNum == passMeta.writeBufAliasNum);
-
-        m_oneOpPassTouchedArr[_hPass.id] = true;
-
-        setRenderGraphDataDirty();
-    }
-
     void Context::setMultiFrame(ImageHandle _hImg)
     {
         ImageMetaData& meta = m_imageMetas[_hImg.id];
@@ -2429,6 +2377,14 @@ namespace kage
         cmd.write(_height);
     }
 
+    void Context::fillBuffer(const BufferHandle _hBuf, const uint32_t _value)
+    {
+        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::record_fill_buffer);
+
+        cmd.write(_hBuf);
+        cmd.write(_value);
+    }
+
     void Context::draw(const uint32_t _vertexCount, const uint32_t _instanceCount, const uint32_t _firstVertex, const uint32_t _firstInstance)
     {
         BX_ASSERT(0, "NOT IMPLEMENTED YET!!!");
@@ -2598,21 +2554,6 @@ namespace kage
         s_ctx->resizeImage(_hImg, _width, _height);
     }
 
-    void fillBuffer(const PassHandle _hPass, const BufferHandle _hBuf, const uint32_t _offset, const uint32_t _size, const uint32_t _value, const BufferHandle _outAlias)
-    {
-        s_ctx->fillBuffer(_hPass, _hBuf, _offset, _size, _value, _outAlias);
-    }
-
-    void copyBuffer(const PassHandle _hPass, const BufferHandle _hSrc, const BufferHandle _hDst, const uint32_t _size)
-    {
-        ;
-    }
-
-    void blitImage(const PassHandle _hPass, const ImageHandle _hSrc, const ImageHandle _hDst)
-    {
-        ;
-    }
-
     void setPresentImage(ImageHandle _rt, uint32_t _mipLv /*= 0*/)
     {
         s_ctx->setPresentImage(_rt, _mipLv);
@@ -2682,6 +2623,14 @@ namespace kage
         s_ctx->dispatch(_groupCountX, _groupCountY, _groupCountZ);
     }
 
+
+    void fillBuffer(
+        BufferHandle _hBuf
+        , uint32_t _value
+    )
+    {
+        s_ctx->fillBuffer(_hBuf, _value);
+    }
 
     void setVertexBuffer(
         BufferHandle _hBuf

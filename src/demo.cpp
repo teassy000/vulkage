@@ -89,22 +89,24 @@ namespace
 
             refreshData();
 
-            updateCullingConstants(m_culling, m_demoData.drawCull);
-            updateCullingConstants(m_cullingLate, m_demoData.drawCull);
+            updateSkybox(m_skybox, m_width, m_height);
+
+            updateCulling(m_culling, m_demoData.drawCull, m_scene.drawCount);
+            updateCulling(m_cullingLate, m_demoData.drawCull, m_scene.drawCount);
 
             if (m_supportMeshShading)
             {
-                updateMeshShadingConstants(m_meshShading, m_demoData.globals);
-                updateMeshShadingConstants(m_meshShadingLate, m_demoData.globals);
+                updateTaskSubmit(m_taskSubmit);
+                updateTaskSubmit(m_taskSubmitLate);
+
+                updateMeshShading(m_meshShading, m_demoData.globals);
+                updateMeshShading(m_meshShadingLate, m_demoData.globals);
             }
             else
             {
                 updateVtxShadingConstants(m_vtxShading, m_demoData.globals);
                 updateVtxShadingConstants(m_vtxShadingLate, m_demoData.globals);
             }
-
-            kage::updateThreadCount(m_culling.pass, (uint32_t)m_scene.meshDraws.size(), 1, 1);
-            kage::updateThreadCount(m_cullingLate.pass, (uint32_t)m_scene.meshDraws.size(), 1, 1);
 
             const kage::Memory* memTransform = kage::alloc(sizeof(TransformData));
             memcpy_s(memTransform->data, memTransform->size, &m_demoData.trans, sizeof(TransformData));
@@ -187,8 +189,6 @@ namespace
                 meshDrawCmdCountBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::indirect | kage::BufferUsageFlagBits::transfer_dst;
                 meshDrawCmdCountBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
                 m_meshDrawCmdCountBuf = kage::registBuffer("meshDrawCmdCount", meshDrawCmdCountBufDesc);
-                m_meshDrawCmdCountBufAfterFill = kage::alias(m_meshDrawCmdCountBuf);
-                m_meshDrawCmdCountBufAfterFillLate = kage::alias(m_meshDrawCmdCountBuf);
             }
 
             // mesh draw instance visibility buffer
@@ -300,7 +300,7 @@ namespace
                 cullingInit.transBuf = m_transformBuf;
                 cullingInit.pyramid = m_pyramid.image;
                 cullingInit.meshDrawCmdBuf = m_meshDrawCmdBuf;
-                cullingInit.meshDrawCmdCountBuf = m_meshDrawCmdCountBufAfterFill;
+                cullingInit.meshDrawCmdCountBuf = m_meshDrawCmdCountBuf;
                 cullingInit.meshDrawVisBuf = m_meshDrawVisBuf;
 
                 prepareCullingComp(m_culling, cullingInit, false, m_supportMeshShading);
@@ -361,7 +361,7 @@ namespace
                 cullingInit.transBuf = m_transformBuf;
                 cullingInit.pyramid = m_pyramid.imgOutAlias;
                 cullingInit.meshDrawCmdBuf = m_supportMeshShading ? m_taskSubmit.drawCmdBufferOutAlias : m_culling.meshDrawCmdBufOutAlias;
-                cullingInit.meshDrawCmdCountBuf = m_meshDrawCmdCountBufAfterFillLate;
+                cullingInit.meshDrawCmdCountBuf = m_culling.meshDrawCmdCountBufOutAlias;
                 cullingInit.meshDrawVisBuf = m_culling.meshDrawVisBufOutAlias;
 
                 prepareCullingComp(m_cullingLate, cullingInit, true, m_supportMeshShading);
@@ -403,25 +403,6 @@ namespace
                 msInit.color = m_meshShading.colorOutAlias;
                 msInit.depth = m_meshShading.depthOutAlias;
                 prepareMeshShading(m_meshShadingLate, m_scene, m_width, m_height, msInit, true);
-            }
-
-            {
-                kage::PassDesc passDesc;
-                passDesc.queue = kage::PassExeQueue::fill_buffer;
-
-                m_fillDCCBPass = kage::registPass("fill_dccb", passDesc);
-
-                kage::fillBuffer(m_fillDCCBPass, m_meshDrawCmdCountBuf, 0, sizeof(uint32_t), 0, m_meshDrawCmdCountBufAfterFill);
-            }
-
-            {
-                kage::PassDesc passDesc;
-                passDesc.queue = kage::PassExeQueue::fill_buffer;
-
-                m_fillDCCBPassLate = kage::registPass("fill_dccb_late", passDesc);
-
-                kage::BufferHandle dccb = m_culling.meshDrawCmdCountBufOutAlias;
-                kage::fillBuffer(m_fillDCCBPassLate, dccb, 0, sizeof(uint32_t), 0, m_meshDrawCmdCountBufAfterFillLate);
             }
 
             {
@@ -507,18 +488,11 @@ namespace
         kage::BufferHandle m_meshletDataBuffer;
         kage::BufferHandle m_transformBuf;
 
-        // aliases
-        kage::BufferHandle m_meshDrawCmdCountBufAfterFill;
-        kage::BufferHandle m_meshDrawCmdCountBufAfterFillLate;
-
         // images
         kage::ImageHandle m_color;
         kage::ImageHandle m_depth;
 
         // passes
-        kage::PassHandle m_fillDCCBPass;
-        kage::PassHandle m_fillDCCBPassLate;
-
         Pyramid m_pyramid{};
         
         TaskSubmit m_taskSubmit{};

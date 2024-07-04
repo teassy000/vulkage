@@ -1,7 +1,8 @@
 
 #include "vkz_skybox_pass.h"
-#include "mesh.h"
+#include "scene.h"
 #include "file_helper.h"
+#include "profiler.h"
 
 void initSkyboxPass(Skybox& _skybox, const kage::BufferHandle _trans, const kage::ImageHandle _color)
 {
@@ -96,13 +97,46 @@ void initSkyboxPass(Skybox& _skybox, const kage::BufferHandle _trans, const kage
     _skybox.vs = vs;
     _skybox.fs = fs;
 
-    _skybox.vtxBuf = vtxBuf;
-    _skybox.idxBuf = idxBuf;
+    _skybox.vb = vtxBuf;
+    _skybox.ib = idxBuf;
 
     _skybox.color = _color;
     _skybox.cubemap = cubemap;
     _skybox.trans = _trans;
 
     _skybox.colorOutAlias = outColor;
+}
+
+void skyboxRec(const Skybox& _skybox, uint32_t _w, uint32_t _h)
+{
+    KG_ZoneScopedC(kage::Color::blue);
+
+    using Stage = kage::PipelineStageFlagBits::Enum;
+    using Access = kage::BindingAccess;
+    kage::Binding binds[] =
+    {
+        {_skybox.trans,     Access::read,           Stage::vertex_shader},
+        {_skybox.cubemap,   _skybox.cubemapSampler, Stage::fragment_shader},
+    };
+
+    kage::startRec(_skybox.pass);
+
+    kage::setViewport(0, 0, _w, _h);
+    kage::setScissor(0, 0, _w, _h);
+
+    kage::setIndexBuffer(_skybox.ib, 0, kage::IndexType::uint32);
+    kage::setVertexBuffer(_skybox.vb);
+
+    kage::setBindings(binds, COUNTOF(binds));
+
+    kage::draw(36, 1, 0, 0, 0);
+
+    kage::endRec();
+
+}
+
+void updateSkybox(const Skybox& _skybox, uint32_t _w, uint32_t _h)
+{
+    skyboxRec(_skybox, _w, _h);
 }
 

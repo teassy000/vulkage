@@ -1,5 +1,37 @@
 #include "vkz_culling_pass.h"
 
+void cullingRec(const Culling& _cull, uint32_t _drawCount)
+{
+    KG_ZoneScopedC(kage::Color::blue);
+
+    using Stage = kage::PipelineStageFlagBits::Enum;
+    using Access = kage::BindingAccess;
+    kage::Binding binds[] =
+    {
+        { _cull.meshBuf,             Access::read,          Stage::compute_shader },
+        { _cull.meshDrawBuf,         Access::read,          Stage::compute_shader },
+        { _cull.transBuf,            Access::read,          Stage::compute_shader },
+        { _cull.meshDrawCmdBuf,      Access::write,         Stage::compute_shader },
+        { _cull.meshDrawCmdCountBuf, Access::read_write,    Stage::compute_shader },
+        { _cull.meshDrawVisBuf,      Access::read_write,    Stage::compute_shader },
+        { _cull.pyramid,             _cull.pyrSampler,      Stage::compute_shader },
+    };
+
+    const kage::Memory* mem = kage::alloc(sizeof(MeshDrawCull));
+    bx::memCopy(mem->data, &_cull.meshDrawCull, mem->size);
+
+    kage::startRec(_cull.pass);
+
+    kage::fillBuffer(_cull.meshDrawCmdCountBuf, 0);
+
+    kage::setConstants(mem);
+
+    kage::setBindings(binds, COUNTOF(binds));
+    kage::dispatch(_drawCount, 1, 1);
+
+    kage::endRec();
+}
+
 void prepareCullingComp(Culling& _cullingComp, const CullingCompInitData& _initData, bool _late /*= false*/, bool _task /*= false*/)
 {
     kage::ShaderHandle cs = kage::registShader("mesh_draw_cmd_shader", "shaders/drawcmd.comp.spv");
@@ -56,7 +88,7 @@ void prepareCullingComp(Culling& _cullingComp, const CullingCompInitData& _initD
         , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
         , drawVisOutAlias);
 
-    kage::sampleImage(pass, _initData.pyramid
+     kage::SamplerHandle samp = kage::sampleImage(pass, _initData.pyramid
         , 6
         , kage::PipelineStageFlagBits::compute_shader
         , kage::SamplerReductionMode::min);
@@ -71,6 +103,8 @@ void prepareCullingComp(Culling& _cullingComp, const CullingCompInitData& _initD
     _cullingComp.meshDrawCmdBuf = _initData.meshDrawCmdBuf;
     _cullingComp.meshDrawCmdCountBuf = _initData.meshDrawCmdCountBuf;
     _cullingComp.meshDrawVisBuf = _initData.meshDrawVisBuf;
+    _cullingComp.pyramid = _initData.pyramid;
+    _cullingComp.pyrSampler = samp;
 
     _cullingComp.meshDrawCmdBufOutAlias = drawCmdOutAlias;
     _cullingComp.meshDrawCmdCountBufOutAlias = drawCmdCountOutAlias;
@@ -79,12 +113,10 @@ void prepareCullingComp(Culling& _cullingComp, const CullingCompInitData& _initD
     _cullingComp.meshDrawCull = {};
 }
 
-void updateCullingConstants(Culling& _cullingComp, const MeshDrawCull& _drawCull)
+void updateCulling(Culling& _cullingComp, const MeshDrawCull& _drawCull, uint32_t _drawCount)
 {
     _cullingComp.meshDrawCull = _drawCull;
 
-    const kage::Memory* mem = kage::alloc(sizeof(MeshDrawCull));
-    memcpy(mem->data, &_drawCull, mem->size);
-    kage::updatePushConstants(_cullingComp.pass, mem);
+    cullingRec(_cullingComp, _drawCount);
 }
 

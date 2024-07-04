@@ -12,8 +12,8 @@ struct Skybox
 
     kage::SamplerHandle cubemapSampler;
 
-    kage::BufferHandle idxBuf;
-    kage::BufferHandle vtxBuf;
+    kage::BufferHandle ib;
+    kage::BufferHandle vb;
 
     kage::ImageHandle color;
     kage::ImageHandle cubemap;
@@ -27,3 +27,5 @@ void initSkyboxPass(
     , const kage::BufferHandle _trans
     , const kage::ImageHandle _color
 );
+
+void updateSkybox(const Skybox& _skybox, uint32_t _w, uint32_t _h);

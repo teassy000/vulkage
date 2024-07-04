@@ -477,6 +477,12 @@ namespace kage { namespace vk
             , IndexType _type
         );
 
+        void fillBuffer(
+            PassHandle _hPass
+            , BufferHandle _hBuf
+            , uint32_t _value
+        );
+
         void dispatch(
             PassHandle _hPass
             , uint32_t _x
@@ -548,11 +554,6 @@ namespace kage { namespace vk
         void pushConstants(const uint16_t _passId);
 
         void executePass(const uint16_t _passId);
-        void exeGraphic(const uint16_t _passId);
-        void exeCompute(const uint16_t _passId);
-        void exeCopy(const uint16_t _passId);
-        void exeBlit(const uint16_t _passId);
-        void exeFillBuffer(const uint16_t _passId);
 
         bool checkCopyableToSwapchain(const ImageHandle _hImg) const;
         bool checkBlitableToSwapchain(const ImageHandle _hImg) const;

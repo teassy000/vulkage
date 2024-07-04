@@ -2330,13 +2330,6 @@ namespace kage { namespace vk
             m_constantsMemBlock.addConstant({ passInfo.passId }, prog.pushConstantSize);
         }
 
-        // one-operation passes
-        if (passInfo.queue == PassExeQueue::fill_buffer)
-        {
-            assert(writeBufferIds.size() == 1);
-            passInfo.oneOpWriteRes = { writeBufferIds[0], ResourceType::buffer };
-        }
-
         // write op alias part
         {
             size_t writeOpAliasCount = passMeta.writeBufAliasNum + passMeta.writeImgAliasNum;
@@ -2702,6 +2695,35 @@ namespace kage { namespace vk
         VkIndexType t = getIndexType(_type);
 
         vkCmdBindIndexBuffer(m_cmdBuffer, buf.buffer, _offset, t);
+    }
+
+    void RHIContext_vk::fillBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _value)
+    {
+        KG_ZoneScopedC(Color::indian_red);
+        if (!m_passContainer.exist(_hPass.id))
+        {
+            message(
+                warning
+                , "fillBuffer will not perform for pass %d! It might be useless after render pass sorted"
+                , _hPass.id
+            );
+            return;
+        }
+
+        const Buffer_vk& buf = getBuffer(_hBuf.id);
+        
+        m_barrierDispatcher.barrier(buf.buffer,
+            { VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT }
+        );
+        dispatchBarriers();
+
+        vkCmdFillBuffer(m_cmdBuffer, buf.buffer, 0, VK_WHOLE_SIZE, _value);
+
+        // write flush
+        m_barrierDispatcher.barrier(buf.buffer,
+            { VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT }
+        );
+        dispatchBarriers();
     }
 
     void RHIContext_vk::dispatch(PassHandle _hPass, uint32_t _x, uint32_t _y, uint32_t _z)
@@ -3558,182 +3580,14 @@ namespace kage { namespace vk
 
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 
-
         if (passInfo.recorded)
         {
             execRecCmds({ _passId });
-            return;
-        }
-
-        // for each pass: only dispatch once before
-        dispatchBarriers();
-
-        if (PassExeQueue::graphics == passInfo.queue)
-        {
-            exeGraphic(_passId);
-        }
-        else if (PassExeQueue::compute == passInfo.queue)
-        {
-            exeCompute(_passId);
-        }
-        else if (PassExeQueue::copy == passInfo.queue)
-        {
-            exeCopy(_passId);
-        }
-        else if (PassExeQueue::fill_buffer == passInfo.queue)
-        {
-            exeFillBuffer(_passId);
         }
         else
         {
             message(DebugMsgType::error, "not a valid execute queue! where does this pass belong?");
         }
-    }
-
-    void RHIContext_vk::exeGraphic(const uint16_t _passId)
-    {
-        KG_ZoneScopedC(Color::indian_red);
-
-        beginRendering(m_cmdBuffer, _passId);
-
-        // drawcalls
-        const uint32_t width = m_swapchain.m_resolution.width;
-        const uint32_t height = m_swapchain.m_resolution.height;
-
-        VkViewport viewport = { 0.f, float(height), float(width), -float(height), 0.f, 1.f };
-        VkRect2D scissor = { {0, 0}, {width, height } };
-
-        vkCmdSetViewport(m_cmdBuffer, 0, 1, &viewport);
-        vkCmdSetScissor(m_cmdBuffer, 0, 1, &scissor);
-
-        const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
-
-        pushDescriptorSetWithTemplates(_passId);
-
-        pushConstants(_passId);
-
-        // set vertex buffer
-        if (kInvalidHandle != passInfo.vertexBufferId)
-        {
-            VkDeviceSize offsets[1] = { 0 };
-            const Buffer_vk& vertexBuffer =  getBuffer(passInfo.vertexBufferId);
-            vkCmdBindVertexBuffers(m_cmdBuffer, 0, 1, &vertexBuffer.buffer, offsets);
-        }
-
-        // set index buffer
-        if (kInvalidHandle != passInfo.indexBufferId)
-        {
-            const Buffer_vk& indexBuffer = getBuffer(passInfo.indexBufferId);
-            vkCmdBindIndexBuffer(m_cmdBuffer, indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32); // TODO: do I need to expose the index type out?
-        }
-
-        vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, passInfo.pipeline);
-
-        if (kInvalidHandle != passInfo.indirectCountBufferId && kInvalidHandle != passInfo.indirectBufferId)
-        {
-            const Buffer_vk& indirectCountBuffer = getBuffer(passInfo.indirectCountBufferId);
-            const Buffer_vk& indirectBuffer = getBuffer(passInfo.indirectBufferId);
-
-            vkCmdDrawIndexedIndirectCount(m_cmdBuffer
-                , indirectBuffer.buffer
-                , passInfo.indirectBufOffset
-                , indirectCountBuffer.buffer
-                , passInfo.indirectCountBufOffset
-                , passInfo.indirectMaxDrawCount
-                , passInfo.indirectBufStride);
-        }
-        else if (kInvalidHandle != passInfo.indirectBufferId)
-        {
-            const Buffer_vk& indirectBuffer = getBuffer(passInfo.indirectBufferId);
-
-            vkCmdDrawIndexedIndirect(m_cmdBuffer
-                , indirectBuffer.buffer
-                , passInfo.indirectBufOffset
-                , passInfo.indirectMaxDrawCount
-                , passInfo.indirectBufStride);
-        }
-        else if (kInvalidHandle != passInfo.indirectCountBufferId)
-        {
-            const Buffer_vk& indirectCountBuffer = getBuffer(passInfo.indirectCountBufferId);
-
-            vkCmdDrawIndirectCount(m_cmdBuffer
-                           , indirectCountBuffer.buffer
-                           , passInfo.indirectCountBufOffset
-                           , indirectCountBuffer.buffer
-                           , passInfo.indirectCountBufOffset
-                           , passInfo.indirectMaxDrawCount
-                           , passInfo.indirectBufStride);
-        }
-        else if (kInvalidHandle != passInfo.indirectBufferId)
-        {
-            const Buffer_vk& indirectBuffer = getBuffer(passInfo.indirectBufferId);
-
-            vkCmdDrawIndirect(m_cmdBuffer
-                           , indirectBuffer.buffer
-                           , passInfo.indirectBufOffset
-                           , passInfo.indirectMaxDrawCount
-                           , passInfo.indirectBufStride);
-        }
-        else if (kInvalidHandle != passInfo.indexBufferId && passInfo.indexCount != 0)
-        {
-            vkCmdDrawIndexed(m_cmdBuffer, passInfo.indexCount, 1, 0, 0, 0);
-        }
-        else if (kInvalidHandle != passInfo.vertexBufferId && passInfo.vertexCount != 0)
-        {
-            vkCmdDraw(m_cmdBuffer, passInfo.vertexCount, 1, 0, 0);
-        }
-        else
-        {
-            // not supported
-            assert(0);
-        }
-
-        endRendering(m_cmdBuffer);
-    }
-
-    void RHIContext_vk::exeCompute(const uint16_t _passId)
-    {
-        KG_ZoneScopedC(Color::indian_red);
-
-        const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
-
-        vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, passInfo.pipeline);
-        
-        pushConstants(_passId);
-        pushDescriptorSetWithTemplates(_passId);
-
-        // get the dispatch size
-        const uint16_t progIdx = (uint16_t)m_programContainer.getIdIndex(passInfo.programId);
-        const stl::vector<uint16_t>& shaderIds = m_programShaderIds[progIdx];
-        assert(shaderIds.size() == 1);
-        const Shader_vk& shader = m_shaderContainer.getIdToData(shaderIds[0]);
-        
-        vkCmdDispatch( m_cmdBuffer
-            , calcGroupCount(passInfo.config.threadCountX, shader.localSizeX)
-            , calcGroupCount(passInfo.config.threadCountY, shader.localSizeY)
-            , calcGroupCount(passInfo.config.threadCountZ, shader.localSizeZ)
-        );
-    }
-
-    void RHIContext_vk::exeCopy(const uint16_t _passId)
-    {
-        assert(0);
-    }
-
-    void RHIContext_vk::exeBlit(const uint16_t _passId)
-    {
-        assert(0);
-    }
-
-    void RHIContext_vk::exeFillBuffer(const uint16_t _passId)
-    {
-        KG_ZoneScopedC(Color::indian_red);
-
-        const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
-        CombinedResID res = passInfo.oneOpWriteRes;
-        const Buffer_vk& buf = getBuffer(res.id);
-
-        vkCmdFillBuffer(m_cmdBuffer, buf.buffer, 0, buf.size, buf.fillVal);
     }
      
     bool RHIContext_vk::checkCopyableToSwapchain(const ImageHandle _hImg) const
@@ -3995,6 +3849,17 @@ namespace kage { namespace vk
                     cmdBuf.read(t);
 
                     setIndexBuffer(_hPass, buf, offset, t);
+                }
+                break;
+            case CommandBuffer::record_fill_buffer:
+                {
+                    BufferHandle buf;
+                    cmdBuf.read(buf);
+
+                    uint32_t val;
+                    cmdBuf.read(val);
+
+                    fillBuffer(_hPass, buf, val);
                 }
                 break;
             case CommandBuffer::record_dispatch:
