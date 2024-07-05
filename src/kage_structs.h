@@ -571,10 +571,6 @@ namespace kage
 
     struct PassConfig
     {
-        uint32_t threadCountX{ 1 };
-        uint32_t threadCountY{ 1 };
-        uint32_t threadCountZ{ 1 };
-
         AttachmentLoadOp depthLoadOp{ AttachmentLoadOp::clear };
         AttachmentStoreOp depthStoreOp{ AttachmentStoreOp::store };
 

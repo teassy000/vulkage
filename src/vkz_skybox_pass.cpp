@@ -129,7 +129,7 @@ void skyboxRec(const Skybox& _skybox, uint32_t _w, uint32_t _h)
 
     kage::setBindings(binds, COUNTOF(binds));
 
-    kage::draw(36, 1, 0, 0, 0);
+    kage::drawIndexed(36, 1, 0, 0, 0);
 
     kage::endRec();
 

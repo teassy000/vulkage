@@ -64,15 +64,6 @@ namespace kage
 
     void setPresentImage(ImageHandle _rt, uint32_t _mipLv = 0);
 
-    void updatePushConstants(const PassHandle _hPass, const Memory* _mem);
-
-    void updateThreadCount(
-        const PassHandle _hPass
-        , const uint32_t _threadCountX
-        , const uint32_t _threadCountY
-        , const uint32_t _threadCountZ
-    );
-
     void updateBuffer(
         const BufferHandle _buf
         , const Memory* _mem
@@ -135,8 +126,25 @@ namespace kage
         , const uint32_t _firstInstance
     );
 
-    // draw indexed
+    // draw indirect
     void draw(
+        const BufferHandle _hIndirectBuf
+        , const uint32_t _offset
+        , const uint32_t _count
+        , const uint32_t _stride
+    );
+
+    // draw indirect count
+    void draw(
+        const uint32_t _offset
+        , const BufferHandle _countBuf
+        , const uint32_t _countOffset
+        , const uint32_t _maxCount
+        , const uint32_t _stride
+    );
+
+    // draw indexed
+    void drawIndexed(
         const uint32_t _indexCount
         , const uint32_t _instanceCount
         , const uint32_t _firstIndex
@@ -144,11 +152,21 @@ namespace kage
         , const uint32_t _firstInstance
     );
 
-    // draw indirect
-    void draw(
+    // draw indexed indirect 
+    void drawIndexed(
         const BufferHandle _hIndirectBuf
         , const uint32_t _offset
         , const uint32_t _count
+        , const uint32_t _stride
+    );
+
+    // draw indexed indirect count
+    void drawIndexed(
+        const BufferHandle _hIndirectBuf
+        , const uint32_t _offset
+        , const BufferHandle _countBuf
+        , const uint32_t _countOffset
+        , const uint32_t _maxCount
         , const uint32_t _stride
     );
 

@@ -45,6 +45,9 @@ struct VtxShading
     kage::ImageHandle colorOutAlias;
     kage::ImageHandle depthOutAlias;
 
+    // limits
+    uint32_t maxMeshDrawCmdCount;
+
     Globals globals;
 };
 

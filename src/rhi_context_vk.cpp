@@ -1874,26 +1874,6 @@ namespace kage { namespace vk
         }
     }
 
-    void RHIContext_vk::updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ)
-    {
-        KG_ZoneScopedC(Color::indian_red);
-
-        if (!m_passContainer.exist(_hPass.id))
-        {
-            message(info, "updateThreadCount will not perform for pass %d! It might be useless after render pass sorted", _hPass.id);
-            return;
-        }
-
-        assert(_threadCountX > 0);
-        assert(_threadCountY > 0);
-        assert(_threadCountZ > 0);
-
-        PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
-        passInfo.config.threadCountX = _threadCountX;
-        passInfo.config.threadCountY = _threadCountY;
-        passInfo.config.threadCountZ = _threadCountZ;
-    }
-
     void RHIContext_vk::updateBuffer(
         const BufferHandle _hBuf
         , const Memory* _mem
@@ -2320,14 +2300,6 @@ namespace kage { namespace vk
         for (uint16_t ii = 0; ii < passMeta.sampleImageNum; ++ii)
         {
             passInfo.imageToSamplerIds.addOrUpdate(sampleImageIds[ii], samplerIds[ii]);
-        }
-
-        // push constants
-        if (passInfo.queue == PassExeQueue::graphics
-            || passInfo.queue == PassExeQueue::compute)
-        {
-            const Program_vk& prog = m_programContainer.getIdToData(passMeta.programId);
-            m_constantsMemBlock.addConstant({ passInfo.passId }, prog.pushConstantSize);
         }
 
         // write op alias part
@@ -2814,6 +2786,53 @@ namespace kage { namespace vk
     void RHIContext_vk::drawIndirect(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset, uint32_t _drawCount)
     {
         BX_ASSERT(false, "not implemented");
+    }
+
+    void RHIContext_vk::drawIndexedIndirect(PassHandle _hPass, BufferHandle _hIndirectBuf, uint32_t _offset, uint32_t _drawCount, uint32_t _stride)
+    {
+        BX_ASSERT(false, "not implemented");
+    }
+
+    void RHIContext_vk::drawIndexedIndirectCount(PassHandle _hPass, BufferHandle _hIndirectBuf, uint32_t _indirectOffset, BufferHandle _hIndirectCountBuf, uint32_t _countOffset, uint32_t _drawCount, uint32_t _stride)
+    {
+        KG_ZoneScopedC(Color::indian_red);
+
+        if (!m_passContainer.exist(_hPass.id))
+        {
+            message(
+                warning
+                , "drawIndexed will not perform for pass %d! It might be cut after render pass sorted"
+                , _hPass.id
+            );
+            return;
+        }
+
+        createBarriersRec(_hPass);
+        lazySetDescriptorSet(_hPass);
+
+        beginRendering(m_cmdBuffer, _hPass.id);
+
+        PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
+        const uint16_t progIdx = (uint16_t)m_programContainer.getIdIndex(passInfo.programId);
+
+        vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, passInfo.pipeline);
+
+        const Buffer_vk& ib = getBuffer(_hIndirectBuf.id);
+        const Buffer_vk& cb = getBuffer(_hIndirectCountBuf.id);
+
+        vkCmdDrawIndexedIndirectCount(
+            m_cmdBuffer
+            , ib.buffer
+            , _indirectOffset
+            , cb.buffer
+            , _countOffset
+            , _drawCount
+            , _stride
+        );
+
+        endRendering(m_cmdBuffer);
+
+        flushWriteBarriersRec(_hPass);
     }
 
     void RHIContext_vk::drawMeshTaskIndirect(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset, uint32_t _drawCount, uint32_t _stride)
@@ -3364,74 +3383,6 @@ namespace kage { namespace vk
         m_descSets.clear();
     }
 
-    void RHIContext_vk::pushDescriptorSetWithTemplates(const uint16_t _passId)
-    {
-        KG_ZoneScopedC(Color::indian_red);
-
-        pushDescriptorSetWithTemplates(m_cmdBuffer, { _passId });
-    }
-
-    void RHIContext_vk::pushDescriptorSetWithTemplates(const VkCommandBuffer& _cmdBuf, const uint16_t _passId) const
-    {
-        KG_ZoneScopedC(Color::indian_red);
-
-        const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
-
-        stl::vector<std::pair<uint32_t, CombinedResID>> bindingToDescInfo{};
-        bindingToDescInfo.insert(end(bindingToDescInfo), begin(passInfo.bindingToResIds), end(passInfo.bindingToResIds));
-
-        if (passInfo.queue == PassExeQueue::compute) {
-            bindingToDescInfo.insert(end(bindingToDescInfo), begin(passInfo.bindingToColorIds), end(passInfo.bindingToColorIds));
-        }
-
-        auto sortFunc = [](const std::pair<uint32_t, CombinedResID>& _lhs, const std::pair<uint32_t, CombinedResID>& _rhs) -> bool {
-            return _lhs.first < _rhs.first;
-            };
-        std::sort(begin(bindingToDescInfo), end(bindingToDescInfo), sortFunc);
-
-
-        stl::vector<DescriptorInfo> descInfos(bindingToDescInfo.size());
-        for (int ii = 0; ii < bindingToDescInfo.size(); ++ii)
-        {
-            assert(bindingToDescInfo[ii].first == ii);
-
-            const CombinedResID resId = bindingToDescInfo[ii].second;
-
-            if (isImage(resId))
-            {
-                const Image_vk& img = getImage(resId.id);
-
-                VkSampler sampler = 0;
-                if (passInfo.imageToSamplerIds.exist(resId.id))
-                {
-                    const uint16_t samplerId = passInfo.imageToSamplerIds.getIdToData(resId.id);
-                    sampler = m_samplerContainer.getIdToData(samplerId);
-                }
-
-                VkImageView view = img.defaultView;
-                VkImageLayout layout = m_barrierDispatcher.getCurrentImageLayout(img.image);
-                DescriptorInfo info{ sampler, view, layout };
-                descInfos[ii] = info;
-            }
-            else if (isBuffer(resId))
-            {
-                const Buffer_vk& buf = getBuffer(resId.id);
-
-                DescriptorInfo info{ buf.buffer };
-                descInfos[ii] = info;
-            }
-            else
-            {
-                message(DebugMsgType::error, "not a valid resource type!");
-            }
-        }
-        if (!descInfos.empty())
-        {
-            const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
-            vkCmdPushDescriptorSetWithTemplateKHR(_cmdBuf, prog.updateTemplate, prog.layout, 0, descInfos.data());
-        }
-    }
-
     const Shader_vk& RHIContext_vk::getShader(const ShaderHandle _hShader) const
     {
         KG_ZoneScopedC(Color::indian_red);
@@ -3556,22 +3507,6 @@ namespace kage { namespace vk
             return 0.0;
         }
         return it->second;
-    }
-
-    void RHIContext_vk::pushConstants(const uint16_t _passId)
-    {
-        KG_ZoneScopedC(Color::indian_red);
-
-        const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
-        const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
-
-        uint32_t size = m_constantsMemBlock.getConstantSize({ _passId });
-        const void* pData = m_constantsMemBlock.getConstantData({ _passId });
-
-        if (size > 0 && pData != nullptr)
-        {
-            vkCmdPushConstants(m_cmdBuffer, prog.layout, prog.pushConstantStages, 0, size, pData);
-        }
     }
 
     void RHIContext_vk::executePass(const uint16_t _passId)
@@ -3874,6 +3809,23 @@ namespace kage { namespace vk
                     cmdBuf.read(z);
 
                     dispatch(_hPass, x, y, z);
+                }
+                break;
+            case CommandBuffer::record_draw:
+            {
+                    uint32_t vertexCount;
+                    cmdBuf.read(vertexCount);
+
+                    uint32_t instanceCount;
+                    cmdBuf.read(instanceCount);
+
+                    uint32_t firstVertex;
+                    cmdBuf.read(firstVertex);
+
+                    uint32_t firstInstance;
+                    cmdBuf.read(firstInstance);
+
+                    draw(_hPass, vertexCount, instanceCount, firstVertex, firstInstance);
                 }
                 break;
             case CommandBuffer::record_draw_indexed:

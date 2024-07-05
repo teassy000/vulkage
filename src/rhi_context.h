@@ -72,49 +72,6 @@ namespace kage
         stl::vector<UniformBuffer> m_uniforms;
     };
 
-    struct ConstantsMemoryBlock
-    {
-        struct Constants
-        {
-            uint16_t    passId;
-            uint32_t    size;
-            int64_t     offset;
-        };
-
-        ConstantsMemoryBlock(bx::AllocatorI* _allocator)
-            : m_pbxAllocator{ _allocator }
-            , m_pConstantData{ nullptr }
-            , m_pWriter{nullptr}
-            , m_usedSize{0}
-        {
-            m_pConstantData = BX_NEW(m_pbxAllocator, bx::MemoryBlock)(m_pbxAllocator);
-            m_pConstantData->more(kInitialConstantsTotalMemSize);
-
-            m_pWriter = BX_NEW(m_pbxAllocator, bx::MemoryWriter)(m_pConstantData);
-        }
-
-        ~ConstantsMemoryBlock()
-        {
-            bx::deleteObject(m_pbxAllocator, m_pWriter);
-            bx::deleteObject(m_pbxAllocator, m_pConstantData);
-        }
-
-        void addConstant(const PassHandle _hPass, uint32_t _size);
-
-        const uint32_t getConstantSize(const PassHandle _hPass) const;
-        const void* getConstantData(const PassHandle _hPass) const;
-        void update(const PassHandle _hPass, const void* _data, uint32_t _size);
-
-        bx::AllocatorI* m_pbxAllocator;
-        bx::MemoryBlockI* m_pConstantData;
-        bx::MemoryWriter* m_pWriter;
-
-        stl::vector<PassHandle> m_passes;
-        stl::vector<Constants> m_constants;
-
-        uint32_t m_usedSize;
-    };
-
     struct BufferInfoToUpdate
     {
         BufferHandle m_hBuf;
@@ -172,7 +129,6 @@ namespace kage
         RHIContext(bx::AllocatorI* _allocator)
             : m_pAllocator{ _allocator }
             , m_pMemBlockBaked{ nullptr }
-            , m_constantsMemBlock{ _allocator }
         {
             m_pMemBlockBaked = BX_NEW(m_pAllocator, bx::MemoryBlock)(m_pAllocator);
             m_pMemBlockBaked->more(kInitialFrameGraphMemSize);
@@ -202,9 +158,6 @@ namespace kage
             , const uint32_t _offset
             , const uint32_t _size
         ) {};
-        virtual void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ) {};
-
-        virtual void updateConstants(const PassHandle _hPass, const Memory* _mem);
 
         virtual void updateImage(
             const ImageHandle _hImg
@@ -231,9 +184,6 @@ namespace kage
         virtual void setRecord(PassHandle _hPass, const Memory* mem) {};
         // -- rendering commands ends
 
-
-        // permanent
-        ConstantsMemoryBlock m_constantsMemBlock;
 
         bx::AllocatorI* m_pAllocator;
 

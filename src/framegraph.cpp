@@ -316,7 +316,6 @@ namespace kage
         m_presentMipLevel = brief.presentMipLevel;
     }
 
-
     void Framegraph::registerShader(bx::MemoryReader& _reader)
     {
         KG_ZoneScopedC(Color::light_yellow);

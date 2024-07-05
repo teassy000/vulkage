@@ -373,8 +373,6 @@ namespace kage { namespace vk
 
         void updateResolution(const Resolution& _resolution) override;
 
-        void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ) override;
-
         void updateBuffer(
             const BufferHandle _hBuf
             , const Memory* _mem
@@ -509,9 +507,27 @@ namespace kage { namespace vk
 
         void drawIndirect(
             PassHandle _hPass
-            , BufferHandle _hBuf
+            , BufferHandle _hIndirectBuf
             , uint32_t _offset
             , uint32_t _drawCount
+        );
+
+        void drawIndexedIndirect(
+            PassHandle _hPass
+            , BufferHandle _hIndirectBuf
+            , uint32_t _offset
+            , uint32_t _drawCount
+            , uint32_t _stride
+        );
+
+        void drawIndexedIndirectCount(
+            PassHandle _hPass
+            , BufferHandle _hIndirectBuf
+            , uint32_t _indirectOffset
+            , BufferHandle _hIndirectCountBuf
+            , uint32_t _countOffset
+            , uint32_t _drawCount
+            , uint32_t _stride
         );
 
         void drawMeshTaskIndirect(
@@ -550,9 +566,6 @@ namespace kage { namespace vk
 
 
         // push descriptor set with templates
-        void pushDescriptorSetWithTemplates(const uint16_t _passId);
-        void pushConstants(const uint16_t _passId);
-
         void executePass(const uint16_t _passId);
 
         bool checkCopyableToSwapchain(const ImageHandle _hImg) const;

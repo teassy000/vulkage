@@ -387,11 +387,6 @@ namespace kage
             , uint16_t _height
             , const Memory* _mem);
 
-
-        void updatePushConstants(const PassHandle _hPass, const Memory* _mem);
-
-        void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ);
-
         // renderer execute commands
         void rendererExecCmds(CommandBuffer& _cmdBuf);
 
@@ -474,6 +469,7 @@ namespace kage
             , const uint32_t _value
         );
 
+        // draw
         void draw(
             const uint32_t _vertexCount
             , const uint32_t _instanceCount
@@ -481,6 +477,16 @@ namespace kage
             , const uint32_t _firstInstance
         );
 
+        // draw indexed
+        void drawIndexed(
+            const uint32_t _indexCount
+            , const uint32_t _instanceCount
+            , const uint32_t _firstIndex
+            , const int32_t _vertexOffset
+            , const uint32_t _firstInstance
+        );
+
+        // draw indirect
         void draw(
             const BufferHandle _hIndirectBuf
             , const uint32_t _offset
@@ -488,12 +494,31 @@ namespace kage
             , const uint32_t _stride
         );
 
+        // draw indirect count
         void draw(
-            const uint32_t _indexCount
-            , const uint32_t _instanceCount
-            , const uint32_t _firstIndex
-            , const int32_t _vertexOffset
-            , const uint32_t _firstInstance
+            const uint32_t _offset
+            , const BufferHandle _countBuf
+            , const uint32_t _countOffset
+            , const uint32_t _maxCount
+            , const uint32_t _stride
+        );
+
+        // draw indexed indirect 
+        void drawIndexed(
+            const BufferHandle _hIndirectBuf
+            , const uint32_t _offset
+            , const uint32_t _count
+            , const uint32_t _stride
+        );
+
+        // draw indexed indirect count
+        void drawIndexed(
+            const BufferHandle _hIndirectBuf
+            , const uint32_t _offset
+            , const BufferHandle _countBuf
+            , const uint32_t _countOffset
+            , const uint32_t _maxCount
+            , const uint32_t _stride
         );
 
         void drawMeshTask(
@@ -1874,34 +1899,6 @@ namespace kage
         cmd.write(_mem);
     }
 
-    void Context::updatePushConstants(const PassHandle _hPass, const Memory* _mem)
-    {
-        if (isRenderGraphDataDirty())
-        {
-            message(warning, "render graph is not baked yet!");
-            return;
-        }
-
-        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::update_constants);
-        cmd.write(_hPass);
-        cmd.write(_mem);
-    }
-
-    void Context::updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ)
-    {
-        if (1 > _threadCountX || 1 > _threadCountY || 1 > _threadCountZ)
-        {
-            message(warning, "thread count in any dimension should not less than 1! update failed");
-            return;
-        }
-
-        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::update_thread_count);
-        cmd.write(_hPass);
-        cmd.write(_threadCountX);
-        cmd.write(_threadCountY);
-        cmd.write(_threadCountZ);
-    }
-
     void Context::rendererExecCmds(CommandBuffer& _cmdbuf)
     {
         KG_ZoneScopedC(Color::green);
@@ -2053,35 +2050,6 @@ namespace kage
 
                     m_rhiContext->updateBuffer(id, mem, offset, size);
                     release(mem);
-                }
-                break;
-            case CommandBuffer::update_constants:
-                {
-                    PassHandle id;
-                    _cmdbuf.read(id);
-
-                    const Memory* mem;
-                    _cmdbuf.read(mem);
-
-                    m_rhiContext->updateConstants(id, mem);
-                    release(mem);
-                }
-                break;
-            case CommandBuffer::update_thread_count:
-                {
-                    PassHandle id;
-                    _cmdbuf.read(id);
-
-                    uint32_t x;
-                    _cmdbuf.read(x);
-
-                    uint32_t y;
-                    _cmdbuf.read(y);
-
-                    uint32_t z;
-                    _cmdbuf.read(z);
-
-                    m_rhiContext->updateThreadCount(id, x, y, z);
                 }
                 break;
             case CommandBuffer::record_start:
@@ -2395,7 +2363,12 @@ namespace kage
         BX_ASSERT(0, "NOT IMPLEMENTED YET!!!");
     }
 
-    void Context::draw(const uint32_t _indexCount, const uint32_t _instanceCount, const uint32_t _firstIndex, const int32_t _vertexOffset, const uint32_t _firstInstance)
+    void Context::draw(const uint32_t _offset, const BufferHandle _countBuf, const uint32_t _countOffset, const uint32_t _maxCount, const uint32_t _stride)
+    {
+        BX_ASSERT(0, "NOT IMPLEMENTED YET!!!");
+    }
+
+    void Context::drawIndexed(const uint32_t _indexCount, const uint32_t _instanceCount, const uint32_t _firstIndex, const int32_t _vertexOffset, const uint32_t _firstInstance)
     {
         CommandBuffer& cmd = getCommandBuffer(CommandBuffer::record_draw_indexed);
 
@@ -2404,6 +2377,16 @@ namespace kage
         cmd.write(_firstIndex);
         cmd.write(_vertexOffset);
         cmd.write(_firstInstance);
+    }
+
+    void Context::drawIndexed(const BufferHandle _hIndirectBuf, const uint32_t _offset, const uint32_t _count, const uint32_t _stride)
+    {
+        BX_ASSERT(0, "NOT IMPLEMENTED YET!!!");
+    }
+
+    void Context::drawIndexed(const BufferHandle _hIndirectBuf, const uint32_t _offset, const BufferHandle _countBuf, const uint32_t _countOffset, const uint32_t _maxCount, const uint32_t _stride)
+    {
+        BX_ASSERT(0, "NOT IMPLEMENTED YET!!!");
     }
 
     void Context::drawMeshTask(const uint32_t _groupCountX, const uint32_t _groupCountY, const uint32_t _groupCountZ)
@@ -2559,16 +2542,6 @@ namespace kage
         s_ctx->setPresentImage(_rt, _mipLv);
     }
     
-    void updatePushConstants(const PassHandle _hPass, const Memory* _mem)
-    {
-        s_ctx->updatePushConstants(_hPass, _mem);
-    }
-
-    void updateThreadCount(const PassHandle _hPass, const uint32_t _threadCountX, const uint32_t _threadCountY, const uint32_t _threadCountZ)
-    {
-        s_ctx->updateThreadCount(_hPass, _threadCountX, _threadCountY, _threadCountZ);
-    }
-
     void updateBuffer(
         const BufferHandle _hBuf
         , const Memory* _mem
@@ -2674,19 +2647,7 @@ namespace kage
         s_ctx->draw(_vertexCount, _instanceCount, _firstVertex, _firstInstance);
     }
 
-
-    void draw(
-        const uint32_t _indexCount
-        , const uint32_t _instanceCount
-        , const uint32_t _firstIndex
-        , const int32_t _vertexOffset
-        , const uint32_t _firstInstance
-    )
-    {
-        s_ctx->draw(_indexCount, _instanceCount, _firstIndex, _vertexOffset, _firstInstance);
-    }
-
-
+    // draw indirect
     void draw(
         const BufferHandle _hIndirectBuf
         , const uint32_t _offset
@@ -2695,6 +2656,51 @@ namespace kage
     )
     {
         s_ctx->draw(_hIndirectBuf, _offset, _count, _stride);
+    }
+
+    // draw indirect count
+    void draw(
+        const uint32_t _offset
+        , const BufferHandle _countBuf
+        , const uint32_t _countOffset
+        , const uint32_t _maxCount
+        , const uint32_t _stride
+    )
+    {
+        s_ctx->draw(_offset, _countBuf, _countOffset, _maxCount, _stride);
+    }
+
+    void drawIndexed(
+        const BufferHandle _hIndirectBuf
+        , const uint32_t _offset
+        , const uint32_t _count
+        , const uint32_t _stride
+    )
+    {
+        s_ctx->drawIndexed(_hIndirectBuf, _offset, _count, _stride);
+    }
+
+    void drawIndexed(
+        const uint32_t _indexCount
+        , const uint32_t _instanceCount
+        , const uint32_t _firstIndex
+        , const int32_t _vertexOffset
+        , const uint32_t _firstInstance
+    )
+    {
+        s_ctx->drawIndexed(_indexCount, _instanceCount, _firstIndex, _vertexOffset, _firstInstance);
+    }
+
+    void drawIndexed(
+        const BufferHandle _hIndirectBuf
+        , const uint32_t _offset
+        , const BufferHandle _countBuf
+        , const uint32_t _countOffset
+        , const uint32_t _maxCount
+        , const uint32_t _stride
+    )
+    {
+        s_ctx->drawIndexed(_hIndirectBuf, _offset, _countBuf, _countOffset, _maxCount, _stride);
     }
 
     void drawMeshTask(

@@ -73,7 +73,7 @@ void recordUI(const UIRendering& _ui)
 
             kage::setScissor(x, y, w, h);
 
-            kage::draw(cmd.ElemCount, 1, idxOffset, vtxOffset, 0);
+            kage::drawIndexed(cmd.ElemCount, 1, idxOffset, vtxOffset, 0);
 
             idxOffset += cmd.ElemCount;
         }
