@@ -64,9 +64,8 @@ function using_vulkan()
 end
 
 function custom_build_glsl()
-	local abs_shaderpath = path.join(_WORKING_DIR, SRC_DIR, "shaders")
-	local abs_filepath = path.join(_WORKING_DIR, SRC_DIR, "shaders", "%(Filename).glsl")
-	local abs_outputpath = path.join(abs_shaderpath, "%(Filename).spv")
+	local abs_filepath = path.join(SRC_DIR, "shaders", "%(Filename).glsl")
+	local abs_outputpath = path.join(_WORKING_DIR, "shaders", "%(Filename).spv")
 	filter "files:**.glsl"
 		buildmessage "custom compiling to spv..."
 		buildcommands {
@@ -83,6 +82,8 @@ workspace "vulkage"
 	platforms {"x64"}
 	location "build"
 	targetdir "bin/%{cfg.buildcfg}"
+	startproject "vulkage"
+
 
 dofile("scripts/bx.lua")
 dofile("scripts/bimg.lua")
@@ -166,6 +167,9 @@ project "vulkage"
 		path.join(VK_SDK_DIR, "Lib", "vulkan-1.lib"),
 		path.join(KTX_SDK_DIR, "lib", "ktx.lib"),
 	}
+
+	filter "action:vs*"
+		debugdir ""
 
 	filter "system:windows"
 		defines {

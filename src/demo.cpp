@@ -142,7 +142,7 @@ namespace
 
         bool initScene()
         {
-            const char* pathes[] = { "../data/kitten.obj" };
+            const char* pathes[] = { "./data/kitten.obj" };
             bool lmr = loadScene(m_scene, pathes, COUNTOF(pathes), m_supportMeshShading);
             return lmr;
         }

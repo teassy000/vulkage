@@ -136,9 +136,9 @@ void prepareUI(UIRendering& _ui, kage::ImageHandle _color, kage::ImageHandle _de
     int width = 0, height = 0;
 
     if (_useChinese)
-        io.Fonts->AddFontFromFileTTF("../data/fonts/SmileySans-Oblique.ttf", 16.f * io.FontGlobalScale, 0, _useChinese ? io.Fonts->GetGlyphRangesChineseSimplifiedCommon() : 0);
+        io.Fonts->AddFontFromFileTTF("./data/fonts/SmileySans-Oblique.ttf", 16.f * io.FontGlobalScale, 0, _useChinese ? io.Fonts->GetGlyphRangesChineseSimplifiedCommon() : 0);
     else
-        io.Fonts->AddFontFromFileTTF("../data/fonts/consola.ttf", 16.f * io.FontGlobalScale);
+        io.Fonts->AddFontFromFileTTF("./data/fonts/consola.ttf", 16.f * io.FontGlobalScale);
 
     io.Fonts->GetTexDataAsRGBA32(&fontData, &width, &height);
     assert(fontData);

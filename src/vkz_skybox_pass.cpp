@@ -52,7 +52,7 @@ void initSkyboxPass(Skybox& _skybox, const kage::BufferHandle _trans, const kage
 
     // skybox mesh
     Geometry geom = {};
-    loadMesh(geom, "../data/cube_skybox.obj", false);
+    loadMesh(geom, "./data/cube_skybox.obj", false);
 
     const kage::Memory* vtxMem = kage::alloc(uint32_t(geom.vertices.size() * sizeof(Vertex)));
     memcpy(vtxMem->data, geom.vertices.data(), geom.vertices.size() * sizeof(Vertex));
@@ -72,7 +72,7 @@ void initSkyboxPass(Skybox& _skybox, const kage::BufferHandle _trans, const kage
 
 
     // load texture 
-    kage::ImageHandle cubemap = loadTextureFromFile("skybox_tex", "../data/textures/cubemap_vulkan.ktx");
+    kage::ImageHandle cubemap = loadTextureFromFile("skybox_tex", "./data/textures/cubemap_vulkan.ktx");
     kage::ImageHandle outColor = kage::alias(_color);
 
     kage::bindVertexBuffer(pass, vtxBuf);
