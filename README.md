@@ -58,10 +58,20 @@ Supports:
 
 1. download [premake5](https://premake.github.io/download/) and install it first.
 
-2. clone the repo via: `git clone https://github.com/teassy000/vulkage.git`
-3. enter the root directory by: `cd vulkage`
-4. update sub-modules via : `git submodule update --init --recursive`
-5. generate project with command: `premake5 vs2022 x64`
+2. clone the repo via:
+
+   `git clone https://github.com/teassy000/vulkage.git`
+3. enter the root directory by: 
+
+   `cd vulkage`
+4. update sub-modules via : 
+
+   `git submodule update --init --recursive`
+5. generate project with command: 
+
+   `premake5 vs2022 x64`
+
+   you can find the solution file in `./build/vulkage.sln`
 
 Note: The project tested with vs2022 and worked on Nvidia 3070+ serials card. And it used the vulkan extension: `VK_EXT_mesh_shader`, default vertex pipeline might not work due to no testing for it.
 
