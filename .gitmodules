@@ -24,3 +24,6 @@
 [submodule "bx"]
 	path = externs/bx
 	url = https://github.com/bkaradzic/bx.git
+[submodule "externs/tracy"]
+	path = externs/tracy
+	url = https://github.com/wolfpld/tracy.git
