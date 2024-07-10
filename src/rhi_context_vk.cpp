@@ -4865,36 +4865,23 @@ namespace kage { namespace vk
         const PassHandle _hPass
         , const CommandQueue& queue
         , uint32_t _offset
-        , uint32_t _size
+        , uint32_t _count
     )
     {
         RecCmdRange rec;
         rec.startIdx = m_cmdQueue.getIdx();
-        rec.count = _size;
 
-        m_cmdQueue.push( queue, _offset, _size );
+        m_cmdQueue.push( queue, _offset, _count );
 
         rec.endIdx = m_cmdQueue.getIdx();
 
-        BX_ASSERT(rec.endIdx - rec.startIdx == rec.count
+        BX_ASSERT(rec.endIdx - rec.startIdx == _count
             , "The recorded size is mis-matched. endPos - startPos(%d) != size(%d)"
             , rec.endIdx - rec.startIdx
-            , rec.count
+            , _count
         );
 
         m_recCmdRange.insert({ _hPass, rec });
-    }
-
-    uint32_t FrameRecCmds::getRecCount(const PassHandle _hPass) const
-    {
-        const RecCmdRangeMap::const_iterator it = m_recCmdRange.find(_hPass);
-
-        BX_ASSERT(it != m_recCmdRange.end()
-            , "The pass handle is not found in the recorded commands."
-        );
-
-        const RecCmdRange& rec = it->second;
-        return rec.count;
     }
 
     CommandQueue& FrameRecCmds::actPass(const PassHandle _hPass)

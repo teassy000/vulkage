@@ -34,7 +34,7 @@ namespace kage
             m_buffer = (uint8_t*)bx::realloc(g_bxAllocator, m_buffer, m_capacity);
         }
 
-        void* write(const void* _data, uint32_t _size)
+        void write(const void* _data, uint32_t _size)
         {
             BX_ASSERT(m_size == 0, "Called write outside start/finish (m_size: %d)?", m_size);
             if (m_pos + _size > m_capacity)
@@ -42,12 +42,8 @@ namespace kage
                 resize(m_capacity + (16 << 10));
             }
 
-            void* ret = &m_buffer[m_pos];
-
             bx::memCopy(&m_buffer[m_pos], _data, _size);
             m_pos += _size;
-
-            return ret;
         }
 
         template<typename Ty>
@@ -908,7 +904,11 @@ namespace kage
 
         // class ops
         CommandQueue()
+            : m_cmdIdx(0)
+            , m_cb()
         {
+            finish();
+            m_cps.clear();
         }
 
         CommandQueue(const CommandQueue&) = delete;
@@ -921,31 +921,32 @@ namespace kage
         void push(const CommandQueue& _other, uint32_t _offIdx, uint32_t _count)
         {
             BX_ASSERT( 
-                ((0 < _offIdx) && (_offIdx + _count - 1< (uint32_t)_other.m_cps.size()))
+                ((0 < _offIdx) && (_offIdx + _count - 1 < (uint32_t)_other.m_cps.size()))
                 , "CommandQueue::push error (offIdx: %d, count: %d, other count: %d)." 
                 , _offIdx
                 , _count
                 , _other.m_cps.size()
             );
 
-            const CmdPos* root = _other.m_cps.data();
-            const CmdPos* first = root + _offIdx;
-            const CmdPos* last = root + _offIdx + _count - 1;
+            const CBPos* root = _other.m_cps.data();
+            const CBPos* first = root + _offIdx;
+            const CBPos* last = root + _offIdx + _count - 1;
 
             uint32_t size = last->m_end - first->m_start;
-            uint32_t offset = first->m_start - m_cb.getPos();
+            uint32_t offPos = first->m_start - m_cb.getPos();
 
-            const uint8_t* data = _other.m_cb.seek(first->m_start, size);
+
             
             // fill cb 
+            const uint8_t* data = _other.m_cb.seek(first->m_start, size);
             m_cb.write(data, size);
 
             // fill cps
             for (uint32_t ii = 0; ii < _count; ++ii)
             {
-                CmdPos cp = *(first+ii); 
-                cp.m_start = first->m_start - offset;
-                cp.m_end = first->m_end - offset;
+                CBPos cp = *(first+ii); 
+                cp.m_start = first->m_start - offPos;
+                cp.m_end = first->m_end - offPos;
 
                 m_cps.emplace_back(cp);
             }
@@ -956,7 +957,7 @@ namespace kage
             const Command* cmd = nullptr;
             if (m_cmdIdx < m_cps.size())
             {
-                CmdPos cp;
+                CBPos cp;
                 cp = m_cps[m_cmdIdx];
 
                 uint32_t offset = m_cb.getPos();
@@ -1016,7 +1017,7 @@ namespace kage
 
             m_cmdIdx = _idx;
 
-            CmdPos cp = m_cps[m_cmdIdx];
+            CBPos cp = m_cps[m_cmdIdx];
             m_cb.actPos(cp.m_start);
         }
 
@@ -1024,7 +1025,7 @@ namespace kage
         template<typename Ty>
         void push(const Ty& _obj)
         {
-            CmdPos cmd;
+            CBPos cmd;
             cmd.m_start = m_cb.getPos();
             cmd.m_pad = m_cb.write(_obj);
             cmd.m_end = m_cb.getPos();
@@ -1033,7 +1034,7 @@ namespace kage
             m_cps.emplace_back(cmd);
         }
 
-        struct CmdPos
+        struct CBPos
         {
             uint32_t m_size{ 0 };
             uint32_t m_start{ 0 };
@@ -1041,9 +1042,8 @@ namespace kage
             uint32_t m_pad{ 0 };
         };
 
-        CommandBuffer m_cb;
-
         uint32_t m_cmdIdx;
-        stl::vector<CmdPos> m_cps;
+        CommandBuffer m_cb;
+        stl::vector<CBPos> m_cps;
     };
 }

@@ -314,10 +314,9 @@ namespace kage
 
     struct RecordingCmd
     {
-        uint32_t startPos;
-        uint32_t endPos;
-        uint32_t size;
-        uint32_t cnt;
+        uint32_t startIdx;
+        uint32_t endIdx;
+        uint32_t count;
     };
 
     struct Context
@@ -566,7 +565,7 @@ namespace kage
 
         // running Pass
         PassHandle              m_recordingPass{ kInvalidHandle };
-        RecordingCmd            m_recCmdQ[kMaxNumOfPassHandle];
+        RecordingCmd            m_recCmds[kMaxNumOfPassHandle];
 
         // alias
         stl::unordered_map<uint16_t, BufferHandle> m_bufferAliasMapToBase;
@@ -1936,9 +1935,9 @@ namespace kage
                         const RecordStartCmd* rsc = reinterpret_cast<const RecordStartCmd*>(cmd);
                         
                         BX_ASSERT(isValid(rsc->m_pass), "recoreded pass is not valid!");
-                        const RecordingCmd rq = m_recCmdQ[rsc->m_pass.id];
+                        const RecordingCmd rq = m_recCmds[rsc->m_pass.id];
 
-                        m_rhiContext->setRecord(rsc->m_pass, _cmdQ, rq.startPos, rq.size);
+                        m_rhiContext->setRecord(rsc->m_pass, _cmdQ, rq.startIdx, rq.count);
                     }
                     break;
                 case Command::end:
@@ -2109,11 +2108,10 @@ namespace kage
 
         m_cmdQueue.cmdRecordStart(_hPass);
 
-        RecordingCmd& rq = m_recCmdQ[_hPass];
-        rq.startPos = m_cmdQueue.getIdx();
-        rq.endPos = 0;
-        rq.size = 0;
-        rq.cnt = 0;
+        RecordingCmd& rq = m_recCmds[_hPass];
+        rq.startIdx = m_cmdQueue.getIdx();
+        rq.endIdx = 0;
+        rq.count = 0;
     }
 
     void Context::setConstants(const Memory* _mem)
@@ -2230,9 +2228,9 @@ namespace kage
 
         m_cmdQueue.cmdRecordEnd();
 
-        RecordingCmd& rq = m_recCmdQ[m_recordingPass];
-        rq.endPos = m_cmdQueue.getIdx();
-        rq.size = rq.endPos - rq.startPos;
+        RecordingCmd& rq = m_recCmds[m_recordingPass];
+        rq.endIdx = m_cmdQueue.getIdx();
+        rq.count = rq.endIdx - rq.startIdx;
 
         m_recordingPass = { kInvalidHandle };
     }

@@ -338,14 +338,12 @@ namespace kage { namespace vk
         {
             uint32_t startIdx;
             uint32_t endIdx;
-            uint32_t count;
         };
 
         void init();
 
-        void record(const PassHandle _hPass, const CommandQueue& queue, uint32_t _offset, uint32_t _size);
+        void record(const PassHandle _hPass, const CommandQueue& queue, uint32_t _offset, uint32_t _count);
 
-        uint32_t getRecCount(const PassHandle _hPass) const;
         CommandQueue& actPass(const PassHandle _hPass);
 
         void finish();
