@@ -10,6 +10,7 @@ namespace kage
 {
     extern bx::AllocatorI* g_bxAllocator;
 
+
     struct Handle
     {
         struct TypeName

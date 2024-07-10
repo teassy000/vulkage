@@ -317,6 +317,7 @@ namespace kage
         uint32_t startPos;
         uint32_t endPos;
         uint32_t size;
+        uint32_t cnt;
     };
 
     struct Context
@@ -324,8 +325,6 @@ namespace kage
         // conditions
         bool isCompute(const PassHandle _hPass);
         bool isGraphics(const PassHandle _hPass);
-        bool isFillBuffer(const PassHandle _hPass);
-        bool isOneOpPass(const PassHandle _hPass);
         bool isRead(const AccessFlags _access);
         bool isWrite(const AccessFlags _access, const PipelineStageFlags _stage);
 
@@ -383,12 +382,12 @@ namespace kage
 
         void updateBuffer(const BufferHandle _hbuf, const Memory* _mem, const uint32_t _offset, const uint32_t _size);
         void updateImage(const ImageHandle _hImg 
-            , uint16_t _width
-            , uint16_t _height
+            , uint32_t _width
+            , uint32_t _height
             , const Memory* _mem);
 
         // renderer execute commands
-        void rendererExecCmds(CommandBuffer& _cmdBuf);
+        void rendererExecCmdQ(CommandQueue& _cmdQ);
 
         // actual write to memory
         void storeBrief();
@@ -413,8 +412,6 @@ namespace kage
         bool isRenderGraphDataDirty() const { return m_isRenderGraphDataDirty; }
 
         double getPassTime(const PassHandle _hPass);
-
-        CommandBuffer& getCommandBuffer(CommandBuffer::Enum _cmd);
 
         // Render API Begin
         void startRec(const PassHandle _hPass);
@@ -569,7 +566,7 @@ namespace kage
 
         // running Pass
         PassHandle              m_recordingPass{ kInvalidHandle };
-        RecordingCmd            m_recordingCmds[kMaxNumOfPassHandle];
+        RecordingCmd            m_recCmdQ[kMaxNumOfPassHandle];
 
         // alias
         stl::unordered_map<uint16_t, BufferHandle> m_bufferAliasMapToBase;
@@ -608,6 +605,7 @@ namespace kage
         RHIContext* m_rhiContext{ nullptr };
 
         Framegraph* m_frameGraph{ nullptr };
+        Framegraph2* m_frameGraph2{ nullptr };
 
         Resolution m_resolution{};
 
@@ -616,9 +614,7 @@ namespace kage
         void* m_nativeWnd{ nullptr };
 
         // frame 
-        CommandBuffer m_cmdPre{};
-        CommandBuffer m_cmdRecording{};
-        CommandBuffer m_cmdPost{};
+        CommandQueue m_cmdQueue{};
     };
 
     bool Context::isCompute(const PassHandle _hPass)
@@ -739,11 +735,7 @@ namespace kage
 
         setRenderGraphDataDirty();
 
-        int32_t len = path.getLength();
-        CommandBuffer& cb = getCommandBuffer(CommandBuffer::create_shader);
-        cb.write(handle);
-        cb.write(len);
-        cb.write(_path, len);
+        m_cmdQueue.cmdCreateShader(handle, m_shaderPathes[idx]);
 
         return handle;
     }
@@ -773,11 +765,7 @@ namespace kage
 
         setRenderGraphDataDirty();
 
-        CommandBuffer& cb = getCommandBuffer(CommandBuffer::create_program);
-        cb.write(handle);
-        cb.write(_shaderNum);
-        cb.write(_mem);
-        cb.write(_sizePushConstants);
+        m_cmdQueue.cmdCreateProgram(handle, _mem, _shaderNum, _sizePushConstants);
 
         return handle;
     }
@@ -803,9 +791,7 @@ namespace kage
 
         setRenderGraphDataDirty();
 
-        CommandBuffer& cb = getCommandBuffer(CommandBuffer::create_pass);
-        cb.write(handle);
-        cb.write(_desc);
+        m_cmdQueue.cmdCreatePass(handle, _desc);
 
         return handle;
     }
@@ -841,11 +827,7 @@ namespace kage
 
         setRenderGraphDataDirty();
 
-        CommandBuffer& cb = getCommandBuffer(CommandBuffer::create_buffer);
-        cb.write(handle);
-        cb.write(_desc);
-        cb.write(_mem); //TODO: process usage later
-        cb.write(_lifetime);
+        m_cmdQueue.cmdCreateBuffer(handle, _desc, _mem, _lifetime);
 
         return handle;
     }
@@ -899,9 +881,7 @@ namespace kage
         ic.lifetime = _lifetime;
         ic.mem = _mem;
 
-        CommandBuffer& cb = getCommandBuffer(CommandBuffer::create_image);
-        cb.write(handle);
-        cb.write(ic);
+        m_cmdQueue.cmdCreateImage(handle, ic);
 
         return handle;
     }
@@ -961,9 +941,7 @@ namespace kage
 
         ic.lifetime = _lifetime;
 
-        CommandBuffer& cb = getCommandBuffer(CommandBuffer::create_image);
-        cb.write(handle);
-        cb.write(ic);
+        m_cmdQueue.cmdCreateImage(handle, ic);
 
         return handle;
     }
@@ -1024,9 +1002,7 @@ namespace kage
 
         ic.lifetime = _lifetime;
 
-        CommandBuffer& cb = getCommandBuffer(CommandBuffer::create_image);
-        cb.write(handle);
-        cb.write(ic);
+        m_cmdQueue.cmdCreateImage(handle, ic);
 
         return handle;
     }
@@ -1062,11 +1038,7 @@ namespace kage
 
             setRenderGraphDataDirty();
 
-            CommandBuffer& cb = getCommandBuffer(CommandBuffer::create_sampler);
-            cb.write(SamplerHandle{ samplerId });
-            cb.write(_desc.filter);
-            cb.write(_desc.addressMode);
-            cb.write(_desc.reductionMode);
+            m_cmdQueue.cmdCreateSampler(SamplerHandle{ samplerId }, _desc);
         }
 
         return SamplerHandle{ samplerId };
@@ -1416,18 +1388,18 @@ namespace kage
 
         auto actualBaseMap = m_bufferAliasMapToBase.find(_baseBuf.id);
 
-        BufferHandle rootBase = _baseBuf;
+        BufferHandle actualBase = _baseBuf;
         // check if the base buffer is an alias
         if (m_bufferAliasMapToBase.end() != actualBaseMap)
         {
-            rootBase = actualBaseMap->second;
+            actualBase = actualBaseMap->second;
         }
 
-        m_bufferAliasMapToBase.insert({ aliasId, rootBase });
+        m_bufferAliasMapToBase.insert({ aliasId, actualBase });
 
-        if (m_aliasBuffers.exist(rootBase))
+        if (m_aliasBuffers.exist(actualBase))
         {
-            stl::vector<BufferHandle>& aliasVecRef = m_aliasBuffers.getDataRef(rootBase);
+            stl::vector<BufferHandle>& aliasVecRef = m_aliasBuffers.getDataRef(actualBase);
             aliasVecRef.emplace_back(aliasHandle);
         }
         else 
@@ -1435,21 +1407,19 @@ namespace kage
             stl::vector<BufferHandle> aliasVec{};
             aliasVec.emplace_back(aliasHandle);
 
-            m_aliasBuffers.addOrUpdate({ rootBase }, aliasVec);
+            m_aliasBuffers.addOrUpdate({ actualBase }, aliasVec);
         }
 
-        BufferMetaData meta = m_bufferMetas[rootBase];
+        BufferMetaData meta = m_bufferMetas[actualBase];
         meta.bufId = aliasId;
         m_bufferMetas[aliasId] = meta;
 
-        bx::StringView baseName = getName(rootBase);
+        bx::StringView baseName = getName(actualBase);
         setName(aliasHandle, baseName.getPtr(), baseName.getLength(), true);
 
         setRenderGraphDataDirty();
 
-        CommandBuffer& cb = getCommandBuffer(CommandBuffer::alias_buffer);
-        cb.write(BufferHandle{ aliasId });
-        cb.write(rootBase);
+        m_cmdQueue.cmdAliasBuffer(aliasHandle, actualBase);
 
         return { aliasId };
     }
@@ -1492,9 +1462,7 @@ namespace kage
 
         setRenderGraphDataDirty();
 
-        CommandBuffer& cb = getCommandBuffer(CommandBuffer::alias_image);
-        cb.write(aliasHandle);
-        cb.write(actualBase);
+        m_cmdQueue.cmdAliasImage(aliasHandle, actualBase);
 
         return { aliasId };
     }
@@ -1506,11 +1474,7 @@ namespace kage
         bx::StringView name = getName(_h);
 
         int32_t len = (int32_t)name.getLength();
-        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::set_name);
-        cmd.write(_h);
-        cmd.write(len);
-        cmd.write(name.getPtr(), len);
-        
+        m_cmdQueue.cmdSetName(_h, name.getPtr(), len);
     }
 
     const bx::StringView Context::getName(Handle _h)
@@ -1878,210 +1842,117 @@ namespace kage
             return;
         }
 
-        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::update_buffer);
-        cmd.write(_hBuf);
-        cmd.write(_mem);
-        cmd.write(_offset);
-        cmd.write(_size);
+        m_cmdQueue.cmdUpdateBuffer(_hBuf, _mem, _offset, _size);
     }
 
     void Context::updateImage(
         const ImageHandle _hImg
-        , uint16_t _width
-        , uint16_t _height
+        , uint32_t _width
+        , uint32_t _height
         , const Memory* _mem
     )
     {
-        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::update_image);
-        cmd.write(_hImg);
-        cmd.write(_width);
-        cmd.write(_height);
-        cmd.write(_mem);
+        m_cmdQueue.cmdUpdateImage(_hImg, _width, _height, _mem);
     }
 
-    void Context::rendererExecCmds(CommandBuffer& _cmdbuf)
+    void Context::rendererExecCmdQ(CommandQueue& _cmdQ)
     {
-        KG_ZoneScopedC(Color::green);
+        _cmdQ.reset();
 
-        _cmdbuf.reset();
-
-        bool finish = false;
-
-        if (nullptr == m_rhiContext)
-        {
-            assert(0);
-            return;
-        }
-
+        const Command* cmd;
         do
         {
-            uint8_t cmd;
-            _cmdbuf.read(cmd);
+            cmd = _cmdQ.poll();
 
-            switch (cmd)
+            if (nullptr != cmd)
             {
-            case CommandBuffer::set_brief:
+                switch (cmd->m_cmd)
                 {
-                    _cmdbuf.skip<FrameGraphBrief>();
+                case Command::create_pass:
+                    {
+                        const CreatePassCmd* cpc = reinterpret_cast<const CreatePassCmd*>(cmd);
+                    }
+                    break;
+                case Command::create_image:
+                    {
+                        const CreateImageCmd* cic = reinterpret_cast<const CreateImageCmd*>(cmd);
+                    }
+                    break;
+                case Command::create_buffer:
+                    {
+                        const CreateBufferCmd* cbc = reinterpret_cast<const CreateBufferCmd*>(cmd);
+                    }
+                    break;
+                case Command::create_program:
+                    {
+                        const CreateProgramCmd* cpc = reinterpret_cast<const CreateProgramCmd*>(cmd);
+                    }
+                    break;
+                case Command::create_shader:
+                    {
+                        const CreateShaderCmd* csc = reinterpret_cast<const CreateShaderCmd*>(cmd);
+                    }
+                    break;
+                case Command::create_sampler:
+                    {
+                        const CreateSamplerCmd* csc = reinterpret_cast<const CreateSamplerCmd*>(cmd);
+                    }
+                    break;
+                case Command::alias_image:
+                    {
+                        const AliasImageCmd* aic = reinterpret_cast<const AliasImageCmd*>(cmd);
+                    }
+                    break;
+                case Command::alias_buffer:
+                    {
+                        const AliasBufferCmd* abc = reinterpret_cast<const AliasBufferCmd*>(cmd);
+                    }
+                    break;
+                case Command::update_image:
+                    {
+                        const UpdateImageCmd* uic = reinterpret_cast<const UpdateImageCmd*>(cmd);
+                    }
+                    break;
+                case Command::update_buffer:
+                    {
+                        const UpdateBufferCmd* ubc = reinterpret_cast<const UpdateBufferCmd*>(cmd);
+                        m_rhiContext->updateBuffer(
+                            ubc->m_handle
+                            , ubc->m_mem
+                            , ubc->m_offset
+                            , ubc->m_size
+                        );
+                        release(ubc->m_mem);
+                    }
+                    break;
+                case Command::set_name:
+                    {
+                        const SetNameCmd* snc = reinterpret_cast<const SetNameCmd*>(cmd);
+                        m_rhiContext->setName(snc->m_handle, snc->m_name, snc->m_len);
+                    }
+                    break;
+                case Command::record_start:
+                    {
+                        const RecordStartCmd* rsc = reinterpret_cast<const RecordStartCmd*>(cmd);
+                        
+                        BX_ASSERT(isValid(rsc->m_pass), "recoreded pass is not valid!");
+                        const RecordingCmd rq = m_recCmdQ[rsc->m_pass.id];
+
+                        m_rhiContext->setRecord(rsc->m_pass, _cmdQ, rq.startPos, rq.size);
+                    }
+                    break;
+                case Command::end:
+                    {
+                    }
+                    break;
+                default:
+                    {
+                    }
+                    break;
                 }
-                break;
-            case CommandBuffer::create_pass:
-                {
-                    PassHandle handle;
-                    _cmdbuf.read(handle);
-
-                    PassDesc desc;
-                    _cmdbuf.read(desc);
-                }
-                break;
-            case CommandBuffer::create_image:
-                {
-                    ImageHandle handle;
-                    _cmdbuf.read(handle);
-
-                    ImageCreate ic;
-                    _cmdbuf.read(ic);
-                }
-                break;
-            case CommandBuffer::create_buffer:
-                {
-                    BufferHandle handle;
-                    _cmdbuf.read(handle);
-
-                    BufferDesc bd;
-                    _cmdbuf.read(bd);
-
-                    _cmdbuf.skip<const Memory*>();
-
-                    ResourceLifetime lt;
-                    _cmdbuf.read(lt);
-                }
-                break;
-            case CommandBuffer::create_program:
-                {
-                    ProgramHandle handle;
-                    _cmdbuf.read(handle);
-
-                    uint16_t shaderNum;
-                    _cmdbuf.read(shaderNum);
-
-                    const Memory* mem;
-                    _cmdbuf.read(mem);
-
-                    uint32_t spc;
-                    _cmdbuf.read(spc);
-                }
-                break;
-            case CommandBuffer::create_shader:
-                {
-                    ShaderHandle handle;
-                    _cmdbuf.read(handle);
-
-                    const char* path;
-                    _cmdbuf.read(path);
-                }
-                break;
-            case CommandBuffer::create_sampler:
-                {
-                    _cmdbuf.skip<SamplerHandle>();
-                    _cmdbuf.skip<SamplerFilter>();
-                    _cmdbuf.skip<SamplerAddressMode>();
-                    _cmdbuf.skip<SamplerReductionMode>();
-                }
-                break;
-            case CommandBuffer::alias_image:
-                {
-                    _cmdbuf.skip<ImageHandle>(); // alias
-                    _cmdbuf.skip<ImageHandle>(); // base
-                }
-                break;
-            case CommandBuffer::alias_buffer:
-                {
-                    BufferHandle id;
-                    _cmdbuf.read(id);
-
-                    BufferHandle base;
-                    _cmdbuf.read(base);
-                }
-                break;
-
-            case CommandBuffer::set_name:
-                {
-                    Handle h;
-                    _cmdbuf.read(h);
-
-                    int32_t len;
-                    _cmdbuf.read(len);
-
-                    const char* name = (const char*)_cmdbuf.skip((uint32_t)len);
-                    m_rhiContext->setName(h, name, len);
-                }
-                break;
-            case CommandBuffer::update_image:
-                {
-                    ImageHandle id;
-                    _cmdbuf.read(id);
-
-                    uint16_t width;
-                    _cmdbuf.read(width);
-
-                    uint16_t height;
-                    _cmdbuf.read(height);
-
-                    const Memory* mem;
-                    _cmdbuf.read(mem);
-
-                    m_rhiContext->updateImage(id, width, height, mem);
-                }
-                break;
-            case CommandBuffer::update_buffer:
-                {
-                    BufferHandle id;
-                    _cmdbuf.read(id);
-
-                    const Memory* mem;
-                    _cmdbuf.read(mem);
-
-                    uint32_t offset;
-                    _cmdbuf.read(offset);
-
-                    uint32_t size;
-                    _cmdbuf.read(size);
-
-                    m_rhiContext->updateBuffer(id, mem, offset, size);
-                    release(mem);
-                }
-                break;
-            case CommandBuffer::record_start:
-                {
-                    PassHandle pass;
-                    _cmdbuf.read(pass);
-
-                    _cmdbuf.skip<uint64_t>();
-
-                    const RecordingCmd rec = m_recordingCmds[pass];
-
-                    assert(rec.startPos == _cmdbuf.getPos());
-
-                    const Memory* mem = alloc(rec.size);
-                    _cmdbuf.read(mem->data, mem->size);
-
-                    assert(rec.endPos == _cmdbuf.getPos());
-
-                    m_rhiContext->setRecord(pass, mem);
-                    release(mem);
-                }
-                break;
-            case CommandBuffer::end:
-                {
-                    finish = true;
-                }
-                break;
-            default:
-                break;
             }
-        } while (!finish);
 
+        } while (cmd != nullptr);
     }
 
     namespace vk
@@ -2099,15 +1970,12 @@ namespace kage
 
         m_rhiContext = vk::rendererCreate(m_resolution, m_nativeWnd);
 
-        m_cmdPre.init(_init.minCmdBufSize);
-        m_cmdRecording.init(_init.minCmdBufSize);
-        m_cmdPost.init(_init.minCmdBufSize);
+        m_cmdQueue.init(_init.minCmdBufSize);
         
-        m_cmdPre.start();
-        m_cmdRecording.start();
-        m_cmdPost.start();
+        m_cmdQueue.start();
 
         m_frameGraph = BX_NEW(getAllocator(), Framegraph)(getAllocator(), m_rhiContext->memoryBlock());
+        m_frameGraph2 = BX_NEW(getAllocator(), Framegraph2)();
 
         m_pFgMemBlock = m_frameGraph->getMemoryBlock();
         m_fgMemWriter = BX_NEW(getAllocator(), bx::MemoryWriter)(m_pFgMemBlock);
@@ -2121,9 +1989,9 @@ namespace kage
 
     void Context::render()
     {
-        m_cmdPre.finish();
-        m_cmdRecording.finish();
-        m_cmdPost.finish();
+        KG_ZoneScopedC(Color::cyan);
+
+        m_cmdQueue.finish();
 
         if (kInvalidHandle == m_presentImage.id)
         {
@@ -2133,10 +2001,9 @@ namespace kage
 
         if (isRenderGraphDataDirty())
         {
+            m_frameGraph2->process(m_cmdQueue);
             bake();
         }
-
-        //m_frameGraph->process(m_cmdBuffer, m_fgDoneCmdBuffer);
 
         rhi_render();
 
@@ -2147,13 +2014,12 @@ namespace kage
         }
         m_transientMemories.clear();
 
-        m_cmdPre.start();
-        m_cmdRecording.start();
-        m_cmdPost.start();
+        m_cmdQueue.start();
     }
 
     void Context::bake()
     {
+
         // store all resources
         storeBrief();
         storeShaderData();
@@ -2191,23 +2057,21 @@ namespace kage
     {
         message(DebugMsgType::essential, "start rendering");
 
-        rendererExecCmds(m_cmdPre);
-
-        rendererExecCmds(m_cmdRecording);
+        rendererExecCmdQ(m_cmdQueue);
         m_rhiContext->run();
 
-        rendererExecCmds(m_cmdPost);
+        // TODO: add the post command queue to release resources
+        // rendererExecCmdQ(m_cmdPostQ)
 
         message(DebugMsgType::essential, "finish rendering");
     }
 
     void Context::shutdown()
     {
-        m_cmdPre.finish();
-        m_cmdRecording.finish();
-        m_cmdPost.finish();
+        m_cmdQueue.finish();
 
         bx::deleteObject(m_pAllocator, m_frameGraph);
+        bx::deleteObject(m_pAllocator, m_frameGraph2);
         vk::rendererDestroy();
         bx::deleteObject(m_pAllocator, m_fgMemWriter);
         bx::deleteObject(m_pAllocator, m_nameManager);
@@ -2227,20 +2091,6 @@ namespace kage
         return m_rhiContext->getPassTime(_hPass);
     }
 
-    CommandBuffer& Context::getCommandBuffer(CommandBuffer::Enum _cmd)
-    {
-        CommandBuffer& cmdbuf = 
-            _cmd < CommandBuffer::end 
-            ?   _cmd < CommandBuffer::record
-                ? m_cmdPre
-                : m_cmdRecording
-            : m_cmdPost;
-
-        uint8_t cmd = static_cast<uint8_t>(_cmd);
-        cmdbuf.write(cmd);
-        return cmdbuf;
-    }
-
     void Context::startRec(const PassHandle _hPass)
     {
         if (isValid(m_recordingPass))
@@ -2257,34 +2107,29 @@ namespace kage
 
         message(info, "start rec pass %s", getName(m_recordingPass).getPtr());
 
-        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::record_start);
-        
-        cmd.write(_hPass);
-        cmd.write(uint64_t(0)); // skip the alignment so the sub-command would be aligned.
+        m_cmdQueue.cmdRecordStart(_hPass);
 
-        RecordingCmd& rec = m_recordingCmds[_hPass];
-        rec.startPos = cmd.getPos();
-        rec.endPos = 0;
-        rec.size = 0;
+        RecordingCmd& rq = m_recCmdQ[_hPass];
+        rq.startPos = m_cmdQueue.getIdx();
+        rq.endPos = 0;
+        rq.size = 0;
+        rq.cnt = 0;
     }
 
     void Context::setConstants(const Memory* _mem)
     {
-        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::record_set_constants);
-        cmd.write(_mem);
+        m_cmdQueue.cmdRecordSetConstants(_mem);
 
         m_transientMemories.push_back(_mem);
     }
 
     void Context::setDescriptorSets(const Binding* _desc, uint16_t _count)
     {
-        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::record_set_descriptor);
-
         const uint32_t sz = sizeof(Binding) * _count;
         const Memory* mem = alloc(sz);
         bx::memCopy(mem->data, _desc, mem->size);
 
-        cmd.write(mem);
+        m_cmdQueue.cmdRecordSetDescriptor(mem);
 
         m_transientMemories.push_back(mem);
     }
@@ -2301,56 +2146,33 @@ namespace kage
 
     void Context::dispatch(const uint32_t _groupCountX, const uint32_t _groupCountY, const uint32_t _groupCountZ)
     {
-        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::record_dispatch);
-
-        cmd.write(_groupCountX);
-        cmd.write(_groupCountY);
-        cmd.write(_groupCountZ);
+        m_cmdQueue.cmdRecordDispatch(_groupCountX, _groupCountY, _groupCountZ);
     }
 
     void Context::setVertexBuffer(BufferHandle _hBuf)
     {
-        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::record_set_vertex_buffer);
-
-        cmd.write(_hBuf);
+        m_cmdQueue.cmdRecordSetVertexBuffer(_hBuf);
     }
 
     void Context::setIndexBuffer(BufferHandle _hBuf, uint32_t _offset, IndexType _type)
     {
-        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::record_set_index_buffer);
-
-        cmd.write(_hBuf);
-        cmd.write(_offset);
-        cmd.write(_type);
+        m_cmdQueue.cmdRecordSetIndexBuffer(_hBuf, _offset, _type);
     }
 
     void Context::setViewport(int32_t _x, int32_t _y, uint32_t _width, uint32_t _height)
     {
-        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::record_set_viewport);
-        
-        cmd.write(_x);
-        cmd.write(_y);
-        cmd.write(_width);
-        cmd.write(_height);
+        m_cmdQueue.cmdRecordSetViewport(_x, _y, _width, _height);
     }
 
 
     void Context::setScissor(int32_t _x, int32_t _y, uint32_t _width, uint32_t _height)
     {
-        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::record_set_scissor);
-
-        cmd.write(_x);
-        cmd.write(_y);
-        cmd.write(_width);
-        cmd.write(_height);
+        m_cmdQueue.cmdRecordSetScissor(_x, _y, _width, _height);
     }
 
     void Context::fillBuffer(const BufferHandle _hBuf, const uint32_t _value)
     {
-        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::record_fill_buffer);
-
-        cmd.write(_hBuf);
-        cmd.write(_value);
+        m_cmdQueue.cmdRecordFillBuffer(_hBuf, _value);
     }
 
     void Context::draw(const uint32_t _vertexCount, const uint32_t _instanceCount, const uint32_t _firstVertex, const uint32_t _firstInstance)
@@ -2370,13 +2192,7 @@ namespace kage
 
     void Context::drawIndexed(const uint32_t _indexCount, const uint32_t _instanceCount, const uint32_t _firstIndex, const int32_t _vertexOffset, const uint32_t _firstInstance)
     {
-        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::record_draw_indexed);
-
-        cmd.write(_indexCount);
-        cmd.write(_instanceCount);
-        cmd.write(_firstIndex);
-        cmd.write(_vertexOffset);
-        cmd.write(_firstInstance);
+        m_cmdQueue.cmdRecordDrawIndexed(_indexCount, _instanceCount, _firstIndex, _vertexOffset, _firstInstance);
     }
 
     void Context::drawIndexed(const BufferHandle _hIndirectBuf, const uint32_t _offset, const uint32_t _count, const uint32_t _stride)
@@ -2396,12 +2212,7 @@ namespace kage
 
     void Context::drawMeshTask(const BufferHandle _hIndirectBuf, const uint32_t _offset, const uint32_t _count, const uint32_t _stride)
     {
-        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::record_draw_mesh_task_indirect);
-
-        cmd.write(_hIndirectBuf);
-        cmd.write(_offset);
-        cmd.write(_count);
-        cmd.write(_stride);
+        m_cmdQueue.cmdRecordDrawMeshTaskIndirect(_hIndirectBuf, _offset, _count, _stride);
     }
 
     void Context::drawMeshTask(const BufferHandle _hIndirectBuf, const uint32_t _offset, const BufferHandle _countBuf, const uint32_t _countOffset, const uint32_t _maxCount, const uint32_t _stride)
@@ -2417,13 +2228,11 @@ namespace kage
             return;
         }
 
-        // the recorded commands contains all tags start from record_start to record_end, includes record_end.
-        CommandBuffer& cmd = getCommandBuffer(CommandBuffer::record_end);
-        cmd.write(uint64_t(0)); // skip the alignment so the sub-command would be aligned.
+        m_cmdQueue.cmdRecordEnd();
 
-        RecordingCmd& rec = m_recordingCmds[m_recordingPass];
-        rec.endPos = cmd.getPos();
-        rec.size = rec.endPos - rec.startPos;
+        RecordingCmd& rq = m_recCmdQ[m_recordingPass];
+        rq.endPos = m_cmdQueue.getIdx();
+        rq.size = rq.endPos - rq.startPos;
 
         m_recordingPass = { kInvalidHandle };
     }
@@ -2564,8 +2373,8 @@ namespace kage
 
     void updateImage2D(
         const ImageHandle _hImg
-        , uint16_t _width
-        , uint16_t _height
+        , uint32_t _width
+        , uint32_t _height
         , const Memory* _mem /*= nullptr */
     )
     {
@@ -2790,11 +2599,6 @@ namespace kage
         s_ctx->init(_init);
 
         return true;
-    }
-
-    void bake()
-    {
-        s_ctx->bake();
     }
 
     void reset(uint32_t _width, uint32_t _height, uint32_t _reset)

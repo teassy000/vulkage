@@ -504,11 +504,9 @@ namespace kage
         BufferHandle id;
     };
 
-    struct FrameGraph2
+    struct Framegraph2
     {
-        void process(CommandBuffer& _in, CommandBuffer& out);
-        void exeCommands(CommandBuffer& _in);
-
+        void process(CommandQueue& _in);
         void buildGraph();
 
         FrameGraphBrief m_brief;

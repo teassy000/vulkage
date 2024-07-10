@@ -9,6 +9,7 @@
 #include "util.h"
 #include "bx/allocator.h"
 #include "bx/readerwriter.h"
+#include "command_buffer.h"
 
 namespace kage
 {
@@ -181,7 +182,7 @@ namespace kage
         virtual void setName(Handle _h, const char* _name, uint32_t _len) {};
 
         // rendering commands
-        virtual void setRecord(PassHandle _hPass, const Memory* mem) {};
+        virtual void setRecord(PassHandle _hPass, const CommandQueue& _cq, const uint32_t _offset, const uint32_t _size) {};
         // -- rendering commands ends
 
 

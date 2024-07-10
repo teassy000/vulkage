@@ -42,131 +42,84 @@ namespace kage
         createResources();
     }
 
-    void FrameGraph2::process(CommandBuffer& _in, CommandBuffer& _out)
+    void Framegraph2::process(CommandQueue& _in)
     {
-        exeCommands(_in);
-    }
+        KG_ZoneScopedC(Color::light_yellow);
 
-    void FrameGraph2::exeCommands(CommandBuffer& _in)
-    {
         _in.reset();
 
-        bool finish = false;
-
-        do 
+        const Command* cmd;
+        do
         {
-            uint8_t cmd;
-            _in.read(cmd);
+            cmd = _in.poll();
 
-            switch (cmd)
+            if (nullptr != cmd)
             {
-            case CommandBuffer::set_brief:
+                switch (cmd->m_cmd)
                 {
-                    FrameGraphBrief brief;
-                    _in.read(brief);
+                case Command::create_pass:
+                    {
+                        const CreatePassCmd* cpc = static_cast<const CreatePassCmd*>(cmd);
+                        cpc->m_desc;
+                    }
+                    break;
+                case Command::create_image:
+                    {
+                        const CreateImageCmd* cic = static_cast<const CreateImageCmd*>(cmd);
+                    }
+                    break;
+                case Command::create_buffer:
+                    {
+                        const CreateBufferCmd* cbc = static_cast<const CreateBufferCmd*>(cmd);
+                    }
+                    break;
+                case Command::create_program:
+                    {
+                        const CreateProgramCmd* cpc = static_cast<const CreateProgramCmd*>(cmd);
+                    }
+                    break;
+                case Command::create_shader:
+                    {
+                        const CreateShaderCmd* csc = static_cast<const CreateShaderCmd*>(cmd);
+                    }
+                    break;
+                case Command::create_sampler:
+                    {
+                        const CreateSamplerCmd* csc = static_cast<const CreateSamplerCmd*>(cmd);
+                    }
+                    break;
+                case Command::alias_image:
+                    {
+                        const AliasImageCmd* aic = static_cast<const AliasImageCmd*>(cmd);
+                    }
+                    break;
+                case Command::alias_buffer:
+                    {
+                        const AliasBufferCmd* abc = static_cast<const AliasBufferCmd*>(cmd);
+                    }
+                    break;
+                case Command::update_image:
+                    {
+                        const UpdateImageCmd* uic = static_cast<const UpdateImageCmd*>(cmd);
+                    }
+                    break;
+                case Command::update_buffer:
+                    {
+                        const UpdateBufferCmd* ubc = static_cast<const UpdateBufferCmd*>(cmd);
+                    }
+                    break;
+                case Command::end:
+                    {
+                    }
+                    break;
+                default:
+                    {
+                    }
+                    break;
                 }
-                break;
-            case CommandBuffer::create_pass:
-                {
-                    PassHandle handle;
-                    _in.read(handle);
-
-                    PassMetaData meta;
-                    _in.read(meta);
-                }
-                break;
-            case CommandBuffer::create_image:
-                {
-                    ImageHandle handle;
-                    _in.read(handle);
-
-                    ImageCreate ic;
-                    _in.read(ic);
-                }
-                break;
-            case CommandBuffer::create_buffer:
-                {
-                    BufferHandle handle;
-                    _in.read(handle);
-
-                    BufferDesc bd;
-                    _in.read(bd);
-
-                    _in.skip<const Memory*>();
-
-                    ResourceLifetime lt;
-                    _in.read(lt);
-                }
-                break;
-            case CommandBuffer::create_program:
-                {
-                    ProgramHandle handle;
-                    _in.read(handle);
-
-                    uint16_t shaderNum;
-                    _in.read(shaderNum);
-
-                    const Memory* mem;
-                    _in.read(mem);
-
-                    uint32_t spc;
-                    _in.read(spc);
-                }
-                break;
-            case CommandBuffer::create_shader:
-                {
-                    ShaderHandle handle;
-                    _in.read(handle);
-
-                    const char* path;
-                    _in.read(path);
-                }
-                break;
-            case CommandBuffer::create_sampler:
-                {
-                    _in.skip<SamplerHandle>();
-                    _in.skip<SamplerFilter>();
-                    _in.skip<SamplerAddressMode>();
-                    _in.skip<SamplerReductionMode>();
-                }
-                break;
-            case CommandBuffer::alias_image:
-                {
-                    ImageHandle id;
-                    _in.read(id);
-
-                    ImageHandle base;
-                    _in.read(base);
-                }
-                break;
-            case CommandBuffer::alias_buffer:
-                {
-                    BufferHandle id;
-                    _in.read(id);
-
-                    BufferHandle base;
-                    _in.read(base);
-                }
-                break;
-            case CommandBuffer::update_image:
-                {
-                    // skip;
-                }
-                break;
-            case CommandBuffer::update_buffer:
-                {
-                    // skip;
-                }
-                break;
-            case CommandBuffer::end:
-                {
-                    finish = true;
-                }
-                break;
-            default:
-                break;
             }
-        } while (!finish);
+
+        } while (cmd != nullptr);
     }
 
     void Framegraph::shutdown()

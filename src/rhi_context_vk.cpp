@@ -2518,7 +2518,12 @@ namespace kage { namespace vk
         }
     }
 
-    void RHIContext_vk::setRecord(PassHandle _hPass, const Memory* _mem)
+    void RHIContext_vk::setRecord(
+        PassHandle _hPass
+        , const CommandQueue& _cq
+        , const uint32_t _offset
+        , const uint32_t _size
+    )
     {
         KG_ZoneScopedC(Color::indian_red);
 
@@ -2532,8 +2537,7 @@ namespace kage { namespace vk
             return;
         }
 
-        m_frameRecCmds.record(_hPass, _mem);
-
+        m_frameRecCmds.record(_hPass, _cq, _offset, _size);
         PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
         passInfo.recorded = true;
     }
@@ -2582,8 +2586,6 @@ namespace kage { namespace vk
         uint32_t count = _mem->size / sizeof(Binding);
         Binding* bds = (Binding*)_mem->data;
         m_descSets.assign(bds, bds + count);
-
-
     }
 
     void RHIContext_vk::setViewport(PassHandle _hPass, int32_t _x, int32_t _y, uint32_t _w, uint32_t _h)
@@ -3517,7 +3519,7 @@ namespace kage { namespace vk
 
         if (passInfo.recorded)
         {
-            execRecCmds({ _passId });
+            execRecQueue({ _passId });
         }
         else
         {
@@ -3697,191 +3699,179 @@ namespace kage { namespace vk
         }
     }
 
-    void RHIContext_vk::execRecCmds(PassHandle _hPass)
+    void RHIContext_vk::execRecQueue(PassHandle _hPass)
     {
-        CommandBuffer& cmdBuf = m_frameRecCmds.getCmd(_hPass);
+        CommandQueue& cq =  m_frameRecCmds.actPass(_hPass);
 
         bool done = false;
 
         m_descSets.clear();
 
-        do 
+        const Command* cmd;
+        do
         {
-            uint8_t cmd;
-            cmdBuf.read(cmd);
+            cmd = cq.poll();
 
-            switch (cmd)
+            if (nullptr != cmd)
             {
-            case CommandBuffer::record_set_constants:
+                switch (cmd->m_cmd)
                 {
-                    const Memory* mem;
-                    cmdBuf.read(mem);
-
-                    BX_ASSERT(mem->size < 256 , "why the size exceed 256 for pass: %s", getName(_hPass));
-
-                    setConstants(_hPass, mem);
+                
+                case Command::record_set_constants:
+                    {
+                        const RecordSetConstantsCmd* rc = reinterpret_cast<const RecordSetConstantsCmd*>(cmd);
+                        setConstants(_hPass, rc->m_mem);
+                    }
+                    break;
+                case Command::record_set_descriptor:
+                    {
+                        const RecordSetDescriptorCmd* rc = reinterpret_cast<const RecordSetDescriptorCmd*>(cmd);
+                        setDescriptorSet(_hPass, rc->m_mem);
+                    }
+                    break;
+                case Command::record_set_viewport:
+                    {
+                        const RecordSetViewportCmd* rc = reinterpret_cast<const RecordSetViewportCmd*>(cmd);
+                        setViewport(_hPass, rc->m_x, rc->m_y, rc->m_w, rc->m_h);
+                    }
+                    break;
+                case Command::record_set_scissor:
+                    {
+                        const RecordSetScissorCmd* rc = reinterpret_cast<const RecordSetScissorCmd*>(cmd);
+                        setScissor(_hPass, rc->m_x, rc->m_y, rc->m_w, rc->m_h);
+                    }
+                    break;
+                case Command::record_set_vertex_buffer:
+                    {
+                        const RecordSetVertexBufferCmd* rc = reinterpret_cast<const RecordSetVertexBufferCmd*>(cmd);
+                        setVertexBuffer(_hPass, rc->m_buf);
+                    }
+                    break;
+                case Command::record_set_index_buffer:
+                    {
+                        const RecordSetIndexBufferCmd* rc = reinterpret_cast<const RecordSetIndexBufferCmd*>(cmd);
+                        setIndexBuffer(_hPass, rc->m_buf, rc->m_offset, rc->m_type);
+                    }
+                    break;
+                case Command::record_blit:
+                    {
+                        const RecordBlitCmd* rc = reinterpret_cast<const RecordBlitCmd*>(cmd);
+                        BX_ASSERT(0, "NOT IMPLEMENTED YET!!!");
+                    }
+                    break;
+                case Command::record_copy:
+                    {
+                        const RecordCopyCmd* rc = reinterpret_cast<const RecordCopyCmd*>(cmd);
+                        BX_ASSERT(0, "NOT IMPLEMENTED YET!!!");
+                    }
+                    break;
+                case Command::record_fill_buffer:
+                    {
+                        const RecordFillBufferCmd* rc = reinterpret_cast<const RecordFillBufferCmd*>(cmd);
+                        fillBuffer(_hPass, rc->m_buf, rc->m_val);
+                    }
+                    break;
+                case Command::record_dispatch:
+                    {
+                        const RecordDispatchCmd* rc = reinterpret_cast<const RecordDispatchCmd*>(cmd);
+                        dispatch(_hPass, rc->m_x, rc->m_y, rc->m_z);
+                    }
+                    break;
+                case Command::record_draw:
+                    {
+                        const RecordDrawCmd* rc = reinterpret_cast<const RecordDrawCmd*>(cmd);
+                        draw(_hPass, rc->m_vtxCnt, rc->m_instCnt, rc->m_1stVtx, rc->m_1stInst);
+                    }
+                    break;
+                case Command::record_draw_indirect:
+                    {
+                        const RecordDrawIndirectCmd* rc = reinterpret_cast<const RecordDrawIndirectCmd*>(cmd);
+                        drawIndirect(_hPass, rc->m_buf, rc->m_off, rc->m_cnt);
+                    }
+                    break;
+                case Command::record_draw_indirect_count:
+                    {
+                        const RecordDrawIndirectCountCmd* rc = reinterpret_cast<const RecordDrawIndirectCountCmd*>(cmd);
+                        BX_ASSERT(0, "NOT IMPLEMENTED YET!!!");
+                    }
+                    break;
+                case Command::record_draw_indexed:
+                    {
+                        const RecordDrawIndexedCmd* rc = reinterpret_cast<const RecordDrawIndexedCmd*>(cmd);
+                        drawIndexed(
+                            _hPass
+                            , rc->m_idxCnt
+                            , rc->m_instCnt
+                            , rc->m_1stIdx
+                            , rc->m_vtxOff
+                            , rc->m_1stInst
+                        );
+                    }
+                    break;
+                case Command::record_draw_indexed_indirect:
+                    {
+                        const RecordDrawIndexedIndirectCmd* rc = reinterpret_cast<const RecordDrawIndexedIndirectCmd*>(cmd);
+                        drawIndexedIndirect(
+                            _hPass,
+                            rc->m_indirectBuf
+                            , rc->m_off
+                            , rc->m_cnt
+                            , rc->m_stride
+                        );
+                    }
+                    break;
+                case Command::record_draw_indexed_indirect_count:
+                    {
+                        const RecordDrawIndexedIndirectCountCmd* rc = reinterpret_cast<const RecordDrawIndexedIndirectCountCmd*>(cmd);
+                        drawIndexedIndirectCount(
+                            _hPass,
+                            rc->m_indirectBuf
+                            , rc->m_off
+                            , rc->m_cntBuf
+                            , rc->m_cntOff
+                            , rc->m_maxCnt
+                            , rc->m_stride
+                        );
+                    }
+                    break;
+                case Command::record_draw_mesh_task:
+                    {
+                        const RecordDrawMeshTaskCmd* rc = reinterpret_cast<const RecordDrawMeshTaskCmd*>(cmd);
+                        BX_ASSERT(0, "NOT IMPLEMENTED YET!!!");
+                    }
+                    break;
+                case Command::record_draw_mesh_task_indirect:
+                    {
+                        const RecordDrawMeshTaskIndirectCmd* rc = reinterpret_cast<const RecordDrawMeshTaskIndirectCmd*>(cmd);
+                        drawMeshTaskIndirect(
+                            _hPass
+                            , rc->m_buf
+                            , rc->m_off
+                            , rc->m_cnt
+                            , rc->m_stride
+                        );
+                    }
+                    break;
+                case Command::record_draw_mesh_task_indirect_count:
+                    {
+                        const RecordDrawMeshTaskIndirectCountCmd* rc = reinterpret_cast<const RecordDrawMeshTaskIndirectCountCmd*>(cmd);
+                        BX_ASSERT(0, "NOT IMPLEMENTED YET!!!");
+                    }
+                    break;
+                case Command::record_end:
+                    {
+                        done = true;
+                    }
+                    break;
+                default:
+                    {
+                        BX_ASSERT(0, "WHO ARE YOU!!! m_cmd: %d", cmd->m_cmd);
+                    }
+                    break;
                 }
-                break;
-            case CommandBuffer::record_set_descriptor:
-                {
-                    const Memory* mem;
-                    cmdBuf.read(mem);
-
-                    setDescriptorSet(_hPass, mem);
-                }
-                break;
-            case CommandBuffer::record_set_viewport:
-                {
-                    int32_t x;
-                    cmdBuf.read(x);
-
-                    int32_t y;
-                    cmdBuf.read(y);
-
-                    uint32_t w;
-                    cmdBuf.read(w);
-
-                    uint32_t h;
-                    cmdBuf.read(h);
-
-                    setViewport(_hPass, x, y, w, h);
-                }
-                break;
-            case CommandBuffer::record_set_scissor:
-                {
-                    int32_t x;
-                    cmdBuf.read(x);
-
-                    int32_t y;
-                    cmdBuf.read(y);
-
-                    uint32_t w;
-                    cmdBuf.read(w);
-
-                    uint32_t h;
-                    cmdBuf.read(h);
-
-                    setScissor(_hPass, x, y, w, h);
-                }
-                break;
-            case CommandBuffer::record_set_vertex_buffer:
-                {
-                    BufferHandle buf;
-                    cmdBuf.read(buf);
-
-                    setVertexBuffer(_hPass, buf);
-                }
-                break;
-            case CommandBuffer::record_set_index_buffer:
-                {
-                    BufferHandle buf;
-                    cmdBuf.read(buf);
-
-                    uint32_t offset;
-                    cmdBuf.read(offset);
-
-                    IndexType t;
-                    cmdBuf.read(t);
-
-                    setIndexBuffer(_hPass, buf, offset, t);
-                }
-                break;
-            case CommandBuffer::record_fill_buffer:
-                {
-                    BufferHandle buf;
-                    cmdBuf.read(buf);
-
-                    uint32_t val;
-                    cmdBuf.read(val);
-
-                    fillBuffer(_hPass, buf, val);
-                }
-                break;
-            case CommandBuffer::record_dispatch:
-                {
-                    uint32_t x;
-                    cmdBuf.read(x);
-
-                    uint32_t y;
-                    cmdBuf.read(y);
-
-                    uint32_t z;
-                    cmdBuf.read(z);
-
-                    dispatch(_hPass, x, y, z);
-                }
-                break;
-            case CommandBuffer::record_draw:
-            {
-                    uint32_t vertexCount;
-                    cmdBuf.read(vertexCount);
-
-                    uint32_t instanceCount;
-                    cmdBuf.read(instanceCount);
-
-                    uint32_t firstVertex;
-                    cmdBuf.read(firstVertex);
-
-                    uint32_t firstInstance;
-                    cmdBuf.read(firstInstance);
-
-                    draw(_hPass, vertexCount, instanceCount, firstVertex, firstInstance);
-                }
-                break;
-            case CommandBuffer::record_draw_indexed:
-                {
-                    uint32_t indexCount;
-                    cmdBuf.read(indexCount);
-
-                    uint32_t instanceCount;
-                    cmdBuf.read(instanceCount);
-
-                    uint32_t firstIndex;
-                    cmdBuf.read(firstIndex);
-
-                    uint32_t vertexOffset;
-                    cmdBuf.read(vertexOffset);
-
-                    uint32_t firstInstance;
-                    cmdBuf.read(firstInstance);
-
-                    drawIndexed(_hPass, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
-                }
-                break;
-            case CommandBuffer::record_draw_mesh_task_indirect:
-                {
-                    BufferHandle buf;
-                    cmdBuf.read(buf);
-
-                    uint32_t offset;
-                    cmdBuf.read(offset);
-
-                    uint32_t drawCount;
-                    cmdBuf.read(drawCount);
-
-                    uint32_t stride;
-                    cmdBuf.read(stride);
-
-                    drawMeshTaskIndirect(_hPass, buf, offset, drawCount, stride);
-                }
-                break;
-            case CommandBuffer::record_end:
-                {
-                    cmdBuf.skip<uint64_t>();
-                    done = true;
-                }
-                break;
-            case CommandBuffer::end:
-                {
-                    done = true;
-                }
-                break;
-            default:
-                assert(0);
-                break;
             }
 
-        } while (!done);
+        } while (cmd != nullptr && !done);
     }
 
     void RHIContext_vk::initTracy(VkQueue _queue, uint32_t _familyIdx)
@@ -4868,54 +4858,69 @@ namespace kage { namespace vk
 
     void FrameRecCmds::init()
     {
-        m_cmdBuffer.init(kRendererCommandBufferInitSize);
         start();
     }
 
-    void FrameRecCmds::record(const PassHandle _hPass, const Memory* _mem)
+    void FrameRecCmds::record(
+        const PassHandle _hPass
+        , const CommandQueue& queue
+        , uint32_t _offset
+        , uint32_t _size
+    )
     {
-        RecCmdInfo rec;
-        rec.startPos = m_cmdBuffer.getPos();
-        rec.size = _mem->size;
+        RecCmdRange rec;
+        rec.startIdx = m_cmdQueue.getIdx();
+        rec.count = _size;
 
-        m_cmdBuffer.write(_mem->data, _mem->size);
+        m_cmdQueue.push( queue, _offset, _size );
 
-        rec.endPos = m_cmdBuffer.getPos();
+        rec.endIdx = m_cmdQueue.getIdx();
 
-        BX_ASSERT(rec.endPos - rec.startPos == rec.size
+        BX_ASSERT(rec.endIdx - rec.startIdx == rec.count
             , "The recorded size is mis-matched. endPos - startPos(%d) != size(%d)"
-            , rec.endPos - rec.startPos
-            , rec.size
+            , rec.endIdx - rec.startIdx
+            , rec.count
         );
 
-        // insert the record, m_recCmdInfo will be clear every frame
-        m_recCmdInfo.insert({ _hPass, rec });
+        m_recCmdRange.insert({ _hPass, rec });
     }
 
-    CommandBuffer& FrameRecCmds::getCmd(const PassHandle _hPass)
+    uint32_t FrameRecCmds::getRecCount(const PassHandle _hPass) const
     {
-        const RecCmdInfoMap::iterator it = m_recCmdInfo.find(_hPass);
+        const RecCmdRangeMap::const_iterator it = m_recCmdRange.find(_hPass);
 
-        BX_ASSERT(it != m_recCmdInfo.end()
+        BX_ASSERT(it != m_recCmdRange.end()
             , "The pass handle is not found in the recorded commands."
         );
 
-        const RecCmdInfo& rec = it->second;
+        const RecCmdRange& rec = it->second;
+        return rec.count;
+    }
 
-        m_cmdBuffer.seek(rec.startPos);
+    CommandQueue& FrameRecCmds::actPass(const PassHandle _hPass)
+    {
+        const RecCmdRangeMap::iterator it = m_recCmdRange.find(_hPass);
 
-        return m_cmdBuffer;
+        BX_ASSERT(it != m_recCmdRange.end()
+            , "The pass handle is not found in the recorded commands."
+        );
+
+        const RecCmdRange& rec = it->second;
+
+        m_cmdQueue.setIdx(rec.startIdx);
+
+        return m_cmdQueue;
     }
 
     void FrameRecCmds::finish()
     {
-        m_cmdBuffer.finish();
+        m_cmdQueue.finish();
     }
 
     void FrameRecCmds::start()
     {
-        m_recCmdInfo.clear();
-        m_cmdBuffer.start();
+        m_recCmdRange.clear();
+        m_cmdQueue.start();
     }
 
 } // namespace vk

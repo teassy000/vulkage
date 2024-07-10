@@ -64,8 +64,8 @@ namespace
             createBuffers();
             createImages();
             createPasses();
-            postSetting();
-            
+
+            kage::setPresentImage(m_ui.colorOutAlias);
         }
 
         bool update() override
@@ -411,13 +411,6 @@ namespace
 
                 prepareUI(m_ui, uiColorIn, uiDepthIn, 1.3f);
             }
-        }
-
-        void postSetting()
-        {
-            kage::setPresentImage(m_ui.colorOutAlias);
-
-            kage::bake();
         }
 
         void refreshData()

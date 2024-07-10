@@ -73,8 +73,8 @@ namespace kage
 
     void updateImage2D(
         const ImageHandle _hImg
-        , uint16_t _width
-        , uint16_t _height
+        , uint32_t _width
+        , uint32_t _height
         , const Memory* _mem = nullptr
     );
 
@@ -207,7 +207,6 @@ namespace kage
     // basic functions
     bool init(kage::Init _config = {});
 
-    void bake();
     void render();
     void reset(uint32_t _width, uint32_t _height, uint32_t _reset);
     void shutdown();

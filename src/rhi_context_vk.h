@@ -334,26 +334,27 @@ namespace kage { namespace vk
 
     struct FrameRecCmds
     {
-        struct RecCmdInfo
+        struct RecCmdRange
         {
-            uint32_t startPos;
-            uint32_t endPos;
-            uint32_t size;
+            uint32_t startIdx;
+            uint32_t endIdx;
+            uint32_t count;
         };
 
         void init();
 
-        void record(const PassHandle _hPass, const Memory* _mem);
+        void record(const PassHandle _hPass, const CommandQueue& queue, uint32_t _offset, uint32_t _size);
 
-        CommandBuffer& getCmd(const PassHandle _hPass);
+        uint32_t getRecCount(const PassHandle _hPass) const;
+        CommandQueue& actPass(const PassHandle _hPass);
 
         void finish();
         void start();
 
-        using  RecCmdInfoMap = stl::unordered_map<PassHandle, RecCmdInfo>;
-        RecCmdInfoMap m_recCmdInfo;
+        using  RecCmdRangeMap = stl::unordered_map<PassHandle, RecCmdRange>;
+        RecCmdRangeMap m_recCmdRange;
 
-        CommandBuffer m_cmdBuffer;
+        CommandQueue m_cmdQueue;
     };
 
     struct RHIContext_vk : public RHIContext
@@ -435,7 +436,12 @@ namespace kage { namespace vk
         void setName(Handle _h, const char* _name, uint32_t _len) override;
 
         // rendering command start
-        void setRecord(PassHandle _hPass, const Memory* _mem) override;
+        void setRecord(
+            PassHandle _hPass
+            , const CommandQueue& _cq
+            , const uint32_t _offset
+            , const uint32_t _size
+        ) override;
 
         void setConstants(
             PassHandle _hPass
@@ -598,7 +604,7 @@ namespace kage { namespace vk
         void release(Ty& _object);
 
         // rec
-        void execRecCmds(PassHandle _hPass);
+        void execRecQueue(PassHandle _hPass);
         stl::vector<Binding> m_descSets;
 
         ContinuousMap<uint16_t, Buffer_vk>      m_bufferContainer;
