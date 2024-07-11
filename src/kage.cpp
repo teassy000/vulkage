@@ -411,6 +411,8 @@ namespace kage
         bool isRenderGraphDataDirty() const { return m_isRenderGraphDataDirty; }
 
         double getPassTime(const PassHandle _hPass);
+        uint64_t getPassClipping(const PassHandle _hPass);
+        double getGpuTime();
 
         // Render API Begin
         void startRec(const PassHandle _hPass);
@@ -2090,6 +2092,16 @@ namespace kage
         return m_rhiContext->getPassTime(_hPass);
     }
 
+    uint64_t Context::getPassClipping(const PassHandle _hPass)
+    {
+        return m_rhiContext->getPassClipping(_hPass);
+    }
+
+    double Context::getGpuTime()
+    {
+        return m_rhiContext->getGPUTime();
+    }
+
     void Context::startRec(const PassHandle _hPass)
     {
         if (isValid(m_recordingPass))
@@ -2619,6 +2631,16 @@ namespace kage
     double getPassTime(const PassHandle _hPass)
     {
         return s_ctx->getPassTime(_hPass);
+    }
+
+    double getGpuTime()
+    {
+        return s_ctx->getGpuTime();
+    }
+
+    uint64_t getPassClipping(const PassHandle _hPass)
+    {
+        return s_ctx->getPassClipping(_hPass);
     }
 
 } // namespace kage

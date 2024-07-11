@@ -112,6 +112,13 @@ namespace
             memcpy_s(memTransform->data, memTransform->size, &m_demoData.trans, sizeof(TransformData));
             kage::updateBuffer(m_transformBuf, memTransform);
 
+            m_demoData.input.width = (float)m_width;
+            m_demoData.input.height = (float)m_height;
+            m_demoData.input.mouseButtons.left = m_mouseState.m_buttons[entry::MouseButton::Left];
+            m_demoData.input.mouseButtons.right = m_mouseState.m_buttons[entry::MouseButton::Right];
+            m_demoData.input.mousePosx = (float)m_mouseState.m_mx;
+            m_demoData.input.mousePosy = (float)m_mouseState.m_my;
+
             updateUI(m_ui, m_demoData.input, m_demoData.renderOptions, m_demoData.profiling, m_demoData.logic);
 
             // render
@@ -119,13 +126,24 @@ namespace
 
             static float avgCpuTime = 0.0f;
             avgCpuTime = avgCpuTime * 0.95f + (deltaTimeMS) * 0.05f;
+
+            static float avgGpuTime = 0.0f;
+            avgGpuTime = avgGpuTime * 0.95f + (float)kage::getGpuTime() * 0.05f;
             m_demoData.profiling.avgCpuTime = avgCpuTime;
+            m_demoData.profiling.avgGpuTime = avgGpuTime;
             m_demoData.profiling.cullEarlyTime = (float)kage::getPassTime(m_culling.pass);
             m_demoData.profiling.drawEarlyTime = (float)kage::getPassTime(m_meshShading.pass);
             m_demoData.profiling.cullLateTime = (float)kage::getPassTime(m_cullingLate.pass);
             m_demoData.profiling.drawLateTime = (float)kage::getPassTime(m_meshShadingLate.pass);
             m_demoData.profiling.pyramidTime = (float)kage::getPassTime(m_pyramid.pass);
             m_demoData.profiling.uiTime = (float)kage::getPassTime(m_ui.pass);
+
+            m_demoData.profiling.triangleEarlyCount = (float)(kage::getPassClipping(m_meshShading.pass));
+            m_demoData.profiling.triangleLateCount = (float)(kage::getPassClipping(m_meshShadingLate.pass));
+            m_demoData.profiling.triangleCount = m_demoData.profiling.triangleEarlyCount + m_demoData.profiling.triangleLateCount;
+
+            m_demoData.profiling.meshletCount = (uint32_t)m_scene.geometry.meshlets.size();
+            m_demoData.profiling.primitiveCount = m_demoData.profiling.meshletCount / 3;
 
             KG_FrameMark;
 

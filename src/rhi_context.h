@@ -168,6 +168,8 @@ namespace kage
         ) {};
 
         virtual double getPassTime(const PassHandle _hPass) { return 0.0; }
+        virtual double getGPUTime() { return 0.0; }
+        virtual uint64_t getPassClipping(const PassHandle _hPass) { return 0; }
 
         void parseOp();
 

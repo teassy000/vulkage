@@ -342,6 +342,12 @@ namespace kage
         uint32_t presentMipLevel{ 0 };
     };
 
+    struct RHIProfileData
+    {
+        uint64_t gpuTime{ 0 };
+        
+    };
+
     enum class HandleType : uint16_t
     {
         unknown = 0,

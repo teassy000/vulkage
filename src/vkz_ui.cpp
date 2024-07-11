@@ -245,17 +245,14 @@ void updateImGuiContent(DebugRenderOptionsData& _rod, const DebugProfilingData& 
 
     ImGui::Text("ui: [%.3f]ms", _pd.uiTime);
 
-
     if (ImGui::TreeNode("Static Data:"))
     {
         ImGui::Text("primitives : [%d]", _pd.primitiveCount);
         ImGui::Text("meshlets: [%d]", _pd.meshletCount);
-        ImGui::Text("tri E: [%.3f]M", _pd.triangleEarlyCount);
-        ImGui::Text("tri L: [%.3f]M", _pd.triangleLateCount);
-        ImGui::Text("triangles: [%.3f]M", _pd.triangleCount);
-        ImGui::Text("tri/sec: [%.2f]B", _pd.trianglesPerSec);
-        ImGui::Text("draw/sec: [%.2f]M", 1000.f / _pd.avgCpuTime * _pd.objCount * 1e-6);
-        ImGui::Text("frame: [%.2f]fps", 1000.f / _pd.avgCpuTime);
+        ImGui::Text("tri E: [%.3f]M", _pd.triangleEarlyCount * 1e-6);
+        ImGui::Text("tri L: [%.3f]M", _pd.triangleLateCount * 1e-6);
+        ImGui::Text("triangles: [%.3f]M", _pd.triangleCount * 1e-6);
+        ImGui::Text("tri/sec: [%.2f]B", (1000.f / _pd.avgCpuTime) * _pd.triangleCount * 1e-3);
         ImGui::TreePop();
     }
 

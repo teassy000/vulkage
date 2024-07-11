@@ -422,6 +422,9 @@ namespace kage { namespace vk
         void dispatchBarriers();
 
         double getPassTime(const PassHandle _hPass) override;
+        double getGPUTime() override;
+        uint64_t getPassClipping(const PassHandle _hPass) override;
+
 
         void createShader(bx::MemoryReader& _reader) override;
         void createProgram(bx::MemoryReader& _reader) override;
@@ -674,9 +677,11 @@ namespace kage { namespace vk
         VkQueryPool m_queryPoolTimeStamp;
         uint32_t m_queryTimeStampCount{ 0 };
         stl::unordered_map<uint16_t, double> m_passTime;
+        double m_gpuTime{ 0.0 };
 
         VkQueryPool m_queryPoolStatistics;
         uint32_t m_queryStatisticsCount{ 0 };
+        stl::unordered_map<uint16_t, uint64_t> m_passStatistics;
 
         FrameRecCmds m_frameRecCmds;
         VkDebugReportCallbackEXT m_debugCallback;

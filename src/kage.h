@@ -213,5 +213,6 @@ namespace kage
 
     // naive profiling data
     double getPassTime(const PassHandle _hPass);
-
+    double getGpuTime();
+    uint64_t getPassClipping(const PassHandle _hPass);
 }

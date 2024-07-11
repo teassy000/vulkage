@@ -2,9 +2,7 @@
 
 struct DebugProfilingData
 {
-    float cpuTime;
     float avgCpuTime;
-    float gpuTime;
     float avgGpuTime;
     float cullEarlyTime;
     float cullLateTime;
@@ -12,17 +10,14 @@ struct DebugProfilingData
     float drawLateTime;
     float pyramidTime;
     float uiTime;
-    float waitTime;
 
     uint32_t primitiveCount;
     uint32_t meshletCount;
-    uint32_t objCount;
 
     // use Million/Billion as units
     float triangleCount;
     float triangleEarlyCount;
     float triangleLateCount;
-    float trianglesPerSec;
 };
 
 struct DebugRenderOptionsData

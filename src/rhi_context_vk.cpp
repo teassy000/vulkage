@@ -1582,9 +1582,10 @@ namespace kage { namespace vk
         {
             KG_VkZoneC(m_tracyVkCtx, m_cmdBuffer, "main command buffer", Color::blue);
 
-            vkCmdResetQueryPool(m_cmdBuffer, m_queryPoolTimeStamp, 0, m_queryTimeStampCount);
+            vkCmdResetQueryPool(m_cmdBuffer, m_queryPoolStatistics, 0, m_queryStatisticsCount);
 
-            vkCmdWriteTimestamp(m_cmdBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, m_queryPoolTimeStamp, queryIdx);
+            vkCmdResetQueryPool(m_cmdBuffer, m_queryPoolTimeStamp, 0, m_queryTimeStampCount);
+            vkCmdWriteTimestamp(m_cmdBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, m_queryPoolTimeStamp, 0);
             
             // render passes
             for (size_t ii = 0; ii < m_passContainer.size(); ++ii)
@@ -1595,6 +1596,8 @@ namespace kage { namespace vk
                 KG_VkZoneTransient(m_tracyVkCtx, var, m_cmdBuffer, pn);
                 message(info, "==== start pass : %s", pn);
 
+                vkCmdBeginQuery(m_cmdBuffer, m_queryPoolStatistics, (uint32_t)ii, 0);
+
                 createBarriers(passId);
 
                 executePass(passId);
@@ -1602,8 +1605,10 @@ namespace kage { namespace vk
                 // will dispatch barriers internally
                 flushWriteBarriers(passId);
 
+                vkCmdEndQuery(m_cmdBuffer, m_queryPoolStatistics, (uint32_t)ii);
+
                 // write time stamp
-                vkCmdWriteTimestamp(m_cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, m_queryPoolTimeStamp, ++queryIdx);
+                vkCmdWriteTimestamp(m_cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, m_queryPoolTimeStamp, (uint32_t)(ii + 1));
                 message(info, "==== end pass : %s", pn);
             }
 
@@ -1626,19 +1631,44 @@ namespace kage { namespace vk
             VK_CHECK(vkDeviceWaitIdle(m_device)); // TODO: a fence here?
         }
 
-        // set the time stamp data
-        m_passTime.clear();
-        stl::vector<uint64_t> timeStamps(queryIdx);
-        VK_CHECK(vkGetQueryPoolResults(m_device, m_queryPoolTimeStamp, 0, (uint32_t)timeStamps.size(), sizeof(uint64_t) * timeStamps.size(), timeStamps.data(), sizeof(uint64_t), VK_QUERY_RESULT_64_BIT));
-        assert(queryIdx == m_passContainer.size());
-        for (uint32_t ii = 1; ii < queryIdx; ++ii)
+        // set the statistic data
+
+        stl::vector<uint64_t> statistics(m_passContainer.size());
+        VK_CHECK(vkGetQueryPoolResults(
+            m_device
+            , m_queryPoolStatistics
+            , 0
+            , (uint32_t)statistics.size()
+            , sizeof(uint64_t) * statistics.size()
+            , statistics.data()
+            , sizeof(uint64_t)
+            , VK_QUERY_RESULT_64_BIT
+        ));
+        m_passStatistics.clear();
+        for (uint32_t ii = 0; ii < m_passContainer.size(); ++ii)
         {
-            uint16_t passId = m_passContainer.getIdAt(ii - 1);
-            double timeStart = double(timeStamps[ii - 1]) * m_phyDeviceProps.limits.timestampPeriod * 1e-6;
-            double timeEnd = double(timeStamps[ii]) * m_phyDeviceProps.limits.timestampPeriod * 1e-6;
+            uint16_t passId = m_passContainer.getIdAt(ii);
+            uint64_t clippedCount = statistics[ii];
+
+            m_passStatistics.insert({ passId, clippedCount });
+        }
+
+
+        // set the time stamp data
+        stl::vector<uint64_t> timeStamps(m_passContainer.size() + 1);
+        VK_CHECK(vkGetQueryPoolResults(m_device, m_queryPoolTimeStamp, 0, (uint32_t)timeStamps.size(), sizeof(uint64_t) * timeStamps.size(), timeStamps.data(), sizeof(uint64_t), VK_QUERY_RESULT_64_BIT));
+        m_passTime.clear();
+        for (uint32_t ii = 0; ii < timeStamps.size() - 1; ++ii)
+        {
+            uint16_t passId = m_passContainer.getIdAt(ii);
+            double timeStart = double(timeStamps[ii]) * m_phyDeviceProps.limits.timestampPeriod * 1e-6;
+            double timeEnd = double(timeStamps[ii+1]) * m_phyDeviceProps.limits.timestampPeriod * 1e-6;
 
             m_passTime.insert({ passId, timeEnd - timeStart });
         }
+        double gpuTimeStart = double(timeStamps[0]) * m_phyDeviceProps.limits.timestampPeriod * 1e-6;
+        double gpuTimeEnd = double(timeStamps.back()) * m_phyDeviceProps.limits.timestampPeriod * 1e-6;
+        m_gpuTime = gpuTimeEnd - gpuTimeStart;
 
         return true;
     }
@@ -3507,6 +3537,21 @@ namespace kage { namespace vk
         if (m_passTime.end() == it)
         {
             return 0.0;
+        }
+        return it->second;
+    }
+
+    double RHIContext_vk::getGPUTime()
+    {
+        return m_gpuTime;
+    }
+
+    uint64_t RHIContext_vk::getPassClipping(const PassHandle _hPass)
+    {
+        auto it = m_passStatistics.find(_hPass.id);
+        if (m_passStatistics.end() == it)
+        {
+            return 0;
         }
         return it->second;
     }
