@@ -2,7 +2,7 @@
 
 This project was setup by following the [mesh shading implementation](https://www.youtube.com/playlist?list=PL0JVLUVCkk-l7CWCn3-cdftR0oajugYvd) streaming via Arseny Kapoukine
 
-Now mostly following the **bgfx** style with my own rough understanding to do the abstraction.
+Now mostly follow the **bgfx** style with my own rough understanding to do the abstraction.
 
 It is a playground to understand modern graphics programming better.
 
@@ -44,13 +44,12 @@ Supports:
 - frame graph
   - sort and clip unnecessary passes and resources based on the contribution to the final result.
   - auto barrier: intend to record the resource state and transform states and layouts atomically.
-    - == todo ==: cover the custom render func situation
-  - auto alias: alias transition buffers if they don't overlap in the resource lifetime. 
-    - == todo ==: implement for images
+  - auto alias: alias transition buffers if their lifetime is not overlapped. (Note: images are not been processed yet because a more specific condition required)
+    
 - gfx api abstraction
   - vulkan
 - profiling
-  - based on tracy
+  - based on Tracy
 
 ------------
 
