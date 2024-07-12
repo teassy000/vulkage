@@ -252,7 +252,7 @@ void updateImGuiContent(DebugRenderOptionsData& _rod, const DebugProfilingData& 
         ImGui::Text("tri E: [%.3f]M", _pd.triangleEarlyCount * 1e-6);
         ImGui::Text("tri L: [%.3f]M", _pd.triangleLateCount * 1e-6);
         ImGui::Text("triangles: [%.3f]M", _pd.triangleCount * 1e-6);
-        ImGui::Text("tri/sec: [%.2f]B", (1000.f / _pd.avgCpuTime) * _pd.triangleCount * 1e-3);
+        ImGui::Text("tri/sec: [%.2f]B", (1000.f / _pd.avgCpuTime) * _pd.triangleCount * 1e-9);
         ImGui::TreePop();
     }
 

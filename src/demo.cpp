@@ -143,7 +143,7 @@ namespace
             m_demoData.profiling.triangleCount = m_demoData.profiling.triangleEarlyCount + m_demoData.profiling.triangleLateCount;
 
             m_demoData.profiling.meshletCount = (uint32_t)m_scene.geometry.meshlets.size();
-            m_demoData.profiling.primitiveCount = m_demoData.profiling.meshletCount / 3;
+            m_demoData.profiling.primitiveCount = (uint32_t)(m_scene.geometry.indices.size()) / 3; // include all lods
 
             KG_FrameMark;
 
