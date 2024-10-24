@@ -27,3 +27,6 @@
 [submodule "externs/tracy"]
 	path = externs/tracy
 	url = https://github.com/wolfpld/tracy.git
+[submodule "externs/metis"]
+	path = externs/metis
+	url = https://github.com/KarypisLab/METIS.git
