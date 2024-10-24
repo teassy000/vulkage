@@ -9,10 +9,12 @@ GLM_DIR 		= 	path.join(EXT_DIR, "glm")
 FAST_OBJ_DIR 	= 	path.join(EXT_DIR, "fast_obj")
 IMGUI_DIR 		= 	path.join(EXT_DIR, "imgui")
 MESH_OPT_DIR 	= 	path.join(EXT_DIR, "meshoptimizer")
+METIS_DIR 		= 	path.join(EXT_DIR, "metis")
 TRACY_DIR 		= 	path.join(EXT_DIR, "tracy")
 VOLK_DIR 		= 	path.join(EXT_DIR, "volk")
 TINYSTL_DIR 	= 	path.join(EXT_DIR, "tinystl")
 BGFX_COMMON_DIR = 	path.join(EXT_DIR, "bgfx_common")
+
 
 VK_SDK_DIR 		= os.getenv("VULKAN_SDK")
 if VK_SDK_DIR == nil then
@@ -128,10 +130,11 @@ project "vulkage"
 		path.join(TRACY_DIR,	"public"),
 		path.join(BGFX_COMMON_DIR, ""),
 
-		path.join(VOLK_DIR,	 	""),
+		path.join(VOLK_DIR,		""),
 		path.join(IMGUI_DIR,	""),
 		path.join(FAST_OBJ_DIR,	""),
-		path.join(GLM_DIR,	 	""),
+		path.join(GLM_DIR,		""),
+		path.join(METIS_DIR,	"include"),
 
 		path.join(VK_SDK_DIR,	"Include"),
 		path.join(KTX_SDK_DIR,	"include"),
@@ -164,6 +167,7 @@ project "vulkage"
 		"fast_obj",
 		"tracy",
 		"bgfx_common",
+		path.join(METIS_DIR, "lib", "metis.lib"),
 		path.join(VK_SDK_DIR, "Lib", "vulkan-1.lib"),
 		path.join(KTX_SDK_DIR, "lib", "ktx.lib"),
 	}
