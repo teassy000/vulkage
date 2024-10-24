@@ -221,14 +221,14 @@ struct FreeCamera
     {
         m_pos.x = 0.0f;
         m_pos.y = 0.0f;
-        m_pos.z = -10.0f;
+        m_pos.z = -1.0f;
 
-        m_yaw = 0.001f;
-        m_pitch = 0.001f;
+        m_yaw = 0.0f;
+        m_pitch = 0.0f;
 
-        m_up = { 0.0f, 1.0f, 0.0f };
+        m_up = { 0.0f, 1.0f, 0.0f }; // y up
 
-        m_mouseSpeed = 0.01f;
+        m_mouseSpeed = 0.03f;
         m_gamepadSpeed = 0.01f;
         m_moveSpeed = 0.01f;
         m_keys = 0;
@@ -291,4 +291,14 @@ void freeCameraSetKeyState(uint8_t _key, bool _down)
 bx::Vec3 freeCameraGetPos()
 {
     return s_freeCamera->m_pos;
+}
+
+bx::Vec3 freeCameraGetFront()
+{
+    return s_freeCamera->m_front;
+}
+
+bx::Vec3 freeCameraGetUp()
+{
+    return s_freeCamera->m_up;
 }

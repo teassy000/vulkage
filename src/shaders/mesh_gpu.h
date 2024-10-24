@@ -122,3 +122,19 @@ struct MeshDrawCommand
     uint    local_y;
     uint    local_z;
 };
+
+// terrain
+struct TerrainVertex
+{
+    float   vx, vy, vz;
+    float   tu, tv;
+};
+
+
+struct TerrainConstants
+{
+    float bx, by, bz; // base pos
+    float sh, sv; // size horizon, vertical
+    uint w, h; // image size
+    uint tcw, tch; // tile count
+};

@@ -34,8 +34,8 @@ struct DebugRenderOptionsData
 
 struct DebugLogicData
 {
-    glm::vec3 cameraPos;
-    glm::vec3 cameraFront;
+    float posX, posY, posZ;
+    float frontX, frontY, frontZ;
 };
 
 struct UIInput

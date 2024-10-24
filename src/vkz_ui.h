@@ -2,7 +2,7 @@
 
 #include "kage.h"
 #include "uidata.h"
-#include "kage_math.h"
+
 
 struct UIRendering
 {

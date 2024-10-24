@@ -4,7 +4,7 @@
 #include "common.h"
 #include <ktx.h>
 
-const kage::ImageHandle loadTextureFromFile(const char* _name, const char* _path)
+const kage::ImageHandle loadKtxFromFile(const char* _name, const char* _path, ktxTextureResoluton& _outRes /*= {}*/ )
 {
     assert(_path);
 
@@ -31,7 +31,12 @@ const kage::ImageHandle loadTextureFromFile(const char* _name, const char* _path
 
     kage::ImageHandle hImg = kage::registTexture(_name, desc, mem);
 
+    _outRes.width = ktxTex->baseWidth;
+    _outRes.height = ktxTex->baseHeight;
+    _outRes.depth = ktxTex->baseDepth;
+
     ktxTexture_Destroy(ktxTex);
 
     return hImg;
 }
+

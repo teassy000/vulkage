@@ -66,8 +66,8 @@ void recordUI(const UIRendering& _ui)
         {
             const ImDrawCmd& cmd = imCmdList->CmdBuffer[j];
 
-            uint32_t x = glm::max((int32_t)(cmd.ClipRect.x), 0);
-            uint32_t y = glm::max((int32_t)(cmd.ClipRect.y), 0);
+            uint32_t x = bx::max((int32_t)(cmd.ClipRect.x), 0);
+            uint32_t y = bx::max((int32_t)(cmd.ClipRect.y), 0);
             uint32_t w = (uint32_t)(cmd.ClipRect.z - cmd.ClipRect.x);
             uint32_t h = (uint32_t)(cmd.ClipRect.w - cmd.ClipRect.y);
 
@@ -268,10 +268,13 @@ void updateImGuiContent(DebugRenderOptionsData& _rod, const DebugProfilingData& 
 
     if (ImGui::TreeNode("camera:"))
     {
-        ImGui::Text("pos: %.2f, %.2f, %.2f", _ld.cameraPos.x, _ld.cameraPos.y, _ld.cameraPos.z);
-        ImGui::Text("dir: %.2f, %.2f, %.2f", _ld.cameraFront.x, _ld.cameraFront.y, _ld.cameraFront.z);
+        ImGui::Text("pos: %.2f, %.2f, %.2f", _ld.posX, _ld.posY, _ld.posZ);
+        ImGui::Text("dir: %.2f, %.2f, %.2f", _ld.frontX, _ld.frontY, _ld.frontZ);
         ImGui::TreePop();
     }
+
+    ImGui::Text("pos: %.2f, %.2f, %.2f", _ld.posX, _ld.posY, _ld.posZ);
+    ImGui::Text("dir: %.2f, %.2f, %.2f", _ld.frontX, _ld.frontY, _ld.frontZ);
 
     ImGui::End();
 }

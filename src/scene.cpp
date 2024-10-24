@@ -13,7 +13,7 @@ enum class Scene_Enum : uint64_t
     CornellBox,
 };
 
-static Scene_Enum se = Scene_Enum::MatrixScene;
+static Scene_Enum se = Scene_Enum::SingleMeshScene;
 
 void CreateRandomScene(Scene& scene)
 {

@@ -119,6 +119,16 @@ namespace
             m_demoData.input.mousePosx = (float)m_mouseState.m_mx;
             m_demoData.input.mousePosy = (float)m_mouseState.m_my;
 
+            bx::Vec3 front = freeCameraGetFront();
+            bx::Vec3 pos = freeCameraGetPos();
+
+            m_demoData.logic.posX = pos.x;
+            m_demoData.logic.posY = pos.y;
+            m_demoData.logic.posZ = pos.z;
+            m_demoData.logic.frontX = front.x;
+            m_demoData.logic.frontY = front.y;
+            m_demoData.logic.frontZ = front.z;
+
             updateUI(m_ui, m_demoData.input, m_demoData.renderOptions, m_demoData.profiling, m_demoData.logic);
 
             // render
@@ -160,7 +170,7 @@ namespace
 
         bool initScene()
         {
-            const char* pathes[] = { "./data/kitten.obj" };
+            const char* pathes[] = { "./data/plane.obj" };
             bool lmr = loadScene(m_scene, pathes, COUNTOF(pathes), m_supportMeshShading);
             return lmr;
         }
