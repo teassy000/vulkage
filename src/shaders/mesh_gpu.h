@@ -3,6 +3,8 @@
 
 #define DEBUG_MESHLET 1
 
+#define SEAMLESS_LOD 1
+
 struct Vertex
 {
     float       vx, vy, vz;
@@ -80,6 +82,24 @@ struct Mesh
 
     float lodDistance[8];
     MeshLod lods[8];
+    MeshLod seamlessLod;
+};
+
+struct LodBounds
+{
+    vec3 center;
+    float radius;
+    float error;
+};
+
+struct Cluster
+{
+    LodBounds self;
+    LodBounds parent;
+
+    uint dataOffset;
+    uint8_t triangleCount;
+    uint8_t vertexCount;
 };
 
 // Instances

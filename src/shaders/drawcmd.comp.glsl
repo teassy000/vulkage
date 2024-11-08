@@ -8,7 +8,6 @@
 #include "mesh_gpu.h"
 #include "math.h"
 
-
 layout(local_size_x = TASKGP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
 layout(constant_id = 0) const bool LATE = false;
@@ -77,7 +76,6 @@ void main()
 	visible = visible && (center.z * cull.frustum[3] + abs(center.y) * cull.frustum[2] > -radius);
 	
     visible = visible && (center.z + radius > cull.znear);
-    //visible = visible && (center.z - radius < cull.zfar);
 
     visible = visible || (cull.enableCull == 0);
     
@@ -107,7 +105,12 @@ void main()
         
         float lodDist = log2(max(1, distance(center.xyz, vec3(0)) - radius));
         uint lodIdx = cull.enableLod == 1 ? clamp(int(lodDist), 0, int(mesh.lodCount) - 1) : 0;
+
+#if SEAMLESS_LOD
+        MeshLod lod = mesh.seamlessLod;
+#else
         MeshLod lod = mesh.lods[lodIdx];
+#endif 
 
         if(TASK)
         {

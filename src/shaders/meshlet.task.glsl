@@ -15,7 +15,7 @@
 layout(constant_id = 0) const bool LATE = false;
 layout(constant_id = 1) const bool TASK = false;
 
-#define CULL 1
+#define CULL 0
 
 layout(local_size_x = TASKGP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
@@ -23,6 +23,7 @@ layout(push_constant) uniform block
 {
     Globals globals;
 };
+
 
 // read
 layout(binding = 0) readonly buffer DrawCommands 
@@ -45,10 +46,21 @@ layout(binding = 2) readonly buffer MeshDraws
     MeshDraw meshDraws[];
 };
 
+#if SEAMLESS_LOD
+
+layout(binding = 3) readonly buffer Clusters
+{
+    Cluster clusters[];
+};
+
+#else
+
 layout(binding = 3) readonly buffer Meshlets
 {
     Meshlet meshlets[];
 };
+
+#endif // SEAMLESS_LOD
 
 layout(binding = 6) readonly uniform Transform
 {
@@ -99,16 +111,25 @@ void main()
     uint mvIdx = (TASK ? taskCmds[taskId].meshletVisibilityOffset : meshDraw.meshletVisibilityOffset) + mLocalId;
 
 #if CULL
-    vec3 axis = vec3( int(meshlets[mi].cone_axis[0]) / 127.0, int(meshlets[mi].cone_axis[1]) / 127.0, int(meshlets[mi].cone_axis[2]) / 127.0); 
-    
-    vec3 ori_cone_axis = rotateQuat(axis, meshDraw.orit);
-    vec3 ori_center = rotateQuat(meshlets[mi].center, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
 
+#if SEAMLESS_LOD
+    vec3 axis = vec3(int(clusters[mi].cone_axis[0]) / 127.0, int(clusters[mi].cone_axis[1]) / 127.0, int(clusters[mi].cone_axis[2]) / 127.0);
+    vec3 ori_center = rotateQuat(clusters[mi].center, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
+    float radius = clusters[mi].radius * meshDraw.scale;
+    float cone_cutoff = int(clusters[mi].cone_cutoff) / 127.0;
+#else
+    vec3 axis = vec3(int(meshlets[mi].cone_axis[0]) / 127.0, int(meshlets[mi].cone_axis[1]) / 127.0, int(meshlets[mi].cone_axis[2]) / 127.0);
+    vec3 ori_center = rotateQuat(meshlets[mi].center, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
+    float radius = meshlets[mi].radius * meshDraw.scale;
+    float cone_cutoff = int(meshlets[mi].cone_cutoff) / 127.0;
+#endif // SEAMLESS_LOD
+
+
+    vec3 ori_cone_axis = rotateQuat(axis, meshDraw.orit);
     vec3 cone_axis = normalize(trans.view * vec4(ori_cone_axis, 1.0)).xyz;
     vec3 center = (trans.view * vec4(ori_center, 1.0)).xyz;
 
-    float radius = meshlets[mi].radius * meshDraw.scale;
-    float cone_cutoff = int(meshlets[mi].cone_cutoff) / 127.0;
+
     vec3 cameraPos = trans.cameraPos;
 
     sharedCount = 0;

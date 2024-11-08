@@ -44,4 +44,7 @@ namespace kage
     constexpr unsigned int kCommandBufferInitSize = 4 * 1024; // 4k
 
     constexpr unsigned int kMaxDrawCalls = ((64 << 10) - 1); // 65535
+
+    // rendering config
+    constexpr char kUseSeamlessLod = (char)1;
 }

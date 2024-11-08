@@ -168,6 +168,7 @@ project "vulkage"
 		"tracy",
 		"bgfx_common",
 		path.join(METIS_DIR, "lib", "metis.lib"),
+		path.join(METIS_DIR, "lib", "gklib.lib"),
 		path.join(VK_SDK_DIR, "Lib", "vulkan-1.lib"),
 		path.join(KTX_SDK_DIR, "lib", "ktx.lib"),
 	}

@@ -11,9 +11,9 @@
 #include "math.h"
 
 
-#define LIGHT 0
-#define CULL 1
 
+#define LIGHT 0
+#define CULL 0
 
 layout(local_size_x = MESHGP_SIZE, local_size_y = 1, local_size_z = 1) in;
 layout(triangles, max_vertices= 64, max_primitives = 64) out;
@@ -28,10 +28,21 @@ layout(binding = 2) readonly buffer MeshDraws
     MeshDraw meshDraws[];
 };
 
+#if SEAMLESS_LOD
+
+layout(binding = 3) readonly buffer Clusters
+{
+    Cluster clusters[];
+};
+
+#else
+
 layout(binding = 3) readonly buffer Meshlets
 {
     Meshlet meshlets[];
 };
+
+#endif // SEAMLESS_LOD
 
 layout(binding = 4) readonly buffer MeshletData
 {
@@ -81,12 +92,17 @@ void main()
 
     MeshDraw meshDraw = meshDraws[payload.drawId];
 
-    uint vertexCount = uint(meshlets[mi].vertexCount); 
-    uint triangleCount = uint(meshlets[mi].triangleCount); 
+#if SEAMLESS_LOD
+        uint vertexCount = uint(clusters[mi].vertexCount);
+        uint triangleCount = uint(clusters[mi].triangleCount);
+        uint dataOffset = clusters[mi].dataOffset;
+#else
+        uint vertexCount = uint(meshlets[mi].vertexCount);
+        uint triangleCount = uint(meshlets[mi].triangleCount);
+        uint dataOffset = meshlets[mi].dataOffset;
+#endif
 
-    SetMeshOutputsEXT( vertexCount, triangleCount);
-
-    uint dataOffset = meshlets[mi].dataOffset;
+    SetMeshOutputsEXT(vertexCount, triangleCount);
     uint vertexOffset = dataOffset;
     uint indexOffset = dataOffset + vertexCount;
 
@@ -137,7 +153,7 @@ void main()
 
     for(uint i = ti; i < triangleCount; i += MESHGP_SIZE )
     {
-        uint offset = indexOffset * 4 + i * 3;
+        uint offset = indexOffset * 4 + i * 3; // x4 for uint8_t
 
         uint idx0 = uint(meshletData8[ offset + 0]);
         uint idx1 = uint(meshletData8[ offset + 1]);

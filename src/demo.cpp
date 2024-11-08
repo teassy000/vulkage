@@ -52,7 +52,8 @@ namespace
             
             m_supportMeshShading = kage::checkSupports(kage::VulkanSupportExtension::ext_mesh_shader);
 
-            initScene();
+            
+            initScene(kage::kUseSeamlessLod);
 
             // ui data
             m_demoData.input.width = (float)_width;
@@ -168,11 +169,53 @@ namespace
             return 0;
         }
 
-        bool initScene()
+        bool initScene(bool _seamlessLod)
+        {
+            if (_seamlessLod)
+            {
+                initSceneNanite();
+                return true;
+            }
+            else
+            {
+                const char* pathes[] = { "./data/plane.obj" };
+                bool lmr = loadScene(m_scene, pathes, COUNTOF(pathes), m_supportMeshShading);
+                return lmr;
+            }
+        }
+
+        void CreateSingleMeshScene(Scene& _scene)
+        {
+            uint32_t drawCount = 1;
+            MeshDraw meshDraw;
+
+            Mesh& mesh = _scene.geometry.meshes[0];
+
+            //-- NOTE: simplification for occlusion test
+            meshDraw.pos[0] = 0.f;
+            meshDraw.pos[1] = 0.f;
+            meshDraw.pos[2] = 2.f;
+            meshDraw.scale = 1.f;
+            meshDraw.orit = quat(1, 0, 0, 0);
+            meshDraw.meshIdx = 0;
+            meshDraw.vertexOffset = mesh.vertexOffset;
+            meshDraw.meshletVisibilityOffset = 0;
+
+            uint32_t meshletCount = 0;
+
+            meshletCount = std::max(meshletCount, mesh.seamlessLod.meshletCount); // use the maximum one for current mesh
+
+            _scene.drawCount = 1;
+            _scene.drawDistance = 100.f;
+            _scene.meshletVisibilityCount = meshletCount;
+            _scene.meshDraws.push_back(meshDraw);
+        }
+
+        void initSceneNanite()
         {
             const char* pathes[] = { "./data/plane.obj" };
-            bool lmr = loadScene(m_scene, pathes, COUNTOF(pathes), m_supportMeshShading);
-            return lmr;
+            loadMeshNanite(m_scene.geometry, pathes[0]);
+            CreateSingleMeshScene(m_scene);
         }
 
         void createBuffers()
@@ -263,14 +306,21 @@ namespace
 
             // meshlet buffer
             {
-                const kage::Memory* memMeshletBuf = kage::alloc((uint32_t)(m_scene.geometry.meshlets.size() * sizeof(Meshlet)));
-                memcpy(memMeshletBuf->data, m_scene.geometry.meshlets.data(), memMeshletBuf->size);
+                size_t sz = (kage::kUseSeamlessLod == 1)
+                    ? m_scene.geometry.clusters.size() * sizeof(Cluster)
+                    : m_scene.geometry.meshlets.size() * sizeof(Meshlet);
+
+                const kage::Memory* memMeshletBuf = kage::alloc((uint32_t)sz);
+                void* srcData = (kage::kUseSeamlessLod == 1)
+                    ? (void*)m_scene.geometry.clusters.data()
+                    : (void*)m_scene.geometry.meshlets.data();
+                memcpy(memMeshletBuf->data, srcData, memMeshletBuf->size);
 
                 kage::BufferDesc meshletBufferDesc;
                 meshletBufferDesc.size = memMeshletBuf->size;
                 meshletBufferDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
                 meshletBufferDesc.memFlags = kage::MemoryPropFlagBits::device_local;
-                m_meshletBuffer = kage::registBuffer("meshlet_buffer", meshletBufferDesc, memMeshletBuf);
+                m_meshletBuffer = kage::registBuffer("meshlet(cluster)_buffer", meshletBufferDesc, memMeshletBuf);
             }
 
             // meshlet data buffer
