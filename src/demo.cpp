@@ -518,12 +518,11 @@ namespace
             m_demoData.drawCull.frustum[2] = frustumY.y;
             m_demoData.drawCull.frustum[3] = frustumY.z;
             m_demoData.drawCull.enableCull = 1;
-            m_demoData.drawCull.enableLod = 1;
+            m_demoData.drawCull.enableLod = kage::kEnableLodCull;
+            m_demoData.drawCull.enableSeamlessLod = kage::kUseSeamlessLod;
             m_demoData.drawCull.enableOcclusion = 1;
             m_demoData.drawCull.enableMeshletOcclusion = 1;
 
-
-            m_demoData.globals.projection = projection;
             m_demoData.globals.zfar = m_scene.drawDistance;
             m_demoData.globals.znear = znear;
             m_demoData.globals.frustum[0] = frustumX.x;

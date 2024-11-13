@@ -10,10 +10,10 @@
 #include "mesh_gpu.h"
 #include "math.h"
 
-
+layout(constant_id = 2) const bool SEAMLESS_LOD = false;
 
 #define LIGHT 0
-#define CULL 0
+#define CULL 1
 
 layout(local_size_x = MESHGP_SIZE, local_size_y = 1, local_size_z = 1) in;
 layout(triangles, max_vertices= 64, max_primitives = 64) out;
@@ -28,21 +28,15 @@ layout(binding = 2) readonly buffer MeshDraws
     MeshDraw meshDraws[];
 };
 
-#if SEAMLESS_LOD
-
 layout(binding = 3) readonly buffer Clusters
 {
     Cluster clusters[];
 };
 
-#else
-
 layout(binding = 3) readonly buffer Meshlets
 {
     Meshlet meshlets[];
 };
-
-#endif // SEAMLESS_LOD
 
 layout(binding = 4) readonly buffer MeshletData
 {
@@ -91,16 +85,24 @@ void main()
     uint mi = payload.meshletIndices[gl_WorkGroupID.x];
 
     MeshDraw meshDraw = meshDraws[payload.drawId];
+    uint vertexCount = 0;
+    uint triangleCount = 0;
+    uint dataOffset = 0;
 
-#if SEAMLESS_LOD
-        uint vertexCount = uint(clusters[mi].vertexCount);
-        uint triangleCount = uint(clusters[mi].triangleCount);
-        uint dataOffset = clusters[mi].dataOffset;
-#else
-        uint vertexCount = uint(meshlets[mi].vertexCount);
-        uint triangleCount = uint(meshlets[mi].triangleCount);
-        uint dataOffset = meshlets[mi].dataOffset;
-#endif
+
+
+    if (SEAMLESS_LOD) 
+    {
+        vertexCount = uint(clusters[mi].vertexCount);
+        triangleCount = uint(clusters[mi].triangleCount);
+        dataOffset = clusters[mi].dataOffset;
+    }
+    else // normal lod
+    {
+        vertexCount = uint(meshlets[mi].vertexCount);
+        triangleCount = uint(meshlets[mi].triangleCount);
+        dataOffset = meshlets[mi].dataOffset;
+    }
 
     SetMeshOutputsEXT(vertexCount, triangleCount);
     uint vertexOffset = dataOffset;
@@ -120,7 +122,7 @@ void main()
         vec3 norm = vec3(int(vertices[vi].nx), int(vertices[vi].ny), int(vertices[vi].nz)) / 127.0 - 1.0;
         vec2 uv = vec2(vertices[vi].tu, vertices[vi].tv);
 
-        vec4 result =  globals.projection * trans.view * vec4(rotateQuat( pos, meshDraw.orit) * meshDraw.scale + meshDraw.pos, 1.0);
+        vec4 result =  trans.proj * trans.view * vec4(rotateQuat( pos, meshDraw.orit) * meshDraw.scale + meshDraw.pos, 1.0);
 
         norm = rotateQuat(norm, meshDraw.orit);
 

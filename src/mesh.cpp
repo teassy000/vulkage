@@ -193,7 +193,8 @@ const size_t kGroupSize = 8;
 const bool kUseLocks = true;
 const bool kUseNormals = true;
 
-const bool kUseMetis = false;
+const bool kUseMetisClusterize = false;
+const bool kUseMetisPartition = true;
 
 
 bool parseObj(const char* _path, std::vector<NaniteVertex>& _vertices, std::vector<uint32_t>& _indices)
@@ -272,6 +273,8 @@ static void clusterizeMetisRec(std::vector<NaniteCluster>& _result, const std::v
             cluster.indices.push_back(_indices[_triidx[i] * 3 + 0]);
             cluster.indices.push_back(_indices[_triidx[i] * 3 + 1]);
             cluster.indices.push_back(_indices[_triidx[i] * 3 + 2]);
+            cluster.triangleCount++;
+
         }
 
         cluster.parent.error = FLT_MAX;
@@ -387,7 +390,7 @@ static std::vector<NaniteCluster> clusterizeMetis(const std::vector<NaniteVertex
 
 static std::vector<NaniteCluster> clusterize(const std::vector<NaniteVertex>& _vertices, const std::vector<uint32_t>& _indices)
 {
-    if (kUseMetis) {
+    if (kUseMetisClusterize) {
         return clusterizeMetis(_vertices, _indices);
     }
 
@@ -460,7 +463,7 @@ static std::vector<NaniteCluster> clusterize(const std::vector<NaniteVertex>& _v
 }
 
 
-static LodBounds calcBounds(const std::vector<NaniteVertex>& _vertices, const std::vector<uint32_t>& _indices, float _err)
+static LodBounds calcBounds(const std::vector<NaniteVertex>& _vertices, const std::vector<uint32_t>& _indices, float _err, uint32_t _lod)
 {
     meshopt_Bounds bounds = meshopt_computeClusterBounds(
         _indices.data()
@@ -474,6 +477,7 @@ static LodBounds calcBounds(const std::vector<NaniteVertex>& _vertices, const st
     ret.center = vec3(bounds.center[0], bounds.center[1], bounds.center[2]);
     ret.radius = bounds.radius;
     ret.error = _err;
+    ret.lod = _lod;
 
     return ret;
 }
@@ -657,7 +661,7 @@ static std::vector<std::vector<int32_t>> partition(
     , const std::vector<uint32_t>& _remap
 )
 {
-    if (kUseMetis)
+    if (kUseMetisPartition)
     {
         return partitionMetis(_clusters, _pending, _remap);
     }
@@ -827,7 +831,7 @@ bool loadMeshNanite(Geometry& _outGeo, const char* _path)
 
     std::vector<NaniteCluster> clusters = clusterize(vertices, indices);
     for (NaniteCluster& c : clusters) {
-        c.self = calcBounds(vertices, c.indices, 0.f);
+        c.self = calcBounds(vertices, c.indices, 0.f, 0);
     }
 
     std::vector<int32_t> pending(clusters.size());
@@ -917,14 +921,15 @@ bool loadMeshNanite(Geometry& _outGeo, const char* _path)
             // calculate merged bounds
             LodBounds mergedBounds = boundsMerge(clusters, groups[ii]);
             mergedBounds.error += err;
+            mergedBounds.lod = depth + 1;
 
             std::vector<NaniteCluster> split = clusterize(vertices, simplified);
 
             // update dag
             for (size_t jj = 0; jj < groups[ii].size(); ++jj)
             {
-                NaniteCluster& cluster = clusters[groups[ii][jj]];
-                cluster.parent = mergedBounds;
+                assert(clusters[groups[ii][jj]].parent.error == FLT_MAX);
+                clusters[groups[ii][jj]].parent = mergedBounds;
             }
 
             for (size_t jj = 0; jj < groups[ii].size(); ++jj) {
@@ -970,7 +975,7 @@ bool loadMeshNanite(Geometry& _outGeo, const char* _path)
 
         for (size_t ii = 0; ii < clusters.size(); ++ii)
         {
-            NaniteCluster& cluster = clusters[ii];
+            const NaniteCluster& cluster = clusters[ii];
             Cluster c;
             c.self = cluster.self;
             c.parent = cluster.parent;

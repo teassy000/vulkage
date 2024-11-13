@@ -14,8 +14,9 @@
 
 layout(constant_id = 0) const bool LATE = false;
 layout(constant_id = 1) const bool TASK = false;
+layout(constant_id = 2) const bool SEAMLESS_LOD = false;
 
-#define CULL 0
+#define CULL 1
 
 layout(local_size_x = TASKGP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
@@ -23,7 +24,6 @@ layout(push_constant) uniform block
 {
     Globals globals;
 };
-
 
 // read
 layout(binding = 0) readonly buffer DrawCommands 
@@ -46,21 +46,15 @@ layout(binding = 2) readonly buffer MeshDraws
     MeshDraw meshDraws[];
 };
 
-#if SEAMLESS_LOD
-
 layout(binding = 3) readonly buffer Clusters
 {
     Cluster clusters[];
 };
 
-#else
-
 layout(binding = 3) readonly buffer Meshlets
 {
     Meshlet meshlets[];
 };
-
-#endif // SEAMLESS_LOD
 
 layout(binding = 6) readonly uniform Transform
 {
@@ -112,64 +106,88 @@ void main()
 
 #if CULL
 
-#if SEAMLESS_LOD
-    vec3 axis = vec3(int(clusters[mi].cone_axis[0]) / 127.0, int(clusters[mi].cone_axis[1]) / 127.0, int(clusters[mi].cone_axis[2]) / 127.0);
-    vec3 ori_center = rotateQuat(clusters[mi].center, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
-    float radius = clusters[mi].radius * meshDraw.scale;
-    float cone_cutoff = int(clusters[mi].cone_cutoff) / 127.0;
-#else
-    vec3 axis = vec3(int(meshlets[mi].cone_axis[0]) / 127.0, int(meshlets[mi].cone_axis[1]) / 127.0, int(meshlets[mi].cone_axis[2]) / 127.0);
-    vec3 ori_center = rotateQuat(meshlets[mi].center, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
-    float radius = meshlets[mi].radius * meshDraw.scale;
-    float cone_cutoff = int(meshlets[mi].cone_cutoff) / 127.0;
-#endif // SEAMLESS_LOD
-
-
-    vec3 ori_cone_axis = rotateQuat(axis, meshDraw.orit);
-    vec3 cone_axis = normalize(trans.view * vec4(ori_cone_axis, 1.0)).xyz;
-    vec3 center = (trans.view * vec4(ori_center, 1.0)).xyz;
-
-
-    vec3 cameraPos = trans.cameraPos;
-
-    sharedCount = 0;
     barrier();
 
     bool skip = false;
     bool visible = (mLocalId < taskCount);
 
-    if(globals.enableMeshletOcclusion == 1)
+    if (globals.enableMeshletOcclusion == 1)
     {
+        // the meshlet visibility is using bit mask
+        // mvIdx in range [0, meshletCount]
+        // mvIdx >> 5 means divide by 32, so we can get the index of the visibility(which is uint32_t)
+        // (1u << (mvIdx & 31) means get the bit index in the uint32_t
         uint mlvBit = (meshletVisibility[mvIdx >> 5] & (1u << (mvIdx & 31)));
         if (!LATE && (mlvBit == 0)) // deny invisible object in early pass
         {
             visible = false;
         }
-        
-        if ( LATE && mlvBit != 0 && lateDrawVisibility == 1)
+
+        if (LATE && mlvBit != 0 && lateDrawVisibility == 1)
         {
             skip = true;
         }
     }
 
-    
-    // meshlet level back face culling, here we culling in the world space
-    visible = visible && !coneCull(ori_center, radius, ori_cone_axis, cone_cutoff, cameraPos);
-    
+
+    float radius = 0.0;
+    vec3 center = vec3(0.0, 0.0, 0.0);
+
+    sharedCount = 0;
+
+    if (SEAMLESS_LOD)
+    {
+        LodBounds p_bounds = clusters[mi].parent;
+        p_bounds.center = rotateQuat(p_bounds.center, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
+        p_bounds.radius = p_bounds.radius * meshDraw.scale;
+
+        LodBounds s_bounds = clusters[mi].self;
+        s_bounds.center = rotateQuat(s_bounds.center, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
+        s_bounds.radius = s_bounds.radius * meshDraw.scale;
+
+        // for debugging
+        vec3 dbg_cp = vec3(0.0, 0.0, 0.0);
+        float dbg_fovy = 60.0;
+        float dbg_znear = 1e-2;
+        float dbg_proj = 1.0 / tan(dbg_fovy * 3.1415926 / 180.0 * 0.5);
+
+        float p_err = boundsError(p_bounds, trans.cameraPos, trans.proj[1][1], dbg_znear);
+        float s_err = boundsError(s_bounds, trans.cameraPos, trans.proj[1][1], dbg_znear);
+
+        radius = s_bounds.radius;
+        center = (trans.view * vec4(s_bounds.center, 1.0)).xyz;
+        //visible = visible && (s_err <= ERROR_THRESHOLD && p_err > ERROR_THRESHOLD);
+        visible = visible && s_bounds.lod == 3;
+    }
+    else // normal lod pipeline
+    {
+        vec3 axis = vec3(int(meshlets[mi].cone_axis[0]) / 127.0, int(meshlets[mi].cone_axis[1]) / 127.0, int(meshlets[mi].cone_axis[2]) / 127.0);
+        vec3 ori_center = rotateQuat(meshlets[mi].center, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
+
+        float cone_cutoff = int(meshlets[mi].cone_cutoff) / 127.0;
+
+        radius = meshlets[mi].radius * meshDraw.scale;
+        center = (trans.view * vec4(ori_center, 1.0)).xyz;
+
+        vec3 ori_cone_axis = rotateQuat(axis, meshDraw.orit);
+        // meshlet level back face culling, here we culling in the world space
+        visible = visible && !coneCull(ori_center, radius, ori_cone_axis, cone_cutoff, trans.cameraPos);
+    }
+
     // frustum culling: left/right/top/bottom
     visible = visible && (center.z * globals.frustum[1] + abs(center.x) * globals.frustum[0] > -radius);
     visible = visible && (center.z * globals.frustum[3] + abs(center.y) * globals.frustum[2] > -radius);
     
     // near culling
-    // note: not going to perform far culling to keep same result with triditional pipeline
+    // note: not perform far culling to keep the same result with the old pipeline
     visible = visible && (center.z + radius > globals.znear);
     
     // occlussion culling
     if(LATE && globals.enableMeshletOcclusion == 1 && visible)
     {
         vec4 aabb;
-        float P00 = globals.projection[0][0];
-        float P11 = globals.projection[1][1];
+        float P00 = trans.proj[0][0];
+        float P11 = trans.proj[1][1];
         if(projectSphere(center.xyz, radius, globals.znear, P00, P11, aabb))
         {
             // the size in the render targetpyramidLevelHeight
@@ -184,7 +202,6 @@ void main()
         }
     }
 
-    //TODO: wondering if bitwise operation which may behaves worse than the `unit` version(which would consume around 32 times memory size)
     if(LATE && globals.enableMeshletOcclusion == 1) 
     {
         if(visible)

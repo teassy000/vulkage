@@ -7,8 +7,6 @@
 // read data to image 
 // build terrain mesh via cs
 
-
-
 const uint32_t kTerrainTileSize = 256;
 
 static uint32_t nextPow2(uint32_t v)

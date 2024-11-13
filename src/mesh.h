@@ -38,7 +38,6 @@ struct alignas(16) Mesh
     uint32_t vertexOffset;
     uint32_t lodCount;
 
-    float lodDistance[8];
     MeshLod lods[8];
     MeshLod seamlessLod;
 };
@@ -48,6 +47,7 @@ struct alignas(16) LodBounds
     vec3 center;
     float radius;
     float error;
+    uint32_t lod;
 };
 
 struct alignas(16) Cluster

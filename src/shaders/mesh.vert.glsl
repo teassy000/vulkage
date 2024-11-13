@@ -52,7 +52,7 @@ void main()
     norm = rotateQuat(norm, meshDraw.orit);
     vec3 result = vec3(rotateQuat(pos, meshDraw.orit) * meshDraw.scale + meshDraw.pos);
 
-    gl_Position = globals.projection * trans.view * vec4(result, 1.0);
+    gl_Position = trans.proj * trans.view * vec4(result, 1.0);
 
     outColor = vec4(norm * 0.5 + vec3(0.5), 1.0);
     outWorldPos = result;

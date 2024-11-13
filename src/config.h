@@ -46,5 +46,6 @@ namespace kage
     constexpr unsigned int kMaxDrawCalls = ((64 << 10) - 1); // 65535
 
     // rendering config
-    constexpr char kUseSeamlessLod = (char)1;
+    constexpr char kEnableLodCull = (char)0;
+    constexpr char kUseSeamlessLod = !kEnableLodCull & (char)1;
 }

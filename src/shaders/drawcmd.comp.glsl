@@ -97,20 +97,14 @@ void main()
             visible = visible && (depthSphere > depth); // nearest depth on sphere should less than the depth buffer
         }
     }
-    
 
-    // early culling pass will setup the draw commands
+    // early pass, or force meshlet oc, or not draw will setup the draw commands if visiable
     if(visible && (!LATE || cull.enableMeshletOcclusion == 1 || drawVisibility[di] == 0))
     {
         
         float lodDist = log2(max(1, distance(center.xyz, vec3(0)) - radius));
         uint lodIdx = cull.enableLod == 1 ? clamp(int(lodDist), 0, int(mesh.lodCount) - 1) : 0;
-
-#if SEAMLESS_LOD
-        MeshLod lod = mesh.seamlessLod;
-#else
-        MeshLod lod = mesh.lods[lodIdx];
-#endif 
+        MeshLod lod = cull.enableSeamlessLod == 1 ? mesh.seamlessLod : mesh.lods[lodIdx];
 
         if(TASK)
         {
@@ -120,11 +114,12 @@ void main()
             uint meshletVisibilityOffset = draws[di].meshletVisibilityOffset;
             uint lateDrawVisibility = drawVisibility[di];
 
+            // the command for each command idx is the same
             for(uint i = 0; i < taskGroupCount; ++i)
             {
                 taskCmds[dci + i].drawId = di;
                 taskCmds[dci + i].taskOffset = lod.meshletOffset + i * TASKGP_SIZE;
-                taskCmds[dci + i].taskCount = min(TASKGP_SIZE, lod.meshletCount - i * TASKGP_SIZE);
+                taskCmds[dci + i].taskCount = min(TASKGP_SIZE, lod.meshletCount - i * TASKGP_SIZE); // the last task group may have less than TASKGP_SIZE meshlets
                 taskCmds[dci + i].lateDrawVisibility = lateDrawVisibility;
                 taskCmds[dci + i].meshletVisibilityOffset = meshletVisibilityOffset + i * TASKGP_SIZE;
             }

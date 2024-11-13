@@ -3,8 +3,6 @@
 
 #define DEBUG_MESHLET 1
 
-#define SEAMLESS_LOD 1
-
 struct Vertex
 {
     float       vx, vy, vz;
@@ -33,8 +31,6 @@ struct TaskPayload
 
 struct Globals
 {
-    mat4 projection;
-
     float znear, zfar;
     float frustum[4];
     float pyramidWidth, pyramidHeight;
@@ -52,6 +48,7 @@ struct MeshDrawCull
 
     int enableCull;
     int enableLod;
+    int enableSeamlessLod;
     int enableOcclusion;
     int enableMeshletOcclusion;
 };
@@ -80,7 +77,6 @@ struct Mesh
     uint vertexOffset;
     uint lodCount;
 
-    float lodDistance[8];
     MeshLod lods[8];
     MeshLod seamlessLod;
 };
@@ -90,6 +86,7 @@ struct LodBounds
     vec3 center;
     float radius;
     float error;
+    uint lod;
 };
 
 struct Cluster

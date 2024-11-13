@@ -21,14 +21,13 @@ struct alignas(16) MeshDrawCull
 
     int32_t enableCull;
     int32_t enableLod;
+    int32_t enableSeamlessLod;
     int32_t enableOcclusion;
     int32_t enableMeshletOcclusion;
 };
 
 struct alignas(16) Globals
 {
-    mat4 projection;
-
     float znear, zfar;
     float frustum[4];
     float pyramidWidth, pyramidHeight;
