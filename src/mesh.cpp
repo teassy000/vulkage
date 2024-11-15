@@ -10,12 +10,17 @@
 #include <vector>
 #include <map>
 
+using kage::kClusterSize;
+using kage::kMaxVtxInCluster;
+using kage::kUseMetisClusterize;
+using kage::kUseMetisPartition;
+using kage::kGroupSize;
 
 
 size_t appendMeshlets(Geometry& result, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices)
 {
-    const size_t max_vertices = 64;
-    const size_t max_triangles = 64;
+    const size_t max_vertices = kMaxVtxInCluster;
+    const size_t max_triangles = kClusterSize;
     const float cone_weight = 1.f;
 
     std::vector<meshopt_Meshlet> meshlets(meshopt_buildMeshletsBound(indices.size(), max_vertices, max_triangles));
@@ -187,17 +192,8 @@ bool loadMesh(Geometry& result, const char* path, bool buildMeshlets)
 
 // nanite-like rendering
 
-const size_t kClusterSize = 64; // triangle count
-const size_t kMaxVtxInCluster = 64;
-const size_t kGroupSize = 8;
-const bool kUseLocks = true;
-const bool kUseNormals = true;
 
-const bool kUseMetisClusterize = false;
-const bool kUseMetisPartition = true;
-
-
-bool parseObj(const char* _path, std::vector<NaniteVertex>& _vertices, std::vector<uint32_t>& _indices)
+bool parseObj(const char* _path, std::vector<NaniteVertex>& _vertices, std::vector<uint32_t>& _indices, std::vector<uint32_t>& _remap)
 {
     fastObjMesh* obj = fast_obj_read(_path);
     if (!obj)
@@ -242,7 +238,15 @@ bool parseObj(const char* _path, std::vector<NaniteVertex>& _vertices, std::vect
     fast_obj_destroy(obj);
 
     std::vector<uint32_t> remap(index_count);
-    size_t vertex_count = meshopt_generateVertexRemap(remap.data(), 0, index_count, triangle_vertices.data(), index_count, sizeof(NaniteVertex));
+    meshopt_Stream pos = { &triangle_vertices[0].px, sizeof(float) * 3, sizeof(NaniteVertex) };
+    size_t vertex_count = meshopt_generateVertexRemapMulti(
+        remap.data()
+        , 0
+        , index_count
+        , triangle_vertices.size()
+        , &pos
+        , 1
+    );
 
     std::vector<NaniteVertex> vertices(vertex_count);
     std::vector<uint32_t> indices(index_count);
@@ -255,6 +259,7 @@ bool parseObj(const char* _path, std::vector<NaniteVertex>& _vertices, std::vect
 
     _vertices.insert(_vertices.end(), vertices.begin(), vertices.end());
     _indices.insert(_indices.end(), indices.begin(), indices.end());
+    _remap.insert(_remap.end(), remap.begin(), remap.end());
 
     return true;
 }
@@ -394,15 +399,12 @@ static std::vector<NaniteCluster> clusterize(const std::vector<NaniteVertex>& _v
         return clusterizeMetis(_vertices, _indices);
     }
 
-    const size_t max_vertices = 192;
-    const size_t max_triangles = kClusterSize;
-
     // compute meshlet bounds
-    size_t max_clusters = meshopt_buildMeshletsBound(_indices.size(), max_vertices, max_triangles);
+    size_t max_clusters = meshopt_buildMeshletsBound(_indices.size(), kMaxVtxInCluster, kClusterSize);
 
     std::vector<meshopt_Meshlet> meshlets(max_clusters);
-    std::vector<uint32_t> meshlet_vertices(max_clusters * max_vertices);
-    std::vector<unsigned char> meshlet_triangles(max_clusters * max_triangles * 3);
+    std::vector<uint32_t> meshlet_vertices(max_clusters * kMaxVtxInCluster);
+    std::vector<unsigned char> meshlet_triangles(max_clusters * kClusterSize * 3);
 
     size_t meshletCount = meshopt_buildMeshlets(
         meshlets.data()
@@ -413,8 +415,8 @@ static std::vector<NaniteCluster> clusterize(const std::vector<NaniteVertex>& _v
         , &_vertices[0].px
         , _vertices.size()
         , sizeof(NaniteVertex)
-        , max_vertices
-        , max_triangles
+        , kMaxVtxInCluster
+        , kClusterSize
         , 0.f
     );
     
@@ -616,11 +618,11 @@ static std::vector<std::vector<int32_t>> partitionMetis(
     int nvtxs = int(_pending.size());
     int ncon = 1;
     int32_t edgecut = 0;
-    int32_t nparts = int32_t(result.size());
+    int32_t nparts = int32_t(_pending.size() + kGroupSize - 1) / kGroupSize;
     int32_t options[METIS_NOPTIONS];
     METIS_SetDefaultOptions(options);
     options[METIS_OPTION_SEED] = 42;
-    options[METIS_OPTION_UFACTOR] = 100;
+    options[METIS_OPTION_UFACTOR] = 64;
 
 
     if (nparts <= 1)
@@ -827,7 +829,11 @@ bool loadMeshNanite(Geometry& _outGeo, const char* _path)
 {
     std::vector<NaniteVertex> vertices;
     std::vector<uint32_t> indices;
-    parseObj(_path, vertices, indices);
+    std::vector<uint32_t> remap;
+    parseObj(_path, vertices, indices, remap);
+
+    int32_t depth = 0;
+
 
     std::vector<NaniteCluster> clusters = clusterize(vertices, indices);
     for (NaniteCluster& c : clusters) {
@@ -840,22 +846,7 @@ bool loadMeshNanite(Geometry& _outGeo, const char* _path)
     }
 
     std::vector<uint8_t> locks(vertices.size());
-
-    std::vector<uint32_t> remap(vertices.size());
-    meshopt_Stream pos = { &vertices[0].px, sizeof(float) * 3, sizeof(NaniteVertex) };
-    meshopt_generateVertexRemapMulti(
-        remap.data()
-        , indices.data()
-        , indices.size()
-        , vertices.size()
-        , &pos
-        , 1
-    );
-
-    int32_t depth = 0;
-
-
-    kage::message(kage::info, "lod 0: %d clusters, %d triangles", int(clusters.size()), int(indices.size() / 3));
+    kage::message(kage::essential, "lod 0: %d clusters, %d triangles", int(clusters.size()), int(indices.size() / 3));
 
     std::vector<std::pair<int32_t, int32_t> > dag_debug;
     while (pending.size() > 1)
@@ -870,8 +861,6 @@ bool loadMeshNanite(Geometry& _outGeo, const char* _path)
         int single_clusters = 0;
         int stuck_clusters = 0;
         int full_clusters = 0;
-
-        lockBoundary(locks, groups, clusters, remap);
          
         for (size_t ii = 0; ii < groups.size(); ++ii)
         {
@@ -902,13 +891,23 @@ bool loadMeshNanite(Geometry& _outGeo, const char* _path)
 
 
             size_t tgt_size = ((groups[ii].size() + 1) / 2) * kClusterSize * 3;
+            //size_t tgt_size = ((groups[ii].size() + 1) / 2);
             float err = 0.f;
-            std::vector<uint32_t> simplified = simplify(vertices, merged, &locks, tgt_size, &err);
+            std::vector<uint32_t> simplified = simplify(vertices, merged, nullptr, tgt_size, &err);
 
             // if simplification failed, retry later
+            // not below 85% of the original size, or not even under the original size
             if ( simplified.size() > merged.size() * .85f 
                 || simplified.size() / (kClusterSize*3) >= merged.size() / (kClusterSize*3)
                 ) {
+
+
+                kage::message(kage::essential
+                    , "simplification failed!!! mg: %d, tgt: %d, simp: %d"
+                    , int(merged.size())
+                    , int(tgt_size)
+                    , int(simplified.size())
+                );
                 for (size_t jj = 0; jj < groups[ii].size(); ++ jj) {
                     retry.push_back(groups[ii][jj]);
                 }
@@ -951,7 +950,7 @@ bool loadMeshNanite(Geometry& _outGeo, const char* _path)
 
         depth++;
 
-        kage::message(kage::info, "lod %d: simplified %d clusters (%d full, %.1f tri/cl), %d triangles; stuck %d clusters (%d single), %d triangles"
+        kage::message(kage::essential, "lod %d: simplified %d clusters (%d full, %.1f tri/cl), %d triangles; stuck %d clusters (%d single), %d triangles"
             , depth
             , int(pending.size())
             , full_clusters
@@ -1039,28 +1038,13 @@ bool loadMeshNanite(Geometry& _outGeo, const char* _path)
         {
             _outGeo.clusters.push_back(Cluster());
         }
-
     }
-
+    // dump
     {
-        // for testing purposes, we can compute a DAG cut from a given viewpoint and dump it as an OBJ
-        float maxx = 0.f, maxy = 0.f, maxz = 0.f;
-        for (size_t ii = 0; ii < vertices.size(); ++ii)
-        {
-            maxx = std::max(maxx, vertices[ii].px * 2);
-            maxy = std::max(maxy, vertices[ii].py * 2);
-            maxz = std::max(maxz, vertices[ii].pz * 2);
-        }
-
-        // 
-        float threshold = 2e-3f; // 2 pixels at 1080p
-        float fovy = 60.f;
-        float znear = 1e-2f;
-        float proj = 1.f / tanf(fovy * 3.1415926f / 180.f * 0.5f);
-
         std::vector<unsigned int> cut;
-        for (size_t ii = 0; ii < clusters.size(); ++ii) {
-            if (boundsError(clusters[ii].self, maxx, maxy, maxz, proj, znear) <= threshold && boundsError(clusters[ii].parent, maxx, maxy, maxz, proj, znear) > threshold) {
+        for (size_t ii = 0; ii < clusters.size(); ++ii)
+        {
+            if (clusters[ii].self.lod == 1) {
                 cut.insert(cut.end(), clusters[ii].indices.begin(), clusters[ii].indices.end());
             }
         }
@@ -1073,7 +1057,6 @@ bool loadMeshNanite(Geometry& _outGeo, const char* _path)
 
         fclose(outputFile);
     }
-
 
     return true;
 }

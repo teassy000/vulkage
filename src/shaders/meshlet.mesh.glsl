@@ -88,6 +88,7 @@ void main()
     uint vertexCount = 0;
     uint triangleCount = 0;
     uint dataOffset = 0;
+    uint lod = 0;
 
 
 
@@ -96,6 +97,7 @@ void main()
         vertexCount = uint(clusters[mi].vertexCount);
         triangleCount = uint(clusters[mi].triangleCount);
         dataOffset = clusters[mi].dataOffset;
+        lod = clusters[mi].self.lod;
     }
     else // normal lod
     {

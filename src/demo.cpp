@@ -534,6 +534,7 @@ namespace
             m_demoData.globals.screenWidth = (float)m_width;
             m_demoData.globals.screenHeight = (float)m_height;
             m_demoData.globals.enableMeshletOcclusion = 1;
+            m_demoData.globals.lodErrorThreshold = (2 / projection[1][1]) * (1.f / float(m_height)); // 1px
         }
 
         Scene m_scene{};

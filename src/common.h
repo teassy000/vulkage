@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include "profiler.h"
 
+#include "config.h"
 #include "debug.h"
 
 namespace kage

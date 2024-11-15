@@ -36,6 +36,7 @@ struct Globals
     float pyramidWidth, pyramidHeight;
     float screenWidth, screenHeight;
     int   enableMeshletOcclusion;
+    float lodErrorThreshold;
 };
 
 struct MeshDrawCull

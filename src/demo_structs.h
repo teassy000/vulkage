@@ -33,6 +33,7 @@ struct alignas(16) Globals
     float pyramidWidth, pyramidHeight;
     float screenWidth, screenHeight;
     int enableMeshletOcclusion;
+    float lodErrorThreshold;
 };
 
 struct MeshDrawCommand

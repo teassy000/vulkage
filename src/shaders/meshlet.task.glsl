@@ -139,25 +139,20 @@ void main()
     {
         LodBounds p_bounds = clusters[mi].parent;
         p_bounds.center = rotateQuat(p_bounds.center, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
-        p_bounds.radius = p_bounds.radius * meshDraw.scale;
 
         LodBounds s_bounds = clusters[mi].self;
         s_bounds.center = rotateQuat(s_bounds.center, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
-        s_bounds.radius = s_bounds.radius * meshDraw.scale;
 
-        // for debugging
-        vec3 dbg_cp = vec3(0.0, 0.0, 0.0);
-        float dbg_fovy = 60.0;
-        float dbg_znear = 1e-2;
-        float dbg_proj = 1.0 / tan(dbg_fovy * 3.1415926 / 180.0 * 0.5);
+        float p_dist = max(length(p_bounds.center - trans.cameraPos) - p_bounds.radius, 0);
+        float p_threshold = p_dist * globals.lodErrorThreshold / meshDraw.scale;
+        float s_dist = max(length(s_bounds.center - trans.cameraPos) - s_bounds.radius, 0);
+        float s_threshold = s_dist * globals.lodErrorThreshold / meshDraw.scale;
 
-        float p_err = boundsError(p_bounds, trans.cameraPos, trans.proj[1][1], dbg_znear);
-        float s_err = boundsError(s_bounds, trans.cameraPos, trans.proj[1][1], dbg_znear);
+        bool cond = s_bounds.error <= s_threshold && p_bounds.error > p_threshold;
 
-        radius = s_bounds.radius;
+        radius = s_bounds.radius * meshDraw.scale;
         center = (trans.view * vec4(s_bounds.center, 1.0)).xyz;
-        //visible = visible && (s_err <= ERROR_THRESHOLD && p_err > ERROR_THRESHOLD);
-        visible = visible && s_bounds.lod == 3;
+        visible = visible && cond;
     }
     else // normal lod pipeline
     {

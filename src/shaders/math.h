@@ -34,7 +34,7 @@ vec3 rotateQuat(vec3 v, vec4 q)
     return v + 2.0 * cross(q.xyz, cross(q.xyz, v) + q.w * v);
 }
 
-float boundsError(LodBounds bounds, vec3 cam_pos, float cam_proj, float cam_znear)
+float boundsError(LodBounds bounds, vec3 cam_pos, float cam_proj_1_1, float cam_znear)
 {
     float dx = bounds.center.x - cam_pos.x;
     float dy = bounds.center.y - cam_pos.y;
@@ -42,5 +42,5 @@ float boundsError(LodBounds bounds, vec3 cam_pos, float cam_proj, float cam_znea
     float d = sqrt(dx * dx + dy * dy + dz * dz) - bounds.radius;
 
     float limd = max(d, cam_znear);
-    return bounds.error / (limd * cam_proj * 0.5);
+    return bounds.error / (limd * cam_proj_1_1 * 0.5);
 }
