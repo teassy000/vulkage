@@ -13,9 +13,9 @@ enum class Scene_Enum : uint64_t
     CornellBox,
 };
 
-static Scene_Enum se = Scene_Enum::SingleMeshScene;
+static Scene_Enum se = Scene_Enum::MatrixScene;
 
-void CreateRandomScene(Scene& scene)
+void CreateRandomScene(Scene& scene, bool _seamlessLod)
 {
     uint32_t drawCount = 1'000'000;
     std::vector<MeshDraw> meshDraws(drawCount);
@@ -44,9 +44,13 @@ void CreateRandomScene(Scene& scene)
         meshDraws[i].meshletVisibilityOffset = meshletVisibilityCount;
 
         uint32_t meshletCount = 0;
-        for (uint32_t lod = 0; lod < mesh.lodCount; lod++)
-            meshletCount = std::max(meshletCount, mesh.lods[lod].meshletCount); // use the maximum one for current mesh
-
+        if (_seamlessLod) {
+            meshletCount = std::max(meshletCount, mesh.seamlessLod.meshletCount);
+        }
+        else {
+            for (uint32_t lod = 0; lod < mesh.lodCount; lod++)
+                meshletCount = std::max(meshletCount, mesh.lods[lod].meshletCount); // use the maximum one for current mesh
+        }
         meshletVisibilityCount += meshletCount;
     }
 
@@ -56,7 +60,7 @@ void CreateRandomScene(Scene& scene)
     scene.meshDraws.insert(scene.meshDraws.end(), meshDraws.begin(), meshDraws.end());
 }
 
-void CreateMatrixScene(Scene& scene)
+void CreateMatrixScene(Scene& scene, bool _seamlessLod)
 {
     uint32_t drawCount = 250'000; // 500*500
     std::vector<MeshDraw> meshDraws(drawCount);
@@ -86,8 +90,13 @@ void CreateMatrixScene(Scene& scene)
         meshDraws[i].meshletVisibilityOffset = meshletVisibilityCount;
 
         uint32_t meshletCount = 0;
-        for (uint32_t lod = 0; lod < mesh.lodCount; lod++)
-            meshletCount = std::max(meshletCount, mesh.lods[lod].meshletCount); // use the maximum one for current mesh
+        if (_seamlessLod) {
+            meshletCount = std::max(meshletCount, mesh.seamlessLod.meshletCount);
+        }
+        else {
+            for (uint32_t lod = 0; lod < mesh.lodCount; lod++)
+                meshletCount = std::max(meshletCount, mesh.lods[lod].meshletCount); // use the maximum one for current mesh
+        }
 
         meshletVisibilityCount += meshletCount;
     }
@@ -98,7 +107,7 @@ void CreateMatrixScene(Scene& scene)
     scene.meshDraws.insert(scene.meshDraws.end(), meshDraws.begin(), meshDraws.end());
 }
 
-void CreateTenObjScene(Scene& scene)
+void CreateTenObjScene(Scene& scene, bool _seamlessLod)
 {
     uint32_t side = 10;
     uint32_t drawCount = side * side;
@@ -126,8 +135,13 @@ void CreateTenObjScene(Scene& scene)
         meshDraws[i].meshletVisibilityOffset = meshletVisibilityCount;
 
         uint32_t meshletCount = 0;
-        for (uint32_t lod = 0; lod < mesh.lodCount; lod++)
-            meshletCount = std::max(meshletCount, mesh.lods[lod].meshletCount); // use the maximum one for current mesh
+        if (_seamlessLod) {
+            meshletCount = std::max(meshletCount, mesh.seamlessLod.meshletCount);
+        }
+        else {
+            for (uint32_t lod = 0; lod < mesh.lodCount; lod++)
+                meshletCount = std::max(meshletCount, mesh.lods[lod].meshletCount); // use the maximum one for current mesh
+        }
 
         meshletVisibilityCount += meshletCount;
     }
@@ -138,7 +152,7 @@ void CreateTenObjScene(Scene& scene)
     scene.meshDraws.insert(scene.meshDraws.end(), meshDraws.begin(), meshDraws.end());
 }
 
-void CreateSingleMeshScene(Scene& _scene)
+void CreateSingleMeshScene(Scene& _scene, bool _seamlessLod)
 {
     uint32_t drawCount = 1;
     MeshDraw meshDraw;
@@ -156,8 +170,13 @@ void CreateSingleMeshScene(Scene& _scene)
     meshDraw.meshletVisibilityOffset = 0;
 
     uint32_t meshletCount = 0;
-    for (uint32_t lod = 0; lod < mesh.lodCount; lod++)
-        meshletCount = std::max(meshletCount, mesh.lods[lod].meshletCount); // use the maximum one for current mesh
+    if (_seamlessLod) {
+        meshletCount = std::max(meshletCount, mesh.seamlessLod.meshletCount);
+    }
+    else {
+        for (uint32_t lod = 0; lod < mesh.lodCount; lod++)
+            meshletCount = std::max(meshletCount, mesh.lods[lod].meshletCount); // use the maximum one for current mesh
+    }
 
     _scene.drawCount = 1;
     _scene.drawDistance = 100.f;
@@ -165,25 +184,25 @@ void CreateSingleMeshScene(Scene& _scene)
     _scene.meshDraws.push_back(meshDraw);
 }
 
-bool loadScene(Scene& scene, const char** pathes, const uint32_t pathCount ,bool buildMeshlets)
+bool loadScene(Scene& _scene, const char** _pathes, const uint32_t _pathCount, bool _buildMeshlets, bool _seamlessLod)
 {
-    assert(pathCount);
-    assert(pathes);
+    assert(_pathCount);
+    assert(_pathes);
 
     //TODO: make a scene file that describe models and other things in the scene 
-    for (uint32_t i = 0; i < pathCount; ++i)
+    for (uint32_t i = 0; i < _pathCount; ++i)
     {
         bool rcm = false;
-        rcm = loadMesh(scene.geometry, pathes[i], buildMeshlets);
+        rcm = loadMesh(_scene.geometry, _pathes[i], _buildMeshlets, _seamlessLod);
         if (!rcm) {
-            kage::message(kage::error, "Failed to load mesh %s", pathes[i]);
+            kage::message(kage::error, "Failed to load mesh %s", _pathes[i]);
             return false;
         }
 
         assert(rcm);
     }
 
-    if (scene.geometry.meshes.empty())
+    if (_scene.geometry.meshes.empty())
     {
         kage::message(kage::error, "No mesh was loaded!");
         return false;
@@ -192,17 +211,17 @@ bool loadScene(Scene& scene, const char** pathes, const uint32_t pathCount ,bool
     switch (se)
     {
     case Scene_Enum::MatrixScene:
-        CreateMatrixScene(scene);
+        CreateMatrixScene(_scene, _seamlessLod);
         break;
     case Scene_Enum::SingleMeshScene:
-        CreateSingleMeshScene(scene);
+        CreateSingleMeshScene(_scene, _seamlessLod);
         break;
     case Scene_Enum::TenMatrixScene:
-        CreateTenObjScene(scene);
+        CreateTenObjScene(_scene, _seamlessLod);
         break;
     case Scene_Enum::RamdomScene:
     default:
-        CreateRandomScene(scene);
+        CreateRandomScene(_scene, _seamlessLod);
         break;
     }
 

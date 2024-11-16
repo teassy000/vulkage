@@ -171,52 +171,11 @@ namespace
 
         bool initScene(bool _seamlessLod)
         {
-            if (_seamlessLod)
-            {
-                initSceneNanite();
-                return true;
-            }
-            else
-            {
-                const char* pathes[] = { "./data/plane.obj" };
-                bool lmr = loadScene(m_scene, pathes, COUNTOF(pathes), m_supportMeshShading);
-                return lmr;
-            }
+            const char* pathes[] = { "./data/kitten.obj" };
+            bool lmr = loadScene(m_scene, pathes, COUNTOF(pathes), m_supportMeshShading, _seamlessLod);
+            return lmr;
         }
 
-        void CreateSingleMeshScene(Scene& _scene)
-        {
-            uint32_t drawCount = 1;
-            MeshDraw meshDraw;
-
-            Mesh& mesh = _scene.geometry.meshes[0];
-
-            //-- NOTE: simplification for occlusion test
-            meshDraw.pos[0] = 0.f;
-            meshDraw.pos[1] = 0.f;
-            meshDraw.pos[2] = 2.f;
-            meshDraw.scale = 1.f;
-            meshDraw.orit = quat(1, 0, 0, 0);
-            meshDraw.meshIdx = 0;
-            meshDraw.vertexOffset = mesh.vertexOffset;
-            meshDraw.meshletVisibilityOffset = 0;
-
-            uint32_t meshletCount = 0;
-
-            meshletCount = std::max(meshletCount, mesh.seamlessLod.meshletCount); // use the maximum one for current mesh
-
-            _scene.drawCount = 1;
-            _scene.drawDistance = 100.f;
-            _scene.meshletVisibilityCount = meshletCount;
-            _scene.meshDraws.push_back(meshDraw);
-        }
-
-        void initSceneNanite()
-        {
-            const char* pathes[] = { "./data/plane.obj" };
-            loadMeshNanite(m_scene.geometry, pathes[0]);
-            CreateSingleMeshScene(m_scene);
-        }
 
         void createBuffers()
         {

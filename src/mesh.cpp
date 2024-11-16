@@ -1040,6 +1040,7 @@ bool loadMeshNanite(Geometry& _outGeo, const char* _path)
         }
     }
     // dump
+    if(0)
     {
         std::vector<unsigned int> cut;
         for (size_t ii = 0; ii < clusters.size(); ++ii)
@@ -1061,3 +1062,12 @@ bool loadMeshNanite(Geometry& _outGeo, const char* _path)
     return true;
 }
 
+bool loadMesh(Geometry& result, const char* path, bool buildMeshlets, bool seamlessLod)
+{
+    if (seamlessLod)
+    {
+        return loadMeshNanite(result, path);
+    }
+
+    return loadMesh(result, path, buildMeshlets);
+}

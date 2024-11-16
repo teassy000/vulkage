@@ -24,4 +24,4 @@ struct Scene
     std::vector<MeshDraw> meshDraws;
 };
 
-bool loadScene(Scene& scene, const char** pathes, const uint32_t pathCount, bool buildMeshlets);
+bool loadScene(Scene& scene, const char** pathes, const uint32_t pathCount, bool buildMeshlets, bool seamlessLod);

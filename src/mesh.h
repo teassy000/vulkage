@@ -71,11 +71,6 @@ struct Geometry
     std::vector<Mesh>       meshes;
 };
 
-size_t appendMeshlets(Geometry& result, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices);
-bool loadMesh(Geometry& result, const char* path, bool buildMeshlets);
-
-
-// nanite-like rendering 
 struct NaniteVertex
 {
     float px, py, pz;
@@ -103,6 +98,5 @@ struct NaniteGeometry
     std::vector<std::pair<uint32_t, uint32_t>> dag;
 };
 
-
-bool loadMeshNanite(Geometry& result, const char* path);
+bool loadMesh(Geometry& result, const char* path, bool buildMeshlets, bool seamlessLod);
 
