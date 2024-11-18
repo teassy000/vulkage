@@ -54,5 +54,5 @@ namespace kage
     constexpr size_t kGroupSize = 8;
     constexpr bool kUseNormals = true;
 
-    constexpr bool kUseMetisPartition = false;
+    constexpr bool kUseMetisPartition = true;
 }

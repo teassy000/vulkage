@@ -414,8 +414,7 @@ static void lockBoundary(
     // note: we need to consistently lock all vertices with the same position to avoid holes
     for (size_t ii = 0; ii < _locks.size(); ++ii) {
         unsigned int r = _remap[ii];
-
-        _locks[ii] = (groupmap[r] == -2); // 表明该顶点在多个 group 中出现
+        _locks[ii] = (groupmap[r] == -2); // means the vertex is shared by multiple groups
     }
 }
 
@@ -569,7 +568,7 @@ static std::vector<uint32_t> simplify(
 
     std::vector<uint32_t> lod(_indices.size());
     
-    uint32_t options =  meshopt_SimplifySparse | meshopt_SimplifyErrorAbsolute;
+    uint32_t options = meshopt_SimplifySparse | meshopt_SimplifyErrorAbsolute | meshopt_SimplifyLockBorder;
     float normal_weights[3] = { .5f, .5f, .5f };
 
 
@@ -583,8 +582,8 @@ static std::vector<uint32_t> simplify(
         , &_vertices[0].nx
         , sizeof(SeamlessVertex)
         , normal_weights
-        , 3
-        , _locks ? &(*_locks)[0] : nullptr
+        , COUNTOF(normal_weights)
+        , _locks ? _locks->data() : nullptr
         , _tgt_count
         , FLT_MAX
         , options
@@ -726,8 +725,6 @@ bool loadMeshSeamless(Geometry& _outGeo, const char* _path)
         int single_clusters = 0;
         int stuck_clusters = 0;
         int full_clusters = 0;
-
-        lockBoundary(locks, groups, clusters, remap);
          
         for (size_t ii = 0; ii < groups.size(); ++ii)
         {
@@ -760,7 +757,7 @@ bool loadMeshSeamless(Geometry& _outGeo, const char* _path)
             size_t tgt_size = ((groups[ii].size() + 1) / 2) * kClusterSize * 3;
             //size_t tgt_size = ((groups[ii].size() + 1) / 2);
             float err = 0.f;
-            std::vector<uint32_t> simplified = simplify(vertices, merged, &locks, tgt_size, &err);
+            std::vector<uint32_t> simplified = simplify(vertices, merged, nullptr, tgt_size, &err);
 
             // if simplification failed, retry later
             // not below 85% of the original size, or not even under the original size
