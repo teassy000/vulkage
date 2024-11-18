@@ -1,0 +1,6 @@
+#ifndef CGLTF_IMPLEMENTATION
+#define CGLTF_IMPLEMENTATION
+
+#include cgltf.h
+
+#endif //CGLTF_IMPLEMENTATION

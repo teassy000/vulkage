@@ -14,6 +14,7 @@ TRACY_DIR 		= 	path.join(EXT_DIR, "tracy")
 VOLK_DIR 		= 	path.join(EXT_DIR, "volk")
 TINYSTL_DIR 	= 	path.join(EXT_DIR, "tinystl")
 BGFX_COMMON_DIR = 	path.join(EXT_DIR, "bgfx_common")
+CGLTF_DIR 		= 	path.join(EXT_DIR, "cgltf")
 
 
 VK_SDK_DIR 		= os.getenv("VULKAN_SDK")
@@ -120,6 +121,10 @@ project "vulkage"
 		path.join(GLM_DIR, "glm/**.hpp"),
 		path.join(GLM_DIR, "glm/**.inl"),
 		path.join(GLM_DIR, "glm/**.h"),
+
+		-- cgltf
+		path.join(CGLTF_DIR, "cgltf.h"),
+		path.join(CGLTF_DIR, "cgltf_write.h"),
 	}
 
 	includedirs {
@@ -138,6 +143,8 @@ project "vulkage"
 
 		path.join(VK_SDK_DIR,	"Include"),
 		path.join(KTX_SDK_DIR,	"include"),
+
+		path.join(CGLTF_DIR,	""),
 	}
 
 	vpaths {

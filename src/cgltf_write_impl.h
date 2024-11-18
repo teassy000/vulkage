@@ -1,0 +1,6 @@
+#ifndef CGLTF_WRITE_IMPLEMENTATION
+#define CGLTF_WRITE_IMPLEMENTATION
+
+#include "cgltf_write.h"
+
+#endif // CGLTF_WRITE_IMPLEMENTATION
