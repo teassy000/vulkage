@@ -46,14 +46,13 @@ namespace kage
     constexpr unsigned int kMaxDrawCalls = ((64 << 10) - 1); // 65535
 
     // rendering config
-    constexpr char kEnableLodCull = (char)0;
-    constexpr char kUseSeamlessLod = !kEnableLodCull & (char)1;
+    constexpr char kRegularLod = (char)0;
+    constexpr char kSeamlessLod = !kRegularLod & (char)1;
 
     constexpr size_t kClusterSize = 64; // triangle count
     constexpr size_t kMaxVtxInCluster = 64;
     constexpr size_t kGroupSize = 8;
     constexpr bool kUseNormals = true;
 
-    constexpr bool kUseMetisClusterize = false;
-    constexpr bool kUseMetisPartition = true;
+    constexpr bool kUseMetisPartition = false;
 }

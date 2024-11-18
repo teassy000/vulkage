@@ -53,7 +53,7 @@ namespace
             m_supportMeshShading = kage::checkSupports(kage::VulkanSupportExtension::ext_mesh_shader);
 
             
-            initScene(kage::kUseSeamlessLod);
+            initScene(kage::kSeamlessLod);
 
             // ui data
             m_demoData.input.width = (float)_width;
@@ -265,12 +265,12 @@ namespace
 
             // meshlet buffer
             {
-                size_t sz = (kage::kUseSeamlessLod == 1)
+                size_t sz = (kage::kSeamlessLod == 1)
                     ? m_scene.geometry.clusters.size() * sizeof(Cluster)
                     : m_scene.geometry.meshlets.size() * sizeof(Meshlet);
 
                 const kage::Memory* memMeshletBuf = kage::alloc((uint32_t)sz);
-                void* srcData = (kage::kUseSeamlessLod == 1)
+                void* srcData = (kage::kSeamlessLod == 1)
                     ? (void*)m_scene.geometry.clusters.data()
                     : (void*)m_scene.geometry.meshlets.data();
                 memcpy(memMeshletBuf->data, srcData, memMeshletBuf->size);
@@ -477,8 +477,8 @@ namespace
             m_demoData.drawCull.frustum[2] = frustumY.y;
             m_demoData.drawCull.frustum[3] = frustumY.z;
             m_demoData.drawCull.enableCull = 1;
-            m_demoData.drawCull.enableLod = kage::kEnableLodCull;
-            m_demoData.drawCull.enableSeamlessLod = kage::kUseSeamlessLod;
+            m_demoData.drawCull.enableLod = kage::kRegularLod;
+            m_demoData.drawCull.enableSeamlessLod = kage::kSeamlessLod;
             m_demoData.drawCull.enableOcclusion = 1;
             m_demoData.drawCull.enableMeshletOcclusion = 1;
 

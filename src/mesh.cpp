@@ -12,7 +12,6 @@
 
 using kage::kClusterSize;
 using kage::kMaxVtxInCluster;
-using kage::kUseMetisClusterize;
 using kage::kUseMetisPartition;
 using kage::kGroupSize;
 
@@ -264,141 +263,8 @@ bool parseObj(const char* _path, std::vector<NaniteVertex>& _vertices, std::vect
     return true;
 }
 
-static void clusterizeMetisRec(std::vector<NaniteCluster>& _result, const std::vector<unsigned int>& _indices, const std::vector<int>& _triidx, const std::vector<int>& _triadj)
-{
-
-    assert(_triadj.size() == _triidx.size() * 3);
-
-    // if triangle count is small enough, just add it to the result
-    if (_triidx.size() <= kClusterSize)
-    {
-        NaniteCluster cluster;
-        for (size_t i = 0; i < _triidx.size(); ++i)
-        {
-            cluster.indices.push_back(_indices[_triidx[i] * 3 + 0]);
-            cluster.indices.push_back(_indices[_triidx[i] * 3 + 1]);
-            cluster.indices.push_back(_indices[_triidx[i] * 3 + 2]);
-            cluster.triangleCount++;
-
-        }
-
-        cluster.parent.error = FLT_MAX;
-        _result.push_back(cluster);
-        return;
-    }
-
-    std::vector<int32_t> xadj(_triidx.size() + 1);
-    std::vector<int32_t> adjncy;
-    std::vector<int32_t> part(_triidx.size());
-
-    for (size_t i = 0; i < _triidx.size(); ++i)
-    {
-        for (int32_t j = 0; j < 3; ++j) {
-            if (_triadj[i * 3 + j] != -1) {
-                adjncy.push_back(_triadj[i * 3 + j]);
-            }
-        }
-
-        xadj[i + 1] = (int32_t)adjncy.size();
-    }
-
-    int32_t options[METIS_NOPTIONS];
-    METIS_SetDefaultOptions(options);
-    options[METIS_OPTION_SEED] = 42;
-    options[METIS_OPTION_UFACTOR] = _triidx.size() > 8 * kClusterSize ? 100 : 1;
-
-    int32_t nvtxs = int32_t(_triidx.size());
-    int32_t ncon = 1;
-    int32_t nparts = 2;
-    int32_t edgecut = 0;
-
-    int32_t nvtxspad = (nvtxs + kClusterSize - 1) / kClusterSize * kClusterSize;
-    int32_t idealcut = ((nvtxspad / kClusterSize) / 2) * kClusterSize;
-    float partw[2] = { idealcut / float(nvtxspad), 1.f - idealcut / float(nvtxspad) };
-
-    int32_t err = METIS_PartGraphRecursive(&nvtxs, &ncon, &xadj[0], &adjncy[0], NULL, NULL, NULL, &nparts, partw, NULL, options, &edgecut, &part[0]);
-    assert(err == METIS_OK);
-    (void)err;
-
-    int32_t partsize[2] = {};
-    std::vector<int32_t> partoff(part.size());
-    for (size_t i = 0; i < part.size(); ++i) {
-        partoff[i] = partsize[part[i]]++;
-    }
-
-    for (int32_t p = 0; p < 2; ++p) {
-        std::vector<int32_t> partidx, partadj;
-        partidx.reserve(partsize[p]);
-        partadj.reserve(partsize[p] * 3);
-
-        for (size_t ii = 0; ii < _triidx.size(); ++ii) {
-            if (part[ii] != p) {
-                continue;
-            }
-
-            partidx.push_back(_triidx[ii]);
-
-            for (int32_t jj = 0; jj < 3; ++jj) {
-                if (_triadj[ii * 3 + jj] >= 0 && part[_triadj[ii * 3 + jj]] == p) {
-                    partadj.push_back(partoff[_triadj[ii * 3 + jj]]);
-                } 
-                else {
-                    partadj.push_back(-1);
-                }
-            }
-        }
-
-        clusterizeMetisRec(_result, _indices, partidx, partadj);
-    }
-}
-
-static std::vector<NaniteCluster> clusterizeMetis(const std::vector<NaniteVertex>& _vertices, const std::vector<uint32_t>& _indices)
-{
-    std::vector<unsigned int> shadowib(_indices.size());
-    meshopt_generateShadowIndexBuffer(&shadowib[0], &_indices[0], _indices.size(), &_vertices[0].px, _vertices.size(), sizeof(float) * 3, sizeof(Vertex));
-
-    std::map<std::pair<unsigned int, unsigned int>, unsigned int> edges;
-
-    for (size_t i = 0; i < _indices.size(); ++i)
-    {
-        unsigned int v0 = shadowib[i + 0];
-        unsigned int v1 = shadowib[i + (i % 3 == 2 ? -2 : 1)];
-
-        // we don't track adjacency fully on non-manifold edges for now
-        edges[std::make_pair(v0, v1)] = unsigned(i / 3);
-    }
-
-    std::vector<int> triadj(_indices.size(), -1);
-
-    for (size_t i = 0; i < _indices.size(); i += 3)
-    {
-        unsigned int v0 = shadowib[i + 0], v1 = shadowib[i + 1], v2 = shadowib[i + 2];
-
-        std::map<std::pair<unsigned int, unsigned int>, unsigned int>::iterator oab = edges.find(std::make_pair(v1, v0));
-        std::map<std::pair<unsigned int, unsigned int>, unsigned int>::iterator obc = edges.find(std::make_pair(v2, v1));
-        std::map<std::pair<unsigned int, unsigned int>, unsigned int>::iterator oca = edges.find(std::make_pair(v0, v2));
-
-        triadj[i + 0] = oab != edges.end() ? int(oab->second) : -1;
-        triadj[i + 1] = obc != edges.end() ? int(obc->second) : -1;
-        triadj[i + 2] = oca != edges.end() ? int(oca->second) : -1;
-    }
-
-    std::vector<int> triidx(_indices.size() / 3);
-    for (size_t i = 0; i < _indices.size(); i += 3)
-        triidx[i / 3] = int(i / 3);
-
-    std::vector<NaniteCluster> result;
-    clusterizeMetisRec(result, _indices, triidx, triadj);
-
-    return result;
-}
-
 static std::vector<NaniteCluster> clusterize(const std::vector<NaniteVertex>& _vertices, const std::vector<uint32_t>& _indices)
 {
-    if (kUseMetisClusterize) {
-        return clusterizeMetis(_vertices, _indices);
-    }
-
     // compute meshlet bounds
     size_t max_clusters = meshopt_buildMeshletsBound(_indices.size(), kMaxVtxInCluster, kClusterSize);
 
@@ -523,7 +389,7 @@ static LodBounds boundsMerge(const std::vector<NaniteCluster>& _clusters, const 
 }
 
 static void lockBoundary(
-    std::vector<uint8_t> _locks
+    std::vector<uint8_t>& _locks
     , const std::vector<std::vector<int32_t>>& _groups
     , const std::vector<NaniteCluster>& _clusters
     , const std::vector<uint32_t>& _remap
@@ -704,7 +570,8 @@ static std::vector<uint32_t> simplify(
     }
 
     std::vector<uint32_t> lod(_indices.size());
-    uint32_t options = meshopt_SimplifySparse | meshopt_SimplifyErrorAbsolute;
+    
+    uint32_t options =  meshopt_SimplifySparse | meshopt_SimplifyErrorAbsolute;
     float normal_weights[3] = { .5f, .5f, .5f };
 
 
@@ -861,6 +728,8 @@ bool loadMeshNanite(Geometry& _outGeo, const char* _path)
         int single_clusters = 0;
         int stuck_clusters = 0;
         int full_clusters = 0;
+
+        lockBoundary(locks, groups, clusters, remap);
          
         for (size_t ii = 0; ii < groups.size(); ++ii)
         {
@@ -893,7 +762,7 @@ bool loadMeshNanite(Geometry& _outGeo, const char* _path)
             size_t tgt_size = ((groups[ii].size() + 1) / 2) * kClusterSize * 3;
             //size_t tgt_size = ((groups[ii].size() + 1) / 2);
             float err = 0.f;
-            std::vector<uint32_t> simplified = simplify(vertices, merged, nullptr, tgt_size, &err);
+            std::vector<uint32_t> simplified = simplify(vertices, merged, &locks, tgt_size, &err);
 
             // if simplification failed, retry later
             // not below 85% of the original size, or not even under the original size
