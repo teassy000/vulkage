@@ -71,14 +71,14 @@ struct Geometry
     std::vector<Mesh>       meshes;
 };
 
-struct NaniteVertex
+struct SeamlessVertex
 {
     float px, py, pz;
     float nx, ny, nz;
     float tu, tv;
 };
 
-struct alignas(16) NaniteCluster
+struct alignas(16) SeamlessCluster
 {
     std::vector<uint32_t>   indices;
     std::vector<uint32_t>   data;
@@ -90,9 +90,9 @@ struct alignas(16) NaniteCluster
     uint32_t triangleCount;
 };
 
-struct NaniteGeometry
+struct SeamlessGeometry
 {
-    std::vector<NaniteVertex>   vertices;
+    std::vector<SeamlessVertex>   vertices;
     std::vector<uint32_t>       indices;
 
     std::vector<std::pair<uint32_t, uint32_t>> dag;

@@ -189,10 +189,8 @@ bool loadMesh(Geometry& result, const char* path, bool buildMeshlets)
     return true;
 }
 
-// nanite-like rendering
-
-
-bool parseObj(const char* _path, std::vector<NaniteVertex>& _vertices, std::vector<uint32_t>& _indices, std::vector<uint32_t>& _remap)
+// nanite-like seamless cluster rendering
+bool parseObj(const char* _path, std::vector<SeamlessVertex>& _vertices, std::vector<uint32_t>& _indices, std::vector<uint32_t>& _remap)
 {
     fastObjMesh* obj = fast_obj_read(_path);
     if (!obj)
@@ -200,7 +198,7 @@ bool parseObj(const char* _path, std::vector<NaniteVertex>& _vertices, std::vect
 
     size_t index_count = obj->index_count;
 
-    std::vector<NaniteVertex> triangle_vertices;
+    std::vector<SeamlessVertex> triangle_vertices;
     triangle_vertices.resize(index_count);
 
     size_t vertex_offset = 0, index_offset = 0;
@@ -215,7 +213,7 @@ bool parseObj(const char* _path, std::vector<NaniteVertex>& _vertices, std::vect
 
             assert(j < 3);
 
-            NaniteVertex& v = triangle_vertices[vertex_offset++];
+            SeamlessVertex& v = triangle_vertices[vertex_offset++];
 
             v.px = (obj->positions[gi.p * 3 + 0]);
             v.py = (obj->positions[gi.p * 3 + 1]);
@@ -237,7 +235,7 @@ bool parseObj(const char* _path, std::vector<NaniteVertex>& _vertices, std::vect
     fast_obj_destroy(obj);
 
     std::vector<uint32_t> remap(index_count);
-    meshopt_Stream pos = { &triangle_vertices[0].px, sizeof(float) * 3, sizeof(NaniteVertex) };
+    meshopt_Stream pos = { &triangle_vertices[0].px, sizeof(float) * 3, sizeof(SeamlessVertex) };
     size_t vertex_count = meshopt_generateVertexRemapMulti(
         remap.data()
         , 0
@@ -247,14 +245,14 @@ bool parseObj(const char* _path, std::vector<NaniteVertex>& _vertices, std::vect
         , 1
     );
 
-    std::vector<NaniteVertex> vertices(vertex_count);
+    std::vector<SeamlessVertex> vertices(vertex_count);
     std::vector<uint32_t> indices(index_count);
 
-    meshopt_remapVertexBuffer(vertices.data(), triangle_vertices.data(), index_count, sizeof(NaniteVertex), remap.data());
+    meshopt_remapVertexBuffer(vertices.data(), triangle_vertices.data(), index_count, sizeof(SeamlessVertex), remap.data());
     meshopt_remapIndexBuffer(indices.data(), 0, index_count, remap.data());
 
     meshopt_optimizeVertexCache(indices.data(), indices.data(), index_count, vertex_count);
-    meshopt_optimizeVertexFetch(vertices.data(), indices.data(), index_count, vertices.data(), vertex_count, sizeof(NaniteVertex));
+    meshopt_optimizeVertexFetch(vertices.data(), indices.data(), index_count, vertices.data(), vertex_count, sizeof(SeamlessVertex));
 
     _vertices.insert(_vertices.end(), vertices.begin(), vertices.end());
     _indices.insert(_indices.end(), indices.begin(), indices.end());
@@ -263,7 +261,7 @@ bool parseObj(const char* _path, std::vector<NaniteVertex>& _vertices, std::vect
     return true;
 }
 
-static std::vector<NaniteCluster> clusterize(const std::vector<NaniteVertex>& _vertices, const std::vector<uint32_t>& _indices)
+static std::vector<SeamlessCluster> clusterize(const std::vector<SeamlessVertex>& _vertices, const std::vector<uint32_t>& _indices)
 {
     // compute meshlet bounds
     size_t max_clusters = meshopt_buildMeshletsBound(_indices.size(), kMaxVtxInCluster, kClusterSize);
@@ -280,7 +278,7 @@ static std::vector<NaniteCluster> clusterize(const std::vector<NaniteVertex>& _v
         , _indices.size()
         , &_vertices[0].px
         , _vertices.size()
-        , sizeof(NaniteVertex)
+        , sizeof(SeamlessVertex)
         , kMaxVtxInCluster
         , kClusterSize
         , 0.f
@@ -288,7 +286,7 @@ static std::vector<NaniteCluster> clusterize(const std::vector<NaniteVertex>& _v
     
     meshlets.resize(meshletCount);
 
-    std::vector<NaniteCluster> clusters(meshletCount);
+    std::vector<SeamlessCluster> clusters(meshletCount);
 
     for (size_t ii = 0; ii < meshletCount; ++ii)
     {
@@ -331,14 +329,14 @@ static std::vector<NaniteCluster> clusterize(const std::vector<NaniteVertex>& _v
 }
 
 
-static LodBounds calcBounds(const std::vector<NaniteVertex>& _vertices, const std::vector<uint32_t>& _indices, float _err, uint32_t _lod)
+static LodBounds calcBounds(const std::vector<SeamlessVertex>& _vertices, const std::vector<uint32_t>& _indices, float _err, uint32_t _lod)
 {
     meshopt_Bounds bounds = meshopt_computeClusterBounds(
         _indices.data()
         , _indices.size()
         , &_vertices[0].px
         , _vertices.size()
-        , sizeof(NaniteVertex)
+        , sizeof(SeamlessVertex)
     );
 
     LodBounds ret;
@@ -350,7 +348,7 @@ static LodBounds calcBounds(const std::vector<NaniteVertex>& _vertices, const st
     return ret;
 }
 
-static LodBounds boundsMerge(const std::vector<NaniteCluster>& _clusters, const std::vector<int32_t>& _group)
+static LodBounds boundsMerge(const std::vector<SeamlessCluster>& _clusters, const std::vector<int32_t>& _group)
 {
     LodBounds result = {};
 
@@ -391,7 +389,7 @@ static LodBounds boundsMerge(const std::vector<NaniteCluster>& _clusters, const 
 static void lockBoundary(
     std::vector<uint8_t>& _locks
     , const std::vector<std::vector<int32_t>>& _groups
-    , const std::vector<NaniteCluster>& _clusters
+    , const std::vector<SeamlessCluster>& _clusters
     , const std::vector<uint32_t>& _remap
     )
 {
@@ -399,7 +397,7 @@ static void lockBoundary(
 
     for (size_t ii = 0; ii < _groups.size(); ++ii) {
         for (size_t jj = 0; jj < _groups[ii].size(); ++jj) {
-            const NaniteCluster& cluster = _clusters[_groups[ii][jj]];
+            const SeamlessCluster& cluster = _clusters[_groups[ii][jj]];
 
             for (size_t kk = 0; kk < cluster.indices.size(); ++kk) {
                 unsigned int v = cluster.indices[kk];
@@ -422,7 +420,7 @@ static void lockBoundary(
 }
 
 static std::vector<std::vector<int32_t>> partitionMetis(
-    const std::vector<NaniteCluster>& _clusters
+    const std::vector<SeamlessCluster>& _clusters
     , const std::vector<int32_t>& _pending
     , const std::vector<uint32_t>& _remap
 )
@@ -433,7 +431,7 @@ static std::vector<std::vector<int32_t>> partitionMetis(
 
     // expand pending clusters into vertex lists
     for (size_t ii = 0; ii < _pending.size(); ++ii) {
-        const NaniteCluster& cluster = _clusters[_pending[ii]];
+        const SeamlessCluster& cluster = _clusters[_pending[ii]];
 
         for (size_t jj = 0; jj < cluster.indices.size(); ++jj) {
             int32_t v = _remap[cluster.indices[jj]];
@@ -524,7 +522,7 @@ static std::vector<std::vector<int32_t>> partitionMetis(
 }
 
 static std::vector<std::vector<int32_t>> partition(
-    const std::vector<NaniteCluster>& _clusters
+    const std::vector<SeamlessCluster>& _clusters
     , const std::vector<int32_t>& _pending
     , const std::vector<uint32_t>& _remap
 )
@@ -558,7 +556,7 @@ static std::vector<std::vector<int32_t>> partition(
 
 
 static std::vector<uint32_t> simplify(
-    const std::vector<NaniteVertex>& _vertices
+    const std::vector<SeamlessVertex>& _vertices
     , const std::vector<uint32_t>& _indices
     , const std::vector<uint8_t>* _locks
     , size_t _tgt_count
@@ -581,9 +579,9 @@ static std::vector<uint32_t> simplify(
         , _indices.size()
         , &_vertices[0].px
         , _vertices.size()
-        , sizeof(NaniteVertex)
+        , sizeof(SeamlessVertex)
         , &_vertices[0].nx
-        , sizeof(NaniteVertex)
+        , sizeof(SeamlessVertex)
         , normal_weights
         , 3
         , _locks ? &(*_locks)[0] : nullptr
@@ -617,7 +615,7 @@ static FILE* getOutput()
     return outputFile;
 }
 
-void dumpObj(const std::vector<NaniteVertex>& vertices, const std::vector<unsigned int>& indices, bool recomputeNormals = false)
+void dumpObj(const std::vector<SeamlessVertex>& vertices, const std::vector<unsigned int>& indices, bool recomputeNormals = false)
 {
     std::vector<float> normals;
 
@@ -629,9 +627,9 @@ void dumpObj(const std::vector<NaniteVertex>& vertices, const std::vector<unsign
         {
             unsigned int a = indices[i], b = indices[i + 1], c = indices[i + 2];
 
-            const NaniteVertex& va = vertices[a];
-            const NaniteVertex& vb = vertices[b];
-            const NaniteVertex& vc = vertices[c];
+            const SeamlessVertex& va = vertices[a];
+            const SeamlessVertex& vb = vertices[b];
+            const SeamlessVertex& vc = vertices[c];
 
             float nx = (vb.py - va.py) * (vc.pz - va.pz) - (vb.pz - va.pz) * (vc.py - va.py);
             float ny = (vb.pz - va.pz) * (vc.px - va.px) - (vb.px - va.px) * (vc.pz - va.pz);
@@ -650,7 +648,7 @@ void dumpObj(const std::vector<NaniteVertex>& vertices, const std::vector<unsign
 
     for (size_t i = 0; i < vertices.size(); ++i)
     {
-        const NaniteVertex& v = vertices[i];
+        const SeamlessVertex& v = vertices[i];
 
         float nx = v.nx, ny = v.ny, nz = v.nz;
 
@@ -692,9 +690,9 @@ void dumpObj(const char* section, const std::vector<unsigned int>& indices)
     }
 }
 
-bool loadMeshNanite(Geometry& _outGeo, const char* _path)
+bool loadMeshSeamless(Geometry& _outGeo, const char* _path)
 {
-    std::vector<NaniteVertex> vertices;
+    std::vector<SeamlessVertex> vertices;
     std::vector<uint32_t> indices;
     std::vector<uint32_t> remap;
     parseObj(_path, vertices, indices, remap);
@@ -702,8 +700,8 @@ bool loadMeshNanite(Geometry& _outGeo, const char* _path)
     int32_t depth = 0;
 
 
-    std::vector<NaniteCluster> clusters = clusterize(vertices, indices);
-    for (NaniteCluster& c : clusters) {
+    std::vector<SeamlessCluster> clusters = clusterize(vertices, indices);
+    for (SeamlessCluster& c : clusters) {
         c.self = calcBounds(vertices, c.indices, 0.f, 0);
     }
 
@@ -791,7 +789,7 @@ bool loadMeshNanite(Geometry& _outGeo, const char* _path)
             mergedBounds.error += err;
             mergedBounds.lod = depth + 1;
 
-            std::vector<NaniteCluster> split = clusterize(vertices, simplified);
+            std::vector<SeamlessCluster> split = clusterize(vertices, simplified);
 
             // update dag
             for (size_t jj = 0; jj < groups[ii].size(); ++jj)
@@ -806,7 +804,7 @@ bool loadMeshNanite(Geometry& _outGeo, const char* _path)
                 }
             }
 
-            for (NaniteCluster& scRef: split) {
+            for (SeamlessCluster& scRef: split) {
                 scRef.self = mergedBounds;
 
                 clusters.push_back(scRef);
@@ -843,7 +841,7 @@ bool loadMeshNanite(Geometry& _outGeo, const char* _path)
 
         for (size_t ii = 0; ii < clusters.size(); ++ii)
         {
-            const NaniteCluster& cluster = clusters[ii];
+            const SeamlessCluster& cluster = clusters[ii];
             Cluster c;
             c.self = cluster.self;
             c.parent = cluster.parent;
@@ -880,13 +878,13 @@ bool loadMeshNanite(Geometry& _outGeo, const char* _path)
         }
 
         vec3 meshCenter = vec3(0.f);
-        for (NaniteVertex& v : vertices) {
+        for (SeamlessVertex& v : vertices) {
             meshCenter += vec3(v.px, v.py, v.pz);
         }
         meshCenter /= float(vertices.size());
 
         float radius = 0.0;
-        for (NaniteVertex& v : vertices) {
+        for (SeamlessVertex& v : vertices) {
             radius = glm::max(radius, glm::distance(meshCenter, vec3(v.px, v.py, v.pz)));
         }
 
@@ -935,7 +933,7 @@ bool loadMesh(Geometry& result, const char* path, bool buildMeshlets, bool seaml
 {
     if (seamlessLod)
     {
-        return loadMeshNanite(result, path);
+        return loadMeshSeamless(result, path);
     }
 
     return loadMesh(result, path, buildMeshlets);
