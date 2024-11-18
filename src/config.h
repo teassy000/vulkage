@@ -46,8 +46,8 @@ namespace kage
     constexpr unsigned int kMaxDrawCalls = ((64 << 10) - 1); // 65535
 
     // rendering config
-    constexpr char kRegularLod = (char)0;
-    constexpr char kSeamlessLod = !kRegularLod & (char)1;
+    constexpr char kRegularLod = (char)1;
+    constexpr char kSeamlessLod = !kRegularLod & (char)0;
 
     constexpr size_t kClusterSize = 64; // triangle count in each cluster
     constexpr size_t kMaxVtxInCluster = 64;

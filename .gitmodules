@@ -30,3 +30,6 @@
 [submodule "externs/metis"]
 	path = externs/metis
 	url = https://github.com/KarypisLab/METIS.git
+[submodule "externs/cgltf"]
+	path = externs/cgltf
+	url = https://github.com/jkuhlmann/cgltf.git

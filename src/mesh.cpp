@@ -71,7 +71,6 @@ size_t appendMeshlets(Geometry& result, std::vector<Vertex>& vertices, std::vect
     return meshlets.size();
 }
 
-
 bool loadMesh(Geometry& result, const char* path, bool buildMeshlets)
 {
     fastObjMesh* obj = fast_obj_read(path);
