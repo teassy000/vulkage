@@ -47,7 +47,7 @@ namespace kage
 
     // rendering config
     constexpr char kRegularLod = (char)1;
-    constexpr char kSeamlessLod = !kRegularLod & (char)0;
+    constexpr char kSeamlessLod = !kRegularLod;
 
     constexpr size_t kClusterSize = 64; // triangle count in each cluster
     constexpr size_t kMaxVtxInCluster = 64;

@@ -3,6 +3,7 @@
 
 #include "mesh.h"
 #include "scene.h"
+#include "gltf_loader.h"
 
 enum class Scene_Enum : uint64_t
 {
@@ -184,21 +185,19 @@ void CreateSingleMeshScene(Scene& _scene, bool _seamlessLod)
     _scene.meshDraws.push_back(meshDraw);
 }
 
-bool loadScene(Scene& _scene, const char** _pathes, const uint32_t _pathCount, bool _buildMeshlets, bool _seamlessLod)
+bool loadObjScene(Scene& _scene, const char** _pathes, const uint32_t _pathCount, bool _buildMeshlets, bool _seamlessLod)
 {
     assert(_pathCount);
     assert(_pathes);
 
-    //TODO: make a scene file that describe models and other things in the scene 
     for (uint32_t i = 0; i < _pathCount; ++i)
     {
         bool rcm = false;
-        rcm = loadMesh(_scene.geometry, _pathes[i], _buildMeshlets, _seamlessLod);
+        rcm = loadObj(_scene.geometry, _pathes[i], _buildMeshlets, _seamlessLod);
         if (!rcm) {
             kage::message(kage::error, "Failed to load mesh %s", _pathes[i]);
             return false;
         }
-
         assert(rcm);
     }
 
@@ -224,8 +223,44 @@ bool loadScene(Scene& _scene, const char** _pathes, const uint32_t _pathCount, b
         CreateRandomScene(_scene, _seamlessLod);
         break;
     }
-
     return true;
+}
+
+
+const char* getExtension(const char* _path)
+{
+    const char* extension = strrchr(_path, '.');
+    if (!extension || extension == _path) {
+        kage::message(kage::error, "Invalid file format: %s", _path);
+        return nullptr;
+    }
+    extension++; // Skip the dot
+    return extension;
+}
+
+bool loadScene(Scene& _scene, const char** _pathes, const uint32_t _pathCount, bool _buildMeshlets, bool _seamlessLod)
+{
+    if (_pathCount == 0 || _pathes == nullptr)
+    {
+        kage::message(kage::error, "No path was provided!");
+        return false;
+    }
+
+    // check the first file format
+    const char* ext0 = getExtension(_pathes[0]);
+
+    if (strcmp(ext0, "gltf") == 0 || strcmp(ext0, "glb") == 0)
+    {
+        return loadGltfScene(_scene, _pathes, _pathCount, _buildMeshlets, _seamlessLod);
+    }
+
+    if (strcmp(ext0, "obj") == 0)
+    {
+        return loadObjScene(_scene, _pathes, _pathCount, _buildMeshlets, _seamlessLod);
+    }
+
+    kage::message(kage::error, "Unsupported file format: %s", _pathes[0]);
+    return false;
 }
 
 

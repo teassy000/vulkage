@@ -7,6 +7,7 @@ struct Vertex
 {
     float       vx, vy, vz;
     uint8_t     nx, ny, nz, nw;
+    uint8_t     tx, ty, tz, tw;
     uint16_t    tu, tv;
 };
 
@@ -33,7 +34,7 @@ struct MeshLod
 struct alignas(16) Mesh
 {
     vec3 center;
-    float   radius;
+    float radius;
 
     uint32_t vertexOffset;
     uint32_t lodCount;
@@ -98,5 +99,6 @@ struct SeamlessGeometry
     std::vector<std::pair<uint32_t, uint32_t>> dag;
 };
 
-bool loadMesh(Geometry& result, const char* path, bool buildMeshlets, bool seamlessLod);
-
+size_t appendMeshlets(Geometry& result, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices);
+bool appendMesh(Geometry& result, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices, bool buildMeshlets);
+bool loadObj(Geometry& result, const char* path, bool buildMeshlets, bool seamlessLod);

@@ -71,7 +71,87 @@ size_t appendMeshlets(Geometry& result, std::vector<Vertex>& vertices, std::vect
     return meshlets.size();
 }
 
-bool loadMesh(Geometry& result, const char* path, bool buildMeshlets)
+bool appendMesh(Geometry& _geo, std::vector<Vertex>& _vtxes, std::vector<uint32_t>& _idxes, bool _buildMeshlets)
+{
+    std::vector<uint32_t> remap(_idxes.size());
+    size_t vertex_count = meshopt_generateVertexRemap(
+        remap.data()
+        , _idxes.data()
+        , _idxes.size()
+        , _vtxes.data()
+        , _vtxes.size()
+        , sizeof(Vertex)
+    );
+
+
+    meshopt_remapVertexBuffer(_vtxes.data(), _vtxes.data(), _vtxes.size(), sizeof(Vertex), remap.data());
+    meshopt_remapIndexBuffer(_idxes.data(), _idxes.data(), _idxes.size(), remap.data());
+
+
+    _vtxes.resize(vertex_count);
+
+    meshopt_optimizeVertexCache(_idxes.data(), _idxes.data(), _idxes.size(), _vtxes.size());
+    meshopt_optimizeVertexFetch(_vtxes.data(), _idxes.data(), _idxes.size(), _vtxes.data(), _vtxes.size(), sizeof(Vertex));
+
+    Mesh mesh = {};
+
+    mesh.vertexOffset = uint32_t(_geo.vertices.size());
+    _geo.vertices.insert(_geo.vertices.end(), _vtxes.begin(), _vtxes.end());
+
+    vec3 meshCenter = vec3(0.f);
+
+    for (Vertex& v : _vtxes) {
+        meshCenter += vec3(v.vx, v.vy, v.vz);
+    }
+
+    meshCenter /= float(_vtxes.size());
+
+    float radius = 0.0;
+    for (Vertex& v : _vtxes) {
+        radius = glm::max(radius, glm::distance(meshCenter, vec3(v.vx, v.vy, v.vz)));
+    }
+
+    mesh.center = meshCenter;
+    mesh.radius = radius;
+
+    while (mesh.lodCount < COUNTOF(mesh.lods))
+    {
+        MeshLod& lod = mesh.lods[mesh.lodCount++];
+
+        lod.indexOffset = uint32_t(_geo.indices.size());
+        _geo.indices.insert(_geo.indices.end(), _idxes.begin(), _idxes.end());
+
+        lod.indexCount = uint32_t(_idxes.size());
+
+        lod.meshletOffset = (uint32_t)_geo.meshlets.size();
+        lod.meshletCount = _buildMeshlets ? (uint32_t)appendMeshlets(_geo, _vtxes, _idxes) : 0u;
+
+        if (mesh.lodCount < COUNTOF(mesh.lods))
+        {
+            size_t nextIndicesTarget = size_t(double(_idxes.size()) * 0.75);
+            size_t nextIndices = meshopt_simplify(_idxes.data(), _idxes.data(), _idxes.size(), &_vtxes[0].vx, _vtxes.size(), sizeof(Vertex), nextIndicesTarget, 1e-1f);
+            assert(nextIndices <= _idxes.size());
+
+            if (nextIndices == _idxes.size())
+                break;
+
+            _idxes.resize(nextIndices);
+            meshopt_optimizeVertexCache(_idxes.data(), _idxes.data(), _idxes.size(), _vtxes.size());
+        }
+
+    }
+
+    while (_geo.meshlets.size() % 64)
+    {
+        _geo.meshlets.push_back(Meshlet());
+    }
+
+    _geo.meshes.push_back(mesh);
+
+    return true;
+}
+
+bool loadObj(Geometry& result, const char* path, bool buildMeshlets)
 {
     fastObjMesh* obj = fast_obj_read(path);
     if (!obj)
@@ -105,6 +185,9 @@ bool loadMesh(Geometry& result, const char* path, bool buildMeshlets)
             v.nz = uint8_t(obj->normals[gi.n * 3 + 2] * 127.f + 127.5f);
             v.nw = uint8_t(0);
 
+            v.tx = v.ty = v.tz = 0x7F;
+            v.tw = 0xFE;
+
             v.tu = meshopt_quantizeHalf(obj->texcoords[gi.t * 2 + 0]);
             v.tv = meshopt_quantizeHalf(obj->texcoords[gi.t * 2 + 1]);
         }
@@ -116,75 +199,11 @@ bool loadMesh(Geometry& result, const char* path, bool buildMeshlets)
 
     fast_obj_destroy(obj);
 
-    std::vector<uint32_t> remap(index_count);
-    size_t vertex_count = meshopt_generateVertexRemap(remap.data(), 0, index_count, triangle_vertices.data(), index_count, sizeof(Vertex));
+    std::vector<uint32_t> indices(triangle_vertices.size());
+    for (size_t i = 0; i < indices.size(); ++i)
+        indices[i] = uint32_t(i);
 
-    std::vector<Vertex> vertices(vertex_count);
-    std::vector<uint32_t> indices(index_count);
-
-    meshopt_remapVertexBuffer(vertices.data(), triangle_vertices.data(), index_count, sizeof(Vertex), remap.data());
-    meshopt_remapIndexBuffer(indices.data(), 0, index_count, remap.data());
-
-    meshopt_optimizeVertexCache(indices.data(), indices.data(), index_count, vertex_count);
-    meshopt_optimizeVertexFetch(vertices.data(), indices.data(), index_count, vertices.data(), vertex_count, sizeof(Vertex));
-
-
-    Mesh mesh = {};
-
-    mesh.vertexOffset = uint32_t(result.vertices.size());
-    result.vertices.insert(result.vertices.end(), vertices.begin(), vertices.end());
-
-    vec3 meshCenter = vec3(0.f);
-
-    for (Vertex& v : vertices) {
-        meshCenter += vec3(v.vx, v.vy, v.vz);
-    }
-
-    meshCenter /= float(vertices.size());
-
-    float radius = 0.0;
-    for (Vertex& v : vertices) {
-        radius = glm::max(radius, glm::distance(meshCenter, vec3(v.vx, v.vy, v.vz)));
-    }
-
-    mesh.center = meshCenter;
-    mesh.radius = radius;
-
-    std::vector<uint32_t> lodIndices = indices;
-    while (mesh.lodCount < COUNTOF(mesh.lods))
-    {
-        MeshLod& lod = mesh.lods[mesh.lodCount++];
-
-        lod.indexOffset = uint32_t(result.indices.size());
-        result.indices.insert(result.indices.end(), lodIndices.begin(), lodIndices.end());
-
-        lod.indexCount = uint32_t(lodIndices.size());
-
-        lod.meshletOffset = (uint32_t)result.meshlets.size();
-        lod.meshletCount = buildMeshlets ? (uint32_t)appendMeshlets(result, vertices, lodIndices) : 0u;
-
-        if (mesh.lodCount < COUNTOF(mesh.lods))
-        {
-            size_t nextIndicesTarget = size_t(double(lodIndices.size()) * 0.75);
-            size_t nextIndices = meshopt_simplify(lodIndices.data(), lodIndices.data(), lodIndices.size(), &vertices[0].vx, vertices.size(), sizeof(Vertex), nextIndicesTarget, 1e-1f);
-            assert(nextIndices <= lodIndices.size());
-
-            if (nextIndices == lodIndices.size())
-                break;
-
-            lodIndices.resize(nextIndices);
-            meshopt_optimizeVertexCache(lodIndices.data(), lodIndices.data(), lodIndices.size(), vertex_count);
-        }
-
-    }
-
-    while (result.meshlets.size() % 64)
-    {
-        result.meshlets.push_back(Meshlet());
-    }
-
-    result.meshes.push_back(mesh);
-
+    appendMesh(result, triangle_vertices, indices, buildMeshlets);
     return true;
 }
 
@@ -868,6 +887,10 @@ bool loadMeshSeamless(Geometry& _outGeo, const char* _path)
                 , uint8_t(vertices[ii].ny * 127.f + 127.5f)
                 , uint8_t(vertices[ii].nz * 127.f + 127.5f)
                 , 0
+                , 0
+                , 0
+                , 0
+                , 0
                 , meshopt_quantizeHalf(vertices[ii].tu)
                 , meshopt_quantizeHalf(vertices[ii].tv)
                 });
@@ -925,12 +948,12 @@ bool loadMeshSeamless(Geometry& _outGeo, const char* _path)
     return true;
 }
 
-bool loadMesh(Geometry& result, const char* path, bool buildMeshlets, bool seamlessLod)
+bool loadObj(Geometry& result, const char* path, bool buildMeshlets, bool seamlessLod)
 {
     if (seamlessLod)
     {
         return loadMeshSeamless(result, path);
     }
 
-    return loadMesh(result, path, buildMeshlets);
+    return loadObj(result, path, buildMeshlets);
 }

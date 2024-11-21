@@ -171,7 +171,7 @@ namespace
 
         bool initScene(bool _seamlessLod)
         {
-            const char* pathes[] = { "./data/kitten.obj" };
+            const char* pathes[] = { "./data/gltf/venus.gltf" };
             bool lmr = loadScene(m_scene, pathes, COUNTOF(pathes), m_supportMeshShading, _seamlessLod);
             return lmr;
         }
