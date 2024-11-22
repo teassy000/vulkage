@@ -4,9 +4,11 @@
 #include "meshoptimizer.h"
 #include "debug.h"
 
-bool processMesh(Geometry& _geo, const cgltf_mesh* _gltfMesh, bool _buildMeshlet)
+bool processMesh(Geometry& _geo, std::vector<std::pair<uint32_t, uint32_t>>& _prims, const cgltf_mesh* _gltfMesh, bool _buildMeshlet)
 {
     assert(_gltfMesh);
+
+    uint32_t meshOffset = (uint32_t)_geo.meshes.size();
 
     for (size_t ii = 0; ii < _gltfMesh->primitives_count; ++ii)
     {
@@ -94,19 +96,25 @@ bool processMesh(Geometry& _geo, const cgltf_mesh* _gltfMesh, bool _buildMeshlet
         prim.material;
     }
 
+    _prims.emplace_back(std::make_pair(meshOffset, (uint32_t)_geo.meshes.size() - meshOffset));
+
     return true;
 }
 
-bool processNode(Scene& _scene, const cgltf_data* _gltfData, const cgltf_node* _gltfNode, uint32_t _meshOffset, uint32_t meshCount, bool _seamlessLod)
+bool processNode(Scene& _scene, std::vector<std::pair<uint32_t, uint32_t>>& _prims, const cgltf_data* _gltfData, const cgltf_node* _gltfNode, bool _seamlessLod)
 {
     assert(_gltfData);
     assert(_gltfNode);
 
     if (_gltfNode->mesh)
     {
+
+        size_t meshIdx = cgltf_mesh_index(_gltfData, _gltfNode->mesh);
+        std::pair<uint32_t, uint32_t> prim = _prims[meshIdx];
+
         uint32_t meshletVisibilityOffset = _scene.meshletVisibilityCount;
         
-        for (uint32_t ii = 0; ii < meshCount; ++ii)
+        for (uint32_t ii = 0; ii < prim.second; ++ii)
         {
             MeshDraw draw = {};
             draw.pos[0] = _gltfNode->translation[0];
@@ -121,7 +129,7 @@ bool processNode(Scene& _scene, const cgltf_data* _gltfData, const cgltf_node* _
             draw.orit[2] = _gltfNode->rotation[2];
             draw.orit[3] = _gltfNode->rotation[3];
 
-            draw.meshIdx = _meshOffset + ii;
+            draw.meshIdx = prim.first + ii;
 
 
             const Mesh& mesh = _scene.geometry.meshes[draw.meshIdx];
@@ -184,22 +192,17 @@ bool loadGltfScene(Scene& _scene, const char** _pathes, uint32_t _pathCount, boo
     // -- meshes 
     for (uint32_t ii = 0; ii < data->meshes_count; ++ii)
     {
-        uint32_t meshOffset = (uint32_t)_scene.geometry.meshes.size();
-
         cgltf_mesh* gltfMesh = &data->meshes[ii];
 
-        processMesh(_scene.geometry, gltfMesh, _buildMeshlet);
-
-        primitives.emplace_back(std::make_pair(meshOffset, (uint32_t)_scene.geometry.meshes.size() - meshOffset));
+        processMesh(_scene.geometry, primitives, gltfMesh, _buildMeshlet);
     }
 
     // -- nodes
     for (uint32_t ii = 0; ii < data->nodes_count; ++ii)
     {
         cgltf_node* gltfNode = &data->nodes[ii];
-        size_t meshIdx = cgltf_mesh_index(data, gltfNode->mesh);
-        std::pair<uint32_t, uint32_t> prim = primitives[meshIdx];
-        processNode(_scene, data, gltfNode, prim.first, prim.second, _seamlessLod);
+
+        processNode(_scene, primitives, data, gltfNode, _seamlessLod);
     }
 
     return true;
