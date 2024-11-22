@@ -1912,6 +1912,12 @@ namespace kage
                 case Command::update_image:
                     {
                         const UpdateImageCmd* uic = reinterpret_cast<const UpdateImageCmd*>(cmd);
+                        m_rhiContext->updateImage(
+                            uic->m_handle
+                            , uic->m_width
+                            , uic->m_height
+                            , uic->m_mem
+                        );
                     }
                     break;
                 case Command::update_buffer:
