@@ -230,7 +230,7 @@ struct FreeCamera
 
         m_mouseSpeed = 0.03f;
         m_gamepadSpeed = 0.01f;
-        m_moveSpeed = 0.01f;
+        m_moveSpeed = 0.80f;
         m_keys = 0;
 
         updateVecs();

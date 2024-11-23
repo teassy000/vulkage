@@ -83,7 +83,6 @@ bool appendMesh(Geometry& _geo, std::vector<Vertex>& _vtxes, std::vector<uint32_
         , sizeof(Vertex)
     );
 
-
     meshopt_remapVertexBuffer(_vtxes.data(), _vtxes.data(), _vtxes.size(), sizeof(Vertex), remap.data());
     meshopt_remapIndexBuffer(_idxes.data(), _idxes.data(), _idxes.size(), remap.data());
 
@@ -114,6 +113,9 @@ bool appendMesh(Geometry& _geo, std::vector<Vertex>& _vtxes, std::vector<uint32_
     mesh.center = meshCenter;
     mesh.radius = radius;
 
+    float lodScale = meshopt_simplifyScale(&_vtxes[0].vx, _vtxes.size(), sizeof(Vertex));
+
+    float lodErr = 0.f;
     while (mesh.lodCount < COUNTOF(mesh.lods))
     {
         MeshLod& lod = mesh.lods[mesh.lodCount++];
@@ -125,25 +127,27 @@ bool appendMesh(Geometry& _geo, std::vector<Vertex>& _vtxes, std::vector<uint32_
 
         lod.meshletOffset = (uint32_t)_geo.meshlets.size();
         lod.meshletCount = _buildMeshlets ? (uint32_t)appendMeshlets(_geo, _vtxes, _idxes) : 0u;
+        
+        lod.error = lodErr * lodScale;
 
-        if (mesh.lodCount < COUNTOF(mesh.lods))
-        {
+        if (mesh.lodCount < COUNTOF(mesh.lods)) {
             size_t nextIndicesTarget = size_t(double(_idxes.size()) * 0.75);
-            size_t nextIndices = meshopt_simplify(_idxes.data(), _idxes.data(), _idxes.size(), &_vtxes[0].vx, _vtxes.size(), sizeof(Vertex), nextIndicesTarget, 1e-1f);
+            float outErr = 0.f;
+            size_t nextIndices = meshopt_simplify(_idxes.data(), _idxes.data(), _idxes.size(), &_vtxes[0].vx, _vtxes.size(), sizeof(Vertex), nextIndicesTarget, 1e-1f, 0, &outErr);
             assert(nextIndices <= _idxes.size());
 
             if (nextIndices == _idxes.size())
                 break;
 
             _idxes.resize(nextIndices);
+            lodErr = glm::max(lodErr, outErr);
             meshopt_optimizeVertexCache(_idxes.data(), _idxes.data(), _idxes.size(), _vtxes.size());
         }
 
     }
 
-    while (_geo.meshlets.size() % 64)
-    {
-        _geo.meshlets.push_back(Meshlet());
+    while (_geo.meshlets.size() % 64) {
+        _geo.meshlets.emplace_back();
     }
 
     _geo.meshes.push_back(mesh);

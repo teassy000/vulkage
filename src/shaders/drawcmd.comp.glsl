@@ -101,9 +101,15 @@ void main()
     // early pass, or force meshlet oc, or not draw will setup the draw commands if visiable
     if(visible && (!LATE || cull.enableMeshletOcclusion == 1 || drawVisibility[di] == 0))
     {
-        
-        float lodDist = log2(max(1, distance(center.xyz, vec3(0)) - radius));
-        uint lodIdx = cull.enableLod == 1 ? clamp(int(lodDist), 0, int(mesh.lodCount) - 1) : 0;
+        float dist = max(length(center.xyz) - radius, 0);
+        float threshold = dist * cull.lodErrorThreshold / draws[di].scale;
+        uint lodIdx = 0;
+        for (uint ii = 0; ii < mesh.lodCount; ++ii){
+            if (mesh.lods[ii].error < threshold){
+                lodIdx = ii;
+            }
+        }
+
         MeshLod lod = cull.enableSeamlessLod == 1 ? mesh.seamlessLod : mesh.lods[lodIdx];
 
         if(TASK)

@@ -171,7 +171,7 @@ namespace
 
         bool initScene(bool _seamlessLod)
         {
-            const char* pathes[] = { "./data/gltf/venus.gltf" };
+            const char* pathes[] = { "./data/gltf/bistro.glb" };
             bool lmr = loadScene(m_scene, pathes, COUNTOF(pathes), m_supportMeshShading, _seamlessLod);
             return lmr;
         }
@@ -457,6 +457,7 @@ namespace
             mat4 projectionT = glm::transpose(projection);
             vec4 frustumX = normalizePlane(projectionT[3] - projectionT[0]);
             vec4 frustumY = normalizePlane(projectionT[3] - projectionT[1]);
+            float lodErrThreshold = (2 / projection[1][1]) * (1.f / float(m_height)); // 1px
 
             freeCameraGetViewMatrix(m_demoData.trans.view);
             m_demoData.trans.proj = projection;
@@ -481,6 +482,7 @@ namespace
             m_demoData.drawCull.enableSeamlessLod = kage::kSeamlessLod;
             m_demoData.drawCull.enableOcclusion = 1;
             m_demoData.drawCull.enableMeshletOcclusion = 1;
+            m_demoData.drawCull.lodErrorThreshold = lodErrThreshold;
 
             m_demoData.globals.zfar = m_scene.drawDistance;
             m_demoData.globals.znear = znear;
@@ -493,7 +495,7 @@ namespace
             m_demoData.globals.screenWidth = (float)m_width;
             m_demoData.globals.screenHeight = (float)m_height;
             m_demoData.globals.enableMeshletOcclusion = 1;
-            m_demoData.globals.lodErrorThreshold = (2 / projection[1][1]) * (1.f / float(m_height)); // 1px
+            m_demoData.globals.lodErrorThreshold = lodErrThreshold;
         }
 
         Scene m_scene{};

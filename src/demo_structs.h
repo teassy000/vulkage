@@ -18,6 +18,7 @@ struct alignas(16) MeshDrawCull
     float frustum[4];
     float lodBase, lodStep;
     float pyramidWidth, pyramidHeight;
+    float lodErrorThreshold;
 
     int32_t enableCull;
     int32_t enableLod;

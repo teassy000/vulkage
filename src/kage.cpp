@@ -1981,6 +1981,7 @@ namespace kage
         
         m_cmdQueue.start();
 
+        // TODO: remove one of them in the future
         m_frameGraph = BX_NEW(getAllocator(), Framegraph)(getAllocator(), m_rhiContext->memoryBlock());
         m_frameGraph2 = BX_NEW(getAllocator(), Framegraph2)();
 

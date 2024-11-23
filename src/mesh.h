@@ -29,6 +29,7 @@ struct MeshLod
     uint32_t meshletCount;
     uint32_t indexOffset;
     uint32_t indexCount;
+    float error;
 };
 
 struct alignas(16) Mesh

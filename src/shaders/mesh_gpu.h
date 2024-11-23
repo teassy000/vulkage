@@ -47,6 +47,7 @@ struct MeshDrawCull
     float frustum[4];
     float lodBase, lodStep;
     float pyramidWidth, pyramidHeight;
+    float lodErrorThreshold;
 
     int enableCull;
     int enableLod;
@@ -69,6 +70,7 @@ struct MeshLod
     uint meshletCount;
     uint indexOffset;
     uint indexCount;
+    float error;
 };
 
 struct Mesh
