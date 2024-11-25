@@ -2535,7 +2535,7 @@ namespace kage { namespace vk
             break;
         case Handle::Image:
             {
-                if (m_shaderContainer.exist(_h.id))
+                if (m_imageContainer.exist(_h.id))
                 {
                     const Image_vk& img = m_imageContainer.getIdToData(_h.id);
                     setDebugObjName(m_device, img.image, "%.*s", _len, _name);
