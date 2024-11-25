@@ -4,6 +4,7 @@
 #include "mesh.h"
 #include "scene.h"
 #include "gltf_loader.h"
+#include "file_helper.h"
 
 enum class Scene_Enum : uint64_t
 {
@@ -226,17 +227,6 @@ bool loadObjScene(Scene& _scene, const char** _pathes, const uint32_t _pathCount
     return true;
 }
 
-
-const char* getExtension(const char* _path)
-{
-    const char* extension = strrchr(_path, '.');
-    if (!extension || extension == _path) {
-        kage::message(kage::error, "Invalid file format: %s", _path);
-        return nullptr;
-    }
-    extension++; // Skip the dot
-    return extension;
-}
 
 bool loadScene(Scene& _scene, const char** _pathes, const uint32_t _pathCount, bool _buildMeshlets, bool _seamlessLod)
 {

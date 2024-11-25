@@ -3,6 +3,9 @@
 
 #include "meshoptimizer.h"
 #include "debug.h"
+#include <map>
+#include "kage_structs.h"
+#include "file_helper.h"
 
 bool processMesh(Geometry& _geo, std::vector<std::pair<uint32_t, uint32_t>>& _prims, const cgltf_mesh* _gltfMesh, bool _buildMeshlet)
 {
@@ -131,6 +134,23 @@ bool processNode(Scene& _scene, std::vector<std::pair<uint32_t, uint32_t>>& _pri
 
             draw.meshIdx = prim.first + ii;
 
+            auto getTextureIdx = [&_gltfData](const cgltf_material* _mat, const cgltf_texture* _tex, const uint32_t _default) -> uint32_t
+                {
+                    return (_mat && _tex) 
+                        ? (uint32_t)cgltf_texture_index(_gltfData, _tex) 
+                        : _default;
+                };
+
+            const cgltf_primitive* gltfPrim = &_gltfData->meshes[meshIdx].primitives[ii];
+            const cgltf_material* mat = gltfPrim->material;
+            draw.albedoTex = getTextureIdx(
+                mat
+                , mat->pbr_metallic_roughness.base_color_texture.texture, 
+                getTextureIdx(mat, mat->pbr_specular_glossiness.diffuse_texture.texture, 0)
+                );
+            draw.normalTex = getTextureIdx(mat, mat->normal_texture.texture, 0);
+            draw.specularTex = getTextureIdx(mat, mat->pbr_metallic_roughness.metallic_roughness_texture.texture, 0);
+            draw.emissiveTex = getTextureIdx(mat, mat->emissive_texture.texture, 0);
 
             const Mesh& mesh = _scene.geometry.meshes[draw.meshIdx];
             draw.vertexOffset = mesh.vertexOffset;
@@ -153,6 +173,7 @@ bool processNode(Scene& _scene, std::vector<std::pair<uint32_t, uint32_t>>& _pri
         _scene.meshletVisibilityCount = meshletVisibilityOffset;
         _scene.drawCount = (uint32_t)_scene.meshDraws.size();
     }
+    
     // light?
 
     // camera?
@@ -203,6 +224,28 @@ bool loadGltfScene(Scene& _scene, const char** _pathes, uint32_t _pathCount, boo
         cgltf_node* gltfNode = &data->nodes[ii];
 
         processNode(_scene, primitives, data, gltfNode, _seamlessLod);
+    }
+
+    // -- images
+    std::map<const uint8_t*, kage::ImageHandle> imageMap;
+    for (uint32_t ii = 0; ii < data->textures_count; ++ii)
+    {
+        const cgltf_texture& tex = data->textures[ii];
+        assert(tex.image);
+        const cgltf_image* img = tex.image;
+        const cgltf_buffer_view* view = img->buffer_view;
+
+        if (void* data = (view && view->buffer) ? view->buffer->data : nullptr)
+        {
+            const size_t offset = view->offset;
+            const size_t size = view->size;
+            const uint8_t* ptr = (const uint8_t*)data + offset;
+            if (imageMap.find(ptr) == imageMap.end())
+            {
+                kage::ImageHandle hImg = loadImageFromMemory(img->name, ptr, (uint32_t)size);
+                imageMap[ptr] = hImg;
+            }
+        }
     }
 
     return true;

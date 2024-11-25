@@ -72,7 +72,7 @@ void initSkyboxPass(Skybox& _skybox, const kage::BufferHandle _trans, const kage
 
 
     // load texture 
-    kage::ImageHandle cubemap = loadKtxFromFile("skybox_tex", "./data/textures/cubemap_vulkan.ktx");
+    kage::ImageHandle cubemap = loadImageFromFile("skybox_tex", "./data/textures/cubemap_vulkan.ktx");
     kage::ImageHandle outColor = kage::alias(_color);
 
     kage::bindVertexBuffer(pass, vtxBuf);

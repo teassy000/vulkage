@@ -46,8 +46,8 @@ void buildTerrainMesh(float _x_step, float _y_step, float _h_step)
     // Load heightmap from file
     const char* path = "./data/heightmap/heightmap.ktx";
     const char* name = "heightmap";
-    ktxTextureResoluton res{};
-    kage::ImageHandle hImg = loadKtxFromFile(name, path, res);
+    textureResolution res{};
+    kage::ImageHandle hImg = loadImageFromFile(name, path, res);
 
     uint16_t width = res.width;
     uint16_t height = res.height;

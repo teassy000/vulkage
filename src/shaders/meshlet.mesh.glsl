@@ -111,7 +111,12 @@ void main()
     uint indexOffset = dataOffset + vertexCount;
 
 #if DEBUG_MESHLET
-    uint mhash = hash(mi);
+    uint abledoIdx = meshDraw.albedoTex;
+    uint normalIdx = meshDraw.normalTex;
+    uint specularIdx = meshDraw.specularTex;
+    uint emmisiveIdx = meshDraw.emissiveTex;
+
+    uint mhash = hash(abledoIdx);
     vec3 mcolor = vec3(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255)) / 255.0;
 #endif
 
