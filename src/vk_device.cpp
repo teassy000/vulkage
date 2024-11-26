@@ -204,6 +204,17 @@ namespace kage{ namespace vk
         features12.samplerFilterMinmax = true;
         features12.shaderFloat16 = true;
         features12.shaderInt8 = true;
+        features12.descriptorIndexing = true; // for VK_EXT_descriptor_indexing, this is enabled by default, here just for explicitness
+        // enable non sized array
+        features12.runtimeDescriptorArray = true;
+        // enable partially bound descriptor sets
+        features12.descriptorBindingPartiallyBound = true;
+        // enable non uniform indexing
+        // (#extension GL_EXT_nonuniform_qualifier : require)
+        features12.shaderSampledImageArrayNonUniformIndexing = true;
+        // enable update after bind
+        features12.descriptorBindingSampledImageUpdateAfterBind = true;
+        
 
         VkPhysicalDeviceVulkan13Features features13 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };
         features13.dynamicRendering = true; // for vkCmdBeginRendering
