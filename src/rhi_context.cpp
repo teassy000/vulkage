@@ -44,6 +44,9 @@ namespace kage
             case RHIContextOpMagic::create_sampler:
                 createSampler(reader);
                 break;
+            case RHIContextOpMagic::create_bindless:
+                createBindless(reader);
+                break;
             case RHIContextOpMagic::set_brief:
                 setBrief(reader);
                 break;

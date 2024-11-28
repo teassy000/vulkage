@@ -1334,12 +1334,10 @@ namespace kage { namespace vk
             createInfo.pipelineStatistics = VK_QUERY_PIPELINE_STATISTIC_CLIPPING_PRIMITIVES_BIT;
         }
 
-
         VkQueryPool queryPool = nullptr;
         VK_CHECK(vkCreateQueryPool(device, &createInfo, 0, &queryPool));
         return queryPool;
     }
-
 
     template<typename Ty>
     constexpr VkObjectType getType();
@@ -1496,28 +1494,6 @@ namespace kage { namespace vk
             m_cmd.init(m_gfxFamilyIdx, m_queue, m_numFramesInFlight);
 
             m_cmd.alloc(&m_cmdBuffer);
-        }
-
-
-        {
-            uint32_t descriptorCount = 512;
-
-            VkDescriptorPoolSize poolSizes[] =
-            {
-                { VK_DESCRIPTOR_TYPE_SAMPLER, descriptorCount },
-                { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, descriptorCount },
-                { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, descriptorCount },
-                { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, descriptorCount },
-                { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, descriptorCount },
-                { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, descriptorCount },
-            };
-
-            VkDescriptorPoolCreateInfo poolCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
-            poolCreateInfo.maxSets = descriptorCount;
-            poolCreateInfo.poolSizeCount = COUNTOF(poolSizes);
-            poolCreateInfo.pPoolSizes = poolSizes;
-
-            VK_CHECK(vkCreateDescriptorPool(m_device, &poolCreateInfo, 0, &m_descPool));
         }
 
         vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &m_memProps);
@@ -2092,6 +2068,12 @@ namespace kage { namespace vk
         ProgramCreateInfo info;
         bx::read(&_reader, info, nullptr);
 
+        VkDescriptorSetLayout setArrLayout = VK_NULL_HANDLE;
+        if (kInvalidHandle != info.bindlessId)
+        {
+            setArrLayout = m_bindlessContainer.getIdToData(info.bindlessId).layout;
+        }
+
         stl::vector<uint16_t> shaderIds(info.shaderNum);
         bx::read(&_reader, shaderIds.data(), info.shaderNum * sizeof(uint16_t), nullptr);
 
@@ -2102,7 +2084,7 @@ namespace kage { namespace vk
         }
 
         VkPipelineBindPoint bindPoint = getBindPoint(shaders);
-        Program_vk prog = kage::vk::createProgram(m_device, bindPoint, shaders, info.sizePushConstants);
+        Program_vk prog = kage::vk::createProgram(m_device, bindPoint, shaders, info.sizePushConstants, setArrLayout);
 
         m_programContainer.addOrUpdate(info.progId, prog);
         m_programShaderIds.emplace_back(shaderIds);
@@ -2484,6 +2466,74 @@ namespace kage { namespace vk
         assert(sampler);
 
         m_samplerContainer.addOrUpdate(meta.samplerId, sampler);
+    }
+
+    void RHIContext_vk::createBindless(bx::MemoryReader& _reader)
+    {
+        KG_ZoneScopedC(Color::indian_red);
+
+        BindlessMetaData meta;
+        bx::read(&_reader, meta, nullptr);
+
+        uint32_t shaderCount;
+        bx::read(&_reader, shaderCount, nullptr);
+
+        stl::vector<uint16_t> shaderIds(shaderCount);
+        bx::read(&_reader, shaderIds.data(), shaderCount * sizeof(uint16_t), nullptr);
+
+        VkShaderStageFlags stages;
+        for (uint16_t sid : shaderIds)
+        {
+            const Shader_vk& shader = m_shaderContainer.getIdToData(sid);
+            stages |= shader.stage;
+        }
+
+        BindlessDescriptorSet_vk bineless{};
+
+        assert(meta.type == ResourceType::image);
+        assert(meta.reductionMode != SamplerReductionMode::max_enum);
+
+        VkDescriptorPool pool = createDescriptorPool(m_device);
+        assert(pool);
+        VkDescriptorSetLayout layout = createDescArrayLayout(m_device, stages);
+        assert(layout);
+        VkDescriptorSet set = createDescriptorSets(m_device, layout, pool);
+        assert(set);
+
+        bineless.pool = pool;
+        bineless.layout = layout;
+        bineless.set = set;
+        m_bindlessContainer.addOrUpdate(meta.bindlessId, bineless);
+
+        uint32_t imgCnt = meta.resIds->size / sizeof(uint16_t);
+        stl::vector<uint16_t> imageIds(imgCnt);
+        bx::read(&_reader, imageIds.data(), imgCnt * sizeof(uint16_t), nullptr);
+
+        for (uint16_t ii = 0; ii < imageIds.size(); ++ ii)
+        {
+            const uint16_t id = imageIds[ii];
+            const Image_vk& img = m_imageContainer.getIdToData(id);
+            const VkSampler& sampler = getCachedSampler(
+                SamplerFilter::linear
+                , SamplerAddressMode::clamp_to_edge
+                , meta.reductionMode
+            );
+            
+            VkDescriptorImageInfo imgInfo{};
+            imgInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            imgInfo.imageView = img.defaultView;
+            imgInfo.sampler = sampler;
+            
+            VkWriteDescriptorSet write{};
+            write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            write.dstSet = set;
+            write.dstBinding = meta.binding;
+            write.dstArrayElement = 0;
+            write.descriptorCount = 1;
+            write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            write.pImageInfo = &imgInfo;
+            vkUpdateDescriptorSets(m_device, 1, &write, 0, nullptr);
+        }
     }
 
     void RHIContext_vk::setBrief(bx::MemoryReader& _reader)

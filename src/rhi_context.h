@@ -23,8 +23,10 @@ namespace kage
         create_image,
         create_buffer,
         create_descriptor_set,
+        create_descriptor_set_array_layout,
         create_program,
         create_shader,
+        create_bindless,
         create_sampler,
 
         set_brief,
@@ -179,6 +181,7 @@ namespace kage
         virtual void createImage(bx::MemoryReader& reader) {};
         virtual void createBuffer(bx::MemoryReader& reader) {};
         virtual void createSampler(bx::MemoryReader& _reader) {};
+        virtual void createBindless(bx::MemoryReader& _reader) {};
         virtual void setBrief(bx::MemoryReader& reader) {};
 
         virtual void setName(Handle _h, const char* _name, uint32_t _len) {};

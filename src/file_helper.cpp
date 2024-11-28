@@ -66,7 +66,6 @@ const kage::ImageHandle loadImageFromFile(const char* _name, const char* _path, 
     return { kage::kInvalidHandle };
 }
 
-
 const kage::ImageHandle loadImageFromMemory(const char* _name, const void* _data, uint32_t _size, textureResolution& _outRes /*= {}*/)
 {
     bimg::ImageContainer* imageContainer = bimg::imageParse(entry::getAllocator(), _data, _size);

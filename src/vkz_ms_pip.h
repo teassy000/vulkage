@@ -22,6 +22,8 @@ struct MeshShadingInitData
 
     kage::ImageHandle color;
     kage::ImageHandle depth;
+
+    kage::BindlessHandle bindlessSampler;
 };
 
 struct MeshShading
@@ -43,6 +45,8 @@ struct MeshShading
     kage::BufferHandle meshDrawCmdCountBuffer;
     kage::BufferHandle meshDrawBuffer;
     kage::BufferHandle transformBuffer;
+
+    kage::BindlessHandle bindlessSampler;
     
     // read / write
     kage::BufferHandle meshletVisBuffer;

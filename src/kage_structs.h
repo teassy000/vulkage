@@ -14,7 +14,7 @@ namespace kage
 
 #define KAGE_HANDLE(_name)                                                              \
     struct _name {                                                                      \
-        uint16_t id;                                                                    \
+        uint16_t id{kInvalidHandle};                                                    \
         bool operator == (const _name& rhs) const { return id == rhs.id; };             \
         bool operator < (const _name& rhs) const { return id < rhs.id; };               \
         operator size_t() const { return id; };                                         \
@@ -27,6 +27,7 @@ namespace kage
     KAGE_HANDLE(BufferHandle);
     KAGE_HANDLE(ImageHandle);
     KAGE_HANDLE(SamplerHandle);
+    KAGE_HANDLE(BindlessHandle);
 
     using ReleaseFn = void (*)(void* _ptr, void* _userData);
 
@@ -37,8 +38,6 @@ namespace kage
         uint8_t* data;
         uint32_t size;
     };
-
-
 
     enum class VulkanSupportExtension : uint16_t
     {
@@ -603,6 +602,14 @@ namespace kage
         ImageUsageFlags usage{ ImageUsageFlagBits::color_attachment };
     };
 
+    struct BindlessDesc
+    {
+        uint32_t set{ 0 };
+        uint32_t binding{ 0 };
+        ResourceType type{ ResourceType::undefined };
+        SamplerReductionMode reductionMode{ SamplerReductionMode::max_enum };
+    };
+
     struct PassDesc
     {
         uint16_t        programId{kInvalidHandle};
@@ -629,7 +636,7 @@ namespace kage
 
         SamplerHandle   sampler{ kInvalidHandle };
         uint16_t        mip{ kAllMips };
-        ResourceType    type{ ResourceType::undefined };
+        ResourceType     type{ ResourceType::undefined };
         BindingAccess   access{ BindingAccess::read };
         PipelineStageFlags stage{ PipelineStageFlagBits::none };
 

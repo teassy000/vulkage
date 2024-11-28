@@ -2,6 +2,7 @@
 
 #include "mesh.h"
 #include "kage_math.h"
+#include "kage.h"
 
 struct alignas(16) MeshDraw
 {
@@ -27,6 +28,7 @@ struct Scene
 
     Geometry geometry;
     std::vector<MeshDraw> meshDraws;
+    std::vector<kage::ImageHandle> textures;
 };
 
 bool loadScene(Scene& scene, const char** pathes, const uint32_t pathCount, bool buildMeshlets, bool seamlessLod);

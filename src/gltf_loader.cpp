@@ -228,6 +228,8 @@ bool loadGltfScene(Scene& _scene, const char** _pathes, uint32_t _pathCount, boo
 
     // -- images
     std::map<const uint8_t*, kage::ImageHandle> imageMap;
+    _scene.textures.resize(data->textures_count);
+
     for (uint32_t ii = 0; ii < data->textures_count; ++ii)
     {
         const cgltf_texture& tex = data->textures[ii];
@@ -244,6 +246,7 @@ bool loadGltfScene(Scene& _scene, const char** _pathes, uint32_t _pathCount, boo
             {
                 kage::ImageHandle hImg = loadImageFromMemory(img->name, ptr, (uint32_t)size);
                 imageMap[ptr] = hImg;
+                _scene.textures[ii] = hImg;
             }
         }
     }

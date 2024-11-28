@@ -157,6 +157,7 @@ namespace kage
             create_program,
             create_shader,
             create_sampler,
+            create_bindless,
 
             alias_image,
             alias_buffer,
@@ -243,6 +244,7 @@ namespace kage
         uint16_t m_num;
         const Memory* m_mem;
         uint32_t m_sizeConstants;
+        BindlessHandle m_bindless;
     };
 
     struct CreateShaderCmd : public Command
@@ -257,6 +259,13 @@ namespace kage
         ENTRY_IMPLEMENT_COMMAND(CreateSamplerCmd, Command::create_sampler);
         SamplerHandle m_handle;
         SamplerDesc m_desc;
+    };
+
+    struct CreateBindlessResCmd : public Command
+    {
+        ENTRY_IMPLEMENT_COMMAND(CreateBindlessResCmd, Command::create_bindless);
+        BindlessHandle   m_handle;
+        BindlessDesc     m_desc;
     };
 
     struct AliasImageCmd : public Command
@@ -549,13 +558,14 @@ namespace kage
             push(cmd);
         }
 
-        void cmdCreateProgram(ProgramHandle _handle, const Memory* _mem, const uint16_t _shaderNum, const uint32_t _sizePushConstants)
+        void cmdCreateProgram(ProgramHandle _handle, const Memory* _mem, const uint16_t _shaderNum, const uint32_t _sizePushConstants, BindlessHandle _bindless)
         {
             CreateProgramCmd cmd;
             cmd.m_handle = _handle;
             cmd.m_num = _shaderNum;
             cmd.m_mem = _mem;
             cmd.m_sizeConstants = _sizePushConstants;
+            cmd.m_bindless = _bindless;
 
             push(cmd);
         }
@@ -572,6 +582,15 @@ namespace kage
         void cmdCreateSampler(SamplerHandle _handle, const SamplerDesc& _desc)
         {
             CreateSamplerCmd cmd;
+            cmd.m_handle = _handle;
+            cmd.m_desc = _desc;
+
+            push(cmd);
+        }
+
+        void cmdCreateBindlessRes(BindlessHandle _handle, const BindlessDesc& _desc)
+        {
+            CreateBindlessResCmd cmd;
             cmd.m_handle = _handle;
             cmd.m_desc = _desc;
 

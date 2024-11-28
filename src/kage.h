@@ -13,12 +13,13 @@ namespace kage
 
     // resource management functions
     ShaderHandle registShader(const char* _name, const char* _path);
-    ProgramHandle registProgram(const char* _name, ShaderHandleList _shaders, const uint32_t _sizePushConstants = 0);
+    ProgramHandle registProgram(const char* _name, ShaderHandleList _shaders, const uint32_t _sizePushConstants = 0, const BindlessHandle _bindless = {});
 
     BufferHandle registBuffer(const char* _name, const BufferDesc& _desc, const Memory* _mem = nullptr, const ResourceLifetime _lifetime = ResourceLifetime::transition);
     ImageHandle registTexture(const char* _name, const ImageDesc& _desc, const Memory* _mem = nullptr, const ResourceLifetime _lifetime = ResourceLifetime::transition);
     ImageHandle registRenderTarget(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime = ResourceLifetime::transition);
     ImageHandle registDepthStencil(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime = ResourceLifetime::transition);
+    BindlessHandle registBindless(const char* _name, const BindlessDesc& _desc);
 
     PassHandle registPass(const char* _name, PassDesc _desc);
 
@@ -57,6 +58,8 @@ namespace kage
         , PipelineStageFlags _stage
         , SamplerReductionMode _reductionMode
     );
+
+    void setBindlessTextures(BindlessHandle _bindless, const Memory* _mem, uint32_t _texCount, SamplerReductionMode _reductionMode);
 
     void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx, const ImageHandle _outAlias = { kInvalidHandle });
 

@@ -42,86 +42,6 @@ namespace kage
         createResources();
     }
 
-    void Framegraph2::process(CommandQueue& _in)
-    {
-        KG_ZoneScopedC(Color::light_yellow);
-
-        _in.reset();
-
-        const Command* cmd;
-        do
-        {
-            cmd = _in.poll();
-
-            if (nullptr != cmd)
-            {
-                switch (cmd->m_cmd)
-                {
-                case Command::create_pass:
-                    {
-                        const CreatePassCmd* cpc = static_cast<const CreatePassCmd*>(cmd);
-                        cpc->m_desc;
-                    }
-                    break;
-                case Command::create_image:
-                    {
-                        const CreateImageCmd* cic = static_cast<const CreateImageCmd*>(cmd);
-                    }
-                    break;
-                case Command::create_buffer:
-                    {
-                        const CreateBufferCmd* cbc = static_cast<const CreateBufferCmd*>(cmd);
-                    }
-                    break;
-                case Command::create_program:
-                    {
-                        const CreateProgramCmd* cpc = static_cast<const CreateProgramCmd*>(cmd);
-                    }
-                    break;
-                case Command::create_shader:
-                    {
-                        const CreateShaderCmd* csc = static_cast<const CreateShaderCmd*>(cmd);
-                    }
-                    break;
-                case Command::create_sampler:
-                    {
-                        const CreateSamplerCmd* csc = static_cast<const CreateSamplerCmd*>(cmd);
-                    }
-                    break;
-                case Command::alias_image:
-                    {
-                        const AliasImageCmd* aic = static_cast<const AliasImageCmd*>(cmd);
-                    }
-                    break;
-                case Command::alias_buffer:
-                    {
-                        const AliasBufferCmd* abc = static_cast<const AliasBufferCmd*>(cmd);
-                    }
-                    break;
-                case Command::update_image:
-                    {
-                        const UpdateImageCmd* uic = static_cast<const UpdateImageCmd*>(cmd);
-                    }
-                    break;
-                case Command::update_buffer:
-                    {
-                        const UpdateBufferCmd* ubc = static_cast<const UpdateBufferCmd*>(cmd);
-                    }
-                    break;
-                case Command::end:
-                    {
-                    }
-                    break;
-                default:
-                    {
-                    }
-                    break;
-                }
-            }
-
-        } while (cmd != nullptr);
-    }
-
     void Framegraph::shutdown()
     {
         KG_ZoneScopedC(Color::light_yellow);
@@ -140,6 +60,7 @@ namespace kage
         m_sparse_img_info.clear();
         m_sparse_sampler_meta.clear();
         m_sparse_pass_data_ref.clear();
+        m_sparse_bindless_meta.clear();
         
         m_shader_path.clear();
         m_combinedResId.clear();
@@ -220,6 +141,10 @@ namespace kage
                 registerSampler(reader);
                 break;
             }
+            case MagicTag::register_bindless: {
+                registerBindless(reader);
+                break;
+            }
             // Alias
             case MagicTag::force_alias_buffer: {
                 aliasResForce(reader, ResourceType::buffer);
@@ -262,6 +187,7 @@ namespace kage
         m_sparse_buf_info.resize(brief.bufNum);
         m_sparse_img_info.resize(brief.imgNum);
         m_sparse_sampler_meta.resize(brief.samplerNum);
+        m_sparse_bindless_meta.resize(brief.bindlessNum);
 
         m_sparse_pass_data_ref.resize(brief.passNum);
 
@@ -424,6 +350,16 @@ namespace kage
 
         m_hSampler.push_back({ meta.samplerId });
         m_sparse_sampler_meta[meta.samplerId] = meta;
+    }
+
+    void Framegraph::registerBindless(bx::MemoryReader& _reader)
+    {
+        KG_ZoneScopedC(Color::light_yellow);
+        BindlessMetaData meta;
+        bx::read(&_reader, meta, nullptr);
+
+        m_hBindless.push_back({ meta.bindlessId });
+        m_sparse_bindless_meta[meta.bindlessId] = meta;
     }
 
     const ResInteractDesc merge(const ResInteractDesc& _desc0, const ResInteractDesc& _desc1)
@@ -635,7 +571,7 @@ namespace kage
         stl::unordered_set<CombinedResID> writeOpInSetO{};
         for (uint16_t ii = 0; ii < m_hPass.size(); ++ii)
         {
-            PassRWResource rwRes = m_pass_rw_res[ii];
+            const PassRWResource rwRes = m_pass_rw_res[ii];
             stl::unordered_set<CombinedResID> writeOpInSet{};
 
             size_t aliasMapNum = rwRes.writeOpForcedAliasMap.size();
@@ -1838,6 +1774,8 @@ namespace kage
 
         stl::vector<ProgramHandle> usedProgram{};
         stl::vector<ShaderHandle> usedShaders{};
+        stl::unordered_map<BindlessHandle, stl::unordered_set<ShaderHandle>> bindlessToShaders{};
+
         for ( PassHandle pass : m_sortedPass)
         {
             const PassMetaData& passMeta = m_sparse_pass_meta[pass.id];
@@ -1848,8 +1786,18 @@ namespace kage
             for (uint16_t ii = 0; ii < progInfo.createInfo.shaderNum; ++ii)
             {
                 const uint16_t shaderId = progInfo.shaderIds[ii];
-
                 usedShaders.push_back({ shaderId });
+            }
+
+            if (progInfo.createInfo.bindlessId != kInvalidHandle)
+            {
+                BindlessHandle bindless = { progInfo.createInfo.bindlessId };
+
+                for (uint16_t ii = 0; ii < progInfo.createInfo.shaderNum; ++ii)
+                {
+                    const uint16_t shaderId = progInfo.shaderIds[ii];
+                    bindlessToShaders[bindless].insert({ shaderId });
+                }
             }
         }
 
@@ -1875,6 +1823,29 @@ namespace kage
             bx::write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end, nullptr);
         }
 
+        // write bindless info
+        for ( const stl::unordered_hash_node<BindlessHandle, stl::unordered_set<ShaderHandle>>& bltoSh 
+            : bindlessToShaders)
+        {
+            BindlessHandle bindlessId = bltoSh.first;
+            stl::unordered_set<ShaderHandle> shaders = bltoSh.second;
+
+            const BindlessMetaData& meta = m_sparse_bindless_meta[bindlessId.id];
+            RHIContextOpMagic magic{ RHIContextOpMagic::create_bindless };
+            bx::write(&m_rhiMemWriter, magic, nullptr);
+            bx::write(&m_rhiMemWriter, meta, nullptr);
+
+            stl::vector<uint16_t> shaderIds;
+            for (ShaderHandle shader : shaders)
+            {
+                shaderIds.push_back(shader.id);
+            }
+            uint32_t shaderNum = (uint32_t)shaderIds.size();
+            bx::write(&m_rhiMemWriter, shaderNum, nullptr);
+            bx::write(&m_rhiMemWriter, (void*)shaderIds.data(), (int32_t)(shaderIds.size() * sizeof(uint16_t)), nullptr);
+
+            bx::write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end, nullptr);
+        }
 
         // write program info
         for (ProgramHandle prog : usedProgram)

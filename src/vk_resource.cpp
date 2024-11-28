@@ -460,7 +460,6 @@ namespace kage { namespace vk
         return sampler;
     }
 
-
     VkMemoryBarrier2 memoryBarrier(
         VkAccessFlags2 _srcAccessMask
         , VkAccessFlags2 _dstAccessMask

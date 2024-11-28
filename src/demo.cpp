@@ -62,6 +62,7 @@ namespace
             // basic data
             freeCameraInit();
 
+            createBindlessArray();
             createBuffers();
             createImages();
             createPasses();
@@ -498,6 +499,22 @@ namespace
             m_demoData.globals.lodErrorThreshold = lodErrThreshold;
         }
 
+        void createBindlessArray()
+        {
+            kage::BindlessDesc desc;
+            desc.binding = 0;
+            desc.type = kage::ResourceType::image;
+            desc.set = 1;
+
+            m_bindlessArray = kage::registBindless("bindless_sampler", desc);
+
+            // set textures into bindless array
+            const kage::Memory* mem = kage::alloc(uint32_t(sizeof(kage::ImageHandle) * m_scene.textures.size()));
+            memcpy(mem->data, m_scene.textures.data(), mem->size);
+
+            kage::setBindlessTextures(m_bindlessArray, mem, uint32_t(m_scene.textures.size()), kage::SamplerReductionMode::weighted_average);
+        }
+
         Scene m_scene{};
         DemoData m_demoData{};
         bool m_supportMeshShading;
@@ -519,6 +536,8 @@ namespace
         kage::BufferHandle m_meshletBuffer;
         kage::BufferHandle m_meshletDataBuffer;
         kage::BufferHandle m_transformBuf;
+
+        kage::BindlessHandle m_bindlessArray;
 
         // images
         kage::ImageHandle m_color;

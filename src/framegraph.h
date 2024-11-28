@@ -25,6 +25,7 @@ namespace kage
         register_buffer,
         register_image,
         register_sampler,
+        register_bindless,
 
         force_alias_buffer,
         force_alias_image,
@@ -42,6 +43,7 @@ namespace kage
         uint32_t    imgNum;
         uint32_t    samplerNum;
         uint32_t    imgViewNum;
+        uint32_t    bindlessNum;
 
         uint16_t    presentImage;
         uint32_t    presentMipLevel;
@@ -185,8 +187,8 @@ namespace kage
         void registerImage(bx::MemoryReader& _reader);
 
         void registerSampler(bx::MemoryReader& _reader);
+        void registerBindless(bx::MemoryReader& _reader);
         
-        void storeBackBuffer(bx::MemoryReader& _reader);
 
         uint32_t readResource(const stl::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type);
         uint32_t writeResource(const stl::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type);
@@ -422,12 +424,13 @@ namespace kage
         uint32_t       m_presentMipLevel;
         PassHandle     m_finalPass{kInvalidHandle};
 
-        stl::vector< ShaderHandle >     m_hShader;
-        stl::vector< ProgramHandle >    m_hProgram;
-        stl::vector< PassHandle >       m_hPass;
-        stl::vector< BufferHandle >     m_hBuf;
-        stl::vector< ImageHandle >      m_hTex;
-        stl::vector< SamplerHandle >    m_hSampler;
+        stl::vector< ShaderHandle >         m_hShader;
+        stl::vector< ProgramHandle >        m_hProgram;
+        stl::vector< PassHandle >           m_hPass;
+        stl::vector< BufferHandle >         m_hBuf;
+        stl::vector< ImageHandle >          m_hTex;
+        stl::vector< SamplerHandle >        m_hSampler;
+        stl::vector< BindlessHandle >    m_hBindless;
 
         stl::vector< ShaderInfo >           m_sparse_shader_info;
         stl::vector< ProgramInfo>           m_sparse_program_info;
@@ -436,6 +439,7 @@ namespace kage
         stl::vector< FGImageCreateInfo >    m_sparse_img_info;
         stl::vector< PassMetaDataRef>       m_sparse_pass_data_ref;
         stl::vector< SamplerMetaData >      m_sparse_sampler_meta;
+        stl::vector< BindlessMetaData >  m_sparse_bindless_meta;
         
         stl::vector< String>                m_shader_path;
 
@@ -487,33 +491,6 @@ namespace kage
 
         stl::vector< BufBucket>          m_bufBuckets;
         stl::vector< ImgBucket>          m_imgBuckets;
-    };
-
-    struct FGPassInfo
-    {
-        PassHandle id;
-    };
-
-    struct FGImageInfo
-    {
-        ImageHandle id;
-    };
-
-    struct FGBufferInfo
-    {
-        BufferHandle id;
-    };
-
-    struct Framegraph2
-    {
-        void process(CommandQueue& _in);
-        void buildGraph();
-
-        FrameGraphBrief m_brief;
-
-        FGPassInfo  m_passInfo[kMaxNumOfPassHandle];
-        FGImageInfo m_imageInfo[kMaxNumOfImageHandle];
-        FGBufferInfo m_bufferInfo[kMaxNumOfBufferHandle];
     };
 
 }; // namespace kage

@@ -340,7 +340,7 @@ namespace kage
         bool checkSupports(VulkanSupportExtension _ext);
 
         ShaderHandle registShader(const char* _name, const char* _path);
-        ProgramHandle registProgram(const char* _name, const Memory* _shaders, const uint16_t _shaderCount, const uint32_t _sizePushConstants = 0);
+        ProgramHandle registProgram(const char* _name, const Memory* _shaders, const uint16_t _shaderCount, const uint32_t _sizePushConstants = 0, const BindlessHandle _bindless = {});
 
         PassHandle registPass(const char* _name, const PassDesc& _desc);
 
@@ -349,6 +349,8 @@ namespace kage
         ImageHandle registTexture(const char* _name, const ImageDesc& _desc, const Memory* _mem, const ResourceLifetime _lifetime);
         ImageHandle registRenderTarget(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime);
         ImageHandle registDepthStencil(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime);
+
+        BindlessHandle registBindless(const char* _name, const BindlessDesc& _desc, const ResourceLifetime _lifetime);
 
         SamplerHandle requestSampler(const SamplerDesc& _desc);
 
@@ -367,6 +369,9 @@ namespace kage
 
         void bindBuffer(PassHandle _hPass, BufferHandle _buf, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, const BufferHandle _outAlias);
         SamplerHandle sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, SamplerReductionMode _reductionMode);
+
+        void setBindlessTextures(BindlessHandle _bindless, const Memory* _mem, uint32_t _texCount, SamplerReductionMode _reductionMode);
+
         void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout
             , const ImageHandle _outAlias);
 
@@ -397,6 +402,7 @@ namespace kage
         void storeImageData();
         void storeAliasData();
         void storeSamplerData();
+        void storeBindlessData();
 
         void init(const Init& _init);
 
@@ -551,6 +557,7 @@ namespace kage
         bx::HandleAllocT<kMaxNumOfBufferHandle> m_bufferHandles;
         bx::HandleAllocT<kMaxNumOfImageHandle> m_imageHandles;
         bx::HandleAllocT<kMaxNumOfSamplerHandle> m_samplerHandles;
+        bx::HandleAllocT<kMaxNumOfBindlessResHandle> m_bindlessResHandles;
         
         ImageHandle m_presentImage{kInvalidHandle};
         uint32_t m_presentMipLevel{ 0 };
@@ -564,6 +571,7 @@ namespace kage
         ImageMetaData           m_imageMetas[kMaxNumOfImageHandle];
         PassMetaData            m_passMetas[kMaxNumOfPassHandle];
         SamplerDesc             m_samplerDescs[kMaxNumOfSamplerHandle];
+        BindlessMetaData        m_bindlessResMetas[kMaxNumOfBindlessResHandle];
 
         // running Pass
         PassHandle              m_recordingPass{ kInvalidHandle };
@@ -606,7 +614,6 @@ namespace kage
         RHIContext* m_rhiContext{ nullptr };
 
         Framegraph* m_frameGraph{ nullptr };
-        Framegraph2* m_frameGraph2{ nullptr };
 
         Resolution m_resolution{};
 
@@ -741,7 +748,7 @@ namespace kage
         return handle;
     }
 
-    ProgramHandle Context::registProgram(const char* _name, const Memory* _mem, const uint16_t _shaderNum, const uint32_t _sizePushConstants /*= 0*/)
+    ProgramHandle Context::registProgram(const char* _name, const Memory* _mem, const uint16_t _shaderNum, const uint32_t _sizePushConstants /*= 0*/, const BindlessHandle _bindless /*= {}*/)
     {
         uint16_t idx = m_programHandles.alloc();
 
@@ -758,6 +765,7 @@ namespace kage
         desc.progId = idx;
         desc.shaderNum = _shaderNum;
         desc.sizePushConstants = _sizePushConstants;
+        desc.bindlessId = _bindless.id;
         memcpy_s(desc.shaderIds, COUNTOF(desc.shaderIds), _mem->data, _mem->size);
 
         m_programDescs[idx] = desc;
@@ -766,7 +774,7 @@ namespace kage
 
         setRenderGraphDataDirty();
 
-        m_cmdQueue.cmdCreateProgram(handle, _mem, _shaderNum, _sizePushConstants);
+        m_cmdQueue.cmdCreateProgram(handle, _mem, _shaderNum, _sizePushConstants, _bindless);
 
         return handle;
     }
@@ -1008,6 +1016,24 @@ namespace kage
         return handle;
     }
 
+    BindlessHandle Context::registBindless(const char* _name, const BindlessDesc& _desc, const ResourceLifetime _lifetime)
+    {
+        uint16_t idx = m_bindlessResHandles.alloc();
+        BindlessHandle handle = BindlessHandle{ idx };
+
+        // check if img is valid
+        if (!isValid(handle))
+        {
+            message(error, "create BindlessResHandle failed!");
+            return BindlessHandle{ kInvalidHandle };
+        }
+
+        m_bindlessResMetas[idx] = BindlessMetaData{ _desc};
+        m_bindlessResMetas[idx].bindlessId = idx;
+
+        return handle;
+    }
+
     SamplerHandle Context::requestSampler(const SamplerDesc& _desc)
     {
         // find if the sampler already exist
@@ -1059,6 +1085,7 @@ namespace kage
         brief.shaderNum = m_shaderHandles.getNumHandles();
         brief.programNum = m_programHandles.getNumHandles();
         brief.samplerNum = m_samplerHandles.getNumHandles();
+        brief.bindlessNum = m_bindlessResHandles.getNumHandles();
 
         brief.presentImage = m_presentImage.id;
         brief.presentMipLevel = m_presentMipLevel;
@@ -1382,6 +1409,19 @@ namespace kage
         }
     }
 
+    void Context::storeBindlessData()
+    {
+        for (uint16_t ii = 0; ii < m_bindlessResHandles.getNumHandles(); ++ii)
+        {
+            uint16_t bid = m_bindlessResHandles.getHandleAt(ii);
+            const BindlessMetaData& meta = m_bindlessResMetas[bid];
+            // magic tag
+            bx::write(m_fgMemWriter, MagicTag::register_bindless, nullptr);
+            bx::write(m_fgMemWriter, meta, nullptr);
+            bx::write(m_fgMemWriter, MagicTag::magic_body_end, nullptr);
+        }
+    }
+
     BufferHandle Context::aliasBuffer(const BufferHandle _baseBuf)
     {
         uint16_t aliasId = m_bufferHandles.alloc();
@@ -1696,6 +1736,38 @@ namespace kage
         return sampler;
     }
 
+    void Context::setBindlessTextures(BindlessHandle _bindless, const Memory* _mem, uint32_t _texCount, SamplerReductionMode _reductionMode)
+    {
+        if (!isValid(_bindless))
+        {
+            message(DebugMsgType::error, "invalid bindless handle");
+            return;
+        }
+
+        assert(_texCount == _mem->size / sizeof(uint16_t));
+
+        BindlessMetaData& meta = m_bindlessResMetas[_bindless.id];
+        meta.resCount = _texCount;
+        meta.reductionMode = _reductionMode;
+        meta.resIds = _mem;
+
+        stl::vector<uint16_t> texIds(_texCount);
+        bx::memCopy(texIds.data(), _mem->data, sizeof(uint16_t) * _texCount);
+        for (uint16_t id : texIds)
+        {
+            if (!isValid(ImageHandle{ id }))
+            {
+                message(DebugMsgType::error, "invalid image handle in bindless texture");
+                continue;
+            }
+            // get image meta
+            ImageMetaData& imgMeta = m_imageMetas[id];
+            imgMeta.lifetime = ResourceLifetime::non_transition;
+        }
+
+        setRenderGraphDataDirty();
+    }
+
     void Context::bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout
         , const ImageHandle _outAlias)
     {
@@ -1899,6 +1971,10 @@ namespace kage
                         const CreateSamplerCmd* csc = reinterpret_cast<const CreateSamplerCmd*>(cmd);
                     }
                     break;
+                case Command::create_bindless:
+                    {
+                        const CreateBindlessResCmd* bvc = reinterpret_cast<const CreateBindlessResCmd*>(cmd);
+                    }
                 case Command::alias_image:
                     {
                         const AliasImageCmd* aic = reinterpret_cast<const AliasImageCmd*>(cmd);
@@ -1983,7 +2059,6 @@ namespace kage
 
         // TODO: remove one of them in the future
         m_frameGraph = BX_NEW(getAllocator(), Framegraph)(getAllocator(), m_rhiContext->memoryBlock());
-        m_frameGraph2 = BX_NEW(getAllocator(), Framegraph2)();
 
         m_pFgMemBlock = m_frameGraph->getMemoryBlock();
         m_fgMemWriter = BX_NEW(getAllocator(), bx::MemoryWriter)(m_pFgMemBlock);
@@ -2009,7 +2084,6 @@ namespace kage
 
         if (isRenderGraphDataDirty())
         {
-            m_frameGraph2->process(m_cmdQueue);
             bake();
         }
 
@@ -2079,7 +2153,6 @@ namespace kage
         m_cmdQueue.finish();
 
         bx::deleteObject(m_pAllocator, m_frameGraph);
-        bx::deleteObject(m_pAllocator, m_frameGraph2);
         vk::rendererDestroy();
         bx::deleteObject(m_pAllocator, m_fgMemWriter);
         bx::deleteObject(m_pAllocator, m_nameManager);
@@ -2267,7 +2340,7 @@ namespace kage
         return s_ctx->registShader(_name, _path);
     }
 
-    ProgramHandle registProgram(const char* _name, ShaderHandleList _shaders, const uint32_t _sizePushConstants /*= 0*/)
+    ProgramHandle registProgram(const char* _name, ShaderHandleList _shaders, const uint32_t _sizePushConstants /*= 0*/, BindlessHandle _bindless)
     {
         const uint16_t shaderNum = static_cast<const uint16_t>(_shaders.size());
         const Memory* mem = alloc(shaderNum * sizeof(uint16_t));
@@ -2300,6 +2373,11 @@ namespace kage
     ImageHandle registDepthStencil(const char* _name, const ImageDesc& _desc, const ResourceLifetime _lifetime /*= ResourceLifetime::single_frame*/)
     {
         return s_ctx->registDepthStencil(_name, _desc, _lifetime);
+    }
+
+    kage::BindlessHandle registBindless(const char* _name, const BindlessDesc& _desc)
+    {
+        return s_ctx->registBindless(_name, _desc, ResourceLifetime::non_transition);
     }
 
     PassHandle registPass(const char* _name, PassDesc _desc)
@@ -2346,6 +2424,12 @@ namespace kage
     {
         return s_ctx->sampleImage(_hPass, _hImg, _binding, _stage, _reductionMode);
     }
+
+    void setBindlessTextures(BindlessHandle _bindless, const Memory* _mem, uint32_t _texCount, SamplerReductionMode _reductionMode)
+    {
+        return s_ctx->setBindlessTextures(_bindless, _mem, _texCount, _reductionMode);
+    }
+
 
     void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout
         , const ImageHandle _outAlias /*= {kInvalidHandle}*/)

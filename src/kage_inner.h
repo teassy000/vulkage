@@ -232,13 +232,6 @@ namespace kage
         uint32_t    size{ 0 };
     };
 
-    struct BufferAliasInfo2
-    {
-        BufferHandle    handle{ kInvalidHandle };
-        uint32_t        size{ 0 };
-
-    };
-
     struct ImageCreateInfo : public ImageDesc
     {
         uint16_t    imgId{ kInvalidHandle };
@@ -279,6 +272,16 @@ namespace kage
         uint16_t samplerId{kInvalidHandle};
     };
 
+    struct BindlessMetaData : public BindlessDesc
+    {
+        BindlessMetaData() = default;
+        BindlessMetaData(const BindlessDesc& desc) : BindlessDesc(desc) {}
+        
+        uint16_t            bindlessId{ kInvalidHandle };
+        uint32_t            resCount{ 0 };
+        const Memory*       resIds{ nullptr };
+    };
+
     struct ShaderCreateInfo 
     {
         uint16_t shaderId{ kInvalidHandle };
@@ -290,6 +293,8 @@ namespace kage
         uint16_t progId{ kInvalidHandle };
         uint16_t shaderNum{ 0 };
         uint32_t sizePushConstants{ 0 };
+        
+        uint16_t bindlessId{ kInvalidHandle };
 
         uint16_t shaderIds[kMaxNumOfShaderInProgram]{ kInvalidHandle };
     };

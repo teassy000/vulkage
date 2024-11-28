@@ -67,8 +67,7 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
     kage::ShaderHandle ts = kage::registShader("task_shader", "shaders/meshlet.task.spv");
     kage::ShaderHandle fs = kage::registShader("mesh_frag_shader", "shaders/meshlet.frag.spv");
 
-
-    kage::ProgramHandle prog = kage::registProgram("mesh_prog", { ts, ms, fs }, sizeof(Globals));
+    kage::ProgramHandle prog = kage::registProgram("mesh_prog", { ts, ms, fs }, sizeof(Globals), _initData.bindlessSampler);
 
     int pipelineSpecs[] = { _late, true , {kage::kSeamlessLod == 1} };
 

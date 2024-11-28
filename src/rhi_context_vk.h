@@ -79,6 +79,13 @@ namespace kage { namespace vk
         VkPipelineStageFlags    stageMask;
     };
 
+    struct BindlessDescriptorSet_vk
+    {
+        VkDescriptorSetLayout   layout{ VK_NULL_HANDLE };
+        VkDescriptorSet         set{ VK_NULL_HANDLE };
+        VkDescriptorPool        pool{ VK_NULL_HANDLE };
+    };
+
     struct PassInfo_vk : PassDesc
     {
         VkPipeline pipeline{};
@@ -432,6 +439,7 @@ namespace kage { namespace vk
         void createImage(bx::MemoryReader& _reader) override;
         void createBuffer(bx::MemoryReader& _reader) override;
         void createSampler(bx::MemoryReader& _reader) override;
+        void createBindless(bx::MemoryReader& _reader) override;
         void setBrief(bx::MemoryReader& _reader) override;
 
         void setName(Handle _h, const char* _name, uint32_t _len) override;
@@ -614,6 +622,7 @@ namespace kage { namespace vk
         ContinuousMap<uint16_t, Program_vk>     m_programContainer;
         ContinuousMap<uint16_t, PassInfo_vk>    m_passContainer;
         ContinuousMap<uint16_t, VkSampler>      m_samplerContainer;
+        ContinuousMap<uint16_t, BindlessDescriptorSet_vk>    m_bindlessContainer;
 
         StateCacheT<VkSampler> m_samplerCache;
         StateCacheLru<VkImageView, 1024> m_imgViewCache;
@@ -656,8 +665,6 @@ namespace kage { namespace vk
         VkCommandBuffer m_cmdBuffer;
 
         VkQueue m_queue;
-
-        VkDescriptorPool m_descPool;
 
         Resolution m_resolution;
 

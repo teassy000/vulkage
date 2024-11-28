@@ -7,6 +7,7 @@
 #else
 #include <vulkan/spirv.h>
 #endif
+#include "macro.h"
 
 
 namespace kage { namespace vk
@@ -211,9 +212,9 @@ namespace kage { namespace vk
 
         for (auto& id : ids)
         {
-            if (id.opcode == SpvOpVariable && (id.storageClass == SpvStorageClassUniform || id.storageClass == SpvStorageClassUniformConstant || id.storageClass == SpvStorageClassStorageBuffer))
+            // reserve set 0 for push descriptors
+            if (id.opcode == SpvOpVariable && (id.storageClass == SpvStorageClassUniform || id.storageClass == SpvStorageClassUniformConstant || id.storageClass == SpvStorageClassStorageBuffer) && id.set == 0)
             {
-                assert(id.set == 0);
                 assert(id.binding < 32);
                 assert(ids[id.typeId].opcode == SpvOpTypePointer);
 
@@ -229,6 +230,12 @@ namespace kage { namespace vk
 
                 shader.resourceTypes[id.binding] = resourceType;
                 shader.resourceMask |= 1 << id.binding;
+            }
+
+            // set 1 for bind-less descriptor array
+            if (id.opcode == SpvOpVariable && id.storageClass == SpvStorageClassUniformConstant && id.set == 1)
+            {
+                shader.usesBindless = true;
             }
 
             if (id.opcode == SpvOpVariable && id.storageClass == SpvStorageClassPushConstant)
@@ -488,16 +495,25 @@ namespace kage { namespace vk
     }
 
 
-    Program_vk createProgram(VkDevice device, VkPipelineBindPoint bindingPoint, const stl::vector<Shader_vk>& shaders, uint32_t pushConstantSize)
+    kage::vk::Program_vk createProgram(VkDevice device, VkPipelineBindPoint bindingPoint, const stl::vector<Shader_vk>& shaders, uint32_t pushConstantSize /*= 0*/, VkDescriptorSetLayout _arrayLayout /*= 0*/)
     {
         VkShaderStageFlags pushConstantStages = 0;
         for (const Shader_vk& shader : shaders)
             if (shader.usesPushConstants)
                 pushConstantStages |= shader.stage;
 
+        bool useBindless = false;
+        VkShaderStageFlags useBindlessStages = 0;
+        for (const Shader_vk& shader : shaders) {
+            useBindless |= shader.usesBindless;
+            useBindlessStages |= shader.stage;
+        }
+
+        assert(!useBindless || _arrayLayout); // TODO: create array layout for shaders that use bind-less
+
         Program_vk program = {};
 
-        program.setLayout = createSetLayout(device, shaders);
+        program.setLayout = createDescSetLayout(device, shaders);
         assert(program.setLayout);
 
         program.layout = createPipelineLayout(device, program.setLayout, pushConstantStages, pushConstantSize);
@@ -506,6 +522,7 @@ namespace kage { namespace vk
         program.updateTemplate = createDescriptorTemplates(device, bindingPoint, program.layout, program.setLayout, shaders);
         assert(program.updateTemplate);
 
+        program.arrayLayout = _arrayLayout;
         program.pushConstantStages = pushConstantStages;
         program.bindPoint = bindingPoint;
         program.pushConstantSize = pushConstantSize;
@@ -520,7 +537,7 @@ namespace kage { namespace vk
         vkDestroyDescriptorSetLayout(device, program.setLayout, 0);
     }
 
-    VkDescriptorSetLayout createSetLayout(VkDevice device, const stl::vector<Shader_vk>& shaders)
+    VkDescriptorSetLayout createDescSetLayout(VkDevice device, const stl::vector<Shader_vk>& shaders)
     {
         stl::vector<VkDescriptorSetLayoutBinding> setBindings;
 
@@ -556,7 +573,6 @@ namespace kage { namespace vk
         return setLayout;
     }
 
-
     VkPipelineLayout createPipelineLayout(VkDevice device, VkDescriptorSetLayout outSetLayout, VkShaderStageFlags pushConstantStages, size_t pushConstantSize)
     {
         VkPipelineLayoutCreateInfo createInfo = { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
@@ -578,5 +594,63 @@ namespace kage { namespace vk
 
         return layout;
     }
-}
+
+
+    VkDescriptorPool createDescriptorPool(VkDevice _device)
+    {
+        VkDescriptorPoolSize poolSizes[] =
+        {
+            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, kMaxNumOfSamplerDescSets},
+        };
+         
+        VkDescriptorPoolCreateInfo poolCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
+        poolCreateInfo.maxSets = 1;
+        poolCreateInfo.poolSizeCount = COUNTOF(poolSizes);
+        poolCreateInfo.pPoolSizes = poolSizes;
+         
+        VkDescriptorPool pool = nullptr;
+        VK_CHECK(vkCreateDescriptorPool(_device, &poolCreateInfo, 0, &pool));
+         
+        return pool;
+    }
+
+    VkDescriptorSetLayout createDescArrayLayout(VkDevice _device, VkShaderStageFlags _stages)
+    {
+        VkDescriptorSetLayoutBinding setBinding = {};
+        setBinding.binding = 0;
+        setBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        setBinding.descriptorCount = kMaxDescriptorCount;
+        setBinding.stageFlags = _stages;
+        setBinding.pImmutableSamplers = nullptr;
+         
+        VkDescriptorBindingFlags bindingFlags = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT |    VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT;
+        VkDescriptorSetLayoutBindingFlagsCreateInfo setBindingFlags =  { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO };
+        setBindingFlags.bindingCount = 1;
+        setBindingFlags.pBindingFlags = &bindingFlags;
+         
+        VkDescriptorSetLayoutCreateInfo setLayoutInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+        setLayoutInfo.pNext = &setBindingFlags;
+        setLayoutInfo.bindingCount = 1;
+        setLayoutInfo.pBindings = &setBinding;
+         
+        VkDescriptorSetLayout setLayout = 0;
+        VK_CHECK(vkCreateDescriptorSetLayout(_device, &setLayoutInfo, 0, &setLayout));
+         
+        return setLayout;
+    }
+
+    VkDescriptorSet createDescriptorSets(VkDevice _device, VkDescriptorSetLayout _layout , VkDescriptorPool _pool)
+    {
+        VkDescriptorSetAllocateInfo allocInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+        allocInfo.descriptorPool = _pool;
+        allocInfo.descriptorSetCount = 1;
+        allocInfo.pSetLayouts = &_layout;
+        VkDescriptorSet set = nullptr;
+         
+        VK_CHECK(vkAllocateDescriptorSets(_device, &allocInfo, &set));
+        return set;
+    }
+
+
+} // namespace vk
 } // namespace kage
