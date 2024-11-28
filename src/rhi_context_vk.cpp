@@ -61,7 +61,7 @@ namespace kage { namespace vk
         KG_ZoneScopedC(Color::indian_red);
         if (VK_NULL_HANDLE != _obj)
         {
-            vkFreeDescriptorSets(s_renderVK->m_device, s_renderVK->m_descPool, 1, &_obj);
+            vkFreeDescriptorSets(s_renderVK->m_device, s_renderVK->getDescriptorPool(_obj), 1, &_obj);
             _obj = VK_NULL_HANDLE;
         }
     }
@@ -1665,7 +1665,6 @@ namespace kage { namespace vk
             return;
         }
 
-
         vkDeviceWaitIdle(m_device);
 
         if (m_queryPoolTimeStamp)
@@ -1680,11 +1679,12 @@ namespace kage { namespace vk
             m_queryPoolStatistics = VK_NULL_HANDLE;
         }
 
-        if (m_descPool)
+        for (VkDescriptorPool& pool : m_descPools)
         {
-            vkDestroyDescriptorPool(m_device, m_descPool, 0);
-            m_descPool = VK_NULL_HANDLE;
+            vkDestroyDescriptorPool(m_device, pool, 0);
+            pool = VK_NULL_HANDLE;
         }
+        m_descPools.clear();
 
         destroyTracy();
 
@@ -2504,6 +2504,7 @@ namespace kage { namespace vk
         bineless.layout = layout;
         bineless.set = set;
         m_bindlessContainer.addOrUpdate(meta.bindlessId, bineless);
+        m_descSetToPool.insert({ set, pool });
 
         uint32_t imgCnt = meta.resIds->size / sizeof(uint16_t);
         stl::vector<uint16_t> imageIds(imgCnt);
@@ -2665,7 +2666,7 @@ namespace kage { namespace vk
 
         uint32_t count = _mem->size / sizeof(Binding);
         Binding* bds = (Binding*)_mem->data;
-        m_descSets.assign(bds, bds + count);
+        m_descBindingSets.assign(bds, bds + count);
     }
 
     void RHIContext_vk::setViewport(PassHandle _hPass, int32_t _x, int32_t _y, uint32_t _w, uint32_t _h)
@@ -3366,7 +3367,7 @@ namespace kage { namespace vk
     void RHIContext_vk::createBarriersRec(const PassHandle _hPass)
     {
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_hPass.id);
-        for (const Binding& binding : m_descSets)
+        for (const Binding& binding : m_descBindingSets)
         {
             BarrierState_vk bs{};
             bs.accessMask = getBindingAccess(binding.access);
@@ -3395,8 +3396,8 @@ namespace kage { namespace vk
     void RHIContext_vk::flushWriteBarriersRec(const PassHandle _hPass)
     {
         stl::vector<Binding> bindings;
-        bindings.reserve(m_descSets.size());
-        for (const Binding& b : m_descSets)
+        bindings.reserve(m_descBindingSets.size());
+        for (const Binding& b : m_descBindingSets)
         {
             if (b.access == BindingAccess::write 
                 || b.access == BindingAccess::read_write)
@@ -3431,17 +3432,17 @@ namespace kage { namespace vk
 
     void RHIContext_vk::lazySetDescriptorSet(const PassHandle _hPass)
     {
-        if (m_descSets.empty())
+        if (m_descBindingSets.empty())
         {
             return;
         }
 
-        const uint32_t count = (uint32_t)m_descSets.size();
+        const uint32_t count = (uint32_t)m_descBindingSets.size();
 
         stl::vector<DescriptorInfo> descInfos(count);
-        for (uint32_t ii = 0; ii < (uint32_t)m_descSets.size(); ++ii)
+        for (uint32_t ii = 0; ii < (uint32_t)m_descBindingSets.size(); ++ii)
         {
-            const Binding& b = m_descSets[ii];
+            const Binding& b = m_descBindingSets[ii];
 
             DescriptorInfo di;
             if (ResourceType::image == b.type)
@@ -3462,7 +3463,7 @@ namespace kage { namespace vk
         const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
         vkCmdPushDescriptorSetWithTemplateKHR(m_cmdBuffer, prog.updateTemplate, prog.layout, 0, descInfos.data());
 
-        m_descSets.clear();
+        m_descBindingSets.clear();
     }
 
     const Shader_vk& RHIContext_vk::getShader(const ShaderHandle _hShader) const
@@ -3800,7 +3801,7 @@ namespace kage { namespace vk
 
         bool done = false;
 
-        m_descSets.clear();
+        m_descBindingSets.clear();
 
         const Command* cmd;
         do

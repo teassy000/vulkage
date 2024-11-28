@@ -609,12 +609,22 @@ namespace kage { namespace vk
             return m_imageContainer.getIdToData(_imgId);
         }
 
+        const VkDescriptorPool getDescriptorPool(const VkDescriptorSet _descSet) const
+        {
+            if (m_descSetToPool.find(_descSet) != m_descSetToPool.end())
+            {
+                const VkDescriptorPool pool = m_descSetToPool.find(_descSet)->second;
+                return pool;
+            }
+            return VK_NULL_HANDLE;
+        }
+
         template<typename Ty>
         void release(Ty& _object);
 
         // rec
         void execRecQueue(PassHandle _hPass);
-        stl::vector<Binding> m_descSets;
+        stl::vector<Binding> m_descBindingSets;
 
         ContinuousMap<uint16_t, Buffer_vk>      m_bufferContainer;
         ContinuousMap<uint16_t, Image_vk>       m_imageContainer;
@@ -641,6 +651,8 @@ namespace kage { namespace vk
         stl::vector<ImageHandle> m_storageImageBase;
 
         stl::unordered_map<ImageHandle, stl::vector<ImageHandle>> m_imgToAliases;
+        stl::vector<VkDescriptorPool> m_descPools;
+        stl::unordered_map<const VkDescriptorSet, const VkDescriptorPool> m_descSetToPool;
 
         RHIBrief m_brief;
 
