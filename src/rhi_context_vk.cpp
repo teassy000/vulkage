@@ -517,89 +517,77 @@ namespace kage { namespace vk
         return flags;
     }
 
-    VkFormat getFormat(ResourceFormat _format)
+    VkFormat getFormat(ResourceFormat _fmt)
     {
         VkFormat format = VK_FORMAT_UNDEFINED;
 
-        switch (_format)
+        // convert all resource format to vulkan format
+        switch (_fmt)
         {
-        case kage::ResourceFormat::r8_sint:
-            format = VK_FORMAT_R8_SINT;
-            break;
-        case kage::ResourceFormat::r8_uint:
-            format = VK_FORMAT_R8_UINT;
-            break;
-        case kage::ResourceFormat::r16_uint:
-            format = VK_FORMAT_R16_UINT;
-            break;
-        case kage::ResourceFormat::r16_sint:
-            format = VK_FORMAT_R16_SINT;
-            break;
-        case kage::ResourceFormat::r16_snorm:
-            format = VK_FORMAT_R16_SNORM;
-            break;
-        case kage::ResourceFormat::r16_unorm:
-            format = VK_FORMAT_R16_UNORM;       
-            break;
-        case kage::ResourceFormat::r32_uint:
-            format = VK_FORMAT_R32_UINT;
-            break;
-        case kage::ResourceFormat::r32_sint:
-            format = VK_FORMAT_R32_SINT;
-            break;
-        case kage::ResourceFormat::r32_sfloat:
-            format = VK_FORMAT_R32_SFLOAT;
-            break;
-        case kage::ResourceFormat::r32g32_uint:
-            format = VK_FORMAT_R32G32_UINT;
-            break;
-        case kage::ResourceFormat::r32g32_sint:
-            format = VK_FORMAT_R32G32_SINT;
-            break;
-        case kage::ResourceFormat::r32g32_sfloat:
-            format = VK_FORMAT_R32G32_SFLOAT;
-            break;
-        case kage::ResourceFormat::r32g32b32_uint:
-            format = VK_FORMAT_R32G32B32_UINT;
-            break;
-        case kage::ResourceFormat::r32g32b32_sint:
-            format = VK_FORMAT_R32G32B32_SINT;
-            break;
-        case kage::ResourceFormat::r32g32b32_sfloat:
-            format = VK_FORMAT_R32G32B32_SFLOAT;
-            break;
-        case kage::ResourceFormat::b8g8r8a8_snorm:
-            format = VK_FORMAT_B8G8R8A8_SNORM;
-            break;
-        case kage::ResourceFormat::b8g8r8a8_unorm:
-            format = VK_FORMAT_B8G8R8A8_UNORM;
-            break;
-        case kage::ResourceFormat::b8g8r8a8_sint:
-            format = VK_FORMAT_B8G8R8A8_SINT;
-            break;
-        case kage::ResourceFormat::b8g8r8a8_uint:
-            format = VK_FORMAT_B8G8R8A8_UINT;
-            break;
-        case kage::ResourceFormat::r8g8b8a8_snorm:
-            format = VK_FORMAT_R8G8B8A8_SNORM;
-            break;
-        case kage::ResourceFormat::r8g8b8a8_unorm:
-            format = VK_FORMAT_R8G8B8A8_UNORM;
-            break;
-        case kage::ResourceFormat::r8g8b8a8_sint:
-            format = VK_FORMAT_R8G8B8A8_SINT;
-            break;
-        case kage::ResourceFormat::r8g8b8a8_uint:
-            format = VK_FORMAT_R8G8B8A8_UINT;
-            break;
-        case kage::ResourceFormat::d16:
-            format = VK_FORMAT_D16_UNORM;
-            break;
-        case kage::ResourceFormat::d32:
-            format = VK_FORMAT_D32_SFLOAT;
-            break;
+        case kage::ResourceFormat::r8_snorm:                format = VK_FORMAT_R8_SNORM;            break;
+        case kage::ResourceFormat::r8_unorm:                format = VK_FORMAT_R8_UNORM;            break;
+        case kage::ResourceFormat::r8_sint:                 format = VK_FORMAT_R8_SINT;             break;
+        case kage::ResourceFormat::r8_uint:                 format = VK_FORMAT_R8_UINT;             break;
+        case kage::ResourceFormat::r8g8_snorm:              format = VK_FORMAT_R8G8_SNORM;          break;
+        case kage::ResourceFormat::r8g8_unorm:              format = VK_FORMAT_R8G8_UNORM;          break;
+        case kage::ResourceFormat::r8g8_sint:               format = VK_FORMAT_R8G8_SINT;           break;
+        case kage::ResourceFormat::r8g8_uint:               format = VK_FORMAT_R8G8_UINT;           break;
+        case kage::ResourceFormat::r8g8b8_snorm:            format = VK_FORMAT_R8G8B8_SNORM;        break;
+        case kage::ResourceFormat::r8g8b8_unorm:            format = VK_FORMAT_R8G8B8_UNORM;        break;
+        case kage::ResourceFormat::r8g8b8_sint:             format = VK_FORMAT_R8G8B8_SINT;         break;
+        case kage::ResourceFormat::r8g8b8_uint:             format = VK_FORMAT_R8G8B8_UINT;         break;
+        case kage::ResourceFormat::b8g8r8_snorm:            format = VK_FORMAT_B8G8R8_SNORM;        break;
+        case kage::ResourceFormat::b8g8r8_unorm:            format = VK_FORMAT_B8G8R8_UNORM;        break;
+        case kage::ResourceFormat::b8g8r8_sint:             format = VK_FORMAT_B8G8R8_SINT;         break;
+        case kage::ResourceFormat::b8g8r8_uint:             format = VK_FORMAT_B8G8R8_UINT;         break;
+        case kage::ResourceFormat::r8g8b8a8_snorm:          format = VK_FORMAT_R8G8B8A8_SNORM;      break;
+        case kage::ResourceFormat::r8g8b8a8_unorm:          format = VK_FORMAT_R8G8B8A8_UNORM;      break;
+        case kage::ResourceFormat::r8g8b8a8_sint:           format = VK_FORMAT_R8G8B8A8_SINT;       break;
+        case kage::ResourceFormat::r8g8b8a8_uint:           format = VK_FORMAT_R8G8B8A8_UINT;       break;
+        case kage::ResourceFormat::b8g8r8a8_snorm:          format = VK_FORMAT_B8G8R8A8_SNORM;      break;
+        case kage::ResourceFormat::b8g8r8a8_unorm:          format = VK_FORMAT_B8G8R8A8_UNORM;      break;
+        case kage::ResourceFormat::b8g8r8a8_sint:           format = VK_FORMAT_B8G8R8A8_SINT;       break;
+        case kage::ResourceFormat::b8g8r8a8_uint:           format = VK_FORMAT_B8G8R8A8_UINT;       break;
+        case kage::ResourceFormat::r16_uint:                format = VK_FORMAT_R16_UINT;            break;
+        case kage::ResourceFormat::r16_sint:                format = VK_FORMAT_R16_SINT;            break;
+        case kage::ResourceFormat::r16_snorm:               format = VK_FORMAT_R16_SNORM;           break;
+        case kage::ResourceFormat::r16_unorm:               format = VK_FORMAT_R16_UNORM;           break;
+        case kage::ResourceFormat::r16_sfloat:              format = VK_FORMAT_R16_SFLOAT;          break;
+        case kage::ResourceFormat::r16g16_unorm:            format = VK_FORMAT_R16G16_UNORM;        break;
+        case kage::ResourceFormat::r16g16_snorm:            format = VK_FORMAT_R16G16_SNORM;        break;
+        case kage::ResourceFormat::r16g16_uint:             format = VK_FORMAT_R16G16_UINT;         break;
+        case kage::ResourceFormat::r16g16_sint:             format = VK_FORMAT_R16G16_SINT;         break;
+        case kage::ResourceFormat::r16g16_sfloat:           format = VK_FORMAT_R16G16_SFLOAT;       break;
+        case kage::ResourceFormat::r16g16b16a16_unorm:      format = VK_FORMAT_R16G16B16A16_UNORM;  break;
+        case kage::ResourceFormat::r16g16b16a16_snorm:      format = VK_FORMAT_R16G16B16A16_SNORM;  break;
+        case kage::ResourceFormat::r16g16b16a16_uint:       format = VK_FORMAT_R16G16B16A16_UINT;   break;
+        case kage::ResourceFormat::r16g16b16a16_sint:       format = VK_FORMAT_R16G16B16A16_SINT;   break;
+        case kage::ResourceFormat::r16g16b16a16_sfloat:     format = VK_FORMAT_R16G16B16A16_SFLOAT; break;
+        case kage::ResourceFormat::r32_uint:                format = VK_FORMAT_R32_UINT;            break;
+        case kage::ResourceFormat::r32_sint:                format = VK_FORMAT_R32_SINT;            break;
+        case kage::ResourceFormat::r32_sfloat:              format = VK_FORMAT_R32_SFLOAT;          break;
+        case kage::ResourceFormat::r32g32_uint:             format = VK_FORMAT_R32G32_UINT;         break;
+        case kage::ResourceFormat::r32g32_sint:             format = VK_FORMAT_R32G32_SINT;         break;
+        case kage::ResourceFormat::r32g32_sfloat:           format = VK_FORMAT_R32G32_SFLOAT;       break;
+        case kage::ResourceFormat::r32g32b32_uint:          format = VK_FORMAT_R32G32B32_UINT;      break;
+        case kage::ResourceFormat::r32g32b32_sint:          format = VK_FORMAT_R32G32B32_SINT;      break;
+        case kage::ResourceFormat::r32g32b32_sfloat:        format = VK_FORMAT_R32G32B32_SFLOAT;    break;
+        case kage::ResourceFormat::r32g32b32a32_uint:       format = VK_FORMAT_R32G32B32A32_UINT;   break;
+        case kage::ResourceFormat::r32g32b32a32_sint:       format = VK_FORMAT_R32G32B32A32_SINT;   break;
+        case kage::ResourceFormat::r32g32b32a32_sfloat:     format = VK_FORMAT_R32G32B32A32_SFLOAT;     break;
+        case kage::ResourceFormat::b5g6r5_unorm:            format = VK_FORMAT_B5G6R5_UNORM_PACK16;     break;
+        case kage::ResourceFormat::r5g6b5_unorm:            format = VK_FORMAT_R5G6B5_UNORM_PACK16;     break;
+        case kage::ResourceFormat::b4g4r4a4_unorm:          format = VK_FORMAT_B4G4R4A4_UNORM_PACK16;   break;
+        case kage::ResourceFormat::r4g4b4a4_unorm:          format = VK_FORMAT_R4G4B4A4_UNORM_PACK16;   break;
+        case kage::ResourceFormat::b5g5r5a1_unorm:          format = VK_FORMAT_B5G5R5A1_UNORM_PACK16;   break;
+        case kage::ResourceFormat::r5g5b5a1_unorm:          format = VK_FORMAT_R5G5B5A1_UNORM_PACK16;   break;
+        case kage::ResourceFormat::a2r10g10b10_unorm:       format = VK_FORMAT_A2B10G10R10_UNORM_PACK32;break;
+        case kage::ResourceFormat::b10g11r11_sfloat:        format = VK_FORMAT_B10G11R11_UFLOAT_PACK32; break;
+        case kage::ResourceFormat::d16:                     format = VK_FORMAT_D16_UNORM;               break;
+        case kage::ResourceFormat::d24_sfloat_s8_uint:      format = VK_FORMAT_D24_UNORM_S8_UINT;       break;
+        case kage::ResourceFormat::d32_sfloat:              format = VK_FORMAT_D32_SFLOAT;              break;
         default:
-            format = VK_FORMAT_UNDEFINED;
+            format = VK_FORMAT_UNDEFINED; 
             break;
         }
 
@@ -2474,6 +2462,8 @@ namespace kage { namespace vk
 
         BindlessMetaData meta;
         bx::read(&_reader, meta, nullptr);
+        assert(meta.resType == ResourceType::image);
+        assert(meta.reductionMode != SamplerReductionMode::max_enum);
 
         uint32_t shaderCount;
         bx::read(&_reader, shaderCount, nullptr);
@@ -2481,44 +2471,50 @@ namespace kage { namespace vk
         stl::vector<uint16_t> shaderIds(shaderCount);
         bx::read(&_reader, shaderIds.data(), shaderCount * sizeof(uint16_t), nullptr);
 
-        VkShaderStageFlags stages;
+        VkShaderStageFlags stages = 0;
         for (uint16_t sid : shaderIds)
         {
             const Shader_vk& shader = m_shaderContainer.getIdToData(sid);
             stages |= shader.stage;
         }
 
-        BindlessDescriptorSet_vk bineless{};
-
-        assert(meta.type == ResourceType::image);
-        assert(meta.reductionMode != SamplerReductionMode::max_enum);
+        uint32_t imgCnt = meta.resIdMem->size / sizeof(ImageHandle);
+        stl::vector<ImageHandle> imageIds(imgCnt);
+        memcpy(imageIds.data(), meta.resIdMem->data, meta.resIdMem->size);
 
         VkDescriptorPool pool = createDescriptorPool(m_device);
         assert(pool);
         VkDescriptorSetLayout layout = createDescArrayLayout(m_device, stages);
         assert(layout);
-        VkDescriptorSet set = createDescriptorSets(m_device, layout, pool);
+
+        uint32_t descCount = (uint32_t)imageIds.size() + 1;
+        VkDescriptorSet set = createDescriptorSets(m_device, layout, pool, descCount);
         assert(set);
 
+        BindlessDescriptorSet_vk bineless{};
         bineless.pool = pool;
         bineless.layout = layout;
         bineless.set = set;
         m_bindlessContainer.addOrUpdate(meta.bindlessId, bineless);
         m_descSetToPool.insert({ set, pool });
 
-        uint32_t imgCnt = meta.resIds->size / sizeof(uint16_t);
-        stl::vector<uint16_t> imageIds(imgCnt);
-        bx::read(&_reader, imageIds.data(), imgCnt * sizeof(uint16_t), nullptr);
-
-        for (uint16_t ii = 0; ii < imageIds.size(); ++ ii)
+        for (size_t ii = 0; ii < imageIds.size(); ++ ii)
         {
-            const uint16_t id = imageIds[ii];
-            const Image_vk& img = m_imageContainer.getIdToData(id);
+            const ImageHandle hImg = imageIds[ii];
+
+            if (!isValid(hImg))
+            {
+                message(warning, "imageIds[ii] is invalid! skipping");
+                continue;
+            }
+            const Image_vk& img = m_imageContainer.getIdToData(hImg.id);
             const VkSampler& sampler = getCachedSampler(
                 SamplerFilter::linear
                 , SamplerAddressMode::clamp_to_edge
                 , meta.reductionMode
             );
+
+            assert(sampler);
             
             VkDescriptorImageInfo imgInfo{};
             imgInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -2529,7 +2525,7 @@ namespace kage { namespace vk
             write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             write.dstSet = set;
             write.dstBinding = meta.binding;
-            write.dstArrayElement = 0;
+            write.dstArrayElement = uint32_t(ii + 1);
             write.descriptorCount = 1;
             write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
             write.pImageInfo = &imgInfo;

@@ -214,6 +214,8 @@ namespace kage{ namespace vk
         features12.shaderSampledImageArrayNonUniformIndexing = true;
         // enable update after bind
         features12.descriptorBindingSampledImageUpdateAfterBind = true;
+        // enable variable-sized array: the last binded descriptor decides the size
+        features12.descriptorBindingVariableDescriptorCount = true;
         
 
         VkPhysicalDeviceVulkan13Features features13 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };

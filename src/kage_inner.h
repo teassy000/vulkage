@@ -279,7 +279,7 @@ namespace kage
         
         uint16_t            bindlessId{ kInvalidHandle };
         uint32_t            resCount{ 0 };
-        const Memory*       resIds{ nullptr };
+        const Memory*       resIdMem{ nullptr };
     };
 
     struct ShaderCreateInfo 

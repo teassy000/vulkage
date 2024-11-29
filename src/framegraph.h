@@ -360,6 +360,8 @@ namespace kage
 
             ContinuousMap<CombinedResID, CombinedResID> writeOpForcedAliasMap;
             ContinuousMap<CombinedResID, uint16_t> imageSamplerMap;
+
+            stl::unordered_set<CombinedResID> bindlessRes;
         };
 
         struct PassDependency
@@ -430,7 +432,7 @@ namespace kage
         stl::vector< BufferHandle >         m_hBuf;
         stl::vector< ImageHandle >          m_hTex;
         stl::vector< SamplerHandle >        m_hSampler;
-        stl::vector< BindlessHandle >    m_hBindless;
+        stl::vector< BindlessHandle >       m_hBindless;
 
         stl::vector< ShaderInfo >           m_sparse_shader_info;
         stl::vector< ProgramInfo>           m_sparse_program_info;
@@ -439,7 +441,7 @@ namespace kage
         stl::vector< FGImageCreateInfo >    m_sparse_img_info;
         stl::vector< PassMetaDataRef>       m_sparse_pass_data_ref;
         stl::vector< SamplerMetaData >      m_sparse_sampler_meta;
-        stl::vector< BindlessMetaData >  m_sparse_bindless_meta;
+        stl::vector< BindlessMetaData >     m_sparse_bindless_meta;
         
         stl::vector< String>                m_shader_path;
 

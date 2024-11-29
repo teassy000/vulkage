@@ -236,11 +236,16 @@ namespace kage { namespace vk
 
         const VkPhysicalDeviceMemoryProperties& memProps = s_renderVK->m_memProps;
         const VkDevice device = s_renderVK->m_device;
+        const VkPhysicalDevice pd = s_renderVK->m_physicalDevice;
+
+
+
 
         _results.clear();
 
         uint32_t num = (uint32_t)_infos.size();
         stl::vector<Image_vk> results(num);
+
 
         VkImageCreateInfo createInfo = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
 
@@ -258,6 +263,9 @@ namespace kage { namespace vk
         {
             createInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
         }
+
+        VkImageFormatProperties imgProps;
+        vkGetPhysicalDeviceImageFormatProperties(pd, _initProps.format, _initProps.type, VK_IMAGE_TILING_OPTIMAL, _initProps.usage, createInfo.flags, &imgProps);
 
         // create for aliases
         for (uint32_t ii = 0; ii < num; ++ii)

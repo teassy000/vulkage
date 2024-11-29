@@ -639,9 +639,14 @@ namespace kage { namespace vk
         return setLayout;
     }
 
-    VkDescriptorSet createDescriptorSets(VkDevice _device, VkDescriptorSetLayout _layout , VkDescriptorPool _pool)
+    VkDescriptorSet createDescriptorSets(VkDevice _device, VkDescriptorSetLayout _layout , VkDescriptorPool _pool, uint32_t _descCount)
     {
+        VkDescriptorSetVariableDescriptorCountAllocateInfo setAllocateCountInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO };
+        setAllocateCountInfo.descriptorSetCount = 1;
+        setAllocateCountInfo.pDescriptorCounts = &_descCount;
+
         VkDescriptorSetAllocateInfo allocInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+        allocInfo.pNext = &setAllocateCountInfo;
         allocInfo.descriptorPool = _pool;
         allocInfo.descriptorSetCount = 1;
         allocInfo.pSetLayouts = &_layout;

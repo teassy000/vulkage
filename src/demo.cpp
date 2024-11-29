@@ -385,6 +385,7 @@ namespace
 
                 msInit.color = m_skybox.colorOutAlias;
                 msInit.depth = m_depth;
+                msInit.bindless = m_bindlessArray;
                 prepareMeshShading(m_meshShading, m_scene, m_width, m_height, msInit);
             }
 
@@ -440,6 +441,7 @@ namespace
 
                 msInit.color = m_meshShading.colorOutAlias;
                 msInit.depth = m_meshShading.depthOutAlias;
+                msInit.bindless = m_bindlessArray;
                 prepareMeshShading(m_meshShadingLate, m_scene, m_width, m_height, msInit, true);
             }
 
@@ -503,7 +505,7 @@ namespace
         {
             kage::BindlessDesc desc;
             desc.binding = 0;
-            desc.type = kage::ResourceType::image;
+            desc.resType = kage::ResourceType::image;
             desc.set = 1;
 
             m_bindlessArray = kage::registBindless("bindless_sampler", desc);

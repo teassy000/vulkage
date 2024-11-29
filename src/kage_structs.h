@@ -86,13 +86,53 @@ namespace kage
     {
         undefined, // plain color formats below
 
+        r8_snorm,
+        r8_unorm,
         r8_sint,
         r8_uint,
+
+        r8g8_snorm,
+        r8g8_unorm,
+        r8g8_sint,
+        r8g8_uint,
+
+        r8g8b8_snorm,
+        r8g8b8_unorm,
+        r8g8b8_sint,
+        r8g8b8_uint,
+
+        b8g8r8_snorm,
+        b8g8r8_unorm,
+        b8g8r8_sint,
+        b8g8r8_uint,
+
+        r8g8b8a8_snorm,
+        r8g8b8a8_unorm,
+        r8g8b8a8_sint,
+        r8g8b8a8_uint,
+
+        b8g8r8a8_snorm,
+        b8g8r8a8_unorm,
+        b8g8r8a8_sint,
+        b8g8r8a8_uint,
 
         r16_uint,
         r16_sint,
         r16_snorm,
         r16_unorm,
+        r16_sfloat,
+
+        r16g16_unorm,
+        r16g16_snorm,
+        r16g16_uint,
+        r16g16_sint,
+        r16g16_sfloat,
+
+        r16g16b16a16_unorm,
+        r16g16b16a16_snorm,
+        r16g16b16a16_uint,
+        r16g16b16a16_sint,
+        r16g16b16a16_sfloat,
         
         r32_uint,
         r32_sint,
@@ -105,21 +145,25 @@ namespace kage
         r32g32b32_uint,
         r32g32b32_sint,
         r32g32b32_sfloat,
-        
-        b8g8r8a8_snorm,
-        b8g8r8a8_unorm,
-        b8g8r8a8_sint,
-        b8g8r8a8_uint,
 
-        r8g8b8a8_snorm,
-        r8g8b8a8_unorm,
-        r8g8b8a8_sint,
-        r8g8b8a8_uint,
+        r32g32b32a32_uint,
+        r32g32b32a32_sint,
+        r32g32b32a32_sfloat,
+
+        b5g6r5_unorm,
+        r5g6b5_unorm,
+        b4g4r4a4_unorm,
+        r4g4b4a4_unorm,
+        b5g5r5a1_unorm,
+        r5g5b5a1_unorm,
+        a2r10g10b10_unorm,
+        b10g11r11_sfloat,
 
         unknown_depth, // Depth formats below.
 
         d16,
-        d32,
+        d24_sfloat_s8_uint,
+        d32_sfloat,
 
         resource_format_max = 0x7fffffff,
     };
@@ -606,7 +650,7 @@ namespace kage
     {
         uint32_t set{ 0 };
         uint32_t binding{ 0 };
-        ResourceType type{ ResourceType::undefined };
+        ResourceType resType{ ResourceType::undefined };
         SamplerReductionMode reductionMode{ SamplerReductionMode::max_enum };
     };
 

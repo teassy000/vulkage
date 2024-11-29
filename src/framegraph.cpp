@@ -292,6 +292,30 @@ namespace kage
         bx::read(&_reader, writeBufAliasVec.data(), sizeof(WriteOperationAlias) * passMeta.writeBufAliasNum, nullptr);
         passMeta.writeBufAliasNum = writeResForceAlias(writeBufAliasVec, passMeta.passId, ResourceType::buffer);
 
+        // set bindless res
+        const ProgramInfo& progInfo = m_sparse_program_info[passMeta.programId];
+
+        if (progInfo.createInfo.bindlessId != kInvalidHandle)
+        {
+            BindlessMetaData bMeta = m_sparse_bindless_meta[progInfo.createInfo.bindlessId];
+
+            if (bMeta.resType == ResourceType::image)
+            {
+                stl::vector<ImageHandle> bindlessVec(bMeta.resCount);
+                memcpy(bindlessVec.data(), bMeta.resIdMem->data, sizeof(ImageHandle) * bMeta.resCount);
+
+                for (ImageHandle hRes : bindlessVec)
+                {
+                    m_pass_rw_res[passMeta.passId].bindlessRes.insert({ hRes.id, bMeta.resType });
+                }
+            }
+            else
+            {
+                assert(0); // not suport yet
+            }
+
+        }
+
         // fill pass idx in queue
         uint16_t qIdx = (uint16_t)passMeta.queue;
         m_passIdxInQueue[qIdx].push_back((uint16_t)m_hPass.size());
@@ -616,17 +640,17 @@ namespace kage
             // writeOpIn is not in the readCombinedRes, should affect the graph here
             for (uint32_t jj = 0; jj < aliasMapNum; ++jj)
             {
-                CombinedResID writeOpIn = rwRes.writeOpForcedAliasMap.getIdAt(jj);
+                const CombinedResID writeOpIn = rwRes.writeOpForcedAliasMap.getIdAt(jj);
 
                 resReadInPass.insert(writeOpIn);
             }
 
-            for (CombinedResID plainRes : rwRes.readCombinedRes)
+            for (const CombinedResID plainRes : rwRes.readCombinedRes)
             {
                 resReadInPass.insert(plainRes);
             }
 
-            for (CombinedResID resReadIn : resReadInPass)
+            for (const CombinedResID resReadIn : resReadInPass)
             {
                 auto it = linear_writeResPassIdxMap.find(resReadIn);
                 if (it == linear_writeResPassIdxMap.end()) {
@@ -1173,6 +1197,12 @@ namespace kage
                 push_back_unique(writeResUniList, writeOpOut);
                 push_back_unique(resToOptmUniList, writeOpOut);
                 push_back_unique(resInUseUniList, writeOpOut);
+            }
+
+            // bindless resources
+            for (const CombinedResID combRes : rwRes.bindlessRes)
+            {
+                push_back_unique(resInUseUniList, combRes);
             }
         }
 
@@ -1857,6 +1887,7 @@ namespace kage
             createInfo.progId = info.createInfo.progId;
             createInfo.shaderNum = info.createInfo.shaderNum;
             createInfo.sizePushConstants = info.createInfo.sizePushConstants;
+            createInfo.bindlessId = info.createInfo.bindlessId;
 
             RHIContextOpMagic magic{ RHIContextOpMagic::create_program };
 

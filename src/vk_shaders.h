@@ -53,7 +53,7 @@ namespace kage { namespace vk
 
     VkDescriptorPool createDescriptorPool(VkDevice _device);
     VkDescriptorSetLayout createDescArrayLayout(VkDevice _device, VkShaderStageFlags _stages);
-    VkDescriptorSet createDescriptorSets(VkDevice _device, VkDescriptorSetLayout _layout, VkDescriptorPool _pool);
+    VkDescriptorSet createDescriptorSets(VkDevice _device, VkDescriptorSetLayout _layout, VkDescriptorPool _pool, uint32_t _descCount);
 
     Program_vk createProgram(VkDevice device, VkPipelineBindPoint bindingPoint, const stl::vector<Shader_vk>& shaders, uint32_t pushConstantSize = 0, VkDescriptorSetLayout _dsLayout = NULL);
     void destroyProgram(VkDevice device, const Program_vk& program);

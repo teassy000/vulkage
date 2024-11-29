@@ -209,82 +209,6 @@ namespace kage
         HandleNameMap m_handleToName;
     };
 
-    uint16_t getBytesPerPixel(ResourceFormat _format)
-    {
-        uint16_t bpp = 0;
-        switch (_format)
-        {
-        case ResourceFormat::undefined:
-            bpp = 0;
-            break;
-        case ResourceFormat::r8_sint:
-            bpp = 1;
-            break;
-        case ResourceFormat::r8_uint:
-            bpp = 1;
-            break;
-        case ResourceFormat::r16_uint:
-            bpp = 2;
-            break;
-        case ResourceFormat::r16_sint:
-            bpp = 2;
-            break;
-        case ResourceFormat::r16_snorm:
-            bpp = 2;
-            break;
-        case ResourceFormat::r16_unorm:
-            bpp = 2;
-            break;
-        case ResourceFormat::r32_uint:
-            bpp = 4;
-            break;
-        case ResourceFormat::r32_sint:
-            bpp = 4;
-            break;
-        case ResourceFormat::r32_sfloat:
-            bpp = 4;
-            break;
-        case ResourceFormat::b8g8r8a8_snorm:
-            bpp = 4;
-            break;
-        case ResourceFormat::b8g8r8a8_unorm:
-            bpp = 4;
-            break;
-        case ResourceFormat::b8g8r8a8_sint:
-            bpp = 4;
-            break;
-        case ResourceFormat::b8g8r8a8_uint:
-            bpp = 4;
-            break;
-        case ResourceFormat::r8g8b8a8_snorm:
-            bpp = 4;
-            break;
-        case ResourceFormat::r8g8b8a8_unorm:
-            bpp = 4;
-            break;
-        case ResourceFormat::r8g8b8a8_sint:
-            bpp = 4;
-            break;
-        case ResourceFormat::r8g8b8a8_uint:
-            bpp = 4;
-            break;
-        case ResourceFormat::unknown_depth:
-            bpp = 0;
-            break;
-        case ResourceFormat::d16:
-            bpp = 2;
-            break;
-        case ResourceFormat::d32:
-            bpp = 4;
-            break;
-        default:
-            bpp = 0;
-            break;
-        }
-        
-        return bpp;
-    }
-
     struct MemoryRef
     {
         Memory mem;
@@ -340,7 +264,7 @@ namespace kage
         bool checkSupports(VulkanSupportExtension _ext);
 
         ShaderHandle registShader(const char* _name, const char* _path);
-        ProgramHandle registProgram(const char* _name, const Memory* _shaders, const uint16_t _shaderCount, const uint32_t _sizePushConstants = 0, const BindlessHandle _bindless = {});
+        ProgramHandle registProgram(const char* _name, const Memory* _shaders, const uint16_t _shaderCount, const uint32_t _sizePushConstants, const BindlessHandle _bindless);
 
         PassHandle registPass(const char* _name, const PassDesc& _desc);
 
@@ -748,7 +672,7 @@ namespace kage
         return handle;
     }
 
-    ProgramHandle Context::registProgram(const char* _name, const Memory* _mem, const uint16_t _shaderNum, const uint32_t _sizePushConstants /*= 0*/, const BindlessHandle _bindless /*= {}*/)
+    ProgramHandle Context::registProgram(const char* _name, const Memory* _mem, const uint16_t _shaderNum, const uint32_t _sizePushConstants, const BindlessHandle _bindless)
     {
         uint16_t idx = m_programHandles.alloc();
 
@@ -984,7 +908,7 @@ namespace kage
         meta.width = m_resolution.width;
         meta.height = m_resolution.height;
         meta.imgId = idx;
-        meta.format = ResourceFormat::d32;
+        meta.format = ResourceFormat::d32_sfloat;
         meta.usage = ImageUsageFlagBits::depth_stencil_attachment | _desc.usage;
         meta.aspectFlags = ImageAspectFlagBits::depth;
         meta.lifetime = _lifetime;
@@ -1005,7 +929,7 @@ namespace kage
         ic.type = _desc.type;
         ic.viewType = _desc.viewType;
         ic.layout = _desc.layout;
-        ic.format = ResourceFormat::d32;
+        ic.format = ResourceFormat::d32_sfloat;
         ic.usage = ImageUsageFlagBits::depth_stencil_attachment | _desc.usage;
         ic.aspect = ImageAspectFlagBits::depth;
 
@@ -1138,6 +1062,7 @@ namespace kage
             info.progId = desc.progId;
             info.sizePushConstants = desc.sizePushConstants;
             info.shaderNum = desc.shaderNum;
+            info.bindlessId = desc.bindlessId;
             bx::write(m_fgMemWriter, info, nullptr);
 
             // actual shader indexes
@@ -1744,25 +1669,25 @@ namespace kage
             return;
         }
 
-        assert(_texCount == _mem->size / sizeof(uint16_t));
+        assert(_texCount == _mem->size / sizeof(ImageHandle));
 
         BindlessMetaData& meta = m_bindlessResMetas[_bindless.id];
         meta.resCount = _texCount;
         meta.reductionMode = _reductionMode;
-        meta.resIds = _mem;
+        meta.resIdMem = _mem;
 
-        stl::vector<uint16_t> texIds(_texCount);
-        bx::memCopy(texIds.data(), _mem->data, sizeof(uint16_t) * _texCount);
-        for (uint16_t id : texIds)
+        stl::vector<ImageHandle> texIds(_texCount);
+        bx::memCopy(texIds.data(), _mem->data, sizeof(ImageHandle) * _texCount);
+        for (ImageHandle id : texIds)
         {
-            if (!isValid(ImageHandle{ id }))
+            if (!isValid(id))
             {
                 message(DebugMsgType::error, "invalid image handle in bindless texture");
                 continue;
             }
-            // get image meta
-            ImageMetaData& imgMeta = m_imageMetas[id];
-            imgMeta.lifetime = ResourceLifetime::non_transition;
+
+            // set the lifetime to not alise it in framegraph
+            m_imageMetas[id].lifetime = ResourceLifetime::non_transition;
         }
 
         setRenderGraphDataDirty();
@@ -2109,6 +2034,7 @@ namespace kage
         storeImageData();
         storeBufferData();
         storeSamplerData();
+        storeBindlessData();
         storePassData();
         storeAliasData();
 
@@ -2352,7 +2278,7 @@ namespace kage
             bx::write(&writer, handle.id, nullptr);
         }
 
-        return s_ctx->registProgram(_name, mem, shaderNum, _sizePushConstants);
+        return s_ctx->registProgram(_name, mem, shaderNum, _sizePushConstants, _bindless);
     }
 
     BufferHandle registBuffer(const char* _name, const BufferDesc& _desc, const Memory* _mem /* = nullptr */, const ResourceLifetime _lifetime /*= ResourceLifetime::transision*/)

@@ -248,6 +248,10 @@ bool loadGltfScene(Scene& _scene, const char** _pathes, uint32_t _pathCount, boo
                 imageMap[ptr] = hImg;
                 _scene.textures[ii] = hImg;
             }
+            else
+            {
+                _scene.textures[ii] = imageMap[ptr];
+            }
         }
     }
 
