@@ -21,7 +21,7 @@ void vtxShadingRec(VtxShading& _v)
     kage::startRec(_v.pass);
 
     kage::setConstants(mem);
-    kage::setBindings(binds, COUNTOF(binds));
+    kage::pushBindings(binds, COUNTOF(binds));
 
     kage::setViewport(0, 0, (uint32_t)_v.globals.screenWidth, (uint32_t)_v.globals.screenHeight);
     kage::setScissor(0, 0, (uint32_t)_v.globals.screenWidth, (uint32_t)_v.globals.screenHeight);

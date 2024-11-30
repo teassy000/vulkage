@@ -58,26 +58,18 @@ layout(binding = 6) readonly uniform Transform
     TransformData trans;
 };
 
-layout(location = 0) out vec4 color[];
-layout (location = 1) out vec3 outWorldPos[];
-layout (location = 2) out vec3 outNormal[];
+layout(location = 0) out flat uint out_drawId[];
+layout(location = 1) out vec3 out_wPos[];
+layout(location = 2) out vec3 out_norm[];
+layout(location = 3) out vec4 out_tang[];
+layout(location = 4) out vec2 out_uv[];
+
 
 taskPayloadSharedEXT TaskPayload payload;
 
 #if CULL
 shared vec3 vertexClip[64];
 #endif
-
-uint hash(uint a)
-{
-   a = (a+0x7ed55d16) + (a<<12);
-   a = (a^0xc761c23c) ^ (a>>19);
-   a = (a+0x165667b1) + (a<<5);
-   a = (a+0xd3a2646c) ^ (a<<9);
-   a = (a+0xfd7046c5) + (a<<3);
-   a = (a^0xb55a4f09) ^ (a>>16);
-   return a;
-}
 
 void main()
 {
@@ -110,16 +102,6 @@ void main()
     uint vertexOffset = dataOffset;
     uint indexOffset = dataOffset + vertexCount;
 
-#if DEBUG_MESHLET
-    uint abledoIdx = meshDraw.albedoTex;
-    uint normalIdx = meshDraw.normalTex;
-    uint specularIdx = meshDraw.specularTex;
-    uint emmisiveIdx = meshDraw.emissiveTex;
-
-    uint mhash = hash(abledoIdx);
-    vec3 mcolor = vec3(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255)) / 255.0;
-#endif
-
     if(ti < vertexCount)
     {
         uint i = ti;
@@ -127,27 +109,21 @@ void main()
     
         vec3 pos = vec3(vertices[vi].vx, vertices[vi].vy, vertices[vi].vz);
         vec3 norm = vec3(int(vertices[vi].nx), int(vertices[vi].ny), int(vertices[vi].nz)) / 127.0 - 1.0;
+        vec4 tang = vec4(int(vertices[vi].tx), int(vertices[vi].ty), int(vertices[vi].tz), int(vertices[vi].tw)) / 127.0 - 1.0;
         vec2 uv = vec2(vertices[vi].tu, vertices[vi].tv);
 
-        vec4 result =  trans.proj * trans.view * vec4(rotateQuat( pos, meshDraw.orit) * meshDraw.scale + meshDraw.pos, 1.0);
+        vec3 wPos = rotateQuat(pos, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
+
+        vec4 result =  trans.proj * trans.view * vec4(wPos, 1.0);
 
         norm = rotateQuat(norm, meshDraw.orit);
 
         gl_MeshVerticesEXT[i].gl_Position = result;
-        outNormal[i] = norm;
-        outWorldPos[i] = rotateQuat( pos, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
-
-#if DEBUG_MESHLET
-        color[i] = vec4(mcolor, 1.0);
-#elif LIGHT
-        vec3 worldNormal = normalize( vec4(rotateQuat( norm, meshDraw.orit), 1.0).xyz);
-        float lightDensity = clamp(-dot(worldNormal, normalize(vec3(0.0, 1.0, -1.0))), 0.0, 1.0);
-        color[i] = vec4(norm*0.3 + lightDensity*0.3 + 0.4, 1.0);
-        
-        color[i] = vec4(uv * 2.0, 0.0, 1.0);
-#else
-        color[i] = vec4(norm * 0.5 + vec3(0.5), 1.0);
-#endif
+        out_drawId[i] = payload.drawId;
+        out_norm[i] = norm;
+        out_wPos[i] = wPos;
+        out_tang[i] = tang;
+        out_uv[i] = uv;
 
 #if CULL
         vertexClip[i] = vec3(result.xy/result.w, result.w);

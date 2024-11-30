@@ -127,7 +127,7 @@ void skyboxRec(const Skybox& _skybox, uint32_t _w, uint32_t _h)
     kage::setIndexBuffer(_skybox.ib, 0, kage::IndexType::uint32);
     kage::setVertexBuffer(_skybox.vb);
 
-    kage::setBindings(binds, COUNTOF(binds));
+    kage::pushBindings(binds, COUNTOF(binds));
 
     kage::drawIndexed(36, 1, 0, 0, 0);
 

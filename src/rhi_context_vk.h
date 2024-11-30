@@ -79,11 +79,13 @@ namespace kage { namespace vk
         VkPipelineStageFlags    stageMask;
     };
 
-    struct BindlessDescriptorSet_vk
+    struct Bindless_vk
     {
         VkDescriptorSetLayout   layout{ VK_NULL_HANDLE };
         VkDescriptorSet         set{ VK_NULL_HANDLE };
         VkDescriptorPool        pool{ VK_NULL_HANDLE };
+        uint32_t                setIdx{ 0 };
+        uint32_t                setCount{ 0 };
     };
 
     struct PassInfo_vk : PassDesc
@@ -457,11 +459,16 @@ namespace kage { namespace vk
             , const Memory* _mem
         );
         
-        void setDescriptorSet(
+        void pushDescriptorSet(
             PassHandle _hPass
             , const Memory* _mem
         );
-        
+
+        void setBindless(
+            PassHandle _hPass
+            , BindlessHandle _hBindless
+        );
+
         void setViewport(
             PassHandle _hPass
             , int32_t _x
@@ -632,7 +639,7 @@ namespace kage { namespace vk
         ContinuousMap<uint16_t, Program_vk>     m_programContainer;
         ContinuousMap<uint16_t, PassInfo_vk>    m_passContainer;
         ContinuousMap<uint16_t, VkSampler>      m_samplerContainer;
-        ContinuousMap<uint16_t, BindlessDescriptorSet_vk>    m_bindlessContainer;
+        ContinuousMap<uint16_t, Bindless_vk>    m_bindlessContainer;
 
         StateCacheT<VkSampler> m_samplerCache;
         StateCacheLru<VkImageView, 1024> m_imgViewCache;

@@ -2491,12 +2491,24 @@ namespace kage { namespace vk
         VkDescriptorSet set = createDescriptorSets(m_device, layout, pool, descCount);
         assert(set);
 
-        BindlessDescriptorSet_vk bineless{};
-        bineless.pool = pool;
-        bineless.layout = layout;
-        bineless.set = set;
-        m_bindlessContainer.addOrUpdate(meta.bindlessId, bineless);
+        Bindless_vk bindless{};
+        bindless.pool = pool;
+        bindless.layout = layout;
+        bindless.set = set;
+        bindless.setIdx = meta.setIdx;
+        // TODO: where do the set Idx and set count come from?
+        bindless.setCount = 1; 
+        
+
+        m_bindlessContainer.addOrUpdate(meta.bindlessId, bindless);
         m_descSetToPool.insert({ set, pool });
+
+        const VkSampler& sampler = getCachedSampler(
+            SamplerFilter::linear
+            , SamplerAddressMode::clamp_to_edge
+            , meta.reductionMode
+        );
+        assert(sampler);
 
         for (size_t ii = 0; ii < imageIds.size(); ++ ii)
         {
@@ -2508,13 +2520,7 @@ namespace kage { namespace vk
                 continue;
             }
             const Image_vk& img = m_imageContainer.getIdToData(hImg.id);
-            const VkSampler& sampler = getCachedSampler(
-                SamplerFilter::linear
-                , SamplerAddressMode::clamp_to_edge
-                , meta.reductionMode
-            );
 
-            assert(sampler);
             
             VkDescriptorImageInfo imgInfo{};
             imgInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -2646,7 +2652,7 @@ namespace kage { namespace vk
         );
     }
 
-    void RHIContext_vk::setDescriptorSet(PassHandle _hPass, const Memory* _mem)
+    void RHIContext_vk::pushDescriptorSet(PassHandle _hPass, const Memory* _mem)
     {
         KG_ZoneScopedC(Color::indian_red);
 
@@ -2663,6 +2669,31 @@ namespace kage { namespace vk
         uint32_t count = _mem->size / sizeof(Binding);
         Binding* bds = (Binding*)_mem->data;
         m_descBindingSets.assign(bds, bds + count);
+    }
+
+    void RHIContext_vk::setBindless(PassHandle _hPass, BindlessHandle _hBindless)
+    {
+        KG_ZoneScopedC(Color::indian_red);
+
+        if (!m_passContainer.exist(_hPass.id))
+        {
+            message(
+                warning
+                , "setBindless will not perform for pass %d! It might be useless after render pass sorted"
+                , _hPass.id
+            );
+            return;
+        }
+
+        // get program layout
+        const PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
+        const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
+        prog.layout;
+        
+        // get bind point
+        const Bindless_vk& bindless = m_bindlessContainer.getIdToData(_hBindless.id);
+
+        vkCmdBindDescriptorSets(m_cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, prog.layout, bindless.setIdx, bindless.setCount, &bindless.set, 0, nullptr);
     }
 
     void RHIContext_vk::setViewport(PassHandle _hPass, int32_t _x, int32_t _y, uint32_t _w, uint32_t _h)
@@ -3815,10 +3846,16 @@ namespace kage { namespace vk
                         setConstants(_hPass, rc->m_mem);
                     }
                     break;
-                case Command::record_set_descriptor:
+                case Command::record_push_descriptor_set:
                     {
-                        const RecordSetDescriptorCmd* rc = reinterpret_cast<const RecordSetDescriptorCmd*>(cmd);
-                        setDescriptorSet(_hPass, rc->m_mem);
+                        const RecordPushDescriptorSetCmd* rc = reinterpret_cast<const RecordPushDescriptorSetCmd*>(cmd);
+                        pushDescriptorSet(_hPass, rc->m_mem);
+                    }
+                    break;
+                case Command::record_set_bindless:
+                    {
+                        const RecordSetBindingCmd* rc = reinterpret_cast<const RecordSetBindingCmd*>(cmd);
+                        setBindless(_hPass, rc->m_bindless);
                     }
                     break;
                 case Command::record_set_viewport:

@@ -172,7 +172,8 @@ namespace kage
             record_start,
 
             record_set_constants,
-            record_set_descriptor,
+            record_push_descriptor_set,
+            record_set_bindless,
             record_set_viewport,
             record_set_scissor,
 
@@ -326,10 +327,16 @@ namespace kage
         const Memory* m_mem;
     };
 
-    struct RecordSetDescriptorCmd : public Command
+    struct RecordPushDescriptorSetCmd : public Command
     {
-        ENTRY_IMPLEMENT_COMMAND(RecordSetDescriptorCmd, Command::record_set_descriptor);
+        ENTRY_IMPLEMENT_COMMAND(RecordPushDescriptorSetCmd, Command::record_push_descriptor_set);
         const Memory* m_mem;
+    };
+
+    struct RecordSetBindingCmd : public Command
+    {
+        ENTRY_IMPLEMENT_COMMAND(RecordSetBindingCmd, Command::record_set_bindless);
+        BindlessHandle m_bindless;
     };
 
     struct RecordSetViewportCmd : public Command
@@ -671,11 +678,18 @@ namespace kage
             push(cmd);
         }
 
-        void cmdRecordSetDescriptor(const Memory* _mem)
+        void cmdRecordPushDescriptorSet(const Memory* _mem)
         {
-            RecordSetDescriptorCmd cmd;
+            RecordPushDescriptorSetCmd cmd;
             cmd.m_mem = _mem;
 
+            push(cmd);
+        }
+
+        void cmdRecordSetBindless(BindlessHandle _bindless)
+        {
+            RecordSetBindingCmd cmd;
+            cmd.m_bindless = _bindless;
             push(cmd);
         }
 

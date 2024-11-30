@@ -506,7 +506,7 @@ namespace
             kage::BindlessDesc desc;
             desc.binding = 0;
             desc.resType = kage::ResourceType::image;
-            desc.set = 1;
+            desc.setIdx = 1;
 
             m_bindlessArray = kage::registBindless("bindless_sampler", desc);
 

@@ -36,7 +36,7 @@ void recPyr(const Pyramid& _pyramid)
             {_pyramid.image, ii, Stage::compute_shader}
         };
 
-        kage::setBindings(binds, COUNTOF(binds));
+        kage::pushBindings(binds, COUNTOF(binds));
 
         kage::dispatch(levelWidth, levelHeight, 1);
     }

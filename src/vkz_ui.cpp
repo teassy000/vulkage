@@ -55,7 +55,7 @@ void recordUI(const UIRendering& _ui)
         {_ui.fontImage, _ui.fontSampler, Stage::fragment_shader}
     };
     
-    kage::setBindings(binds, COUNTOF(binds));
+    kage::pushBindings(binds, COUNTOF(binds));
 
     int32_t vtxOffset = 0;
     int32_t idxOffset = 0;

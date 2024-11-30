@@ -648,7 +648,7 @@ namespace kage
 
     struct BindlessDesc
     {
-        uint32_t set{ 0 };
+        uint32_t setIdx{ 0 };
         uint32_t binding{ 0 };
         ResourceType resType{ ResourceType::undefined };
         SamplerReductionMode reductionMode{ SamplerReductionMode::max_enum };

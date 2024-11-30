@@ -495,16 +495,16 @@ namespace kage { namespace vk
     }
 
 
-    kage::vk::Program_vk createProgram(VkDevice device, VkPipelineBindPoint bindingPoint, const stl::vector<Shader_vk>& shaders, uint32_t pushConstantSize /*= 0*/, VkDescriptorSetLayout _arrayLayout /*= 0*/)
+    kage::vk::Program_vk createProgram(VkDevice _device, VkPipelineBindPoint _bindingPoint, const stl::vector<Shader_vk>& _shaders, uint32_t _pushConstantSize /*= 0*/, VkDescriptorSetLayout _arrayLayout /*= 0*/)
     {
         VkShaderStageFlags pushConstantStages = 0;
-        for (const Shader_vk& shader : shaders)
+        for (const Shader_vk& shader : _shaders)
             if (shader.usesPushConstants)
                 pushConstantStages |= shader.stage;
 
         bool useBindless = false;
         VkShaderStageFlags useBindlessStages = 0;
-        for (const Shader_vk& shader : shaders) {
+        for (const Shader_vk& shader : _shaders) {
             useBindless |= shader.usesBindless;
             useBindlessStages |= shader.stage;
         }
@@ -513,28 +513,29 @@ namespace kage { namespace vk
 
         Program_vk program = {};
 
-        program.setLayout = createDescSetLayout(device, shaders);
+        program.setLayout = createDescSetLayout(_device, _shaders);
         assert(program.setLayout);
 
-        program.layout = createPipelineLayout(device, program.setLayout, pushConstantStages, pushConstantSize);
+        program.layout = createPipelineLayout(_device, program.setLayout, _arrayLayout, pushConstantStages, _pushConstantSize);
         assert(program.layout);
 
-        program.updateTemplate = createDescriptorTemplates(device, bindingPoint, program.layout, program.setLayout, shaders);
+        program.updateTemplate = createDescriptorTemplates(_device, _bindingPoint, program.layout, program.setLayout, _shaders);
         assert(program.updateTemplate);
 
         program.arrayLayout = _arrayLayout;
         program.pushConstantStages = pushConstantStages;
-        program.bindPoint = bindingPoint;
-        program.pushConstantSize = pushConstantSize;
+        program.bindPoint = _bindingPoint;
+        program.pushConstantSize = _pushConstantSize;
 
         return program;
     }
 
-    void destroyProgram(VkDevice device, const Program_vk& program)
+    void destroyProgram(VkDevice _device, const Program_vk& _program)
     {
-        vkDestroyDescriptorUpdateTemplate(device, program.updateTemplate, 0);
-        vkDestroyPipelineLayout(device, program.layout, 0);
-        vkDestroyDescriptorSetLayout(device, program.setLayout, 0);
+        vkDestroyDescriptorUpdateTemplate(_device, _program.updateTemplate, 0);
+        vkDestroyPipelineLayout(_device, _program.layout, 0);
+        vkDestroyDescriptorSetLayout(_device, _program.setLayout, 0);
+
     }
 
     VkDescriptorSetLayout createDescSetLayout(VkDevice device, const stl::vector<Shader_vk>& shaders)
@@ -573,24 +574,26 @@ namespace kage { namespace vk
         return setLayout;
     }
 
-    VkPipelineLayout createPipelineLayout(VkDevice device, VkDescriptorSetLayout outSetLayout, VkShaderStageFlags pushConstantStages, size_t pushConstantSize)
+    VkPipelineLayout createPipelineLayout(VkDevice _device, VkDescriptorSetLayout _setLayout, VkDescriptorSetLayout _arrayLayout, VkShaderStageFlags _pushConstantStages, size_t _pushConstantSize)
     {
+        const VkDescriptorSetLayout layouts[2] = { _setLayout, _arrayLayout };
+
         VkPipelineLayoutCreateInfo createInfo = { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
-        createInfo.setLayoutCount = 1;
-        createInfo.pSetLayouts = &outSetLayout;
+        createInfo.setLayoutCount = _arrayLayout ? 2 : 1;
+        createInfo.pSetLayouts = &layouts[0];
 
         VkPushConstantRange pushConstantRange = {};
-        if (pushConstantSize)
+        if (_pushConstantSize)
         {
-            pushConstantRange.stageFlags = pushConstantStages;
-            pushConstantRange.size = uint32_t(pushConstantSize);
+            pushConstantRange.stageFlags = _pushConstantStages;
+            pushConstantRange.size = uint32_t(_pushConstantSize);
 
             createInfo.pushConstantRangeCount = 1;
             createInfo.pPushConstantRanges = &pushConstantRange;
         }
 
         VkPipelineLayout layout = 0;
-        VK_CHECK(vkCreatePipelineLayout(device, &createInfo, 0, &layout));
+        VK_CHECK(vkCreatePipelineLayout(_device, &createInfo, 0, &layout));
 
         return layout;
     }
@@ -650,8 +653,8 @@ namespace kage { namespace vk
         allocInfo.descriptorPool = _pool;
         allocInfo.descriptorSetCount = 1;
         allocInfo.pSetLayouts = &_layout;
+        
         VkDescriptorSet set = nullptr;
-         
         VK_CHECK(vkAllocateDescriptorSets(_device, &allocInfo, &set));
         return set;
     }

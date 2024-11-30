@@ -349,7 +349,9 @@ namespace kage
 
         void setConstants(const Memory* _mem);
 
-        void setDescriptorSets(const Binding* _desc, uint16_t _count);
+        void pushBindings(const Binding* _desc, uint16_t _count);
+
+        void setBindless(BindlessHandle _hBindless);
 
         void setBuffer(
             const BufferHandle _hBuf
@@ -2139,15 +2141,20 @@ namespace kage
         m_transientMemories.push_back(_mem);
     }
 
-    void Context::setDescriptorSets(const Binding* _desc, uint16_t _count)
+    void Context::pushBindings(const Binding* _desc, uint16_t _count)
     {
         const uint32_t sz = sizeof(Binding) * _count;
         const Memory* mem = alloc(sz);
         bx::memCopy(mem->data, _desc, mem->size);
 
-        m_cmdQueue.cmdRecordSetDescriptor(mem);
+        m_cmdQueue.cmdRecordPushDescriptorSet(mem);
 
         m_transientMemories.push_back(mem);
+    }
+
+    void Context::setBindless(BindlessHandle _hBindless)
+    {
+        m_cmdQueue.cmdRecordSetBindless(_hBindless);
     }
 
     void Context::setBuffer(const BufferHandle _hBuf, const uint32_t _binding, const PipelineStageFlags _stage, const AccessFlags _access, const BufferHandle _outAlias)
@@ -2418,9 +2425,14 @@ namespace kage
         s_ctx->setConstants(_mem);
     }
 
-    void setBindings( Binding* _desc , uint16_t _count )
+    void pushBindings( Binding* _desc , uint16_t _count )
     {
-        s_ctx->setDescriptorSets(_desc, _count);
+        s_ctx->pushBindings(_desc, _count);
+    }
+
+    void setBindless(BindlessHandle _hBindless)
+    {
+        s_ctx->setBindless(_hBindless);
     }
 
     void dispatch(

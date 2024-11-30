@@ -26,7 +26,7 @@ void cullingRec(const Culling& _cull, uint32_t _drawCount)
 
     kage::setConstants(mem);
 
-    kage::setBindings(binds, COUNTOF(binds));
+    kage::pushBindings(binds, COUNTOF(binds));
     kage::dispatch(_drawCount, 1, 1);
 
     kage::endRec();

@@ -49,13 +49,13 @@ namespace kage { namespace vk
     VkPipeline createComputePipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, const Shader_vk& shader, const stl::vector<int> constants = {});
 
     VkDescriptorSetLayout createDescSetLayout(VkDevice device, const stl::vector<Shader_vk>& shaders);
-    VkPipelineLayout createPipelineLayout(VkDevice device, VkDescriptorSetLayout outSetLayout, VkShaderStageFlags pushConstantStages, size_t pushConstantSize);
+    VkPipelineLayout createPipelineLayout(VkDevice _device, VkDescriptorSetLayout _setLayout, VkDescriptorSetLayout _arrayLayout, VkShaderStageFlags _pushConstantStages, size_t _pushConstantSize);
 
     VkDescriptorPool createDescriptorPool(VkDevice _device);
     VkDescriptorSetLayout createDescArrayLayout(VkDevice _device, VkShaderStageFlags _stages);
     VkDescriptorSet createDescriptorSets(VkDevice _device, VkDescriptorSetLayout _layout, VkDescriptorPool _pool, uint32_t _descCount);
 
-    Program_vk createProgram(VkDevice device, VkPipelineBindPoint bindingPoint, const stl::vector<Shader_vk>& shaders, uint32_t pushConstantSize = 0, VkDescriptorSetLayout _dsLayout = NULL);
+    Program_vk createProgram(VkDevice _device, VkPipelineBindPoint _bindingPoint, const stl::vector<Shader_vk>& _shaders, uint32_t _pushConstantSize = 0, VkDescriptorSetLayout _dsLayout = NULL);
     void destroyProgram(VkDevice device, const Program_vk& program);
 
     inline uint32_t calcGroupCount(uint32_t threadCount, uint32_t localSize)

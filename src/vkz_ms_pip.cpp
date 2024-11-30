@@ -21,7 +21,7 @@ void taskSubmitRec(const TaskSubmit& _ts)
 
     kage::startRec(_ts.pass);
 
-    kage::setBindings(binds, COUNTOF(binds));
+    kage::pushBindings(binds, COUNTOF(binds));
 
     kage::dispatch(1, 1, 1);
 
@@ -51,7 +51,9 @@ void meshShadingRec(const MeshShading& _ms)
     kage::startRec(_ms.pass);
 
     kage::setConstants(mem);
-    kage::setBindings(binds, COUNTOF(binds));
+    kage::pushBindings(binds, COUNTOF(binds));
+
+    kage::setBindless(_ms.bindless);
 
     kage::setViewport(0, 0, (uint32_t)_ms.globals.screenWidth, (uint32_t)_ms.globals.screenHeight);
     kage::setScissor(0, 0, (uint32_t)_ms.globals.screenWidth, (uint32_t)_ms.globals.screenHeight);
@@ -65,9 +67,9 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
 {
     kage::ShaderHandle ms= kage::registShader("mesh_shader", "shaders/meshlet.mesh.spv");
     kage::ShaderHandle ts = kage::registShader("task_shader", "shaders/meshlet.task.spv");
-    kage::ShaderHandle fs = kage::registShader("mesh_frag_shader", "shaders/meshlet.frag.spv");
+    kage::ShaderHandle fs = kage::registShader("mesh_frag_shader", "shaders/bindless.frag.spv");
 
-    kage::ProgramHandle prog = kage::registProgram("mesh_prog", { ts, ms, fs }, sizeof(Globals), _initData.bindlessSampler);
+    kage::ProgramHandle prog = kage::registProgram("mesh_prog", { ts, ms, fs }, sizeof(Globals), _initData.bindless);
 
     int pipelineSpecs[] = { _late, true , {kage::kSeamlessLod == 1} };
 
@@ -163,6 +165,10 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
     _meshShading.meshDrawCmdCountBuffer = _initData.meshDrawCmdCountBuffer;
     _meshShading.meshDrawBuffer = _initData.meshDrawBuffer;
     _meshShading.transformBuffer = _initData.transformBuffer;
+
+    _meshShading.pyramidSampler = pyrSampler;
+
+    _meshShading.bindless = _initData.bindless;
 
     _meshShading.meshletVisBuffer = _initData.meshletVisBuffer;
     _meshShading.pyramid = _initData.pyramid;

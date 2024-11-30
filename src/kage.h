@@ -86,7 +86,9 @@ namespace kage
 
     void setConstants(const Memory* _mem);
 
-    void setBindings(Binding* _desc, uint16_t _count);
+    void pushBindings(Binding* _desc, uint16_t _count);
+
+    void setBindless(BindlessHandle _bindless);
 
     void dispatch(
         const uint32_t _groupCountX
