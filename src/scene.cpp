@@ -15,6 +15,39 @@ enum class Scene_Enum : uint64_t
     CornellBox,
 };
 
+struct SceneBiref
+{
+    // geometry brief
+    uint32_t vertexCount;
+    uint32_t indexCount;
+    uint32_t meshletCount;
+    uint32_t clusterCount;
+    uint32_t meshletDataCount;
+    uint32_t meshCount;
+
+    // draw brief
+    uint32_t drawCount;
+    float drawDistance;
+    uint32_t meshletVisibilityCount;
+    uint32_t imageCount;
+    uint32_t imageDataSize;
+};
+
+enum class SceneDumpDataTags : uint32_t
+{
+    // geometry
+    vertex,
+    index,
+    meshlet,
+    cluster,
+    meshlet_data,
+    mesh,
+    // draw
+    mesh_draw,
+    image_info,
+    image_data,
+};
+
 static Scene_Enum se = Scene_Enum::MatrixScene;
 
 void CreateRandomScene(Scene& scene, bool _seamlessLod)
@@ -228,6 +261,236 @@ bool loadObjScene(Scene& _scene, const char** _pathes, const uint32_t _pathCount
 }
 
 
+static size_t writeToFile(SceneDumpDataTags _tag, void* _data, size_t _stride , size_t _count, FILE* _file)
+{
+    fwrite(&_tag, sizeof(SceneDumpDataTags), 1, _file);
+    return fwrite(_data, _stride, _count, _file);
+}
+
+static void printBrief(const SceneBiref& _brief, size_t _size)
+{
+    // print brief
+    kage::message(kage::info, "Scene brief:");
+    kage::message(kage::info, "vertex count: %d", _brief.vertexCount);
+    kage::message(kage::info, "index count: %d", _brief.indexCount);
+    kage::message(kage::info, "meshlet count: %d", _brief.meshletCount);
+    kage::message(kage::info, "cluster count: %d", _brief.clusterCount);
+    kage::message(kage::info, "meshlet data count: %d", _brief.meshletDataCount);
+    kage::message(kage::info, "mesh count: %d", _brief.meshCount);
+    kage::message(kage::info, "draw count: %d", _brief.drawCount);
+    kage::message(kage::info, "draw distance: %f", _brief.drawDistance);
+    kage::message(kage::info, "meshlet visibility count: %d", _brief.meshletVisibilityCount);
+    kage::message(kage::info, "image count: %d", _brief.imageCount);
+    kage::message(kage::info, "image data size: %d", _brief.imageDataSize);
+
+    // total data size
+    kage::message(kage::info, "Total data size: %d", _size);
+}
+
+bool dumpScene(const Scene& _scene, const char* _path)
+{
+    uint32_t dataSize = 0;
+    const char* ext = getExtension(_path);
+    if (strcmp(ext, "scene") != 0)
+    {   
+        kage::message(kage::error, "Invalid file format: %s", _path);
+        return false;
+    }
+
+
+    FILE* file = fopen(_path, "wb");
+    if (!file)
+    {
+        kage::message(kage::error, "Failed to open file: %s", _path);
+        return false;
+    }
+
+    SceneBiref brief;
+    brief.vertexCount = (uint32_t)_scene.geometry.vertices.size();
+    brief.indexCount = (uint32_t)_scene.geometry.indices.size();
+    brief.meshletCount = (uint32_t)_scene.geometry.meshlets.size();
+    brief.clusterCount = (uint32_t)_scene.geometry.clusters.size();
+    brief.meshletDataCount = (uint32_t)_scene.geometry.meshletdata.size();
+    brief.meshCount = (uint32_t)_scene.geometry.meshes.size();
+
+    brief.drawCount = _scene.drawCount;
+    brief.drawDistance = _scene.drawDistance;
+    brief.meshletVisibilityCount = _scene.meshletVisibilityCount;
+    brief.imageCount = (uint32_t)_scene.images.size();
+    brief.imageDataSize = (uint32_t)_scene.imageDatas.size();
+
+    fwrite(&brief, sizeof(SceneBiref), 1, file);
+
+
+    size_t size = 0;
+    // geometry
+    size += writeToFile(SceneDumpDataTags::vertex, (void*)_scene.geometry.vertices.data(), sizeof(Vertex), _scene.geometry.vertices.size(), file);
+    size += writeToFile(SceneDumpDataTags::index, (void*)_scene.geometry.indices.data(), sizeof(uint32_t), _scene.geometry.indices.size(), file);
+    size += writeToFile(SceneDumpDataTags::meshlet, (void*)_scene.geometry.meshlets.data(), sizeof(Meshlet), _scene.geometry.meshlets.size(), file);
+    size += writeToFile(SceneDumpDataTags::cluster, (void*)_scene.geometry.clusters.data(), sizeof(Cluster), _scene.geometry.clusters.size(), file);
+    size += writeToFile(SceneDumpDataTags::meshlet_data, (void*)_scene.geometry.meshletdata.data(), sizeof(uint32_t), _scene.geometry.meshletdata.size(), file);
+    size += writeToFile(SceneDumpDataTags::mesh, (void*)_scene.geometry.meshes.data(), sizeof(Mesh), _scene.geometry.meshes.size(), file);
+
+    // draw
+    size += writeToFile(SceneDumpDataTags::mesh_draw, (void*)_scene.meshDraws.data(), sizeof(MeshDraw), _scene.meshDraws.size(), file);
+    size += writeToFile(SceneDumpDataTags::image_info, (void*)_scene.images.data(), sizeof(ImageInfo), _scene.images.size(), file);
+    size += writeToFile(SceneDumpDataTags::image_data, (void*)_scene.imageDatas.data(), sizeof(uint8_t), _scene.imageDatas.size(), file);
+
+    fclose(file);
+
+    printBrief(brief, size);
+
+    return true;
+}
+
+
+void* getEntryPoint(Scene& _scene, SceneDumpDataTags _tag)
+{
+    switch (_tag)
+    {
+    case SceneDumpDataTags::vertex:
+        return (void*)_scene.geometry.vertices.data();
+    case SceneDumpDataTags::index:
+        return (void*)_scene.geometry.indices.data();
+    case SceneDumpDataTags::meshlet:
+        return (void*)_scene.geometry.meshlets.data();
+    case SceneDumpDataTags::cluster:
+        return (void*)_scene.geometry.clusters.data();
+    case SceneDumpDataTags::meshlet_data:
+        return (void*)_scene.geometry.meshletdata.data();
+    case SceneDumpDataTags::mesh:
+        return (void*)_scene.geometry.meshes.data();
+    case SceneDumpDataTags::mesh_draw:
+        return (void*)_scene.meshDraws.data();
+    case SceneDumpDataTags::image_info:
+        return (void*)_scene.images.data();
+    case SceneDumpDataTags::image_data:
+        return (void*)_scene.imageDatas.data();
+    default:
+        return nullptr;
+    }
+}
+
+size_t getStride(SceneDumpDataTags _tag)
+{
+    switch (_tag)
+    {
+    case SceneDumpDataTags::vertex:
+        return sizeof(Vertex);
+    case SceneDumpDataTags::index:
+        return sizeof(uint32_t);
+    case SceneDumpDataTags::meshlet:
+        return sizeof(Meshlet);
+    case SceneDumpDataTags::cluster:
+        return sizeof(Cluster);
+    case SceneDumpDataTags::meshlet_data:
+        return sizeof(uint32_t);
+    case SceneDumpDataTags::mesh:
+        return sizeof(Mesh);
+    case SceneDumpDataTags::mesh_draw:
+        return sizeof(MeshDraw);
+    case SceneDumpDataTags::image_info:
+        return sizeof(ImageInfo);
+    case SceneDumpDataTags::image_data:
+        return sizeof(uint8_t);
+    default:
+        return 0;
+    }
+}
+
+size_t getElementCount(Scene& _scene, SceneDumpDataTags _tag)
+{
+    switch (_tag)
+    {
+    case SceneDumpDataTags::vertex:
+        return _scene.geometry.vertices.size();
+    case SceneDumpDataTags::index:
+        return _scene.geometry.indices.size();
+    case SceneDumpDataTags::meshlet:
+        return _scene.geometry.meshlets.size();
+    case SceneDumpDataTags::cluster:
+        return _scene.geometry.clusters.size();
+    case SceneDumpDataTags::meshlet_data:
+        return _scene.geometry.meshletdata.size();
+    case SceneDumpDataTags::mesh:
+        return _scene.geometry.meshes.size();
+    case SceneDumpDataTags::mesh_draw:
+        return _scene.meshDraws.size();
+    case SceneDumpDataTags::image_info:
+        return _scene.images.size();
+    case SceneDumpDataTags::image_data:
+        return _scene.imageDatas.size();
+    default:
+        return 0;
+    }
+}
+
+
+bool loadSceneDump(Scene& _scene, const char* _path)
+{
+    const char* ext = getExtension(_path);
+    if (strcmp(ext, "scene") != 0)
+    {
+        kage::message(kage::error, "Invalid file format: %s", _path);
+        return false;
+    }
+    FILE* file = fopen(_path, "rb");
+    if (!file)
+    {
+        kage::message(kage::error, "Failed to open file: %s", _path);
+        return false;
+    }
+
+    SceneBiref brief;
+    fread(&brief, sizeof(SceneBiref), 1, file);
+    _scene.geometry.vertices.resize(brief.vertexCount);
+    _scene.geometry.indices.resize(brief.indexCount);
+    _scene.geometry.meshlets.resize(brief.meshletCount);
+    _scene.geometry.clusters.resize(brief.clusterCount);
+    _scene.geometry.meshletdata.resize(brief.meshletDataCount);
+    _scene.geometry.meshes.resize(brief.meshCount);
+    _scene.drawCount = brief.drawCount;
+    _scene.drawDistance = brief.drawDistance;
+    _scene.meshletVisibilityCount = brief.meshletVisibilityCount;
+    _scene.imageCount = brief.imageCount;
+    _scene.imageDataSize = brief.imageDataSize;
+    _scene.meshDraws.resize(brief.drawCount);
+    _scene.images.resize(brief.imageCount);
+    _scene.imageDatas.resize(brief.imageDataSize);
+
+    size_t size = 0;
+    while (true)
+    {
+        if (feof(file))
+            break;
+
+        SceneDumpDataTags tag;
+        fread(&tag, sizeof(SceneDumpDataTags), 1, file);
+
+
+        size_t stride = getStride(tag);
+        size_t count = getElementCount(_scene, tag);
+
+        if (0 == count)
+            continue;
+
+        void* data = getEntryPoint(_scene, tag);
+        if (data == nullptr)
+        {
+            kage::message(kage::error, "Invalid tag: %d", tag);
+            continue;
+        }
+
+        size += fread(data, stride, count, file);
+    }
+
+    fclose(file);
+    
+    printBrief(brief, size);
+
+    return true;
+}
+
 bool loadScene(Scene& _scene, const char** _pathes, const uint32_t _pathCount, bool _buildMeshlets, bool _seamlessLod)
 {
     if (_pathCount == 0 || _pathes == nullptr)
@@ -239,9 +502,14 @@ bool loadScene(Scene& _scene, const char** _pathes, const uint32_t _pathCount, b
     // check the first file format
     const char* ext0 = getExtension(_pathes[0]);
 
+    if (strcmp(ext0, "scene") == 0)
+    {
+        return loadSceneDump(_scene, _pathes[0]);
+    }
+
     if (strcmp(ext0, "gltf") == 0 || strcmp(ext0, "glb") == 0)
     {
-        return loadGltfScene(_scene, _pathes, _pathCount, _buildMeshlets, _seamlessLod);
+        return loadGltfScene(_scene, _pathes[0], _buildMeshlets, _seamlessLod);
     }
 
     if (strcmp(ext0, "obj") == 0)
@@ -252,5 +520,3 @@ bool loadScene(Scene& _scene, const char** _pathes, const uint32_t _pathCount, b
     kage::message(kage::error, "Unsupported file format: %s", _pathes[0]);
     return false;
 }
-
-

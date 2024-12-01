@@ -62,9 +62,9 @@ namespace
             // basic data
             freeCameraInit();
 
-            createBindlessArray();
             createBuffers();
             createImages();
+            createBindlessArray();
             createPasses();
 
             kage::setPresentImage(m_ui.colorOutAlias);
@@ -172,7 +172,7 @@ namespace
 
         bool initScene(bool _seamlessLod)
         {
-            const char* pathes[] = { "./data/gltf/bistro.glb" };
+            const char* pathes[] = { "./data/gltf/bistro.glb.scene" };
             bool lmr = loadScene(m_scene, pathes, COUNTOF(pathes), m_supportMeshShading, _seamlessLod);
             return lmr;
         }
@@ -307,6 +307,25 @@ namespace
 
         void createImages()
         {
+            // create scene images
+            for (const ImageInfo & img : m_scene.images)
+            {
+                const kage::Memory* mem = kage::copy(m_scene.imageDatas.data() + img.dataOffset, img.dataSize);
+                kage::ImageDesc imgDesc;
+                imgDesc.width = img.w;
+                imgDesc.height = img.h;
+                imgDesc.depth = 1;
+                imgDesc.numLayers = img.layerCount;
+                imgDesc.numMips = img.mipCount;
+                imgDesc.format = img.format;
+                imgDesc.type = (img.layerCount > 1) ? kage::ImageType::type_3d : kage::ImageType::type_2d;
+                imgDesc.viewType = img.isCubeMap ? kage::ImageViewType::type_cube : kage::ImageViewType::type_2d;
+                imgDesc.usage = kage::ImageUsageFlagBits::sampled | kage::ImageUsageFlagBits::transfer_dst;
+
+                kage::ImageHandle imgHandle = kage::registTexture(img.name, imgDesc, mem);
+                m_sceneImages.emplace_back(imgHandle);
+            }
+
             {
                 kage::ImageDesc rtDesc;
                 rtDesc.depth = 1;
@@ -511,15 +530,17 @@ namespace
             m_bindlessArray = kage::registBindless("bindless_sampler", desc);
 
             // set textures into bindless array
-            const kage::Memory* mem = kage::alloc(uint32_t(sizeof(kage::ImageHandle) * m_scene.textures.size()));
-            memcpy(mem->data, m_scene.textures.data(), mem->size);
+            const kage::Memory* mem = kage::alloc(uint32_t(sizeof(kage::ImageHandle) * m_sceneImages.size()));
+            memcpy(mem->data, m_sceneImages.data(), mem->size);
 
-            kage::setBindlessTextures(m_bindlessArray, mem, uint32_t(m_scene.textures.size()), kage::SamplerReductionMode::weighted_average);
+            kage::setBindlessTextures(m_bindlessArray, mem, uint32_t(m_sceneImages.size()), kage::SamplerReductionMode::weighted_average);
         }
 
         Scene m_scene{};
         DemoData m_demoData{};
         bool m_supportMeshShading;
+
+        std::vector<kage::ImageHandle> m_sceneImages;
 
         uint32_t m_width;
         uint32_t m_height;

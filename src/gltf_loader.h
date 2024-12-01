@@ -1,3 +1,3 @@
 #include "scene.h"
 
-bool loadGltfScene(Scene& _scene, const char** _pathes, uint32_t _pathCount, bool _buildMeshlet, bool _seamlessLod);
+bool loadGltfScene(Scene& _scene, const char* _path, bool _buildMeshlet, bool _seamlessLod);

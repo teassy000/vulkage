@@ -4,6 +4,7 @@
 #include "common.h"
 #include <ktx.h>
 
+#include "scene.h"
 #include "entry/entry.h" // for allocator
 #include "bimg/decode.h"
 
@@ -140,42 +141,4 @@ const kage::ImageHandle loadImageFromFile(const char* _name, const char* _path, 
 
     kage::message(kage::error, "Unsupported file format: %s", _path);
     return { kage::kInvalidHandle };
-}
-
-const kage::ImageHandle loadImageFromMemory(const char* _name, const void* _data, uint32_t _size, textureResolution& _outRes /*= {}*/)
-{
-    bimg::ImageContainer* imageContainer = bimg::imageParse(entry::getAllocator(), _data, _size);
-    if (imageContainer == nullptr)
-    {
-        kage::message(kage::error, "Failed to parse image from memory");
-        return { kage::kInvalidHandle };
-    }
-
-    // convert rgb8 to rgba8
-    if (imageContainer->m_format == bimg::TextureFormat::RGB8)
-    {
-        bimg::ImageContainer* rgba8Container = bimg::imageConvert(entry::getAllocator(), bimg::TextureFormat::RGBA8, *imageContainer);
-        bimg::imageFree(imageContainer);
-        imageContainer = rgba8Container;
-    }
-
-
-    kage::ImageDesc desc = {};
-    desc.width = imageContainer->m_width;
-    desc.height = imageContainer->m_height;
-    desc.numMips = imageContainer->m_numMips;
-    desc.numLayers = imageContainer->m_numLayers;
-    desc.format = bimgToKageFromat(imageContainer->m_format);
-    desc.type = (imageContainer->m_numLayers > 1) ? kage::ImageType::type_3d : kage::ImageType::type_2d;
-    desc.viewType = imageContainer->m_cubeMap ? kage::ImageViewType::type_cube : kage::ImageViewType::type_2d;
-    desc.usage = kage::ImageUsageFlagBits::sampled | kage::ImageUsageFlagBits::transfer_dst;
-
-    const kage::Memory* mem = kage::copy(imageContainer->m_data, imageContainer->m_size);
-
-    kage::ImageHandle img = kage::registTexture(_name, desc, mem);
-    
-    _outRes.width = imageContainer->m_width;
-    _outRes.height = imageContainer->m_height;
-
-    return img;
 }

@@ -20,15 +20,34 @@ struct alignas(16) MeshDraw
     uint32_t emissiveTex;
 };
 
+struct alignas(16) ImageInfo
+{
+    char name[128];
+    uint32_t dataOffset;
+    uint32_t dataSize;
+
+    uint32_t w, h;
+    uint32_t mipCount;
+    uint32_t layerCount;
+    kage::ResourceFormat format;
+    bool isCubeMap;
+};
+
 struct Scene
 {
     uint32_t drawCount;
     float    drawDistance; // remove for infinity far 
     uint32_t meshletVisibilityCount; // meshlet Count
 
+    uint32_t imageCount;
+    uint32_t imageDataSize;
+
     Geometry geometry;
     std::vector<MeshDraw> meshDraws;
-    std::vector<kage::ImageHandle> textures;
+
+    std::vector<ImageInfo> images;
+    std::vector<uint8_t> imageDatas;
 };
 
 bool loadScene(Scene& scene, const char** pathes, const uint32_t pathCount, bool buildMeshlets, bool seamlessLod);
+bool dumpScene(const Scene& scene, const char* path);

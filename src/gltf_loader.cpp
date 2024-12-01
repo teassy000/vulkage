@@ -3,9 +3,15 @@
 
 #include "meshoptimizer.h"
 #include "debug.h"
-#include <map>
+
 #include "kage_structs.h"
 #include "file_helper.h"
+
+#include "entry/entry.h" // for allocator
+#include "bimg/decode.h"
+
+#include <map>
+#include <string>
 
 bool processMesh(Geometry& _geo, std::vector<std::pair<uint32_t, uint32_t>>& _prims, const cgltf_mesh* _gltfMesh, bool _buildMeshlet)
 {
@@ -181,20 +187,133 @@ bool processNode(Scene& _scene, std::vector<std::pair<uint32_t, uint32_t>>& _pri
     return false;
 }
 
-bool loadGltfScene(Scene& _scene, const char** _pathes, uint32_t _pathCount, bool _buildMeshlet, bool _seamlessLod)
+static kage::ResourceFormat bimgToKageFromat(bimg::TextureFormat::Enum _btf)
 {
-    assert(_pathCount == 1);
+    using KageFormat = kage::ResourceFormat;
 
+    KageFormat result = KageFormat::undefined;
+    // translate bimg format to kage format
+    switch (_btf)
+    {
+    case bimg::TextureFormat::R1:       /*unsupport*/                               break;
+    case bimg::TextureFormat::A8:       /*unsupport*/                               break;
+    case bimg::TextureFormat::R8:       result = KageFormat::r8_unorm;              break;
+    case bimg::TextureFormat::R8I:      result = KageFormat::r8_sint;               break;
+    case bimg::TextureFormat::R8U:      result = KageFormat::r8_uint;               break;
+    case bimg::TextureFormat::R8S:      result = KageFormat::r8_snorm;              break;
+    case bimg::TextureFormat::R16:      result = KageFormat::r16_unorm;             break;
+    case bimg::TextureFormat::R16I:     result = KageFormat::r16_sint;              break;
+    case bimg::TextureFormat::R16U:     result = KageFormat::r16_uint;              break;
+    case bimg::TextureFormat::R16F:     result = KageFormat::r16_sfloat;            break;
+    case bimg::TextureFormat::R16S:     result = KageFormat::r16_snorm;             break;
+    case bimg::TextureFormat::R32I:     result = KageFormat::r32_sint;              break;
+    case bimg::TextureFormat::R32U:     result = KageFormat::r32_uint;              break;
+    case bimg::TextureFormat::R32F:     result = KageFormat::r32_sfloat;            break;
+    case bimg::TextureFormat::RG8:      result = KageFormat::r8g8_unorm;            break;
+    case bimg::TextureFormat::RG8I:     result = KageFormat::r8g8_sint;             break;
+    case bimg::TextureFormat::RG8U:     result = KageFormat::r8g8_uint;             break;
+    case bimg::TextureFormat::RG8S:     result = KageFormat::r8g8_snorm;            break;
+    case bimg::TextureFormat::RG16:     result = KageFormat::r16g16_unorm;          break;
+    case bimg::TextureFormat::RG16I:    result = KageFormat::r16g16_sint;           break;
+    case bimg::TextureFormat::RG16U:    result = KageFormat::r16g16_uint;           break;
+    case bimg::TextureFormat::RG16F:    result = KageFormat::r16g16_sfloat;         break;
+    case bimg::TextureFormat::RG16S:    result = KageFormat::r16g16_snorm;          break;
+    case bimg::TextureFormat::RG32I:    result = KageFormat::r32g32_sint;           break;
+    case bimg::TextureFormat::RG32U:    result = KageFormat::r32g32_uint;           break;
+    case bimg::TextureFormat::RG32F:    result = KageFormat::r32g32_sfloat;         break;
+    case bimg::TextureFormat::RGB8:     result = KageFormat::r8g8b8_unorm;          break;
+    case bimg::TextureFormat::RGB8I:    result = KageFormat::r8g8b8_sint;           break;
+    case bimg::TextureFormat::RGB8U:    result = KageFormat::r8g8b8_uint;           break;
+    case bimg::TextureFormat::RGB8S:    result = KageFormat::r8g8b8_snorm;          break;
+    case bimg::TextureFormat::RGB9E5F:  /*unsupport*/                               break;
+    case bimg::TextureFormat::BGRA8:    result = KageFormat::b8g8r8a8_unorm;        break;
+    case bimg::TextureFormat::RGBA8:    result = KageFormat::r8g8b8a8_unorm;        break;
+    case bimg::TextureFormat::RGBA8I:   result = KageFormat::r8g8b8a8_sint;         break;
+    case bimg::TextureFormat::RGBA8U:   result = KageFormat::r8g8b8a8_uint;         break;
+    case bimg::TextureFormat::RGBA8S:   result = KageFormat::r8g8b8a8_snorm;        break;
+    case bimg::TextureFormat::RGBA16:   result = KageFormat::r16g16b16a16_unorm;    break;
+    case bimg::TextureFormat::RGBA16I:  result = KageFormat::r16g16b16a16_sint;     break;
+    case bimg::TextureFormat::RGBA16U:  result = KageFormat::r16g16b16a16_uint;     break;
+    case bimg::TextureFormat::RGBA16F:  result = KageFormat::r16g16b16a16_sfloat;   break;
+    case bimg::TextureFormat::RGBA16S:  result = KageFormat::r16g16b16a16_snorm;    break;
+    case bimg::TextureFormat::RGBA32I:  result = KageFormat::r32g32b32a32_sint;     break;
+    case bimg::TextureFormat::RGBA32U:  result = KageFormat::r32g32b32a32_uint;     break;
+    case bimg::TextureFormat::RGBA32F:  result = KageFormat::r32g32b32a32_sfloat;   break;
+    case bimg::TextureFormat::B5G6R5:   result = KageFormat::b5g6r5_unorm;          break;
+    case bimg::TextureFormat::R5G6B5:   result = KageFormat::r5g6b5_unorm;          break;
+    case bimg::TextureFormat::BGRA4:    result = KageFormat::b4g4r4a4_unorm;        break;
+    case bimg::TextureFormat::RGBA4:    result = KageFormat::r4g4b4a4_unorm;        break;
+    case bimg::TextureFormat::BGR5A1:   result = KageFormat::b5g5r5a1_unorm;        break;
+    case bimg::TextureFormat::RGB5A1:   result = KageFormat::r5g5b5a1_unorm;        break;
+    case bimg::TextureFormat::RGB10A2:  /*unsupport*/                               break;
+    case bimg::TextureFormat::RG11B10F: /*unsupport*/                               break;
+    case bimg::TextureFormat::D16:      result = KageFormat::d16;                   break;
+    case bimg::TextureFormat::D24:      /*unsupport*/                               break;
+    case bimg::TextureFormat::D24S8:    result = KageFormat::d24_sfloat_s8_uint;    break;
+    case bimg::TextureFormat::D32:      /*unsupport*/                               break;
+    case bimg::TextureFormat::D16F:     /*unsupport*/                               break;
+    case bimg::TextureFormat::D24F:     /*unsupport*/                               break;
+    case bimg::TextureFormat::D32F:     result = KageFormat::d32_sfloat;            break;
+    case bimg::TextureFormat::D0S8:     /*unsupport*/                               break;
+    default:
+        kage::message(kage::error, "Unsupported bimg format: %d", _btf);
+        result = KageFormat::undefined;
+    }
+
+    return result;
+}
+
+
+bool processImage(Scene& _scene, const char* _name, const uint8_t* _data, size_t _size)
+{
+    bimg::ImageContainer* imageContainer = bimg::imageParse(entry::getAllocator(), _data, (uint32_t)_size);
+    if (imageContainer == nullptr)
+    {
+        kage::message(kage::error, "Failed to parse image from memory");
+        return false;
+    }
+
+    // convert rgb8 to rgba8
+    if (imageContainer->m_format == bimg::TextureFormat::RGB8)
+    {
+        bimg::ImageContainer* rgba8Container = bimg::imageConvert(entry::getAllocator(), bimg::TextureFormat::RGBA8, *imageContainer);
+        bimg::imageFree(imageContainer);
+        imageContainer = rgba8Container;
+    }
+
+    uint32_t offset = (uint32_t)_scene.imageDatas.size();
+    _scene.imageDatas.resize(offset + imageContainer->m_size);
+    memcpy(_scene.imageDatas.data() + offset, imageContainer->m_data, imageContainer->m_size);
+
+    ImageInfo info{};
+    strcpy(info.name, _name);
+    info.dataOffset = offset;
+    info.dataSize = imageContainer->m_size;
+
+    info.w = imageContainer->m_width;
+    info.h = imageContainer->m_height;
+    info.mipCount = imageContainer->m_numMips;
+    info.layerCount = imageContainer->m_numLayers;
+    info.format = bimgToKageFromat(imageContainer->m_format);
+    info.isCubeMap = imageContainer->m_cubeMap;
+
+    _scene.images.emplace_back(info);
+
+    return true;
+}
+
+bool loadGltfScene(Scene& _scene, const char* _path, bool _buildMeshlet, bool _seamlessLod)
+{
     cgltf_options options = {};
     cgltf_data* data = NULL;
-    cgltf_result res = cgltf_parse_file(&options, _pathes[0], &data);
+    cgltf_result res = cgltf_parse_file(&options, _path, &data);
 
     if (res != cgltf_result_success)
     {
         return false;
     }
 
-    res = cgltf_load_buffers(&options, data, _pathes[0]);
+    res = cgltf_load_buffers(&options, data, _path);
     if (res != cgltf_result_success)
     {
         cgltf_free(data);
@@ -227,9 +346,6 @@ bool loadGltfScene(Scene& _scene, const char** _pathes, uint32_t _pathCount, boo
     }
 
     // -- images
-    std::map<const uint8_t*, kage::ImageHandle> imageMap;
-    _scene.textures.resize(data->textures_count);
-
     for (uint32_t ii = 0; ii < data->textures_count; ++ii)
     {
         const cgltf_texture& tex = data->textures[ii];
@@ -242,18 +358,25 @@ bool loadGltfScene(Scene& _scene, const char** _pathes, uint32_t _pathCount, boo
             const size_t offset = view->offset;
             const size_t size = view->size;
             const uint8_t* ptr = (const uint8_t*)data + offset;
-            if (imageMap.find(ptr) == imageMap.end())
-            {
-                kage::ImageHandle hImg = loadImageFromMemory(img->name, ptr, (uint32_t)size);
-                imageMap[ptr] = hImg;
-                _scene.textures[ii] = hImg;
-            }
-            else
-            {
-                _scene.textures[ii] = imageMap[ptr];
-            }
+
+            processImage(_scene, img->name, ptr, (uint32_t)size);
         }
     }
 
+    // free gltf stuff
+    cgltf_free(data);
+
+
+    std::string sceneName = _path;
+    sceneName.append(".scene");
+    FILE* file = fopen(sceneName.c_str(), "wb");
+    if (file)
+    {
+        // delete the file
+        fclose(file);
+        remove(sceneName.c_str());
+    }
+
+    dumpScene(_scene, sceneName.c_str());
     return true;
 }
