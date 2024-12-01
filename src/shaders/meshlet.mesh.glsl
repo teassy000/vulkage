@@ -61,7 +61,7 @@ layout(binding = 6) readonly uniform Transform
 layout(location = 0) out flat uint out_drawId[];
 layout(location = 1) out vec3 out_wPos[];
 layout(location = 2) out vec3 out_norm[];
-layout(location = 3) out vec4 out_tang[];
+layout(location = 3) out vec4 out_tan[];
 layout(location = 4) out vec2 out_uv[];
 
 
@@ -109,7 +109,7 @@ void main()
     
         vec3 pos = vec3(vertices[vi].vx, vertices[vi].vy, vertices[vi].vz);
         vec3 norm = vec3(int(vertices[vi].nx), int(vertices[vi].ny), int(vertices[vi].nz)) / 127.0 - 1.0;
-        vec4 tang = vec4(int(vertices[vi].tx), int(vertices[vi].ty), int(vertices[vi].tz), int(vertices[vi].tw)) / 127.0 - 1.0;
+        vec4 tan = vec4(int(vertices[vi].tx), int(vertices[vi].ty), int(vertices[vi].tz), int(vertices[vi].tw)) / 127.0 - 1.0;
         vec2 uv = vec2(vertices[vi].tu, vertices[vi].tv);
 
         vec3 wPos = rotateQuat(pos, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
@@ -122,7 +122,7 @@ void main()
         out_drawId[i] = payload.drawId;
         out_norm[i] = norm;
         out_wPos[i] = wPos;
-        out_tang[i] = tang;
+        out_tan[i] = tan;
         out_uv[i] = uv;
 
 #if CULL

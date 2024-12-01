@@ -24,7 +24,7 @@ bool processMesh(Geometry& _geo, std::vector<std::pair<uint32_t, uint32_t>>& _pr
         const cgltf_primitive& prim = _gltfMesh->primitives[ii];
 
         size_t vtxCount = prim.attributes[0].data->count;
-        std::vector<float> scratch(vtxCount * 3);
+        std::vector<float> scratch(vtxCount * 4);
         std::vector<Vertex> vertices(vtxCount);
 
         // -- position
@@ -69,7 +69,7 @@ bool processMesh(Geometry& _geo, std::vector<std::pair<uint32_t, uint32_t>>& _pr
             assert(tang->type == cgltf_type_vec4);
             assert(tang->component_type == cgltf_component_type_r_32f);
             cgltf_size sz = cgltf_accessor_unpack_floats(tang, scratch.data(), vtxCount * 4);
-            assert(sz == scratch.size());
+            assert(sz == vtxCount * 4);
             for (size_t jj = 0; jj < vtxCount; ++jj)
             {
                 vertices[jj].tx = uint8_t(scratch[jj * 4 + 0] * 127.f + 127.5f);
