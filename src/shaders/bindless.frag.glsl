@@ -11,7 +11,7 @@
 layout(location = 0) in flat uint out_drawId;
 layout(location = 1) in vec3 in_wPos;
 layout(location = 2) in vec3 in_norm;
-layout(location = 4) in vec4 in_tang;
+layout(location = 4) in vec4 in_tan;
 layout(location = 3) in vec2 in_uv;
 
 
@@ -48,6 +48,28 @@ void main()
         albedo = texture(textures[nonuniformEXT(mDraw.albedoTex)], in_uv);
     }
 
-    outputColor = albedo;
+    vec4 normal = vec4(0.0, 0.0, 1.0, 0.0);
+    if (mDraw.normalTex > 0)
+    {
+        normal = texture(textures[nonuniformEXT(mDraw.normalTex)], in_uv) * 2.0 - 1.0;
+    }
+
+    vec4 specular = vec4(0.04, 0.04, 0.04, 1.0);
+    if (mDraw.specularTex > 0)
+    {
+        specular = texture(textures[nonuniformEXT(mDraw.specularTex)], in_uv);
+    }
+
+    vec4 emissive = vec4(0.0, 0.0, 0.0, 1.0);
+    if (mDraw.emissiveTex > 0)
+    {
+        emissive = texture(textures[nonuniformEXT(mDraw.emissiveTex)], in_uv);
+    }
+
+    vec3 bitan = cross(in_norm, in_tan.xyz) * in_tan.w;
+    vec3 n = normalize(normal.x * in_tan.xyz + normal.y * bitan + normal.z * in_norm);
+
+
+    outputColor = vec4(albedo.xyz, 1.0);
 #endif
 }
