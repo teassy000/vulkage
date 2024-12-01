@@ -118,6 +118,9 @@ void setPyramidPassDependency(Pyramid& _pyramid, const kage::ImageHandle _inDept
     _pyramid.sampler = kage::sampleImage(_pyramid.pass, _inDepth
         , 0
         , kage::PipelineStageFlagBits::compute_shader
+        , kage::SamplerFilter::linear
+        , kage::SamplerMipmapMode::nearest
+        , kage::SamplerAddressMode::clamp_to_edge
         , kage::SamplerReductionMode::min
     );
 

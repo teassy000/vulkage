@@ -79,7 +79,7 @@ void buildTerrainMesh(float _x_step, float _y_step, float _h_step)
     kage::PassHandle hPass = kage::registPass("terrain_pass", { hProgram.id, kage::PassExeQueue::compute });
 
     // add dependencies
-    kage::sampleImage(hPass, hImg, 0, kage::PipelineStageFlagBits::compute_shader, kage::SamplerReductionMode::min);
+    kage::sampleImage(hPass, hImg, 0, kage::PipelineStageFlagBits::compute_shader, kage::SamplerFilter::nearest, kage::SamplerMipmapMode::nearest, kage::SamplerAddressMode::clamp_to_edge, kage::SamplerReductionMode::min);
     
     // create vertex buffer
 }

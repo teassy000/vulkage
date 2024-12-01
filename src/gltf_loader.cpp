@@ -99,10 +99,6 @@ bool processMesh(Geometry& _geo, std::vector<std::pair<uint32_t, uint32_t>>& _pr
         cgltf_accessor_unpack_indices(prim.indices, indices.data(), sizeof(uint32_t), indices.size());
 
         appendMesh(_geo, vertices, indices, _buildMeshlet);
-
-        // -- material
-        // TODO
-        prim.material;
     }
 
     _prims.emplace_back(std::make_pair(meshOffset, (uint32_t)_geo.meshes.size() - meshOffset));

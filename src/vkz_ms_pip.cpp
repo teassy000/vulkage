@@ -140,10 +140,14 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
         , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
         , mltVisBufOutAlias);
 
-    kage::SamplerHandle pyrSampler =  kage::sampleImage(pass, _initData.pyramid
+    kage::SamplerHandle pyrSampler = kage::sampleImage(pass, _initData.pyramid
         , 8
         , kage::PipelineStageFlagBits::fragment_shader
-        , kage::SamplerReductionMode::weighted_average);
+        , kage::SamplerFilter::linear
+        , kage::SamplerMipmapMode::nearest
+        , kage::SamplerAddressMode::clamp_to_edge
+        , kage::SamplerReductionMode::min
+    );
 
     kage::setIndirectBuffer(pass, _initData.meshDrawCmdCountBuffer, 4, 1, 0);
 

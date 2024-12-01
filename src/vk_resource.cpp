@@ -437,7 +437,7 @@ namespace kage { namespace vk
 
 
     VkSampler createSampler(
-        VkSamplerReductionMode _reductionMode /*= VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE */
+        VkFilter _filter, VkSamplerMipmapMode _mipMode, VkSamplerAddressMode _addrMode, VkSamplerReductionMode _reductionMode /*= VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE */
     )
     {
         KG_ZoneScopedC(Color::light_coral);
@@ -446,12 +446,12 @@ namespace kage { namespace vk
 
         VkSamplerCreateInfo createInfo = { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 
-        createInfo.magFilter = VK_FILTER_LINEAR;
-        createInfo.minFilter = VK_FILTER_LINEAR;
-        createInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-        createInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-        createInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-        createInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        createInfo.magFilter = _filter;
+        createInfo.minFilter = _filter;
+        createInfo.mipmapMode = _mipMode;
+        createInfo.addressModeU = _addrMode;
+        createInfo.addressModeV = _addrMode;
+        createInfo.addressModeW = _addrMode;
         createInfo.minLod = 0.f;
         createInfo.maxLod = 16.f; // required by occlusion culling, or tiny object will just culled since greater pyramid lod does not exist;
 

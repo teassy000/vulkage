@@ -234,6 +234,13 @@ namespace kage
         sampler_filter_max = 0x7FFFFFFF
     };
 
+    enum class SamplerMipmapMode
+    {
+        nearest,
+        linear,
+        sampler_mipmap_mode_max = 0x7FFFFFFF
+    };
+
     enum class SamplerAddressMode
     {
         repeat,

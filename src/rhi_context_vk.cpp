@@ -467,6 +467,69 @@ namespace kage { namespace vk
         return layout;
     };
 
+    VkFilter getFilter(SamplerFilter _filter)
+    {
+        VkFilter filter = VK_FILTER_NEAREST;
+        switch (_filter)
+        {
+        case SamplerFilter::nearest:
+            filter = VK_FILTER_NEAREST;
+            break;
+        case SamplerFilter::linear:
+            filter = VK_FILTER_LINEAR;
+            break;
+        default:
+            filter = VK_FILTER_NEAREST;
+            break;
+        }
+        return filter;
+    }
+
+    VkSamplerMipmapMode getSamplerMipmapMode(SamplerMipmapMode _mode)
+    {
+        VkSamplerMipmapMode mode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+        switch (_mode)
+        {
+        case SamplerMipmapMode::nearest:
+            mode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+            break;
+        case SamplerMipmapMode::linear:
+            mode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+            break;
+        default:
+            mode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+            break;
+        }
+        return mode;
+    }
+
+    VkSamplerAddressMode getSamplerAddressMode(SamplerAddressMode _mode)
+    {
+        VkSamplerAddressMode mode = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        switch (_mode)
+        {
+        case SamplerAddressMode::repeat:
+            mode = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            break;
+        case SamplerAddressMode::mirrored_repeat:
+            mode = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+            break;
+        case SamplerAddressMode::clamp_to_edge:
+            mode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+            break;
+        case SamplerAddressMode::clamp_to_border:
+            mode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+            break;
+        case SamplerAddressMode::mirror_clamp_to_edge:
+            mode = VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE;
+            break;
+        default:
+            mode = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            break;
+        }
+        return mode;
+    }
+
     VkSamplerReductionMode getSamplerReductionMode(SamplerReductionMode _reduction)
     {
         VkSamplerReductionMode reduction = VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE;
@@ -2450,8 +2513,12 @@ namespace kage { namespace vk
         SamplerMetaData meta;
         bx::read(&_reader, meta, nullptr);
 
-        VkSampler sampler = kage::vk::createSampler(getSamplerReductionMode( meta.reductionMode));
-        assert(sampler);
+        VkSampler sampler = getCachedSampler(
+            meta.filter
+            , meta.mipmapMode
+            , meta.addressMode
+            , meta.reductionMode
+        );
 
         m_samplerContainer.addOrUpdate(meta.samplerId, sampler);
     }
@@ -2505,7 +2572,8 @@ namespace kage { namespace vk
 
         const VkSampler& sampler = getCachedSampler(
             SamplerFilter::linear
-            , SamplerAddressMode::clamp_to_edge
+            , SamplerMipmapMode::linear
+            , SamplerAddressMode::repeat
             , meta.reductionMode
         );
         assert(sampler);
@@ -2982,13 +3050,14 @@ namespace kage { namespace vk
         flushWriteBarriersRec(_hPass);
     }
 
-    VkSampler RHIContext_vk::getCachedSampler(SamplerFilter _filter, SamplerAddressMode _addrMd, SamplerReductionMode _reduMd)
+    VkSampler RHIContext_vk::getCachedSampler(SamplerFilter _filter, SamplerMipmapMode _mipMd, SamplerAddressMode _addrMd, SamplerReductionMode _reduMd)
     {
         KG_ZoneScopedC(Color::indian_red);
 
         bx::HashMurmur2A hash;
         hash.begin();
         hash.add(_filter);
+        hash.add(_mipMd);
         hash.add(_addrMd);
         hash.add(_reduMd);
 
@@ -3001,7 +3070,10 @@ namespace kage { namespace vk
         }
 
         VkSampler sampler = kage::vk::createSampler(
-            getSamplerReductionMode(_reduMd)
+            getFilter(_filter)
+            , getSamplerMipmapMode(_mipMd)
+            , getSamplerAddressMode(_addrMd)
+            , getSamplerReductionMode(_reduMd)
             );
 
         m_samplerCache.add(hashKey, sampler);

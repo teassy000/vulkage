@@ -56,6 +56,9 @@ namespace kage
         , ImageHandle _hImg
         , uint32_t _binding
         , PipelineStageFlags _stage
+        , SamplerFilter _filter
+        , SamplerMipmapMode _mipmapMode
+        , SamplerAddressMode _addrMode
         , SamplerReductionMode _reductionMode
     );
 

@@ -256,11 +256,13 @@ namespace kage
         SamplerDesc() {};
 
         SamplerFilter filter{ SamplerFilter::nearest };
+        SamplerMipmapMode mipmapMode{ SamplerMipmapMode::nearest };
         SamplerAddressMode addressMode{ SamplerAddressMode::clamp_to_edge };
         SamplerReductionMode reductionMode{ SamplerReductionMode::weighted_average };
 
         bool operator == (const SamplerDesc& rhs) const {
             return filter == rhs.filter &&
+                mipmapMode == rhs.mipmapMode &&
                 addressMode == rhs.addressMode &&
                 reductionMode == rhs.reductionMode;
         }

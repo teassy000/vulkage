@@ -190,6 +190,9 @@ void prepareUI(UIRendering& _ui, kage::ImageHandle _color, kage::ImageHandle _de
     _ui.fontSampler = kage::sampleImage(pass, fontImage
         , 0
         , kage::PipelineStageFlagBits::fragment_shader
+        , kage::SamplerFilter::linear
+        , kage::SamplerMipmapMode::linear
+        , kage::SamplerAddressMode::clamp_to_edge
         , kage::SamplerReductionMode::weighted_average
     );
 

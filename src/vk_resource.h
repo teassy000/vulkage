@@ -136,7 +136,10 @@ namespace kage { namespace vk
 
 
     VkSampler createSampler(
-        VkSamplerReductionMode _reductionMode = VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE
+        VkFilter _filter
+        , VkSamplerMipmapMode _mipMode
+        , VkSamplerAddressMode _addrMode
+        , VkSamplerReductionMode _reductionMode = VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE
     );
 
 

@@ -91,7 +91,11 @@ void prepareCullingComp(Culling& _cullingComp, const CullingCompInitData& _initD
      kage::SamplerHandle samp = kage::sampleImage(pass, _initData.pyramid
         , 6
         , kage::PipelineStageFlagBits::compute_shader
-        , kage::SamplerReductionMode::min);
+        , kage::SamplerFilter::linear
+        , kage::SamplerMipmapMode::nearest
+        , kage::SamplerAddressMode::clamp_to_edge
+        , kage::SamplerReductionMode::min
+     );
 
     _cullingComp.cs = cs;
     _cullingComp.prog = prog;

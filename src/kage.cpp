@@ -292,7 +292,7 @@ namespace kage
         void setIndirectCountBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset);
 
         void bindBuffer(PassHandle _hPass, BufferHandle _buf, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, const BufferHandle _outAlias);
-        SamplerHandle sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, SamplerReductionMode _reductionMode);
+        SamplerHandle sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, SamplerFilter _filter, SamplerMipmapMode _mipMode, SamplerAddressMode _addrMode, SamplerReductionMode _reductionMode);
 
         void setBindlessTextures(BindlessHandle _bindless, const Memory* _mem, uint32_t _texCount, SamplerReductionMode _reductionMode);
 
@@ -1658,7 +1658,7 @@ namespace kage
         }
     }
 
-    SamplerHandle Context::sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, SamplerReductionMode _reductionMode)
+    kage::SamplerHandle Context::sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, SamplerFilter _filter, SamplerMipmapMode _mipMode, SamplerAddressMode _addrMode, SamplerReductionMode _reductionMode)
     {
         if (!availableBinding(m_usedBindPoints, _hPass, _binding))
         {
@@ -1668,6 +1668,9 @@ namespace kage
 
         // get the sampler id
         SamplerDesc desc;
+        desc.filter = _filter;
+        desc.mipmapMode = _mipMode;
+        desc.addressMode = _addrMode;
         desc.reductionMode = _reductionMode;
 
         SamplerHandle sampler = requestSampler(desc);
@@ -2377,9 +2380,9 @@ namespace kage
         s_ctx->bindBuffer(_hPass, _hBuf, _binding, _stage, _access, _outAlias);
     }
 
-    SamplerHandle sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, SamplerReductionMode _reductionMode)
+    kage::SamplerHandle sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, SamplerFilter _filter, SamplerMipmapMode _mipmapMode, SamplerAddressMode _addrMode, SamplerReductionMode _reductionMode)
     {
-        return s_ctx->sampleImage(_hPass, _hImg, _binding, _stage, _reductionMode);
+        return s_ctx->sampleImage(_hPass, _hImg, _binding, _stage, _filter, _mipmapMode, _addrMode, _reductionMode);
     }
 
     void setBindlessTextures(BindlessHandle _bindless, const Memory* _mem, uint32_t _texCount, SamplerReductionMode _reductionMode)
