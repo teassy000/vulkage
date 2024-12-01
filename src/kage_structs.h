@@ -585,33 +585,6 @@ namespace kage
         CullModeFlags cullMode{ CullModeFlagBits::back };
     };
 
-    struct Viewport {
-        float    x;
-        float    y;
-        float    width;
-        float    height;
-        float    minDepth;
-        float    maxDepth;
-    };
-
-    struct Offset2D 
-    {
-        int32_t    x;
-        int32_t    y;
-    };
-
-    struct Extent2D 
-    {
-        uint32_t    width;
-        uint32_t    height;
-    };
-
-    struct Rect2D 
-    {
-        Offset2D    offset;
-        Extent2D    extent;
-    };
-
     struct PassConfig
     {
         AttachmentLoadOp depthLoadOp{ AttachmentLoadOp::clear };
