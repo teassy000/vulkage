@@ -132,6 +132,7 @@ namespace kage
         ImageMetaData() {};
         ImageMetaData(const ImageDesc& desc) : ImageDesc(desc) {}
 
+        const char* name{ nullptr };
         uint16_t    imgId{ kInvalidHandle };
         uint16_t    bpp{ 4u };
 
@@ -167,6 +168,7 @@ namespace kage
         BufferMetaData() {};
         BufferMetaData(const BufferDesc& desc) : BufferDesc(desc) {};
 
+        const char* name{ nullptr };
         void*       pData{ nullptr };
         uint16_t    bufId{ kInvalidHandle };
 
@@ -308,6 +310,7 @@ namespace kage
         PassMetaData() {};
         PassMetaData(const PassDesc& desc) : PassDesc(desc) {}
 
+        const char* name{ nullptr };
         uint16_t    passId{ kInvalidHandle };
 
         // graphics pass specific
@@ -350,7 +353,6 @@ namespace kage
     struct RHIProfileData
     {
         uint64_t gpuTime{ 0 };
-        
     };
 
     enum class HandleType : uint16_t

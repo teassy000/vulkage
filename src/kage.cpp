@@ -1441,6 +1441,30 @@ namespace kage
 
         bx::StringView name = getName(_h);
 
+        // set to specific *meta
+        Handle::Enum type = _h.getType();
+        switch (type)
+        {
+        case kage::Handle::Shader:
+            break;
+        case kage::Handle::Program:
+            break;
+        case kage::Handle::Pass:
+            m_passMetas[_h.id].name = name.getPtr();
+            break;
+        case kage::Handle::Buffer:
+            m_bufferMetas[_h.id].name = name.getPtr();
+            break;
+        case kage::Handle::Image:
+            m_imageMetas[_h.id].name = name.getPtr();
+            break;
+        case kage::Handle::Count:
+            break;
+        default:
+            break;
+        }
+
+
         int32_t len = (int32_t)name.getLength();
         m_cmdQueue.cmdSetName(_h, name.getPtr(), len);
     }
