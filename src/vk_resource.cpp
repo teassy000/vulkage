@@ -238,9 +238,6 @@ namespace kage { namespace vk
         const VkDevice device = s_renderVK->m_device;
         const VkPhysicalDevice pd = s_renderVK->m_physicalDevice;
 
-
-
-
         _results.clear();
 
         uint32_t num = (uint32_t)_infos.size();

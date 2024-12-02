@@ -55,7 +55,7 @@ namespace
             
             bool forceParse = false;
             // check if argv contains -p
-            for (uint32_t ii = 0; ii < _argc; ++ii)
+            for (int32_t ii = 0; ii < _argc; ++ii)
             {
                 const char* arg = _argv[ii];
                 if (strcmp(arg, "-p") == 0)
