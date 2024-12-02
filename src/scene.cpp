@@ -491,7 +491,7 @@ bool loadSceneDump(Scene& _scene, const char* _path)
     return true;
 }
 
-bool loadScene(Scene& _scene, const char** _pathes, const uint32_t _pathCount, bool _buildMeshlets, bool _seamlessLod)
+bool loadScene(Scene& _scene, const char** _pathes, const uint32_t _pathCount, bool _buildMeshlets, bool _seamlessLod, bool _forceParse)
 {
     if (_pathCount == 0 || _pathes == nullptr)
     {
@@ -502,14 +502,20 @@ bool loadScene(Scene& _scene, const char** _pathes, const uint32_t _pathCount, b
     // check the first file format
     const char* ext0 = getExtension(_pathes[0]);
 
-    if (strcmp(ext0, "scene") == 0)
-    {
-        return loadSceneDump(_scene, _pathes[0]);
-    }
-
     if (strcmp(ext0, "gltf") == 0 || strcmp(ext0, "glb") == 0)
     {
-        return loadGltfScene(_scene, _pathes[0], _buildMeshlets, _seamlessLod);
+        bool rcm = false;
+        if (!_forceParse)
+        {
+            char path[256];
+            strcpy(path, _pathes[0]);
+            strcat(path, ".scene");
+            rcm = loadSceneDump(_scene, path);
+        }
+
+        if (!rcm)
+            rcm = loadGltfScene(_scene, _pathes[0], _buildMeshlets, _seamlessLod);
+        return rcm;
     }
 
     if (strcmp(ext0, "obj") == 0)

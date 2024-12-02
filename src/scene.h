@@ -49,5 +49,5 @@ struct Scene
     std::vector<uint8_t> imageDatas;
 };
 
-bool loadScene(Scene& scene, const char** pathes, const uint32_t pathCount, bool buildMeshlets, bool seamlessLod);
+bool loadScene(Scene& _scene, const char** _pathes, const uint32_t _pathCount, bool _buildMeshlets, bool _seamlessLod, bool _forceParse);
 bool dumpScene(const Scene& scene, const char* path);

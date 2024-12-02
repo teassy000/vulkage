@@ -53,7 +53,19 @@ namespace
             m_supportMeshShading = kage::checkSupports(kage::VulkanSupportExtension::ext_mesh_shader);
 
             
-            initScene(kage::kSeamlessLod);
+            bool forceParse = false;
+            // check if argv contains -p
+            for (uint32_t ii = 0; ii < _argc; ++ii)
+            {
+                const char* arg = _argv[ii];
+                if (strcmp(arg, "-p") == 0)
+                {
+                    forceParse = true;
+                    break;
+                }
+            }
+
+            initScene(forceParse, kage::kSeamlessLod);
 
             // ui data
             m_demoData.input.width = (float)_width;
@@ -170,10 +182,10 @@ namespace
             return 0;
         }
 
-        bool initScene(bool _seamlessLod)
+        bool initScene(bool _forceParse, bool _seamlessLod)
         {
-            const char* pathes[] = { "./data/gltf/bistro.glb.scene" };
-            bool lmr = loadScene(m_scene, pathes, COUNTOF(pathes), m_supportMeshShading, _seamlessLod);
+            const char* pathes[] = { "./data/gltf/bistro.glb" };
+            bool lmr = loadScene(m_scene, pathes, COUNTOF(pathes), m_supportMeshShading, _seamlessLod, _forceParse);
             return lmr;
         }
 

@@ -362,7 +362,7 @@ bool loadGltfScene(Scene& _scene, const char* _path, bool _buildMeshlet, bool _s
     // free gltf stuff
     cgltf_free(data);
 
-
+    // dump the scene anyway
     std::string sceneName = _path;
     sceneName.append(".scene");
     FILE* file = fopen(sceneName.c_str(), "wb");
