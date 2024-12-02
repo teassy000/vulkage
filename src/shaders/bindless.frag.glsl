@@ -11,8 +11,8 @@
 layout(location = 0) in flat uint out_drawId;
 layout(location = 1) in vec3 in_wPos;
 layout(location = 2) in vec3 in_norm;
-layout(location = 4) in vec4 in_tan;
-layout(location = 3) in vec2 in_uv;
+layout(location = 3) in vec4 in_tan;
+layout(location = 4) in vec2 in_uv;
 
 
 layout(location = 0) out vec4 outputColor;
