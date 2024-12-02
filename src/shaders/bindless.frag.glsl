@@ -6,6 +6,7 @@
 # extension GL_EXT_nonuniform_qualifier: require
 
 # include "mesh_gpu.h"
+# include "math.h"
 
 
 layout(location = 0) in flat uint out_drawId;
@@ -25,6 +26,11 @@ layout(binding = 2) readonly buffer MeshDraws
     MeshDraw meshDraws [];
 };
 
+layout(binding = 6) readonly uniform Transform
+{
+    TransformData trans;
+};
+
 uint hash(uint a)
 {
     a = (a + 0x7ed55d16) + (a << 12);
@@ -35,6 +41,7 @@ uint hash(uint a)
     a = (a ^ 0xb55a4f09) ^ (a >> 16);
     return a;
 }
+
 void main()
 {
 #if DEBUG_MESHLET
@@ -70,6 +77,30 @@ void main()
     vec3 n = normalize(normal.x * in_tan.xyz + normal.y * bitan + normal.z * in_norm);
 
 
-    outputColor = vec4(albedo.xyz, 1.0);
+    // Light color fixed
+    vec3 lightColor = vec3(0.98, 0.92, 0.89);
+    float roughness = 0.5;
+    float matalness = 0.3;
+
+    vec3 l = normalize(vec3(-1.0, 1.0, 1.0));
+    vec3 v = normalize(trans.cameraPos - in_wPos);
+    vec3 h = normalize(v + l);
+    vec3 Fr = BRDF(l, v, n, albedo.rgb, matalness, roughness);
+
+    vec3 diffuseColor = albedo.rgb;
+
+    float dotnv = clamp(dot(n, v), 0.0, 1.0);
+    float dotnl = clamp(dot(n, l), 0.0, 1.0);
+    float dotlh = clamp(dot(l, h), 0.0, 1.0);
+    float dFactor = Fd_Burley(roughness, dotnv, dotnl, dotlh);
+    vec3 Fd = dFactor * diffuseColor;
+
+    vec3 color = Fd + Fr;
+    color *= lightColor * 4.0 * dotnl;
+
+    if (albedo.a < 0.5)
+        discard;
+
+    outputColor = vec4(color.rgb, 1.0);
 #endif
 }
