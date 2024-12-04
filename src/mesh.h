@@ -101,5 +101,5 @@ struct SeamlessGeometry
 };
 
 size_t appendMeshlets(Geometry& result, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices);
-bool appendMesh(Geometry& result, std::vector<Vertex>& vertices, bool buildMeshlets);
+bool appendMesh(Geometry& _result, std::vector<Vertex>& _vtxes, std::vector<uint32_t>& _idxes, bool _buildMeshlets);
 bool loadObj(Geometry& result, const char* path, bool buildMeshlets, bool seamlessLod);

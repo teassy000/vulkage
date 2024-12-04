@@ -71,30 +71,26 @@ size_t appendMeshlets(Geometry& _result, std::vector<Vertex>& _vtxes, std::vecto
     return meshlets.size();
 }
 
-bool appendMesh(Geometry& _result, std::vector<Vertex>& _vtxes, bool _buildMeshlets)
+bool appendMesh(Geometry& _result, std::vector<Vertex>& _vtxes, std::vector<uint32_t>& _idxes, bool _buildMeshlets)
 {
-    std::vector<uint32_t> idxes(_vtxes.size());
-    for (size_t i = 0; i < idxes.size(); ++i)
-        idxes[i] = uint32_t(i);
-
-    std::vector<uint32_t> remap(idxes.size());
+    std::vector<uint32_t> remap(_idxes.size());
     size_t vertex_count = meshopt_generateVertexRemap(
         remap.data()
-        , idxes.data()
-        , idxes.size()
+        , _idxes.data()
+        , _idxes.size()
         , _vtxes.data()
         , _vtxes.size()
         , sizeof(Vertex)
     );
 
     meshopt_remapVertexBuffer(_vtxes.data(), _vtxes.data(), _vtxes.size(), sizeof(Vertex), remap.data());
-    meshopt_remapIndexBuffer(idxes.data(), idxes.data(), idxes.size(), remap.data());
+    meshopt_remapIndexBuffer(_idxes.data(), _idxes.data(), _idxes.size(), remap.data());
 
 
     _vtxes.resize(vertex_count);
 
-    meshopt_optimizeVertexCache(idxes.data(), idxes.data(), idxes.size(), _vtxes.size());
-    meshopt_optimizeVertexFetch(_vtxes.data(), idxes.data(), idxes.size(), _vtxes.data(), _vtxes.size(), sizeof(Vertex));
+    meshopt_optimizeVertexCache(_idxes.data(), _idxes.data(), _idxes.size(), _vtxes.size());
+    meshopt_optimizeVertexFetch(_vtxes.data(), _idxes.data(), _idxes.size(), _vtxes.data(), _vtxes.size(), sizeof(Vertex));
 
     Mesh mesh = {};
 
@@ -135,26 +131,26 @@ bool appendMesh(Geometry& _result, std::vector<Vertex>& _vtxes, bool _buildMeshl
         MeshLod& lod = mesh.lods[mesh.lodCount++];
 
         lod.indexOffset = uint32_t(_result.indices.size());
-        _result.indices.insert(_result.indices.end(), idxes.begin(), idxes.end());
+        _result.indices.insert(_result.indices.end(), _idxes.begin(), _idxes.end());
 
-        lod.indexCount = uint32_t(idxes.size());
+        lod.indexCount = uint32_t(_idxes.size());
 
         lod.meshletOffset = (uint32_t)_result.meshlets.size();
-        lod.meshletCount = _buildMeshlets ? (uint32_t)appendMeshlets(_result, _vtxes, idxes) : 0u;
+        lod.meshletCount = _buildMeshlets ? (uint32_t)appendMeshlets(_result, _vtxes, _idxes) : 0u;
         
         lod.error = lodErr * lodScale;
 
         if (mesh.lodCount < COUNTOF(mesh.lods)) {
-            size_t tgtCount = size_t(double(idxes.size()) * 0.75);
+            size_t tgtCount = size_t(double(_idxes.size()) * 0.75);
             const float maxErr = 1e-1f;
             float outErr = 0.f;
             uint32_t options = 0;
             float normal_weights[3] = { .5f, .5f, .5f };
 
             size_t sz = meshopt_simplifyWithAttributes(
-                idxes.data()
-                , idxes.data()
-                , idxes.size()
+                _idxes.data()
+                , _idxes.data()
+                , _idxes.size()
                 , &_vtxes[0].vx
                 , _vtxes.size()
                 , sizeof(Vertex)
@@ -169,14 +165,14 @@ bool appendMesh(Geometry& _result, std::vector<Vertex>& _vtxes, bool _buildMeshl
                 , &outErr
             );
 
-            assert(sz <= idxes.size());
+            assert(sz <= _idxes.size());
 
-            if (sz == idxes.size())
+            if (sz == _idxes.size())
                 break;
 
-            idxes.resize(sz);
+            _idxes.resize(sz);
             lodErr = glm::max(lodErr, outErr);
-            meshopt_optimizeVertexCache(idxes.data(), idxes.data(), idxes.size(), _vtxes.size());
+            meshopt_optimizeVertexCache(_idxes.data(), _idxes.data(), _idxes.size(), _vtxes.size());
         }
     }
 
@@ -237,7 +233,11 @@ bool loadObj(Geometry& _result, const char* _path, bool _buildMeshlets)
 
     fast_obj_destroy(obj);
 
-    appendMesh(_result, triangle_vertices, _buildMeshlets);
+    std::vector<uint32_t> indices(triangle_vertices.size());
+    for (size_t i = 0; i < indices.size(); ++i)
+        indices[i] = uint32_t(i);
+
+    appendMesh(_result, triangle_vertices, indices, _buildMeshlets);
     return true;
 }
 

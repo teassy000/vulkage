@@ -431,13 +431,13 @@ bool loadSceneDump(Scene& _scene, const char* _path)
     const char* ext = getExtension(_path);
     if (strcmp(ext, "scene") != 0)
     {
-        kage::message(kage::error, "Invalid file format: %s", _path);
+        kage::message(kage::warning, "Invalid file format: %s", _path);
         return false;
     }
     FILE* file = fopen(_path, "rb");
     if (!file)
     {
-        kage::message(kage::error, "Failed to open file: %s", _path);
+        kage::message(kage::warning, "Failed to open file: %s", _path);
         return false;
     }
 
