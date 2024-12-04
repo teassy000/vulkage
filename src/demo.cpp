@@ -184,7 +184,7 @@ namespace
 
         bool initScene(bool _forceParse, bool _seamlessLod)
         {
-            const char* pathes[] = { "./data/gltf/bistro.glb" };
+            const char* pathes[] = { "./data/gltf/env-test.glb" };
             bool lmr = loadScene(m_scene, pathes, COUNTOF(pathes), m_supportMeshShading, _seamlessLod, _forceParse);
             return lmr;
         }

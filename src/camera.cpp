@@ -221,7 +221,7 @@ struct FreeCamera
     {
         m_pos.x = 0.0f;
         m_pos.y = 0.0f;
-        m_pos.z = -1.0f;
+        m_pos.z = -10.0f;
 
         m_yaw = 0.0f;
         m_pitch = 0.0f;
@@ -230,7 +230,7 @@ struct FreeCamera
 
         m_mouseSpeed = 0.03f;
         m_gamepadSpeed = 0.01f;
-        m_moveSpeed = 0.80f;
+        m_moveSpeed = 0.01f;
         m_keys = 0;
 
         updateVecs();
