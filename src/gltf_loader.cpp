@@ -139,7 +139,7 @@ bool processNode(Scene& _scene, std::vector<std::pair<uint32_t, uint32_t>>& _pri
             auto getTextureIdx = [&_gltfData](const cgltf_material* _mat, const cgltf_texture* _tex, const uint32_t _default) -> uint32_t
                 {
                     return (_mat && _tex) 
-                        ? (uint32_t)cgltf_texture_index(_gltfData, _tex) 
+                        ? 1 + (uint32_t)cgltf_texture_index(_gltfData, _tex) 
                         : _default;
                 };
 

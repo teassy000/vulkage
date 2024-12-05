@@ -2599,7 +2599,7 @@ namespace kage { namespace vk
             write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             write.dstSet = set;
             write.dstBinding = meta.binding;
-            write.dstArrayElement = uint32_t(ii);
+            write.dstArrayElement = uint32_t(ii + 1); // 0 is reserved for invalid image
             write.descriptorCount = 1;
             write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
             write.pImageInfo = &imgInfo;
