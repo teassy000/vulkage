@@ -4,6 +4,8 @@
 #include "kage_math.h"
 #include "kage.h"
 
+#include <string>
+
 struct alignas(16) MeshDraw
 {
     vec3 pos;
@@ -49,5 +51,5 @@ struct Scene
     std::vector<uint8_t> imageDatas;
 };
 
-bool loadScene(Scene& _scene, const char** _pathes, const uint32_t _pathCount, bool _buildMeshlets, bool _seamlessLod, bool _forceParse);
+bool loadScene(Scene& _scene, const std::vector<std::string>& _pathes, bool _buildMeshlets, bool _seamlessLod, bool _forceParse);
 bool dumpScene(const Scene& scene, const char* path);

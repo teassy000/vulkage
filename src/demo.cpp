@@ -54,6 +54,10 @@ namespace
 
             
             bool forceParse = false;
+            bool seamlessLod = false;
+
+            size_t pathCount = 0;
+            std::vector<std::string> pathes(_argc);
             // check if argv contains -p
             for (int32_t ii = 0; ii < _argc; ++ii)
             {
@@ -61,11 +65,24 @@ namespace
                 if (strcmp(arg, "-p") == 0)
                 {
                     forceParse = true;
-                    break;
+                    continue;
+                }
+
+                if (strcmp(arg, "-l") == 0)
+                {
+                    seamlessLod = true;
+                    continue;
+                }
+
+                if (ii > 0)
+                {
+                    pathes[pathCount] = arg;
+                    pathCount++;
                 }
             }
+            pathes.resize(pathCount);
 
-            initScene(forceParse, kage::kSeamlessLod);
+            initScene(pathes, forceParse, kage::kSeamlessLod);
 
             // ui data
             m_demoData.input.width = (float)_width;
@@ -182,10 +199,9 @@ namespace
             return 0;
         }
 
-        bool initScene(bool _forceParse, bool _seamlessLod)
+        bool initScene(const std::vector<std::string>& _pathes, bool _forceParse, bool _seamlessLod)
         {
-            const char* pathes[] = { "./data/gltf/env-test.glb" };
-            bool lmr = loadScene(m_scene, pathes, COUNTOF(pathes), m_supportMeshShading, _seamlessLod, _forceParse);
+            bool lmr = loadScene(m_scene, _pathes, m_supportMeshShading, _seamlessLod, _forceParse);
             return lmr;
         }
 
