@@ -64,7 +64,6 @@ layout(location = 2) out vec3 out_norm[];
 layout(location = 3) out vec4 out_tan[];
 layout(location = 4) out vec2 out_uv[];
 
-
 taskPayloadSharedEXT TaskPayload payload;
 
 #if CULL
@@ -81,7 +80,6 @@ void main()
     uint triangleCount = 0;
     uint dataOffset = 0;
     uint lod = 0;
-
 
 
     if (SEAMLESS_LOD) 
@@ -124,6 +122,10 @@ void main()
         out_wPos[i] = wPos;
         out_tan[i] = tan;
         out_uv[i] = uv;
+
+#if DEBUG_MESHLET
+         out_drawId[i] = mi;
+#endif
 
 #if CULL
         vertexClip[i] = vec3(result.xy/result.w, result.w);

@@ -78,9 +78,10 @@ void main()
     vec3 n = normalize(normal.x * in_tan.xyz + normal.y * bitan + normal.z * in_norm);
 
     float lightIntensity = 2.0;
+    float indirectIntensity = 0.64;
     float roughness = specular.g;
-    float matalness = specular.r;
-    vec3 baseColor = vec3(specular.b);
+    float matalness =  specular.b;
+    vec3 baseColor = vec3(specular.r, 0, 1);
     vec3 lightColor = vec3(0.98, 0.92, 0.89);
 
     vec3 l = normalize(vec3(0.7, 0.5, -0.7)); // in world space, from surface to light source
@@ -97,10 +98,10 @@ void main()
     vec3 diffuseColor = (1.0 - matalness) * baseColor.rgb;
 
     float linearRoughness = roughness * roughness;
-
+    
     // specular BRDF
     vec3 F = F_Schlick(f0, LoH);
-    float D = D_GGX(linearRoughness, NoH, h);
+    float D = D_GGX(linearRoughness, NoH);
     float V = V_SmithGGXCorrelated(linearRoughness, NoV, NoL);
     vec3 Fr = F * D * V;
 
@@ -110,6 +111,21 @@ void main()
     color *= lightIntensity * lightColor * NoL;
 
     // diffuse indirect
+    vec3 indirectDiffuse = Irradiance_SphericalHarmonics(n) * Fd_Lambert();
+    vec3 ibl = indirectDiffuse * diffuseColor;
+    color += ibl * indirectIntensity;
+
+    // specular indirect
+    // ?
+    // image based lighting?
+
+    // diffuse occlusion
+    // sample baked oc
+
+    // specular occlusion
+    // sample baked oc
+
+
 
     color = Tonemap_ACES(color);
     color = OECF_sRGBFast(color);
