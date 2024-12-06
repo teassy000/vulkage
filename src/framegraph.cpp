@@ -1982,22 +1982,18 @@ namespace kage
                     auto writeInteractPair = rwRes.writeInteractMap.find(writeRes);
                     assert(writeInteractPair != rwRes.writeInteractMap.end());
 
-                    if (isDepthStencil(writeRes)) {
 
-                        assert(writeDS.first.id == kInvalidHandle);
-                        writeDS.first = { writeRes.id };
-                        writeDS.second = writeInteractPair->second;
-                        
-                        writeColor.addOrUpdate({ writeRes.id }, writeInteractPair->second);
-                    }
-                    else if (isColorAttachment(writeRes))
+                    if (isImage(writeRes))
                     {
+                        if (isDepthStencil(writeRes))
+                        {
+                            assert(writeDS.first.id == kInvalidHandle);
+                            writeDS.first = { writeRes.id };
+                            writeDS.second = writeInteractPair->second;
+                        }
+
                         writeColor.addOrUpdate({ writeRes.id }, writeInteractPair->second);
-                    }
-                    else if (isNormalImage(writeRes)
-                        && (passMeta.queue == PassExeQueue::compute))
-                    {
-                        writeColor.addOrUpdate({ writeRes.id }, writeInteractPair->second);
+
                     }
                     else if (isBuffer(writeRes))
                     {
@@ -2015,9 +2011,7 @@ namespace kage
                     auto readInteractPair = rwRes.readInteractMap.find(readRes);
                     assert(readInteractPair != rwRes.readInteractMap.end());
 
-                    if (  isColorAttachment(readRes) 
-                        || isDepthStencil(readRes)
-                        || isNormalImage(readRes))
+                    if (isImage(readRes))
                     {
                         readImg.addOrUpdate({ readRes.id }, readInteractPair->second);
                     }

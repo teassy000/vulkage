@@ -239,27 +239,6 @@ namespace kage
             return info.usage & ImageUsageFlagBits::depth_stencil_attachment;
         }
 
-        bool isColorAttachment(const CombinedResID _res)
-        {
-            if (!isImage(_res))
-            {
-                return false;
-            }
-
-            const FGImageCreateInfo& info = m_sparse_img_info[_res.id];
-            return info.usage & ImageUsageFlagBits::color_attachment;
-        }
-
-        bool isNormalImage(const CombinedResID _res)
-        {
-            if (!isImage(_res))
-            {
-                return false;
-            }
-
-            return !isDepthStencil(_res) && !isColorAttachment(_res);
-        }
-
         struct BufBucket
         {
             BufBucket() = default;

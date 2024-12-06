@@ -253,7 +253,6 @@ namespace kage
 
         bool isDepthStencil(const ImageHandle _hImg);
         bool isColorAttachment(const ImageHandle _hImg);
-        bool isNormalImage(const ImageHandle _hImg);
 
         bool isAliasFromBuffer(const BufferHandle _hBase, const BufferHandle _hAlias);
         bool isAliasFromImage(const ImageHandle _hBase, const ImageHandle _hAlias);
@@ -300,8 +299,6 @@ namespace kage
             , const ImageHandle _outAlias);
 
         void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx, const ImageHandle _outAlias);
-
-        void resizeImage(ImageHandle _hImg, uint32_t _width, uint32_t _height);
 
         void setMultiFrame(ImageHandle _img);
         void setMultiFrame(BufferHandle _buf);
@@ -587,11 +584,6 @@ namespace kage
         
         return 
             0 != (meta.usage & ImageUsageFlagBits::color_attachment);
-    }
-
-    bool Context::isNormalImage(const ImageHandle _hImg)
-    {
-        return !isDepthStencil(_hImg) && !isColorAttachment(_hImg);
     }
 
     bool Context::isAliasFromBuffer(const BufferHandle _hBase, const BufferHandle _hAlias)
@@ -1743,15 +1735,18 @@ namespace kage
 
         if (isRead(_access))
         {
-            if (isGraphics(_hPass) && isDepthStencil(_hImg))
+            if (isGraphics(_hPass))
             {
-                assert((imgMeta.aspectFlags & ImageAspectFlagBits::depth) != 0);
-                interact.access |= AccessFlagBits::depth_stencil_attachment_read;
-            }
-            else if (isGraphics(_hPass) && isColorAttachment(_hImg))
-            {
-                assert((imgMeta.aspectFlags & ImageAspectFlagBits::color) != 0);
-                interact.access |= AccessFlagBits::color_attachment_read;
+                if (isDepthStencil(_hImg))
+                {
+                    assert((imgMeta.aspectFlags & ImageAspectFlagBits::depth) != 0);
+                    interact.access |= AccessFlagBits::depth_stencil_attachment_read;
+                }
+                else if (isColorAttachment(_hImg))
+                {
+                    assert((imgMeta.aspectFlags & ImageAspectFlagBits::color) != 0);
+                    interact.access |= AccessFlagBits::color_attachment_read;
+                }
             }
 
             passMeta.readImageNum = insertResInteract(m_readImages, _hPass, _hImg.id, { kInvalidHandle }, interact);
@@ -1769,7 +1764,7 @@ namespace kage
             {
                 message(DebugMsgType::error, "Graphics pass not allowed to write to texture via bind! try to use setAttachmentOutput instead.");
             }
-            else if (isCompute(_hPass) && isNormalImage(_hImg))
+            else if (isCompute(_hPass))
             {
                 passMeta.writeImageNum = insertResInteract(m_writeImages, _hPass, _hImg.id, { kInvalidHandle }, interact);
                 passMeta.writeImgAliasNum = insertWriteResAlias(m_writeForcedImageAliases, _hPass, _hImg.id, _outAlias.id);
@@ -1780,7 +1775,7 @@ namespace kage
             }
             else
             {
-                message(DebugMsgType::error, "write to an attachment via binding? nope!");
+                message(DebugMsgType::error, "unsupported pass type!!!!");
                 assert(0);
             }
         }
@@ -1831,11 +1826,6 @@ namespace kage
         assert(passMeta.writeImageNum == passMeta.writeImgAliasNum);
 
         setRenderGraphDataDirty();
-    }
-
-    void Context::resizeImage(ImageHandle _hImg, uint32_t _width, uint32_t _height)
-    {
-        assert(0);
     }
 
     void Context::setMultiFrame(ImageHandle _hImg)
@@ -2400,11 +2390,6 @@ namespace kage
     void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx, const ImageHandle _outAlias)
     {
         s_ctx->setAttachmentOutput(_hPass, _hImg, _attachmentIdx, _outAlias);
-    }
-
-    void resizeImage(ImageHandle _hImg, uint32_t _width, uint32_t _height)
-    {
-        s_ctx->resizeImage(_hImg, _width, _height);
     }
 
     void setPresentImage(ImageHandle _rt, uint32_t _mipLv /*= 0*/)

@@ -66,8 +66,6 @@ namespace kage
 
     void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx, const ImageHandle _outAlias = { kInvalidHandle });
 
-    void resizeImage(ImageHandle _hImg, uint32_t _width, uint32_t _height);
-
     void setPresentImage(ImageHandle _rt, uint32_t _mipLv = 0);
 
     void updateBuffer(

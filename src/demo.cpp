@@ -15,6 +15,7 @@
 
 #include "entry/entry.h"
 #include "bx/timer.h"
+#include "vkz_aa_pip.h"
 
 namespace
 {
@@ -160,6 +161,8 @@ namespace
             m_demoData.logic.frontY = front.y;
             m_demoData.logic.frontZ = front.z;
 
+
+            updateAA(m_aa, m_width, m_height);
             updateUI(m_ui, m_demoData.input, m_demoData.renderOptions, m_demoData.profiling, m_demoData.logic);
 
             // render
@@ -359,7 +362,7 @@ namespace
                 rtDesc.depth = 1;
                 rtDesc.numLayers = 1;
                 rtDesc.numMips = 1;
-                rtDesc.usage = kage::ImageUsageFlagBits::transfer_src;
+                rtDesc.usage = kage::ImageUsageFlagBits::transfer_src | kage::ImageUsageFlagBits::sampled | kage::BufferUsageFlagBits::storage;
                 m_color = kage::registRenderTarget("color", rtDesc, kage::ResourceLifetime::non_transition);
             }
 
@@ -494,6 +497,12 @@ namespace
 
             {
                 kage::ImageHandle uiColorIn = m_supportMeshShading ? m_meshShadingLate.colorOutAlias : m_vtxShadingLate.colorOutAlias;
+                prepareAA(m_aa, m_width, m_height);
+                setAAPassDependency(m_aa, uiColorIn);
+            }
+
+            {
+                kage::ImageHandle uiColorIn = m_aa.colorOutAlias;
                 kage::ImageHandle uiDepthIn = m_supportMeshShading ? m_meshShadingLate.depthOutAlias : m_vtxShadingLate.depthOutAlias;
 
                 prepareUI(m_ui, uiColorIn, uiDepthIn, 1.3f);
@@ -608,6 +617,8 @@ namespace
         Skybox m_skybox{};
 
         UIRendering m_ui{};
+
+        AntiAliasingPass m_aa{};
     };
 }
 
