@@ -79,9 +79,18 @@ void main()
 
     float lightIntensity = 2.0;
     float indirectIntensity = 0.64;
+
+    // for bistor.glb
+    // float roughness = 0.5;
+    // float matalness = 0.3;
+    // vec3 baseColor = albedo.rgb;
+
+    // for env-test.glb
     float roughness = specular.g;
-    float matalness =  specular.b;
-    vec3 baseColor = vec3(specular.r, 0, 1);
+    float matalness = specular.b;
+    vec3 baseColor = vec3(specular.r);
+
+
     vec3 lightColor = vec3(0.98, 0.92, 0.89);
 
     vec3 l = normalize(vec3(0.7, 0.5, -0.7)); // in world space, from surface to light source
@@ -124,8 +133,6 @@ void main()
 
     // specular occlusion
     // sample baked oc
-
-
 
     color = Tonemap_ACES(color);
     color = OECF_sRGBFast(color);
