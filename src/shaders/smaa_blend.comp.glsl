@@ -49,11 +49,11 @@ void SMAABlend(vec2 _pos)
     a.y = texture(in_weightSampler, pos2uv(_pos + offsets[1].xy, imageSize)).g; // Top
     a.wz = texture(in_weightSampler, uv).xz; // Bottom / Left
 
-    vec3 color;
+    vec4 color;
     // Is there any blending weight with a value greater than 0.0?
     if (dot(a, vec4(1.0, 1.0, 1.0, 1.0)) <= 1e-5)
     {
-        color = texture(in_colorSampler, uv).rbg; // LinearSampler
+        color = texture(in_colorSampler, uv); // LinearSampler
     }
     else
     {
@@ -71,11 +71,11 @@ void SMAABlend(vec2 _pos)
 
         // We exploit bilinear filtering to mix current pixel with the chosen
         // neighbor:
-        color = blendingWeight.x * texture(in_colorSampler, blendingCoord.xy).rgb; // LinearSampler
-        color += blendingWeight.y * texture(in_colorSampler, blendingCoord.zw).rgb; // LinearSampler
+        color = blendingWeight.x * texture(in_colorSampler,uv); // LinearSampler
+        color += blendingWeight.y * texture(in_colorSampler, uv); // LinearSampler
     }
 
-    imageStore(out_img, ivec2(_pos), vec4(color, 1.0));
+    imageStore(out_img, ivec2(_pos), color);
 }
 
 void main()

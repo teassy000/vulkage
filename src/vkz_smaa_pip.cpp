@@ -389,7 +389,7 @@ void SMAA::prepare(uint32_t _width, uint32_t _height, kage::ImageHandle _inColor
     ::prepare(m_edgeColor, _width, _height, _inColor);
     ::prepare(m_edgeLuma, _width, _height, _inColor);
 
-    ::prepare(m_weight, _width, _height, m_edgeLuma.lumaOutAlias); //TODO: use edgeLuma
+    ::prepare(m_weight, _width, _height, m_edgeLuma.lumaOutAlias);
     ::prepare(m_blend, _width, _height, _inColor, m_weight.weightOutAlias);
 
     m_w = _width;

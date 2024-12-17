@@ -237,7 +237,7 @@ vec2 SMAACalculateDiagWeights(sampler2D in_edge, sampler2D in_area, vec2 texcoor
 float SMAASearchLength(sampler2D in_search, vec2 e, float offset) {
   // The texture is flipped vertically, with left and right cases taking half
   // of the space horizontally:
-  vec2 scale = SMAA_SEARCHTEX_SIZE * vec2(0.5, 1.0);
+  vec2 scale = SMAA_SEARCHTEX_SIZE * vec2(0.5, -1.0);
   vec2 bias = SMAA_SEARCHTEX_SIZE * vec2(offset, 1.0);
 
   // Scale and bias to access texel centers:
