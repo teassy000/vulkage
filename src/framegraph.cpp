@@ -35,7 +35,7 @@ namespace kage
         reverseTraversalDFSWithBackTrack();
 
         // optimize
-        optimizeSync();
+        // optimizeSync(); // TODO: this would cause out of range access due to using the wrong index, fix it later
         optimizeAlias();
 
         // actual create resources for renderer
