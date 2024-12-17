@@ -7,6 +7,7 @@
 #include "scene.h"
 #include "entry/entry.h" // for allocator
 #include "bimg/decode.h"
+#include "bx/file.h"
 
 const kage::ImageHandle loadKtxFromFile(const char* _name, const char* _path, textureResolution& _outRes /*= {}*/)
 {
@@ -55,7 +56,7 @@ const char* getExtension(const char* _path)
     return extension;
 }
 
-static kage::ResourceFormat bimgToKageFromat(bimg::TextureFormat::Enum _btf)
+kage::ResourceFormat bimgToKageFromat(bimg::TextureFormat::Enum _btf)
 {
     using KageFormat = kage::ResourceFormat;
 
@@ -131,6 +132,69 @@ static kage::ResourceFormat bimgToKageFromat(bimg::TextureFormat::Enum _btf)
     return result;
 }
 
+// use the bx version
+static void* load(bx::FileReaderI* _reader, bx::AllocatorI* _allocator, const char* _path, uint32_t* _size)
+{
+    if (bx::open(_reader, _path))
+    {
+        uint32_t size = (uint32_t)bx::getSize(_reader);
+        void* data = bx::alloc(_allocator, size);
+        bx::read(_reader, data, size, bx::ErrorAssert{});
+        bx::close(_reader);
+
+        if (nullptr != _size)
+        {
+            *_size = size;
+        }
+        return data;
+    }
+
+    kage::message(kage::error, "failed to load: %s", _path);
+    return nullptr;
+}
+
+kage::ImageHandle loadWithBimg(const char* _name, const char* _path, textureResolution& _outRes)
+{
+    uint32_t sz = 0;
+    void* data = load(entry::getFileReader(), entry::getAllocator(), _path, &sz);
+
+    bimg::ImageContainer* imageContainer = bimg::imageParse(entry::getAllocator(), data, sz);
+    if (imageContainer == nullptr)
+    {
+        kage::message(kage::error, "Failed to parse image from memory");
+        return {kage::kInvalidHandle};
+    }
+
+    // convert rgb8 to rgba8
+    if (imageContainer->m_format == bimg::TextureFormat::RGB8)
+    {
+        bimg::ImageContainer* rgba8Container = bimg::imageConvert(entry::getAllocator(), bimg::TextureFormat::RGBA8, *imageContainer);
+        bimg::imageFree(imageContainer);
+        imageContainer = rgba8Container;
+    }
+
+    const kage::Memory* mem = kage::alloc((uint32_t)imageContainer->m_size);
+    memcpy(mem->data, imageContainer->m_data, imageContainer->m_size);
+
+    kage::ImageDesc desc = {};
+    desc.width = imageContainer->m_width;
+    desc.height = imageContainer->m_height;
+    desc.numMips = imageContainer->m_numMips;
+    desc.numLayers = imageContainer->m_numLayers;
+    desc.format = bimgToKageFromat(imageContainer->m_format);
+    desc.type = (imageContainer->m_numLayers > 1) ? kage::ImageType::type_3d : kage::ImageType::type_2d;
+    desc.viewType = imageContainer->m_cubeMap ? kage::ImageViewType::type_cube : kage::ImageViewType::type_2d;
+    desc.usage = kage::ImageUsageFlagBits::sampled | kage::ImageUsageFlagBits::transfer_dst;
+
+    kage::ImageHandle hImg = kage::registTexture(_name, desc, mem);
+
+    _outRes.width = imageContainer->m_width;
+    _outRes.height = imageContainer->m_height;
+
+    return hImg;
+}
+
+
 const kage::ImageHandle loadImageFromFile(const char* _name, const char* _path, textureResolution& _outRes /*= {}*/)
 {
     const char* ext = getExtension(_path);
@@ -138,7 +202,6 @@ const kage::ImageHandle loadImageFromFile(const char* _name, const char* _path, 
     {
         return loadKtxFromFile(_name, _path, _outRes);
     }
-
-    kage::message(kage::error, "Unsupported file format: %s", _path);
-    return { kage::kInvalidHandle };
+    
+    return loadWithBimg(_name, _path, _outRes);
 }
