@@ -15,7 +15,7 @@
 
 #include "entry/entry.h"
 #include "bx/timer.h"
-#include "vkz_aa_pip.h"
+#include "vkz_smaa_pip.h"
 
 namespace
 {
@@ -162,7 +162,7 @@ namespace
             m_demoData.logic.frontZ = front.z;
 
 
-            updateAA(m_aa, m_width, m_height);
+            m_smaa.update(m_width, m_height);
             updateUI(m_ui, m_demoData.input, m_demoData.renderOptions, m_demoData.profiling, m_demoData.logic);
 
             // render
@@ -496,13 +496,15 @@ namespace
             }
 
             {
-                kage::ImageHandle uiColorIn = m_supportMeshShading ? m_meshShadingLate.colorOutAlias : m_vtxShadingLate.colorOutAlias;
-                prepareAA(m_aa, m_width, m_height);
-                setAAPassDependency(m_aa, uiColorIn);
+                kage::ImageHandle aaDepthIn = m_supportMeshShading ? m_meshShadingLate.depthOutAlias : m_vtxShadingLate.depthOutAlias;
+
+                kage::ImageHandle aaColorIn = m_supportMeshShading ? m_meshShadingLate.colorOutAlias : m_vtxShadingLate.colorOutAlias;
+
+                m_smaa.prepare(m_width, m_height, aaColorIn, aaDepthIn);
             }
 
             {
-                kage::ImageHandle uiColorIn = m_aa.colorOutAlias;
+                kage::ImageHandle uiColorIn = m_smaa.m_outAliasImg;
                 kage::ImageHandle uiDepthIn = m_supportMeshShading ? m_meshShadingLate.depthOutAlias : m_vtxShadingLate.depthOutAlias;
 
                 prepareUI(m_ui, uiColorIn, uiDepthIn, 1.3f);
@@ -618,7 +620,7 @@ namespace
 
         UIRendering m_ui{};
 
-        AntiAliasingPass m_aa{};
+        SMAA m_smaa{};
     };
 }
 
