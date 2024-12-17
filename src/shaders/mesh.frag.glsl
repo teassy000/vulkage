@@ -34,15 +34,15 @@ void main()
     float matalness = 0.6;
 
     // Specular contribution
-    vec3 lightOutput = vec3(0.0);
-    for (int i = 0; i < lights.length(); i++) {
-        vec3 lightDir = normalize(lights[i].xyz - inWorldPos);
-        lightOutput += BRDF(lightDir, v, norm, GOLD, matalness, roughness);
-    };
+//    vec3 lightOutput = vec3(0.0);
+//    for (int i = 0; i < lights.length(); i++) {
+//        vec3 lightDir = normalize(lights[i].xyz - inWorldPos);
+//        lightOutput += BRDF(lightDir, v, norm, GOLD, matalness, roughness);
+//    };
 
     // Combine with ambient
     vec3 color = GOLD * 0.02;
-    color += lightOutput;
+    //color += lightOutput;
 
     // Gamma correction
     color = pow(color, vec3(0.4545));
