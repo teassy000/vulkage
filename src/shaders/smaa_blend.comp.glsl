@@ -39,7 +39,7 @@ void SMAAMovc(bvec4 cond, inout vec4 variable, vec4 value)
     SMAAMovc(cond.zw, variable.zw, value.zw);
 }
 
-void SMAABlend(vec2 _pos)
+vec4 SMAABlend(vec2 _pos)
 {
     vec2 uv = pos2uv(_pos, imageSize);
 
@@ -54,6 +54,7 @@ void SMAABlend(vec2 _pos)
     if (dot(a, vec4(1.0, 1.0, 1.0, 1.0)) <= 1e-5)
     {
         color = texture(in_colorSampler, uv); // LinearSampler
+        return color;
     }
     else
     {
@@ -73,13 +74,13 @@ void SMAABlend(vec2 _pos)
         // neighbor:
         color = blendingWeight.x * texture(in_colorSampler,uv); // LinearSampler
         color += blendingWeight.y * texture(in_colorSampler, uv); // LinearSampler
+        return color;
     }
-
-    imageStore(out_img, ivec2(_pos), color);
 }
 
 void main()
 {
     vec2 pos = gl_GlobalInvocationID.xy;
-    SMAABlend(pos);
+    vec4 color = SMAABlend(pos);
+    imageStore(out_img, ivec2(pos), color);
 }

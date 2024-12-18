@@ -12,11 +12,11 @@ using Stage = kage::PipelineStageFlagBits::Enum;
 void prepare(SMAAEdgeDepth& _edge, uint32_t _width, uint32_t _height, kage::ImageHandle _inDepth)
 {
     kage::ShaderHandle cs = kage::registShader("smaa_edge_depth", "shaders/smaa_edge_depth.comp.spv");
-    kage::ProgramHandle prog = kage::registProgram("smaa_edge_depth_prog", { cs }, sizeof(glm::vec2));
+    kage::ProgramHandle prog = kage::registProgram("smaa_edge_depth", { cs }, sizeof(glm::vec2));
     kage::PassDesc passDesc{};
     passDesc.programId = prog.id;
     passDesc.queue = kage::PassExeQueue::compute;
-    kage::PassHandle pass = kage::registPass("smaa_edge_depth_pass", passDesc);
+    kage::PassHandle pass = kage::registPass("smaa_edge_depth", passDesc);
 
     // edge
     kage::ImageDesc desc{};
@@ -59,12 +59,12 @@ void prepare(SMAAEdgeDepth& _edge, uint32_t _width, uint32_t _height, kage::Imag
 
 void prepare(SMAAEdgeColor& _edge, uint32_t _width, uint32_t _height, kage::ImageHandle _inColor)
 {
-    kage::ShaderHandle cs = kage::registShader("smaa_edge_depth", "shaders/smaa_edge_color.comp.spv");
-    kage::ProgramHandle prog = kage::registProgram("smaa_edge_depth_prog", { cs }, sizeof(glm::vec2));
+    kage::ShaderHandle cs = kage::registShader("smaa_edge_color", "shaders/smaa_edge_color.comp.spv");
+    kage::ProgramHandle prog = kage::registProgram("smaa_edge_color", { cs }, sizeof(glm::vec2));
     kage::PassDesc passDesc{};
     passDesc.programId = prog.id;
     passDesc.queue = kage::PassExeQueue::compute;
-    kage::PassHandle pass = kage::registPass("smaa_edge_depth_pass", passDesc);
+    kage::PassHandle pass = kage::registPass("smaa_edge_color", passDesc);
 
     // edge
     kage::ImageDesc desc{};
@@ -75,7 +75,7 @@ void prepare(SMAAEdgeColor& _edge, uint32_t _width, uint32_t _height, kage::Imag
     desc.numLayers = 1;
     desc.numMips = 1;
     desc.usage = ImgUsage::sampled | ImgUsage::storage | ImgUsage::transfer_src | ImgUsage::color_attachment;
-    kage::ImageHandle edge = kage::registTexture("smaa_edge_depth", desc, nullptr, kage::ResourceLifetime::transition);
+    kage::ImageHandle edge = kage::registTexture("smaa_edge_color", desc, nullptr, kage::ResourceLifetime::transition);
 
     // set data
     _edge.prog = prog;
@@ -107,12 +107,12 @@ void prepare(SMAAEdgeColor& _edge, uint32_t _width, uint32_t _height, kage::Imag
 
 void prepare(SMAAEdgeLuma& _edge, uint32_t _width, uint32_t _height, kage::ImageHandle _inColor)
 {
-    kage::ShaderHandle cs = kage::registShader("smaa_edge_color", "shaders/smaa_edge_luma.comp.spv");
-    kage::ProgramHandle prog = kage::registProgram("smaa_edge_color", { cs }, sizeof(glm::vec2));
+    kage::ShaderHandle cs = kage::registShader("smaa_edge_luma", "shaders/smaa_edge_luma.comp.spv");
+    kage::ProgramHandle prog = kage::registProgram("smaa_edge_luma", { cs }, sizeof(glm::vec2));
     kage::PassDesc passDesc{};
     passDesc.programId = prog.id;
     passDesc.queue = kage::PassExeQueue::compute;
-    kage::PassHandle pass = kage::registPass("smaa_edge_color", passDesc);
+    kage::PassHandle pass = kage::registPass("smaa_edge_luma", passDesc);
     
     // edge
     kage::ImageDesc desc{};
@@ -123,7 +123,7 @@ void prepare(SMAAEdgeLuma& _edge, uint32_t _width, uint32_t _height, kage::Image
     desc.numLayers = 1;
     desc.numMips = 1;
     desc.usage = ImgUsage::sampled | ImgUsage::storage | ImgUsage::transfer_src | ImgUsage::color_attachment;
-    kage::ImageHandle edge = kage::registTexture("smaa_edge_color", desc, nullptr, kage::ResourceLifetime::transition);
+    kage::ImageHandle edge = kage::registTexture("smaa_edge_luma", desc, nullptr, kage::ResourceLifetime::transition);
 
     // set data
     _edge.prog = prog;
