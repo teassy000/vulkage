@@ -2006,6 +2006,12 @@ namespace kage { namespace vk
     {
         KG_ZoneScopedC(Color::indian_red);
 
+        if (!m_imageContainer.exist(_hImg.id))
+        {
+            message(info, "updateImage will not perform for image %d! It might be useless after render pass sorted", _hImg.id);
+            return;
+        }
+
         ImageHandle baseImg = { m_aliasToBaseImages.getIdToData(_hImg.id) };
         const stl::vector<ImageHandle>& aliasRef = m_imgToAliases.find(baseImg)->second;
 
