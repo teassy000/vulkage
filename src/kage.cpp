@@ -1491,7 +1491,7 @@ namespace kage
     }
 
     uint32_t insertResInteract(ContinuousMap<PassHandle, stl::vector<PassResInteract>>& _container
-        , const PassHandle _hPass, const uint16_t _resId, const SamplerHandle _hSampler, const ResInteractDesc& _interact
+        , const PassHandle _hPass, const uint16_t _resId, const ResInteractDesc& _interact
     )
     {
         uint32_t vecSize = 0u;
@@ -1500,7 +1500,6 @@ namespace kage
         pri.passId = _hPass.id;
         pri.resId = _resId;
         pri.interact = _interact;
-        pri.samplerId = _hSampler.id;
 
         if (_container.exist(_hPass))
         {
@@ -1556,7 +1555,7 @@ namespace kage
         interact.stage = PipelineStageFlagBits::vertex_input;
         interact.access = AccessFlagBits::vertex_attribute_read;
 
-        passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _hBuf.id, { kInvalidHandle }, interact);
+        passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _hBuf.id, interact);
 
         setRenderGraphDataDirty();
     }
@@ -1573,7 +1572,7 @@ namespace kage
         interact.stage = PipelineStageFlagBits::vertex_input;
         interact.access = AccessFlagBits::index_read;
 
-        passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _hBuf.id, { kInvalidHandle }, interact);
+        passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _hBuf.id, interact);
 
         setRenderGraphDataDirty();
     }
@@ -1593,7 +1592,7 @@ namespace kage
         interact.stage = PipelineStageFlagBits::draw_indirect;
         interact.access = AccessFlagBits::indirect_command_read;
 
-        passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _hBuf.id, { kInvalidHandle }, interact);
+        passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _hBuf.id, interact);
 
         setRenderGraphDataDirty();
     }
@@ -1609,7 +1608,7 @@ namespace kage
         interact.stage = PipelineStageFlagBits::draw_indirect;
         interact.access = AccessFlagBits::indirect_command_read;
 
-        passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _hBuf.id, { kInvalidHandle }, interact);
+        passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _hBuf.id, interact);
 
         setRenderGraphDataDirty();
     }
@@ -1630,7 +1629,7 @@ namespace kage
         PassMetaData& passMeta = m_passMetas[_hPass.id];
         if (isRead(_access))
         {
-            passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _buf.id, { kInvalidHandle }, interact);
+            passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _buf.id, interact);
             setRenderGraphDataDirty();
         }
 
@@ -1642,7 +1641,7 @@ namespace kage
                 return;
             }
 
-            passMeta.writeBufferNum = insertResInteract(m_writeBuffers, _hPass, _buf.id, {kInvalidHandle}, interact);
+            passMeta.writeBufferNum = insertResInteract(m_writeBuffers, _hPass, _buf.id, interact);
             passMeta.writeBufAliasNum = insertWriteResAlias(m_writeForcedBufferAliases, _hPass, _buf.id, _outAlias.id);
 
             assert(passMeta.writeBufferNum == passMeta.writeBufAliasNum);
@@ -1674,7 +1673,7 @@ namespace kage
         interact.layout = ImageLayout::shader_read_only_optimal;
 
         PassMetaData& passMeta = m_passMetas[_hPass.id];
-        passMeta.readImageNum = insertResInteract(m_readImages, _hPass, _hImg.id, sampler, interact);
+        passMeta.readImageNum = insertResInteract(m_readImages, _hPass, _hImg.id, interact);
         passMeta.sampleImageNum++; // Note: is this the only way to read texture?
 
         setRenderGraphDataDirty();
@@ -1749,7 +1748,7 @@ namespace kage
                 }
             }
 
-            passMeta.readImageNum = insertResInteract(m_readImages, _hPass, _hImg.id, { kInvalidHandle }, interact);
+            passMeta.readImageNum = insertResInteract(m_readImages, _hPass, _hImg.id, interact);
             setRenderGraphDataDirty();
         }
 
@@ -1766,7 +1765,7 @@ namespace kage
             }
             else if (isCompute(_hPass))
             {
-                passMeta.writeImageNum = insertResInteract(m_writeImages, _hPass, _hImg.id, { kInvalidHandle }, interact);
+                passMeta.writeImageNum = insertResInteract(m_writeImages, _hPass, _hImg.id, interact);
                 passMeta.writeImgAliasNum = insertWriteResAlias(m_writeForcedImageAliases, _hPass, _hImg.id, _outAlias.id);
 
                 assert(passMeta.writeImageNum == passMeta.writeImgAliasNum);
@@ -1821,7 +1820,7 @@ namespace kage
             assert(0);
         }
 
-        passMeta.writeImageNum = insertResInteract(m_writeImages, _hPass, _hImg.id, { kInvalidHandle }, interact);
+        passMeta.writeImageNum = insertResInteract(m_writeImages, _hPass, _hImg.id, interact);
         passMeta.writeImgAliasNum = insertWriteResAlias(m_writeForcedImageAliases, _hPass, _hImg.id, _outAlias.id);
         assert(passMeta.writeImageNum == passMeta.writeImgAliasNum);
 

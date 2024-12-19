@@ -471,12 +471,6 @@ namespace kage
                 m_pass_rw_res[hPassIdx].readCombinedRes.insert(plainId);
                 actualSize++;
             }
-
-            if (isImage(plainId))
-            {
-                assert(kInvalidHandle != prInteract.samplerId);
-                m_pass_rw_res[hPassIdx].imageSamplerMap.addOrUpdate(plainId, prInteract.samplerId);
-            }
         }
 
         assert(m_pass_rw_res[hPassIdx].readCombinedRes.size() == m_pass_rw_res[hPassIdx].readInteractMap.size());
@@ -1905,23 +1899,10 @@ namespace kage
     {
         KG_ZoneScopedC(Color::light_yellow);
 
-        stl::unordered_set<uint16_t> usedSamplers{};
-        for (PassHandle pass : m_sortedPass)
+        // all samplers will pass to RHI level, then a sampler cache will be use there.
+        for (SamplerHandle hSamp : m_hSampler)
         {
-            const size_t passIdx = getElemIndex(m_hPass, pass);
-            const PassRWResource& rwRes = m_pass_rw_res[passIdx];
-
-            uint32_t usedSamplerCount = (uint32_t)rwRes.imageSamplerMap.size();
-            for (uint32_t ii = 0; ii < usedSamplerCount; ++ii)
-            {
-                const uint16_t& samplerId = rwRes.imageSamplerMap.getDataAt(ii);
-                usedSamplers.insert(samplerId);
-            }
-        }
-
-        for (uint16_t samplerId : usedSamplers)
-        {
-            const SamplerMetaData& meta = m_sparse_sampler_meta[samplerId];
+            const SamplerMetaData& meta = m_sparse_sampler_meta[hSamp.id];
 
             RHIContextOpMagic magic{ RHIContextOpMagic::create_sampler };
 
@@ -1946,7 +1927,6 @@ namespace kage
 
         stl::vector<ContinuousMap< BufferHandle, ResInteractDesc> > readBufferVec(m_sortedPass.size());
         stl::vector<ContinuousMap< BufferHandle, ResInteractDesc> > writeBufferVec(m_sortedPass.size());
-        stl::vector<ContinuousMap< ImageHandle, SamplerHandle> > imageSamplerVec(m_sortedPass.size());
         stl::vector< ContinuousMap<CombinedResID, CombinedResID> >  writeOpAliasMapVec(m_sortedPass.size());
 
         
@@ -1963,7 +1943,6 @@ namespace kage
 
             ContinuousMap< BufferHandle, ResInteractDesc>& readBuf = readBufferVec[ii];
             ContinuousMap< BufferHandle, ResInteractDesc>& writeBuf = writeBufferVec[ii];
-            ContinuousMap< ImageHandle, SamplerHandle>& imgSamplerMap = imageSamplerVec[ii];
 
             ContinuousMap<CombinedResID, CombinedResID>& writeOpAliasMap = writeOpAliasMapVec[ii];
             {
@@ -1972,7 +1951,6 @@ namespace kage
                 readImg.clear();
                 readBuf.clear();
                 writeBuf.clear();
-                imgSamplerMap.clear();
                 writeOpAliasMap.clear();
 
                 const PassRWResource& rwRes = m_pass_rw_res[passIdx];
@@ -2022,14 +2000,6 @@ namespace kage
                     }
                 }
 
-                uint32_t usedSamplerNum = (uint32_t)rwRes.imageSamplerMap.size();
-                for (uint32_t ii = 0; ii < usedSamplerNum; ++ii)
-                {
-                    const CombinedResID& image = rwRes.imageSamplerMap.getIdAt(ii);
-                    const uint16_t& samplerId = rwRes.imageSamplerMap.getDataAt(ii);
-                    imgSamplerMap.addOrUpdate({ image.id }, {samplerId });
-                }
-
                 // write operation out aliases
                 uint32_t aliasMapNum = (uint32_t)rwRes.writeOpForcedAliasMap.size();
                 for (uint32_t ii = 0; ii < aliasMapNum; ++ii)
@@ -2047,7 +2017,6 @@ namespace kage
             assert((uint16_t)readImg.size() == passMeta.readImageNum);
             assert((uint16_t)readBuf.size() == passMeta.readBufferNum);
             assert((uint16_t)writeBuf.size() == passMeta.writeBufferNum);
-            assert((uint16_t)imgSamplerMap.size() == passMeta.sampleImageNum);
             assert((uint16_t)writeOpAliasMap.size() == (passMeta.writeBufAliasNum + passMeta.writeImgAliasNum));
 
             passMetaDataVec.emplace_back(passMeta);
@@ -2110,10 +2079,6 @@ namespace kage
             bx::write(&m_rhiMemWriter, (void*)readImageVec[ii].getDataPtr(), (int32_t)(createInfo.readImageNum * sizeof(ResInteractDesc)), nullptr);
             bx::write(&m_rhiMemWriter, (void*)readBufferVec[ii].getDataPtr(), (int32_t)(createInfo.readBufferNum * sizeof(ResInteractDesc)), nullptr);
             bx::write(&m_rhiMemWriter, (void*)writeBufferVec[ii].getDataPtr(), (int32_t)(createInfo.writeBufferNum * sizeof(ResInteractDesc)), nullptr);
-
-            // samplers
-            bx::write(&m_rhiMemWriter, (void*)imageSamplerVec[ii].getIdPtr(), (int32_t)(createInfo.sampleImageNum * sizeof(ImageHandle)), nullptr);
-            bx::write(&m_rhiMemWriter, (void*)imageSamplerVec[ii].getDataPtr(), (int32_t)(createInfo.sampleImageNum * sizeof(SamplerHandle)), nullptr);
 
             // write op alias
             bx::write(&m_rhiMemWriter, (void*)writeOpAliasMapVec[ii].getIdPtr(), (int32_t)(createInfo.writeBufAliasNum + createInfo.writeImgAliasNum) * sizeof(CombinedResID), nullptr);

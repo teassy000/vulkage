@@ -2190,12 +2190,6 @@ namespace kage { namespace vk
         stl::vector<ResInteractDesc> interacts(interactSz);
         bx::read(&_reader, interacts.data(), (uint32_t)(interactSz * sizeof(ResInteractDesc)), nullptr);
 
-        // samplers
-        stl::vector<uint16_t> sampleImageIds(passMeta.sampleImageNum);
-        stl::vector<uint16_t> samplerIds(passMeta.sampleImageNum);
-        bx::read(&_reader, sampleImageIds.data(), passMeta.sampleImageNum * sizeof(uint16_t), nullptr);
-        bx::read(&_reader, samplerIds.data(), passMeta.sampleImageNum * sizeof(uint16_t), nullptr);
-
         // write op aliases
         stl::vector<CombinedResID> writeOpAliasInIds(passMeta.writeBufAliasNum + passMeta.writeImgAliasNum);
         bx::read(&_reader, writeOpAliasInIds.data(), (passMeta.writeBufAliasNum + passMeta.writeImgAliasNum) * sizeof(CombinedResID), nullptr);
@@ -2359,17 +2353,11 @@ namespace kage { namespace vk
         assert(offset == interacts.size());
 
         // sort bindings
-        auto sortFunc2 = [](const std::pair<uint32_t, CombinedResID>& _lhs, const std::pair<uint32_t, CombinedResID>& _rhs) -> bool {
+        auto sortBinding = [](const std::pair<uint32_t, CombinedResID>& _lhs, const std::pair<uint32_t, CombinedResID>& _rhs) -> bool {
             return _lhs.first < _rhs.first;
             };
-        std::sort(passInfo.bindingToResIds.begin(), passInfo.bindingToResIds.end(), sortFunc2);
-        std::sort(passInfo.bindingToColorIds.begin(), passInfo.bindingToColorIds.end(), sortFunc2);
-
-        // samplers
-        for (uint16_t ii = 0; ii < passMeta.sampleImageNum; ++ii)
-        {
-            passInfo.imageToSamplerIds.addOrUpdate(sampleImageIds[ii], samplerIds[ii]);
-        }
+        std::sort(passInfo.bindingToResIds.begin(), passInfo.bindingToResIds.end(), sortBinding);
+        std::sort(passInfo.bindingToColorIds.begin(), passInfo.bindingToColorIds.end(), sortBinding);
 
         // write op alias part
         {

@@ -660,7 +660,7 @@ namespace kage
 
         SamplerHandle   sampler{ kInvalidHandle };
         uint16_t        mip{ kAllMips };
-        ResourceType     type{ ResourceType::undefined };
+        ResourceType    type{ ResourceType::undefined };
         BindingAccess   access{ BindingAccess::read };
         PipelineStageFlags stage{ PipelineStageFlagBits::none };
 

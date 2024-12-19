@@ -116,9 +116,6 @@ namespace kage { namespace vk
         ContinuousMap< uint16_t, BarrierState_vk> readBuffers;
         ContinuousMap< uint16_t, BarrierState_vk> writeBuffers;
 
-        // samplers for image
-        ContinuousMap<uint16_t, uint16_t>    imageToSamplerIds;
-
         // write op base to alias
         ContinuousMap<CombinedResID, CombinedResID> writeOpInToOut;
 

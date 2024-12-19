@@ -89,7 +89,6 @@ namespace kage
     {
         uint16_t    passId;
         uint16_t    resId;
-        uint16_t    samplerId;
 
         ResInteractDesc interact;
     };
@@ -322,7 +321,6 @@ namespace kage
                 readCombinedRes.clear();
                 writeCombinedRes.clear();
                 writeOpForcedAliasMap.clear();
-                imageSamplerMap.clear();
             }
 
             PassRWResource() = default;
@@ -338,7 +336,6 @@ namespace kage
             stl::unordered_set<CombinedResID> writeCombinedRes;
 
             ContinuousMap<CombinedResID, CombinedResID> writeOpForcedAliasMap;
-            ContinuousMap<CombinedResID, uint16_t> imageSamplerMap;
 
             stl::unordered_set<CombinedResID> bindlessRes;
         };
