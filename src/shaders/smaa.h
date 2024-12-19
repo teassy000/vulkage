@@ -659,7 +659,9 @@ SamplerState PointSampler { Filter = MIN_MAG_MIP_POINT; AddressU = Clamp; Addres
 
 #define SMAATexture2DMS2(tex) sampler2DMS tex
 #define SMAALoadMS(tex, pos, sample) texelFetch(tex, pos, sample)
-#define SMAALoad(tex, pos) texelFetch(sampler2D(tex, PointSampler), pos, 0)
+// zko: remove the PointSampler here since it's a seperate sampler
+// using combined sampler for both linear and point
+#define SMAALoad(tex, pos) texelFetch(tex, pos, 0)
 #define SMAAImageStore(tex, pos, value) imageStore(tex, pos, value)
 #define float2 vec2
 #define float3 vec3
@@ -670,7 +672,7 @@ SamplerState PointSampler { Filter = MIN_MAG_MIP_POINT; AddressU = Clamp; Addres
 #define bool2 bvec2
 #define bool3 bvec3
 #define bool4 bvec4
-#endif  // defined(SMAA_GLSL_4)
+#endif  // defined(SMAA_GLSL_3) || defined(SMAA_GLSL_4)
 
 #if !defined(SMAA_HLSL_3) && !defined(SMAA_HLSL_4) && !defined(SMAA_HLSL_4_1) && !defined(SMAA_GLSL_3) && !defined(SMAA_GLSL_4) && !defined(SMAA_CUSTOM_SL)
 #error you must define the shading language: SMAA_HLSL_*, SMAA_GLSL_* or SMAA_CUSTOM_SL
