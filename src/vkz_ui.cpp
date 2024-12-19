@@ -73,6 +73,15 @@ void recordUI(const UIRendering& _ui)
 
             kage::setScissor(x, y, w, h);
 
+            kage::Attachment attachments[] = {
+                {_ui.color, kage::AttachmentLoadOp::dont_care, kage::AttachmentStoreOp::store},
+            };
+            kage::setColorAttachments(attachments, COUNTOF(attachments));
+
+
+            kage::Attachment depthAttachment = { _ui.depth, kage::AttachmentLoadOp::dont_care, kage::AttachmentStoreOp::dont_care };
+            kage::setDepthAttachment(depthAttachment);
+
             kage::drawIndexed(cmd.ElemCount, 1, idxOffset, vtxOffset, 0);
 
             idxOffset += cmd.ElemCount;
@@ -123,11 +132,6 @@ void prepareUI(UIRendering& _ui, kage::ImageHandle _color, kage::ImageHandle _de
     passDesc.vertexAttributeNum = (uint32_t)COUNTOF(attributes);
     passDesc.vertexAttributes = vtxAttributeMem->data;
     passDesc.pipelineConfig = { true, true, kage::CompareOp::always };
-    
-    passDesc.passConfig.colorLoadOp = kage::AttachmentLoadOp::dont_care;
-    passDesc.passConfig.colorStoreOp = kage::AttachmentStoreOp::store;
-    passDesc.passConfig.depthLoadOp = kage::AttachmentLoadOp::dont_care;
-    passDesc.passConfig.depthStoreOp = kage::AttachmentStoreOp::dont_care;
 
     kage::PassHandle pass = kage::registPass("ui_pass", passDesc);
 

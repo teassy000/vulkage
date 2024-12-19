@@ -321,7 +321,7 @@ namespace kage
         m_passIdxInQueue[qIdx].push_back((uint16_t)m_hPass.size());
 
         // fill pass info
-        m_sparse_pass_data_ref[passMeta.passId].passRegInfoIdx = passMeta.passId;
+        m_sparse_pass_data_ref[passMeta.passId].passId = passMeta.passId;
         m_sparse_pass_meta[passMeta.passId] = passMeta;
 
         m_pass_dependency.emplace_back();

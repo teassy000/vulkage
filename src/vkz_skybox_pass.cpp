@@ -43,10 +43,6 @@ void initSkyboxPass(Skybox& _skybox, const kage::BufferHandle _trans, const kage
         passDesc.pipelineConfig.depthCompOp = kage::CompareOp::never;
         passDesc.pipelineConfig.cullMode = kage::CullModeFlagBits::front;
 
-        passDesc.passConfig.colorLoadOp = kage::AttachmentLoadOp::clear;
-        passDesc.passConfig.colorStoreOp = kage::AttachmentStoreOp::store;
-        passDesc.passConfig.depthLoadOp = kage::AttachmentLoadOp::dont_care;
-        passDesc.passConfig.depthStoreOp = kage::AttachmentStoreOp::none;
         pass = kage::registPass("skybox_pass", passDesc);
     }
 
@@ -131,6 +127,13 @@ void skyboxRec(const Skybox& _skybox, uint32_t _w, uint32_t _h)
     kage::setVertexBuffer(_skybox.vb);
 
     kage::pushBindings(binds, COUNTOF(binds));
+
+
+
+    kage::Attachment attachments[] = {
+        {_skybox.color, kage::AttachmentLoadOp::clear, kage::AttachmentStoreOp::store},
+    };
+    kage::setColorAttachments(attachments, COUNTOF(attachments));
 
     kage::drawIndexed(36, 1, 0, 0, 0);
 

@@ -136,7 +136,7 @@ namespace kage
             pipelineSpecIdxs.clear();
         }
 
-        uint16_t                passRegInfoIdx;
+        uint16_t                passId;
         stl::vector<uint16_t>   vtxBindingIdxs;
         stl::vector<uint16_t>   vtxAttrIdxs;
         stl::vector<int>        pipelineSpecIdxs;

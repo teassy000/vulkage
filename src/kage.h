@@ -87,7 +87,11 @@ namespace kage
 
     void setConstants(const Memory* _mem);
 
-    void pushBindings(Binding* _desc, uint16_t _count);
+    void pushBindings(const Binding* _desc, uint16_t _count);
+
+    void setColorAttachments(const Attachment* _colors, uint16_t _count);
+
+    void setDepthAttachment(Attachment _depth);
 
     void setBindless(BindlessHandle _bindless);
 

@@ -20,6 +20,8 @@ struct VtxShadingInitData
 
 struct VtxShading
 {
+    bool late{ false };
+
     // read-only
     kage::PassHandle pass;
     kage::ShaderHandle vtxShader;

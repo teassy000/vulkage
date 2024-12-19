@@ -28,6 +28,8 @@ struct MeshShadingInitData
 
 struct MeshShading
 {
+    bool late{ false };
+
     kage::PassHandle pass;
 
     kage::ShaderHandle taskShader;

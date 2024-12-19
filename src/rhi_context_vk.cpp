@@ -2285,8 +2285,6 @@ namespace kage { namespace vk
         passInfo.pipelineSpecNum = passMeta.pipelineSpecNum;
         passInfo.pipelineSpecData = passMeta.pipelineSpecData;
         passInfo.pipelineConfig = passMeta.pipelineConfig;
-        passInfo.config = passMeta.passConfig;
-
 
         // r/w res part
         auto getBarrierState = [&](const ResInteractDesc& _desc) -> BarrierState_vk {
@@ -2302,37 +2300,12 @@ namespace kage { namespace vk
         auto preparePassBarriers = [&interacts, &offset, getBarrierState](
               const stl::vector<uint16_t>& _ids
             , ContinuousMap< uint16_t, BarrierState_vk>& _container
-            , stl::vector<std::pair<uint32_t, CombinedResID>>& _bindings
             , const ResourceType _type
             ) {
                 for (uint32_t ii = 0; ii < _ids.size(); ++ii)
                 {
                     _container.addOrUpdate(_ids[ii], getBarrierState(interacts[offset + ii]));
-
-                    const uint32_t bindPoint = interacts[offset + ii].binding;
-
-                    if (kDescriptorSetBindingDontCare == bindPoint) {
-                        continue;
-                    }
-
-                    assert(kInvalidDescriptorSetIndex != bindPoint);
-
-                    auto it = std::find_if(_bindings.begin(), _bindings.end(), [bindPoint](const std::pair<uint32_t, CombinedResID>& pair) {
-                        return pair.first == bindPoint;
-                        });
-                    
-                    if (it == _bindings.end())
-                    {
-                        CombinedResID combined{ _ids[ii], _type };
-                        _bindings.push_back({ bindPoint, combined });
-                    }
-                    else
-                    {
-                        // same binding already exist because manually in vkz.cpp, should handle it in barrier creation
-                        //assert(0);
-                    }
                 } 
-
 
                 offset += _ids.size();
             };
@@ -2345,19 +2318,11 @@ namespace kage { namespace vk
             interacts.erase(interacts.begin() + depthIdx);
         }
 
-        preparePassBarriers(writeImageIds, passInfo.writeColors, passInfo.bindingToColorIds, ResourceType::image);
-
-        preparePassBarriers(readImageIds, passInfo.readImages, passInfo.bindingToResIds, ResourceType::image);
-        preparePassBarriers(readBufferIds, passInfo.readBuffers, passInfo.bindingToResIds, ResourceType::buffer);
-        preparePassBarriers(writeBufferIds, passInfo.writeBuffers, passInfo.bindingToResIds, ResourceType::buffer);
+        preparePassBarriers(writeImageIds, passInfo.writeColors, ResourceType::image);
+        preparePassBarriers(readImageIds, passInfo.readImages, ResourceType::image);
+        preparePassBarriers(readBufferIds, passInfo.readBuffers, ResourceType::buffer);
+        preparePassBarriers(writeBufferIds, passInfo.writeBuffers, ResourceType::buffer);
         assert(offset == interacts.size());
-
-        // sort bindings
-        auto sortBinding = [](const std::pair<uint32_t, CombinedResID>& _lhs, const std::pair<uint32_t, CombinedResID>& _rhs) -> bool {
-            return _lhs.first < _rhs.first;
-            };
-        std::sort(passInfo.bindingToResIds.begin(), passInfo.bindingToResIds.end(), sortBinding);
-        std::sort(passInfo.bindingToColorIds.begin(), passInfo.bindingToColorIds.end(), sortBinding);
 
         // write op alias part
         {
@@ -2730,7 +2695,44 @@ namespace kage { namespace vk
 
         uint32_t count = _mem->size / sizeof(Binding);
         Binding* bds = (Binding*)_mem->data;
-        m_descBindingSets.assign(bds, bds + count);
+        m_descBindingSetsPerPass.assign(bds, bds + count);
+    }
+
+    void RHIContext_vk::setColorAttachments(PassHandle _hPass, const Memory* _mem)
+    {
+        KG_ZoneScopedC(Color::indian_red);
+
+        if (!m_passContainer.exist(_hPass.id))
+        {
+            message(
+                warning
+                , "setDescriptorSet will not perform for pass %d! It might be useless after render pass sorted"
+                , _hPass.id
+            );
+            return;
+        }
+
+        uint32_t count = _mem->size / sizeof(Attachment);
+        const Attachment* atts = (const Attachment*)_mem->data;
+
+        m_colorAttachPerPass.assign(atts, atts + count);
+    }
+
+    void RHIContext_vk::setDepthAttachment(PassHandle _hPass, Attachment _depth)
+    {
+        KG_ZoneScopedC(Color::indian_red);
+
+        if (!m_passContainer.exist(_hPass.id))
+        {
+            message(
+                warning
+                , "setDescriptorSet will not perform for pass %d! It might be useless after render pass sorted"
+                , _hPass.id
+            );
+            return;
+        }
+
+        m_depthAttachPerPass = _depth;
     }
 
     void RHIContext_vk::setBindless(PassHandle _hPass, BindlessHandle _hBindless)
@@ -3460,7 +3462,7 @@ namespace kage { namespace vk
     void RHIContext_vk::createBarriersRec(const PassHandle _hPass)
     {
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_hPass.id);
-        for (const Binding& binding : m_descBindingSets)
+        for (const Binding& binding : m_descBindingSetsPerPass)
         {
             BarrierState_vk bs{};
             bs.accessMask = getBindingAccess(binding.access);
@@ -3489,8 +3491,8 @@ namespace kage { namespace vk
     void RHIContext_vk::flushWriteBarriersRec(const PassHandle _hPass)
     {
         stl::vector<Binding> bindings;
-        bindings.reserve(m_descBindingSets.size());
-        for (const Binding& b : m_descBindingSets)
+        bindings.reserve(m_descBindingSetsPerPass.size());
+        for (const Binding& b : m_descBindingSetsPerPass)
         {
             if (b.access == BindingAccess::write 
                 || b.access == BindingAccess::read_write)
@@ -3521,21 +3523,25 @@ namespace kage { namespace vk
                 m_barrierDispatcher.barrier(buf.buffer, bs);
             }
         }
+
+        m_descBindingSetsPerPass.clear();
+        m_colorAttachPerPass.clear();
+        m_depthAttachPerPass = {};
     }
 
     void RHIContext_vk::lazySetDescriptorSet(const PassHandle _hPass)
     {
-        if (m_descBindingSets.empty())
+        if (m_descBindingSetsPerPass.empty())
         {
             return;
         }
 
-        const uint32_t count = (uint32_t)m_descBindingSets.size();
+        const uint32_t count = (uint32_t)m_descBindingSetsPerPass.size();
 
         stl::vector<DescriptorInfo> descInfos(count);
-        for (uint32_t ii = 0; ii < (uint32_t)m_descBindingSets.size(); ++ii)
+        for (uint32_t ii = 0; ii < (uint32_t)m_descBindingSetsPerPass.size(); ++ii)
         {
-            const Binding& b = m_descBindingSets[ii];
+            const Binding& b = m_descBindingSetsPerPass[ii];
 
             DescriptorInfo di;
             if (ResourceType::image == b.type)
@@ -3555,8 +3561,6 @@ namespace kage { namespace vk
         PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
         const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
         vkCmdPushDescriptorSetWithTemplateKHR(m_cmdBuffer, prog.updateTemplate, prog.layout, 0, descInfos.data());
-
-        m_descBindingSets.clear();
     }
 
     const Shader_vk& RHIContext_vk::getShader(const ShaderHandle _hShader) const
@@ -3586,32 +3590,30 @@ namespace kage { namespace vk
         VkClearColorValue color = { 33.f / 255.f, 200.f / 255.f, 242.f / 255.f, 1 };
         VkClearDepthStencilValue depth = { 0.f, 0 };
 
-        stl::vector<VkRenderingAttachmentInfo> colorAttachments(passInfo.writeColors.size());
-
-        assert(passInfo.bindingToColorIds.size() == passInfo.writeColors.size());
-        for (int ii = 0; ii < passInfo.writeColors.size(); ++ii)
+        stl::vector<VkRenderingAttachmentInfo> colorAttachments(m_colorAttachPerPass.size());
+        for (int ii = 0; ii < m_colorAttachPerPass.size(); ++ii)
         {
-            const CombinedResID imgId = passInfo.bindingToColorIds[ii].second;
-            const Image_vk& colorTarget = getImage(imgId.id);
+            const Attachment& att = m_colorAttachPerPass[ii];
+            const Image_vk& colorTarget = getImage(att.hImg.id);
 
             colorAttachments[ii].sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
             colorAttachments[ii].clearValue.color = color;
-            colorAttachments[ii].loadOp = getAttachmentLoadOp(passInfo.config.colorLoadOp);
-            colorAttachments[ii].storeOp = getAttachmentStoreOp(passInfo.config.colorStoreOp);
+            colorAttachments[ii].loadOp = getAttachmentLoadOp(att.load_op);
+            colorAttachments[ii].storeOp = getAttachmentStoreOp(att.store_op);
             colorAttachments[ii].imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
             colorAttachments[ii].imageView = colorTarget.defaultView;
         }
 
-        bool hasDepth = (passInfo.writeDepthId != kInvalidHandle);
+        bool hasDepth = (m_depthAttachPerPass.hImg != kInvalidHandle);
         VkRenderingAttachmentInfo depthAttachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
         if (hasDepth)
         {
-            const Image_vk& depthTarget = getImage(passInfo.writeDepthId);
+            const Image_vk& depthTarget = getImage(m_depthAttachPerPass.hImg.id);
 
             depthAttachment.clearValue.depthStencil = depth;
-            depthAttachment.loadOp = getAttachmentLoadOp(passInfo.config.depthLoadOp);
-            depthAttachment.storeOp = getAttachmentStoreOp(passInfo.config.depthStoreOp);
-            depthAttachment.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+            depthAttachment.loadOp = getAttachmentLoadOp(m_depthAttachPerPass.load_op);
+            depthAttachment.storeOp = getAttachmentStoreOp(m_depthAttachPerPass.store_op);
+            depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
             depthAttachment.imageView = depthTarget.defaultView;
         }
 
@@ -3894,8 +3896,6 @@ namespace kage { namespace vk
 
         bool done = false;
 
-        m_descBindingSets.clear();
-
         const Command* cmd;
         do
         {
@@ -3916,6 +3916,18 @@ namespace kage { namespace vk
                     {
                         const RecordPushDescriptorSetCmd* rc = reinterpret_cast<const RecordPushDescriptorSetCmd*>(cmd);
                         pushDescriptorSet(_hPass, rc->m_mem);
+                    }
+                    break;
+                case Command::record_set_color_attachments:
+                    {
+                        const RecordSetColorAttachmentsCmd* rc = reinterpret_cast<const RecordSetColorAttachmentsCmd*>(cmd);
+                        setColorAttachments(_hPass, rc->m_mem);
+                    }
+                    break;
+                case Command::record_set_depth_attachment:
+                    {
+                        const RecordSetDepthAttachmentCmd* rc = reinterpret_cast<const RecordSetDepthAttachmentCmd*>(cmd);
+                        setDepthAttachment(_hPass, rc->m_depthAttachment);
                     }
                     break;
                 case Command::record_set_bindless:

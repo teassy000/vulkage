@@ -119,21 +119,7 @@ namespace kage { namespace vk
         // write op base to alias
         ContinuousMap<CombinedResID, CombinedResID> writeOpInToOut;
 
-        // for one op passes:
-        // copy/blit/fill etc.
-        // resources used in this pass
-        CombinedResID  oneOpReadRes;
-        CombinedResID  oneOpWriteRes;
-
-        // bindings
-        stl::vector<std::pair<uint32_t, CombinedResID>> bindingToColorIds;
-        stl::vector<std::pair<uint32_t, CombinedResID>> bindingToResIds;
-
-        // push desc sets
-        stl::vector<Binding> pushDescSets;
         bool recorded{ false };
-
-        PassConfig config{};
     };
 
     struct BarrierDispatcher
@@ -369,7 +355,7 @@ namespace kage { namespace vk
         void init(const Resolution& _resolution, void* _wnd) override;
         void bake() override;
         bool run() override;
-        
+
         bool render();
         void kick(bool _finishAll = false);
         void shutdown();
@@ -412,7 +398,7 @@ namespace kage { namespace vk
 
             return m_imageContainer.getIdToData(_hImg.id).image;
         }
-        
+
         void pushDescriptorSetWithTemplates(const VkCommandBuffer& _cmdBuf, const uint16_t _passId) const;
 
         const Shader_vk& getShader(const ShaderHandle _hShader) const;
@@ -455,10 +441,20 @@ namespace kage { namespace vk
             PassHandle _hPass
             , const Memory* _mem
         );
-        
+
         void pushDescriptorSet(
             PassHandle _hPass
             , const Memory* _mem
+        );
+
+        void setColorAttachments(
+            PassHandle _hPass
+            , const Memory* _mem
+        );
+
+        void setDepthAttachment(
+            PassHandle _hPass
+            , Attachment _depth
         );
 
         void setBindless(
@@ -583,7 +579,6 @@ namespace kage { namespace vk
         // lazy set desc after rec barrier
         void lazySetDescriptorSet(const PassHandle _hPass);
 
-
         // push descriptor set with templates
         void executePass(const uint16_t _passId);
 
@@ -628,7 +623,10 @@ namespace kage { namespace vk
 
         // rec
         void execRecQueue(PassHandle _hPass);
-        stl::vector<Binding> m_descBindingSets;
+        stl::vector<Binding> m_descBindingSetsPerPass;
+        stl::vector<Attachment> m_colorAttachPerPass;
+        Attachment m_depthAttachPerPass;
+        // rec end
 
         ContinuousMap<uint16_t, Buffer_vk>      m_bufferContainer;
         ContinuousMap<uint16_t, Image_vk>       m_imageContainer;

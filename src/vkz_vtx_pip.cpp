@@ -2,6 +2,8 @@
 
 using Stage = kage::PipelineStageFlagBits::Enum;
 using Access = kage::BindingAccess;
+using LoadOp = kage::AttachmentLoadOp;
+using StoreOp = kage::AttachmentStoreOp;
 
 void vtxShadingRec(VtxShading& _v)
 {
@@ -29,6 +31,19 @@ void vtxShadingRec(VtxShading& _v)
     kage::setVertexBuffer(_v.vtxBuf);
     kage::setIndexBuffer(_v.idxBuf, 0, kage::IndexType::uint32);
 
+
+    kage::Attachment attachments[] = {
+        {_v.color, _v.late ? LoadOp::dont_care : LoadOp::clear, StoreOp::store},
+    };
+    kage::setColorAttachments(attachments, COUNTOF(attachments));
+
+    kage::Attachment depthAttachment = {
+        _v.depth
+        , _v.late ? LoadOp::dont_care : LoadOp::clear
+        , StoreOp::store
+    };
+    kage::setDepthAttachment(depthAttachment);
+
     kage::drawIndexed(
         _v.meshDrawCmdBuf
         , offsetof(MeshDrawCommand, indexCount)
@@ -54,11 +69,6 @@ void prepareVtxShading(VtxShading& _vtxShading, const Scene& _scene, const VtxSh
     desc.pipelineConfig.depthCompOp = kage::CompareOp::greater;
     desc.pipelineConfig.enableDepthTest = true;
     desc.pipelineConfig.enableDepthWrite = true;
-
-    desc.passConfig.colorLoadOp = _late ? kage::AttachmentLoadOp::dont_care : kage::AttachmentLoadOp::clear;
-    desc.passConfig.colorStoreOp = kage::AttachmentStoreOp::store;
-    desc.passConfig.depthLoadOp = _late ? kage::AttachmentLoadOp::dont_care : kage::AttachmentLoadOp::clear;
-    desc.passConfig.depthStoreOp = kage::AttachmentStoreOp::store;
 
     kage::PassHandle pass = kage::registPass("vtx_render_pass", desc);
 
@@ -97,6 +107,9 @@ void prepareVtxShading(VtxShading& _vtxShading, const Scene& _scene, const VtxSh
 
     kage::setAttachmentOutput(pass, _initData.color, 0, colorOutAlias);
     kage::setAttachmentOutput(pass, _initData.depth, 0, depthOutAlias);
+
+
+    _vtxShading.late = _late;
 
     _vtxShading.vtxShader = vs;
     _vtxShading.fragShader = fs;

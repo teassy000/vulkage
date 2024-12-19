@@ -348,6 +348,10 @@ namespace kage
 
         void pushBindings(const Binding* _desc, uint16_t _count);
 
+        void setColorAttachments(const Attachment* _colors, uint16_t _count);
+
+        void setDepthAttachment(const Attachment _depth);
+
         void setBindless(BindlessHandle _hBindless);
 
         void setBuffer(
@@ -2168,6 +2172,22 @@ namespace kage
         m_transientMemories.push_back(mem);
     }
 
+    void Context::setColorAttachments(const Attachment* _colors, uint16_t _count)
+    {
+        const uint32_t sz = sizeof(Attachment) * _count;
+        const Memory* mem = alloc(sz);
+        bx::memCopy(mem->data, _colors, mem->size);
+
+        m_cmdQueue.cmdRecordSetColorAttachments(mem);
+
+        m_transientMemories.push_back(mem);
+    }
+
+    void Context::setDepthAttachment(const Attachment _depth)
+    {
+        m_cmdQueue.cmdRecordSetDepthAttachment(_depth);
+    }
+
     void Context::setBindless(BindlessHandle _hBindless)
     {
         m_cmdQueue.cmdRecordSetBindless(_hBindless);
@@ -2436,9 +2456,19 @@ namespace kage
         s_ctx->setConstants(_mem);
     }
 
-    void pushBindings( Binding* _desc , uint16_t _count )
+    void pushBindings( const Binding* _desc , uint16_t _count )
     {
         s_ctx->pushBindings(_desc, _count);
+    }
+
+    void setColorAttachments(const Attachment* _colors, uint16_t _count)
+    {
+        s_ctx->setColorAttachments(_colors, _count);
+    }
+
+    void setDepthAttachment(Attachment _depth)
+    {
+        s_ctx->setDepthAttachment(_depth);
     }
 
     void setBindless(BindlessHandle _hBindless)

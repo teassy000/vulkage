@@ -647,7 +647,6 @@ namespace kage
         uint32_t        pipelineSpecNum{0}; // each constant is 4 byte
         void*           pipelineSpecData{nullptr};
         PipelineConfig  pipelineConfig{};
-        PassConfig      passConfig{};
     };
 
     struct Binding
@@ -698,6 +697,22 @@ namespace kage
             type = ResourceType::image;
             access = BindingAccess::write;
             stage = _stages;
+        }
+    };
+
+    struct Attachment
+    {
+        ImageHandle hImg{kInvalidHandle};
+        AttachmentLoadOp load_op{ AttachmentLoadOp::dont_care};
+        AttachmentStoreOp store_op{AttachmentStoreOp::none};
+
+        Attachment() = default;
+
+        Attachment(ImageHandle _hImg, AttachmentLoadOp _load_op, AttachmentStoreOp _store_op)
+        {
+            hImg = _hImg;
+            load_op = _load_op;
+            store_op = _store_op;
         }
     };
 

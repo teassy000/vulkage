@@ -8,6 +8,8 @@
 
 using Stage = kage::PipelineStageFlagBits::Enum;
 using Access = kage::BindingAccess;
+using LoadOp = kage::AttachmentLoadOp;
+using StoreOp = kage::AttachmentStoreOp;
 
 void taskSubmitRec(const TaskSubmit& _ts)
 {
@@ -58,6 +60,20 @@ void meshShadingRec(const MeshShading& _ms)
     kage::setViewport(0, 0, (uint32_t)_ms.globals.screenWidth, (uint32_t)_ms.globals.screenHeight);
     kage::setScissor(0, 0, (uint32_t)_ms.globals.screenWidth, (uint32_t)_ms.globals.screenHeight);
 
+
+
+    kage::Attachment attachments[] = {
+        {_ms.color, LoadOp::dont_care, StoreOp::store},
+    };
+    kage::setColorAttachments(attachments, COUNTOF(attachments));
+
+    kage::Attachment depthAttachment = { 
+        _ms.depth
+        , _ms.late ? LoadOp::dont_care : LoadOp::clear
+        , StoreOp::store 
+    };
+    kage::setDepthAttachment(depthAttachment);
+
     kage::drawMeshTask(_ms.meshDrawCmdCountBuffer, 4, 1, 0);
 
     kage::endRec();
@@ -83,11 +99,6 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
     desc.pipelineConfig.depthCompOp = kage::CompareOp::greater;
     desc.pipelineConfig.enableDepthTest = true;
     desc.pipelineConfig.enableDepthWrite = true;
-
-    desc.passConfig.colorLoadOp = _late ? kage::AttachmentLoadOp::dont_care : kage::AttachmentLoadOp::dont_care;
-    desc.passConfig.colorStoreOp = kage::AttachmentStoreOp::store;
-    desc.passConfig.depthLoadOp = _late ? kage::AttachmentLoadOp::dont_care : kage::AttachmentLoadOp::clear;
-    desc.passConfig.depthStoreOp = kage::AttachmentStoreOp::store;
 
     desc.pipelineSpecNum = COUNTOF(pipelineSpecs);
     desc.pipelineSpecData = (void*)pConst->data;
@@ -155,6 +166,8 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
     kage::setAttachmentOutput(pass, _initData.depth, 0, depthOutAlias);
 
     // set the data
+    _meshShading.late = _late;
+
     _meshShading.taskShader = ts;
     _meshShading.meshShader = ms;
     _meshShading.fragShader = fs;
