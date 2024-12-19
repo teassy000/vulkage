@@ -6,7 +6,7 @@
 
 #include "mesh_gpu.h"
 #include "math.h"
-#include "smaa.h"
+#include "smaa_old.h"
 
 precision highp float;
 precision highp int;
