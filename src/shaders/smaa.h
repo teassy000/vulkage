@@ -1761,7 +1761,7 @@ void SMAABlendingWeightCalculationCS(int2 coord, SMAAWriteImage2D(blendTex)
                     float4(-2.0, 2.0, API_V_DIR(-2.0), API_V_DIR(2.0)) * float(SMAA_MAX_SEARCH_STEPS),
                     float4(offset[0].xz, offset[1].yw));
 
-// Just pass zero for SMAA 1x, see @SUBSAMPLE_INDICES.
+    // Just pass zero for SMAA 1x, see @SUBSAMPLE_INDICES.
     float4 weights = float4(0.0, 0.0, 0.0, 0.0);
 
     float2 e = SMAALoad(edgesTex, coord).rg;

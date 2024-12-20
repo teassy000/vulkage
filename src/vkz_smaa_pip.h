@@ -40,6 +40,12 @@ struct SMAAEdgeLuma
     kage::ImageHandle lumaOutAlias{ kage::kInvalidHandle };
 };
 
+struct alignas(16) SMAAWeightConstants
+{
+    uint32_t imageSize[2]{ 0, 0 };
+    float subsampleIndices[4]{ 0.f, 0.f, 0.f, 0.f };
+};
+
 struct SMAAWeight
 {
     kage::PassHandle pass{ kage::kInvalidHandle };
@@ -47,6 +53,7 @@ struct SMAAWeight
     kage::ShaderHandle cs{ kage::kInvalidHandle };
 
     kage::ImageHandle inEdge{ kage::kInvalidHandle };
+    kage::SamplerHandle edgeNearestSampler{ kage::kInvalidHandle };
     kage::SamplerHandle edgeSampler{ kage::kInvalidHandle };
 
     kage::ImageHandle areaImg{ kage::kInvalidHandle };
@@ -57,6 +64,8 @@ struct SMAAWeight
 
     kage::ImageHandle weight{ kage::kInvalidHandle };
     kage::ImageHandle weightOutAlias{ kage::kInvalidHandle };
+
+    SMAAWeightConstants data{};
 };
 
 struct SMAABlend

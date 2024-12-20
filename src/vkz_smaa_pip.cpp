@@ -122,7 +122,7 @@ void prepare(SMAAEdgeLuma& _edge, uint32_t _width, uint32_t _height, kage::Image
     desc.depth = 1;
     desc.numLayers = 1;
     desc.numMips = 1;
-    desc.usage = ImgUsage::sampled | ImgUsage::storage | ImgUsage::transfer_src | ImgUsage::color_attachment;
+    desc.usage = ImgUsage::sampled | ImgUsage::storage | ImgUsage::transfer_src;
     kage::ImageHandle edge = kage::registTexture("smaa_edge_luma", desc, nullptr, kage::ResourceLifetime::transition);
 
     // set data
@@ -134,8 +134,8 @@ void prepare(SMAAEdgeLuma& _edge, uint32_t _width, uint32_t _height, kage::Image
     _edge.sampler = kage::sampleImage(_edge.pass, _inColor
         , 0
         , kage::PipelineStageFlagBits::compute_shader
-        , kage::SamplerFilter::linear
-        , kage::SamplerMipmapMode::linear
+        , kage::SamplerFilter::nearest
+        , kage::SamplerMipmapMode::nearest
         , kage::SamplerAddressMode::clamp_to_edge
         , kage::SamplerReductionMode::weighted_average
     );
@@ -156,7 +156,7 @@ void prepare(SMAAEdgeLuma& _edge, uint32_t _width, uint32_t _height, kage::Image
 void prepare(SMAAWeight& _weight, uint32_t _width, uint32_t _height, kage::ImageHandle _inEdge)
 {
     kage::ShaderHandle cs = kage::registShader("smaa_weight", "shaders/smaa_weight.comp.spv");
-    kage::ProgramHandle prog = kage::registProgram("smaa_weight_prog", { cs }, sizeof(glm::vec2));
+    kage::ProgramHandle prog = kage::registProgram("smaa_weight_prog", { cs }, sizeof(SMAAWeightConstants));
     kage::PassDesc passDesc{};
     passDesc.programId = prog.id;
     passDesc.queue = kage::PassExeQueue::compute;
@@ -175,7 +175,7 @@ void prepare(SMAAWeight& _weight, uint32_t _width, uint32_t _height, kage::Image
     desc.depth = 1;
     desc.numLayers = 1;
     desc.numMips = 1;
-    desc.usage = ImgUsage::sampled | ImgUsage::storage | ImgUsage::transfer_src;
+    desc.usage = ImgUsage::sampled | ImgUsage::storage | ImgUsage::transfer_src | ImgUsage::color_attachment;
     kage::ImageHandle weight = kage::registTexture("smaa_weight", desc, nullptr, kage::ResourceLifetime::transition);
     
     
@@ -188,6 +188,14 @@ void prepare(SMAAWeight& _weight, uint32_t _width, uint32_t _height, kage::Image
         , kage::PipelineStageFlagBits::compute_shader
         , kage::SamplerFilter::linear
         , kage::SamplerMipmapMode::linear
+        , kage::SamplerAddressMode::clamp_to_edge
+        , kage::SamplerReductionMode::weighted_average
+    );
+    _weight.edgeNearestSampler = kage::sampleImage(_weight.pass, _inEdge
+        , 1
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::SamplerFilter::nearest
+        , kage::SamplerMipmapMode::nearest
         , kage::SamplerAddressMode::clamp_to_edge
         , kage::SamplerReductionMode::weighted_average
     );
@@ -204,7 +212,7 @@ void prepare(SMAAWeight& _weight, uint32_t _width, uint32_t _height, kage::Image
     _weight.searchSampler = kage::sampleImage(_weight.pass, search
         , 2
         , kage::PipelineStageFlagBits::compute_shader
-        , kage::SamplerFilter::nearest
+        , kage::SamplerFilter::linear
         , kage::SamplerMipmapMode::linear
         , kage::SamplerAddressMode::clamp_to_edge
         , kage::SamplerReductionMode::weighted_average
@@ -218,6 +226,14 @@ void prepare(SMAAWeight& _weight, uint32_t _width, uint32_t _height, kage::Image
         , kage::ImageLayout::general
         , weightOutAlias
     );
+
+    _weight.data.imageSize[0] = _width;
+    _weight.data.imageSize[1] = _height;
+
+    _weight.data.subsampleIndices[0] = 1.0f;
+    _weight.data.subsampleIndices[1] = 1.0f;
+    _weight.data.subsampleIndices[2] = 1.0f;
+    _weight.data.subsampleIndices[3] = 0.f;
 
     _weight.weight = weight;
     _weight.weightOutAlias = weightOutAlias;
@@ -251,8 +267,8 @@ void prepare(SMAABlend& _blend, uint32_t _width, uint32_t _height, kage::ImageHa
     _blend.weightSamper = kage::sampleImage(_blend.pass, _inWeight
         , 0
         , kage::PipelineStageFlagBits::compute_shader
-        , kage::SamplerFilter::linear
-        , kage::SamplerMipmapMode::linear
+        , kage::SamplerFilter::nearest
+        , kage::SamplerMipmapMode::nearest
         , kage::SamplerAddressMode::clamp_to_edge
         , kage::SamplerReductionMode::weighted_average
     );
@@ -340,25 +356,29 @@ void recordCmd(const SMAAEdgeLuma& _edge, uint32_t _width, uint32_t _height)
     kage::endRec();
 }
 
-void recordCmd(const SMAAWeight& _weight, uint32_t _width, uint32_t _height)
+void recordCmd(const SMAAWeight& _weight)
 {
     KG_ZoneScopedC(kage::Color::blue);
     kage::startRec(_weight.pass);
 
-    vec2 resolution = vec2(_width, _height);
-    const kage::Memory* mem = kage::alloc(sizeof(vec2));
-    bx::memCopy(mem->data, &resolution, mem->size);
+    const kage::Memory* mem = kage::alloc(sizeof(_weight.data));
+    bx::memCopy(mem->data, &_weight.data, mem->size);
+
     kage::setConstants(mem);
     using Stage = kage::PipelineStageFlagBits::Enum;
     kage::Binding binds[] =
     {
-        {_weight.inEdge, _weight.edgeSampler, Stage::compute_shader},
-        {_weight.areaImg, _weight.areaSampler, Stage::compute_shader},
-        {_weight.searchImg, _weight.searchSampler, Stage::compute_shader},
-        {_weight.weight, 0, Stage::compute_shader},
+        {_weight.inEdge,    _weight.edgeSampler,        Stage::compute_shader},
+        {_weight.inEdge,    _weight.edgeNearestSampler, Stage::compute_shader},
+        {_weight.areaImg,   _weight.areaSampler,        Stage::compute_shader},
+        {_weight.searchImg, _weight.searchSampler,      Stage::compute_shader},
+        {_weight.weight,    0,                          Stage::compute_shader},
     };
     kage::pushBindings(binds, COUNTOF(binds));
-    kage::dispatch(_width, _height, 1);
+
+    uint32_t width = _weight.data.imageSize[0];
+    uint32_t height = _weight.data.imageSize[1];
+    kage::dispatch(width, height, 1);
     kage::endRec();
 }
 
@@ -394,7 +414,7 @@ void SMAA::prepare(uint32_t _width, uint32_t _height, kage::ImageHandle _inColor
 
     m_w = _width;
     m_h = _height;
-    m_outAliasImg =  m_blend.blendOutAlias;
+    m_outAliasImg = m_blend.blendOutAlias;
 }
 
 void SMAA::update(uint32_t _rtWidth, uint32_t _rtHeight)
@@ -404,10 +424,12 @@ void SMAA::update(uint32_t _rtWidth, uint32_t _rtHeight)
         m_w = _rtWidth;
         m_h = _rtHeight;
 
+        m_weight.data.imageSize[0] = _rtWidth;
+        m_weight.data.imageSize[1] = _rtHeight;
+
         kage::updateImage2D(m_edgeDepth.depth, _rtWidth, _rtHeight);
         kage::updateImage2D(m_edgeColor.color, _rtWidth, _rtHeight);
         kage::updateImage2D(m_edgeLuma.luma, _rtWidth, _rtHeight);
-
 
         kage::updateImage2D(m_weight.weight, _rtWidth, _rtHeight);
         kage::updateImage2D(m_blend.blend, _rtWidth, _rtHeight);
@@ -417,6 +439,6 @@ void SMAA::update(uint32_t _rtWidth, uint32_t _rtHeight)
     recordCmd(m_edgeColor, m_w, m_h);
     recordCmd(m_edgeLuma, m_w, m_h);
 
-    recordCmd(m_weight, m_w, m_h);
+    recordCmd(m_weight);
     recordCmd(m_blend, m_w, m_h);
 }
