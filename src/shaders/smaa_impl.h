@@ -17,6 +17,10 @@
 #define SMAA_GLSL_4 
 #endif // !SMAA_GLSL_4
 
+#ifndef SMAA_PRESET_ULTRA
+#define SMAA_PRESET_ULTRA 1
+#endif // !SMAA_PRESET_ULTRA
+
 #define SMAA_INCLUDE_CS 1
 #define SMAA_INCLUDE_VS 0
 #define SMAA_INCLUDE_PS 0

@@ -163,9 +163,9 @@ void prepare(SMAAWeight& _weight, uint32_t _width, uint32_t _height, kage::Image
     kage::PassHandle pass = kage::registPass("smaa_weight_pass", passDesc);
 
     // search image
-    kage::ImageHandle search = loadImageFromFile("smaa_search", "data/textures/smaa/smaa_search.png");
+    kage::ImageHandle search = loadImageFromFile("smaa_search", "data/textures/smaa/smaa_search.dds");
     // area image
-    kage::ImageHandle area = loadImageFromFile("smaa_area", "data/textures/smaa/smaa_area.png");
+    kage::ImageHandle area = loadImageFromFile("smaa_area", "data/textures/smaa/smaa_area.dds");
 
     // weight
     kage::ImageDesc desc{};
@@ -438,7 +438,6 @@ void SMAA::update(uint32_t _rtWidth, uint32_t _rtHeight)
     recordCmd(m_edgeDepth, m_w, m_h);
     recordCmd(m_edgeColor, m_w, m_h);
     recordCmd(m_edgeLuma, m_w, m_h);
-
     recordCmd(m_weight);
     recordCmd(m_blend, m_w, m_h);
 }
