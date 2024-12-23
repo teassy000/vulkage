@@ -80,16 +80,13 @@ void main()
     float lightIntensity = 2.0;
     float indirectIntensity = 0.64;
 
-    // for bistor.glb
-    // float roughness = 0.5;
-    // float matalness = 0.3;
-    // vec3 baseColor = albedo.rgb;
 
-    // for env-test.glb
+    vec3 baseColor = albedo.rgb;
+
+    float occlusion = specular.r;    // for bistor
     float roughness = specular.g;
     float matalness = specular.b;
-    vec3 baseColor = vec3(specular.r);
-
+    // vec3 baseColor = vec3(specular.r); // for env-test
 
     vec3 lightColor = vec3(0.98, 0.92, 0.89);
 
@@ -118,6 +115,7 @@ void main()
     vec3 Fd = diffuseColor * Fd_Burley(linearRoughness, NoV, NoL, LoH);
     vec3 color = Fd + Fr;
     color *= lightIntensity * lightColor * NoL;
+    color *= occlusion;
 
     // diffuse indirect
     vec3 indirectDiffuse = Irradiance_SphericalHarmonics(n) * Fd_Lambert();
