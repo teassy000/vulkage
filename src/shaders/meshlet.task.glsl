@@ -13,8 +13,7 @@
 #include "math.h"
 
 layout(constant_id = 0) const bool LATE = false;
-layout(constant_id = 1) const bool TASK = false;
-layout(constant_id = 2) const bool SEAMLESS_LOD = false;
+layout(constant_id = 1) const bool SEAMLESS_LOD = false;
 
 #define CULL 1
 
@@ -26,11 +25,6 @@ layout(push_constant) uniform block
 };
 
 // read
-layout(binding = 0) readonly buffer DrawCommands 
-{
-    MeshDrawCommand drawCmds[];
-};
-
 layout(binding = 0) readonly buffer TaskCommands
 {
     MeshTaskCommand taskCmds[];
@@ -83,26 +77,22 @@ bool coneCullApex(vec3 cone_apex, vec3 cone_axis, float cone_cutoff, vec3 camera
 
 void main()
 {
-    uint taskId = 0;
-    if(TASK)
-    {
-        taskId = 64 * gl_WorkGroupID.x + gl_WorkGroupID.y;
-    }
+    uint cmdId = 64 * gl_WorkGroupID.x + gl_WorkGroupID.y;
+    MeshTaskCommand cmd = taskCmds[cmdId];
+    uint drawId = cmd.drawId;
 
-    uint drawId = TASK ? taskCmds[taskId].drawId : drawCmds[gl_DrawIDARB].drawId;
-    uint lateDrawVisibility =  TASK ? taskCmds[taskId].lateDrawVisibility : drawCmds[gl_DrawIDARB].lateDrawVisibility;
+    uint lateDrawVisibility = cmd.lateDrawVisibility;
     
     MeshDraw meshDraw = meshDraws[drawId];
     Mesh mesh = meshes[meshDraw.meshIdx];
 
-    uint taskCount = TASK ? taskCmds[taskId].taskCount : drawCmds[gl_DrawIDARB].taskCount;
-    uint taskOffset = TASK ? taskCmds[taskId].taskOffset : drawCmds[gl_DrawIDARB].taskOffset;
-    
-    uint mLocalId = TASK ? gl_LocalInvocationID.x : gl_GlobalInvocationID.x;
+    uint taskCount = cmd.taskCount;
+    uint taskOffset = cmd.taskOffset;
+
+    uint mLocalId = gl_LocalInvocationID.x;
     uint mi = mLocalId + taskOffset;
 
-
-    uint mvIdx = (TASK ? taskCmds[taskId].meshletVisibilityOffset : meshDraw.meshletVisibilityOffset) + mLocalId;
+    uint mvIdx = cmd.meshletVisibilityOffset + mLocalId;
 
 #if CULL
 

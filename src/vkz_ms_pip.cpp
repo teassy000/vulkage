@@ -87,7 +87,7 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
 
     kage::ProgramHandle prog = kage::registProgram("mesh_prog", { ts, ms, fs }, sizeof(Globals), _initData.bindless);
 
-    int pipelineSpecs[] = { _late, true , {kage::kSeamlessLod == 1} };
+    int pipelineSpecs[] = { _late, {kage::kSeamlessLod == 1} };
 
     const kage::Memory* pConst = kage::alloc(sizeof(int) * COUNTOF(pipelineSpecs));
     memcpy_s(pConst->data, pConst->size, pipelineSpecs, sizeof(int) * COUNTOF(pipelineSpecs));
@@ -203,7 +203,7 @@ void prepareTaskSubmit(TaskSubmit& _taskSubmit, kage::BufferHandle _drawCmdBuf, 
 
     kage::ProgramHandle prog = kage::registProgram("task_modify_prog", { cs });
 
-    int pipelineSpecs[] = { _late, true};
+    int pipelineSpecs[] = { _late};
 
     const kage::Memory* pConst = kage::alloc(sizeof(int) * COUNTOF(pipelineSpecs));
     memcpy_s(pConst->data, pConst->size, pipelineSpecs, sizeof(int) * COUNTOF(pipelineSpecs));

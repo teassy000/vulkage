@@ -10,7 +10,7 @@
 #include "mesh_gpu.h"
 #include "math.h"
 
-layout(constant_id = 2) const bool SEAMLESS_LOD = false;
+layout(constant_id = 1) const bool SEAMLESS_LOD = false;
 
 #define LIGHT 0
 #define CULL 1
