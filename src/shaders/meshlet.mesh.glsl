@@ -73,9 +73,14 @@ shared vec3 vertexClip[64];
 void main()
 {
     uint ti = gl_LocalInvocationID.x;
-    uint mi = payload.meshletIndices[gl_WorkGroupID.x];
+    uint ci = payload.meshletIndices[gl_WorkGroupID.x];
 
-    MeshDraw meshDraw = meshDraws[payload.drawId];
+
+
+    uint mi = payload.offset+ (ci >> 24);
+    uint drawId = payload.drawId;
+
+    MeshDraw meshDraw = meshDraws[drawId];
     uint vertexCount = 0;
     uint triangleCount = 0;
     uint dataOffset = 0;
@@ -117,7 +122,7 @@ void main()
         norm = rotateQuat(norm, meshDraw.orit);
 
         gl_MeshVerticesEXT[i].gl_Position = result;
-        out_drawId[i] = payload.drawId;
+        out_drawId[i] = drawId;
         out_norm[i] = norm;
         out_wPos[i] = wPos;
         out_tan[i] = tan;

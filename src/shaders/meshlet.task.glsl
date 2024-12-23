@@ -95,11 +95,12 @@ void main()
     uint mvIdx = cmd.meshletVisibilityOffset + mLocalId;
 
 #if CULL
-
-    barrier();
+    sharedCount = 0;
+    barrier(); // wait for sharedCount to be initialized
 
     bool skip = false;
-    bool visible = (mLocalId < taskCount);
+    bool valid = (mLocalId < taskCount);
+    bool visible = valid;
 
     if (globals.enableMeshletOcclusion == 1)
     {
@@ -123,7 +124,6 @@ void main()
     float radius = 0.0;
     vec3 center = vec3(0.0, 0.0, 0.0);
 
-    sharedCount = 0;
 
     if (SEAMLESS_LOD)
     {
@@ -155,6 +155,7 @@ void main()
         center = (trans.view * vec4(ori_center, 1.0)).xyz;
 
         vec3 ori_cone_axis = rotateQuat(axis, meshDraw.orit);
+        vec3 cone_axis = mat3(trans.view) * ori_cone_axis;
         // meshlet level back face culling, here we culling in the world space
         visible = visible && !coneCull(ori_center, radius, ori_cone_axis, cone_cutoff, trans.cameraPos);
     }
@@ -187,7 +188,7 @@ void main()
         }
     }
 
-    if(LATE && globals.enableMeshletOcclusion == 1) 
+    if(LATE && globals.enableMeshletOcclusion == 1 && valid) 
     {
         if(visible)
         {
@@ -202,12 +203,13 @@ void main()
     if( visible && !skip)
     {
         uint index = atomicAdd(sharedCount, 1);
-        payload.meshletIndices[index] = mi;
+        payload.meshletIndices[index] = cmdId | (mLocalId << 24);
     }
 
+    payload.offset = cmd.taskOffset;
     payload.drawId = drawId;
 
-    barrier();
+    barrier(); // make sure all thread finished writing to sharedCount
     EmitMeshTasksEXT(sharedCount, 1, 1);
 #else
     payload.meshletIndices[gl_LocalInvocationID.x] = mi;
