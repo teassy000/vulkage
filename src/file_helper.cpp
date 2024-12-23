@@ -9,6 +9,7 @@
 #include "bimg/decode.h"
 #include "bx/file.h"
 
+
 const kage::ImageHandle loadKtxFromFile(const char* _name, const char* _path, textureResolution& _outRes /*= {}*/)
 {
     assert(_path);
@@ -54,6 +55,27 @@ const char* getExtension(const char* _path)
     }
     extension++; // Skip the dot
     return extension;
+}
+
+// will return the folder path with the last '/'
+void getCurrFolder(char* _out, uint32_t _maxSize, const char* _path)
+{
+    const char* lastSlash = strrchr(_path, '/');
+    if (!lastSlash)
+    {
+        kage::message(kage::error, "Invalid path: %s", _path);
+        return;
+    }
+
+    size_t len = lastSlash - _path + 1; // +1 with the '/'
+    if (len > _maxSize)
+    {
+        kage::message(kage::error, "Path is too long: %s", _path);
+        return;
+    }
+
+    strncpy(_out, _path, len);
+    _out[len] = '\0';
 }
 
 kage::ResourceFormat bimgToKageFromat(bimg::TextureFormat::Enum _btf)
@@ -133,8 +155,11 @@ kage::ResourceFormat bimgToKageFromat(bimg::TextureFormat::Enum _btf)
 }
 
 // use the bx version
-static void* load(bx::FileReaderI* _reader, bx::AllocatorI* _allocator, const char* _path, uint32_t* _size)
+void* load(const char* _path, uint32_t* _size)
 {
+    bx::FileReaderI* _reader = entry::getFileReader();
+    bx::AllocatorI* _allocator = entry::getAllocator();
+
     if (bx::open(_reader, _path))
     {
         uint32_t size = (uint32_t)bx::getSize(_reader);
@@ -156,7 +181,7 @@ static void* load(bx::FileReaderI* _reader, bx::AllocatorI* _allocator, const ch
 kage::ImageHandle loadWithBimg(const char* _name, const char* _path, textureResolution& _outRes)
 {
     uint32_t sz = 0;
-    void* data = load(entry::getFileReader(), entry::getAllocator(), _path, &sz);
+    void* data = load(_path, &sz);
 
     bimg::ImageContainer* imageContainer = bimg::imageParse(entry::getAllocator(), data, sz);
     if (imageContainer == nullptr)

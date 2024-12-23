@@ -127,7 +127,7 @@ bool processNode(Scene& _scene, std::vector<std::pair<uint32_t, uint32_t>>& _pri
             draw.pos[2] = _gltfNode->translation[2];
 
             // TODO: use the x scale temporary, fix it
-            draw.scale = _gltfNode->scale[0];
+            draw.scale = bx::max( _gltfNode->scale[0], bx::max(_gltfNode->scale[1], _gltfNode->scale[2]));
             
             draw.orit[0] = _gltfNode->rotation[0];
             draw.orit[1] = _gltfNode->rotation[1];
@@ -158,7 +158,7 @@ bool processNode(Scene& _scene, std::vector<std::pair<uint32_t, uint32_t>>& _pri
             draw.vertexOffset = mesh.vertexOffset;
             draw.meshletVisibilityOffset = meshletVisibilityOffset;
 
-            if (mat && mat->alpha_mode != cgltf_alpha_mode_opaque) {
+            if (mat && (mat->alpha_mode != cgltf_alpha_mode_opaque)) {
                 draw.withAlpha = 1;
             }
             
@@ -273,6 +273,8 @@ bool loadGltfScene(Scene& _scene, const char* _path, bool _buildMeshlet, bool _s
     }
 
     // -- images
+    char root_path[256];
+    getCurrFolder(root_path, 256, _path);
     for (uint32_t ii = 0; ii < data->textures_count; ++ii)
     {
         const cgltf_texture& tex = data->textures[ii];
@@ -280,13 +282,23 @@ bool loadGltfScene(Scene& _scene, const char* _path, bool _buildMeshlet, bool _s
         const cgltf_image* img = tex.image;
         const cgltf_buffer_view* view = img->buffer_view;
 
-        if (void* data = (view && view->buffer) ? view->buffer->data : nullptr)
+        uint8_t* ptr = nullptr;
+        uint32_t sz = 0;
+        if (view)
         {
             const size_t offset = view->offset;
-            const size_t size = view->size;
-            const uint8_t* ptr = (const uint8_t*)data + offset;
+            sz = (uint32_t)view->size;
+            ptr = (uint8_t*)data + offset;
+        }
+        else
+        {
+            std::string path =  std::string(root_path) + img->uri;
+            ptr = (uint8_t*)load(path.c_str(), &sz);
+        }
 
-            processImage(_scene, img->name, ptr, (uint32_t)size);
+        if (ptr)
+        {
+            processImage(_scene, img->name, ptr, sz);
         }
     }
 
