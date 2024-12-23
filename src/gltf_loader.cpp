@@ -157,6 +157,10 @@ bool processNode(Scene& _scene, std::vector<std::pair<uint32_t, uint32_t>>& _pri
             const Mesh& mesh = _scene.geometry.meshes[draw.meshIdx];
             draw.vertexOffset = mesh.vertexOffset;
             draw.meshletVisibilityOffset = meshletVisibilityOffset;
+
+            if (mat && mat->alpha_mode != cgltf_alpha_mode_opaque) {
+                draw.withAlpha = 1;
+            }
             
             _scene.meshDraws.push_back(draw);
 
@@ -198,14 +202,13 @@ bool processImage(Scene& _scene, const char* _name, const uint8_t* _data, size_t
     {
         bimg::ImageContainer* rgba8Container = bimg::imageConvert(entry::getAllocator(), bimg::TextureFormat::RGBA8, *imageContainer);
         bimg::imageFree(imageContainer);
+
         imageContainer = rgba8Container;
     }
 
     uint32_t offset = (uint32_t)_scene.imageDatas.size();
     _scene.imageDatas.resize(offset + imageContainer->m_size);
     memcpy(_scene.imageDatas.data() + offset, imageContainer->m_data, imageContainer->m_size);
-    bimg::imageFree(imageContainer);
-
 
     ImageInfo info{};
     strcpy(info.name, _name);
@@ -220,6 +223,8 @@ bool processImage(Scene& _scene, const char* _name, const uint8_t* _data, size_t
     info.isCubeMap = imageContainer->m_cubeMap;
 
     _scene.images.emplace_back(info);
+
+    bimg::imageFree(imageContainer);
 
     return true;
 }

@@ -15,6 +15,7 @@ struct alignas(16) MeshDraw
     uint32_t meshIdx;
     uint32_t vertexOffset;
     uint32_t meshletVisibilityOffset;
+    uint32_t withAlpha;
 
     uint32_t albedoTex;
     uint32_t normalTex;

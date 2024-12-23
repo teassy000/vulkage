@@ -114,6 +114,8 @@ struct MeshDraw
     uint vertexOffset; // same as mesh[meshIdx], for data locality
     uint meshletVisibilityOffset;
 
+    uint withAlpha;
+
     uint albedoTex;
     uint normalTex;
     uint specularTex;
