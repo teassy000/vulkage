@@ -587,6 +587,9 @@ namespace kage { namespace vk
         // convert all resource format to vulkan format
         switch (_fmt)
         {
+        case kage::ResourceFormat::bc1:                     format = VK_FORMAT_BC1_RGBA_UNORM_BLOCK; break;
+        case kage::ResourceFormat::bc3:                     format = VK_FORMAT_BC3_UNORM_BLOCK;     break;
+        case kage::ResourceFormat::bc5:                     format = VK_FORMAT_BC5_UNORM_BLOCK;     break;
         case kage::ResourceFormat::r8_snorm:                format = VK_FORMAT_R8_SNORM;            break;
         case kage::ResourceFormat::r8_unorm:                format = VK_FORMAT_R8_UNORM;            break;
         case kage::ResourceFormat::r8_sint:                 format = VK_FORMAT_R8_SINT;             break;
@@ -1364,7 +1367,7 @@ namespace kage { namespace vk
         props.width = info.width;
         props.height = info.height;
         props.depth = info.depth;
-        props.format = getValidFormat(info.format, info.usage, _defaultColorFormat, _defaultColorFormat);
+        props.format = getValidFormat(info.format, info.usage, _defaultColorFormat, _defaultDepthFormat);
         props.usage = getImageUsageFlags(info.usage);
         props.type = getImageType(info.type);
         props.layout = getImageLayout(info.layout);
@@ -3191,6 +3194,57 @@ namespace kage { namespace vk
         dispatchBarriers();
     }
 
+    uint32_t getBCBlcokSz(VkFormat _fmt)
+    {
+        uint32_t result = 0;
+        switch (_fmt)
+        {
+        case VK_FORMAT_BC1_RGB_UNORM_BLOCK:
+        case VK_FORMAT_BC1_RGB_SRGB_BLOCK:
+        case VK_FORMAT_BC1_RGBA_UNORM_BLOCK:
+        case VK_FORMAT_BC1_RGBA_SRGB_BLOCK:
+            result = 8;
+            break;
+        case VK_FORMAT_BC2_UNORM_BLOCK:
+        case VK_FORMAT_BC2_SRGB_BLOCK:
+        case VK_FORMAT_BC3_UNORM_BLOCK:
+        case VK_FORMAT_BC3_SRGB_BLOCK:
+            result = 16;
+            break;
+        case VK_FORMAT_BC4_UNORM_BLOCK:
+        case VK_FORMAT_BC4_SNORM_BLOCK:
+            result = 8;
+            break;
+        case VK_FORMAT_BC5_UNORM_BLOCK:
+        case VK_FORMAT_BC5_SNORM_BLOCK:
+        case VK_FORMAT_BC6H_UFLOAT_BLOCK:
+        case VK_FORMAT_BC6H_SFLOAT_BLOCK:
+        case VK_FORMAT_BC7_UNORM_BLOCK:
+        case VK_FORMAT_BC7_SRGB_BLOCK:
+            result = 16;
+            break;
+        default:
+            message(warning, "unsupported format!!!");
+            break;
+        }
+
+        return result;
+    }
+
+    uint32_t getBCImageSize(uint32_t _w, uint32_t _h, uint32_t _lv, uint32_t _blkSz)
+    {
+        uint32_t result = 0;
+        for (uint32_t ii = 0; ii < _lv; ++ii)
+        {
+            result += ((_w + 3) / 4) * ((_h + 3) / 4) * _blkSz;
+
+            _w = _w > 1 ? (_w >> 1) : 1;
+            _h = _h > 1 ? (_h >> 1) : 1;
+        }
+
+        return result;
+    }
+
     void RHIContext_vk::uploadImage(const uint16_t _imgId, const void* _data, uint32_t _size)
     {
         KG_ZoneScopedC(Color::indian_red);
@@ -3220,14 +3274,38 @@ namespace kage { namespace vk
 
         dispatchBarriers();
 
-        VkBufferImageCopy region = {};
-        region.bufferOffset = 0;
-        region.imageSubresource.aspectMask = vkImg.aspectMask;
-        region.imageSubresource.layerCount = vkImg.numLayers;
-        region.imageExtent.width = vkImg.width;
-        region.imageExtent.height = vkImg.height;
-        region.imageExtent.depth = 1;
-        vkCmdCopyBufferToImage(m_cmdBuffer, scratch.buffer, vkImg.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+        
+
+        uint32_t blockSz = (imgInfo.format < ResourceFormat::undefined) ? getBCBlcokSz(vkImg.format) : 0;
+        uint32_t size = (imgInfo.format < ResourceFormat::undefined) ? getBCImageSize(vkImg.width, vkImg.height, vkImg.numMips, blockSz) : _size;
+
+        assert(size == _size);
+        uint32_t bufOffset = 0;
+        uint32_t w = vkImg.width;
+        uint32_t h = vkImg.height;
+
+        VkBufferImageCopy* regions = (VkBufferImageCopy*)bx::alloc(g_bxAllocator, sizeof(VkBufferImageCopy) * vkImg.numMips);
+        bx::memSet(regions, 0, sizeof(VkBufferImageCopy) * vkImg.numMips);
+        for (uint32_t ii = 0; ii < vkImg.numMips; ++ii)
+        {
+            regions[ii].bufferOffset = bufOffset;
+            regions[ii].bufferRowLength = 0; // assuming tightly packed already
+            regions[ii].bufferImageHeight = 0; // assuming tightly packed already
+
+            regions[ii].imageSubresource.aspectMask = vkImg.aspectMask;
+            regions[ii].imageSubresource.layerCount = vkImg.numLayers;
+            regions[ii].imageSubresource.mipLevel = ii;
+            regions[ii].imageSubresource.baseArrayLayer = 0; // assuming only 1 layer would use
+
+            regions[ii].imageExtent = {w, h, 1};
+            regions[ii].imageOffset = { 0, 0, 0 };
+
+            bufOffset += ((w + 3) / 4) * ((h + 3) / 4) * blockSz;
+
+            w = (w > 1) ? (w >> 1) : 1;
+            h = (h > 1) ? (h >> 1) : 1;
+        }
+        vkCmdCopyBufferToImage(m_cmdBuffer, scratch.buffer, vkImg.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, vkImg.numMips, regions);
         
         // write flush
         m_barrierDispatcher.barrier(vkImg.image
@@ -3237,6 +3315,7 @@ namespace kage { namespace vk
 
         dispatchBarriers();
         
+        bx::free(g_bxAllocator, regions);
         release(scratch.buffer);
         release(scratch.memory);
     }

@@ -80,7 +80,6 @@ void main()
     float lightIntensity = 2.0;
     float indirectIntensity = 0.64;
 
-
     vec3 baseColor = albedo.rgb;
 
     float occlusion = specular.r;    // for bistor
@@ -90,7 +89,7 @@ void main()
 
     vec3 lightColor = vec3(0.98, 0.92, 0.89);
 
-    vec3 l = normalize(vec3(0.7, 0.5, -0.7)); // in world space, from surface to light source
+    vec3 l = normalize(-vec3(0.7, 0.5, 0.7)); // in world space, from surface to light source
     vec3 v = normalize(vec3(trans.cameraPos - in_wPos)); // from surface to observer
 
     // BRDF
@@ -115,7 +114,7 @@ void main()
     vec3 Fd = diffuseColor * Fd_Burley(linearRoughness, NoV, NoL, LoH);
     vec3 color = Fd + Fr;
     color *= lightIntensity * lightColor * NoL;
-    color *= occlusion;
+    //color *= occlusion;
 
     // diffuse indirect
     vec3 indirectDiffuse = Irradiance_SphericalHarmonics(n) * Fd_Lambert();
@@ -134,7 +133,7 @@ void main()
 
     color = Tonemap_ACES(color);
     color = OECF_sRGBFast(color);
-     if (albedo.a < 0.5)
+    if (albedo.a < 0.5)
          discard;
 
     outputColor = vec4(vec3(color), 1.0);

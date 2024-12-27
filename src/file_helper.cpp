@@ -86,6 +86,10 @@ kage::ResourceFormat bimgToKageFromat(bimg::TextureFormat::Enum _btf)
     // translate bimg format to kage format
     switch (_btf)
     {
+    
+    case bimg::TextureFormat::BC1:      result = KageFormat::bc1;                   break; 
+    case bimg::TextureFormat::BC3:      result = KageFormat::bc3;                   break;
+    case bimg::TextureFormat::BC5:      result = KageFormat::bc5;                   break;
     case bimg::TextureFormat::R1:       /*unsupport*/                               break;
     case bimg::TextureFormat::A8:       /*unsupport*/                               break;
     case bimg::TextureFormat::R8:       result = KageFormat::r8_unorm;              break;

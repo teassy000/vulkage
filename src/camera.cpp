@@ -6,6 +6,11 @@
 #include "entry/input.h"
 #include "debug.h"
 
+#include "kage_math.h"
+#include "glm/gtc/quaternion.hpp"
+#include "glm/gtx/rotate_vector.hpp"
+#include "glm/gtx/rotate_vector.hpp"
+
 void freeCameraSetKeyState(uint8_t _key, bool _down);
 
 int cmdMove(CmdContext* /*_context*/, void* /*_userData*/, int _argc, char const* const* _argv)
@@ -101,14 +106,6 @@ struct FreeCamera
 
     FreeCamera()
     {
-        reset();
-
-        entry::MouseState mouseState;
-        update(0.0f, mouseState);
-
-        cmdAdd("move", cmdMove);
-        cmdAdd("op", cmdOp);
-        inputAddBindings("camBindings", s_camBindings);
     }
 
     ~FreeCamera()
@@ -125,48 +122,45 @@ struct FreeCamera
 
     void updateVecs()
     {
-        m_front.x = bx::sin(bx::toRad(m_yaw));
-        m_front.y = bx::sin(bx::toRad(m_pitch));
-        m_front.z = bx::cos(bx::toRad(m_yaw)) * bx::cos(bx::toRad(m_pitch));
-
-        m_right = bx::normalize(bx::cross(m_up, m_front));
+        m_front = glm::normalize(m_rot * vec3(0.0f, 0.0f, -1.0f));
+        m_right = glm::normalize(glm::cross(m_front, m_up));
     }
 
     void processKey(float _deltaTime)
     {
         if (m_keys & CAMERA_KEY_FORWARD)
         {
-            m_pos = bx::mad(m_front, _deltaTime * m_moveSpeed, m_pos);
+            m_pos = m_front * _deltaTime * m_moveSpeed + m_pos;
             setKeyState(CAMERA_KEY_FORWARD, false);
         }
 
         if (m_keys & CAMERA_KEY_BACKWARD)
         {
-            m_pos = bx::mad(m_front, -_deltaTime * m_moveSpeed, m_pos);
+            m_pos = -m_front * _deltaTime * m_moveSpeed + m_pos;
             setKeyState(CAMERA_KEY_BACKWARD, false);
         }
 
         if (m_keys & CAMERA_KEY_LEFT)
         {
-            m_pos = bx::mad(m_right, -_deltaTime * m_moveSpeed, m_pos);
+            m_pos = -m_right * _deltaTime * m_moveSpeed + m_pos;
             setKeyState(CAMERA_KEY_LEFT, false);
         }
 
         if (m_keys & CAMERA_KEY_RIGHT)
         {
-            m_pos = bx::mad(m_right, _deltaTime * m_moveSpeed, m_pos);
+            m_pos = m_right * _deltaTime * m_moveSpeed + m_pos;
             setKeyState(CAMERA_KEY_RIGHT, false);
         }
 
         if (m_keys & CAMERA_KEY_UP)
         {
-            m_pos = bx::mad(m_up, _deltaTime * m_moveSpeed, m_pos);
+            m_pos = m_up * _deltaTime * m_moveSpeed + m_pos;
             setKeyState(CAMERA_KEY_UP, false);
         }
 
         if (m_keys & CAMERA_KEY_DOWN)
         {
-            m_pos = bx::mad(m_up, -_deltaTime * m_moveSpeed, m_pos);
+            m_pos = -m_up * _deltaTime * m_moveSpeed + m_pos;
             setKeyState(CAMERA_KEY_DOWN, false);
         }
 
@@ -176,7 +170,6 @@ struct FreeCamera
             setKeyState(CAMERA_KEY_RESET, false);
         }
 
-        m_at = bx::add(m_pos, m_front);
     }
 
     void processMouse(float _xpos, float _ypos, bool _constrainPitch = true)
@@ -190,13 +183,10 @@ struct FreeCamera
         xdelta *= m_mouseSpeed;
         ydelta *= m_mouseSpeed;
 
-        m_yaw += xdelta; 
-        m_pitch -= ydelta; // reversed since the y-coordinates go from bottom to top
+        quat qu = glm::angleAxis(glm::radians(-xdelta), vec3(0, 1, 0)); // yaw
+        quat qr = glm::angleAxis(glm::radians(-ydelta), vec3(1, 0, 0)); // pitch
 
-        if (_constrainPitch)
-        {
-            m_pitch = bx::clamp(m_pitch, -89.5f, 89.5f);
-        }
+        m_rot = qu  * m_rot * qr;
 
         updateVecs();
     }
@@ -207,14 +197,13 @@ struct FreeCamera
         processKey(_delta);
     }
 
-    void getViewMat(float* _mat)
+    mat4 getViewMat()
     {
-        bx::mtxLookAt(
-            _mat
-            , bx::load<bx::Vec3>(&m_pos.x)
-            , bx::load<bx::Vec3>(&m_at.x)
-            , bx::load<bx::Vec3>(&m_up.x)
-        );
+        mat4 view = glm::mat4_cast(m_rot);
+        view[3] = vec4(m_pos, 1.0f);
+        view = glm::inverse(view);
+        view = glm::scale(glm::identity<mat4>(), vec3(1, 1, -1)) * view;
+        return view;
     }
 
     void reset()
@@ -223,32 +212,31 @@ struct FreeCamera
         m_pos.y = 0.0f;
         m_pos.z = -10.0f;
 
-        m_yaw = 0.0f;
-        m_pitch = 0.0f;
-
         m_up = { 0.0f, 1.0f, 0.0f }; // y up
+        m_front = { 0.0f, 0.0f, -1.0f }; // z forward
 
         m_mouseSpeed = 0.03f;
         m_gamepadSpeed = 0.01f;
-        m_moveSpeed = 0.8f;
+        m_moveSpeed = 0.01f;
         m_keys = 0;
 
-        updateVecs();
+        m_pos = m_pos0;
+        m_rot = glm::angleAxis(0.f, vec3(0, 0, 1));
+        m_fov = m_fov0;
 
-        m_at = bx::add(m_pos, m_front);
+        updateVecs();
     }
 
-    bx::Vec3 m_mousePrev{ bx::InitZero };
-    bx::Vec3 cursorPos{ bx::InitZero };
+    vec3 m_mousePrev{ 0.f};
+    vec3 cursorPos{ 0.f };
 
-    bx::Vec3 m_pos{ bx::InitZero };
-    bx::Vec3 m_up{ bx::InitZero };
-    bx::Vec3 m_front{ bx::InitZero };
-    bx::Vec3 m_right{ bx::InitZero };
-    bx::Vec3 m_at{ bx::InitZero };
+    vec3 m_pos{ 0.f};
+    quat m_rot{};
+    vec3 m_up{ 0.f};
+    vec3 m_front{ 0.f};
+    vec3 m_right{ 0.f};
 
-    float m_yaw{ 0.f };
-    float m_pitch{ 0.f };
+    float m_fov{ 0.f };
 
     float m_mouseSpeed{ 0.f };
     float m_gamepadSpeed{ 0.f };
@@ -257,15 +245,32 @@ struct FreeCamera
     uint8_t m_keys;
 
     bool m_exit;
+
+    // initial data
+    vec3 m_pos0{0.f};
+    quat m_rot0{};
+    float m_fov0{0.f};
 };
 
 static FreeCamera* s_freeCamera = nullptr;
 
-void freeCameraInit()
+void freeCameraInit(const vec3& _pos, const quat& _orit, const float _fov)
 {
     s_freeCamera = BX_NEW(entry::getAllocator(), FreeCamera);
-}
+    
+    s_freeCamera->m_pos0 = _pos;
+    s_freeCamera->m_rot0 = _orit;
+    s_freeCamera->m_fov0 = _fov;
 
+    s_freeCamera->reset();
+
+    entry::MouseState mouseState;
+    s_freeCamera->update(0.0f, mouseState);
+
+    cmdAdd("move", cmdMove);
+    cmdAdd("op", cmdOp);
+    inputAddBindings("camBindings", s_camBindings);
+}
 
 void freeCameraDestroy()
 {
@@ -273,9 +278,9 @@ void freeCameraDestroy()
     s_freeCamera = nullptr;
 }
 
-void freeCameraGetViewMatrix(float* _mat)
+mat4 freeCameraGetViewMatrix()
 {
-    s_freeCamera->getViewMat(_mat);
+    return s_freeCamera->getViewMat();
 }
 
 void freeCameraUpdate(float _delta, const entry::MouseState& _mouseState)
@@ -288,17 +293,17 @@ void freeCameraSetKeyState(uint8_t _key, bool _down)
     s_freeCamera->setKeyState(_key, _down);
 }
 
-bx::Vec3 freeCameraGetPos()
+vec3 freeCameraGetPos()
 {
     return s_freeCamera->m_pos;
 }
 
-bx::Vec3 freeCameraGetFront()
+vec3 freeCameraGetFront()
 {
     return s_freeCamera->m_front;
 }
 
-bx::Vec3 freeCameraGetUp()
+float freeCameraGetFov()
 {
-    return s_freeCamera->m_up;
+    return s_freeCamera->m_fov;
 }

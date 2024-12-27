@@ -36,6 +36,13 @@ struct alignas(16) ImageInfo
     bool isCubeMap;
 };
 
+struct Camera
+{
+    vec3 pos;
+    quat orit;
+    float fov;
+};
+
 struct Scene
 {
     uint32_t drawCount;
@@ -50,6 +57,9 @@ struct Scene
 
     std::vector<ImageInfo> images;
     std::vector<uint8_t> imageDatas;
+
+    uint32_t cameraCount;
+    std::vector<Camera> cameras;
 };
 
 bool loadScene(Scene& _scene, const std::vector<std::string>& _pathes, bool _buildMeshlets, bool _seamlessLod, bool _forceParse);

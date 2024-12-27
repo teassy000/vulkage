@@ -355,7 +355,7 @@ namespace kage { namespace vk
 
         VkPipelineRasterizationStateCreateInfo rasterizationState = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
         rasterizationState.lineWidth = 1.f;
-        rasterizationState.frontFace = VK_FRONT_FACE_CLOCKWISE;
+        rasterizationState.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
         rasterizationState.cullMode = pipeConfigs.cullMode;
         createInfo.pRasterizationState = &rasterizationState;
 

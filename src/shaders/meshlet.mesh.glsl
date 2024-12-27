@@ -75,8 +75,6 @@ void main()
     uint ti = gl_LocalInvocationID.x;
     uint ci = payload.meshletIndices[gl_WorkGroupID.x];
 
-
-
     uint mi = payload.offset+ (ci >> 24);
     uint drawId = payload.drawId;
 
@@ -162,7 +160,7 @@ void main()
         vec2 eb = pb - pa;
         vec2 ec = pc - pa;
 
-        culled = culled || (eb.x * ec.y >= eb.y * ec.x);
+        culled = culled || (eb.x * ec.y <= eb.y * ec.x);
 
         vec2 bmin = (min(pa, min(pb, pc)) * 0.5 + vec2(0.5)) * screen;
         vec2 bmax = (max(pa, max(pb, pc)) * 0.5 + vec2(0.5)) * screen;

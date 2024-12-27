@@ -90,7 +90,17 @@ namespace
             m_demoData.input.height = (float)_height;
 
             // basic data
-            freeCameraInit();
+            Camera camera{
+                { 0.0f, 0.0f, 0.0f },
+                { 0.0f, 0.0f, 0.0f, 1.0f },
+                60.0f
+            };
+            if (!m_scene.cameras.empty())
+            {
+                camera = m_scene.cameras[0];
+            }
+
+            freeCameraInit(camera.pos, camera.orit, camera.fov);
 
             createBuffers();
             createImages();
@@ -151,8 +161,8 @@ namespace
             m_demoData.input.mousePosx = (float)m_mouseState.m_mx;
             m_demoData.input.mousePosy = (float)m_mouseState.m_my;
 
-            bx::Vec3 front = freeCameraGetFront();
-            bx::Vec3 pos = freeCameraGetPos();
+            vec3 front = freeCameraGetFront();
+            vec3 pos = freeCameraGetPos();
 
             m_demoData.logic.posX = pos.x;
             m_demoData.logic.posY = pos.y;
@@ -514,16 +524,17 @@ namespace
         void refreshData()
         {
             float znear = .1f;
-            mat4 projection = perspectiveProjection(glm::radians(70.f), (float)m_width / (float)m_height, znear);
+            mat4 projection = perspectiveProjection(freeCameraGetFov(), (float)m_width / (float)m_height, znear);
             mat4 projectionT = glm::transpose(projection);
             vec4 frustumX = normalizePlane(projectionT[3] - projectionT[0]);
             vec4 frustumY = normalizePlane(projectionT[3] - projectionT[1]);
             float lodErrThreshold = (2 / projection[1][1]) * (1.f / float(m_height)); // 1px
 
-            freeCameraGetViewMatrix(m_demoData.trans.view);
+            // freeCameraGetViewMatrix(m_demoData.trans.view);
+            m_demoData.trans.view = freeCameraGetViewMatrix();
             m_demoData.trans.proj = projection;
 
-            bx::Vec3 cameraPos = freeCameraGetPos();
+            vec3 cameraPos = freeCameraGetPos();
             m_demoData.trans.cameraPos.x = cameraPos.x;
             m_demoData.trans.cameraPos.y = cameraPos.y;
             m_demoData.trans.cameraPos.z = cameraPos.z;

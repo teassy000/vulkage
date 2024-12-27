@@ -729,6 +729,12 @@ namespace kage
 
     kage::BufferHandle Context::registBuffer(const char* _name, const BufferDesc& _desc, const Memory* _mem, const ResourceLifetime _lifetime)
     {
+        if (0 == _desc.size)
+        {
+            message(error, "buffer size is 0");
+            return BufferHandle{ kInvalidHandle };
+        }
+
         uint16_t idx = m_bufferHandles.alloc();
 
         BufferHandle handle = BufferHandle{ idx };

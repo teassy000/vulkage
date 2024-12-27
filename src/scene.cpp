@@ -31,6 +31,9 @@ struct SceneBiref
     uint32_t meshletVisibilityCount;
     uint32_t imageCount;
     uint32_t imageDataSize;
+    
+    // camera
+    uint32_t cameraCount;
 };
 
 enum class SceneDumpDataTags : uint32_t
@@ -46,6 +49,8 @@ enum class SceneDumpDataTags : uint32_t
     mesh_draw,
     image_info,
     image_data,
+    // camera
+    camera,
 };
 
 static Scene_Enum se = Scene_Enum::MatrixScene;
@@ -318,6 +323,7 @@ bool dumpScene(const Scene& _scene, const char* _path)
     brief.meshletVisibilityCount = _scene.meshletVisibilityCount;
     brief.imageCount = (uint32_t)_scene.images.size();
     brief.imageDataSize = (uint32_t)_scene.imageDatas.size();
+    brief.cameraCount = (uint32_t)_scene.cameras.size();
 
     fwrite(&brief, sizeof(SceneBiref), 1, file);
 
@@ -335,6 +341,9 @@ bool dumpScene(const Scene& _scene, const char* _path)
     size += writeToFile(SceneDumpDataTags::mesh_draw, (void*)_scene.meshDraws.data(), sizeof(MeshDraw), _scene.meshDraws.size(), file);
     size += writeToFile(SceneDumpDataTags::image_info, (void*)_scene.images.data(), sizeof(ImageInfo), _scene.images.size(), file);
     size += writeToFile(SceneDumpDataTags::image_data, (void*)_scene.imageDatas.data(), sizeof(uint8_t), _scene.imageDatas.size(), file);
+
+    // camera
+    size += writeToFile(SceneDumpDataTags::camera, (void*)_scene.cameras.data(), sizeof(Camera), _scene.cameras.size(), file);
 
     fclose(file);
 
@@ -366,6 +375,8 @@ void* getEntryPoint(Scene& _scene, SceneDumpDataTags _tag)
         return (void*)_scene.images.data();
     case SceneDumpDataTags::image_data:
         return (void*)_scene.imageDatas.data();
+    case SceneDumpDataTags::camera:
+        return (void*)_scene.cameras.data();
     default:
         return nullptr;
     }
@@ -393,6 +404,8 @@ size_t getStride(SceneDumpDataTags _tag)
         return sizeof(ImageInfo);
     case SceneDumpDataTags::image_data:
         return sizeof(uint8_t);
+    case SceneDumpDataTags::camera:
+        return sizeof(Camera);
     default:
         return 0;
     }
@@ -420,6 +433,8 @@ size_t getElementCount(Scene& _scene, SceneDumpDataTags _tag)
         return _scene.images.size();
     case SceneDumpDataTags::image_data:
         return _scene.imageDatas.size();
+    case SceneDumpDataTags::camera:
+        return _scene.cameras.size();
     default:
         return 0;
     }
@@ -457,6 +472,7 @@ bool loadSceneDump(Scene& _scene, const char* _path)
     _scene.meshDraws.resize(brief.drawCount);
     _scene.images.resize(brief.imageCount);
     _scene.imageDatas.resize(brief.imageDataSize);
+    _scene.cameras.resize(brief.cameraCount);
 
     size_t size = 0;
     while (true)

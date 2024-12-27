@@ -6,7 +6,7 @@
 
 struct alignas(16) TransformData
 {
-    float view[16];
+    mat4 view;
     mat4 proj;
     vec3 cameraPos;
 };
@@ -72,8 +72,9 @@ struct DemoData
     TransformData trans;
 };
 
-
-// left handed?
+// left handed
+// infinity far
+// z in [0, 1], 0 is near, 1 is far
 inline mat4 perspectiveProjection(float fovY, float aspectWbyH, float zNear)
 {
     float f = 1.0f / tanf(fovY / 2.0f);

@@ -84,6 +84,14 @@ namespace kage
 
     enum class ResourceFormat
     {
+        bc1,
+        bc2,
+        bc3,
+        bc4,
+        bc5,
+        bc6,
+        bc7,
+
         undefined, // plain color formats below
 
         r8_snorm,
