@@ -93,7 +93,7 @@ namespace
             Camera camera{
                 { 0.0f, 0.0f, 0.0f },
                 { 0.0f, 0.0f, 0.0f, 1.0f },
-                60.0f
+                60.f
             };
             if (!m_scene.cameras.empty())
             {
@@ -524,7 +524,7 @@ namespace
         void refreshData()
         {
             float znear = .1f;
-            mat4 projection = perspectiveProjection(freeCameraGetFov(), (float)m_width / (float)m_height, znear);
+            mat4 projection = perspectiveProjection(glm::radians(freeCameraGetFov()), (float)m_width / (float)m_height, znear);
             mat4 projectionT = glm::transpose(projection);
             vec4 frustumX = normalizePlane(projectionT[3] - projectionT[0]);
             vec4 frustumY = normalizePlane(projectionT[3] - projectionT[1]);

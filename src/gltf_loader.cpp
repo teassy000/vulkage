@@ -12,55 +12,63 @@
 
 #include <map>
 #include <string>
-#include "bx/math.h"
+#include "kage_math.h"
+#include "glm/gtc/quaternion.inl"
 
 
 // only inner 3x3 will be used
 float detMatrix(const float _mtx[4][4])
 {
-    return _mtx[0][0] * (_mtx[1][1] * _mtx[2][2] - _mtx[1][2] * _mtx[2][1]) -
+    return 
+        _mtx[0][0] * (_mtx[1][1] * _mtx[2][2] - _mtx[1][2] * _mtx[2][1]) -
         _mtx[0][1] * (_mtx[1][0] * _mtx[2][2] - _mtx[1][2] * _mtx[2][0]) +
         _mtx[0][2] * (_mtx[1][0] * _mtx[2][1] - _mtx[1][1] * _mtx[2][0]);
 }
 
-void decRotation(float _rot[4], const float _mtx[4][4], const float _scale[3])
+void decRotationMikeDay(float _rot[4], const float _mtx[4][4], const float _scale[3])
 {
     // normalize 
     float inv_sx = (_scale[0] == 0.f) ? 0.f : 1.f / _scale[0];
     float inv_sy = (_scale[1] == 0.f) ? 0.f : 1.f / _scale[1];
     float inv_sz = (_scale[2] == 0.f) ? 0.f : 1.f / _scale[2];
 
-    float r00 = _mtx[0][0] * inv_sx;
-    float r01 = _mtx[0][1] * inv_sy;
-    float r02 = _mtx[0][2] * inv_sz;
-    float r10 = _mtx[1][0] * inv_sx;
-    float r11 = _mtx[1][1] * inv_sy;
-    float r12 = _mtx[1][2] * inv_sz;
-    float r20 = _mtx[2][0] * inv_sx;
-    float r21 = _mtx[2][1] * inv_sy;
-    float r22 = _mtx[2][2] * inv_sz;
+    float r00 = _mtx[0][0] * inv_sx, r10 = _mtx[1][0] * inv_sy, r20 = _mtx[2][0] * inv_sz;
+    float r01 = _mtx[0][1] * inv_sx, r11 = _mtx[1][1] * inv_sy, r21 = _mtx[2][1] * inv_sz;
+    float r02 = _mtx[0][2] * inv_sx, r12 = _mtx[1][2] * inv_sy, r22 = _mtx[2][2] * inv_sz;
 
-    float t{ 0.f };
-    quat q{};
-    if (r22 < 0) {
-        if (r00 > r11) {
-            t = 1 + r00 - r11 - r22;
-            q = quat(t, r01 + r10, r20 + r02, r12 - r21);
-        } else {
-            t = 1 - r00 + r11 - r22;
-            q = quat(r01 + r10, t, r12 + r21, r20 - r02);
-        }
-    } else {
-        if (r00 < -r11) {
-            t = 1 - r00 - r11 + r22;
-            q = quat(r20 + r02, r12 + r21, t, r01 - r10);
-        } else {
-            t = 1 + r00 + r11 + r22;
-            q = quat(r12 - r21, r20 - r02, r01 - r10, t);
-        }
-    }
-    q *= 0.5f / bx::sqrt(t);
+    // "branchless" version of Mike Day's matrix to quaternion conversion
+    int qc = r22 < 0 ? (r00 > r11 ? 0 : 1) : (r00 < -r11 ? 2 : 3);
+    float qs1 = qc & 2 ? -1.f : 1.f;
+    float qs2 = qc & 1 ? -1.f : 1.f;
+    float qs3 = (qc - 1) & 2 ? -1.f : 1.f;
 
+    float qt = 1.f - qs3 * r00 - qs2 * r11 - qs1 * r22;
+    float qs = 0.5f / sqrtf(qt);
+
+    _rot[qc ^ 0] = qs * qt;
+    _rot[qc ^ 1] = qs * (r01 + qs1 * r10);
+    _rot[qc ^ 2] = qs * (r20 + qs2 * r02);
+    _rot[qc ^ 3] = qs * (r12 + qs3 * r21);
+}
+
+void decRotationGlm(float _rot[4], const float _mtx[4][4], const float _scale[3])
+{
+    // normalize 
+    float inv_sx = (_scale[0] == 0.f) ? 0.f : 1.f / _scale[0];
+    float inv_sy = (_scale[1] == 0.f) ? 0.f : 1.f / _scale[1];
+    float inv_sz = (_scale[2] == 0.f) ? 0.f : 1.f / _scale[2];
+
+    float r00 = _mtx[0][0] * inv_sx, r10 = _mtx[1][0] * inv_sy, r20 = _mtx[2][0] * inv_sz;
+    float r01 = _mtx[0][1] * inv_sx, r11 = _mtx[1][1] * inv_sy, r21 = _mtx[2][1] * inv_sz;
+    float r02 = _mtx[0][2] * inv_sx, r12 = _mtx[1][2] * inv_sy, r22 = _mtx[2][2] * inv_sz;
+    
+    mat3 m = mat3(
+        vec3(r00, r01, r02),
+        vec3(r10, r11, r12),
+        vec3(r20, r21, r22)
+    );
+
+    quat q = glm::quat_cast(m);
     _rot[0] = q.x;
     _rot[1] = q.y;
     _rot[2] = q.z;
@@ -84,12 +92,12 @@ void decomposeTransform(float _trans[3], float _rot[4], float _scale[3], const f
     float sign = (det < 0.f) ? -1.f : 1.f;
 
     // scale
-    _scale[0] = sign * bx::sqrt(m[0][0] * m[0][0] + m[0][1] * m[0][1] + m[0][2] * m[0][2]);
-    _scale[1] = sign * bx::sqrt(m[1][0] * m[1][0] + m[1][1] * m[1][1] + m[1][2] * m[1][2]);
-    _scale[2] = sign * bx::sqrt(m[2][0] * m[2][0] + m[2][1] * m[2][1] + m[2][2] * m[2][2]);
+    _scale[0] = sign * glm::sqrt(m[0][0] * m[0][0] + m[0][1] * m[0][1] + m[0][2] * m[0][2]);
+    _scale[1] = sign * glm::sqrt(m[1][0] * m[1][0] + m[1][1] * m[1][1] + m[1][2] * m[1][2]);
+    _scale[2] = sign * glm::sqrt(m[2][0] * m[2][0] + m[2][1] * m[2][1] + m[2][2] * m[2][2]);
 
     // rotation
-    decRotation(_rot, m, _scale);
+    decRotationGlm(_rot, m, _scale);
 }
 
 bool processMesh(Geometry& _geo, std::vector<std::pair<uint32_t, uint32_t>>& _prims, const cgltf_mesh* _gltfMesh, bool _buildMeshlet)
@@ -202,17 +210,17 @@ bool processNode(Scene& _scene, std::vector<std::pair<uint32_t, uint32_t>>& _pri
         {
             MeshDraw draw = {};
 
-            float mtx[16];
-            cgltf_node_transform_world(_node, mtx);
+            draw.pos[0] = _node->translation[0];
+            draw.pos[1] = _node->translation[1];
+            draw.pos[2] = _node->translation[2];
 
-            float trans[3];
-            float rot[4];
-            float scale[3];
-            decomposeTransform(trans, rot, scale, mtx);
+            // TODO: use the x scale temporary, fix it
+            draw.scale = glm::max(_node->scale[0], glm::max(_node->scale[1], _node->scale[2]));
 
-            draw.pos = vec3(trans[0], trans[1], trans[2]);
-            draw.orit = quat(rot[0], rot[1], rot[2], rot[3]);
-            draw.scale = bx::max(bx::abs(scale[0]), bx::max(bx::abs(scale[1]), bx::abs(scale[2])));
+            draw.orit[0] = _node->rotation[0];
+            draw.orit[1] = _node->rotation[1];
+            draw.orit[2] = _node->rotation[2];
+            draw.orit[3] = _node->rotation[3];
 
             draw.meshIdx = prim.first + ii;
 
