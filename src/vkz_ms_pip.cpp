@@ -79,7 +79,7 @@ void meshShadingRec(const MeshShading& _ms)
     kage::endRec();
 }
 
-void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t _width, uint32_t _height, const MeshShadingInitData _initData, bool _late /* = false*/)
+void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t _width, uint32_t _height, const MeshShadingInitData _initData, bool _late /*= false*/, bool _alphaPass /*= false*/)
 {
     kage::ShaderHandle ms= kage::registShader("mesh_shader", "shaders/meshlet.mesh.spv");
     kage::ShaderHandle ts = kage::registShader("task_shader", "shaders/meshlet.task.spv");
@@ -87,7 +87,7 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
 
     kage::ProgramHandle prog = kage::registProgram("mesh_prog", { ts, ms, fs }, sizeof(Globals), _initData.bindless);
 
-    int pipelineSpecs[] = { _late, {kage::kSeamlessLod == 1} };
+    int pipelineSpecs[] = { _late, _alphaPass, {kage::kSeamlessLod == 1} };
 
     const kage::Memory* pConst = kage::alloc(sizeof(int) * COUNTOF(pipelineSpecs));
     memcpy_s(pConst->data, pConst->size, pipelineSpecs, sizeof(int) * COUNTOF(pipelineSpecs));
@@ -103,7 +103,12 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
     desc.pipelineSpecNum = COUNTOF(pipelineSpecs);
     desc.pipelineSpecData = (void*)pConst->data;
 
-    const char* passName = _late ? "mesh_pass_late" : "mesh_pass_early";
+    const char* passName = 
+        _alphaPass 
+        ? "mesh_pass_alpha"
+        : _late 
+            ? "mesh_pass_late" 
+            : "mesh_pass_early";
     kage::PassHandle pass = kage::registPass(passName, desc);
 
     kage::BufferHandle mltVisBufOutAlias = kage::alias(_initData.meshletVisBuffer);
@@ -197,25 +202,22 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
     _meshShading.depthOutAlias = depthOutAlias;
 }
 
-void prepareTaskSubmit(TaskSubmit& _taskSubmit, kage::BufferHandle _drawCmdBuf, kage::BufferHandle _drawCmdCntBuf, bool _late /*= false*/)
+void prepareTaskSubmit(TaskSubmit& _taskSubmit, kage::BufferHandle _drawCmdBuf, kage::BufferHandle _drawCmdCntBuf, bool _late /*= false*/, bool _alphaPass /*= false*/)
 {
-    kage::ShaderHandle cs = kage::registShader("task_modify_shader", "shaders/taskModify.comp.spv");
+    kage::ShaderHandle cs = kage::registShader("task_modify_late", "shaders/taskModify.comp.spv");
 
-    kage::ProgramHandle prog = kage::registProgram("task_modify_prog", { cs });
-
-    int pipelineSpecs[] = { _late};
-
-    const kage::Memory* pConst = kage::alloc(sizeof(int) * COUNTOF(pipelineSpecs));
-    memcpy_s(pConst->data, pConst->size, pipelineSpecs, sizeof(int) * COUNTOF(pipelineSpecs));
+    kage::ProgramHandle prog = kage::registProgram("task_modify_late", { cs });
     
     kage::PassDesc desc{};
     desc.programId = prog.id;
     desc.queue = kage::PassExeQueue::compute;
 
-    desc.pipelineSpecNum = COUNTOF(pipelineSpecs);
-    desc.pipelineSpecData = (void*)pConst->data;
-
-    const char* passName = _late ? "task_modify_pass_late" : "task_modify_pass_early";
+    const char* passName = 
+        _alphaPass 
+        ? "task_modify_alpha"
+        : _late 
+            ? "task_modify_late" 
+            : "task_modify_early";
     kage::PassHandle pass = kage::registPass(passName, desc);
 
     kage::BufferHandle drawCmdBufferOutAlias = kage::alias(_drawCmdBuf);

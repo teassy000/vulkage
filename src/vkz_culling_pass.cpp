@@ -32,12 +32,12 @@ void cullingRec(const Culling& _cull, uint32_t _drawCount)
     kage::endRec();
 }
 
-void prepareCullingComp(Culling& _cullingComp, const CullingCompInitData& _initData, bool _late /*= false*/, bool _task /*= false*/)
+void prepareCullingComp(Culling& _cullingComp, const CullingCompInitData& _initData, bool _late /*= false*/, bool _task /*= false*/, bool _alphaPass /*= false*/)
 {
-    kage::ShaderHandle cs = kage::registShader("mesh_draw_cmd_shader", "shaders/drawcmd.comp.spv");
-    kage::ProgramHandle prog = kage::registProgram("mesh_draw_cmd_prog", { cs }, sizeof(MeshDrawCull));
+    kage::ShaderHandle cs = kage::registShader("mesh_draw_cmd", "shaders/drawcmd.comp.spv");
+    kage::ProgramHandle prog = kage::registProgram("mesh_draw_cmd", { cs }, sizeof(MeshDrawCull));
 
-    int pipelineSpecs[] = { _late, _task };
+    int pipelineSpecs[] = { _late, _task, _alphaPass };
 
     const kage::Memory* pConst = kage::alloc(sizeof(int) * COUNTOF(pipelineSpecs));
     memcpy_s(pConst->data, pConst->size, pipelineSpecs, sizeof(int) * COUNTOF(pipelineSpecs));
@@ -48,7 +48,12 @@ void prepareCullingComp(Culling& _cullingComp, const CullingCompInitData& _initD
     passDesc.pipelineSpecNum = COUNTOF(pipelineSpecs);
     passDesc.pipelineSpecData = (void*)pConst->data;
 
-    const char* passName = _late ? "cull_pass_late" : "cull_pass_early";
+    const char* passName = 
+        _alphaPass 
+        ? "cull_pass_alpha"
+        : _late 
+            ? "cull_pass_late" 
+            : "cull_pass_early";
     kage::PassHandle pass = kage::registPass(passName, passDesc);
 
     kage::BufferHandle drawCmdOutAlias = kage::alias(_initData.meshDrawCmdBuf);

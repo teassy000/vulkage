@@ -12,6 +12,7 @@ layout(local_size_x = TASKGP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
 layout(constant_id = 0) const bool LATE = false;
 layout(constant_id = 1) const bool TASK = false;
+layout(constant_id = 2) const bool ALPHA_PASS = false;
 
 layout(push_constant) uniform block 
 {
@@ -62,14 +63,18 @@ void main()
 {
     uint di = gl_GlobalInvocationID.x;
 
-    // the early cull only handle objects that visiable depends on last frame 
-    if(!LATE && drawVisibility[di] == 0 && cull.enableOcclusion == 1)
+    MeshDraw draw = draws[di];
+    if (draw.withAlpha > 0 && !ALPHA_PASS)
         return;
 
-    Mesh mesh = meshes[draws[di].meshIdx];
+    // the early cull only handle objects that visiable depends on last frame 
+    if (!LATE && drawVisibility[di] == 0 && cull.enableOcclusion == 1)
+        return;
 
-    vec4 center = transform.view * vec4(rotateQuat(mesh.center, draws[di].orit) * draws[di].scale + draws[di].pos, 1.0);
-    float radius = mesh.radius * draws[di].scale;
+    Mesh mesh = meshes[draw.meshIdx];
+
+    vec4 center = transform.view * vec4(rotateQuat(mesh.center, draw.orit) * draw.scale + draw.pos, 1.0);
+    float radius = mesh.radius * draw.scale;
 
     bool visible = true;
     visible = visible && (center.z * cull.frustum[1] + abs(center.x) * cull.frustum[0] > -radius);
@@ -102,7 +107,7 @@ void main()
     if(visible && (!LATE || cull.enableMeshletOcclusion == 1 || drawVisibility[di] == 0))
     {
         float dist = max(length(center.xyz) - radius, 0);
-        float threshold = dist * cull.lodErrorThreshold / draws[di].scale;
+        float threshold = dist * cull.lodErrorThreshold / draw.scale;
         uint lodIdx = 0;
         for (uint ii = 0; ii < mesh.lodCount; ++ii){
             if (mesh.lods[ii].error < threshold){
@@ -117,7 +122,7 @@ void main()
             uint taskGroupCount = (lod.meshletCount + TASKGP_SIZE - 1) / TASKGP_SIZE; // each task group handle TASKGP_SIZE meshlets
             uint dci = atomicAdd(drawCmdCount, taskGroupCount);
 
-            uint meshletVisibilityOffset = draws[di].meshletVisibilityOffset;
+            uint meshletVisibilityOffset = draw.meshletVisibilityOffset;
             uint lateDrawVisibility = drawVisibility[di];
 
             // the command for each command idx is the same

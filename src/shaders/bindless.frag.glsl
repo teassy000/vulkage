@@ -72,6 +72,8 @@ void main()
     if (mDraw.emissiveTex > 0)
     {
         emissive = texture(textures[nonuniformEXT(mDraw.emissiveTex)], in_uv);
+        outputColor = vec4(emissive.rgb, 1.0);
+        return;
     }
 
     vec3 bitan = cross(in_norm, in_tan.xyz) * in_tan.w;
@@ -80,12 +82,11 @@ void main()
     float lightIntensity = 2.0;
     float indirectIntensity = 0.64;
 
-    vec3 baseColor = albedo.rgb;
-
-    float occlusion = specular.r;    // for bistor
+    float occlusion = specular.r;    
     float roughness = specular.g;
     float matalness = specular.b;
-    // vec3 baseColor = vec3(specular.r); // for env-test
+    //vec3 baseColor = vec3(specular.r); // for env-test
+    vec3 baseColor = albedo.rgb; // for bistor
 
     vec3 lightColor = vec3(0.98, 0.92, 0.89);
 

@@ -29,6 +29,7 @@ struct MeshShadingInitData
 struct MeshShading
 {
     bool late{ false };
+    bool alphaPass{ false };
 
     kage::PassHandle pass;
 
@@ -71,12 +72,6 @@ struct MeshShading
     Globals globals;
 };
 
-struct MeshShadingConfig
-{
-    bool late{ false };
-    bool task{ false };
-};
-
 struct TaskSubmit
 {
     kage::PassHandle pass;
@@ -89,9 +84,9 @@ struct TaskSubmit
     kage::BufferHandle drawCmdBufferOutAlias;
 };
 
-void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t _width, uint32_t _height, const MeshShadingInitData _initData, bool _late = false);
+void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t _width, uint32_t _height, const MeshShadingInitData _initData, bool _late = false, bool _alphaPass = false);
 
-void prepareTaskSubmit(TaskSubmit& _taskSubmit, kage::BufferHandle _drawCmdBuf, kage::BufferHandle _drawCmdCntBuf, bool _late = false);
+void prepareTaskSubmit(TaskSubmit& _taskSubmit, kage::BufferHandle _drawCmdBuf, kage::BufferHandle _drawCmdCntBuf, bool _late = false, bool _alphaPass = false);
 
 
 void updateTaskSubmit(const TaskSubmit& _taskSubmit);

@@ -274,10 +274,10 @@ bool processNode(Scene& _scene, std::vector<std::pair<uint32_t, uint32_t>>& _pri
         _scene.meshletVisibilityCount = meshletVisibilityOffset;
         _scene.drawCount = (uint32_t)_scene.meshDraws.size();
     }
-    
+
     // light?
 
-    // camera?
+    // camera
     if (_node->camera)
     {
         if (_node->camera->type == cgltf_camera_type_perspective)

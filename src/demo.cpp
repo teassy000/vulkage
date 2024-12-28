@@ -135,14 +135,17 @@ namespace
 
             updateCulling(m_culling, m_demoData.drawCull, m_scene.drawCount);
             updateCulling(m_cullingLate, m_demoData.drawCull, m_scene.drawCount);
+            updateCulling(m_cullingAlpha, m_demoData.drawCull, m_scene.drawCount);
 
             if (m_supportMeshShading)
             {
                 updateTaskSubmit(m_taskSubmit);
                 updateTaskSubmit(m_taskSubmitLate);
+                updateTaskSubmit(m_taskSubmitAlpha);
 
                 updateMeshShading(m_meshShading, m_demoData.globals);
                 updateMeshShading(m_meshShadingLate, m_demoData.globals);
+                updateMeshShading(m_meshShadingAlpha, m_demoData.globals);
             }
             else
             {
@@ -505,17 +508,59 @@ namespace
                 prepareMeshShading(m_meshShadingLate, m_scene, m_width, m_height, msInit, true);
             }
 
+            // cull alpha
             {
-                kage::ImageHandle aaDepthIn = m_supportMeshShading ? m_meshShadingLate.depthOutAlias : m_vtxShadingLate.depthOutAlias;
+                CullingCompInitData cullingInit{};
+                cullingInit.meshBuf = m_meshBuf;
+                cullingInit.meshDrawBuf = m_meshDrawBuf;
+                cullingInit.transBuf = m_transformBuf;
+                cullingInit.pyramid = m_pyramid.imgOutAlias;
+                cullingInit.meshDrawCmdBuf = m_supportMeshShading ? m_taskSubmitLate.drawCmdBufferOutAlias : m_cullingLate.meshDrawCmdBufOutAlias;
+                cullingInit.meshDrawCmdCountBuf = m_cullingLate.meshDrawCmdCountBufOutAlias;
+                cullingInit.meshDrawVisBuf = m_cullingLate.meshDrawVisBufOutAlias;
+                prepareCullingComp(m_cullingAlpha, cullingInit, true, m_supportMeshShading, true);
+            }
 
-                kage::ImageHandle aaColorIn = m_supportMeshShading ? m_meshShadingLate.colorOutAlias : m_vtxShadingLate.colorOutAlias;
+            // alpha 
+            if (!m_supportMeshShading)
+            {
+                // vtx pass
+            }
+            else
+            {
+                prepareTaskSubmit(m_taskSubmitAlpha, m_cullingAlpha.meshDrawCmdBufOutAlias, m_cullingAlpha.meshDrawCmdCountBufOutAlias, true, true);
+
+                MeshShadingInitData msInit{};
+                msInit.vtxBuffer = m_vtxBuf;
+                msInit.meshBuffer = m_meshBuf;
+                msInit.meshletBuffer = m_meshletBuffer;
+                msInit.meshletDataBuffer = m_meshletDataBuffer;
+                msInit.meshDrawBuffer = m_meshDrawBuf;
+                msInit.meshDrawCmdBuffer = m_taskSubmitAlpha.drawCmdBufferOutAlias;
+                msInit.meshDrawCmdCountBuffer = m_cullingAlpha.meshDrawCmdCountBufOutAlias;
+                msInit.meshletVisBuffer = m_meshShadingLate.meshletVisBufferOutAlias;
+                msInit.transformBuffer = m_transformBuf;
+                
+                msInit.pyramid = m_pyramid.imgOutAlias;
+                msInit.color = m_meshShadingLate.colorOutAlias;
+                msInit.depth = m_meshShadingLate.depthOutAlias;
+                
+                msInit.bindless = m_bindlessArray;
+                prepareMeshShading(m_meshShadingAlpha, m_scene, m_width, m_height, msInit, true, true);
+            }
+
+            // smaa
+            {
+                kage::ImageHandle aaDepthIn = m_supportMeshShading ? m_meshShadingAlpha.depthOutAlias : m_vtxShadingLate.depthOutAlias;
+
+                kage::ImageHandle aaColorIn = m_supportMeshShading ? m_meshShadingAlpha.colorOutAlias : m_vtxShadingLate.colorOutAlias;
 
                 m_smaa.prepare(m_width, m_height, aaColorIn, aaDepthIn);
             }
 
             {
                 kage::ImageHandle uiColorIn = m_smaa.m_outAliasImg;
-                kage::ImageHandle uiDepthIn = m_supportMeshShading ? m_meshShadingLate.depthOutAlias : m_vtxShadingLate.depthOutAlias;
+                kage::ImageHandle uiDepthIn = m_supportMeshShading ? m_meshShadingAlpha.depthOutAlias : m_vtxShadingLate.depthOutAlias;
 
                 prepareUI(m_ui, uiColorIn, uiDepthIn, 1.3f);
             }
@@ -621,10 +666,13 @@ namespace
         
         TaskSubmit m_taskSubmit{};
         TaskSubmit m_taskSubmitLate{};
+        TaskSubmit m_taskSubmitAlpha{};
         Culling m_culling{};
         Culling m_cullingLate{};
+        Culling m_cullingAlpha{};
         MeshShading m_meshShading{};
         MeshShading m_meshShadingLate{};
+        MeshShading m_meshShadingAlpha{};
         VtxShading m_vtxShading{};
         VtxShading m_vtxShadingLate{};
         Skybox m_skybox{};

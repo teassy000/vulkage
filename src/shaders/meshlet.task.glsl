@@ -13,7 +13,8 @@
 #include "math.h"
 
 layout(constant_id = 0) const bool LATE = false;
-layout(constant_id = 1) const bool SEAMLESS_LOD = false;
+layout(constant_id = 1) const bool ALPHA_PASS = false;
+layout(constant_id = 2) const bool SEAMLESS_LOD = false;
 
 #define CULL 1
 
@@ -102,18 +103,21 @@ void main()
     bool valid = (mLocalId < taskCount);
     bool visible = valid;
 
-    if (globals.enableMeshletOcclusion == 1)
+    if (!ALPHA_PASS && globals.enableMeshletOcclusion == 1 )
     {
         // the meshlet visibility is using bit mask
         // mvIdx in range [0, meshletCount]
         // mvIdx >> 5 means divide by 32, so we can get the index of the visibility(which is uint32_t)
         // (1u << (mvIdx & 31) means get the bit index in the uint32_t
         uint mlvBit = (meshletVisibility[mvIdx >> 5] & (1u << (mvIdx & 31)));
-        if (!LATE && (mlvBit == 0)) // deny invisible object in early pass
+
+        // early pass only handle objects that visiable depends on last frame
+        if (!LATE && (mlvBit == 0))
         {
             visible = false;
         }
 
+        // late pass only handle those meshlet *should* visiable but not draw in early pass
         if (LATE && mlvBit != 0 && lateDrawVisibility == 1)
         {
             skip = true;
