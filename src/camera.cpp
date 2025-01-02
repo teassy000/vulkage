@@ -122,8 +122,8 @@ struct FreeCamera
 
     void updateVecs()
     {
-        m_front = glm::normalize(m_rot * vec3(0.0f, 0.0f, -1.0f));
-        m_right = glm::normalize(glm::cross(m_front, m_up));
+        m_front = glm::normalize(m_rot * vec3(0.0f, 0.0f, 1.0f));
+        m_right = glm::normalize(glm::cross(m_up, m_front));
     }
 
     void processKey(float _deltaTime)
@@ -183,8 +183,8 @@ struct FreeCamera
         xdelta *= m_mouseSpeed;
         ydelta *= m_mouseSpeed;
 
-        quat qu = glm::angleAxis(glm::radians(-xdelta), vec3(0, 1, 0)); // yaw
-        quat qr = glm::angleAxis(glm::radians(-ydelta), vec3(1, 0, 0)); // pitch
+        quat qu = glm::angleAxis(glm::radians(xdelta), vec3(0, 1, 0)); // yaw
+        quat qr = glm::angleAxis(glm::radians(ydelta), vec3(1, 0, 0)); // pitch
 
         m_rot = qu  * m_rot * qr;
 
@@ -199,10 +199,13 @@ struct FreeCamera
 
     mat4 getViewMat()
     {
-        mat4 view = glm::mat4_cast(m_rot);
-        view[3] = vec4(m_pos, 1.0f);
-        view = glm::inverse(view);
-        view = glm::scale(glm::identity<mat4>(), vec3(1, 1, -1)) * view;
+        mat4 view = glm::lookAtLH(
+            m_pos,
+            m_pos + m_front,
+            m_up
+        );
+
+
         return view;
     }
 
@@ -213,7 +216,7 @@ struct FreeCamera
         m_pos.z = -10.0f;
 
         m_up = { 0.0f, 1.0f, 0.0f }; // y up
-        m_front = { 0.0f, 0.0f, -1.0f }; // z forward
+        m_front = { 0.0f, 0.0f, 1.0f }; // z forward
 
         m_mouseSpeed = 0.03f;
         m_gamepadSpeed = 0.01f;

@@ -82,7 +82,7 @@ void main()
     float lightIntensity = 2.0;
     float indirectIntensity = 0.64;
 
-    float occlusion = specular.r;    
+    float occlusion = specular.r;
     float roughness = specular.g;
     float matalness = specular.b;
     //vec3 baseColor = vec3(specular.r); // for env-test
@@ -90,7 +90,7 @@ void main()
 
     vec3 lightColor = vec3(0.98, 0.92, 0.89);
 
-    vec3 l = normalize(-vec3(0.7, 0.5, 0.7)); // in world space, from surface to light source
+    vec3 l = normalize(vec3(0.7, 1.0, 0.7)); // in world space, from surface to light source
     vec3 v = normalize(vec3(trans.cameraPos - in_wPos)); // from surface to observer
 
     // BRDF
@@ -137,6 +137,7 @@ void main()
     if (albedo.a < 0.5)
          discard;
 
+    vec3 innorm = (n + 1.0) * 0.5;
     outputColor = vec4(vec3(color), 1.0);
 #endif
 }

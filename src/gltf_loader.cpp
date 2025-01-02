@@ -15,6 +15,10 @@
 #include "kage_math.h"
 #include "glm/gtc/quaternion.inl"
 
+// since gltf is using right handed system
+// we need to flip the z axis
+static float handednessFactor = -1.f;
+static float windingOrderFactor = -1.f;
 
 // only inner 3x3 will be used
 float detMatrix(const float _mtx[4][4])
@@ -75,6 +79,16 @@ void decRotationGlm(float _rot[4], const float _mtx[4][4], const float _scale[3]
     _rot[3] = q.w;
 }
 
+float windingOrderSign(const float* _transform)
+{
+    float m[4][4] = {};
+    bx::memCopy(m, _transform, sizeof(m));
+
+    float det = detMatrix(m);
+
+    return (det < 0.f) ? 1.f : -1.f;
+}
+
 void decomposeTransform(float _trans[3], float _rot[4], float _scale[3], const float* _transform)
 {
     float m[4][4] = {};
@@ -87,9 +101,9 @@ void decomposeTransform(float _trans[3], float _rot[4], float _scale[3], const f
 
     // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#instantiation
     // det < 0, then cw, else ccw
-    // here we want the ccw which is the default for glTF
+    // here we want the cw which glTF uses ccw;
     float det = detMatrix(m);
-    float sign = (det < 0.f) ? -1.f : 1.f;
+    float sign = (det < 0.f) ? 1.f : -1.f;
 
     // scale
     _scale[0] = sign * glm::sqrt(m[0][0] * m[0][0] + m[0][1] * m[0][1] + m[0][2] * m[0][2]);
@@ -128,7 +142,7 @@ bool processMesh(Geometry& _geo, std::vector<std::pair<uint32_t, uint32_t>>& _pr
             {
                 vertices[jj].vx = scratch[jj * 3 + 0];
                 vertices[jj].vy = scratch[jj * 3 + 1];
-                vertices[jj].vz = scratch[jj * 3 + 2];
+                vertices[jj].vz = scratch[jj * 3 + 2] * handednessFactor;
             }
         }
 
@@ -142,9 +156,9 @@ bool processMesh(Geometry& _geo, std::vector<std::pair<uint32_t, uint32_t>>& _pr
             assert(sz == vtxCount * 3);
             for (size_t jj = 0; jj < vtxCount; ++jj)
             {
-                vertices[jj].nx = uint8_t(scratch[jj * 3 + 0] * 127.f + 127.5f);
-                vertices[jj].ny = uint8_t(scratch[jj * 3 + 1] * 127.f + 127.5f);
-                vertices[jj].nz = uint8_t(scratch[jj * 3 + 2] * 127.f + 127.5f);
+                vertices[jj].nx = uint8_t(scratch[jj * 3 + 0] * windingOrderFactor * 127.f + 127.5f);
+                vertices[jj].ny = uint8_t(scratch[jj * 3 + 1] * windingOrderFactor * 127.f + 127.5f);
+                vertices[jj].nz = uint8_t(scratch[jj * 3 + 2] * windingOrderFactor * handednessFactor * 127.f + 127.5f);
                 vertices[jj].nw = uint8_t(0);
             }
         }
@@ -161,8 +175,8 @@ bool processMesh(Geometry& _geo, std::vector<std::pair<uint32_t, uint32_t>>& _pr
             {
                 vertices[jj].tx = uint8_t(scratch[jj * 4 + 0] * 127.f + 127.5f);
                 vertices[jj].ty = uint8_t(scratch[jj * 4 + 1] * 127.f + 127.5f);
-                vertices[jj].tz = uint8_t(scratch[jj * 4 + 2] * 127.f + 127.5f);
-                vertices[jj].tw = uint8_t(scratch[jj * 4 + 3] * 127.f + 127.5f);
+                vertices[jj].tz = uint8_t(scratch[jj * 4 + 2] * handednessFactor * 127.f + 127.5f);
+                vertices[jj].tw = uint8_t(scratch[jj * 4 + 3] * handednessFactor * 127.f + 127.5f);
             }
         }
 
@@ -184,6 +198,15 @@ bool processMesh(Geometry& _geo, std::vector<std::pair<uint32_t, uint32_t>>& _pr
         // -- indices
         std::vector<uint32_t> indices(prim.indices->count);
         cgltf_accessor_unpack_indices(prim.indices, indices.data(), sizeof(uint32_t), indices.size());
+
+        // swap the winding order if needed
+        if (handednessFactor < 0.f)
+        {
+            for (size_t jj = 0; jj < indices.size(); jj += 3)
+            {
+                std::swap(indices[jj + 1], indices[jj + 2]);
+            }
+        }
 
         appendMesh(_geo, vertices, indices, _buildMeshlet);
     }
@@ -212,15 +235,15 @@ bool processNode(Scene& _scene, std::vector<std::pair<uint32_t, uint32_t>>& _pri
 
             draw.pos[0] = _node->translation[0];
             draw.pos[1] = _node->translation[1];
-            draw.pos[2] = _node->translation[2];
+            draw.pos[2] = _node->translation[2] * handednessFactor;
 
             // TODO: use the x scale temporary, fix it
             draw.scale = glm::max(_node->scale[0], glm::max(_node->scale[1], _node->scale[2]));
 
             draw.orit[0] = _node->rotation[0];
             draw.orit[1] = _node->rotation[1];
-            draw.orit[2] = _node->rotation[2];
-            draw.orit[3] = _node->rotation[3];
+            draw.orit[2] = _node->rotation[2] * handednessFactor;
+            draw.orit[3] = _node->rotation[3] * handednessFactor;
 
             draw.meshIdx = prim.first + ii;
 
@@ -282,19 +305,20 @@ bool processNode(Scene& _scene, std::vector<std::pair<uint32_t, uint32_t>>& _pri
     {
         if (_node->camera->type == cgltf_camera_type_perspective)
         {
-            float mtx[16];
-            cgltf_node_transform_world(_node, mtx);
-
-            float trans[3];
-            float rot[4];
-            float scale[3];
-            decomposeTransform(trans, rot, scale, mtx);
+            
 
             Camera camera{};
-            camera.pos = vec3{ trans[0], trans[1], trans[2] };
-            camera.orit = quat{ rot[0], rot[1], rot[2], rot[3] };
-            camera.fov = _node->camera->data.perspective.yfov;
 
+            camera.pos[0] = _node->translation[0];
+            camera.pos[1] = _node->translation[1];
+            camera.pos[2] = _node->translation[2] * handednessFactor;
+
+            camera.orit[0] = _node->rotation[0];
+            camera.orit[1] = _node->rotation[1];
+            camera.orit[2] = _node->rotation[2] * handednessFactor;
+            camera.orit[3] = _node->rotation[3] * handednessFactor;
+
+            camera.fov = _node->camera->data.perspective.yfov;
             _scene.cameras.emplace_back(camera);
         }
         else
