@@ -42,10 +42,10 @@ void meshShadingRec(const MeshShading& _ms)
         {_ms.meshDrawCmdBuffer, Access::read,       Stage::task_shader | Stage::mesh_shader},
         {_ms.meshBuffer,        Access::read,       Stage::task_shader | Stage::mesh_shader},
         {_ms.meshDrawBuffer,    Access::read,       Stage::task_shader | Stage::mesh_shader},
+        {_ms.transformBuffer,   Access::read,       Stage::task_shader | Stage::mesh_shader | Stage::fragment_shader},
+        {_ms.vtxBuffer,         Access::read,       Stage::task_shader | Stage::mesh_shader},
         {_ms.meshletBuffer,     Access::read,       Stage::task_shader | Stage::mesh_shader},
         {_ms.meshletDataBuffer, Access::read,       Stage::task_shader | Stage::mesh_shader},
-        {_ms.vtxBuffer,         Access::read,       Stage::task_shader | Stage::mesh_shader},
-        {_ms.transformBuffer,   Access::read,       Stage::task_shader | Stage::mesh_shader | Stage::fragment_shader},
         {_ms.meshletVisBuffer,  Access::read_write, Stage::task_shader | Stage::mesh_shader},
         {_ms.pyramid,       _ms.pyramidSampler,     Stage::task_shader | Stage::mesh_shader}
     };
@@ -59,8 +59,6 @@ void meshShadingRec(const MeshShading& _ms)
 
     kage::setViewport(0, 0, (uint32_t)_ms.globals.screenWidth, (uint32_t)_ms.globals.screenHeight);
     kage::setScissor(0, 0, (uint32_t)_ms.globals.screenWidth, (uint32_t)_ms.globals.screenHeight);
-
-
 
     kage::Attachment attachments[] = {
         {_ms.color, LoadOp::dont_care, StoreOp::store},
@@ -130,22 +128,22 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
         , kage::PipelineStageFlagBits::task_shader
         , kage::AccessFlagBits::shader_read);
 
-    kage::bindBuffer(pass, _initData.meshletBuffer
+    kage::bindBuffer(pass, _initData.transformBuffer
         , 3
         , kage::PipelineStageFlagBits::task_shader
         , kage::AccessFlagBits::shader_read);
 
-    kage::bindBuffer(pass, _initData.meshletDataBuffer
+    kage::bindBuffer(pass, _initData.vtxBuffer
         , 4
         , kage::PipelineStageFlagBits::task_shader
         , kage::AccessFlagBits::shader_read);
 
-    kage::bindBuffer(pass, _initData.vtxBuffer
+    kage::bindBuffer(pass, _initData.meshletBuffer
         , 5
         , kage::PipelineStageFlagBits::task_shader
         , kage::AccessFlagBits::shader_read);
 
-    kage::bindBuffer(pass, _initData.transformBuffer
+    kage::bindBuffer(pass, _initData.meshletDataBuffer
         , 6
         , kage::PipelineStageFlagBits::task_shader
         , kage::AccessFlagBits::shader_read);

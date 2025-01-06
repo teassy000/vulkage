@@ -2566,7 +2566,18 @@ namespace kage { namespace vk
             write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
             write.pImageInfo = &imgInfo;
             vkUpdateDescriptorSets(m_device, 1, &write, 0, nullptr);
+
+
+            m_barrierDispatcher.barrier(
+                img.image
+                , img.aspectMask
+                , { VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT }
+            );
         }
+
+        // dispatch barriers for all images as shader read only
+        dispatchBarriers();
+
     }
 
     void RHIContext_vk::setBrief(bx::MemoryReader& _reader)
@@ -3260,7 +3271,6 @@ namespace kage { namespace vk
             , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
         );
 
-
         memcpy(scratch.data, _data, _size);
 
         const Image_vk& vkImg = getImage(_imgId);
@@ -3273,8 +3283,6 @@ namespace kage { namespace vk
         );
 
         dispatchBarriers();
-
-        
 
         uint32_t blockSz = (imgInfo.format < ResourceFormat::undefined) ? getBCBlcokSz(vkImg.format) : 0;
         uint32_t size = (imgInfo.format < ResourceFormat::undefined) ? getBCImageSize(vkImg.width, vkImg.height, vkImg.numMips, blockSz) : _size;

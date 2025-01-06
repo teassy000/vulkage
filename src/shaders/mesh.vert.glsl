@@ -20,14 +20,14 @@ layout(binding = 0) readonly buffer DrawCommands
     MeshDrawCommand drawCmds[];
 };
 
-layout(binding = 1) readonly buffer MeshDraws
-{
-    MeshDraw meshDraws[];
-};
-
-layout(binding = 2) readonly buffer Vertices
+layout(binding = 1) readonly buffer Vertices
 {
     Vertex vertices[];
+};
+
+layout(binding = 2) readonly buffer MeshDraws
+{
+    MeshDraw meshDraws[];
 };
 
 layout(binding = 3) readonly uniform Transform 
@@ -35,9 +35,11 @@ layout(binding = 3) readonly uniform Transform
     TransformData trans;
 };
 
-layout(location = 0) out vec4 outColor;
-layout(location = 1) out vec3 outWorldPos;
-layout(location = 2) out vec3 outNormal;
+layout(location = 0) out flat uint out_drawId;
+layout(location = 1) out vec3 out_wPos;
+layout(location = 2) out vec3 out_norm;
+layout(location = 3) out vec4 out_tan;
+layout(location = 4) out vec2 out_uv;
 
 void main()
 {
@@ -47,6 +49,7 @@ void main()
 
     vec3 pos = vec3(vertices[gl_VertexIndex].vx, vertices[gl_VertexIndex].vy, vertices[gl_VertexIndex].vz);
     vec3 norm = vec3(int(vertices[gl_VertexIndex].nx), int(vertices[gl_VertexIndex].ny), int(vertices[gl_VertexIndex].nz)) / 127.0 - 1;
+    vec4 tan = vec4(int(vertices[gl_VertexIndex].tx), int(vertices[gl_VertexIndex].ty), int(vertices[gl_VertexIndex].tz), int(vertices[gl_VertexIndex].tw)) / 127.0 - 1;
     vec2 uv = vec2(vertices[gl_VertexIndex].tu, vertices[gl_VertexIndex].tv);
 
     norm = rotateQuat(norm, meshDraw.orit);
@@ -54,7 +57,9 @@ void main()
 
     gl_Position = trans.proj * trans.view * vec4(result, 1.0);
 
-    outColor = vec4(norm * 0.5 + vec3(0.5), 1.0);
-    outWorldPos = result;
-    outNormal = norm;
+    out_drawId = drawId;
+    out_wPos = result;
+    out_norm = norm;
+    out_tan = tan;
+    out_uv = uv;
 }

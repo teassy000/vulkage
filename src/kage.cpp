@@ -2267,7 +2267,7 @@ namespace kage
 
     void Context::drawIndexed(const BufferHandle _hIndirectBuf, const uint32_t _offset, const BufferHandle _countBuf, const uint32_t _countOffset, const uint32_t _maxCount, const uint32_t _stride)
     {
-        BX_ASSERT(0, "NOT IMPLEMENTED YET!!!");
+        m_cmdQueue.cmdRecordDrawIndexedIndirectCount(_hIndirectBuf, _offset, _countBuf, _countOffset, _maxCount, _stride);
     }
 
     void Context::drawMeshTask(const uint32_t _groupCountX, const uint32_t _groupCountY, const uint32_t _groupCountZ)

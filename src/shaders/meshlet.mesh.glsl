@@ -24,39 +24,39 @@ layout(push_constant) uniform block
     Globals globals;
 };
 // readonly
-layout(binding = 2) readonly buffer MeshDraws 
+layout(binding = 2) readonly buffer MeshDraws
 {
-    MeshDraw meshDraws[];
+    MeshDraw meshDraws [];
 };
 
-layout(binding = 3) readonly buffer Clusters
+layout(binding = 3) readonly uniform Transform
 {
-    Cluster clusters[];
+    TransformData trans;
 };
 
-layout(binding = 3) readonly buffer Meshlets
+layout(binding = 4) readonly buffer Vertices
+{
+    Vertex vertices [];
+};
+
+layout(binding = 5) readonly buffer Clusters
+{
+    Cluster clusters [];
+};
+
+layout(binding = 5) readonly buffer Meshlets
 {
     Meshlet meshlets[];
 };
 
-layout(binding = 4) readonly buffer MeshletData
+layout(binding = 6) readonly buffer MeshletData
 {
     uint meshletData[];
 };
 
-layout(binding = 4) readonly buffer MeshletData8
+layout(binding = 6) readonly buffer MeshletData8
 {
     uint8_t meshletData8[];
-};
-
-layout(binding = 5) readonly buffer Vertices
-{
-    Vertex vertices[];
-};
-
-layout(binding = 6) readonly uniform Transform
-{
-    TransformData trans;
 };
 
 layout(location = 0) out flat uint out_drawId[];

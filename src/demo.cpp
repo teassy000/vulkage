@@ -275,15 +275,6 @@ namespace
                 m_meshDrawVisBuf = kage::registBuffer("meshDrawVis", meshDrawVisBufDesc);
             }
 
-            // meshlet visibility buffer
-            {
-                kage::BufferDesc meshletVisBufDesc;
-                meshletVisBufDesc.size = (m_scene.meshletVisibilityCount + 31) / 32 * sizeof(uint32_t);
-                meshletVisBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::indirect | kage::BufferUsageFlagBits::transfer_dst;
-                meshletVisBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
-                m_meshletVisBuf = kage::registBuffer("meshletVis", meshletVisBufDesc);
-            }
-
             // index buffer
             {
                 const kage::Memory* memIdxBuf = kage::alloc((uint32_t)(m_scene.geometry.indices.size() * sizeof(uint32_t)));
@@ -308,37 +299,6 @@ namespace
                 m_vtxBuf = kage::registBuffer("vtx", vtxBufDesc, memVtxBuf);
             }
 
-            // meshlet buffer
-            {
-                size_t sz = (kage::kSeamlessLod == 1)
-                    ? m_scene.geometry.clusters.size() * sizeof(Cluster)
-                    : m_scene.geometry.meshlets.size() * sizeof(Meshlet);
-
-                const kage::Memory* memMeshletBuf = kage::alloc((uint32_t)sz);
-                void* srcData = (kage::kSeamlessLod == 1)
-                    ? (void*)m_scene.geometry.clusters.data()
-                    : (void*)m_scene.geometry.meshlets.data();
-                memcpy(memMeshletBuf->data, srcData, memMeshletBuf->size);
-
-                kage::BufferDesc meshletBufferDesc;
-                meshletBufferDesc.size = memMeshletBuf->size;
-                meshletBufferDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
-                meshletBufferDesc.memFlags = kage::MemoryPropFlagBits::device_local;
-                m_meshletBuffer = kage::registBuffer("meshlet(cluster)_buffer", meshletBufferDesc, memMeshletBuf);
-            }
-
-            // meshlet data buffer
-            {
-                const kage::Memory* memMeshletDataBuf = kage::alloc((uint32_t)(m_scene.geometry.meshletdata.size() * sizeof(uint32_t)));
-                memcpy(memMeshletDataBuf->data, m_scene.geometry.meshletdata.data(), memMeshletDataBuf->size);
-
-                kage::BufferDesc meshletDataBufferDesc;
-                meshletDataBufferDesc.size = memMeshletDataBuf->size;
-                meshletDataBufferDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
-                meshletDataBufferDesc.memFlags = kage::MemoryPropFlagBits::device_local;
-                m_meshletDataBuffer = kage::registBuffer("meshlet_data_buffer", meshletDataBufferDesc, memMeshletDataBuf);
-            }
-
             // transform
             {
                 kage::BufferDesc transformBufDesc;
@@ -346,6 +306,49 @@ namespace
                 transformBufDesc.usage = kage::BufferUsageFlagBits::uniform | kage::BufferUsageFlagBits::transfer_dst;
                 transformBufDesc.memFlags = kage::MemoryPropFlagBits::device_local | kage::MemoryPropFlagBits::host_visible;
                 m_transformBuf = kage::registBuffer("transform", transformBufDesc);
+            }
+
+            if (m_supportMeshShading)
+            {
+                // meshlet visibility buffer
+                {
+                    kage::BufferDesc meshletVisBufDesc;
+                    meshletVisBufDesc.size = (m_scene.meshletVisibilityCount + 31) / 32 * sizeof(uint32_t);
+                    meshletVisBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::indirect | kage::BufferUsageFlagBits::transfer_dst;
+                    meshletVisBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+                    m_meshletVisBuf = kage::registBuffer("meshletVis", meshletVisBufDesc);
+                }
+
+                // meshlet buffer
+                {
+                    size_t sz = (kage::kSeamlessLod == 1)
+                        ? m_scene.geometry.clusters.size() * sizeof(Cluster)
+                        : m_scene.geometry.meshlets.size() * sizeof(Meshlet);
+
+                    const kage::Memory* memMeshletBuf = kage::alloc((uint32_t)sz);
+                    void* srcData = (kage::kSeamlessLod == 1)
+                        ? (void*)m_scene.geometry.clusters.data()
+                        : (void*)m_scene.geometry.meshlets.data();
+                    memcpy(memMeshletBuf->data, srcData, memMeshletBuf->size);
+
+                    kage::BufferDesc meshletBufferDesc;
+                    meshletBufferDesc.size = memMeshletBuf->size;
+                    meshletBufferDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+                    meshletBufferDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+                    m_meshletBuffer = kage::registBuffer("meshlet(cluster)_buffer", meshletBufferDesc, memMeshletBuf);
+                }
+
+                // meshlet data buffer
+                {
+                    const kage::Memory* memMeshletDataBuf = kage::alloc((uint32_t)(m_scene.geometry.meshletdata.size() * sizeof(uint32_t)));
+                    memcpy(memMeshletDataBuf->data, m_scene.geometry.meshletdata.data(), memMeshletDataBuf->size);
+
+                    kage::BufferDesc meshletDataBufferDesc;
+                    meshletDataBufferDesc.size = memMeshletDataBuf->size;
+                    meshletDataBufferDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+                    meshletDataBufferDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+                    m_meshletDataBuffer = kage::registBuffer("meshlet_data_buffer", meshletDataBufferDesc, memMeshletDataBuf);
+                }
             }
         }
 
@@ -426,6 +429,7 @@ namespace
                 vsInit.meshDrawCmdCountBuf = m_culling.meshDrawCmdCountBufOutAlias;
                 vsInit.color = m_skybox.colorOutAlias;
                 vsInit.depth = m_depth;
+                vsInit.bindless = m_bindlessArray;
 
                 prepareVtxShading(m_vtxShading, m_scene, vsInit);
             }
@@ -482,6 +486,7 @@ namespace
                 vsInit.meshDrawCmdCountBuf = m_cullingLate.meshDrawCmdCountBufOutAlias;
                 vsInit.color = m_vtxShading.colorOutAlias;
                 vsInit.depth = m_vtxShading.depthOutAlias;
+                vsInit.bindless = m_bindlessArray;
 
                 prepareVtxShading(m_vtxShadingLate, m_scene, vsInit, true);
             }

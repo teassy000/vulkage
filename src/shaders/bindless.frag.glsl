@@ -27,7 +27,7 @@ layout(binding = 2) readonly buffer MeshDraws
     MeshDraw meshDraws [];
 };
 
-layout(binding = 6) readonly uniform Transform 
+layout(binding = 3) readonly uniform Transform 
 {
     TransformData trans;
 };
@@ -137,7 +137,6 @@ void main()
     if (albedo.a < 0.5)
          discard;
 
-    vec3 innorm = (n + 1.0) * 0.5;
     outputColor = vec4(vec3(color), 1.0);
 #endif
 }

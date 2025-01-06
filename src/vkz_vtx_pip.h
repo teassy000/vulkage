@@ -15,6 +15,8 @@ struct VtxShadingInitData
 
     kage::ImageHandle color;
     kage::ImageHandle depth;
+
+    kage::BindlessHandle bindless;
 };
 
 
@@ -49,6 +51,9 @@ struct VtxShading
 
     // limits
     uint32_t maxMeshDrawCmdCount;
+
+    // bindless
+    kage::BindlessHandle bindless;
 
     Globals globals;
 };

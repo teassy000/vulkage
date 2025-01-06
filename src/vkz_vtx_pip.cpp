@@ -15,22 +15,19 @@ void vtxShadingRec(VtxShading& _v)
     kage::Binding binds[] =
     {
         {_v.meshDrawCmdBuf, Access::read,       Stage::vertex_shader},
-        {_v.meshDrawBuf,    Access::read,       Stage::vertex_shader},
         {_v.vtxBuf,         Access::read,       Stage::vertex_shader},
-        {_v.transformBuf,   Access::read,       Stage::vertex_shader},
+        {_v.meshDrawBuf,    Access::read,       Stage::vertex_shader},
+        {_v.transformBuf,   Access::read,       Stage::vertex_shader | Stage::fragment_shader},
     };
 
     kage::startRec(_v.pass);
 
     kage::setConstants(mem);
     kage::pushBindings(binds, COUNTOF(binds));
+    kage::setBindless(_v.bindless);
 
     kage::setViewport(0, 0, (uint32_t)_v.globals.screenWidth, (uint32_t)_v.globals.screenHeight);
     kage::setScissor(0, 0, (uint32_t)_v.globals.screenWidth, (uint32_t)_v.globals.screenHeight);
-
-    kage::setVertexBuffer(_v.vtxBuf);
-    kage::setIndexBuffer(_v.idxBuf, 0, kage::IndexType::uint32);
-
 
     kage::Attachment attachments[] = {
         {_v.color, _v.late ? LoadOp::dont_care : LoadOp::clear, StoreOp::store},
@@ -44,6 +41,7 @@ void vtxShadingRec(VtxShading& _v)
     };
     kage::setDepthAttachment(depthAttachment);
 
+    kage::setIndexBuffer(_v.idxBuf, 0, kage::IndexType::uint32);
     kage::drawIndexed(
         _v.meshDrawCmdBuf
         , offsetof(MeshDrawCommand, indexCount)
@@ -60,8 +58,8 @@ void prepareVtxShading(VtxShading& _vtxShading, const Scene& _scene, const VtxSh
 {
     // render shader
     kage::ShaderHandle vs = kage::registShader("mesh_vert_shader", "shaders/mesh.vert.spv");
-    kage::ShaderHandle fs = kage::registShader("mesh_frag_shader", "shaders/mesh.frag.spv");
-    kage::ProgramHandle prog = kage::registProgram("mesh_prog", { vs, fs }, sizeof(Globals));
+    kage::ShaderHandle fs = kage::registShader("mesh_frag_shader", "shaders/bindless.frag.spv");
+    kage::ProgramHandle prog = kage::registProgram("mesh_prog", { vs, fs }, sizeof(Globals), _initData.bindless);
     // pass
     kage::PassDesc desc;
     desc.programId = prog.id;
@@ -86,19 +84,19 @@ void prepareVtxShading(VtxShading& _vtxShading, const Scene& _scene, const VtxSh
         , kage::PipelineStageFlagBits::vertex_shader
         , kage::AccessFlagBits::shader_read);
 
-    kage::bindBuffer(pass, _initData.meshDrawBuf
+    kage::bindBuffer(pass, _initData.vtxBuf
         , 1
         , kage::PipelineStageFlagBits::vertex_shader
         , kage::AccessFlagBits::shader_read);
 
-    kage::bindBuffer(pass, _initData.vtxBuf
+    kage::bindBuffer(pass, _initData.meshDrawBuf
         , 2
         , kage::PipelineStageFlagBits::vertex_shader
         , kage::AccessFlagBits::shader_read);
 
     kage::bindBuffer(pass, _initData.transformBuf
         , 3
-        , kage::PipelineStageFlagBits::vertex_shader
+        , kage::PipelineStageFlagBits::vertex_shader | kage::PipelineStageFlagBits::fragment_shader
         , kage::AccessFlagBits::shader_read);
 
 
@@ -128,6 +126,8 @@ void prepareVtxShading(VtxShading& _vtxShading, const Scene& _scene, const VtxSh
     _vtxShading.meshDrawCmdBufOutAlias = meshDrawCmdBufOutAlias;
     _vtxShading.colorOutAlias = colorOutAlias;
     _vtxShading.depthOutAlias = depthOutAlias;
+
+    _vtxShading.bindless = _initData.bindless;
 
     _vtxShading.maxMeshDrawCmdCount = (uint32_t)_scene.meshDraws.size();
 }
