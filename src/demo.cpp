@@ -16,6 +16,7 @@
 #include "entry/entry.h"
 #include "bx/timer.h"
 #include "vkz_smaa_pip.h"
+#include "radiance_cascade/vkz_radiance_cascade.h"
 
 namespace
 {
@@ -176,6 +177,7 @@ namespace
 
 
             m_smaa.update(m_width, m_height);
+            updateRadianceCascade(m_radianceCascade);
             updateUI(m_ui, m_demoData.input, m_demoData.renderOptions, m_demoData.profiling, m_demoData.logic);
 
             // render
@@ -563,10 +565,18 @@ namespace
                 m_smaa.prepare(m_width, m_height, aaColorIn, aaDepthIn);
             }
 
+            // radiance cascade
+            {
+                kage::ImageHandle rcColorIn = m_supportMeshShading ? m_meshShadingAlpha.colorOutAlias : m_vtxShadingLate.colorOutAlias;
+                kage::ImageHandle rcDepthIn = m_supportMeshShading ? m_meshShadingAlpha.depthOutAlias : m_vtxShadingLate.depthOutAlias;
+                prepareRadianceCascade(m_radianceCascade, m_width, m_height);
+            }
+            
+            // ui
             {
                 kage::ImageHandle uiColorIn = m_smaa.m_outAliasImg;
                 kage::ImageHandle uiDepthIn = m_supportMeshShading ? m_meshShadingAlpha.depthOutAlias : m_vtxShadingLate.depthOutAlias;
-
+                m_ui.dummyColor = m_radianceCascade.outAlias;
                 prepareUI(m_ui, uiColorIn, uiDepthIn, 1.3f);
             }
         }
@@ -681,6 +691,7 @@ namespace
         VtxShading m_vtxShading{};
         VtxShading m_vtxShadingLate{};
         Skybox m_skybox{};
+        RadianceCascade m_radianceCascade{};
 
         UIRendering m_ui{};
 

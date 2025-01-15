@@ -3091,7 +3091,7 @@ namespace kage { namespace vk
         return sampler;
     }
 
-    VkImageView RHIContext_vk::getCachedImageView(const ImageHandle _hImg, uint16_t _mip, uint16_t _numMips, VkImageViewType _type)
+    VkImageView RHIContext_vk::getCachedImageView(const ImageHandle _hImg, uint16_t _mip, uint16_t _numMips, uint16_t _numLayers, VkImageViewType _type)
     {
         KG_ZoneScopedC(Color::indian_red);
 
@@ -3118,6 +3118,7 @@ namespace kage { namespace vk
             , img.format
             , _mip
             , _numMips
+            , _numLayers
             , _type
             );
 
@@ -3738,11 +3739,11 @@ namespace kage { namespace vk
 
         if (kAllMips == _mip)
         {
-            view = getCachedImageView(_hImg, 0, img.numMips, img.viewType);
+            view = getCachedImageView(_hImg, 0, img.numMips, img.numLayers, img.viewType);
         }
         else
         {
-            view = getCachedImageView(_hImg, _mip, 1, img.viewType);
+            view = getCachedImageView(_hImg, _mip, 1, img.numLayers, img.viewType);
         }
 
         VkImageLayout layout = m_barrierDispatcher.getCurrentImageLayout(img.image);

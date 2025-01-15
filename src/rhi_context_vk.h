@@ -555,7 +555,7 @@ namespace kage { namespace vk
         
         // rendering command end
         VkSampler getCachedSampler(SamplerFilter _filter, SamplerMipmapMode _mipmapMode, SamplerAddressMode _addrMd, SamplerReductionMode _reduMd);
-        VkImageView getCachedImageView(const ImageHandle _hImg, uint16_t _mip, uint16_t _numMips, VkImageViewType _type);
+        VkImageView getCachedImageView(const ImageHandle _hImg, uint16_t _mip, uint16_t _numMips, uint16_t _numLayers, VkImageViewType _type);
 
         void createInstance();
         void createPhysicalDevice();

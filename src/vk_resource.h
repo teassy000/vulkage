@@ -109,6 +109,7 @@ namespace kage { namespace vk
         , VkFormat _format
         , uint32_t _baseMipLevel
         , uint32_t _levelCount
+        , uint32_t _layerCount
         , VkImageViewType _viewType = VK_IMAGE_VIEW_TYPE_2D
     );
 

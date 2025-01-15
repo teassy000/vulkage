@@ -110,6 +110,11 @@ project "vulkage"
 		path.join(SRC_DIR, "*.cpp"),
 		path.join(SRC_DIR, "*.inl"),
 
+		-- radiance cascade 
+		path.join(SRC_DIR, "radiance_cascade/*.h"),
+		path.join(SRC_DIR, "radiance_cascade/*.cpp"),
+
+		-- shaders
 		path.join(SRC_DIR, "shaders/*.glsl"),
 		path.join(SRC_DIR, "shaders/*.h"),
 		
@@ -128,6 +133,8 @@ project "vulkage"
 	}
 
 	includedirs {
+		path.join(SRC_DIR),
+
 		path.join(BX_DIR,	 	"include"),
 		path.join(BIMG_DIR,	 	"include"),
 		path.join(GLFW_DIR,	 	"include"),
@@ -153,11 +160,18 @@ project "vulkage"
 			path.join(SRC_DIR, "*.inl"),
 			path.join(SRC_DIR, "*.cpp"),
 		},
+
+		["src/radiance_cascade"] = {
+			path.join(SRC_DIR, "radiance_cascade/*.h"),
+			path.join(SRC_DIR, "radiance_cascade/*.cpp"),
+		},
 		
 		["shaders"] = {
 			path.join(SRC_DIR,	"shaders/*.glsl"),
 			path.join(SRC_DIR, 	"shaders/*.h"),
 		}
+
+
 	}
 
 	defines {

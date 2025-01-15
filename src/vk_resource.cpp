@@ -291,7 +291,7 @@ namespace kage { namespace vk
             Image_vk& img = results[ii];
 
             img.resId = _infos[ii].imgId;
-            img.defaultView = createImageView(img.image, _initProps.format, 0, _initProps.numMips, _initProps.viewType); // ImageView bind to the image handle it self, should create a new one for alias
+            img.defaultView = createImageView(img.image, _initProps.format, 0, _initProps.numMips, _initProps.numLayers, _initProps.viewType); // ImageView bind to the image handle it self, should create a new one for alias
             img.memory = memory;
 
             img.width = _initProps.width;
@@ -350,6 +350,7 @@ namespace kage { namespace vk
         , VkFormat _format
         , uint32_t _baseMipLevel
         , uint32_t _levelCount
+        , uint32_t _layerCount
         , VkImageViewType _viewType /*= VK_IMAGE_VIEW_TYPE_2D */
     )
     {
@@ -366,7 +367,8 @@ namespace kage { namespace vk
         createInfo.subresourceRange.aspectMask = aspectMask;
         createInfo.subresourceRange.baseMipLevel = _baseMipLevel;
         createInfo.subresourceRange.levelCount = _levelCount;
-        createInfo.subresourceRange.layerCount = ((_viewType == VK_IMAGE_VIEW_TYPE_CUBE) ? 6 : 1);
+        createInfo.subresourceRange.baseArrayLayer = 0;
+        createInfo.subresourceRange.layerCount = ((_viewType == VK_IMAGE_VIEW_TYPE_CUBE) ? 6 : _layerCount);
 
         VkImageView imageView = VK_NULL_HANDLE;
         VK_CHECK(vkCreateImageView(device, &createInfo, 0, &imageView));

@@ -80,7 +80,7 @@ void main()
     vec3 n = normalize(normal.x * in_tan.xyz + normal.y * bitan + normal.z * in_norm);
 
     float lightIntensity = 2.0;
-    float indirectIntensity = 0.64;
+    float indirectIntensity = 0.32;
 
     float occlusion = specular.r;
     float roughness = specular.g;

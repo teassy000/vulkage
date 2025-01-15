@@ -28,6 +28,9 @@ struct UIRendering
     
     kage::ImageHandle colorOutAlias{ kage::kInvalidHandle };
     kage::ImageHandle depthOutAlias{ kage::kInvalidHandle };
+
+    kage::ImageHandle dummyColor{ kage::kInvalidHandle };
+    kage::SamplerHandle dummySampler{ kage::kInvalidHandle };
 };
 
 
