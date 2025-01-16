@@ -10,7 +10,7 @@
 # include "pbr.h"
 
 
-layout(location = 0) in flat uint out_drawId;
+layout(location = 0) in flat uint in_drawId;
 layout(location = 1) in vec3 in_wPos;
 layout(location = 2) in vec3 in_norm;
 layout(location = 3) in vec4 in_tan;
@@ -48,10 +48,10 @@ uint hash(uint a)
 void main()
 {
 #if DEBUG_MESHLET
-	uint mhash = hash(out_drawId);
-	outputColor = vec4(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255), 255) / 255.0;
+	uint mhash = hash(in_drawId);
+	out_emissive = vec4(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255), 255) / 255.0;
 #else
-    MeshDraw mDraw = meshDraws[out_drawId];
+    MeshDraw mDraw = meshDraws[in_drawId];
 
     vec4 albedo = vec4(0.5, 0.5, 0.5, 1.0);
     if (mDraw.albedoTex > 0) { 
@@ -141,8 +141,8 @@ void main()
 
     color = Tonemap_ACES(color);
     color = OECF_sRGBFast(color);
-    //if (albedo.a < 0.5)
-    //     discard;
+    if (albedo.a < 0.5)
+         discard;
 
     out_albedo = vec4(albedo.xyz, 1.0);
     out_normal = vec4(n, 1.0);
