@@ -48,7 +48,7 @@ const GBuffer aliasGBuffer(const GBuffer& _gb)
     return result;
 }
 
-void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::ImageHandle _rt)
+void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::ImageHandle _sky)
 {
     kage::ShaderHandle cs = kage::registShader("deferred", "shaders/deferred.comp.spv");
     kage::ProgramHandle prog = kage::registProgram("deferred", { cs }, sizeof(glm::vec2));
@@ -58,12 +58,13 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
     desc.queue = kage::PassExeQueue::compute;
     kage::PassHandle pass = kage::registPass("deferred", desc);
 
-    _ds.pass = pass;
-    _ds.prog = prog;
-    _ds.cs = cs;
-    _ds.outColor = _rt;
-    _ds.gBuffer = _gb;
-    _ds.outColorAlias = kage::alias(_rt);
+
+    kage::ImageDesc outColorDesc;
+    outColorDesc.depth = 1;
+    outColorDesc.numLayers = 1;
+    outColorDesc.numMips = 1;
+    outColorDesc.usage = kage::ImageUsageFlagBits::transfer_dst | kage::ImageUsageFlagBits::sampled | kage::BufferUsageFlagBits::storage;
+    kage::ImageHandle outColor = kage::registRenderTarget("deferred_out_color", outColorDesc, kage::ResourceLifetime::non_transition);
 
     kage::SamplerHandle albedoSamp = kage::sampleImage(pass, _gb.albedo
         , 0
@@ -101,7 +102,17 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
         , kage::SamplerReductionMode::min
     );
 
-    kage::bindImage(pass, _rt
+    kage::SamplerHandle skySamp = kage::sampleImage(pass, _sky
+        , 3
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::SamplerFilter::nearest
+        , kage::SamplerMipmapMode::nearest
+        , kage::SamplerAddressMode::clamp_to_edge
+        , kage::SamplerReductionMode::min
+    );
+
+    _ds.outColorAlias = kage::alias(outColor);
+    kage::bindImage(pass, outColor
         , 5
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_write
@@ -109,10 +120,21 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
         , _ds.outColorAlias
     );
 
+
+    _ds.pass = pass;
+    _ds.prog = prog;
+    _ds.cs = cs;
+    _ds.outColor = outColor;
+    _ds.gBuffer = _gb;
+    
+
     _ds.gBufSamplers.albedo = albedoSamp;
     _ds.gBufSamplers.normal = normSamp;
     _ds.gBufSamplers.worldPos = wpSamp;
     _ds.gBufSamplers.emissive = emmiSamp;
+
+    _ds.inSky = _sky;
+    _ds.skySampler = skySamp;
 }
 
 void recDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uint32_t _h)
@@ -131,6 +153,7 @@ void recDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uin
         {_ds.gBuffer.normal,    _ds.gBufSamplers.normal,    Stage::compute_shader},
         {_ds.gBuffer.worldPos,  _ds.gBufSamplers.worldPos,  Stage::compute_shader},
         {_ds.gBuffer.emissive,  _ds.gBufSamplers.emissive,  Stage::compute_shader},
+        {_ds.inSky,             _ds.skySampler,             Stage::compute_shader},
         {_ds.outColor,          0,                          Stage::compute_shader},
     };
 

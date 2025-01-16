@@ -21,7 +21,6 @@ struct MeshShadingInitData
 
     kage::ImageHandle pyramid;
 
-    kage::ImageHandle color;
     kage::ImageHandle depth;
 
     kage::BindlessHandle bindless;
@@ -61,7 +60,6 @@ struct MeshShading
     kage::ImageHandle pyramid;
 
     // write
-    kage::ImageHandle color;
     kage::ImageHandle depth;
 
     // deferred shading
@@ -72,7 +70,6 @@ struct MeshShading
 
     // out aliases
     kage::BufferHandle meshletVisBufferOutAlias;
-    kage::ImageHandle colorOutAlias;
     kage::ImageHandle depthOutAlias;
 
     GBuffer g_bufferOutAlias;

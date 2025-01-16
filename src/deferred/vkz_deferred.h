@@ -27,6 +27,9 @@ struct DeferredShading
     kage::ShaderHandle cs;
     kage::ProgramHandle prog;
 
+    kage::ImageHandle inSky;
+    kage::SamplerHandle skySampler;
+
     kage::ImageHandle outColor;
     kage::ImageHandle outColorAlias;
 };

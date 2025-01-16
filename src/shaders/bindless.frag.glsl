@@ -16,12 +16,10 @@ layout(location = 2) in vec3 in_norm;
 layout(location = 3) in vec4 in_tan;
 layout(location = 4) in vec2 in_uv;
 
-
-layout(location = 0) out vec4 out_color;
-layout(location = 1) out vec4 out_albedo;
-layout(location = 2) out vec4 out_normal;
-layout(location = 3) out vec4 out_wPos;
-layout(location = 4) out vec4 out_emissive;
+layout(location = 0) out vec4 out_albedo;
+layout(location = 1) out vec4 out_normal;
+layout(location = 2) out vec4 out_wPos;
+layout(location = 3) out vec4 out_emissive;
 
 layout(binding = 0, set = 1) uniform sampler2D textures[];
 
@@ -79,8 +77,7 @@ void main()
     if (mDraw.emissiveTex > 0)
     {
         emissive = texture(textures[nonuniformEXT(mDraw.emissiveTex)], in_uv);
-        out_color = vec4(emissive.rgb, 1.0);
-        
+
         out_albedo = albedo;
         out_normal = vec4(n, 1.0);
         out_wPos = vec4(in_wPos, 1.0);
@@ -144,11 +141,10 @@ void main()
 
     color = Tonemap_ACES(color);
     color = OECF_sRGBFast(color);
-    if (albedo.a < 0.5)
-         discard;
+    //if (albedo.a < 0.5)
+    //     discard;
 
-    out_color = vec4(vec3(color), 1.0);
-    out_albedo = albedo;
+    out_albedo = vec4(albedo.xyz, 1.0);
     out_normal = vec4(n, 1.0);
     out_wPos = vec4(in_wPos, 1.0);
     out_emissive = vec4(emissive.rgb, 1.0);

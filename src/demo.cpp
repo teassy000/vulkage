@@ -459,7 +459,6 @@ namespace
 
                 msInit.pyramid = m_pyramid.image;
 
-                msInit.color = m_skybox.colorOutAlias;
                 msInit.depth = m_depth;
                 msInit.bindless = m_bindlessArray;
 
@@ -518,7 +517,6 @@ namespace
 
                 msInit.pyramid = m_pyramid.imgOutAlias;
 
-                msInit.color = m_meshShading.colorOutAlias;
                 msInit.depth = m_meshShading.depthOutAlias;
                 msInit.bindless = m_bindlessArray;
 
@@ -560,7 +558,6 @@ namespace
                 msInit.transformBuffer = m_transformBuf;
                 
                 msInit.pyramid = m_pyramid.imgOutAlias;
-                msInit.color = m_meshShadingLate.colorOutAlias;
                 msInit.depth = m_meshShadingLate.depthOutAlias;
                 
                 msInit.bindless = m_bindlessArray;
@@ -570,9 +567,7 @@ namespace
 
             // deferred
             {
-                kage::ImageHandle deferredColorIn = m_supportMeshShading ? m_meshShadingAlpha.colorOutAlias : m_vtxShadingLate.colorOutAlias;
-
-                initDeferredShading(m_deferred, m_meshShadingAlpha.g_bufferOutAlias, deferredColorIn);
+                initDeferredShading(m_deferred, m_meshShadingAlpha.g_bufferOutAlias, m_skybox.colorOutAlias);
             }
 
             // smaa
@@ -586,8 +581,6 @@ namespace
 
             // radiance cascade
             {
-                kage::ImageHandle rcColorIn = m_supportMeshShading ? m_meshShadingAlpha.colorOutAlias : m_vtxShadingLate.colorOutAlias;
-                kage::ImageHandle rcDepthIn = m_supportMeshShading ? m_meshShadingAlpha.depthOutAlias : m_vtxShadingLate.depthOutAlias;
                 prepareRadianceCascade(m_radianceCascade, m_width, m_height);
             }
 
