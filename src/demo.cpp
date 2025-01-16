@@ -17,6 +17,7 @@
 #include "bx/timer.h"
 #include "vkz_smaa_pip.h"
 #include "radiance_cascade/vkz_radiance_cascade.h"
+#include "deferred/vkz_deferred.h"
 
 namespace
 {
@@ -137,6 +138,8 @@ namespace
             updateCulling(m_culling, m_demoData.drawCull, m_scene.drawCount);
             updateCulling(m_cullingLate, m_demoData.drawCull, m_scene.drawCount);
             updateCulling(m_cullingAlpha, m_demoData.drawCull, m_scene.drawCount);
+
+            updateDeferredShading(m_deferred, m_width, m_height);
 
             if (m_supportMeshShading)
             {
@@ -565,11 +568,18 @@ namespace
                 prepareMeshShading(m_meshShadingAlpha, m_scene, m_width, m_height, msInit, true, true);
             }
 
+            // deferred
+            {
+                kage::ImageHandle deferredColorIn = m_supportMeshShading ? m_meshShadingAlpha.colorOutAlias : m_vtxShadingLate.colorOutAlias;
+
+                initDeferredShading(m_deferred, m_meshShadingAlpha.g_bufferOutAlias, deferredColorIn);
+            }
+
             // smaa
             {
                 kage::ImageHandle aaDepthIn = m_supportMeshShading ? m_meshShadingAlpha.depthOutAlias : m_vtxShadingLate.depthOutAlias;
 
-                kage::ImageHandle aaColorIn = m_supportMeshShading ? m_meshShadingAlpha.colorOutAlias : m_vtxShadingLate.colorOutAlias;
+                kage::ImageHandle aaColorIn = m_supportMeshShading ? m_deferred.outColorAlias : m_vtxShadingLate.colorOutAlias;
 
                 m_smaa.prepare(m_width, m_height, aaColorIn, aaDepthIn);
             }
@@ -580,7 +590,7 @@ namespace
                 kage::ImageHandle rcDepthIn = m_supportMeshShading ? m_meshShadingAlpha.depthOutAlias : m_vtxShadingLate.depthOutAlias;
                 prepareRadianceCascade(m_radianceCascade, m_width, m_height);
             }
-            
+
             // ui
             {
                 kage::ImageHandle uiColorIn = m_smaa.m_outAliasImg;
@@ -682,6 +692,7 @@ namespace
         kage::BindlessHandle m_bindlessArray;
 
         GBuffer m_gBuffer{};
+        DeferredShading m_deferred{};
 
         // images
         kage::ImageHandle m_color;

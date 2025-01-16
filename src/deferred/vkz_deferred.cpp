@@ -1,4 +1,5 @@
 #include "deferred/vkz_deferred.h"
+#include "kage_math.h"
 
 const GBuffer createGBuffer()
 {
@@ -47,13 +48,100 @@ const GBuffer aliasGBuffer(const GBuffer& _gb)
     return result;
 }
 
-bool initDeferredShading(DeferredShading& _ds, const GBuffer& _gb)
+void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::ImageHandle _rt)
 {
+    kage::ShaderHandle cs = kage::registShader("deferred", "shaders/deferred.comp.spv");
+    kage::ProgramHandle prog = kage::registProgram("deferred", { cs }, sizeof(glm::vec2));
 
-    return false;
+    kage::PassDesc desc;
+    desc.programId = prog.id;
+    desc.queue = kage::PassExeQueue::compute;
+    kage::PassHandle pass = kage::registPass("deferred", desc);
+
+    _ds.pass = pass;
+    _ds.prog = prog;
+    _ds.cs = cs;
+    _ds.outColor = _rt;
+    _ds.gBuffer = _gb;
+    _ds.outColorAlias = kage::alias(_rt);
+
+    kage::SamplerHandle albedoSamp = kage::sampleImage(pass, _gb.albedo
+        , 0
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::SamplerFilter::nearest
+        , kage::SamplerMipmapMode::nearest
+        , kage::SamplerAddressMode::clamp_to_edge
+        , kage::SamplerReductionMode::min
+    );
+
+    kage::SamplerHandle normSamp = kage::sampleImage(pass, _gb.normal
+        , 1
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::SamplerFilter::nearest
+        , kage::SamplerMipmapMode::nearest
+        , kage::SamplerAddressMode::clamp_to_edge
+        , kage::SamplerReductionMode::min
+    );
+
+    kage::SamplerHandle wpSamp = kage::sampleImage(pass, _gb.worldPos
+        , 2
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::SamplerFilter::nearest
+        , kage::SamplerMipmapMode::nearest
+        , kage::SamplerAddressMode::clamp_to_edge
+        , kage::SamplerReductionMode::min
+    );
+
+    kage::SamplerHandle emmiSamp = kage::sampleImage(pass, _gb.emissive
+        , 3
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::SamplerFilter::nearest
+        , kage::SamplerMipmapMode::nearest
+        , kage::SamplerAddressMode::clamp_to_edge
+        , kage::SamplerReductionMode::min
+    );
+
+    kage::bindImage(pass, _rt
+        , 5
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::AccessFlagBits::shader_write
+        , kage::ImageLayout::general
+        , _ds.outColorAlias
+    );
+
+    _ds.gBufSamplers.albedo = albedoSamp;
+    _ds.gBufSamplers.normal = normSamp;
+    _ds.gBufSamplers.worldPos = wpSamp;
+    _ds.gBufSamplers.emissive = emmiSamp;
 }
 
-bool updateDeferredShading(const DeferredShading& _ds)
+void recDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uint32_t _h)
 {
-    return false;
+    kage::startRec(_ds.pass);
+    vec2 resolution = vec2(_w, _h);
+    const kage::Memory* mem = kage::alloc(sizeof(resolution));
+    memcpy(mem->data, &resolution, sizeof(resolution));
+    kage::setConstants(mem);
+
+    using Stage = kage::PipelineStageFlagBits::Enum;
+    using Access = kage::BindingAccess;
+    kage::Binding binds[] =
+    {
+        {_ds.gBuffer.albedo,    _ds.gBufSamplers.albedo,    Stage::compute_shader},
+        {_ds.gBuffer.normal,    _ds.gBufSamplers.normal,    Stage::compute_shader},
+        {_ds.gBuffer.worldPos,  _ds.gBufSamplers.worldPos,  Stage::compute_shader},
+        {_ds.gBuffer.emissive,  _ds.gBufSamplers.emissive,  Stage::compute_shader},
+        {_ds.outColor,          0,                          Stage::compute_shader},
+    };
+
+    kage::pushBindings(binds, COUNTOF(binds));
+
+    kage::dispatch(_w, _h, 1);
+
+    kage::endRec();
+}
+
+void updateDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uint32_t _h)
+{
+    recDeferredShading(_ds, _w, _h);
 }

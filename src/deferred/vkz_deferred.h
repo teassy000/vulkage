@@ -10,9 +10,18 @@ struct GBuffer
     kage::ImageHandle emissive;
 };
 
+struct GBufferSamplers
+{
+    kage::SamplerHandle albedo;
+    kage::SamplerHandle normal;
+    kage::SamplerHandle worldPos;
+    kage::SamplerHandle emissive;
+};
+
 struct DeferredShading
 {
-    GBuffer gbuffer;
+    GBuffer gBuffer;
+    GBufferSamplers gBufSamplers;
 
     kage::PassHandle pass;
     kage::ShaderHandle cs;
@@ -24,5 +33,5 @@ struct DeferredShading
 
 const GBuffer createGBuffer();
 const GBuffer aliasGBuffer(const GBuffer& _gb);
-bool initDeferredShading(DeferredShading& _ds, const GBuffer& _gb);
-bool updateDeferredShading(const DeferredShading& _ds);
+void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::ImageHandle _rt);
+void updateDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uint32_t _h);
