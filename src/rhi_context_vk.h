@@ -684,7 +684,7 @@ namespace kage { namespace vk
 
         bool m_updated = false;
 
-        VkFormat m_imageFormat;
+        VkFormat m_swapchainFormat;
         VkFormat m_depthFormat;
 
         uint32_t m_gfxFamilyIdx;

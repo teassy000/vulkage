@@ -660,18 +660,8 @@ namespace kage { namespace vk
         return format;
     }
 
-    VkFormat getValidFormat(ResourceFormat _format, ImageUsageFlags _usage, VkFormat _color, VkFormat _depth)
+    VkFormat getValidFormat(ResourceFormat _format, VkFormat _color, VkFormat _depth)
     {
-        // attachments
-        if (_usage &= ImageUsageFlagBits::color_attachment)
-        {
-            return _color;
-        }
-        if (_usage &= ImageUsageFlagBits::depth_stencil_attachment)
-        {
-            return _depth;
-        }
-
         // undefined
         if (_format == ResourceFormat::undefined)
         {
@@ -1367,7 +1357,7 @@ namespace kage { namespace vk
         props.width = info.width;
         props.height = info.height;
         props.depth = info.depth;
-        props.format = getValidFormat(info.format, info.usage, _defaultColorFormat, _defaultDepthFormat);
+        props.format = getValidFormat(info.format, _defaultColorFormat, _defaultDepthFormat);
         props.usage = getImageUsageFlags(info.usage);
         props.type = getImageType(info.type);
         props.layout = getImageLayout(info.layout);
@@ -1464,7 +1454,7 @@ namespace kage { namespace vk
         , m_surface{ VK_NULL_HANDLE }
         , m_queue{ VK_NULL_HANDLE }
         , m_cmdBuffer{ VK_NULL_HANDLE }
-        , m_imageFormat{ VK_FORMAT_UNDEFINED }
+        , m_swapchainFormat{ VK_FORMAT_UNDEFINED }
         , m_depthFormat{ VK_FORMAT_UNDEFINED }
         , m_gfxFamilyIdx{ VK_QUEUE_FAMILY_IGNORED }
         , m_allocatorCb{nullptr}
@@ -1517,8 +1507,7 @@ namespace kage { namespace vk
 
         m_swapchain.create(m_nwh, _resolution);
 
-
-        m_imageFormat = m_swapchain.getSwapchainFormat();
+        m_swapchainFormat = m_swapchain.getSwapchainFormat();
         m_depthFormat = VK_FORMAT_D32_SFLOAT;
 
         // fill the image to barrier
@@ -2073,7 +2062,7 @@ namespace kage { namespace vk
             ci.height = _height;
 
             // recreate image
-            ImgInitProps_vk initPorps = getImageInitProp(ci, m_imageFormat, m_depthFormat);
+            ImgInitProps_vk initPorps = getImageInitProp(ci, m_swapchainFormat, m_depthFormat);
 
             stl::vector<Image_vk> imageVks;
             kage::vk::createImage(imageVks, aliasInfos, initPorps);
@@ -2201,68 +2190,9 @@ namespace kage { namespace vk
         bx::read(&_reader, writeOpAliasOutIds.data(), (passMeta.writeBufAliasNum + passMeta.writeImgAliasNum) * sizeof(CombinedResID), nullptr);
 
 
-        VkPipeline pipeline{};
-        if (passMeta.queue == PassExeQueue::graphics)
-        {
-            // create pipeline
-            const uint16_t progIdx = (uint16_t)m_programContainer.getIdIndex(passMeta.programId);
-            const Program_vk& program = m_programContainer.getIdToData(passMeta.programId);
-            const stl::vector<uint16_t>& shaderIds = m_programShaderIds[progIdx];
-
-            uint32_t depthNum = (passMeta.writeDepthId == kInvalidHandle) ? 0 : 1;
-
-            VkPipelineRenderingCreateInfo renderInfo = { VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
-            renderInfo.colorAttachmentCount = passMeta.writeImageNum - depthNum;
-            renderInfo.pColorAttachmentFormats = &m_imageFormat;
-            renderInfo.depthAttachmentFormat = m_depthFormat;
-
-            stl::vector< Shader_vk> shaders;
-            for (const uint16_t sid : shaderIds)
-            {
-                shaders.push_back(m_shaderContainer.getIdToData(sid));
-            }
-
-            VkPipelineVertexInputStateCreateInfo vtxInputCreateInfo{};
-            bool hasVIS = getVertexInputState(vtxInputCreateInfo, passVertexBinding, passVertexAttribute);
-
-            PipelineConfigs_vk configs{ 
-                passMeta.pipelineConfig.enableDepthTest
-                , passMeta.pipelineConfig.enableDepthWrite
-                , getCompareOp(passMeta.pipelineConfig.depthCompOp) 
-                , getCullMode(passMeta.pipelineConfig.cullMode)
-            };
-
-            VkPipelineCache cache{};
-            cache.vk = 0;
-            pipeline = kage::vk::createGraphicsPipeline(m_device, cache, program.layout, renderInfo, shaders, hasVIS ? &vtxInputCreateInfo : nullptr, pipelineSpecData, configs);
-            assert(pipeline);
-        }
-        else if (passMeta.queue == PassExeQueue::compute)
-        {
-            // create pipeline
-            const uint16_t progIdx = (uint16_t)m_programContainer.getIdIndex(passMeta.programId);
-            const Program_vk& program = m_programContainer.getIdToData(passMeta.programId);
-            const stl::vector<uint16_t>& shaderIds = m_programShaderIds[progIdx];
-
-            stl::vector< Shader_vk> shaders;
-            for (const uint16_t sid : shaderIds)
-            {
-                shaders.push_back(m_shaderContainer.getIdToData(sid));
-            }
-
-            assert(shaderIds.size() == 1);
-            Shader_vk shader = m_shaderContainer.getIdToData(shaderIds[0]);
-
-            VkPipelineCache cache{};
-            cache.vk = 0;
-            pipeline = kage::vk::createComputePipeline(m_device, cache, program.layout, shader, pipelineSpecData);
-            assert(pipeline);
-        }
-
         // fill pass info
         PassInfo_vk passInfo{};
         passInfo.passId = passMeta.passId;
-        passInfo.pipeline = pipeline;
 
         passInfo.vertexBufferId = passMeta.vertexBufferId;
         passInfo.vertexCount = passMeta.vertexCount;
@@ -2338,6 +2268,73 @@ namespace kage { namespace vk
             }
         }
 
+        VkPipeline pipeline{};
+        if (passMeta.queue == PassExeQueue::graphics)
+        {
+            // create pipeline
+            const uint16_t progIdx = (uint16_t)m_programContainer.getIdIndex(passInfo.programId);
+            const Program_vk& program = m_programContainer.getIdToData(passInfo.programId);
+            const stl::vector<uint16_t>& shaderIds = m_programShaderIds[progIdx];
+
+            uint32_t depthNum = (passMeta.writeDepthId == kInvalidHandle) ? 0 : 1;
+
+            stl::vector<VkFormat> colorFormats(passInfo.writeColors.size());
+            for (size_t ii = 0; ii < passInfo.writeColors.size(); ++ii)
+            {
+                uint16_t id = passInfo.writeColors.getIdAt(ii);
+                const Image_vk& img = m_imageContainer.getIdToData(id);
+                colorFormats[ii] = img.format;
+            }
+
+            VkPipelineRenderingCreateInfo renderInfo = { VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
+            renderInfo.colorAttachmentCount = (uint32_t)passInfo.writeColors.size();
+            renderInfo.pColorAttachmentFormats = colorFormats.data();
+            renderInfo.depthAttachmentFormat = m_depthFormat;
+
+            stl::vector< Shader_vk> shaders;
+            for (const uint16_t sid : shaderIds)
+            {
+                shaders.push_back(m_shaderContainer.getIdToData(sid));
+            }
+
+            VkPipelineVertexInputStateCreateInfo vtxInputCreateInfo{};
+            bool hasVIS = getVertexInputState(vtxInputCreateInfo, passVertexBinding, passVertexAttribute);
+
+            PipelineConfigs_vk configs{
+                passMeta.pipelineConfig.enableDepthTest
+                , passMeta.pipelineConfig.enableDepthWrite
+                , getCompareOp(passMeta.pipelineConfig.depthCompOp)
+                , getCullMode(passMeta.pipelineConfig.cullMode)
+            };
+
+            VkPipelineCache cache{};
+            cache.vk = 0;
+            pipeline = kage::vk::createGraphicsPipeline(m_device, cache, program.layout, renderInfo, shaders, hasVIS ? &vtxInputCreateInfo : nullptr, pipelineSpecData, configs);
+            assert(pipeline);
+        }
+        else if (passMeta.queue == PassExeQueue::compute)
+        {
+            // create pipeline
+            const uint16_t progIdx = (uint16_t)m_programContainer.getIdIndex(passMeta.programId);
+            const Program_vk& program = m_programContainer.getIdToData(passMeta.programId);
+            const stl::vector<uint16_t>& shaderIds = m_programShaderIds[progIdx];
+
+            stl::vector< Shader_vk> shaders;
+            for (const uint16_t sid : shaderIds)
+            {
+                shaders.push_back(m_shaderContainer.getIdToData(sid));
+            }
+
+            assert(shaderIds.size() == 1);
+            Shader_vk shader = m_shaderContainer.getIdToData(shaderIds[0]);
+
+            VkPipelineCache cache{};
+            cache.vk = 0;
+            pipeline = kage::vk::createComputePipeline(m_device, cache, program.layout, shader, pipelineSpecData);
+            assert(pipeline);
+        }
+
+        passInfo.pipeline = pipeline;
         m_passContainer.addOrUpdate(passInfo.passId, passInfo);
     }
 
@@ -2354,7 +2351,7 @@ namespace kage { namespace vk
         // so the res handle should map to the real buffer array
         stl::vector<ImageAliasInfo> infoList(resArr, resArr + info.resCount);
 
-        ImgInitProps_vk initPorps = getImageInitProp(info, m_imageFormat, m_depthFormat);
+        ImgInitProps_vk initPorps = getImageInitProp(info, m_swapchainFormat, m_depthFormat);
 
         stl::vector<Image_vk> images;
         kage::vk::createImage(images, infoList, initPorps);
@@ -3813,7 +3810,7 @@ namespace kage { namespace vk
         
         bool result = true;
         
-        result &= (getFormat(srcInfo.format) == m_imageFormat);
+        result &= (getFormat(srcInfo.format) == m_swapchainFormat);
         result &= (srcInfo.width == m_swapchain.m_resolution.width);
         result &= (srcInfo.height == m_swapchain.m_resolution.height);
         result &= (srcInfo.numMips == 1);
