@@ -17,7 +17,11 @@ layout(location = 3) in vec4 in_tan;
 layout(location = 4) in vec2 in_uv;
 
 
-layout(location = 0) out vec4 outputColor;
+layout(location = 0) out vec4 out_color;
+layout(location = 1) out vec4 out_albedo;
+layout(location = 2) out vec4 out_normal;
+layout(location = 3) out vec4 out_wPos;
+layout(location = 4) out vec4 out_emissive;
 
 layout(binding = 0, set = 1) uniform sampler2D textures[];
 
@@ -62,6 +66,9 @@ void main()
         normal = texture(textures[nonuniformEXT(mDraw.normalTex)], in_uv) * 2.0 - 1.0;
     }
 
+    vec3 bitan = cross(in_norm, in_tan.xyz) * in_tan.w;
+    vec3 n = normalize(normal.x * in_tan.xyz + normal.y * bitan + normal.z * in_norm);
+
     vec4 specular = vec4(0.04, 0.04, 0.04, 1.0);
     if (mDraw.specularTex > 0)
     {
@@ -72,12 +79,15 @@ void main()
     if (mDraw.emissiveTex > 0)
     {
         emissive = texture(textures[nonuniformEXT(mDraw.emissiveTex)], in_uv);
-        outputColor = vec4(emissive.rgb, 1.0);
+        out_color = vec4(emissive.rgb, 1.0);
+        
+        out_albedo = albedo;
+        out_normal = vec4(n, 1.0);
+        out_wPos = vec4(in_wPos, 1.0);
+        out_emissive = vec4(emissive.rgb, 1.0);
         return;
     }
 
-    vec3 bitan = cross(in_norm, in_tan.xyz) * in_tan.w;
-    vec3 n = normalize(normal.x * in_tan.xyz + normal.y * bitan + normal.z * in_norm);
 
     float lightIntensity = 2.0;
     float indirectIntensity = 0.32;
@@ -137,6 +147,10 @@ void main()
     if (albedo.a < 0.5)
          discard;
 
-    outputColor = vec4(vec3(color), 1.0);
+    out_color = vec4(vec3(color), 1.0);
+    out_albedo = albedo;
+    out_normal = vec4(n, 1.0);
+    out_wPos = vec4(in_wPos, 1.0);
+    out_emissive = vec4(emissive.rgb, 1.0);
 #endif
 }

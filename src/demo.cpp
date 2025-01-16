@@ -392,6 +392,10 @@ namespace
                 dpDesc.usage = kage::ImageUsageFlagBits::transfer_src | kage::ImageUsageFlagBits::sampled;
                 m_depth = kage::registDepthStencil("depth", dpDesc, kage::ResourceLifetime::non_transition);
             }
+
+            {
+                m_gBuffer = createGBuffer();
+            }
         }
 
         void createPasses()
@@ -455,6 +459,8 @@ namespace
                 msInit.color = m_skybox.colorOutAlias;
                 msInit.depth = m_depth;
                 msInit.bindless = m_bindlessArray;
+
+                msInit.g_buffer = m_gBuffer;
                 prepareMeshShading(m_meshShading, m_scene, m_width, m_height, msInit);
             }
 
@@ -512,6 +518,8 @@ namespace
                 msInit.color = m_meshShading.colorOutAlias;
                 msInit.depth = m_meshShading.depthOutAlias;
                 msInit.bindless = m_bindlessArray;
+
+                msInit.g_buffer = m_meshShading.g_bufferOutAlias;
                 prepareMeshShading(m_meshShadingLate, m_scene, m_width, m_height, msInit, true);
             }
 
@@ -553,6 +561,7 @@ namespace
                 msInit.depth = m_meshShadingLate.depthOutAlias;
                 
                 msInit.bindless = m_bindlessArray;
+                msInit.g_buffer = m_meshShadingLate.g_bufferOutAlias;
                 prepareMeshShading(m_meshShadingAlpha, m_scene, m_width, m_height, msInit, true, true);
             }
 
@@ -671,6 +680,8 @@ namespace
         kage::BufferHandle m_transformBuf;
 
         kage::BindlessHandle m_bindlessArray;
+
+        GBuffer m_gBuffer{};
 
         // images
         kage::ImageHandle m_color;

@@ -3,6 +3,7 @@
 #include "demo_structs.h"
 #include "scene.h"
 #include "kage.h"
+#include "deferred/vkz_deferred.h"
 
 struct MeshShadingInitData
 {
@@ -24,6 +25,8 @@ struct MeshShadingInitData
     kage::ImageHandle depth;
 
     kage::BindlessHandle bindless;
+
+    GBuffer g_buffer;
 };
 
 struct MeshShading
@@ -61,6 +64,9 @@ struct MeshShading
     kage::ImageHandle color;
     kage::ImageHandle depth;
 
+    // deferred shading
+    GBuffer g_buffer;
+
     // sampler
     kage::SamplerHandle pyramidSampler;
 
@@ -68,6 +74,8 @@ struct MeshShading
     kage::BufferHandle meshletVisBufferOutAlias;
     kage::ImageHandle colorOutAlias;
     kage::ImageHandle depthOutAlias;
+
+    GBuffer g_bufferOutAlias;
 
     Globals globals;
 };

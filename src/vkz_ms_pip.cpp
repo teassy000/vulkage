@@ -62,6 +62,10 @@ void meshShadingRec(const MeshShading& _ms)
 
     kage::Attachment attachments[] = {
         {_ms.color, LoadOp::dont_care, StoreOp::store},
+        {_ms.g_buffer.albedo, LoadOp::dont_care, StoreOp::store},
+        {_ms.g_buffer.normal, LoadOp::dont_care, StoreOp::store},
+        {_ms.g_buffer.worldPos, LoadOp::dont_care, StoreOp::store},
+        {_ms.g_buffer.emissive, LoadOp::dont_care, StoreOp::store}
     };
     kage::setColorAttachments(attachments, COUNTOF(attachments));
 
@@ -77,6 +81,8 @@ void meshShadingRec(const MeshShading& _ms)
     kage::endRec();
 }
 
+
+
 void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t _width, uint32_t _height, const MeshShadingInitData _initData, bool _late /*= false*/, bool _alphaPass /*= false*/)
 {
     kage::ShaderHandle ms= kage::registShader("mesh_shader", "shaders/meshlet.mesh.spv");
@@ -89,7 +95,6 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
 
     const kage::Memory* pConst = kage::alloc(sizeof(int) * COUNTOF(pipelineSpecs));
     memcpy_s(pConst->data, pConst->size, pipelineSpecs, sizeof(int) * COUNTOF(pipelineSpecs));
-
 
     kage::PassDesc desc{};
     desc.programId = prog.id;
@@ -112,6 +117,7 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
     kage::BufferHandle mltVisBufOutAlias = kage::alias(_initData.meshletVisBuffer);
     kage::ImageHandle colorOutAlias = kage::alias(_initData.color);
     kage::ImageHandle depthOutAlias = kage::alias(_initData.depth);
+    GBuffer gb_outAlias = aliasGBuffer(_initData.g_buffer);
 
     kage::bindBuffer(pass, _initData.meshDrawCmdBuffer
         , 0
@@ -165,8 +171,15 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
 
     kage::setIndirectBuffer(pass, _initData.meshDrawCmdCountBuffer, 4, 1, 0);
 
+
     kage::setAttachmentOutput(pass, _initData.color, 0, colorOutAlias);
     kage::setAttachmentOutput(pass, _initData.depth, 0, depthOutAlias);
+
+    // bind g-buffer
+    kage::setAttachmentOutput(pass, _initData.g_buffer.albedo, 1, gb_outAlias.albedo);
+    kage::setAttachmentOutput(pass, _initData.g_buffer.normal, 2, gb_outAlias.normal);
+    kage::setAttachmentOutput(pass, _initData.g_buffer.worldPos, 3, gb_outAlias.worldPos);
+    kage::setAttachmentOutput(pass, _initData.g_buffer.emissive, 4, gb_outAlias.emissive);
 
     // set the data
     _meshShading.late = _late;
@@ -194,10 +207,12 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
     _meshShading.pyramid = _initData.pyramid;
     _meshShading.color = _initData.color;
     _meshShading.depth = _initData.depth;
+    _meshShading.g_buffer = _initData.g_buffer;
 
     _meshShading.meshletVisBufferOutAlias = mltVisBufOutAlias;
     _meshShading.colorOutAlias = colorOutAlias;
     _meshShading.depthOutAlias = depthOutAlias;
+    _meshShading.g_bufferOutAlias = gb_outAlias;
 }
 
 void prepareTaskSubmit(TaskSubmit& _taskSubmit, kage::BufferHandle _drawCmdBuf, kage::BufferHandle _drawCmdCntBuf, bool _late /*= false*/, bool _alphaPass /*= false*/)

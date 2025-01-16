@@ -114,6 +114,10 @@ project "vulkage"
 		path.join(SRC_DIR, "radiance_cascade/*.h"),
 		path.join(SRC_DIR, "radiance_cascade/*.cpp"),
 
+		-- deffered
+		path.join(SRC_DIR, "deferred/*.h"),
+		path.join(SRC_DIR, "deferred/*.cpp"),
+
 		-- shaders
 		path.join(SRC_DIR, "shaders/*.glsl"),
 		path.join(SRC_DIR, "shaders/*.h"),
@@ -164,6 +168,11 @@ project "vulkage"
 		["src/radiance_cascade"] = {
 			path.join(SRC_DIR, "radiance_cascade/*.h"),
 			path.join(SRC_DIR, "radiance_cascade/*.cpp"),
+		},
+
+		["src/deferred"] = {
+			path.join(SRC_DIR, "deferred/*.h"),
+			path.join(SRC_DIR, "deferred/*.cpp"),
 		},
 		
 		["shaders"] = {
