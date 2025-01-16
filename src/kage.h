@@ -137,7 +137,7 @@ namespace kage
     );
 
     // draw indirect
-    void draw(
+    void drawIndirect(
         const BufferHandle _hIndirectBuf
         , const uint32_t _offset
         , const uint32_t _count
@@ -145,7 +145,7 @@ namespace kage
     );
 
     // draw indirect count
-    void draw(
+    void drawIndirect(
         const uint32_t _offset
         , const BufferHandle _countBuf
         , const uint32_t _countOffset

@@ -418,7 +418,7 @@ namespace kage
         );
 
         // draw indirect
-        void draw(
+        void drawIndirect(
             const BufferHandle _hIndirectBuf
             , const uint32_t _offset
             , const uint32_t _count
@@ -426,7 +426,7 @@ namespace kage
         );
 
         // draw indirect count
-        void draw(
+        void drawIndirect(
             const uint32_t _offset
             , const BufferHandle _countBuf
             , const uint32_t _countOffset
@@ -2242,15 +2242,15 @@ namespace kage
 
     void Context::draw(const uint32_t _vertexCount, const uint32_t _instanceCount, const uint32_t _firstVertex, const uint32_t _firstInstance)
     {
-        BX_ASSERT(0, "NOT IMPLEMENTED YET!!!");
+        m_cmdQueue.cmdRecordDraw(_vertexCount, _instanceCount, _firstVertex, _firstInstance);
     }
 
-    void Context::draw( const BufferHandle _hIndirectBuf, const uint32_t _offset, const uint32_t _count, const uint32_t _stride)
+    void Context::drawIndirect( const BufferHandle _hIndirectBuf, const uint32_t _offset, const uint32_t _count, const uint32_t _stride)
     {
         BX_ASSERT(0, "NOT IMPLEMENTED YET!!!");
     }
 
-    void Context::draw(const uint32_t _offset, const BufferHandle _countBuf, const uint32_t _countOffset, const uint32_t _maxCount, const uint32_t _stride)
+    void Context::drawIndirect(const uint32_t _offset, const BufferHandle _countBuf, const uint32_t _countOffset, const uint32_t _maxCount, const uint32_t _stride)
     {
         BX_ASSERT(0, "NOT IMPLEMENTED YET!!!");
     }
@@ -2543,18 +2543,18 @@ namespace kage
     }
 
     // draw indirect
-    void draw(
+    void drawIndirect(
         const BufferHandle _hIndirectBuf
         , const uint32_t _offset
         , const uint32_t _count
         , const uint32_t _stride
     )
     {
-        s_ctx->draw(_hIndirectBuf, _offset, _count, _stride);
+        s_ctx->drawIndirect(_hIndirectBuf, _offset, _count, _stride);
     }
 
     // draw indirect count
-    void draw(
+    void drawIndirect(
         const uint32_t _offset
         , const BufferHandle _countBuf
         , const uint32_t _countOffset
@@ -2562,7 +2562,7 @@ namespace kage
         , const uint32_t _stride
     )
     {
-        s_ctx->draw(_offset, _countBuf, _countOffset, _maxCount, _stride);
+        s_ctx->drawIndirect(_offset, _countBuf, _countOffset, _maxCount, _stride);
     }
 
     void drawIndexed(

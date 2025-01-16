@@ -2921,7 +2921,39 @@ namespace kage { namespace vk
 
     void RHIContext_vk::draw(PassHandle _hPass, uint32_t _vtxCount, uint32_t _instCount, uint32_t _firstIdx, uint32_t _firstInst)
     {
-        BX_ASSERT(false, "not implemented");
+        KG_ZoneScopedC(Color::indian_red);
+
+        if (!m_passContainer.exist(_hPass.id))
+        {
+            message(
+                warning
+                , "drawIndexed will not perform for pass %d! It might be cut after render pass sorted"
+                , _hPass.id
+            );
+            return;
+        }
+
+        createBarriersRec(_hPass);
+        lazySetDescriptorSet(_hPass);
+
+        beginRendering(m_cmdBuffer, _hPass.id);
+
+        PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
+        const uint16_t progIdx = (uint16_t)m_programContainer.getIdIndex(passInfo.programId);
+
+        vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, passInfo.pipeline);
+
+        vkCmdDraw(
+            m_cmdBuffer
+            , _vtxCount
+            , _instCount
+            , _firstIdx
+            , _firstInst
+        );
+
+        endRendering(m_cmdBuffer);
+
+        flushWriteBarriersRec(_hPass);
     }
 
     void RHIContext_vk::drawIndexed(
@@ -3672,7 +3704,7 @@ namespace kage { namespace vk
 
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 
-        VkClearColorValue color = { 33.f / 255.f, 200.f / 255.f, 242.f / 255.f, 1 };
+        VkClearColorValue color = { 0.f, 0.f, 0.f, 0.f};
         VkClearDepthStencilValue depth = { 0.f, 0 };
 
         stl::vector<VkRenderingAttachmentInfo> colorAttachments(m_colorAttachPerPass.size());
