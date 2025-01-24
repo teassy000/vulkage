@@ -48,6 +48,7 @@ struct Scene
     uint32_t drawCount;
     float    drawDistance; // remove for infinity far 
     uint32_t meshletVisibilityCount; // meshlet Count
+    float    radius;
 
     uint32_t imageCount;
     uint32_t imageDataSize;
@@ -64,3 +65,5 @@ struct Scene
 
 bool loadScene(Scene& _scene, const std::vector<std::string>& _pathes, bool _buildMeshlets, bool _seamlessLod, bool _forceParse);
 bool dumpScene(const Scene& scene, const char* path);
+
+float calcRadius(const Scene& _scene);

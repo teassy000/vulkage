@@ -449,6 +449,8 @@ bool loadGltfScene(Scene& _scene, const char* _path, bool _buildMeshlet, bool _s
     // free gltf stuff
     cgltf_free(data);
 
+    _scene.radius = calcRadius(_scene);
+
     // dump the scene anyway
     std::string sceneName = _path;
     sceneName.append(".scene");

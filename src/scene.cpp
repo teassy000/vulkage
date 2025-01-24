@@ -31,6 +31,7 @@ struct SceneBiref
     uint32_t meshletVisibilityCount;
     uint32_t imageCount;
     uint32_t imageDataSize;
+    float    radius;
     
     // camera
     uint32_t cameraCount;
@@ -262,6 +263,8 @@ bool loadObjScene(Scene& _scene, const std::vector<std::string>& _pathes, bool _
         CreateRandomScene(_scene, _seamlessLod);
         break;
     }
+
+    _scene.radius = calcRadius(_scene);
     return true;
 }
 
@@ -287,6 +290,8 @@ static void printBrief(const SceneBiref& _brief, size_t _size)
     kage::message(kage::info, "meshlet visibility count: %d", _brief.meshletVisibilityCount);
     kage::message(kage::info, "image count: %d", _brief.imageCount);
     kage::message(kage::info, "image data size: %d", _brief.imageDataSize);
+    kage::message(kage::info, "camera count: %d", _brief.cameraCount);
+    kage::message(kage::info, "scene radius: %f", _brief.radius);
 
     // total data size
     kage::message(kage::info, "Total data size: %d", _size);
@@ -324,6 +329,7 @@ bool dumpScene(const Scene& _scene, const char* _path)
     brief.imageCount = (uint32_t)_scene.images.size();
     brief.imageDataSize = (uint32_t)_scene.imageDatas.size();
     brief.cameraCount = (uint32_t)_scene.cameras.size();
+    brief.radius = _scene.radius;
 
     fwrite(&brief, sizeof(SceneBiref), 1, file);
 
@@ -352,6 +358,21 @@ bool dumpScene(const Scene& _scene, const char* _path)
     return true;
 }
 
+
+float calcRadius(const Scene& _scene)
+{
+    float radius = 0.f;
+
+    for (const MeshDraw& md : _scene.meshDraws)
+    {
+        float r = _scene.geometry.meshes[md.meshIdx].radius;
+        r += length(md.pos);
+
+        radius = std::max(radius, r);
+    }
+
+    return radius;
+}
 
 void* getEntryPoint(Scene& _scene, SceneDumpDataTags _tag)
 {
@@ -473,6 +494,7 @@ bool loadSceneDump(Scene& _scene, const char* _path)
     _scene.images.resize(brief.imageCount);
     _scene.imageDatas.resize(brief.imageDataSize);
     _scene.cameras.resize(brief.cameraCount);
+    _scene.radius = brief.radius;
 
     size_t size = 0;
     while (true)
