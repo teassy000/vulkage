@@ -199,6 +199,8 @@ namespace
             m_demoData.profiling.drawLateTime = (float)kage::getPassTime(m_meshShadingLate.pass);
             m_demoData.profiling.pyramidTime = (float)kage::getPassTime(m_pyramid.pass);
             m_demoData.profiling.uiTime = (float)kage::getPassTime(m_ui.pass);
+            m_demoData.profiling.deferredTime = (float)kage::getPassTime(m_deferred.pass);
+            m_demoData.profiling.buildCascadeTime = (float)kage::getPassTime(m_radianceCascade.rcBuild.pass);
 
             m_demoData.profiling.triangleEarlyCount = (float)(kage::getPassClipping(m_meshShading.pass));
             m_demoData.profiling.triangleLateCount = (float)(kage::getPassClipping(m_meshShadingLate.pass));
@@ -581,14 +583,26 @@ namespace
 
             // radiance cascade
             {
-                prepareRadianceCascade(m_radianceCascade, m_width, m_height);
+                kage::ImageHandle cascadeDepthIn = m_supportMeshShading ? m_meshShadingAlpha.depthOutAlias : m_vtxShadingLate.depthOutAlias;
+                GBuffer gb = m_supportMeshShading ? m_meshShadingAlpha.g_bufferOutAlias : GBuffer();
+
+                RadianceCascadeInitData rcInit{};
+                rcInit.g_buffer = gb;
+                rcInit.depth = cascadeDepthIn;
+                rcInit.meshBuf = m_meshBuf;
+                rcInit.meshDrawBuf = m_meshDrawBuf;
+                rcInit.vtxBuf = m_vtxBuf;
+                rcInit.transBuf = m_transformBuf;
+                rcInit.sceneRadius = m_scene.radius;
+
+                prepareRadianceCascade(m_radianceCascade, rcInit);
             }
 
             // ui
             {
                 kage::ImageHandle uiColorIn = m_smaa.m_outAliasImg;
                 kage::ImageHandle uiDepthIn = m_supportMeshShading ? m_meshShadingAlpha.depthOutAlias : m_vtxShadingLate.depthOutAlias;
-                m_ui.dummyColor = m_radianceCascade.outAlias;
+                m_ui.dummyColor = m_radianceCascade.rcBuild.outAlias;
                 prepareUI(m_ui, uiColorIn, uiDepthIn, 1.3f);
             }
         }

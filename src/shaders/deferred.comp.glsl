@@ -6,6 +6,8 @@
 
 # extension GL_GOOGLE_include_directive: require
 
+#include "pbr.h"
+
 layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
 layout(push_constant) uniform blocks

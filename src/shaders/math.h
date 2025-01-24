@@ -1,6 +1,8 @@
 #define PI 3.14159265359
 #define GOLD vec3(1.0, 0.765557, 0.336057)
 
+
+
 // 2D Polyhedral Bounds of a Clipped, Perspective-Projected 3D Sphere. Michael Mara, Morgan McGuire. 2013
 bool projectSphere(vec3 c, float r, float znear, float P00, float P11, out vec4 aabb)
 {

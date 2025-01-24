@@ -260,6 +260,8 @@ void updateImGuiContent(DebugRenderOptionsData& _rod, const DebugProfilingData& 
     }
 
     ImGui::Text("ui: [%.3f]ms", _pd.uiTime);
+    ImGui::Text("deferred: [%.3f]ms", _pd.deferredTime);
+    ImGui::Text("build cascade: [%.3f]ms", _pd.buildCascadeTime);
 
     if (ImGui::TreeNode("Static Data:"))
     {

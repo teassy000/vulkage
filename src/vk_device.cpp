@@ -192,6 +192,7 @@ namespace kage{ namespace vk
         features.features.shaderInt16 = true;
         features.features.shaderInt64 = true;
         features.features.shaderStorageImageMultisample = true;
+        features.features.geometryShader = true;
 
         VkPhysicalDeviceVulkan11Features features11 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES };
         features11.storageBuffer16BitAccess = true;

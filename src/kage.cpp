@@ -800,7 +800,7 @@ namespace kage
         setName(handle, _name, strlen(_name));
 
         setRenderGraphDataDirty();
-        
+
         ImageCreate ic{};
         ic.width = _desc.width;
         ic.height = _desc.height;
@@ -835,23 +835,20 @@ namespace kage
             return ImageHandle{ kInvalidHandle };
         }
 
-        // do not set the texture format
-        if (_desc.format != ResourceFormat::undefined)
+        if (kInitU32 == _desc.width || kInitU32 != _desc.height)
         {
-            message(error, "do not set the resource format for render target");
-            return ImageHandle{ kInvalidHandle };
+            message(warning, "not set the width/height, will use render size");
         }
 
-        if (m_resolution.width != _desc.width || m_resolution.height != _desc.height)
-        {
-            message(warning, "no need to set width and height for render target, will use render size instead");
-        }
+        uint32_t width = _desc.width == kInitU32 ? m_resolution.width : _desc.width;
+        uint32_t height = _desc.height == kInitU32 ? m_resolution.height : _desc.height;
 
         ImageMetaData meta = _desc;
-        meta.width = m_resolution.width;
-        meta.height = m_resolution.height;
+        meta.width = width;
+        meta.height = height;
+        meta.depth = _desc.depth;
         meta.imgId = idx;
-        meta.format = ResourceFormat::undefined;
+        meta.format = _desc.format;
         meta.usage = ImageUsageFlagBits::color_attachment | _desc.usage;
         meta.aspectFlags = ImageAspectFlagBits::color;
         meta.lifetime = _lifetime;
@@ -863,16 +860,16 @@ namespace kage
         setRenderGraphDataDirty();
 
         ImageCreate ic{};
-        ic.width = _desc.width;
-        ic.height = _desc.height;
-        ic.depth = _desc.depth;
+        ic.width = width;
+        ic.height = height;
+        meta.depth = _desc.depth;
         ic.numLayers = _desc.numLayers;
         ic.numMips = _desc.numMips;
 
         ic.type = _desc.type;
         ic.viewType = _desc.viewType;
         ic.layout = _desc.layout;
-        ic.format = ResourceFormat::undefined;
+        ic.format = _desc.format;
         ic.usage = ImageUsageFlagBits::color_attachment | _desc.usage;
         ic.aspect = ImageAspectFlagBits::color;
 
@@ -889,11 +886,6 @@ namespace kage
 
         ImageHandle handle = ImageHandle{ idx };
 
-        if (m_resolution.width != _desc.width || m_resolution.height != _desc.height)
-        {
-            message(warning, "no need to set width and height for depth stencil, will use render size instead");
-        }
-
         // check if img is valid
         if (!isValid(handle))
         {
@@ -901,7 +893,12 @@ namespace kage
             return ImageHandle{ kInvalidHandle };
         }
 
-        // do not set the texture format
+        if (kInitU32 == _desc.width || kInitU32 != _desc.height)
+        {
+            message(warning, "not set the width/height, will use render size");
+        }
+
+        // do not set the depth format
         if (_desc.format != ResourceFormat::undefined)
         {
             message(error, "do not set the resource format for depth stencil!");
@@ -911,6 +908,7 @@ namespace kage
         ImageMetaData meta{ _desc };
         meta.width = m_resolution.width;
         meta.height = m_resolution.height;
+        meta.depth = _desc.depth;
         meta.imgId = idx;
         meta.format = ResourceFormat::d32_sfloat;
         meta.usage = ImageUsageFlagBits::depth_stencil_attachment | _desc.usage;
@@ -926,7 +924,7 @@ namespace kage
         ImageCreate ic{};
         ic.width = _desc.width;
         ic.height = _desc.height;
-        ic.depth = _desc.depth;
+        meta.depth = _desc.depth;
         ic.numLayers = _desc.numLayers;
         ic.numMips = _desc.numMips;
 

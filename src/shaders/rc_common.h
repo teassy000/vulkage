@@ -44,4 +44,7 @@ struct RadianceCascadesConfig
     uint probeDiameter;
     uint level;
     uint layerOffset;
+
+    float rayLength;
+    uint rayMarchingSteps;
 };

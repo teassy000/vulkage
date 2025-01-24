@@ -10,6 +10,8 @@ namespace kage
     static const uint32_t kInvalidDescriptorSetIndex = UINT32_MAX;
     static const uint32_t kDescriptorSetBindingDontCare = UINT32_MAX - 1;
 
+    static const uint32_t kInitU32 = UINT32_MAX;
+
     static const uint16_t kAllMips = UINT16_MAX;
 
 #define KAGE_HANDLE(_name)                                                              \
@@ -621,8 +623,8 @@ namespace kage
 
     struct ImageDesc 
     {
-        uint32_t width{ 0 };
-        uint32_t height{ 0 };
+        uint32_t width{ kInitU32 };
+        uint32_t height{ kInitU32 };
         uint32_t depth{ 1 };
         uint16_t numLayers{ 1 };
         uint16_t numMips{ 1 };
