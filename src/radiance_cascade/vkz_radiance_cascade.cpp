@@ -75,6 +75,8 @@ void recFullDrawCmdPass(const VoxelizationCmd& _vc)
 {
     kage::startRec(_vc.pass);
 
+    kage::fillBuffer(_vc.out_cmdCountBuf, 0);
+
     kage::Binding binds[] =
     {
         {_vc.in_meshBuf,        Access::read,       Stage::compute_shader },
