@@ -2199,12 +2199,11 @@ namespace kage { namespace vk
         passInfo.indexBufferId = passMeta.indexBufferId;
         passInfo.indexCount = passMeta.indexCount;
 
-        passInfo.indirectBufferId = passMeta.indirectBufferId;
-        passInfo.indirectBufOffset = passMeta.indirectBufOffset;
-        passInfo.indirectBufStride = passMeta.indirectBufStride;
-        passInfo.indirectCountBufferId = passMeta.indirectCountBufferId;
-        passInfo.indirectCountBufOffset = passMeta.indirectCountBufOffset;
-        passInfo.indirectMaxDrawCount = passMeta.indirectMaxDrawCount;
+        
+        
+        
+        
+        
 
         passInfo.writeDepthId = passMeta.writeDepthId;
 
@@ -3704,8 +3703,10 @@ namespace kage { namespace vk
 
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 
-        VkClearColorValue color = { 0.f, 0.f, 0.f, 0.f};
-        VkClearDepthStencilValue depth = { 0.f, 0 };
+        VkClearColorValue clearColor = { 0.f, 0.f, 0.f, 0.f};
+        VkClearDepthStencilValue clearDepth = { 0.f, 0 };
+
+        VkExtent2D extent = { 0, 0 };
 
         stl::vector<VkRenderingAttachmentInfo> colorAttachments(m_colorAttachPerPass.size());
         for (int ii = 0; ii < m_colorAttachPerPass.size(); ++ii)
@@ -3713,8 +3714,13 @@ namespace kage { namespace vk
             const Attachment& att = m_colorAttachPerPass[ii];
             const Image_vk& colorTarget = getImage(att.hImg.id);
 
+            extent.width = extent.width == 0 ? colorTarget.width : extent.width;
+            extent.height = extent.height == 0 ? colorTarget.height : extent.height;
+
+            assert(extent.width == colorTarget.width && extent.height == colorTarget.height);
+
             colorAttachments[ii].sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-            colorAttachments[ii].clearValue.color = color;
+            colorAttachments[ii].clearValue.color = clearColor;
             colorAttachments[ii].loadOp = getAttachmentLoadOp(att.load_op);
             colorAttachments[ii].storeOp = getAttachmentStoreOp(att.store_op);
             colorAttachments[ii].imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
@@ -3727,7 +3733,12 @@ namespace kage { namespace vk
         {
             const Image_vk& depthTarget = getImage(m_depthAttachPerPass.hImg.id);
 
-            depthAttachment.clearValue.depthStencil = depth;
+            extent.width = extent.width == 0 ? depthTarget.width : extent.width;
+            extent.height = extent.height == 0 ? depthTarget.height : extent.height;
+
+            assert(extent.width == depthTarget.width && extent.height == depthTarget.height);
+
+            depthAttachment.clearValue.depthStencil = clearDepth;
             depthAttachment.loadOp = getAttachmentLoadOp(m_depthAttachPerPass.load_op);
             depthAttachment.storeOp = getAttachmentStoreOp(m_depthAttachPerPass.store_op);
             depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
@@ -3735,8 +3746,7 @@ namespace kage { namespace vk
         }
 
         VkRenderingInfo renderingInfo = { VK_STRUCTURE_TYPE_RENDERING_INFO };
-        renderingInfo.renderArea.extent.width = m_swapchain.m_resolution.width;
-        renderingInfo.renderArea.extent.height = m_swapchain.m_resolution.height;
+        renderingInfo.renderArea.extent = extent;
         renderingInfo.layerCount = 1;
         renderingInfo.colorAttachmentCount = (uint32_t)colorAttachments.size();
         renderingInfo.pColorAttachments = colorAttachments.data();
