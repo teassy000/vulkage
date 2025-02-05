@@ -42,13 +42,19 @@ struct Voxelization
     kage::BufferHandle cmdBuf;
     kage::BufferHandle cmdCountBuf;
     kage::BufferHandle drawBuf;
+    kage::BufferHandle idxBuf;
     kage::BufferHandle vtxBuf;
     kage::BufferHandle transBuf;
+
     kage::ImageHandle voxelAlbedo;
     kage::ImageHandle voxelNormal;
     kage::ImageHandle voxelWorldPos;
 
+    kage::ImageHandle rt;
+
     kage::ImageHandle voxelAlbedoOutAlias;
+
+    uint32_t maxDrawCmdCount;
 };
 
 struct RadianceCascadeBuild
@@ -87,10 +93,12 @@ struct RadianceCascadeInitData
     kage::ImageHandle depth;
     kage::BufferHandle meshBuf;
     kage::BufferHandle meshDrawBuf;
+    kage::BufferHandle idxBuf;
     kage::BufferHandle vtxBuf;
     kage::BufferHandle transBuf;
 
     float sceneRadius;
+    uint32_t maxDrawCmdCount;
 };
 
 void prepareRadianceCascade(RadianceCascade& _rc, const RadianceCascadeInitData _init);

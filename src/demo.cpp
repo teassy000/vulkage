@@ -200,6 +200,8 @@ namespace
             m_demoData.profiling.pyramidTime = (float)kage::getPassTime(m_pyramid.pass);
             m_demoData.profiling.uiTime = (float)kage::getPassTime(m_ui.pass);
             m_demoData.profiling.deferredTime = (float)kage::getPassTime(m_deferred.pass);
+
+            m_demoData.profiling.voxelizationTime = (float)kage::getPassTime(m_radianceCascade.vox.pass);
             m_demoData.profiling.buildCascadeTime = (float)kage::getPassTime(m_radianceCascade.rcBuild.pass);
 
             m_demoData.profiling.triangleEarlyCount = (float)(kage::getPassClipping(m_meshShading.pass));
@@ -591,9 +593,11 @@ namespace
                 rcInit.depth = cascadeDepthIn;
                 rcInit.meshBuf = m_meshBuf;
                 rcInit.meshDrawBuf = m_meshDrawBuf;
+                rcInit.idxBuf = m_idxBuf;
                 rcInit.vtxBuf = m_vtxBuf;
                 rcInit.transBuf = m_transformBuf;
                 rcInit.sceneRadius = m_scene.radius;
+                rcInit.maxDrawCmdCount = (uint32_t)m_scene.meshDraws.size();
 
                 prepareRadianceCascade(m_radianceCascade, rcInit);
             }

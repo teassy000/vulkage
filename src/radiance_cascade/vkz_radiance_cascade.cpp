@@ -1,4 +1,5 @@
 #include "vkz_radiance_cascade.h"
+#include "demo_structs.h"
 
 
 using Stage = kage::PipelineStageFlagBits::Enum;
@@ -92,10 +93,12 @@ struct VoxInitData
     kage::BufferHandle cmdBuf;
     kage::BufferHandle cmdCountBuf;
     kage::BufferHandle drawBuf;
+    kage::BufferHandle idxBuf;
     kage::BufferHandle vtxBuf;
     kage::BufferHandle transBuf;
 
     float sceneRadius;
+    uint32_t maxDrawCmdCount;
 };
 
 void prepareVoxelization(Voxelization& _vox, const VoxInitData& _init)
@@ -150,6 +153,8 @@ void prepareVoxelization(Voxelization& _vox, const VoxInitData& _init)
         rt = kage::registRenderTarget("rc_voxelize_rt", imgDesc, kage::ResourceLifetime::transition);
     }
 
+    kage::bindIndexBuffer(pass, _init.idxBuf);
+
     kage::bindBuffer(pass, _init.cmdBuf
         , 0
         , kage::PipelineStageFlagBits::mesh_shader
@@ -174,6 +179,10 @@ void prepareVoxelization(Voxelization& _vox, const VoxInitData& _init)
         , kage::AccessFlagBits::shader_read
     );
 
+    kage::setIndirectBuffer(pass, _init.cmdBuf, offsetof(MeshDrawCommand, indexCount), sizeof(MeshDrawCommand), _init.maxDrawCmdCount);
+    kage::setIndirectCountBuffer(pass, _init.cmdCountBuf, 0);
+
+
     kage::ImageHandle rtAlias = kage::alias(rt);
     kage::ImageHandle albedoAlias = kage::alias(albedo);
     kage::setAttachmentOutput(pass, rt, 0, rtAlias);
@@ -189,16 +198,48 @@ void prepareVoxelization(Voxelization& _vox, const VoxInitData& _init)
     _vox.cmdBuf = _init.cmdBuf;
     _vox.cmdCountBuf = _init.cmdCountBuf;
     _vox.drawBuf = _init.drawBuf;
+    _vox.idxBuf = _init.idxBuf;
     _vox.vtxBuf = _init.vtxBuf;
     _vox.transBuf = _init.transBuf;
     _vox.voxelAlbedo = albedo;
     _vox.voxelAlbedoOutAlias = albedoAlias;
 
+    _vox.rt = rt;
+
+    _vox.maxDrawCmdCount = _init.maxDrawCmdCount;
 }
 
 void recVoxelization(const Voxelization& _vox)
 {
     kage::startRec(_vox.pass);
+
+
+    kage::setViewport(0, 0,128, 128);
+    kage::setScissor(0, 0, 128, 128);
+    kage::Binding binds[] =
+    {
+        { _vox.cmdBuf,         Access::read,   Stage::vertex_shader | Stage::geometry_shader | Stage::fragment_shader },
+        { _vox.vtxBuf,         Access::read,       Stage::vertex_shader | Stage::geometry_shader | Stage::fragment_shader },
+        { _vox.drawBuf,        Access::read,       Stage::vertex_shader | Stage::geometry_shader | Stage::fragment_shader },
+        { _vox.transBuf,      Access::read,       Stage::vertex_shader | Stage::geometry_shader | Stage::fragment_shader  },
+    };
+    kage::pushBindings(binds, COUNTOF(binds));
+
+    kage::Attachment attachs[] = {
+        { _vox.voxelAlbedo, LoadOp::clear,      StoreOp::store      },
+        { _vox.rt,          LoadOp::dont_care,  StoreOp::dont_care  },
+    };
+    kage::setColorAttachments(attachs, COUNTOF(attachs));
+
+    kage::setIndexBuffer(_vox.idxBuf, 0, kage::IndexType::uint32);
+    kage::drawIndexed(
+        _vox.cmdBuf
+        , offsetof(MeshDrawCommand, indexCount)
+        , _vox.cmdCountBuf
+        , 0
+        , _vox.maxDrawCmdCount
+        , sizeof(MeshDrawCommand)
+    );
 
     kage::endRec();
 }
@@ -383,9 +424,11 @@ void prepareRadianceCascade(RadianceCascade& _rc, const RadianceCascadeInitData 
     voxelizeInitData.cmdBuf = _rc.voxCmd.out_cmdBufAlias;
     voxelizeInitData.cmdCountBuf = _rc.voxCmd.out_cmdCountBufAlias;
     voxelizeInitData.drawBuf = _init.meshDrawBuf;
+    voxelizeInitData.idxBuf = _init.idxBuf;
     voxelizeInitData.vtxBuf = _init.vtxBuf;
     voxelizeInitData.transBuf = _init.transBuf;
     voxelizeInitData.sceneRadius = _init.sceneRadius;
+    voxelizeInitData.maxDrawCmdCount = _init.maxDrawCmdCount;
 
     prepareVoxelization(_rc.vox, voxelizeInitData);
 

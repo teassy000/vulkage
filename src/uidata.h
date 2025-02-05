@@ -11,6 +11,7 @@ struct DebugProfilingData
     float pyramidTime;
     float uiTime;
     float deferredTime;
+    float voxelizationTime;
     float buildCascadeTime;
 
     uint32_t primitiveCount;
