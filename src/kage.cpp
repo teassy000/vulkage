@@ -1767,11 +1767,7 @@ namespace kage
                 message(DebugMsgType::error, "the _outAlias must be valid if trying to write to resource in pass");
             }
 
-            if (isGraphics(_hPass))
-            {
-                message(DebugMsgType::error, "Graphics pass not allowed to write to texture via bind! try to use setAttachmentOutput instead.");
-            }
-            else if (isCompute(_hPass))
+            if (isCompute(_hPass) || isGraphics(_hPass))
             {
                 passMeta.writeImageNum = insertResInteract(m_writeImages, _hPass, _hImg.id, interact);
                 passMeta.writeImgAliasNum = insertWriteResAlias(m_writeForcedImageAliases, _hPass, _hImg.id, _outAlias.id);

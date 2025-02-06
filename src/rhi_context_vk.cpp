@@ -2198,13 +2198,6 @@ namespace kage { namespace vk
         passInfo.vertexCount = passMeta.vertexCount;
         passInfo.indexBufferId = passMeta.indexBufferId;
         passInfo.indexCount = passMeta.indexCount;
-
-        
-        
-        
-        
-        
-
         passInfo.writeDepthId = passMeta.writeDepthId;
 
         // desc part
@@ -2277,16 +2270,21 @@ namespace kage { namespace vk
 
             uint32_t depthNum = (passMeta.writeDepthId == kInvalidHandle) ? 0 : 1;
 
-            stl::vector<VkFormat> colorFormats(passInfo.writeColors.size());
+            stl::vector<VkFormat> colorFormats{};
             for (size_t ii = 0; ii < passInfo.writeColors.size(); ++ii)
             {
                 uint16_t id = passInfo.writeColors.getIdAt(ii);
+
                 const Image_vk& img = m_imageContainer.getIdToData(id);
-                colorFormats[ii] = img.format;
+                const BarrierState_vk& ba = passInfo.writeColors.getDataAt(ii);
+                if ((ba.accessMask & VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT) == 0)
+                    continue;
+
+                colorFormats.emplace_back(img.format);
             }
 
             VkPipelineRenderingCreateInfo renderInfo = { VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
-            renderInfo.colorAttachmentCount = (uint32_t)passInfo.writeColors.size();
+            renderInfo.colorAttachmentCount = (uint32_t)colorFormats.size();
             renderInfo.pColorAttachmentFormats = colorFormats.data();
             renderInfo.depthAttachmentFormat = m_depthFormat;
 
