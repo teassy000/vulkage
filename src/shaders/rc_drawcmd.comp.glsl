@@ -8,11 +8,7 @@
 #include "mesh_gpu.h"
 #include "math.h"
 
-layout(local_size_x = TASKGP_SIZE, local_size_y = 1, local_size_z = 1) in;
-
-layout(constant_id = 0) const bool LATE = false;
-layout(constant_id = 1) const bool TASK = false;
-layout(constant_id = 2) const bool ALPHA_PASS = false;
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
 // readonly
 layout(binding = 0) readonly buffer Meshes
@@ -46,6 +42,7 @@ void main()
     MeshLod lod = mesh.lods[0];
 
     uint dci = atomicAdd(drawCmdCount, 1);
+
     drawCmds[dci].drawId = di;
     drawCmds[dci].lateDrawVisibility = 0;
     drawCmds[dci].taskCount = lod.meshletCount;
@@ -55,7 +52,7 @@ void main()
     drawCmds[dci].firstIndex = lod.indexOffset;
     drawCmds[dci].vertexOffset = mesh.vertexOffset;
     drawCmds[dci].firstInstance = 0;
-    drawCmds[dci].local_x = (lod.meshletCount + TASKGP_SIZE - 1)/ TASKGP_SIZE; 
+    drawCmds[dci].local_x = (lod.meshletCount + 1 - 1)/ 1; 
     drawCmds[dci].local_y = 1;
     drawCmds[dci].local_z = 1;
 }
