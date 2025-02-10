@@ -72,20 +72,6 @@ struct DemoData
     TransformData trans;
 };
 
-// left handed
-// infinity far
-// z in [0, 1], 0 is near, 1 is far
-inline mat4 perspectiveProjection(float fovY, float aspectWbyH, float zNear)
-{
-    float f = 1.0f / tanf(fovY / 2.0f);
-
-    return mat4(
-        f / aspectWbyH, 0.0f, 0.0f, 0.0f,
-        0.0f, f, 0.0f, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f,
-        0.0f, 0.0f, zNear, 0.0f);
-}
-
 inline vec4 normalizePlane(vec4 p)
 {
     return p / glm::length(p);

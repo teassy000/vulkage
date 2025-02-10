@@ -27,7 +27,7 @@ layout(binding = 4) uniform sampler2D in_emmision;
 layout(binding = 5) uniform sampler2D in_depth;
 
 layout(binding = 6) uniform sampler3D in_voxAlbedo;
-layout(binding = 7, rgba32f) uniform writeonly image2DArray octProbAtlas;
+layout(binding = 7, RGBA8) uniform writeonly image2DArray octProbAtlas;
 
 void main()
 {

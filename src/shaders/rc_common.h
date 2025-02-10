@@ -48,3 +48,8 @@ struct RadianceCascadesConfig
     float rayLength;
     uint rayMarchingSteps;
 };
+
+struct VoxelizationConfig
+{
+    mat4 proj;
+};

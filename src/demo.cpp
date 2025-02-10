@@ -180,7 +180,7 @@ namespace
 
 
             m_smaa.update(m_width, m_height);
-            updateRadianceCascade(m_radianceCascade);
+            updateRadianceCascade(m_radianceCascade, m_scene.drawCount, freeCameraGetOrthoProjMatrix(m_scene.radius, m_scene.radius, m_scene.radius));
             updateUI(m_ui, m_demoData.input, m_demoData.renderOptions, m_demoData.profiling, m_demoData.logic);
 
             // render
@@ -614,7 +614,7 @@ namespace
         void refreshData()
         {
             float znear = .1f;
-            mat4 projection = perspectiveProjection(glm::radians(freeCameraGetFov()), (float)m_width / (float)m_height, znear);
+            mat4 projection = freeCameraGetPerpProjMatrix((float)m_width / (float)m_height, znear);
             mat4 projectionT = glm::transpose(projection);
             vec4 frustumX = normalizePlane(projectionT[3] - projectionT[0]);
             vec4 frustumY = normalizePlane(projectionT[3] - projectionT[1]);

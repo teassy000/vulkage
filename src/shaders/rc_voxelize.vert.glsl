@@ -12,7 +12,7 @@
 
 layout(push_constant) uniform block
 {
-    RadianceCascadesConfig config;
+    VoxelizationConfig config;
 };
 
 layout(binding = 0) readonly buffer DrawCommands
@@ -35,11 +35,11 @@ layout(binding = 3) readonly uniform Transform
     TransformData trans;
 };
 
-layout(location = 0) out flat uint out_drawId[] ;
-layout(location = 1) out vec2 out_uv[];
-layout(location = 2) out vec3 out_normal[];
-layout(location = 3) out vec4 out_tangent[];
-layout(location = 4) out vec3 out_wpos[];
+layout(location = 0) out flat uint out_drawId;
+layout(location = 1) out vec2 out_uv;
+layout(location = 2) out vec3 out_normal;
+layout(location = 3) out vec4 out_tangent;
+layout(location = 4) out vec3 out_wpos;
 
 // the main method is based on 
 
@@ -55,7 +55,12 @@ void main()
     vec2 uv = vec2(vertices[gl_VertexIndex].tu, vertices[gl_VertexIndex].tv);
 
     norm = rotateQuat(norm, meshDraw.orit);
+
+    out_drawId = drawId;
+    out_normal = norm;
+    out_uv = uv;
+
     vec3 result = vec3(rotateQuat(pos, meshDraw.orit) * meshDraw.scale + meshDraw.pos);
 
-    gl_Position = trans.proj * trans.view * vec4(result, 1.0);
+    gl_Position = config.proj * vec4(result, 1.0);
 }

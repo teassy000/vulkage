@@ -14,6 +14,8 @@
 
 void freeCameraInit(const vec3& _pos, const quat& _orit, const float _fov);
 void freeCameraDestroy();
+mat4 freeCameraGetOrthoProjMatrix(float _halfWidth, float _halfHeight, float _halfDepth);
+mat4 freeCameraGetPerpProjMatrix(float _aspect, float _znear);
 mat4 freeCameraGetViewMatrix();
 vec3 freeCameraGetPos();
 vec3 freeCameraGetFront();

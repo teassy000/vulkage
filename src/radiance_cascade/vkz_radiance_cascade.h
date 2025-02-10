@@ -102,4 +102,4 @@ struct RadianceCascadeInitData
 };
 
 void prepareRadianceCascade(RadianceCascade& _rc, const RadianceCascadeInitData _init);
-void updateRadianceCascade(const RadianceCascade& _rc);
+void updateRadianceCascade(const RadianceCascade& _rc, uint32_t _drawCount, const mat4& _proj);

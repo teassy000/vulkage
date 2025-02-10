@@ -94,6 +94,20 @@ static const InputBinding s_camBindings[] =
 };
 
 
+// left handed
+// infinity far
+// z in [0, 1], 0 is near, 1 is far
+inline mat4 perspectiveProjection(float fovY, float aspectWbyH, float zNear)
+{
+    float f = 1.0f / tanf(fovY / 2.0f);
+
+    return mat4(
+        f / aspectWbyH, 0.0f, 0.0f, 0.0f,
+        0.0f, f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f,
+        0.0f, 0.0f, zNear, 0.0f);
+}
+
 struct FreeCamera
 {
     struct MouseCoords
@@ -209,6 +223,20 @@ struct FreeCamera
         return view;
     }
 
+    // left handed
+    // limited near/far
+    // _width, _height, _depth are the dimensions of the view volume
+    // volume is centered at the origin
+    mat4 getOrthoProjMat(float _hw, float _hh, float _hd)
+    {
+        return glm::orthoLH(-_hw, _hw, -_hh, _hh, -_hd, _hd);
+    }
+
+    mat4 getPerspProjMat(float _aspect, float _znear)
+    {
+        return perspectiveProjection(glm::radians(m_fov), _aspect, _znear);
+    }
+
     void reset()
     {
         m_pos.x = 0.0f;
@@ -279,6 +307,16 @@ void freeCameraDestroy()
 {
     bx::deleteObject(entry::getAllocator(), s_freeCamera);
     s_freeCamera = nullptr;
+}
+
+mat4 freeCameraGetOrthoProjMatrix(float _halfWidth, float _halfHeight, float _halfDepth)
+{
+    return s_freeCamera->getOrthoProjMat(_halfWidth, _halfHeight, _halfDepth);
+}
+
+mat4 freeCameraGetPerpProjMatrix(float _aspect, float _znear)
+{
+    return s_freeCamera->getPerspProjMat(_aspect, _znear);
 }
 
 mat4 freeCameraGetViewMatrix()
