@@ -366,7 +366,7 @@ float calcRadius(const Scene& _scene)
     for (const MeshDraw& md : _scene.meshDraws)
     {
         float r = _scene.geometry.meshes[md.meshIdx].radius;
-        r += length(md.pos);
+        r = length(md.pos) + r * md.scale;
 
         radius = std::max(radius, r);
     }
