@@ -47,7 +47,7 @@ void main()
     vec3 uv = in_pos;
     uv.xy = uv.xy * .5f + vec2(.5f);
     uv.y = 1.0 - uv.y;
-    ivec3 uv_i = ivec3(uv * 256.f);
+    ivec3 uv_i = ivec3(uv * config.edgeLen);
 
-    imageStore(out_albedo, uv_i, vec4(color, 1.0));
+    imageStore(out_albedo, uv_i, vec4(1.0));
 }

@@ -52,4 +52,5 @@ struct RadianceCascadesConfig
 struct VoxelizationConfig
 {
     mat4 proj;
+    uint edgeLen;
 };

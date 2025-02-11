@@ -7,7 +7,7 @@ using Access = kage::BindingAccess;
 using LoadOp = kage::AttachmentLoadOp;
 using StoreOp = kage::AttachmentStoreOp;
 
-constexpr uint32_t c_voxelLength = 256;
+constexpr uint32_t c_voxelLength = 512;
 
 void prepareFullDrawCmdPass(VoxelizationCmd& _vc, kage::BufferHandle _meshBuf, kage::BufferHandle _meshDrawBuf)
 {
@@ -109,6 +109,7 @@ struct VoxInitData
 struct VoxelizationConfig
 {
     mat4 proj;
+    uint32_t edgeLen;
 };
 
 
@@ -236,6 +237,7 @@ void recVoxelization(const Voxelization& _vox, const mat4& _proj)
 
     VoxelizationConfig vc{};
     vc.proj = _proj;
+    vc.edgeLen = c_voxelLength;
     const kage::Memory* mem = kage::alloc(sizeof(VoxelizationConfig));
     memcpy(mem->data, &vc, mem->size);
     kage::setConstants(mem);

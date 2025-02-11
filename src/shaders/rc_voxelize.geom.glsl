@@ -69,8 +69,8 @@ void main()
         ? ((tri_norm.z > tri_norm.y) ? 2 : 1)
         : ((tri_norm.z > tri_norm.x) ? 2 : 0);
 
-    vec3 voxRange = vec3(256, 256, 256);
-    vec3 hvoxelSz = .5f / voxRange;
+    vec3 voxRange = vec3(config.edgeLen, config.edgeLen, config.edgeLen);
+    vec3 hvoxelSz = 1.f / voxRange;
     float voxelDiag = hvoxelSz.x * RIDICAL_3;
 
     vec3 edges[3];
