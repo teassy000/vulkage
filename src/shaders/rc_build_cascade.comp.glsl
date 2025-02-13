@@ -26,7 +26,7 @@ layout(binding = 3) uniform sampler2D in_wPos;
 layout(binding = 4) uniform sampler2D in_emmision;
 layout(binding = 5) uniform sampler2D in_depth;
 
-layout(binding = 6) uniform sampler3D in_voxAlbedo;
+layout(binding = 6, RGBA8) uniform imageBuffer in_voxAlbedo;
 layout(binding = 7, RGBA8) uniform writeonly image2DArray octProbAtlas;
 
 void main()
@@ -56,9 +56,10 @@ void main()
     // cascades should generated in view space
     // thus the ray marching should be in view space
 
+
     // the ray origin start form the center of the probe
 
-    
+
 
 
 

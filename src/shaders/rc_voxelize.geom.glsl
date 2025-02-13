@@ -17,22 +17,6 @@ layout(push_constant) uniform block
     VoxelizationConfig config;
 };
 
-layout(binding = 0) readonly buffer DrawCommands
-{
-    MeshDrawCommand drawCmds [];
-};
-
-layout(binding = 2) readonly buffer MeshDraws
-{
-    MeshDraw meshDraws [];
-};
-
-layout(binding = 3) readonly uniform Transform
-{
-    TransformData trans;
-};
-
-
 layout(location = 0) in flat uint in_drawId[];
 layout(location = 2) in vec3 in_norm[];
 
@@ -109,7 +93,7 @@ void main()
         vec3 bisct = voxelDiag * (ee0 + ee1); 
 
         vec3 pos = verts[ii].xyz / verts[ii].w + bisct;
-        pos.z = (pos.z * .5f) + .5f;
+        pos.z = (pos.z * .5f) + .5f; // mapping z to the clip space, or this would cut by the rasterzation stage
 
         out_pos = pos;
         out_minAABB = minAABB;

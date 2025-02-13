@@ -30,11 +30,6 @@ layout(binding = 2) readonly buffer MeshDraws
     MeshDraw meshDraws [];
 };
 
-layout(binding = 3) readonly uniform Transform
-{
-    TransformData trans;
-};
-
 layout(location = 0) out flat uint out_drawId;
 layout(location = 1) out vec2 out_uv;
 layout(location = 2) out vec3 out_normal;

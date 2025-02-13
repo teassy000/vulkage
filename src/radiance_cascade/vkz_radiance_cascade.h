@@ -44,15 +44,20 @@ struct Voxelization
     kage::BufferHandle drawBuf;
     kage::BufferHandle idxBuf;
     kage::BufferHandle vtxBuf;
-    kage::BufferHandle transBuf;
 
-    kage::ImageHandle voxelAlbedo;
-    kage::ImageHandle voxelNormal;
-    kage::ImageHandle voxelWorldPos;
+    kage::BufferHandle fragCountBuf;
+
+    kage::BufferHandle voxelWorldPos;
+    kage::BufferHandle voxelAlbedo;
+    kage::BufferHandle voxelNormal;
 
     kage::ImageHandle rt;
 
-    kage::ImageHandle voxelAlbedoOutAlias;
+    kage::BufferHandle fragCountBufOutAlias;
+
+    kage::BufferHandle wposOutAlias;
+    kage::BufferHandle albedoOutAlias;
+    kage::BufferHandle normalOutAlias;
 
     uint32_t maxDrawCmdCount;
 };
@@ -71,8 +76,7 @@ struct RadianceCascadeBuild
     kage::ImageHandle inDepth;
     kage::SamplerHandle depthSampler;
 
-    kage::ImageHandle voxAlbedo;
-    kage::SamplerHandle voxAlbedoSampler;
+    kage::BufferHandle voxAlbedo;
 
     kage::ImageHandle cascadeImg;
     kage::ImageHandle outAlias;

@@ -9,19 +9,6 @@
 # include "mesh_gpu.h"
 # include "rc_common.h"
 
-
-layout(push_constant) uniform block
-{
-    VoxelizationConfig config;
-};
-
-layout(binding = 3) readonly uniform Transform
-{
-    TransformData trans;
-};
-
-layout(binding = 4, RGBA8) uniform writeonly image3D out_albedo;
-
 layout(location = 0) in flat uint in_drawId;
 layout(location = 1) in vec2 in_uv;
 layout(location = 2) in vec3 in_normal;
@@ -31,6 +18,21 @@ layout(location = 4) in vec3 in_pos;
 layout(location = 5) in flat vec3 in_minAABB;
 layout(location = 6) in flat vec3 in_maxAABB;
 
+layout(push_constant) uniform block
+{
+    VoxelizationConfig config;
+};
+
+// read / write
+layout(binding = 3) buffer VoxelCount
+{
+    int voxelCount;
+};
+
+// write
+layout(binding = 4, RGBA16UI) uniform writeonly uimageBuffer out_wpos;
+layout(binding = 5, RGBA8) uniform writeonly imageBuffer out_albedo;
+layout(binding = 6, RGBA16F) uniform writeonly imageBuffer out_norm;
 
 layout(location = 0) out vec4 out_dummy;
 
@@ -43,11 +45,16 @@ void main()
     uint mhash = hash(in_drawId);
     vec3 color = vec3(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255)) / 255.0;
 
-    // clip space to voxel space
+    // clip space to voxel space, [0, 1] to [0, edgeLen]
     vec3 uv = in_pos;
     uv.xy = uv.xy * .5f + vec2(.5f);
     uv.y = 1.0 - uv.y;
     ivec3 uv_i = ivec3(uv * config.edgeLen);
+    uint pos = uv_i.x << 20 | uv_i.y << 10 | uv_i.z;
 
-    imageStore(out_albedo, uv_i, vec4(1.0));
+    int idx = atomicAdd(voxelCount, 1);
+    
+    imageStore(out_wpos, idx, ivec4(uv_i.xyz, 1));
+    imageStore(out_albedo, idx, vec4(1.0));
+    imageStore(out_norm, idx, vec4(1.0));
 }
