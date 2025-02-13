@@ -735,6 +735,15 @@ namespace kage
             return BufferHandle{ kInvalidHandle };
         }
 
+        if (_desc.format == ResourceFormat::undefined
+            && ((_desc.usage & BufferUsageFlagBits::uniform_texel) 
+                || (_desc.usage & BufferUsageFlagBits::storage_texel))
+            )
+        {
+            message(error, "if the format was set! then is should use as uniform_texel | storage_texel");
+            return BufferHandle{ kInvalidHandle };
+        }
+
         uint16_t idx = m_bufferHandles.alloc();
 
         BufferHandle handle = BufferHandle{ idx };
@@ -1202,6 +1211,7 @@ namespace kage
             info.size = meta.size;
             info.pData = meta.pData;
             info.usage = meta.usage;
+            info.format = meta.format;
             info.memFlags = meta.memFlags;
             info.lifetime = meta.lifetime;
 

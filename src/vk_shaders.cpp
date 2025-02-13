@@ -12,6 +12,7 @@
 
 namespace kage { namespace vk
 {
+    // https://github.com/KhronosGroup/SPIRV-Cross/wiki/Reflection-API-user-guide
     // https://www.khronos.org/registry/spir-v/specs/1.0/SPIRV.pdf
     struct Id
     {
@@ -75,6 +76,24 @@ namespace kage { namespace vk
             return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         case SpvStorageClassStorageBuffer:
             return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        default:
+            assert(!"Unknown resource type");
+            return VkDescriptorType(0);
+        }
+    }
+
+    static VkDescriptorType getStorageImageDescType(SpvDim _sd)
+    {
+        switch (_sd)
+        {
+        case SpvDim1D:
+        case SpvDim2D:
+        case SpvDim3D:
+        case SpvDimCube:
+        case SpvDimRect:
+            return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        case SpvDimBuffer:
+            return VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER;
         default:
             assert(!"Unknown resource type");
             return VkDescriptorType(0);
@@ -157,8 +176,18 @@ namespace kage { namespace vk
                     break;
                 }
             } break;
-            case SpvOpTypeStruct:
             case SpvOpTypeImage:
+            {
+                assert(wordCount >= 2);
+
+                uint32_t id = insn[1];
+                assert(id < idBound);
+
+                assert(ids[id].opcode == 0);
+                ids[id].opcode = opcode;
+                ids[id].typeId = insn[3]; // Dimension
+            } break;
+            case SpvOpTypeStruct:
             case SpvOpTypeSampler:
             case SpvOpTypeSampledImage:
             {
@@ -227,6 +256,12 @@ namespace kage { namespace vk
                 {
                     resourceType = getStorageDescriptorType((SpvStorageClass)id.storageClass);
                 }
+                else if (VK_DESCRIPTOR_TYPE_STORAGE_IMAGE == resourceType)
+                {
+                    uint32_t dim = ids[ids[id.typeId].typeId].typeId;
+                    resourceType = getStorageImageDescType((SpvDim)dim);
+                }
+
 
                 assert((shader.resourceMask & (1 << id.binding)) == 0 || shader.resourceTypes[id.binding] == resourceType);
 
@@ -468,16 +503,22 @@ namespace kage { namespace vk
         VkDescriptorType resourceTypes[32] = {};
         uint32_t resourceMask = gatherResources(shaders, resourceTypes);
 
-        for (uint32_t i = 0; i < 32; ++i)
+        for (uint32_t ii = 0; ii < 32; ++ii)
         {
-            if (resourceMask & (1 << i))
+            if (resourceMask & (1 << ii))
             {
+                uint32_t offset = sizeof(DescriptorInfo) * ii;
+                if ((VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER == resourceTypes[ii])
+                    || (VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER == resourceTypes[ii])){
+                    offset += offsetof(DescriptorInfo, bufferView);
+                }
+
                 VkDescriptorUpdateTemplateEntry entry = {};
-                entry.dstBinding = i;
+                entry.dstBinding = ii;
                 entry.dstArrayElement = 0;
                 entry.descriptorCount = 1;
-                entry.descriptorType = resourceTypes[i];
-                entry.offset = sizeof(DescriptorInfo) * i;
+                entry.descriptorType = resourceTypes[ii];
+                entry.offset = offset;
                 entry.stride = sizeof(DescriptorInfo);
 
                 entries.push_back(entry);

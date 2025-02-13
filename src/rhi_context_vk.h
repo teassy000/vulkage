@@ -408,7 +408,7 @@ namespace kage { namespace vk
         void endRendering(const VkCommandBuffer& _cmdBuf) const;
 
         const DescriptorInfo getImageDescInfo(const ImageHandle _hImg, uint16_t _mip, const SamplerHandle _hSampler);
-        const DescriptorInfo getBufferDescInfo(const BufferHandle _hBuf) const;
+        const DescriptorInfo getBufferDescInfo(const BufferHandle _hBuf);
 
         // barriers
         void dispatchBarriers();
@@ -556,6 +556,7 @@ namespace kage { namespace vk
         // rendering command end
         VkSampler getCachedSampler(SamplerFilter _filter, SamplerMipmapMode _mipmapMode, SamplerAddressMode _addrMd, SamplerReductionMode _reduMd);
         VkImageView getCachedImageView(const ImageHandle _hImg, uint16_t _mip, uint16_t _numMips, uint16_t _numLayers, VkImageViewType _type);
+        VkBufferView getCachedBufferView(const BufferHandle _hBuf);// the buffer view is for texel buffer access, use the whole size for now
 
         void createInstance();
         void createPhysicalDevice();
@@ -638,6 +639,7 @@ namespace kage { namespace vk
 
         StateCacheT<VkSampler> m_samplerCache;
         StateCacheLru<VkImageView, 1024> m_imgViewCache;
+        StateCacheLru<VkBufferView, 1024> m_bufViewCache;
 
         ContinuousMap<uint16_t, BufferCreateInfo> m_bufferCreateInfos;
         ContinuousMap<uint16_t, ImageCreateInfo> m_imgCreateInfos;

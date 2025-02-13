@@ -167,6 +167,7 @@ namespace kage
         b5g5r5a1_unorm,
         r5g5b5a1_unorm,
         a2r10g10b10_unorm,
+        a2r10g10b10_uint,
         b10g11r11_sfloat,
 
         unknown_depth, // Depth formats below.
@@ -304,6 +305,8 @@ namespace kage
             indirect = 1 << 4,
             transfer_src = 1 << 5,
             transfer_dst = 1 << 6,
+            uniform_texel = 1 << 7,
+            storage_texel = 1 << 8,
 
             max_enum = 0x7fff,
         };
@@ -617,6 +620,7 @@ namespace kage
 
         uint32_t fillVal{ 0 };
 
+        ResourceFormat format{ ResourceFormat::undefined };
         BufferUsageFlags usage{ BufferUsageFlagBits::none };
         MemoryPropFlags memFlags{ MemoryPropFlagBits::none };
     };

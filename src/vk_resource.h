@@ -11,6 +11,7 @@ namespace kage { namespace vk
 
         VkBuffer buffer;
         VkDeviceMemory memory;
+        VkFormat format;
         void* data;
         size_t size;
         uint32_t fillVal;
@@ -20,6 +21,7 @@ namespace kage { namespace vk
         const BufferAliasInfo& _info
         , VkBufferUsageFlags _usage
         , VkMemoryPropertyFlags _memFlags
+        , VkFormat _format = VK_FORMAT_UNDEFINED
     );
     
     void createBuffer(
@@ -27,6 +29,7 @@ namespace kage { namespace vk
         , const stl::vector<BufferAliasInfo> _infos
         , VkBufferUsageFlags _usage
         , VkMemoryPropertyFlags _memFlags
+        , VkFormat _format = VK_FORMAT_UNDEFINED
     );
 
     void flushBuffer(

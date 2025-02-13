@@ -285,6 +285,14 @@ namespace kage { namespace vk
         {
             usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
         }
+        if (_usageFlags & BufferUsageFlagBits::uniform_texel)
+        {
+            usage |= VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT;
+        }
+        if (_usageFlags & BufferUsageFlagBits::storage_texel)
+        {
+            usage |= VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT;
+        }
 
         return usage;
     }
@@ -648,6 +656,7 @@ namespace kage { namespace vk
         case kage::ResourceFormat::b5g5r5a1_unorm:          format = VK_FORMAT_B5G5R5A1_UNORM_PACK16;   break;
         case kage::ResourceFormat::r5g5b5a1_unorm:          format = VK_FORMAT_R5G5B5A1_UNORM_PACK16;   break;
         case kage::ResourceFormat::a2r10g10b10_unorm:       format = VK_FORMAT_A2B10G10R10_UNORM_PACK32;break;
+        case kage::ResourceFormat::a2r10g10b10_uint:        format = VK_FORMAT_A2R10G10B10_UINT_PACK32; break;
         case kage::ResourceFormat::b10g11r11_sfloat:        format = VK_FORMAT_B10G11R11_UFLOAT_PACK32; break;
         case kage::ResourceFormat::d16:                     format = VK_FORMAT_D16_UNORM;               break;
         case kage::ResourceFormat::d24_sfloat_s8_uint:      format = VK_FORMAT_D24_UNORM_S8_UINT;       break;
@@ -1755,6 +1764,8 @@ namespace kage { namespace vk
                 vkFreeMemory(m_device, buf.memory, nullptr);
                 buf.memory = VK_NULL_HANDLE;
             }
+
+            m_imgViewCache.invalidateWithParent(bufId);
         }
         m_bufferContainer.clear();
 
@@ -1967,6 +1978,7 @@ namespace kage { namespace vk
                 info
                 , getBufferUsageFlags(createInfo.usage)
                 , getMemPropFlags(createInfo.memFlags)
+                , getFormat(createInfo.format)
             );
             m_bufferContainer.update(_hBuf.id, newBuf);
 
@@ -2425,7 +2437,13 @@ namespace kage { namespace vk
         stl::vector<BufferAliasInfo> infoList(resArr, resArr + info.resCount);
 
         stl::vector<Buffer_vk> buffers;
-        kage::vk::createBuffer(buffers, infoList, getBufferUsageFlags(info.usage), getMemPropFlags(info.memFlags));
+        kage::vk::createBuffer(
+            buffers
+            , infoList
+            , getBufferUsageFlags(info.usage)
+            , getMemPropFlags(info.memFlags)
+            , getFormat(info.format)
+        );
 
         assert(buffers.size() == info.resCount);
 
@@ -2571,7 +2589,6 @@ namespace kage { namespace vk
 
         // dispatch barriers for all images as shader read only
         dispatchBarriers();
-
     }
 
     void RHIContext_vk::setBrief(bx::MemoryReader& _reader)
@@ -3134,8 +3151,7 @@ namespace kage { namespace vk
 
         VkImageView* viewCached = m_imgViewCache.find(hashKey);
 
-        if (nullptr != viewCached)
-        {
+        if (nullptr != viewCached) {
             return *viewCached;
         }
 
@@ -3149,6 +3165,37 @@ namespace kage { namespace vk
             );
 
         m_imgViewCache.add(hashKey, view, _hImg.id);
+
+        return view;
+    }
+
+    VkBufferView RHIContext_vk::getCachedBufferView(const BufferHandle _hbuf)
+    {
+        KG_ZoneScopedC(Color::indian_red);
+
+        const Buffer_vk& buf = getBuffer(_hbuf.id);
+        bx::HashMurmur2A hash;
+        hash.begin();
+        hash.add(buf.resId);
+
+        uint32_t hashKey = hash.end();
+
+        VkBufferView* viewCached = m_bufViewCache.find(hashKey);
+        if (nullptr != viewCached) {
+            return *viewCached;
+        }
+
+        VkBufferViewCreateInfo bufferViewCreateInfo = {};
+        bufferViewCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO;
+        bufferViewCreateInfo.buffer = buf.buffer;
+        bufferViewCreateInfo.format = buf.format; // Example format
+        bufferViewCreateInfo.offset = 0;
+        bufferViewCreateInfo.range = VK_WHOLE_SIZE;
+
+        VkBufferView view;
+        VK_CHECK(vkCreateBufferView(m_device, &bufferViewCreateInfo, nullptr, &view));
+
+        m_bufViewCache.add(hashKey, view, _hbuf.id);
 
         return view;
     }
@@ -3788,13 +3835,18 @@ namespace kage { namespace vk
         return { sampler, view, layout };
     }
 
-    const DescriptorInfo RHIContext_vk::getBufferDescInfo(const BufferHandle _hBuf) const
+    const DescriptorInfo RHIContext_vk::getBufferDescInfo(const BufferHandle _hBuf)
     {
         KG_ZoneScopedC(Color::indian_red);
 
         const Buffer_vk& buf = getBuffer(_hBuf.id);
 
-        return { buf.buffer };
+        VkBufferView view = VK_NULL_HANDLE;
+        if (buf.format != VK_FORMAT_UNDEFINED) {
+            view = getCachedBufferView(_hBuf); 
+        }
+
+        return { buf.buffer, view };
     }
 
     void RHIContext_vk::dispatchBarriers()

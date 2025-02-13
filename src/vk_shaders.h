@@ -71,9 +71,11 @@ namespace kage { namespace vk
             VkDescriptorImageInfo image;
         };
 
+        VkBufferView bufferView;
+
         DescriptorInfo()
         {
-
+            bufferView = VK_NULL_HANDLE;
         }
 
         DescriptorInfo(VkBuffer _buffer, VkDeviceSize offset, VkDeviceSize range)
@@ -81,6 +83,8 @@ namespace kage { namespace vk
             buffer.buffer = _buffer;
             buffer.offset = offset;
             buffer.range = range;
+
+            bufferView = VK_NULL_HANDLE;
         }
 
         DescriptorInfo(VkBuffer _buffer)
@@ -88,6 +92,17 @@ namespace kage { namespace vk
             buffer.buffer = _buffer;
             buffer.offset = 0;
             buffer.range = VK_WHOLE_SIZE;
+
+            bufferView = VK_NULL_HANDLE;
+        }
+
+        DescriptorInfo(VkBuffer _buffer, VkBufferView _bufferView)
+        {
+            buffer.buffer = _buffer;
+            buffer.offset = 0;
+            buffer.range = VK_WHOLE_SIZE;
+
+            bufferView = _bufferView;
         }
 
         DescriptorInfo(VkSampler sampler, VkImageView imageView, VkImageLayout imageLayout)

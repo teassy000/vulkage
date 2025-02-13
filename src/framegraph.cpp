@@ -1441,6 +1441,7 @@ namespace kage
 
         _bkt.desc.memFlags = _info.memFlags;
         _bkt.desc.usage = _info.usage;
+        _bkt.desc.format = _info.format;
 
         _bkt.initialBarrierState = _info.initialState;
         _bkt.baseBufId = _info.bufId;
@@ -1715,11 +1716,13 @@ namespace kage
             BufferCreateInfo info;
             info.bufId = bkt.baseBufId;
             info.size = bkt.desc.size;
-            info.pData = bkt.pData;
+            info.format = bkt.desc.format;
             info.fillVal = bkt.desc.fillVal;
             info.memFlags = bkt.desc.memFlags;
             info.usage = bkt.desc.usage;
+            info.pData = bkt.pData;
             info.resCount = (uint16_t)bkt.reses.size();
+
 
             info.barrierState = bkt.initialBarrierState;
 

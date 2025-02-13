@@ -71,6 +71,7 @@ namespace kage { namespace vk
         , const stl::vector<BufferAliasInfo> _infos
         , const VkBufferUsageFlags _usage
         , const VkMemoryPropertyFlags _memFlags
+        , const VkFormat _format /* = VK_FORMAT_UNDEFINED*/
     )
     {
         KG_ZoneScopedC(Color::light_coral);
@@ -83,12 +84,24 @@ namespace kage { namespace vk
         const VkPhysicalDeviceMemoryProperties& memProps = s_renderVK->m_memProps;
         const VkDevice device = s_renderVK->m_device;
         const VkPhysicalDeviceLimits& limits = s_renderVK->m_phyDeviceProps.limits;
+        const VkPhysicalDevice& phyDevice = s_renderVK->m_physicalDevice;
 
         // process 
         _results.clear();
 
         uint32_t infoCount = (uint32_t)_infos.size();
         stl::vector<Buffer_vk> results(infoCount);
+
+        if (_format != VK_FORMAT_UNDEFINED)
+        {
+            VkFormatProperties formatProperties;
+            vkGetPhysicalDeviceFormatProperties(phyDevice, _format, &formatProperties);
+            if (!(formatProperties.bufferFeatures & VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT))
+            {
+                message(error, "unsupported buffer format for texel buffer!");
+            }
+        }
+
 
         for (uint32_t ii = 0; ii < infoCount; ++ii)
         {
@@ -105,6 +118,7 @@ namespace kage { namespace vk
 
             buf.size = alignSize;
             buf.resId = _infos[ii].bufId;
+            buf.format = _format;
         }
 
         // allocate memory only for the first buffer
@@ -144,13 +158,14 @@ namespace kage { namespace vk
         const BufferAliasInfo& _info
         , VkBufferUsageFlags _usage
         , VkMemoryPropertyFlags _memFlags
+        , VkFormat _format /* = VK_FORMAT_UNDEFINED*/
     )
     {
         KG_ZoneScopedC(Color::light_coral);
 
         stl::vector<Buffer_vk> results;
         stl::vector<BufferAliasInfo> infos{1, _info };
-        createBuffer(results, infos, _usage, _memFlags);
+        createBuffer(results, infos, _usage, _memFlags, _format);
 
         return results[0];
     }
