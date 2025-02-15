@@ -136,6 +136,7 @@ void prepareVoxelization(Voxelization& _vox, const VoxInitData& _init)
         bufDesc.size = c_voxelLength * c_voxelLength * c_voxelLength * 4;
         bufDesc.format = kage::ResourceFormat::r16g16b16a16_uint;
         bufDesc.usage = kage::BufferUsageFlagBits::storage_texel | kage::BufferUsageFlagBits::transfer_dst;
+        bufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
         
         worldPos = kage::registBuffer("rc_vox_wpos", bufDesc);
     }
@@ -143,9 +144,10 @@ void prepareVoxelization(Voxelization& _vox, const VoxInitData& _init)
     kage::BufferHandle albedo;
     {
         kage::BufferDesc bufDesc{};
-        bufDesc.size = c_voxelLength * c_voxelLength * c_voxelLength * 4;
+        bufDesc.size = c_voxelLength * c_voxelLength * c_voxelLength * 2;
         bufDesc.format = kage::ResourceFormat::r8g8b8a8_unorm;
         bufDesc.usage = kage::BufferUsageFlagBits::storage_texel | kage::BufferUsageFlagBits::transfer_dst;
+        bufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
 
         albedo = kage::registBuffer("rc_vox_albedo", bufDesc);
     }
@@ -156,9 +158,19 @@ void prepareVoxelization(Voxelization& _vox, const VoxInitData& _init)
         bufDesc.size = c_voxelLength * c_voxelLength * c_voxelLength * 4;
         bufDesc.format = kage::ResourceFormat::r16g16b16a16_sfloat;
         bufDesc.usage = kage::BufferUsageFlagBits::storage_texel | kage::BufferUsageFlagBits::transfer_dst;
-
+        bufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
 
         normal = kage::registBuffer("rc_vox_normal", bufDesc);
+    }
+
+    kage::BufferHandle voxMapBuf;
+    {
+        // each voxel contains a index
+        kage::BufferDesc bufDesc{};
+        bufDesc.size = c_voxelLength * c_voxelLength * c_voxelLength * sizeof(uint32_t);
+        bufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+        bufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+        voxMapBuf = kage::registBuffer("rc_vox_map", bufDesc);
     }
 
     // dummy render target, should share the same size with the voxelization
@@ -239,6 +251,14 @@ void prepareVoxelization(Voxelization& _vox, const VoxInitData& _init)
         , normalAlias
     );
 
+    kage::BufferHandle voxMapAlias = kage::alias(voxMapBuf);
+    kage::bindBuffer(pass, voxMapBuf
+        , 7
+        , kage::PipelineStageFlagBits::geometry_shader
+        , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
+        , voxMapAlias
+    );
+
     kage::setIndirectBuffer(pass, _init.cmdBuf, offsetof(MeshDrawCommand, indexCount), sizeof(MeshDrawCommand), _init.maxDrawCmdCount);
     kage::setIndirectCountBuffer(pass, _init.cmdCountBuf, 0);
 
@@ -258,10 +278,12 @@ void prepareVoxelization(Voxelization& _vox, const VoxInitData& _init)
     _vox.idxBuf = _init.idxBuf;
     _vox.vtxBuf = _init.vtxBuf;
 
+    _vox.voxMap = voxMapBuf;
     _vox.voxelWorldPos = worldPos;
     _vox.voxelAlbedo = albedo;
     _vox.voxelNormal = normal;
 
+    _vox.voxMapOutAlias = voxMapAlias;
     _vox.wposOutAlias = wposAlias;
     _vox.albedoOutAlias = albedoAlias;
     _vox.normalOutAlias = normalAlias;
@@ -281,7 +303,8 @@ void recVoxelization(const Voxelization& _vox, const mat4& _proj)
     kage::setViewport(0, 0, c_voxelLength, c_voxelLength);
     kage::setScissor(0, 0, c_voxelLength, c_voxelLength);
 
-    kage::fillBuffer(_vox.fragCountBuf, 0);
+    kage::fillBuffer(_vox.fragCountBuf, UINT32_MAX);
+    kage::fillBuffer(_vox.voxMap, UINT32_MAX);
 
     VoxelizationConfig vc{};
     vc.proj = _proj;
@@ -299,6 +322,7 @@ void recVoxelization(const Voxelization& _vox, const mat4& _proj)
         { _vox.voxelWorldPos,   Access::write,      Stage::fragment_shader },
         { _vox.voxelAlbedo,     Access::write,      Stage::fragment_shader },
         { _vox.voxelNormal,     Access::write,      Stage::fragment_shader },
+        { _vox.voxMap,          Access::read_write, Stage::fragment_shader },
     };
     kage::pushBindings(binds, COUNTOF(binds));
 
@@ -316,6 +340,120 @@ void recVoxelization(const Voxelization& _vox, const mat4& _proj)
         , _vox.maxDrawCmdCount
         , sizeof(MeshDrawCommand)
     );
+
+    kage::endRec();
+}
+
+struct alignas(16) OctTreeNode
+{
+    uint32_t child[8]; // index of the child node in OctTree
+    uint32_t voxIdx;
+    uint32_t isFinalLv;
+};
+
+struct alignas(16) OctTreeProcessConfig
+{
+    uint32_t Lv;
+    uint32_t voxLen;
+    uint32_t offset;
+};
+
+void prepareOctTree(OctTree& _oc, const kage::BufferHandle _voxMap)
+{
+    kage::ShaderHandle cs = kage::registShader("rc_oct_tree", "shaders/rc_oct_tree.comp.spv");
+    kage::ProgramHandle prog = kage::registProgram("rc_oct_tree", { cs });
+
+    kage::PassDesc passDesc;
+    passDesc.programId = prog.id;
+    passDesc.queue = kage::PassExeQueue::compute;
+
+    const char* passName = "rc_oct_tree";
+    kage::PassHandle pass = kage::registPass(passName, passDesc);
+
+    kage::BufferHandle VoxMediemMap;
+    {
+        uint32_t v0 = c_voxelLength / 2;
+        float size = static_cast<float>(v0 * v0 * v0 * sizeof(uint32_t)) * 1.2f;// 1.2 times the size of the voxel map which approximates the size of the oct tree
+
+        kage::BufferDesc bufDesc{};
+        bufDesc.size = static_cast<uint32_t>(glm::ceil(size));
+        bufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+        bufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+        VoxMediemMap = kage::registBuffer("rc_oct_tree", bufDesc);
+    }
+
+    kage::BufferHandle octTreeBuf;
+    {
+        kage::BufferDesc bufDesc{};
+        bufDesc.size = 128 * 1024 * 1024; // 128M
+        bufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+        bufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+        octTreeBuf = kage::registBuffer("rc_oct_tree", bufDesc);
+    }
+
+    kage::bindBuffer(pass, _voxMap
+        , 0
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::AccessFlagBits::shader_read
+    );
+
+    kage::BufferHandle VoxMediemMapAls = kage::alias(VoxMediemMap);
+    kage::bindBuffer(pass, VoxMediemMap
+        , 1
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
+        , VoxMediemMapAls
+    );
+
+    kage::BufferHandle octTreeBufAlias = kage::alias(octTreeBuf);
+    kage::bindBuffer(pass, octTreeBuf
+        , 2
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
+        , octTreeBufAlias
+    );
+
+    _oc.cs = cs;
+    _oc.program = prog;
+    _oc.pass = pass;
+
+    _oc.inVoxMap = _voxMap;
+    _oc.voxMediemMap = VoxMediemMap;
+    _oc.outOctTree = octTreeBuf;
+}
+
+void recOctTree(const OctTree& _oc)
+{
+    kage::startRec(_oc.pass);
+
+    kage::fillBuffer(_oc.voxMediemMap, UINT32_MAX);
+
+    uint32_t maxLv = calcMipLevelCount(c_voxelLength);
+    uint32_t offset = 0;
+    for (uint32_t ii= 0; ii < maxLv; ++ii)
+    {
+        uint32_t curr_vl = previousPow2(c_voxelLength);
+
+        OctTreeProcessConfig conf{};
+        conf.Lv = ii;
+        conf.offset = offset;
+        conf.voxLen = curr_vl;
+
+        const kage::Memory* mem = kage::alloc(sizeof(OctTreeProcessConfig));
+        memcpy(mem->data, &conf, mem->size);
+        kage::setConstants(mem);
+
+        kage::Binding binds[] =
+        {
+            { _oc.inVoxMap,        Access::read,       Stage::compute_shader },
+            { _oc.voxMediemMap,    Access::read_write, Stage::compute_shader },
+            { _oc.outOctTree,      Access::read_write, Stage::compute_shader },
+        };
+        kage::pushBindings(binds, COUNTOF(binds));
+
+        uint32_t taskCount = curr_vl * curr_vl * curr_vl;
+        kage::dispatch(taskCount, 1, 1);
+    }
 
     kage::endRec();
 }

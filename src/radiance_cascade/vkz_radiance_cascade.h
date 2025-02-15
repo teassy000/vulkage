@@ -47,6 +47,7 @@ struct Voxelization
 
     kage::BufferHandle fragCountBuf;
 
+    kage::BufferHandle voxMap;
     kage::BufferHandle voxelWorldPos;
     kage::BufferHandle voxelAlbedo;
     kage::BufferHandle voxelNormal;
@@ -55,11 +56,25 @@ struct Voxelization
 
     kage::BufferHandle fragCountBufOutAlias;
 
+    kage::BufferHandle voxMapOutAlias;
     kage::BufferHandle wposOutAlias;
     kage::BufferHandle albedoOutAlias;
     kage::BufferHandle normalOutAlias;
 
     uint32_t maxDrawCmdCount;
+};
+
+struct OctTree
+{
+    kage::PassHandle pass;
+    kage::ProgramHandle program;
+    kage::ShaderHandle cs;
+    kage::BufferHandle inVoxMap;
+
+    kage::BufferHandle voxMediemMap;
+    kage::BufferHandle outOctTree;
+
+    kage::BufferHandle outOctTreeAlias;
 };
 
 struct RadianceCascadeBuild
@@ -88,6 +103,7 @@ struct RadianceCascade
 {
     VoxelizationCmd voxCmd;
     Voxelization vox;
+    OctTree octTree;
     RadianceCascadeBuild rcBuild;
 };
 

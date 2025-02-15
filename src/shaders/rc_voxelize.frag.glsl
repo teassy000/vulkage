@@ -34,6 +34,11 @@ layout(binding = 4, RGBA16UI) uniform writeonly uimageBuffer out_wpos;
 layout(binding = 5, RGBA8) uniform writeonly imageBuffer out_albedo;
 layout(binding = 6, RGBA16F) uniform writeonly imageBuffer out_norm;
 
+layout(binding = 7) buffer writeonly VoxelMap
+{
+    int voxels[] ;
+};
+
 layout(location = 0) out vec4 out_dummy;
 
 void main()
@@ -50,10 +55,12 @@ void main()
     uv.xy = uv.xy * .5f + vec2(.5f);
     uv.y = 1.0 - uv.y;
     ivec3 uv_i = ivec3(uv * config.edgeLen);
-    uint pos = uv_i.x << 20 | uv_i.y << 10 | uv_i.z;
-
     int idx = atomicAdd(voxelCount, 1);
-    
+
+    // z * edgeLen^2 + y * edgeLen + x
+    uint voxelIdx = uv_i.z * config.edgeLen * config.edgeLen + uv_i.y * config.edgeLen + uv_i.x;
+    voxels[voxelIdx] = idx;
+
     imageStore(out_wpos, idx, ivec4(uv_i.xyz, 1));
     imageStore(out_albedo, idx, vec4(1.0));
     imageStore(out_norm, idx, vec4(1.0));

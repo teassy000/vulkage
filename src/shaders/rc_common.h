@@ -54,3 +54,21 @@ struct VoxelizationConfig
     mat4 proj;
     uint edgeLen;
 };
+
+// ==============================================================================
+
+#define INVALID_OCT_IDX 0xFFFFFFFF
+
+struct OctTreeNode
+{
+    uint child[8]; // if is leaf, it's the index of voxel, else the index in the octTree;
+    uint voxIdx;
+    uint isFinalLv;
+};
+
+struct OctTreeProcessConfig
+{
+    uint lv;
+    uint voxLen;
+    uint offset;
+};
