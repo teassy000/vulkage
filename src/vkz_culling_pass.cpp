@@ -6,6 +6,15 @@ void cullingRec(const Culling& _cull, uint32_t _drawCount)
 
     using Stage = kage::PipelineStageFlagBits::Enum;
     using Access = kage::BindingAccess;
+    const kage::Memory* mem = kage::alloc(sizeof(MeshDrawCull));
+    bx::memCopy(mem->data, &_cull.meshDrawCull, mem->size);
+
+    kage::startRec(_cull.pass);
+
+    kage::fillBuffer(_cull.meshDrawCmdCountBuf, 0);
+
+    kage::setConstants(mem);
+
     kage::Binding binds[] =
     {
         { _cull.meshBuf,             Access::read,          Stage::compute_shader },
@@ -16,16 +25,6 @@ void cullingRec(const Culling& _cull, uint32_t _drawCount)
         { _cull.meshDrawVisBuf,      Access::read_write,    Stage::compute_shader },
         { _cull.pyramid,             _cull.pyrSampler,      Stage::compute_shader },
     };
-
-    const kage::Memory* mem = kage::alloc(sizeof(MeshDrawCull));
-    bx::memCopy(mem->data, &_cull.meshDrawCull, mem->size);
-
-    kage::startRec(_cull.pass);
-
-    kage::fillBuffer(_cull.meshDrawCmdCountBuf, 0);
-
-    kage::setConstants(mem);
-
     kage::pushBindings(binds, COUNTOF(binds));
     kage::dispatch(_drawCount, 1, 1);
 
