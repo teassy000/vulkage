@@ -15,3 +15,37 @@ using uvec4 = glm::uvec4;
 using quat = glm::quat;
 using mat3 = glm::mat3;
 using mat4 = glm::mat4;
+
+
+inline uint32_t previousPow2(uint32_t v)
+{
+    uint32_t r = 1;
+
+    while (r < v)
+        r <<= 1;
+    r >>= 1;
+    return r;
+}
+
+inline uint32_t calcMipLevelCount(uint32_t _w)
+{
+    uint32_t ret = 0;
+    while (_w > 1)
+    {
+        ret++;
+        _w >>= 1;
+    }
+    return ret;
+}
+
+inline uint32_t calcMipLevelCount(uint32_t _w, uint32_t _h)
+{
+    uint32_t ret = 0;
+    while (_w > 1 || _h > 1)
+    {
+        ret++;
+        _w >>= 1;
+        _h >>= 1;
+    }
+    return ret;
+}

@@ -44,34 +44,11 @@ void recPyr(const Pyramid& _pyramid)
     kage::endRec();
 }
 
-uint32_t previousPow2_py(uint32_t v)
-{
-    uint32_t r = 1;
-
-    while (r < v)
-        r <<= 1;
-    r >>= 1;
-    return r;
-}
-
-uint32_t calculateMipLevelCount_py(uint32_t width, uint32_t height)
-{
-    uint32_t result = 0;
-    while (width > 1 || height > 1)
-    {
-        result++;
-        width >>= 1;
-        height >>= 1;
-    }
-
-    return result;
-}
-
 void preparePyramid(Pyramid& _pyramid, uint32_t _width, uint32_t _height)
 {
-    uint32_t level_width = previousPow2_py(_width);
-    uint32_t level_height = previousPow2_py(_height);
-    uint32_t levels = calculateMipLevelCount_py(level_width, level_height);
+    uint32_t level_width = previousPow2(_width);
+    uint32_t level_height = previousPow2(_height);
+    uint32_t levels = calcMipLevelCount(level_width, level_height);
 
     // create image
     kage::ImageDesc desc{};
@@ -135,9 +112,9 @@ void setPyramidPassDependency(Pyramid& _pyramid, const kage::ImageHandle _inDept
 
 void updatePyramid(Pyramid& _pyramid, uint32_t _width, uint32_t _height)
 {
-    const uint32_t level_width = previousPow2_py(_width);
-    const uint32_t level_height = previousPow2_py(_height);
-    const uint32_t levels = calculateMipLevelCount_py(level_width, level_height);
+    const uint32_t level_width = previousPow2(_width);
+    const uint32_t level_height = previousPow2(_height);
+    const uint32_t levels = calcMipLevelCount(level_width, level_height);
     if (level_width != _pyramid.width || level_height != _pyramid.height)
     {
         _pyramid.width = level_width;
