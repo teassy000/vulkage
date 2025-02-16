@@ -303,7 +303,7 @@ void recVoxelization(const Voxelization& _vox, const mat4& _proj)
     kage::setViewport(0, 0, c_voxelLength, c_voxelLength);
     kage::setScissor(0, 0, c_voxelLength, c_voxelLength);
 
-    kage::fillBuffer(_vox.fragCountBuf, UINT32_MAX);
+    kage::fillBuffer(_vox.fragCountBuf, 0);
     kage::fillBuffer(_vox.voxMap, UINT32_MAX);
 
     VoxelizationConfig vc{};
@@ -361,7 +361,7 @@ struct alignas(16) OctTreeProcessConfig
 void prepareOctTree(OctTree& _oc, const kage::BufferHandle _voxMap)
 {
     kage::ShaderHandle cs = kage::registShader("rc_oct_tree", "shaders/rc_oct_tree.comp.spv");
-    kage::ProgramHandle prog = kage::registProgram("rc_oct_tree", { cs });
+    kage::ProgramHandle prog = kage::registProgram("rc_oct_tree", { cs }, sizeof(OctTreeProcessConfig));
 
     kage::PassDesc passDesc;
     passDesc.programId = prog.id;
@@ -379,7 +379,7 @@ void prepareOctTree(OctTree& _oc, const kage::BufferHandle _voxMap)
         bufDesc.size = static_cast<uint32_t>(glm::ceil(size));
         bufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
         bufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
-        VoxMediemMap = kage::registBuffer("rc_oct_tree", bufDesc);
+        VoxMediemMap = kage::registBuffer("rc_vox_medium", bufDesc);
     }
 
     kage::BufferHandle octTreeBuf;
@@ -389,6 +389,15 @@ void prepareOctTree(OctTree& _oc, const kage::BufferHandle _voxMap)
         bufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
         bufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
         octTreeBuf = kage::registBuffer("rc_oct_tree", bufDesc);
+    }
+
+    kage::BufferHandle nodeCountBuf;
+    {
+        kage::BufferDesc bufDesc{};
+        bufDesc.size = 16;
+        bufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+        bufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+        nodeCountBuf = kage::registBuffer("rc_oct_tree_node_count", bufDesc);
     }
 
     kage::bindBuffer(pass, _voxMap
@@ -413,6 +422,14 @@ void prepareOctTree(OctTree& _oc, const kage::BufferHandle _voxMap)
         , octTreeBufAlias
     );
 
+    kage::BufferHandle nodeCountBufAlias = kage::alias(nodeCountBuf);
+    kage::bindBuffer(pass, nodeCountBuf
+        , 3
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
+        , octTreeBufAlias
+    );
+
     _oc.cs = cs;
     _oc.program = prog;
     _oc.pass = pass;
@@ -420,19 +437,23 @@ void prepareOctTree(OctTree& _oc, const kage::BufferHandle _voxMap)
     _oc.inVoxMap = _voxMap;
     _oc.voxMediemMap = VoxMediemMap;
     _oc.outOctTree = octTreeBuf;
+    _oc.nodeCount = nodeCountBuf;
+    _oc.outOctTreeAlias = octTreeBufAlias;
 }
 
 void recOctTree(const OctTree& _oc)
 {
     kage::startRec(_oc.pass);
 
+    kage::fillBuffer(_oc.outOctTree, 0);
     kage::fillBuffer(_oc.voxMediemMap, UINT32_MAX);
 
     uint32_t maxLv = calcMipLevelCount(c_voxelLength);
+    uint32_t curr_vl = c_voxelLength;
     uint32_t offset = 0;
     for (uint32_t ii= 0; ii < maxLv; ++ii)
     {
-        uint32_t curr_vl = previousPow2(c_voxelLength);
+        curr_vl = glm::max(previousPow2(curr_vl), 1u);
 
         OctTreeProcessConfig conf{};
         conf.Lv = ii;
@@ -445,20 +466,32 @@ void recOctTree(const OctTree& _oc)
 
         kage::Binding binds[] =
         {
-            { _oc.inVoxMap,        Access::read,       Stage::compute_shader },
-            { _oc.voxMediemMap,    Access::read_write, Stage::compute_shader },
-            { _oc.outOctTree,      Access::read_write, Stage::compute_shader },
+            { _oc.inVoxMap,         Access::read,       Stage::compute_shader },
+            { _oc.voxMediemMap,     Access::read_write, Stage::compute_shader },
+            { _oc.outOctTree,       Access::read_write, Stage::compute_shader },
+            { _oc.nodeCount,        Access::read_write, Stage::compute_shader },
         };
         kage::pushBindings(binds, COUNTOF(binds));
 
-        uint32_t taskCount = curr_vl * curr_vl * curr_vl;
-        kage::dispatch(taskCount, 1, 1);
+        kage::dispatch(curr_vl, curr_vl, curr_vl);
     }
 
     kage::endRec();
 }
 
-void prepareRCbuild(RadianceCascadeBuild& _rc, const GBuffer& _gb, const kage::ImageHandle _depth, const kage::BufferHandle _voxAlbedo, const kage::BufferHandle _trans)
+struct RCBuildInit
+{
+    kage::BufferHandle octTree;
+    kage::BufferHandle voxAlbedo;
+    kage::BufferHandle voxWPos;
+    kage::BufferHandle voxNormal;
+
+    GBuffer g_buffer;
+    kage::ImageHandle depth;
+    kage::BufferHandle trans;
+};
+
+void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
 {
     _rc.lv0Config.probeDiameter = 32;
     _rc.lv0Config.rayGridDiameter = 16;
@@ -494,13 +527,13 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const GBuffer& _gb, const kage::I
     kage::ImageHandle img = kage::registTexture("cascade", imgDesc, nullptr, kage::ResourceLifetime::non_transition);
     kage::ImageHandle outAlias = kage::alias(img);
 
-    kage::bindBuffer(pass, _trans
+    kage::bindBuffer(pass, _init.trans
         , 0
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read
     );
 
-    kage::SamplerHandle albedoSamp = kage::sampleImage(pass, _gb.albedo
+    kage::SamplerHandle albedoSamp = kage::sampleImage(pass, _init.g_buffer.albedo
         , 1
         , kage::PipelineStageFlagBits::compute_shader
         , kage::SamplerFilter::nearest
@@ -509,7 +542,7 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const GBuffer& _gb, const kage::I
         , kage::SamplerReductionMode::min
     );
 
-    kage::SamplerHandle normSamp = kage::sampleImage(pass, _gb.normal
+    kage::SamplerHandle normSamp = kage::sampleImage(pass, _init.g_buffer.normal
         , 2
         , kage::PipelineStageFlagBits::compute_shader
         , kage::SamplerFilter::nearest
@@ -518,7 +551,7 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const GBuffer& _gb, const kage::I
         , kage::SamplerReductionMode::min
     );
 
-    kage::SamplerHandle wpSamp = kage::sampleImage(pass, _gb.worldPos
+    kage::SamplerHandle wpSamp = kage::sampleImage(pass, _init.g_buffer.worldPos
         , 3
         , kage::PipelineStageFlagBits::compute_shader
         , kage::SamplerFilter::nearest
@@ -527,7 +560,7 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const GBuffer& _gb, const kage::I
         , kage::SamplerReductionMode::min
     );
 
-    kage::SamplerHandle emmiSamp = kage::sampleImage(pass, _gb.emissive
+    kage::SamplerHandle emmiSamp = kage::sampleImage(pass, _init.g_buffer.emissive
         , 4
         , kage::PipelineStageFlagBits::compute_shader
         , kage::SamplerFilter::nearest
@@ -536,7 +569,7 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const GBuffer& _gb, const kage::I
         , kage::SamplerReductionMode::min
     );
 
-    kage::SamplerHandle depthSamp = kage::sampleImage(pass, _depth
+    kage::SamplerHandle depthSamp = kage::sampleImage(pass, _init.depth
         , 5
         , kage::PipelineStageFlagBits::compute_shader
         , kage::SamplerFilter::nearest
@@ -545,14 +578,20 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const GBuffer& _gb, const kage::I
         , kage::SamplerReductionMode::min
     );
 
-    kage::bindBuffer(pass, _voxAlbedo
+    kage::bindBuffer(pass, _init.octTree
         , 6
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read
     );
 
-    kage::bindImage(pass, img
+    kage::bindBuffer(pass, _init.voxAlbedo
         , 7
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::AccessFlagBits::shader_read
+    );
+
+    kage::bindImage(pass, img
+        , 8
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_write
         , kage::ImageLayout::general
@@ -563,18 +602,19 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const GBuffer& _gb, const kage::I
     _rc.program = program;
     _rc.cs = cs;
 
-    _rc.g_buffer = _gb;
+    _rc.g_buffer = _init.g_buffer;
     _rc.g_bufferSamplers.albedo = albedoSamp;
     _rc.g_bufferSamplers.normal = normSamp;
     _rc.g_bufferSamplers.worldPos = wpSamp;
     _rc.g_bufferSamplers.emissive = emmiSamp;
 
-    _rc.trans = _trans;
+    _rc.trans = _init.trans;
 
-    _rc.inDepth = _depth;
+    _rc.inOctTree = _init.octTree;
+    _rc.inDepth = _init.depth;
     _rc.depthSampler = depthSamp;
 
-    _rc.voxAlbedo = _voxAlbedo;
+    _rc.voxAlbedo = _init.voxAlbedo;
 
     _rc.cascadeImg = img;
     _rc.outAlias = outAlias;
@@ -610,13 +650,14 @@ void recRCBuild(const RadianceCascadeBuild& _rc)
 
         kage::Binding binds[] =
         {
-            {_rc.trans,             kage::BindingAccess::read,      Stage::compute_shader},
+            {_rc.trans,             Access::read,                   Stage::compute_shader},
             {_rc.g_buffer.albedo,   _rc.g_bufferSamplers.albedo,    Stage::compute_shader},
             {_rc.g_buffer.normal,   _rc.g_bufferSamplers.normal,    Stage::compute_shader},
             {_rc.g_buffer.worldPos, _rc.g_bufferSamplers.worldPos,  Stage::compute_shader},
             {_rc.g_buffer.emissive, _rc.g_bufferSamplers.emissive,  Stage::compute_shader},
             {_rc.inDepth,           _rc.depthSampler,               Stage::compute_shader},
-            {_rc.voxAlbedo,         kage::BindingAccess::read,      Stage::compute_shader},
+            {_rc.inOctTree,         Access::read,                   Stage::compute_shader},
+            {_rc.voxAlbedo,         Access::read,                   Stage::compute_shader},
             {_rc.cascadeImg,        0,                              Stage::compute_shader},
         };
         kage::pushBindings(binds, COUNTOF(binds));
@@ -639,16 +680,27 @@ void prepareRadianceCascade(RadianceCascade& _rc, const RadianceCascadeInitData 
     voxelizeInitData.transBuf = _init.transBuf;
     voxelizeInitData.sceneRadius = _init.sceneRadius;
     voxelizeInitData.maxDrawCmdCount = _init.maxDrawCmdCount;
-
     prepareVoxelization(_rc.vox, voxelizeInitData);
 
+    prepareOctTree(_rc.octTree, _rc.vox.voxMapOutAlias);
+
     // next step should use the voxelization data to build the cascade
-    prepareRCbuild(_rc.rcBuild, _init.g_buffer, _init.depth, _rc.vox.albedoOutAlias, _init.transBuf);
+    RCBuildInit rcInit{};
+    rcInit.octTree = _rc.octTree.outOctTreeAlias;
+    rcInit.voxAlbedo = _rc.vox.albedoOutAlias;
+    rcInit.voxWPos = _rc.vox.wposOutAlias;
+    rcInit.voxNormal = _rc.vox.normalOutAlias;
+
+    rcInit.g_buffer = _init.g_buffer;
+    rcInit.depth = _init.depth;
+    rcInit.trans = _init.transBuf;
+    prepareRCbuild(_rc.rcBuild, rcInit);
 }
 
 void updateRadianceCascade(const RadianceCascade& _rc, uint32_t _drawCount, const mat4& _proj)
 {
     recFullDrawCmdPass(_rc.voxCmd, _drawCount);
     recVoxelization(_rc.vox, _proj);
+    recOctTree(_rc.octTree);
     recRCBuild(_rc.rcBuild);
 }

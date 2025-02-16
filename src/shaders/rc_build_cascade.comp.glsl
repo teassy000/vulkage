@@ -26,8 +26,14 @@ layout(binding = 3) uniform sampler2D in_wPos;
 layout(binding = 4) uniform sampler2D in_emmision;
 layout(binding = 5) uniform sampler2D in_depth;
 
-layout(binding = 6, RGBA8) uniform imageBuffer in_voxAlbedo;
-layout(binding = 7, RGBA8) uniform writeonly image2DArray octProbAtlas;
+layout(binding = 6) readonly buffer OctTree
+{
+    OctTreeNode in_octTree [];
+};
+
+
+layout(binding = 7, RGBA8) uniform imageBuffer in_voxAlbedo;
+layout(binding = 8, RGBA8) uniform writeonly image2DArray octProbAtlas;
 
 void main()
 {

@@ -69,10 +69,11 @@ struct OctTree
     kage::PassHandle pass;
     kage::ProgramHandle program;
     kage::ShaderHandle cs;
-    kage::BufferHandle inVoxMap;
 
+    kage::BufferHandle inVoxMap;
     kage::BufferHandle voxMediemMap;
     kage::BufferHandle outOctTree;
+    kage::BufferHandle nodeCount;
 
     kage::BufferHandle outOctTreeAlias;
 };
@@ -90,6 +91,8 @@ struct RadianceCascadeBuild
 
     kage::ImageHandle inDepth;
     kage::SamplerHandle depthSampler;
+
+    kage::BufferHandle inOctTree;
 
     kage::BufferHandle voxAlbedo;
 
