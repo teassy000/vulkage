@@ -7,7 +7,7 @@
 
 #include "rc_common.h"
 
-layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 
 layout(push_constant) uniform blocks
 {
@@ -16,7 +16,7 @@ layout(push_constant) uniform blocks
 
 layout(binding = 0) readonly buffer VoxMap
 {
-	int voxMap[];
+	uint voxMap[];
 };
 
 layout(binding = 1) buffer VoxMediumMap
@@ -67,13 +67,13 @@ void main()
         return;
 
 
-    OctTreeNode node;
+    uint nodes[8];
     uint res = 0;
     for (uint ii = 0; ii < 8; ii++)
     {
         uint cIdx = getVoxChildPos(vi, voxLen, ii);
         uint var = (conf.lv == 0) ? voxMap[cIdx] : voxMediumMap[cIdx];
-        node.child[ii] = var;
+        nodes[ii] = var;
         res |= (var ^ INVALID_OCT_IDX);
     }
 
@@ -82,7 +82,7 @@ void main()
         uint octNodeIdx = atomicAdd(octTreeNodeCount, 1);
         for (uint ii = 0; ii < 8; ii++)
         {
-            octTree[octNodeIdx].child[ii] = node.child[ii];
+            octTree[octNodeIdx].child[ii] = nodes[ii];
         }
         octTree[octNodeIdx].voxIdx = octNodeIdx;
         octTree[octNodeIdx].isFinalLv = (conf.lv == 0) ? 1 : 0;
