@@ -46,10 +46,9 @@ layout(binding = 3) buffer OctTreeNodeCount
 // 5 = 101
 // 6 = 110
 // 7 = 111
-uint getVoxChildPos(uint _vi, uint _voxLen, uint _chindIdx)
+uint getVoxChildPos(ivec3 _vi, uint _voxLen, uint _chindIdx)
 {
-    ivec3 pPos = ivec3(_vi % _voxLen, (_vi / _voxLen) % _voxLen, _vi / (_voxLen * _voxLen));
-    ivec3 cPos = pPos * 2 + ivec3(_chindIdx & 1, (_chindIdx >> 1) & 1, (_chindIdx >> 2) & 1);
+    ivec3 cPos = _vi * 2 + ivec3(_chindIdx & 1, (_chindIdx >> 1) & 1, (_chindIdx >> 2) & 1);
 
     uint pos = cPos.z * _voxLen * _voxLen + cPos.y * _voxLen + cPos.x;
     return pos;
@@ -58,12 +57,11 @@ uint getVoxChildPos(uint _vi, uint _voxLen, uint _chindIdx)
 void main()
 {
     // read from voxmap
-    uint vi = gl_GlobalInvocationID.x;
+    ivec3 vp = ivec3(gl_GlobalInvocationID.xyz);
 
     uint voxLen = conf.voxLen;
-    ivec3 vpos = ivec3(vi % voxLen, (vi / voxLen) % voxLen, vi / (voxLen * voxLen));
 
-    if(vpos.x >= voxLen || vpos.y >= voxLen || vpos.z >= voxLen)
+    if(vp.x >= voxLen || vp.y >= voxLen || vp.z >= voxLen)
         return;
 
 
@@ -71,7 +69,7 @@ void main()
     uint res = 0;
     for (uint ii = 0; ii < 8; ii++)
     {
-        uint cIdx = getVoxChildPos(vi, voxLen, ii);
+        uint cIdx = getVoxChildPos(vp, voxLen, ii);
         uint var = (conf.lv == 0) ? voxMap[cIdx] : voxMediumMap[cIdx];
         nodes[ii] = var;
         res |= (var ^ INVALID_OCT_IDX);
@@ -87,6 +85,7 @@ void main()
         octTree[octNodeIdx].voxIdx = octNodeIdx;
         octTree[octNodeIdx].isFinalLv = (conf.lv == 0) ? 1 : 0;
 
+        uint vi = vp.z * voxLen * voxLen + vp.y * voxLen + vp.x;
         voxMediumMap[vi] = octNodeIdx;
     }
 }

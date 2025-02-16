@@ -370,7 +370,7 @@ void prepareOctTree(OctTree& _oc, const kage::BufferHandle _voxMap)
     const char* passName = "rc_oct_tree";
     kage::PassHandle pass = kage::registPass(passName, passDesc);
 
-    kage::BufferHandle VoxMediemMap;
+    kage::BufferHandle VoxMediumMap;
     {
         uint32_t v0 = c_voxelLength / 2;
         float size = static_cast<float>(v0 * v0 * v0 * sizeof(uint32_t)) * 1.2f;// 1.2 times the size of the voxel map which approximates the size of the oct tree
@@ -379,7 +379,7 @@ void prepareOctTree(OctTree& _oc, const kage::BufferHandle _voxMap)
         bufDesc.size = static_cast<uint32_t>(glm::ceil(size));
         bufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
         bufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
-        VoxMediemMap = kage::registBuffer("rc_vox_medium", bufDesc);
+        VoxMediumMap = kage::registBuffer("rc_vox_medium", bufDesc);
     }
 
     kage::BufferHandle octTreeBuf;
@@ -406,8 +406,8 @@ void prepareOctTree(OctTree& _oc, const kage::BufferHandle _voxMap)
         , kage::AccessFlagBits::shader_read
     );
 
-    kage::BufferHandle VoxMediemMapAls = kage::alias(VoxMediemMap);
-    kage::bindBuffer(pass, VoxMediemMap
+    kage::BufferHandle VoxMediemMapAls = kage::alias(VoxMediumMap);
+    kage::bindBuffer(pass, VoxMediumMap
         , 1
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
@@ -435,7 +435,7 @@ void prepareOctTree(OctTree& _oc, const kage::BufferHandle _voxMap)
     _oc.pass = pass;
 
     _oc.inVoxMap = _voxMap;
-    _oc.voxMediemMap = VoxMediemMap;
+    _oc.voxMediemMap = VoxMediumMap;
     _oc.outOctTree = octTreeBuf;
     _oc.nodeCount = nodeCountBuf;
     _oc.outOctTreeAlias = octTreeBufAlias;
@@ -446,6 +446,7 @@ void recOctTree(const OctTree& _oc)
     kage::startRec(_oc.pass);
 
     kage::fillBuffer(_oc.outOctTree, 0);
+    kage::fillBuffer(_oc.nodeCount, 0);
     kage::fillBuffer(_oc.voxMediemMap, UINT32_MAX);
 
     uint32_t maxLv = calcMipLevelCount(c_voxelLength);
