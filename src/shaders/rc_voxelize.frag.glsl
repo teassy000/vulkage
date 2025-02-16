@@ -24,9 +24,9 @@ layout(push_constant) uniform block
 };
 
 // read / write
-layout(binding = 3) buffer VoxelCount
+layout(binding = 3) buffer FragCount
 {
-    int voxelCount;
+    uint fragCount;
 };
 
 // write
@@ -36,7 +36,7 @@ layout(binding = 6, RGBA16F) uniform writeonly imageBuffer out_norm;
 
 layout(binding = 7) buffer writeonly VoxelMap
 {
-    int voxels[] ;
+    uint voxels[] ;
 };
 
 layout(location = 0) out vec4 out_dummy;
@@ -47,21 +47,18 @@ void main()
     if (any(lessThan(in_pos, in_minAABB)) || any(lessThan(in_maxAABB, in_pos)))
         discard;
     
-    uint mhash = hash(in_drawId);
-    vec3 color = vec3(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255)) / 255.0;
-
     // clip space to voxel space, [0, 1] to [0, edgeLen]
     vec3 uv = in_pos;
     uv.xy = uv.xy * .5f + vec2(.5f);
     uv.y = 1.0 - uv.y;
     ivec3 uv_i = ivec3(uv * config.edgeLen);
-    int idx = atomicAdd(voxelCount, 1);
+    uint uidx = atomicAdd(fragCount, 1u);
 
     // z * edgeLen^2 + y * edgeLen + x
     uint voxelIdx = uv_i.z * config.edgeLen * config.edgeLen + uv_i.y * config.edgeLen + uv_i.x;
-    voxels[voxelIdx] = idx;
+    voxels[voxelIdx] = uidx;
 
-    imageStore(out_wpos, idx, ivec4(uv_i.xyz, 1));
-    imageStore(out_albedo, idx, vec4(1.0));
-    imageStore(out_norm, idx, vec4(1.0));
+    imageStore(out_wpos, int(uidx), ivec4(uv_i.xyz, 1));
+    imageStore(out_albedo, int(uidx), vec4(0.5));
+    imageStore(out_norm, int(uidx), vec4(0.5));
 }
