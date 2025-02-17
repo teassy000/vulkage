@@ -438,7 +438,7 @@ void prepareOctTree(OctTree& _oc, const kage::BufferHandle _voxMap)
     _oc.voxMediemMap = VoxMediumMap;
     _oc.outOctTree = octTreeBuf;
     _oc.nodeCount = nodeCountBuf;
-    _oc.outOctTreeAlias = octTreeBufAlias;
+    _oc.octTreeOutAlias = octTreeBufAlias;
 }
 
 void recOctTree(const OctTree& _oc)
@@ -482,6 +482,7 @@ void recOctTree(const OctTree& _oc)
 
 struct RCBuildInit
 {
+    kage::BufferHandle octTreeCount;
     kage::BufferHandle octTree;
     kage::BufferHandle voxAlbedo;
     kage::BufferHandle voxWPos;
@@ -490,15 +491,16 @@ struct RCBuildInit
     GBuffer g_buffer;
     kage::ImageHandle depth;
     kage::BufferHandle trans;
+
+    float sceneRadius;
 };
 
 void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
 {
-    _rc.lv0Config.probeDiameter = 32;
-    _rc.lv0Config.rayGridDiameter = 16;
-    _rc.lv0Config.level = 5;
+    _rc.lv0Config.probe_sideCount = 32;
+    _rc.lv0Config.ray_gridSideCount = 16;
+    _rc.lv0Config.level = 6;
     _rc.lv0Config.rayLength = 1.0f;
-    _rc.lv0Config.rayMarchingSteps = 4;
 
     // build the cascade image
     kage::ShaderHandle cs = kage::registShader("build_cascade", "shaders/rc_build_cascade.comp.spv");
@@ -510,12 +512,12 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
 
     kage::PassHandle pass = kage::registPass("build_cascade", passDesc);
 
-    uint32_t imgDiameter = _rc.lv0Config.probeDiameter * _rc.lv0Config.rayGridDiameter;
-    uint32_t imgLayers = _rc.lv0Config.probeDiameter * 2 - 1;
+    uint32_t texelSideCount = _rc.lv0Config.probe_sideCount * _rc.lv0Config.ray_gridSideCount;
+    uint32_t imgLayers = _rc.lv0Config.probe_sideCount * 2 - 1;
 
     kage::ImageDesc imgDesc{};
-    imgDesc.width = imgDiameter;
-    imgDesc.height = imgDiameter;
+    imgDesc.width = texelSideCount;
+    imgDesc.height = texelSideCount;
     imgDesc.format = kage::ResourceFormat::r8g8b8a8_unorm;
     imgDesc.depth = 1;
     imgDesc.numLayers = imgLayers;
@@ -579,20 +581,26 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
         , kage::SamplerReductionMode::min
     );
 
-    kage::bindBuffer(pass, _init.octTree
+    kage::bindBuffer(pass, _init.octTreeCount
         , 6
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read
     );
 
-    kage::bindBuffer(pass, _init.voxAlbedo
+    kage::bindBuffer(pass, _init.octTree
         , 7
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read
     );
 
-    kage::bindImage(pass, img
+    kage::bindBuffer(pass, _init.voxAlbedo
         , 8
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::AccessFlagBits::shader_read
+    );
+
+    kage::bindImage(pass, img
+        , 9
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_write
         , kage::ImageLayout::general
@@ -611,6 +619,7 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
 
     _rc.trans = _init.trans;
 
+    _rc.inOctTreeNodeCount = _init.octTreeCount;
     _rc.inOctTree = _init.octTree;
     _rc.inDepth = _init.depth;
     _rc.depthSampler = depthSamp;
@@ -619,30 +628,36 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
 
     _rc.cascadeImg = img;
     _rc.outAlias = outAlias;
+    _rc.sceneRadius = _init.sceneRadius;
 }
 
 void recRCBuild(const RadianceCascadeBuild& _rc)
 {
     kage::startRec(_rc.pass);
 
-    uint32_t imgLayers = _rc.lv0Config.level * _rc.lv0Config.probeDiameter * 2 - 1;
-
     uint32_t layerOffset = 0;
     for (uint32_t ii = 0; ii < _rc.lv0Config.level; ++ii)
     {
-        uint32_t level_factor = uint32_t(1 << ii);
-        uint32_t prob_diameter = _rc.lv0Config.probeDiameter / level_factor;
-        uint32_t prob_count = uint32_t(pow(prob_diameter, 3));
-        uint32_t ray_diameter = _rc.lv0Config.rayGridDiameter * level_factor;
-        uint32_t ray_count = ray_diameter * ray_diameter;
+        uint32_t    level_factor    = uint32_t(1 << ii);
+        uint32_t    prob_sideCount  = _rc.lv0Config.probe_sideCount / level_factor;
+        uint32_t    prob_count      = uint32_t(pow(prob_sideCount, 3));
+        uint32_t    ray_sideCount   = _rc.lv0Config.ray_gridSideCount * level_factor;
+        uint32_t    ray_count       = ray_sideCount * ray_sideCount; // each probe has a 2d grid of rays
+        float prob_sideLen = _rc.sceneRadius / float(prob_sideCount);
+        float rayLen = length(vec3(prob_sideLen));
 
         RadianceCascadesConfig config;
-        config.probeDiameter = prob_diameter;
-        config.rayGridDiameter = ray_diameter;
+        config.probe_sideCount = prob_sideCount;
+        config.ray_gridSideCount = ray_sideCount;
         config.level = ii;
         config.layerOffset = layerOffset;
+        config.rayLength = rayLen;
+        config.probeSideLen = prob_sideLen;
 
-        layerOffset += prob_diameter;
+        config.ot_voxSideCount = c_voxelLength;
+        config.ot_sceneSideLen = _rc.sceneRadius;
+
+        layerOffset += prob_sideCount;
 
         const kage::Memory* mem = kage::alloc(sizeof(RadianceCascadesConfig));
         memcpy(mem->data, &config, mem->size);
@@ -651,15 +666,16 @@ void recRCBuild(const RadianceCascadeBuild& _rc)
 
         kage::Binding binds[] =
         {
-            {_rc.trans,             Access::read,                   Stage::compute_shader},
-            {_rc.g_buffer.albedo,   _rc.g_bufferSamplers.albedo,    Stage::compute_shader},
-            {_rc.g_buffer.normal,   _rc.g_bufferSamplers.normal,    Stage::compute_shader},
-            {_rc.g_buffer.worldPos, _rc.g_bufferSamplers.worldPos,  Stage::compute_shader},
-            {_rc.g_buffer.emissive, _rc.g_bufferSamplers.emissive,  Stage::compute_shader},
-            {_rc.inDepth,           _rc.depthSampler,               Stage::compute_shader},
-            {_rc.inOctTree,         Access::read,                   Stage::compute_shader},
-            {_rc.voxAlbedo,         Access::read,                   Stage::compute_shader},
-            {_rc.cascadeImg,        0,                              Stage::compute_shader},
+            {_rc.trans,                 Access::read,                   Stage::compute_shader},
+            {_rc.g_buffer.albedo,       _rc.g_bufferSamplers.albedo,    Stage::compute_shader},
+            {_rc.g_buffer.normal,       _rc.g_bufferSamplers.normal,    Stage::compute_shader},
+            {_rc.g_buffer.worldPos,     _rc.g_bufferSamplers.worldPos,  Stage::compute_shader},
+            {_rc.g_buffer.emissive,     _rc.g_bufferSamplers.emissive,  Stage::compute_shader},
+            {_rc.inDepth,               _rc.depthSampler,               Stage::compute_shader},
+            {_rc.inOctTreeNodeCount,    Access::read,                   Stage::compute_shader},
+            {_rc.inOctTree,             Access::read,                   Stage::compute_shader},
+            {_rc.voxAlbedo,             Access::read,                   Stage::compute_shader},
+            {_rc.cascadeImg,            0,                              Stage::compute_shader},
         };
         kage::pushBindings(binds, COUNTOF(binds));
         kage::dispatch(prob_count * ray_count, 1, 1);
@@ -687,7 +703,7 @@ void prepareRadianceCascade(RadianceCascade& _rc, const RadianceCascadeInitData 
 
     // next step should use the voxelization data to build the cascade
     RCBuildInit rcInit{};
-    rcInit.octTree = _rc.octTree.outOctTreeAlias;
+    rcInit.octTree = _rc.octTree.octTreeOutAlias;
     rcInit.voxAlbedo = _rc.vox.albedoOutAlias;
     rcInit.voxWPos = _rc.vox.wposOutAlias;
     rcInit.voxNormal = _rc.vox.normalOutAlias;
@@ -695,6 +711,7 @@ void prepareRadianceCascade(RadianceCascade& _rc, const RadianceCascadeInitData 
     rcInit.g_buffer = _init.g_buffer;
     rcInit.depth = _init.depth;
     rcInit.trans = _init.transBuf;
+    rcInit.sceneRadius = _init.sceneRadius;
     prepareRCbuild(_rc.rcBuild, rcInit);
 }
 

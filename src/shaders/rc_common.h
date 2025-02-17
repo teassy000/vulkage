@@ -40,13 +40,17 @@ vec3 octDecode(vec2 _uv)
 // ==============================================================================
 struct RadianceCascadesConfig
 {
-    uint rayGridDiameter;
-    uint probeDiameter;
-    uint level;
-    uint layerOffset;
+    uint    probe_sideCount;
+    uint    ray_gridSideCount;
+    uint    level;
+    uint    layerOffset;
 
-    float rayLength;
-    uint rayMarchingSteps;
+    float   rayLength;
+    float   probeSideLen;
+
+    // oct-tree data
+    uint    ot_voxSideCount;
+    float   ot_sceneSideLen;
 };
 
 struct VoxelizationConfig

@@ -5,15 +5,20 @@
 #include "kage.h"
 #include "deferred/vkz_deferred.h"
 
+// each page has a 3d grid of probes, each probe has a 2d grid of rays
 struct alignas(16) RadianceCascadesConfig
 {
-    uint32_t rayGridDiameter;
-    uint32_t probeDiameter;
-    uint32_t level;
-    uint32_t layerOffset;
+    uint32_t    probe_sideCount;
+    uint32_t    ray_gridSideCount;
+    uint32_t    level;
+    uint32_t    layerOffset;
 
-    float rayLength;
-    uint32_t rayMarchingSteps;
+    float       rayLength;
+    float       probeSideLen;
+    
+    // oct-tree dat
+    uint32_t    ot_voxSideCount;
+    float       ot_sceneSideLen;
 };
 
 struct VoxelizationCmd
@@ -75,7 +80,7 @@ struct OctTree
     kage::BufferHandle outOctTree;
     kage::BufferHandle nodeCount;
 
-    kage::BufferHandle outOctTreeAlias;
+    kage::BufferHandle octTreeOutAlias;
 };
 
 struct RadianceCascadeBuild
@@ -92,6 +97,7 @@ struct RadianceCascadeBuild
     kage::ImageHandle inDepth;
     kage::SamplerHandle depthSampler;
 
+    kage::BufferHandle inOctTreeNodeCount;
     kage::BufferHandle inOctTree;
 
     kage::BufferHandle voxAlbedo;
@@ -99,6 +105,7 @@ struct RadianceCascadeBuild
     kage::ImageHandle cascadeImg;
     kage::ImageHandle outAlias;
 
+    float sceneRadius;
     RadianceCascadesConfig lv0Config;
 };
 
