@@ -53,12 +53,31 @@ struct AABB
     vec3 max;
 };
 
+struct OT_UnfoldedNode
+{
+    vec3 center;
+    float sideLen;
+    AABB aabb;
+};
+
 void getAABB(vec3 _certer, float _hSideLen, out AABB _aabb)
 {
     _aabb.max = _certer + vec3(_hSideLen);
     _aabb.min = _certer - vec3(_hSideLen);
 }
 
+void unfoldOctTreeNode(OT_UnfoldedNode _p, uint _cIdx, inout OT_UnfoldedNode _c)
+{
+    ivec3 cPos = ivec3(_cIdx & 1, (_cIdx >> 1) & 1, (_cIdx >> 2) & 1);
+
+    _c.sideLen = _p.sideLen * .5f;
+    _c.center = _p.center + _c.sideLen * (vec3(cPos) * 2.f - 1.f);
+
+    getAABB(_c.center, _c.sideLen * .5f, _c.aabb);
+}
+
+// a modified version of line-ray intersection
+// with a ray length check, aka the ray is a segment
 // https://tavianator.com/2011/ray_box.html
 bool intersect(const Ray _ray, const AABB _aabb)
 {
@@ -73,6 +92,46 @@ bool intersect(const Ray _ray, const AABB _aabb)
     float tmax = min(min(tbigger.x, tbigger.y), tbigger.z);
 
     return tmax >= tmin && _ray.len >= tmin;
+}
+
+// Sort the 'dist' array in ascending order while swapping the corresponding child indices.
+void insertionSort8(const uint _count, inout float _dist[8], inout OT_UnfoldedNode _childs[8], inout uint _cidx[8])
+{
+    for (uint ii = 1; ii < _count; ii++)
+    {
+        float keyDist = _dist[ii];
+        OT_UnfoldedNode keyChild = _childs[ii];
+        uint keyCidx = _cidx[ii];
+
+        int jj = int(ii) - 1;
+        // Shift elements while dist[jj] > keyDist
+        while (jj >= 0 && _dist[jj] > keyDist)
+        {
+            _dist[jj + 1] = _dist[jj];
+            _childs[jj + 1] = _childs[jj];
+            _cidx[jj + 1] = _cidx[jj];
+            jj--;
+        }
+
+        _dist[jj + 1] = keyDist;
+        _childs[jj + 1] = keyChild;
+        _cidx[jj + 1] = keyCidx;
+    }
+}
+
+void sortChilds(Ray _ray, uint _count, inout OT_UnfoldedNode _childs[8], inout uint _cIdx[8])
+{
+    const vec3 ray_dir = _ray.dir;
+    const vec3 ray_origin = _ray.origin;
+
+    float dist[8];
+    for (uint ii = 0; ii < _count; ++ii)
+    {
+        dist[ii] = dot(_childs[ii].center - ray_origin, ray_dir);
+    }
+
+    // ascending sort
+    insertionSort8(_count, dist, _childs, _cIdx);
 }
 
 void main()
@@ -107,14 +166,71 @@ void main()
     const Ray ray = Ray(ray_origin, ray_dir, ray_len);
     
     
-    AABB aabb;
-    getAABB(vec3(0), scene_side_len * .5f, aabb);
-    OctTreeNode root = in_octTree[in_octTreeNodeCount - 1];
+    OctTreeNode node = in_octTree[in_octTreeNodeCount - 1];
     uint treeLevel = 0;
 
+    OT_UnfoldedNode uNode;
+    uNode.center = vec3(0.f);
+    uNode.sideLen = scene_side_len;
+    getAABB(uNode.center, uNode.sideLen * .5f, uNode.aabb);
+
     // traversal the octree to check the intersection
-    // intersect(ray, aabb);
+    uint voxIdx = INVALID_OCT_IDX;
+
+    while (true)
+    {
+        // unfold childs 
+        OT_UnfoldedNode childs[8];
+        uint cIdx[8];
+        uint validCount = 0;
+        for (uint ii = 0; ii < 8; ii++)
+        {
+            if (node.childs[ii] == INVALID_OCT_IDX)
+                continue;
+
+            unfoldOctTreeNode(uNode, ii, childs[validCount]);
+            cIdx[validCount] = ii;
+            validCount++;
+        }
+
+        // sort the childs
+        sortChilds(ray, validCount, childs, cIdx);
+        
+        uint nextIdx = INVALID_OCT_IDX;
+        // intersect with the child nodes
+        for (uint ii = 0; ii < validCount; ii++)
+        {
+            if (intersect(ray, childs[ii].aabb))
+            {
+                nextIdx = cIdx[ii];
+                uNode = childs[ii];
+                break;
+            }
+        }
+        break;
+        // hitted and can enter next level
+        if (nextIdx < validCount)
+        {
+            if (node.lv == 0)
+            {
+                voxIdx = node.childs[cIdx[nextIdx]];
+                break;
+            }
+
+            continue;
+        }
+
+        break;
+    }
+
+    // write the result to the atlas
+    vec3 var = vec3(0.f);
+    if (voxIdx != INVALID_OCT_IDX)
+    {
+        // TODO 
+        var = vec3(1.f);
+    }
 
 
-    imageStore(octProbAtlas, ivec3(prob_2dcoord.xy, layer_idx), vec4(ray_dir, 1));
+    imageStore(octProbAtlas, ivec3(prob_2dcoord.xy, layer_idx), vec4(var, 1));
 }
