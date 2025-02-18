@@ -126,9 +126,8 @@ void sortChilds(Ray _ray, uint _count, inout OT_UnfoldedNode _childs[8], inout u
 
     float dist[8];
     for (uint ii = 0; ii < _count; ++ii)
-    {
         dist[ii] = dot(_childs[ii].center - ray_origin, ray_dir);
-    }
+
 
     // ascending sort
     insertionSort8(_count, dist, _childs, _cIdx);
@@ -193,7 +192,7 @@ void main()
             validCount++;
         }
 
-        // sort the childs
+        // sort childs
         sortChilds(ray, validCount, childs, cIdx);
         
         uint nextIdx = INVALID_OCT_IDX;
@@ -204,23 +203,23 @@ void main()
             {
                 nextIdx = cIdx[ii];
                 uNode = childs[ii];
+                node = in_octTree[node.childs[nextIdx]];
                 break;
             }
         }
-        break;
-        // hitted and can enter next level
-        if (nextIdx < validCount)
+
+        if(nextIdx == INVALID_OCT_IDX)
+        {
+            break;
+        }
+        else if(nextIdx < validCount)
         {
             if (node.lv == 0)
             {
                 voxIdx = node.childs[cIdx[nextIdx]];
                 break;
             }
-
-            continue;
         }
-
-        break;
     }
 
     // write the result to the atlas
