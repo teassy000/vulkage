@@ -158,7 +158,7 @@ void main()
     // direction: the direction of the ray
     // length: the probe radius
     const ivec3 probe_pos = ivec3(sub_prob_coord.xy, prob_idx / prob_per_layer);
-    const vec3 ray_origin = vec3(probe_pos) * config.probeSideLen + config.probeSideLen * .5f;
+    const vec3 ray_origin = vec3(probe_pos) * config.probeSideLen + config.probeSideLen * .5f + trans.cameraPos;
     const vec3 ray_dir = octDecode((sub_ray_coord + .5f) / ray_diameter);
     const float ray_len = config.rayLength;// use the longest diagnal length to make sure it covers the entire probe
 
