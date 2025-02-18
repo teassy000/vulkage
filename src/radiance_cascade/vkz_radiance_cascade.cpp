@@ -346,16 +346,17 @@ void recVoxelization(const Voxelization& _vox, const mat4& _proj)
 
 struct alignas(16) OctTreeNode
 {
-    uint32_t child[8]; // index of the child node in OctTree
     uint32_t voxIdx;
     uint32_t isFinalLv;
+    uint32_t childs[8]; // index of the child node in OctTree
 };
 
 struct alignas(16) OctTreeProcessConfig
 {
-    uint32_t Lv;
+    uint32_t lv;
     uint32_t voxLen;
-    uint32_t offset;
+    uint32_t readOffset;
+    uint32_t currOffset;
 };
 
 void prepareOctTree(OctTree& _oc, const kage::BufferHandle _voxMap)
@@ -374,9 +375,10 @@ void prepareOctTree(OctTree& _oc, const kage::BufferHandle _voxMap)
     {
         uint32_t v0 = c_voxelLength / 2;
         float size = static_cast<float>(v0 * v0 * v0 * sizeof(uint32_t)) * 1.2f;// 1.2 times the size of the voxel map which approximates the size of the oct tree
+        uint32_t fmtSz = static_cast<uint32_t>(glm::ceil(size));
 
         kage::BufferDesc bufDesc{};
-        bufDesc.size = static_cast<uint32_t>(glm::ceil(size));
+        bufDesc.size = (fmtSz + (0x40 - (fmtSz % 0x40)));
         bufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
         bufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
         VoxMediumMap = kage::registBuffer("rc_vox_medium", bufDesc);
@@ -438,6 +440,7 @@ void prepareOctTree(OctTree& _oc, const kage::BufferHandle _voxMap)
     _oc.voxMediemMap = VoxMediumMap;
     _oc.outOctTree = octTreeBuf;
     _oc.nodeCount = nodeCountBuf;
+    _oc.nodeCountOutAlias = nodeCountBufAlias;
     _oc.octTreeOutAlias = octTreeBufAlias;
 }
 
@@ -451,14 +454,16 @@ void recOctTree(const OctTree& _oc)
 
     uint32_t maxLv = calcMipLevelCount(c_voxelLength);
     uint32_t curr_vl = c_voxelLength;
-    uint32_t offset = 0;
+    uint32_t writeOffset = 0;
+    uint32_t readOffset = 0;
     for (uint32_t ii= 0; ii < maxLv; ++ii)
     {
         curr_vl = glm::max(previousPow2(curr_vl), 1u);
 
         OctTreeProcessConfig conf{};
-        conf.Lv = ii;
-        conf.offset = offset;
+        conf.lv = ii;
+        conf.readOffset = readOffset;
+        conf.currOffset = writeOffset;
         conf.voxLen = curr_vl;
 
         const kage::Memory* mem = kage::alloc(sizeof(OctTreeProcessConfig));
@@ -475,6 +480,9 @@ void recOctTree(const OctTree& _oc)
         kage::pushBindings(binds, COUNTOF(binds));
 
         kage::dispatch(curr_vl, curr_vl, curr_vl);
+
+        readOffset = writeOffset;
+        writeOffset += curr_vl * curr_vl * curr_vl;
     }
 
     kage::endRec();
@@ -703,10 +711,11 @@ void prepareRadianceCascade(RadianceCascade& _rc, const RadianceCascadeInitData 
 
     // next step should use the voxelization data to build the cascade
     RCBuildInit rcInit{};
-    rcInit.octTree = _rc.octTree.octTreeOutAlias;
     rcInit.voxAlbedo = _rc.vox.albedoOutAlias;
     rcInit.voxWPos = _rc.vox.wposOutAlias;
     rcInit.voxNormal = _rc.vox.normalOutAlias;
+    rcInit.octTreeCount = _rc.octTree.nodeCountOutAlias;
+    rcInit.octTree = _rc.octTree.octTreeOutAlias;
 
     rcInit.g_buffer = _init.g_buffer;
     rcInit.depth = _init.depth;

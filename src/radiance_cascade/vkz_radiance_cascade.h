@@ -80,6 +80,7 @@ struct OctTree
     kage::BufferHandle outOctTree;
     kage::BufferHandle nodeCount;
 
+    kage::BufferHandle nodeCountOutAlias;
     kage::BufferHandle octTreeOutAlias;
 };
 

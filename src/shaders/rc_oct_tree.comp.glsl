@@ -7,7 +7,7 @@
 
 #include "rc_common.h"
 
-layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
 layout(push_constant) uniform blocks
 {
@@ -46,11 +46,14 @@ layout(binding = 3) buffer OctTreeNodeCount
 // 5 = 101
 // 6 = 110
 // 7 = 111
-uint getVoxChildPos(ivec3 _vi, uint _voxLen, uint _chindIdx)
+uint getVoxChildPos(ivec3 _vi, uint _voxLen, uint _childIdx)
 {
-    ivec3 cPos = _vi * 2 + ivec3(_chindIdx & 1, (_chindIdx >> 1) & 1, (_chindIdx >> 2) & 1);
+    uint actualVoxLen = _voxLen * 2;
 
-    uint pos = cPos.z * _voxLen * _voxLen + cPos.y * _voxLen + cPos.x;
+    ivec3 cPos = _vi * 2 + ivec3(_childIdx & 1u, (_childIdx >> 1) & 1u, (_childIdx >> 2) & 1u);
+
+    uint pos = cPos.z * actualVoxLen * actualVoxLen + cPos.y * actualVoxLen + cPos.x;
+    
     return pos;
 }
 
@@ -59,33 +62,36 @@ void main()
     // read from voxmap
     ivec3 vp = ivec3(gl_GlobalInvocationID.xyz);
 
-    uint voxLen = conf.voxLen;
+    const uint voxLen = conf.voxLen;
+    const uint roff = conf.readOffset;
+    const uint woff = conf.writeOffset;
+    const uint lv = conf.lv;
 
-    if(vp.x >= voxLen || vp.y >= voxLen || vp.z >= voxLen)
+    if (vp.x >= voxLen || vp.y >= voxLen || vp.z >= voxLen)
         return;
 
-
+    // check if any child is valid
     uint nodes[8];
     uint res = 0;
     for (uint ii = 0; ii < 8; ii++)
     {
         uint cIdx = getVoxChildPos(vp, voxLen, ii);
-        uint var = (conf.lv == 0) ? voxMap[cIdx] : voxMediumMap[cIdx];
+        uint var = (lv == 0) ? voxMap[cIdx] : voxMediumMap[cIdx + roff];
         nodes[ii] = var;
         res |= (var ^ INVALID_OCT_IDX);
     }
 
-    if(res != 0)
+    if(res > 0)
     {
         uint octNodeIdx = atomicAdd(octTreeNodeCount, 1);
         for (uint ii = 0; ii < 8; ii++)
         {
-            octTree[octNodeIdx].child[ii] = nodes[ii];
+            octTree[octNodeIdx].childs[ii] = nodes[ii];
         }
         octTree[octNodeIdx].voxIdx = octNodeIdx;
-        octTree[octNodeIdx].isFinalLv = (conf.lv == 0) ? 1 : 0;
+        octTree[octNodeIdx].lv = lv;
 
-        uint vi = vp.z * voxLen * voxLen + vp.y * voxLen + vp.x;
+        uint vi = woff + vp.z * voxLen * voxLen + vp.y * voxLen + vp.x;
         voxMediumMap[vi] = octNodeIdx;
     }
 }

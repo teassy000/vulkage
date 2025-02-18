@@ -61,18 +61,19 @@ struct VoxelizationConfig
 
 // ==============================================================================
 
-#define INVALID_OCT_IDX 0xFFFFFFFF
+#define INVALID_OCT_IDX 0xFFFFFFFFu
 
 struct OctTreeNode
 {
-    uint child[8]; // if is leaf, it's the index of voxel, else the index in the octTree;
     uint voxIdx;
-    uint isFinalLv;
+    uint lv;
+    uint childs[8]; // if is leaf, it's the index of voxel, else the index in the octTree;
 };
 
 struct OctTreeProcessConfig
 {
     uint lv;
     uint voxLen;
-    uint offset;
+    uint readOffset;
+    uint writeOffset;
 };
