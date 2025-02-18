@@ -651,8 +651,8 @@ void recRCBuild(const RadianceCascadeBuild& _rc)
         uint32_t    prob_count      = uint32_t(pow(prob_sideCount, 3));
         uint32_t    ray_sideCount   = _rc.lv0Config.ray_gridSideCount * level_factor;
         uint32_t    ray_count       = ray_sideCount * ray_sideCount; // each probe has a 2d grid of rays
-        float prob_sideLen = _rc.sceneRadius / float(prob_sideCount);
-        float rayLen = length(vec3(prob_sideLen));
+        float prob_sideLen = _rc.sceneRadius * 2.f / float(prob_sideCount);
+        float rayLen = length(vec3(prob_sideLen * .5f));
 
         RadianceCascadesConfig config;
         config.probe_sideCount = prob_sideCount;
@@ -663,7 +663,7 @@ void recRCBuild(const RadianceCascadeBuild& _rc)
         config.probeSideLen = prob_sideLen;
 
         config.ot_voxSideCount = c_voxelLength;
-        config.ot_sceneSideLen = _rc.sceneRadius;
+        config.ot_sceneSideLen = _rc.sceneRadius * 2.f;
 
         layerOffset += prob_sideCount;
 
