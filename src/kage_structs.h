@@ -605,15 +605,6 @@ namespace kage
         CullModeFlags cullMode{ CullModeFlagBits::back };
     };
 
-    struct PassConfig
-    {
-        AttachmentLoadOp depthLoadOp{ AttachmentLoadOp::clear };
-        AttachmentStoreOp depthStoreOp{ AttachmentStoreOp::store };
-
-        AttachmentLoadOp colorLoadOp{ AttachmentLoadOp::clear };
-        AttachmentStoreOp colorStoreOp{ AttachmentStoreOp::store };
-    };
-
     struct BufferDesc 
     {
         uint32_t size{ 0 };
