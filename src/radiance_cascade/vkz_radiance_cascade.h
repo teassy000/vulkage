@@ -84,6 +84,45 @@ struct OctTree
     kage::BufferHandle octTreeOutAlias;
 };
 
+struct VoxDebugDrawCmdGen
+{
+    kage::PassHandle pass;
+    kage::ProgramHandle program;
+    kage::ShaderHandle cs;
+
+    kage::BufferHandle voxmap;
+    kage::BufferHandle trans;
+    kage::ImageHandle  pyramid;
+    kage::BufferHandle cmdBuf;
+    kage::BufferHandle cmdCountBuf;
+
+    kage::SamplerHandle sampler;
+
+    kage::BufferHandle outCmdAlias;
+    kage::BufferHandle outCmdCountAlias;
+};
+
+struct VoxDebug
+{
+    kage::PassHandle pass;
+    kage::ProgramHandle program;
+    kage::ShaderHandle vs;
+    kage::ShaderHandle fs;
+
+    kage::BufferHandle drawCmdBuf;
+    kage::BufferHandle drawCmdCountBuf;
+    kage::BufferHandle trans;
+    kage::ImageHandle renderTarget;
+
+    kage::BufferHandle idxBuf;
+    kage::BufferHandle vtxBuf;
+
+    uint32_t width;
+    uint32_t height;
+
+    kage::ImageHandle rtOutAlias;
+};
+
 struct RadianceCascadeBuild
 {
     kage::PassHandle pass;

@@ -77,3 +77,16 @@ struct OctTreeProcessConfig
     uint readOffset;
     uint writeOffset;
 };
+
+struct VoxDebugCmdConsts
+{
+    float voxRadius; // the radius of circumcircle of the voxel
+    float voxSideLen;
+    float sceneRadius;
+    uint sceneSideCnt;
+
+    float P00, P11;
+    float znear, zfar;
+    float frustum[4];
+    float pyramidWidth, pyramidHeight;
+};
