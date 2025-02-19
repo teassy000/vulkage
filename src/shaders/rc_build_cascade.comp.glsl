@@ -66,7 +66,7 @@ void getAABB(vec3 _certer, float _hSideLen, out AABB _aabb)
     _aabb.min = _certer - vec3(_hSideLen);
 }
 
-void unfoldOctTreeNode(OT_UnfoldedNode _p, uint _cIdx, inout OT_UnfoldedNode _c)
+void unfoldOctTreeChildNode(OT_UnfoldedNode _p, uint _cIdx, inout OT_UnfoldedNode _c)
 {
     ivec3 cPos = ivec3(_cIdx & 1, (_cIdx >> 1) & 1, (_cIdx >> 2) & 1);
 
@@ -187,7 +187,7 @@ void main()
             if (node.childs[ii] == INVALID_OCT_IDX)
                 continue;
 
-            unfoldOctTreeNode(uNode, ii, childs[validCount]);
+            unfoldOctTreeChildNode(uNode, ii, childs[validCount]);
             cIdx[validCount] = ii;
             validCount++;
         }
