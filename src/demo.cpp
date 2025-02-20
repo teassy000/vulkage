@@ -180,7 +180,7 @@ namespace
 
 
             m_smaa.update(m_width, m_height);
-            updateRadianceCascade(m_radianceCascade, m_scene.drawCount, freeCameraGetOrthoProjMatrix(m_scene.radius, m_scene.radius, m_scene.radius));
+            updateRadianceCascade(m_radianceCascade, m_scene.drawCount, m_demoData.drawCull, m_width, m_height);
             updateUI(m_ui, m_demoData.input, m_demoData.renderOptions, m_demoData.profiling, m_demoData.logic);
 
             // render
@@ -574,18 +574,11 @@ namespace
                 initDeferredShading(m_deferred, m_meshShadingAlpha.g_bufferOutAlias, m_skybox.colorOutAlias);
             }
 
-            // smaa
-            {
-                kage::ImageHandle aaDepthIn = m_supportMeshShading ? m_meshShadingAlpha.depthOutAlias : m_vtxShadingLate.depthOutAlias;
-
-                kage::ImageHandle aaColorIn = m_supportMeshShading ? m_deferred.outColorAlias : m_vtxShadingLate.colorOutAlias;
-
-                m_smaa.prepare(m_width, m_height, aaColorIn, aaDepthIn);
-            }
 
             // radiance cascade
             {
                 kage::ImageHandle cascadeDepthIn = m_supportMeshShading ? m_meshShadingAlpha.depthOutAlias : m_vtxShadingLate.depthOutAlias;
+                kage::ImageHandle cascadeColorIn = m_deferred.outColorAlias;
                 GBuffer gb = m_supportMeshShading ? m_meshShadingAlpha.g_bufferOutAlias : GBuffer();
 
                 RadianceCascadeInitData rcInit{};
@@ -598,9 +591,21 @@ namespace
                 rcInit.transBuf = m_transformBuf;
                 rcInit.sceneRadius = m_scene.radius;
                 rcInit.maxDrawCmdCount = (uint32_t)m_scene.meshDraws.size();
+                rcInit.color = cascadeColorIn;
+                rcInit.pyramid = m_pyramid.imgOutAlias;
 
                 prepareRadianceCascade(m_radianceCascade, rcInit);
             }
+
+            // smaa
+            {
+                kage::ImageHandle aaDepthIn = m_supportMeshShading ? m_meshShadingAlpha.depthOutAlias : m_vtxShadingLate.depthOutAlias;
+
+                kage::ImageHandle aaColorIn = m_supportMeshShading ? m_radianceCascade.voxDebug.rtOutAlias : m_vtxShadingLate.colorOutAlias;
+
+                m_smaa.prepare(m_width, m_height, aaColorIn, aaDepthIn);
+            }
+
 
             // ui
             {

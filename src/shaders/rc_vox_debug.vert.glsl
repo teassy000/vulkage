@@ -7,15 +7,20 @@
 #include "mesh_gpu.h"
 #include "rc_common.h"
 
-
-layout(location = 0) in vec3 inPos;
-
 layout(binding = 0) readonly uniform Transform
 {
     TransformData trans;
 };
 
+layout(binding = 1) readonly buffer Vertices
+{
+    Vertex vertices [];
+};
+
 void main()
 {
-    gl_Position = trans.proj * trans.view * vec4(inPos, 1.0);
+    uint vi = gl_VertexIndex;
+    vec3 pos = vec3(int(vertices[vi].nx), int(vertices[vi].ny), int(vertices[vi].nz));
+
+    gl_Position = trans.proj * trans.view * vec4(pos, 1.0);
 }

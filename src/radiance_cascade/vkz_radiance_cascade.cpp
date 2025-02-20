@@ -298,7 +298,7 @@ void prepareVoxelization(Voxelization& _vox, const VoxInitData& _init)
     _vox.maxDrawCmdCount = _init.maxDrawCmdCount;
 }
 
-void recVoxelization(const Voxelization& _vox, const mat4& _proj)
+void recVoxelization(const Voxelization& _vox)
 {
     kage::startRec(_vox.pass);
 
@@ -309,7 +309,7 @@ void recVoxelization(const Voxelization& _vox, const mat4& _proj)
     kage::fillBuffer(_vox.voxMap, UINT32_MAX);
 
     VoxelizationConfig vc{};
-    vc.proj = _proj;
+    vc.proj = freeCameraGetOrthoProjMatrix(_vox.sceneRadius, _vox.sceneRadius, _vox.sceneRadius);
     vc.edgeLen = c_voxelLength;
     const kage::Memory* mem = kage::alloc(sizeof(VoxelizationConfig));
     memcpy(mem->data, &vc, mem->size);
@@ -346,6 +346,13 @@ void recVoxelization(const Voxelization& _vox, const mat4& _proj)
     kage::endRec();
 }
 
+struct VoxDebugCmdInit
+{
+    kage::BufferHandle voxMap;
+    kage::ImageHandle pyramid;
+    kage::BufferHandle trans;
+};
+
 struct alignas(16) VoxDebugCmdConsts
 {
     float voxRadius; // the radius of circumcircle of the voxel
@@ -359,7 +366,7 @@ struct alignas(16) VoxDebugCmdConsts
     float pyramidWidth, pyramidHeight;
 };
 
-void prepareVoxDebugCmd(VoxDebugDrawCmdGen& _debugCmd, const kage::BufferHandle _inVoxMap, const kage::ImageHandle _inPyramid, const kage::BufferHandle _trans)
+void prepareVoxDebugCmd(VoxDebugCmdGen& _debugCmd, const VoxDebugCmdInit& _init)
 {
     kage::ShaderHandle cs = kage::registShader("rc_vox_debug_cmd", "shaders/rc_vox_debug_cmd.comp.spv");
     kage::ProgramHandle prog = kage::registProgram("rc_vox_debug_cmd", { cs }, sizeof(VoxDebugCmdConsts));
@@ -376,19 +383,19 @@ void prepareVoxDebugCmd(VoxDebugDrawCmdGen& _debugCmd, const kage::BufferHandle 
 
     kage::BufferDesc cmdCountBufDesc{};
     cmdCountBufDesc.size = 16;
-    cmdCountBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+    cmdCountBufDesc.usage = kage::BufferUsageFlagBits::indirect | kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
     kage::BufferHandle cmdCountBuf = kage::registBuffer("rc_vox_debug_cmd_count", cmdCountBufDesc);
 
     kage::BufferHandle cmdBufAlias = kage::alias(cmdBuf);
     kage::BufferHandle cmdCountBufAlias = kage::alias(cmdCountBuf);
 
-    kage::bindBuffer(pass, _inVoxMap
+    kage::bindBuffer(pass, _init.voxMap
         , 0
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read
     );
 
-    kage::bindBuffer(pass, _trans
+    kage::bindBuffer(pass, _init.trans
         , 1
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read
@@ -408,7 +415,7 @@ void prepareVoxDebugCmd(VoxDebugDrawCmdGen& _debugCmd, const kage::BufferHandle 
         , cmdCountBufAlias
     );
 
-    kage::SamplerHandle samp = kage::sampleImage(pass, _inPyramid
+    kage::SamplerHandle samp = kage::sampleImage(pass, _init.pyramid
         , 4
         , kage::PipelineStageFlagBits::compute_shader
         , kage::SamplerFilter::linear
@@ -422,10 +429,10 @@ void prepareVoxDebugCmd(VoxDebugDrawCmdGen& _debugCmd, const kage::BufferHandle 
     _debugCmd.program = prog;
     _debugCmd.cs = cs;
 
-    _debugCmd.trans = _trans;
-    _debugCmd.pyramid = _inPyramid;
-    _debugCmd.voxmap = _inVoxMap;
-
+    _debugCmd.trans = _init.trans;
+    _debugCmd.pyramid = _init.pyramid;
+    _debugCmd.voxmap = _init.voxMap;
+    _debugCmd.pyramid = _init.pyramid;
 
     _debugCmd.cmdBuf = cmdBuf;
     _debugCmd.cmdCountBuf = cmdCountBuf;
@@ -435,7 +442,7 @@ void prepareVoxDebugCmd(VoxDebugDrawCmdGen& _debugCmd, const kage::BufferHandle 
     _debugCmd.outCmdCountAlias = cmdCountBufAlias;
 }
 
-void recVoxDebugGen(const VoxDebugDrawCmdGen& _vcmd)
+void recVoxDebugGen(const VoxDebugCmdGen& _vcmd, const DrawCull& _camCull)
 {
     kage::startRec(_vcmd.pass);
     kage::fillBuffer(_vcmd.cmdCountBuf, 0);
@@ -455,19 +462,16 @@ void recVoxDebugGen(const VoxDebugDrawCmdGen& _vcmd)
     kage::endRec();
 }
 
-struct VoxDebugInit
+struct VoxDebugDrawInit
 {
     kage::BufferHandle cmd;
     kage::BufferHandle cmdCount;
     kage::BufferHandle trans;
     kage::ImageHandle color;
-
-    uint32_t width;
-    uint32_t height;
 };
 
 constexpr uint32_t c_maxVoxDrawCmdCnt = 50000;// not a special max value, just the bistro scene could generate this much voxel
-void prepareVoxDebug(VoxDebug& _vd, const VoxDebugInit _init)
+void prepareVoxDebug(VoxDebug& _vd, const VoxDebugDrawInit _init)
 {
     kage::ShaderHandle vs = kage::registShader("rc_vox_debug", "shaders/rc_vox_debug.vert.spv");
     kage::ShaderHandle fs = kage::registShader("rc_vox_debug", "shaders/rc_vox_debug.frag.spv");
@@ -490,13 +494,13 @@ void prepareVoxDebug(VoxDebug& _vd, const VoxDebugInit _init)
 
     kage::BufferDesc vtxDesc;
     vtxDesc.size = vtxMem->size;
-    vtxDesc.usage = kage::BufferUsageFlagBits::vertex;
-    kage::BufferHandle vtxBuf = kage::registBuffer("skybox_vtx", vtxDesc, vtxMem, kage::ResourceLifetime::non_transition);
+    vtxDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+    kage::BufferHandle vtxBuf = kage::registBuffer("cube_vtx", vtxDesc, vtxMem, kage::ResourceLifetime::non_transition);
 
     kage::BufferDesc idxDesc;
     idxDesc.size = idxMem->size;
-    idxDesc.usage = kage::BufferUsageFlagBits::index;
-    kage::BufferHandle idxBuf = kage::registBuffer("skybox_idx", idxDesc, idxMem, kage::ResourceLifetime::non_transition);
+    idxDesc.usage = kage::BufferUsageFlagBits::index | kage::BufferUsageFlagBits::transfer_dst;
+    kage::BufferHandle idxBuf = kage::registBuffer("cube_idx", idxDesc, idxMem, kage::ResourceLifetime::non_transition);
 
     kage::bindBuffer(pass, _init.cmd
         , 0
@@ -527,26 +531,24 @@ void prepareVoxDebug(VoxDebug& _vd, const VoxDebugInit _init)
     _vd.idxBuf = idxBuf;
     _vd.vtxBuf = vtxBuf;
 
+    _vd.trans = _init.trans;
     _vd.drawCmdBuf = _init.cmd;
     _vd.drawCmdCountBuf = _init.cmdCount;
     _vd.renderTarget = _init.color;
     _vd.rtOutAlias = colorAlias;
-
-    _vd.width = _init.width;
-    _vd.height = _init.height;
 }
 
-void recVoxDebug(const VoxDebug& _vd)
+void recVoxDebug(const VoxDebug& _vd, const DrawCull& _camCull, const uint32_t _width, const uint32_t _height)
 {
     kage::startRec(_vd.pass);
 
-    kage::setViewport(0, 0, _vd.width, _vd.height);
-    kage::setScissor(0, 0, _vd.width, _vd.height);
+    kage::setViewport(0, 0, _width, _height);
+    kage::setScissor(0, 0, _width, _height);
 
 
     kage::Binding binds[] = { 
-        { _vd.drawCmdBuf,       Access::read,       Stage::vertex_shader },
-        { _vd.trans,            Access::read,       Stage::vertex_shader | Stage::fragment_shader },
+        { _vd.trans,    Access::read,   Stage::vertex_shader | Stage::fragment_shader },
+        { _vd.vtxBuf,   Access::read,   Stage::vertex_shader},
     };
     kage::pushBindings(binds, COUNTOF(binds));
 
@@ -947,12 +949,36 @@ void prepareRadianceCascade(RadianceCascade& _rc, const RadianceCascadeInitData 
     rcInit.trans = _init.transBuf;
     rcInit.sceneRadius = _init.sceneRadius;
     prepareRCbuild(_rc.rcBuild, rcInit);
+
+
+    VoxDebugCmdInit cmdInit{};
+    cmdInit.pyramid = _init.pyramid;
+    cmdInit.trans = _init.transBuf;
+    cmdInit.voxMap = _rc.vox.voxMapOutAlias;
+    prepareVoxDebugCmd(_rc.voxDebugCmdGen, cmdInit);
+
+    VoxDebugDrawInit drawInit{};
+    drawInit.cmd = _rc.voxDebugCmdGen.outCmdAlias;
+    drawInit.cmdCount = _rc.voxDebugCmdGen.outCmdCountAlias;
+    drawInit.trans = _init.transBuf;
+    drawInit.color = _init.color;
+
+    prepareVoxDebug(_rc.voxDebug, drawInit);
 }
 
-void updateRadianceCascade(const RadianceCascade& _rc, uint32_t _drawCount, const mat4& _proj)
+void updateRadianceCascade(
+    const RadianceCascade& _rc
+    , uint32_t _drawCount
+    , const DrawCull& _camCull
+    , const uint32_t _width
+    , const uint32_t _height
+)
 {
     recFullDrawCmdPass(_rc.voxCmd, _drawCount);
-    recVoxelization(_rc.vox, _proj);
+    recVoxelization(_rc.vox);
     recOctTree(_rc.octTree);
     recRCBuild(_rc.rcBuild);
+
+    recVoxDebugGen(_rc.voxDebugCmdGen, _camCull);
+    recVoxDebug(_rc.voxDebug, _camCull, _width, _height);
 }

@@ -4,6 +4,7 @@
 #include "common.h"
 #include "kage.h"
 #include "deferred/vkz_deferred.h"
+#include "demo_structs.h"
 
 // each page has a 3d grid of probes, each probe has a 2d grid of rays
 struct alignas(16) RadianceCascadesConfig
@@ -66,6 +67,8 @@ struct Voxelization
     kage::BufferHandle albedoOutAlias;
     kage::BufferHandle normalOutAlias;
 
+    float sceneRadius;
+
     uint32_t maxDrawCmdCount;
 };
 
@@ -84,7 +87,7 @@ struct OctTree
     kage::BufferHandle octTreeOutAlias;
 };
 
-struct VoxDebugDrawCmdGen
+struct VoxDebugCmdGen
 {
     kage::PassHandle pass;
     kage::ProgramHandle program;
@@ -117,8 +120,6 @@ struct VoxDebug
     kage::BufferHandle idxBuf;
     kage::BufferHandle vtxBuf;
 
-    uint32_t width;
-    uint32_t height;
 
     kage::ImageHandle rtOutAlias;
 };
@@ -155,12 +156,17 @@ struct RadianceCascade
     Voxelization vox;
     OctTree octTree;
     RadianceCascadeBuild rcBuild;
+
+    VoxDebugCmdGen voxDebugCmdGen;
+    VoxDebug voxDebug;
 };
 
 struct RadianceCascadeInitData
 {
     GBuffer g_buffer;
+    kage::ImageHandle color;
     kage::ImageHandle depth;
+    kage::ImageHandle pyramid;
     kage::BufferHandle meshBuf;
     kage::BufferHandle meshDrawBuf;
     kage::BufferHandle idxBuf;
@@ -172,4 +178,10 @@ struct RadianceCascadeInitData
 };
 
 void prepareRadianceCascade(RadianceCascade& _rc, const RadianceCascadeInitData _init);
-void updateRadianceCascade(const RadianceCascade& _rc, uint32_t _drawCount, const mat4& _proj);
+void updateRadianceCascade(
+    const RadianceCascade& _rc
+    , uint32_t _drawCount
+    , const DrawCull& _camCull
+    , const uint32_t _width
+    , const uint32_t _height
+    );
