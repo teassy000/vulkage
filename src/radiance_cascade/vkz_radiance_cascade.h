@@ -96,11 +96,13 @@ struct VoxDebugCmdGen
     kage::ImageHandle  pyramid;
     kage::BufferHandle cmdBuf;
     kage::BufferHandle cmdCountBuf;
+    kage::BufferHandle drawBuf;
 
     kage::SamplerHandle sampler;
 
     kage::BufferHandle outCmdAlias;
     kage::BufferHandle outCmdCountAlias;
+    kage::BufferHandle outDrawBufAlias;
 };
 
 struct VoxDebug
@@ -112,6 +114,7 @@ struct VoxDebug
 
     kage::BufferHandle drawCmdBuf;
     kage::BufferHandle drawCmdCountBuf;
+    kage::BufferHandle drawBuf;
     kage::BufferHandle trans;
     kage::ImageHandle renderTarget;
 

@@ -62,6 +62,7 @@ struct VoxelizationConfig
 // ==============================================================================
 
 #define INVALID_OCT_IDX 0xFFFFFFFFu
+#define INVALID_VOX_ID 0xFFFFFFFFu
 
 struct OctTreeNode
 {

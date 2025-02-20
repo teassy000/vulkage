@@ -39,7 +39,12 @@ layout(binding = 3) buffer DrawCommandCount
     uint drawCmdCount;
 };
 
-layout(binding = 4) uniform sampler2D depthPyramid;
+layout(binding = 4) buffer DrawPos
+{
+    vec3 drawPos [];
+};
+
+layout(binding = 5) uniform sampler2D depthPyramid;
 
 ivec3 getWorld3DIdx(uint _idx, uint _sideCnt)
 {
@@ -59,6 +64,9 @@ vec3 getCenterWorldPos(ivec3 _idx, float _sceneRadius, float _voxSideLen)
 void main()
 {
     uint di = gl_GlobalInvocationID.x;
+
+    if (voxmap[di] == INVALID_VOX_ID)
+        return;
 
     ivec3 wIdx = getWorld3DIdx(di, info.sceneSideCnt);
     vec4 center = vec4(getCenterWorldPos(wIdx, info.sceneRadius, info.voxSideLen), 1.f);
@@ -93,18 +101,20 @@ void main()
     if(visible)
     {
         uint dci = atomicAdd(drawCmdCount, 1);
-        drawCmds[dci].drawId = di;
+        drawCmds[dci].drawId = dci;
         drawCmds[dci].lateDrawVisibility = 0;
         drawCmds[dci].taskCount = 0;
         drawCmds[dci].taskOffset = 0;
-        drawCmds[dci].indexCount = 0;
+        drawCmds[dci].indexCount = 36;
         drawCmds[dci].instanceCount = 1;
         drawCmds[dci].firstIndex = 0;
         drawCmds[dci].vertexOffset = 0;
         drawCmds[dci].firstInstance = 0;
-        drawCmds[dci].local_x = 1;
+        drawCmds[dci].local_x = 0;
         drawCmds[dci].local_y = 1;
         drawCmds[dci].local_z = 1;
+
+        drawPos[dci] = center.xyz;
     }
 }
 
