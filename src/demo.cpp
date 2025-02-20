@@ -180,7 +180,7 @@ namespace
 
 
             m_smaa.update(m_width, m_height);
-            updateRadianceCascade(m_radianceCascade, m_scene.drawCount, m_demoData.drawCull, m_width, m_height);
+            updateRadianceCascade(m_radianceCascade, m_scene.drawCount, m_demoData.drawCull, m_width, m_height, m_scene.radius);
             updateUI(m_ui, m_demoData.input, m_demoData.renderOptions, m_demoData.profiling, m_demoData.logic);
 
             // render
@@ -589,7 +589,6 @@ namespace
                 rcInit.idxBuf = m_idxBuf;
                 rcInit.vtxBuf = m_vtxBuf;
                 rcInit.transBuf = m_transformBuf;
-                rcInit.sceneRadius = m_scene.radius;
                 rcInit.maxDrawCmdCount = (uint32_t)m_scene.meshDraws.size();
                 rcInit.color = cascadeColorIn;
                 rcInit.pyramid = m_pyramid.imgOutAlias;

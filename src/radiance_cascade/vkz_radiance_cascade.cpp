@@ -104,7 +104,6 @@ struct VoxInitData
     kage::BufferHandle vtxBuf;
     kage::BufferHandle transBuf;
 
-    float sceneRadius;
     uint32_t maxDrawCmdCount;
 };
 
@@ -298,7 +297,7 @@ void prepareVoxelization(Voxelization& _vox, const VoxInitData& _init)
     _vox.maxDrawCmdCount = _init.maxDrawCmdCount;
 }
 
-void recVoxelization(const Voxelization& _vox)
+void recVoxelization(const Voxelization& _vox, const float _sceneRadiance)
 {
     kage::startRec(_vox.pass);
 
@@ -309,7 +308,7 @@ void recVoxelization(const Voxelization& _vox)
     kage::fillBuffer(_vox.voxMap, UINT32_MAX);
 
     VoxelizationConfig vc{};
-    vc.proj = freeCameraGetOrthoProjMatrix(_vox.sceneRadius, _vox.sceneRadius, _vox.sceneRadius);
+    vc.proj = freeCameraGetOrthoProjMatrix(_sceneRadiance, _sceneRadiance, _sceneRadiance);
     vc.edgeLen = c_voxelLength;
     const kage::Memory* mem = kage::alloc(sizeof(VoxelizationConfig));
     memcpy(mem->data, &vc, mem->size);
@@ -442,9 +441,35 @@ void prepareVoxDebugCmd(VoxDebugCmdGen& _debugCmd, const VoxDebugCmdInit& _init)
     _debugCmd.outCmdCountAlias = cmdCountBufAlias;
 }
 
-void recVoxDebugGen(const VoxDebugCmdGen& _vcmd, const DrawCull& _camCull)
+void recVoxDebugGen(const VoxDebugCmdGen& _vcmd, const DrawCull& _camCull, const float _sceneRadius)
 {
     kage::startRec(_vcmd.pass);
+
+    float voxSideLen = _sceneRadius * 2.f / (float)c_voxelLength;
+    VoxDebugCmdConsts consts{};
+
+    consts.voxRadius = sqrt(voxSideLen);
+    consts.voxSideLen = voxSideLen;
+    consts.sceneRadius = _sceneRadius;
+    consts.sceneSideCount = c_voxelLength;
+
+    consts.P00 = _camCull.P00;
+    consts.P11 = _camCull.P11;
+    consts.znear = _camCull.znear;
+    consts.zfar = _camCull.zfar;
+    consts.frustum[0] = _camCull.frustum[0];
+    consts.frustum[1] = _camCull.frustum[1];
+    consts.frustum[2] = _camCull.frustum[2];
+    consts.frustum[3] = _camCull.frustum[3];
+    consts.pyramidWidth = _camCull.pyramidWidth;
+    consts.pyramidHeight = _camCull.pyramidHeight;
+
+    const kage::Memory* mem = kage::alloc(sizeof(VoxDebugCmdConsts));
+    memcpy(mem->data, &consts, mem->size);
+    kage::setConstants(mem);
+
+
+
     kage::fillBuffer(_vcmd.cmdCountBuf, 0);
     kage::fillBuffer(_vcmd.cmdBuf, 0);
     kage::Binding binds[] =
@@ -726,8 +751,6 @@ struct RCBuildInit
     GBuffer g_buffer;
     kage::ImageHandle depth;
     kage::BufferHandle trans;
-
-    float sceneRadius;
 };
 
 void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
@@ -863,10 +886,9 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
 
     _rc.cascadeImg = img;
     _rc.outAlias = outAlias;
-    _rc.sceneRadius = _init.sceneRadius;
 }
 
-void recRCBuild(const RadianceCascadeBuild& _rc)
+void recRCBuild(const RadianceCascadeBuild& _rc, const float _sceneRadius)
 {
     kage::startRec(_rc.pass);
 
@@ -878,7 +900,7 @@ void recRCBuild(const RadianceCascadeBuild& _rc)
         uint32_t    prob_count      = uint32_t(pow(prob_sideCount, 3));
         uint32_t    ray_sideCount   = _rc.lv0Config.ray_gridSideCount * level_factor;
         uint32_t    ray_count       = ray_sideCount * ray_sideCount; // each probe has a 2d grid of rays
-        float prob_sideLen = _rc.sceneRadius * 2.f / float(prob_sideCount);
+        float prob_sideLen = _sceneRadius * 2.f / float(prob_sideCount);
         float rayLen = length(vec3(prob_sideLen * .5f));
 
         RadianceCascadesConfig config;
@@ -890,7 +912,7 @@ void recRCBuild(const RadianceCascadeBuild& _rc)
         config.probeSideLen = prob_sideLen;
 
         config.ot_voxSideCount = c_voxelLength;
-        config.ot_sceneSideLen = _rc.sceneRadius * 2.f;
+        config.ot_sceneSideLen = _sceneRadius * 2.f;
 
         layerOffset += prob_sideCount;
 
@@ -930,7 +952,6 @@ void prepareRadianceCascade(RadianceCascade& _rc, const RadianceCascadeInitData 
     voxelizeInitData.idxBuf = _init.idxBuf;
     voxelizeInitData.vtxBuf = _init.vtxBuf;
     voxelizeInitData.transBuf = _init.transBuf;
-    voxelizeInitData.sceneRadius = _init.sceneRadius;
     voxelizeInitData.maxDrawCmdCount = _init.maxDrawCmdCount;
     prepareVoxelization(_rc.vox, voxelizeInitData);
 
@@ -947,7 +968,6 @@ void prepareRadianceCascade(RadianceCascade& _rc, const RadianceCascadeInitData 
     rcInit.g_buffer = _init.g_buffer;
     rcInit.depth = _init.depth;
     rcInit.trans = _init.transBuf;
-    rcInit.sceneRadius = _init.sceneRadius;
     prepareRCbuild(_rc.rcBuild, rcInit);
 
 
@@ -972,13 +992,14 @@ void updateRadianceCascade(
     , const DrawCull& _camCull
     , const uint32_t _width
     , const uint32_t _height
+    , const float _sceneRadius
 )
 {
     recFullDrawCmdPass(_rc.voxCmd, _drawCount);
-    recVoxelization(_rc.vox);
+    recVoxelization(_rc.vox, _sceneRadius);
     recOctTree(_rc.octTree);
-    recRCBuild(_rc.rcBuild);
+    recRCBuild(_rc.rcBuild, _sceneRadius);
 
-    recVoxDebugGen(_rc.voxDebugCmdGen, _camCull);
+    recVoxDebugGen(_rc.voxDebugCmdGen, _camCull, _sceneRadius);
     recVoxDebug(_rc.voxDebug, _camCull, _width, _height);
 }

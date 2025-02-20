@@ -67,8 +67,6 @@ struct Voxelization
     kage::BufferHandle albedoOutAlias;
     kage::BufferHandle normalOutAlias;
 
-    float sceneRadius;
-
     uint32_t maxDrawCmdCount;
 };
 
@@ -146,7 +144,6 @@ struct RadianceCascadeBuild
     kage::ImageHandle cascadeImg;
     kage::ImageHandle outAlias;
 
-    float sceneRadius;
     RadianceCascadesConfig lv0Config;
 };
 
@@ -173,7 +170,6 @@ struct RadianceCascadeInitData
     kage::BufferHandle vtxBuf;
     kage::BufferHandle transBuf;
 
-    float sceneRadius;
     uint32_t maxDrawCmdCount;
 };
 
@@ -184,4 +180,5 @@ void updateRadianceCascade(
     , const DrawCull& _camCull
     , const uint32_t _width
     , const uint32_t _height
+    , const float _sceneRadiance
     );
