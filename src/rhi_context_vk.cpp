@@ -765,6 +765,27 @@ namespace kage { namespace vk
         return mode;
     }
 
+    VkPolygonMode getPolygonMode(PolygonMode _mode)
+    {
+        VkPolygonMode mode = VK_POLYGON_MODE_FILL;
+        switch (_mode)
+        {
+        case PolygonMode::fill:
+            mode = VK_POLYGON_MODE_FILL;
+            break;
+        case PolygonMode::line:
+            mode = VK_POLYGON_MODE_LINE;
+            break;
+        case PolygonMode::point:
+            mode = VK_POLYGON_MODE_POINT;
+            break;
+        default:
+            mode = VK_POLYGON_MODE_FILL;
+            break;
+        }
+        return mode;
+    }
+
     VkVertexInputRate getInputRate(VertexInputRate _rate)
     {
         VkVertexInputRate rate = VK_VERTEX_INPUT_RATE_VERTEX;
@@ -2314,6 +2335,7 @@ namespace kage { namespace vk
                 , passMeta.pipelineConfig.enableDepthWrite
                 , getCompareOp(passMeta.pipelineConfig.depthCompOp)
                 , getCullMode(passMeta.pipelineConfig.cullMode)
+                , getPolygonMode(passMeta.pipelineConfig.polygonMode)
             };
 
             VkPipelineCache cache{};

@@ -277,6 +277,14 @@ namespace kage
         uint32,
     };
 
+    enum class PolygonMode
+    {
+        fill,
+        line,
+        point,
+        max_enum = 0x7FFFFFFF
+    };
+
     namespace CullModeFlagBits
     {
         enum Enum : uint16_t
@@ -603,6 +611,7 @@ namespace kage
         bool enableDepthWrite{ true };
         CompareOp depthCompOp{ CompareOp::greater };
         CullModeFlags cullMode{ CullModeFlagBits::back };
+        PolygonMode polygonMode{ PolygonMode::fill };
     };
 
     struct BufferDesc 

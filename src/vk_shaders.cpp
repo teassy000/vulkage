@@ -394,6 +394,7 @@ namespace kage { namespace vk
         rasterizationState.lineWidth = 1.f;
         rasterizationState.frontFace = VK_FRONT_FACE_CLOCKWISE;
         rasterizationState.cullMode = pipeConfigs.cullMode;
+        rasterizationState.polygonMode = pipeConfigs.polygonMode;
         createInfo.pRasterizationState = &rasterizationState;
 
         VkPipelineMultisampleStateCreateInfo multisampleState = { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };

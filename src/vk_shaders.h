@@ -40,6 +40,7 @@ namespace kage { namespace vk
         bool enableDepthWrite{ true };
         VkCompareOp depthCompOp{ VK_COMPARE_OP_GREATER };
         VkCullModeFlags cullMode{ VK_CULL_MODE_BACK_BIT };
+        VkPolygonMode polygonMode{ VK_POLYGON_MODE_FILL };
     };
 
     bool loadShader(Shader_vk& shader, VkDevice device, const char* path);

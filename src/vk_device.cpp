@@ -194,6 +194,7 @@ namespace kage{ namespace vk
         features.features.shaderStorageImageMultisample = true;
         features.features.geometryShader = true;
         features.features.fragmentStoresAndAtomics = true; // enable fragment shader stores and atomics
+        features.features.fillModeNonSolid = true; // enable line rasterization mode
 
         VkPhysicalDeviceVulkan11Features features11 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES };
         features11.storageBuffer16BitAccess = true;
