@@ -38,10 +38,10 @@ struct Culling
     kage::BufferHandle meshDrawCmdCountBufOutAlias;
     kage::BufferHandle meshDrawVisBufOutAlias;
 
-    MeshDrawCull meshDrawCull;
+    DrawCull drawCull;
 };
 
 void prepareCullingComp(Culling& _cullingComp, const CullingCompInitData& _initData, bool _late = false, bool _task = false, bool _alphaPass = false);
 
-void updateCulling(Culling& _cullingComp, const MeshDrawCull& _drawCull, uint32_t _drawCount);
+void updateCulling(Culling& _cullingComp, const DrawCull& _drawCull, uint32_t _drawCount);
 

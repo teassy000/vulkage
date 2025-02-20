@@ -11,7 +11,7 @@ struct alignas(16) TransformData
     vec3 cameraPos;
 };
 
-struct alignas(16) MeshDrawCull
+struct alignas(16) DrawCull
 {
     float P00, P11;
     float znear, zfar;
@@ -66,7 +66,7 @@ struct DemoData
 
     // constants
     Globals globals;
-    MeshDrawCull drawCull;
+    DrawCull drawCull;
 
     // uniform
     TransformData trans;

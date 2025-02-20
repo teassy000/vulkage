@@ -16,7 +16,7 @@ layout(constant_id = 2) const bool ALPHA_PASS = false;
 
 layout(push_constant) uniform block 
 {
-    MeshDrawCull cull;
+    DrawCull cull;
 };
 
 // readonly

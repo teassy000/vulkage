@@ -40,7 +40,7 @@ struct Globals
     float lodErrorThreshold;
 };
 
-struct MeshDrawCull
+struct DrawCull
 {
     float P00, P11;
     float znear, zfar;

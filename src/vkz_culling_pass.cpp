@@ -6,8 +6,8 @@ void cullingRec(const Culling& _cull, uint32_t _drawCount)
 
     using Stage = kage::PipelineStageFlagBits::Enum;
     using Access = kage::BindingAccess;
-    const kage::Memory* mem = kage::alloc(sizeof(MeshDrawCull));
-    bx::memCopy(mem->data, &_cull.meshDrawCull, mem->size);
+    const kage::Memory* mem = kage::alloc(sizeof(DrawCull));
+    bx::memCopy(mem->data, &_cull.drawCull, mem->size);
 
     kage::startRec(_cull.pass);
 
@@ -34,7 +34,7 @@ void cullingRec(const Culling& _cull, uint32_t _drawCount)
 void prepareCullingComp(Culling& _cullingComp, const CullingCompInitData& _initData, bool _late /*= false*/, bool _task /*= false*/, bool _alphaPass /*= false*/)
 {
     kage::ShaderHandle cs = kage::registShader("mesh_draw_cmd", "shaders/drawcmd.comp.spv");
-    kage::ProgramHandle prog = kage::registProgram("mesh_draw_cmd", { cs }, sizeof(MeshDrawCull));
+    kage::ProgramHandle prog = kage::registProgram("mesh_draw_cmd", { cs }, sizeof(DrawCull));
 
     int pipelineSpecs[] = { _late, _task, _alphaPass };
 
@@ -118,12 +118,12 @@ void prepareCullingComp(Culling& _cullingComp, const CullingCompInitData& _initD
     _cullingComp.meshDrawCmdCountBufOutAlias = drawCmdCountOutAlias;
     _cullingComp.meshDrawVisBufOutAlias = drawVisOutAlias;
 
-    _cullingComp.meshDrawCull = {};
+    _cullingComp.drawCull = {};
 }
 
-void updateCulling(Culling& _cullingComp, const MeshDrawCull& _drawCull, uint32_t _drawCount)
+void updateCulling(Culling& _cullingComp, const DrawCull& _drawCull, uint32_t _drawCount)
 {
-    _cullingComp.meshDrawCull = _drawCull;
+    _cullingComp.drawCull = _drawCull;
 
     cullingRec(_cullingComp, _drawCount);
 }
