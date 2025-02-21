@@ -398,6 +398,9 @@ namespace kage
 
             task_shader = 1 << 22,
             mesh_shader = 1 << 23,
+
+            // new one
+            dispatch_indirect = 1 << 24,
             
             max_enum = 0x7fffffff,
         };
