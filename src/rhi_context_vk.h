@@ -503,6 +503,12 @@ namespace kage { namespace vk
             , uint32_t _z
         );
 
+        void dispatchIndirect(
+            PassHandle _hPass
+            , BufferHandle _hIndirectBuf
+            , uint32_t _offset
+        );
+
         void draw(
             PassHandle _hPass
             , uint32_t _vtxCount

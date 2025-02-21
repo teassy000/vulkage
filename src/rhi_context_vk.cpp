@@ -2955,6 +2955,37 @@ namespace kage { namespace vk
         flushWriteBarriersRec(_hPass);
     }
 
+    void RHIContext_vk::dispatchIndirect(PassHandle _hPass, BufferHandle _hIndirectBuf, uint32_t _offset)
+    {
+        KG_ZoneScopedC(Color::indian_red);
+
+        if (!m_passContainer.exist(_hPass.id))
+        {
+            message(
+                warning
+                , "dispatch will not perform for pass %d! It might be useless after render pass sorted"
+                , _hPass.id
+            );
+            return;
+        }
+
+        createBarriersRec(_hPass);
+        lazySetDescriptorSet(_hPass);
+
+        const PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
+        const Buffer_vk& ib = getBuffer(_hIndirectBuf.id);
+
+        // dispatch
+        vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, passInfo.pipeline);
+        vkCmdDispatchIndirect(
+            m_cmdBuffer
+            , ib.buffer
+            , _offset
+        );
+
+        flushWriteBarriersRec(_hPass);
+    }
+
     void RHIContext_vk::draw(PassHandle _hPass, uint32_t _vtxCount, uint32_t _instCount, uint32_t _firstIdx, uint32_t _firstInst)
     {
         KG_ZoneScopedC(Color::indian_red);
@@ -4181,6 +4212,12 @@ namespace kage { namespace vk
                     {
                         const RecordDispatchCmd* rc = reinterpret_cast<const RecordDispatchCmd*>(cmd);
                         dispatch(_hPass, rc->m_x, rc->m_y, rc->m_z);
+                    }
+                    break;
+                case Command::record_dispatch_indirect:
+                    {
+                    const RecordDispatchIndirectCmd* rc = reinterpret_cast<const RecordDispatchIndirectCmd*>(cmd);
+                    dispatchIndirect(_hPass, rc->m_buf, rc->m_off);
                     }
                     break;
                 case Command::record_draw:

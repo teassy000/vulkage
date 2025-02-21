@@ -187,6 +187,7 @@ namespace kage
             record_fill_buffer,
 
             record_dispatch,
+            record_dispatch_indirect,
             record_draw,
             record_draw_indirect,
             record_draw_indirect_count,
@@ -412,6 +413,13 @@ namespace kage
         uint32_t m_x;
         uint32_t m_y;
         uint32_t m_z;
+    };
+
+    struct RecordDispatchIndirectCmd : public Command
+    {
+        ENTRY_IMPLEMENT_COMMAND(RecordDispatchIndirectCmd, Command::record_dispatch_indirect);
+        BufferHandle m_buf;
+        uint32_t m_off;
     };
 
     struct RecordDrawCmd : public Command
@@ -795,6 +803,14 @@ namespace kage
             cmd.m_y = _numY;
             cmd.m_z = _numZ;
 
+            push(cmd);
+        }
+
+        void cmdRecordDispatchIndirect(BufferHandle _handle, uint32_t _offset)
+        {
+            RecordDispatchIndirectCmd cmd;
+            cmd.m_buf = _handle;
+            cmd.m_off = _offset;
             push(cmd);
         }
 

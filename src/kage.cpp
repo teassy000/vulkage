@@ -377,6 +377,8 @@ namespace kage
             , const uint32_t _groupCountZ
         );
 
+        void dispatchIndirect(const BufferHandle _hIndirectBuf, const uint32_t _offse);
+
         void setVertexBuffer(BufferHandle _hBuf);
 
         void setIndexBuffer(BufferHandle _hBuf, uint32_t _offset, IndexType _type);
@@ -2218,6 +2220,11 @@ namespace kage
         m_cmdQueue.cmdRecordDispatch(_groupCountX, _groupCountY, _groupCountZ);
     }
 
+    void Context::dispatchIndirect(const BufferHandle _hIndirectBuf, const uint32_t _offse)
+    {
+        m_cmdQueue.cmdRecordDispatchIndirect(_hIndirectBuf, _offse);
+    }
+
     void Context::setVertexBuffer(BufferHandle _hBuf)
     {
         m_cmdQueue.cmdRecordSetVertexBuffer(_hBuf);
@@ -2495,6 +2502,13 @@ namespace kage
         s_ctx->dispatch(_groupCountX, _groupCountY, _groupCountZ);
     }
 
+    void dispatchIndirect(
+        const BufferHandle _hIndirectBuf
+        , const uint32_t _offse
+    )
+    {
+        s_ctx->dispatchIndirect(_hIndirectBuf, _offse);
+    }
 
     void fillBuffer(
         BufferHandle _hBuf

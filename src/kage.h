@@ -101,6 +101,11 @@ namespace kage
         , const uint32_t _groupCountZ
     );
 
+    void dispatchIndirect(
+        const BufferHandle _hIndirectBuf
+        , const uint32_t _offse
+    );
+
     void fillBuffer(
         BufferHandle _hBuf
         , uint32_t _value
