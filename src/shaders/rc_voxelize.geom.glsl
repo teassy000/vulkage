@@ -14,7 +14,7 @@ layout(triangle_strip, max_vertices = 3) out;
 
 layout(push_constant) uniform block
 {
-    VoxelizationConfig config;
+    VoxelizationConsts consts;
 };
 
 layout(location = 0) in flat uint in_drawId[];
@@ -53,7 +53,7 @@ void main()
         ? ((tri_norm.z > tri_norm.y) ? 2 : 1)
         : ((tri_norm.z > tri_norm.x) ? 2 : 0);
 
-    vec3 voxRange = vec3(config.edgeLen, config.edgeLen, config.edgeLen);
+    vec3 voxRange = vec3(consts.voxGridCount, consts.voxGridCount, consts.voxGridCount);
     vec3 hvoxelSz = 1.f / voxRange;
     float voxelDiag = hvoxelSz.x * RIDICAL_3;
 

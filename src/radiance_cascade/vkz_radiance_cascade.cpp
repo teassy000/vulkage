@@ -107,10 +107,12 @@ struct VoxInitData
     uint32_t maxDrawCmdCount;
 };
 
-struct VoxelizationConfig
+struct VoxelizationConsts
 {
     mat4 proj;
-    uint32_t edgeLen;
+    uint32_t voxGridCount;
+    float voxCellLen;
+    float sceneRadius;
 };
 
 
@@ -122,7 +124,7 @@ void prepareVoxelization(Voxelization& _vox, const VoxInitData& _init)
     kage::ShaderHandle vs = kage::registShader("vox", "shaders/rc_voxelize.vert.spv");
     kage::ShaderHandle gs = kage::registShader("vox", "shaders/rc_voxelize.geom.spv");
     kage::ShaderHandle fs = kage::registShader("vox", "shaders/rc_voxelize.frag.spv");
-    kage::ProgramHandle program = kage::registProgram("vox", { vs, gs, fs }, sizeof(VoxelizationConfig));
+    kage::ProgramHandle program = kage::registProgram("vox", { vs, gs, fs }, sizeof(VoxelizationConsts));
 
     kage::PassDesc passDesc{};
     passDesc.programId = program.id;
@@ -297,7 +299,7 @@ void prepareVoxelization(Voxelization& _vox, const VoxInitData& _init)
     _vox.maxDrawCmdCount = _init.maxDrawCmdCount;
 }
 
-void recVoxelization(const Voxelization& _vox, const float _sceneRadiance)
+void recVoxelization(const Voxelization& _vox, const float _sceneRadius)
 {
     kage::startRec(_vox.pass);
 
@@ -307,10 +309,12 @@ void recVoxelization(const Voxelization& _vox, const float _sceneRadiance)
     kage::fillBuffer(_vox.threadCountBuf, 1);
     kage::fillBuffer(_vox.voxMap, UINT32_MAX);
 
-    VoxelizationConfig vc{};
-    vc.proj = freeCameraGetOrthoProjMatrix(_sceneRadiance, _sceneRadiance, _sceneRadiance);
-    vc.edgeLen = c_voxelLength;
-    const kage::Memory* mem = kage::alloc(sizeof(VoxelizationConfig));
+    VoxelizationConsts vc{};
+    vc.proj = freeCameraGetOrthoProjMatrix(_sceneRadius, _sceneRadius, _sceneRadius);
+    vc.voxGridCount = c_voxelLength;
+    vc.voxCellLen = _sceneRadius * 2.f / (float)c_voxelLength;
+    vc.sceneRadius = _sceneRadius;
+    const kage::Memory* mem = kage::alloc(sizeof(VoxelizationConsts));
     memcpy(mem->data, &vc, mem->size);
     kage::setConstants(mem);
 

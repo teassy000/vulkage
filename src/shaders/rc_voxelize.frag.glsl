@@ -20,7 +20,7 @@ layout(location = 6) in flat vec3 in_maxAABB;
 
 layout(push_constant) uniform block
 {
-    VoxelizationConfig config;
+    VoxelizationConsts consts;
 };
 
 // read / write
@@ -43,23 +43,23 @@ layout(location = 0) out vec4 out_dummy;
 
 void main()
 {
-    
     if (any(lessThan(in_pos, in_minAABB)) || any(lessThan(in_maxAABB, in_pos)))
         discard;
-    
-    // clip space to voxel space, [0, 1] to [0, edgeLen]
+
+    // clip space to voxel space, [0, 1] to [0, voxGridCount]
     vec3 pos = vec3(in_pos.xy * .5f + vec2(.5f), in_pos.z);
 
-    // z * edgeLen^2 + y * edgeLen + x
-    float voxelVar = float(pos.z * float(config.edgeLen * config.edgeLen)) + float(pos.y * float(config.edgeLen)) + float(pos.x);
-    uint voxelIdx = uint(voxelVar);
+    ivec3 ipos = 
+        ivec3(float(pos.x) * float(consts.voxGridCount) + .5f
+            , float(pos.y) * float(consts.voxGridCount) + .5f
+            , float(pos.z) * float(consts.voxGridCount) + .5f);
 
+    uint voxIdx = ipos.z * consts.voxGridCount * consts.voxGridCount + ipos.y * consts.voxGridCount + ipos.x;
 
     uint uidx = atomicAdd(fragCount, 1u);
-    voxels[uidx] = voxelIdx;
+    voxels[uidx] = voxIdx;
 
-    vec3 wpos = vec3(pos - vec3(0.5f)) * 2.f;
-
+    vec3 wpos = vec3(ipos) * consts.voxCellLen - vec3(consts.sceneRadius) - (.5f * consts.voxCellLen);
     imageStore(out_wpos, int(uidx), vec4(wpos, 1));
     imageStore(out_albedo, int(uidx), vec4(0.5));
     imageStore(out_norm, int(uidx), vec4(0.5));

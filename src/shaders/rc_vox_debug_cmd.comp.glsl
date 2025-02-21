@@ -48,9 +48,12 @@ layout(binding = 5) uniform sampler2D depthPyramid;
 layout(binding = 6, RGBA16F) uniform readonly imageBuffer wpos;
 
 ivec3 getWorld3DIdx(uint _idx, uint _sideCnt)
-{
-    // translate linear idx to 3D idx
-    return ivec3(_idx % _sideCnt, (_idx % (_sideCnt * _sideCnt)) / _sideCnt, _idx / (_sideCnt * _sideCnt));
+{ 
+    uint z = _idx / (_sideCnt * _sideCnt);
+    uint y = (_idx % (_sideCnt * _sideCnt)) / _sideCnt;
+    uint x = _idx % _sideCnt;
+
+    return ivec3(x, y, z);
 }
 
 vec3 getCenterWorldPos(ivec3 _idx, float _sceneRadius, float _voxSideLen)
@@ -69,8 +72,11 @@ void main()
     if (voxmap[di] == INVALID_VOX_ID)
         return;
 
-    vec4 ocenter = imageLoad(wpos, int(di)) * info.sceneRadius * 0.5f;
+    uint idx = voxmap[di];
+    ivec3 wIdx = getWorld3DIdx(idx, info.sceneSideCnt);
+    vec4 ocenter = vec4(getCenterWorldPos(wIdx, info.sceneRadius, info.voxSideLen), 1.f);
 
+    //vec4 ocenter = imageLoad(wpos, int(di));
     vec4 center = trans.view * ocenter;
 
     float radius = info.voxRadius;
@@ -98,7 +104,7 @@ void main()
         }
     }
 
-    if(visible || true)
+    if(visible)
     {
         uint dci = atomicAdd(drawCmdCount, 1);
         drawCmds[dci].drawId = dci;

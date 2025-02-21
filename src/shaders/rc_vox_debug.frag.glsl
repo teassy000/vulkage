@@ -11,5 +11,5 @@ void main()
     uint mhash = hash(in_drawId);
     vec4 color = vec4(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255), 255) / 255.0;
 
-    outColor = vec4(color);
+    outColor = vec4(0.f, 1.f, 0.f, 1.f);
 }

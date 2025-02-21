@@ -53,10 +53,12 @@ struct RadianceCascadesConfig
     float   ot_sceneSideLen;
 };
 
-struct VoxelizationConfig
+struct VoxelizationConsts
 {
     mat4 proj;
-    uint edgeLen;
+    uint voxGridCount;
+    float voxCellLen;
+    float sceneRadius;
 };
 
 // ==============================================================================

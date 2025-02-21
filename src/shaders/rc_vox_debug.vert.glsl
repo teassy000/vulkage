@@ -43,7 +43,7 @@ void main()
     uint vi = gl_VertexIndex;
     vec3 pos = vec3(int(vertices[vi].vx), int(vertices[vi].vy), int(vertices[vi].vz));
 
-    pos *= (info.voxSideLen * 0.5f);
+    pos *= (info.voxSideLen * .5f);
     pos += vpos;
 
     out_drawId = drawId;
