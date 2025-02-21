@@ -973,8 +973,11 @@ namespace kage { namespace vk
         {
             flags |= VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
         }
-        if (_flags & PipelineStageFlagBits::draw_indirect)
+        if (_flags & PipelineStageFlagBits::indirect)
         {
+            // why vk dose not have a dispatch indirect bit?
+            // https://github.com/KhronosGroup/Vulkan-Docs/issues/176
+            // the draw indirect will serve draw*/dispatch*/tracerays* commands
             flags |= VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT;
         }
         if (_flags & PipelineStageFlagBits::vertex_input)
@@ -1036,12 +1039,6 @@ namespace kage { namespace vk
         if (_flags & PipelineStageFlagBits::mesh_shader)
         {
             flags |= VK_PIPELINE_STAGE_MESH_SHADER_BIT_EXT;
-        }
-        if (_flags & PipelineStageFlagBits::dispatch_indirect)
-        {
-            // why vk dose not have a dispatch indirect bit?
-            // https://github.com/KhronosGroup/Vulkan-Docs/issues/176
-            flags |= VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT; 
         }
         return flags;
     }

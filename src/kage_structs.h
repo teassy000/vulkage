@@ -380,7 +380,7 @@ namespace kage
             none = 0,
 
             top_of_pipe = 1 << 0,
-            draw_indirect = 1 << 1,
+            indirect = 1 << 1,
             vertex_input = 1 << 2,
             vertex_shader = 1 << 3,
 
@@ -398,9 +398,6 @@ namespace kage
 
             task_shader = 1 << 22,
             mesh_shader = 1 << 23,
-
-            // new one
-            dispatch_indirect = 1 << 24,
             
             max_enum = 0x7fffffff,
         };

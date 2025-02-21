@@ -1609,7 +1609,7 @@ namespace kage
 
         ResInteractDesc interact{};
         interact.binding = kDescriptorSetBindingDontCare;
-        interact.stage = PipelineStageFlagBits::draw_indirect;
+        interact.stage = PipelineStageFlagBits::indirect;
         interact.access = AccessFlagBits::indirect_command_read;
 
         passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _hBuf.id, interact);
@@ -1623,11 +1623,9 @@ namespace kage
         passMeta.indirectCountBufferId = _hBuf.id;
         passMeta.indirectCountBufOffset = _offset;
 
-        PipelineStageFlags stage = isGraphics(_hPass) ? PipelineStageFlagBits::draw_indirect : PipelineStageFlagBits::dispatch_indirect;
-
         ResInteractDesc interact{};
         interact.binding = kDescriptorSetBindingDontCare;
-        interact.stage = stage;
+        interact.stage = PipelineStageFlagBits::indirect;
         interact.access = AccessFlagBits::indirect_command_read;
 
         passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _hBuf.id, interact);
