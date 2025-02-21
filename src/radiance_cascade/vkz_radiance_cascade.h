@@ -51,7 +51,7 @@ struct Voxelization
     kage::BufferHandle idxBuf;
     kage::BufferHandle vtxBuf;
 
-    kage::BufferHandle fragCountBuf;
+    kage::BufferHandle threadCountBuf;
 
     kage::BufferHandle voxMap;
     kage::BufferHandle voxelWorldPos;
@@ -60,7 +60,7 @@ struct Voxelization
 
     kage::ImageHandle rt;
 
-    kage::BufferHandle fragCountBufOutAlias;
+    kage::BufferHandle threadCountBufOutAlias;
 
     kage::BufferHandle voxMapOutAlias;
     kage::BufferHandle wposOutAlias;
@@ -92,11 +92,13 @@ struct VoxDebugCmdGen
     kage::ShaderHandle cs;
 
     kage::BufferHandle voxmap;
+    kage::BufferHandle voxWorldPos;
     kage::BufferHandle trans;
     kage::ImageHandle  pyramid;
     kage::BufferHandle cmdBuf;
     kage::BufferHandle cmdCountBuf;
     kage::BufferHandle drawBuf;
+    kage::BufferHandle threadCountBuf;
 
     kage::SamplerHandle sampler;
 

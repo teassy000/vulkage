@@ -8,6 +8,11 @@
 #include "mesh_gpu.h"
 #include "rc_common.h"
 
+layout(push_constant) uniform block
+{
+    VoxDebugConsts info;
+};
+
 layout(binding = 0) readonly uniform Transform
 {
     TransformData trans;
@@ -25,7 +30,7 @@ layout(binding = 2) readonly buffer DrawCommand
 
 layout(binding = 3) readonly buffer WorldPos
 {
-    vec3 viewPositions [];
+    vec3 drawPositions [];
 };
 
 layout(location = 0) out flat uint out_drawId;
@@ -33,12 +38,15 @@ layout(location = 0) out flat uint out_drawId;
 void main()
 {
     uint drawId = drawCmds[gl_DrawIDARB].drawId;
-    vec3 vpos = viewPositions[drawId];
+    vec3 vpos = drawPositions[drawId];
 
     uint vi = gl_VertexIndex;
     vec3 pos = vec3(int(vertices[vi].vx), int(vertices[vi].vy), int(vertices[vi].vz));
+
+    pos *= (info.voxSideLen * 0.5f);
     pos += vpos;
 
+    out_drawId = drawId;
     // no view since the view already applied in the command gen pass
-    gl_Position = trans.proj * vec4(pos, 1.0);
+    gl_Position = trans.proj * trans.view * vec4(pos, 1.0);
 }

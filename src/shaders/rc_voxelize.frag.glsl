@@ -30,11 +30,11 @@ layout(binding = 3) buffer FragCount
 };
 
 // write
-layout(binding = 4, RGBA16UI) uniform writeonly uimageBuffer out_wpos;
+layout(binding = 4, RGBA16F) uniform writeonly imageBuffer out_wpos;
 layout(binding = 5, RGBA8) uniform writeonly imageBuffer out_albedo;
 layout(binding = 6, RGBA16F) uniform writeonly imageBuffer out_norm;
 
-layout(binding = 7) buffer writeonly VoxelMap
+layout(binding = 7) buffer VoxelMap
 {
     uint voxels[] ;
 };
@@ -48,17 +48,19 @@ void main()
         discard;
     
     // clip space to voxel space, [0, 1] to [0, edgeLen]
-    vec3 uv = in_pos;
-    uv.xy = uv.xy * .5f + vec2(.5f);
-    uv.y = 1.0 - uv.y;
-    ivec3 uv_i = ivec3(uv * config.edgeLen);
-    uint uidx = atomicAdd(fragCount, 1u);
+    vec3 pos = vec3(in_pos.xy * .5f + vec2(.5f), in_pos.z);
 
     // z * edgeLen^2 + y * edgeLen + x
-    uint voxelIdx = uv_i.z * config.edgeLen * config.edgeLen + uv_i.y * config.edgeLen + uv_i.x;
-    voxels[voxelIdx] = uidx;
+    float voxelVar = float(pos.z * float(config.edgeLen * config.edgeLen)) + float(pos.y * float(config.edgeLen)) + float(pos.x);
+    uint voxelIdx = uint(voxelVar);
 
-    imageStore(out_wpos, int(uidx), ivec4(uv_i.xyz, 1));
+
+    uint uidx = atomicAdd(fragCount, 1u);
+    voxels[uidx] = voxelIdx;
+
+    vec3 wpos = vec3(pos - vec3(0.5f)) * 2.f;
+
+    imageStore(out_wpos, int(uidx), vec4(wpos, 1));
     imageStore(out_albedo, int(uidx), vec4(0.5));
     imageStore(out_norm, int(uidx), vec4(0.5));
 }

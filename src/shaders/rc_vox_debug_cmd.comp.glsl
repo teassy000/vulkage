@@ -14,7 +14,7 @@ layout(local_size_x = TASKGP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
 layout(push_constant) uniform block
 {
-    VoxDebugCmdConsts info;
+    VoxDebugConsts info;
 };
 
 layout(binding = 0) readonly buffer VoxMap
@@ -45,6 +45,7 @@ layout(binding = 4) buffer DrawPos
 };
 
 layout(binding = 5) uniform sampler2D depthPyramid;
+layout(binding = 6, RGBA16F) uniform readonly imageBuffer wpos;
 
 ivec3 getWorld3DIdx(uint _idx, uint _sideCnt)
 {
@@ -68,10 +69,9 @@ void main()
     if (voxmap[di] == INVALID_VOX_ID)
         return;
 
-    ivec3 wIdx = getWorld3DIdx(di, info.sceneSideCnt);
-    vec4 center = vec4(getCenterWorldPos(wIdx, info.sceneRadius, info.voxSideLen), 1.f);
+    vec4 ocenter = imageLoad(wpos, int(di)) * info.sceneRadius * 0.5f;
 
-    center = trans.view * center;
+    vec4 center = trans.view * ocenter;
 
     float radius = info.voxRadius;
 
@@ -98,7 +98,7 @@ void main()
         }
     }
 
-    if(visible)
+    if(visible || true)
     {
         uint dci = atomicAdd(drawCmdCount, 1);
         drawCmds[dci].drawId = dci;
@@ -114,7 +114,7 @@ void main()
         drawCmds[dci].local_y = 1;
         drawCmds[dci].local_z = 1;
 
-        drawPos[dci] = center.xyz;
+        drawPos[dci] = ocenter.xyz;
     }
 }
 
