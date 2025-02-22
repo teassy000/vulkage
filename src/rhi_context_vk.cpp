@@ -3077,7 +3077,41 @@ namespace kage { namespace vk
 
     void RHIContext_vk::drawIndexedIndirect(PassHandle _hPass, BufferHandle _hIndirectBuf, uint32_t _offset, uint32_t _drawCount, uint32_t _stride)
     {
-        BX_ASSERT(false, "not implemented");
+        KG_ZoneScopedC(Color::indian_red);
+
+        if (!m_passContainer.exist(_hPass.id))
+        {
+            message(
+                warning
+                , "drawIndexed will not perform for pass %d! It might be cut after render pass sorted"
+                , _hPass.id
+            );
+            return;
+        }
+
+        createBarriersRec(_hPass);
+        lazySetDescriptorSet(_hPass);
+
+        beginRendering(m_cmdBuffer, _hPass.id);
+
+        PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
+        const uint16_t progIdx = (uint16_t)m_programContainer.getIdIndex(passInfo.programId);
+
+        vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, passInfo.pipeline);
+
+        const Buffer_vk& ib = getBuffer(_hIndirectBuf.id);
+
+        vkCmdDrawIndexedIndirect(
+            m_cmdBuffer
+            , ib.buffer
+            , _offset
+            , _drawCount
+            , _stride
+        );
+
+        endRendering(m_cmdBuffer);
+
+        flushWriteBarriersRec(_hPass);
     }
 
     void RHIContext_vk::drawIndexedIndirectCount(PassHandle _hPass, BufferHandle _hIndirectBuf, uint32_t _indirectOffset, BufferHandle _hIndirectCountBuf, uint32_t _countOffset, uint32_t _drawCount, uint32_t _stride)
@@ -4258,8 +4292,8 @@ namespace kage { namespace vk
                     {
                         const RecordDrawIndexedIndirectCmd* rc = reinterpret_cast<const RecordDrawIndexedIndirectCmd*>(cmd);
                         drawIndexedIndirect(
-                            _hPass,
-                            rc->m_indirectBuf
+                            _hPass
+                            , rc->m_indirectBuf
                             , rc->m_off
                             , rc->m_cnt
                             , rc->m_stride
@@ -4270,8 +4304,8 @@ namespace kage { namespace vk
                     {
                         const RecordDrawIndexedIndirectCountCmd* rc = reinterpret_cast<const RecordDrawIndexedIndirectCountCmd*>(cmd);
                         drawIndexedIndirectCount(
-                            _hPass,
-                            rc->m_indirectBuf
+                            _hPass
+                            , rc->m_indirectBuf
                             , rc->m_off
                             , rc->m_cntBuf
                             , rc->m_cntOff

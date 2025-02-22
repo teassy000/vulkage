@@ -2273,7 +2273,7 @@ namespace kage
 
     void Context::drawIndexed(const BufferHandle _hIndirectBuf, const uint32_t _offset, const uint32_t _count, const uint32_t _stride)
     {
-        BX_ASSERT(0, "NOT IMPLEMENTED YET!!!");
+        m_cmdQueue.cmdRecordDrawIndexedIndirect(_hIndirectBuf, _offset, _count, _stride);
     }
 
     void Context::drawIndexed(const BufferHandle _hIndirectBuf, const uint32_t _offset, const BufferHandle _countBuf, const uint32_t _countOffset, const uint32_t _maxCount, const uint32_t _stride)
