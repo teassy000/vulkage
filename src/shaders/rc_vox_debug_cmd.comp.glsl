@@ -17,61 +17,37 @@ layout(push_constant) uniform block
     VoxDebugConsts info;
 };
 
-layout(binding = 0) readonly buffer VoxMap
-{
-    uint voxmap [];
-};
-
-layout(binding = 1) readonly uniform Transform
+layout(binding = 0) readonly uniform Transform
 {
     TransformData trans;
 };
 
 // writeonly
-layout(binding = 2) writeonly buffer DrawCommand
+layout(binding = 1) writeonly buffer DrawCommand
 {
     MeshDrawCommand drawCmd;
 };
 
 // read/write 
-layout(binding = 3) buffer DrawPos
+layout(binding = 2) buffer DrawPos
 {
     vec3 drawPos [];
 };
 
-layout(binding = 4) uniform sampler2D depthPyramid;
-layout(binding = 5, RGBA16F) uniform readonly imageBuffer wpos;
+layout(binding = 3) uniform sampler2D depthPyramid;
 
-ivec3 getWorld3DIdx(uint _idx, uint _sideCnt)
-{ 
-    uint z = _idx / (_sideCnt * _sideCnt);
-    uint y = (_idx % (_sideCnt * _sideCnt)) / _sideCnt;
-    uint x = _idx % _sideCnt;
-
-    return ivec3(x, y, z);
-}
-
-vec3 getCenterWorldPos(ivec3 _idx, float _sceneRadius, float _voxSideLen)
-{
-    // the voxel idx is from [0 ,sideCnt - 1]
-    // the voxel in world space is [-_sceneRadius, _sceneRadius]
-    vec3 pos = vec3(_idx) * _voxSideLen - vec3(_sceneRadius) - vec3(_voxSideLen) * 0.5f;
-    return pos;
-}
+// readonly
+layout(binding = 4, R32UI) uniform readonly uimageBuffer wpos;
 
 
 void main()
 {
     uint di = gl_GlobalInvocationID.x;
 
-    if (voxmap[di] == INVALID_VOX_ID)
-        return;
-
-    uint idx = voxmap[di];
-    ivec3 wIdx = getWorld3DIdx(idx, info.sceneSideCnt);
+    uint var = imageLoad(wpos, int(di)).x;
+    ivec3 wIdx = getWorld3DIdx(var, info.sceneSideCnt);
     vec4 ocenter = vec4(getCenterWorldPos(wIdx, info.sceneRadius, info.voxSideLen), 1.f);
 
-    //vec4 ocenter = imageLoad(wpos, int(di));
     vec4 center = trans.view * ocenter;
 
     float radius = info.voxRadius;

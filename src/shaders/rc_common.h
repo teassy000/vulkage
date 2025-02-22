@@ -37,6 +37,25 @@ vec3 octDecode(vec2 _uv)
 
 // ==============================================================================
 
+// get 3d pos from linear index
+ivec3 getWorld3DIdx(uint _idx, uint _sideCnt)
+{
+    uint z = _idx / (_sideCnt * _sideCnt);
+    uint y = (_idx % (_sideCnt * _sideCnt)) / _sideCnt;
+    uint x = _idx % _sideCnt;
+
+    return ivec3(x, y, z);
+}
+
+// get 3d world pos based on the index
+vec3 getCenterWorldPos(ivec3 _idx, float _sceneRadius, float _voxSideLen)
+{
+    // the voxel idx is from [0 ,sideCnt - 1]
+    // the voxel in world space is [-_sceneRadius, _sceneRadius]
+    vec3 pos = vec3(_idx) * _voxSideLen - vec3(_sceneRadius) - vec3(_voxSideLen) * 0.5f;
+    return pos;
+}
+
 // ==============================================================================
 struct RadianceCascadesConfig
 {
@@ -68,7 +87,7 @@ struct VoxelizationConsts
 
 struct OctTreeNode
 {
-    uint voxIdx;
+    uint dataIdx;
     uint lv;
     uint childs[8]; // if is leaf, it's the index of voxel, else the index in the octTree;
 };
@@ -76,7 +95,7 @@ struct OctTreeNode
 struct OctTreeProcessConfig
 {
     uint lv;
-    uint voxLen;
+    uint voxGridSideCount;
     uint readOffset;
     uint writeOffset;
 };

@@ -30,7 +30,7 @@ layout(binding = 3) buffer FragCount
 };
 
 // write
-layout(binding = 4, RGBA16F) uniform writeonly imageBuffer out_wpos;
+layout(binding = 4, R32UI) uniform writeonly uimageBuffer out_wpos;
 layout(binding = 5, RGBA8) uniform writeonly imageBuffer out_albedo;
 layout(binding = 6, RGBA16F) uniform writeonly imageBuffer out_norm;
 
@@ -57,10 +57,9 @@ void main()
     uint voxIdx = ipos.z * consts.voxGridCount * consts.voxGridCount + ipos.y * consts.voxGridCount + ipos.x;
 
     uint uidx = atomicAdd(fragCount, 1u);
-    voxels[uidx] = voxIdx;
+    voxels[voxIdx] = uidx;
 
-    vec3 wpos = vec3(ipos) * consts.voxCellLen - vec3(consts.sceneRadius) - (.5f * consts.voxCellLen);
-    imageStore(out_wpos, int(uidx), vec4(wpos, 1));
+    imageStore(out_wpos, int(uidx), ivec4(voxIdx, 0, 0, 0));
     imageStore(out_albedo, int(uidx), vec4(0.5));
     imageStore(out_norm, int(uidx), vec4(0.5));
 }

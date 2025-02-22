@@ -115,7 +115,6 @@ struct VoxelizationConsts
     float sceneRadius;
 };
 
-
 void prepareVoxelization(Voxelization& _vox, const VoxInitData& _init)
 {
     // voxelization
@@ -137,7 +136,7 @@ void prepareVoxelization(Voxelization& _vox, const VoxInitData& _init)
     {
         kage::BufferDesc bufDesc{};
         bufDesc.size = c_voxelLength * c_voxelLength * c_voxelLength * 4;
-        bufDesc.format = kage::ResourceFormat::r16g16b16a16_sfloat;
+        bufDesc.format = kage::ResourceFormat::r32_uint;
         bufDesc.usage = kage::BufferUsageFlagBits::storage_texel | kage::BufferUsageFlagBits::transfer_dst;
         bufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
         
@@ -230,7 +229,6 @@ void prepareVoxelization(Voxelization& _vox, const VoxInitData& _init)
     );
 
     kage::BufferHandle wposAlias = kage::alias(worldPos);
-
     kage::bindBuffer(pass, worldPos
         , 4
         , kage::PipelineStageFlagBits::geometry_shader
@@ -398,34 +396,29 @@ void prepareVoxDebugCmd(VoxDebugCmdGen& _debugCmd, const VoxDebugCmdInit& _init)
     kage::BufferHandle cmdBufAlias = kage::alias(cmdBuf);
     kage::BufferHandle voxDrawBufAlias = kage::alias(voxDrawBuf);
 
-    kage::bindBuffer(pass, _init.voxMap
+
+    kage::bindBuffer(pass, _init.trans
         , 0
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read
     );
 
-    kage::bindBuffer(pass, _init.trans
-        , 1
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read
-    );
-
     kage::bindBuffer(pass, cmdBuf
-        , 2
+        , 1
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
         , cmdBufAlias
     );
 
     kage::bindBuffer(pass, voxDrawBuf
-        , 3
+        , 2
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
         , voxDrawBufAlias
     );
 
     kage::SamplerHandle samp = kage::sampleImage(pass, _init.pyramid
-        , 4
+        , 3
         , kage::PipelineStageFlagBits::compute_shader
         , kage::SamplerFilter::linear
         , kage::SamplerMipmapMode::nearest
@@ -434,7 +427,7 @@ void prepareVoxDebugCmd(VoxDebugCmdGen& _debugCmd, const VoxDebugCmdInit& _init)
     );
 
     kage::bindBuffer(pass, _init.voxWorldPos
-        , 5
+        , 4
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read
     );
@@ -492,7 +485,6 @@ void recVoxDebugGen(const VoxDebugCmdGen& _vcmd, const DrawCull& _camCull, const
 
     kage::Binding binds[] =
     {
-        { _vcmd.voxmap,         Access::read,       Stage::compute_shader },
         { _vcmd.trans,          Access::read,       Stage::compute_shader },
         { _vcmd.cmdBuf,         Access::read_write, Stage::compute_shader },
         { _vcmd.drawBuf,        Access::read_write, Stage::compute_shader },
@@ -647,7 +639,7 @@ struct alignas(16) OctTreeNode
 struct alignas(16) OctTreeProcessConfig
 {
     uint32_t lv;
-    uint32_t voxLen;
+    uint32_t voxGridSideCount;
     uint32_t readOffset;
     uint32_t currOffset;
 };
@@ -757,7 +749,7 @@ void recOctTree(const OctTree& _oc)
         conf.lv = ii;
         conf.readOffset = readOffset;
         conf.currOffset = writeOffset;
-        conf.voxLen = curr_vl;
+        conf.voxGridSideCount = curr_vl;
 
         const kage::Memory* mem = kage::alloc(sizeof(OctTreeProcessConfig));
         memcpy(mem->data, &conf, mem->size);

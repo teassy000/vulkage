@@ -62,7 +62,7 @@ void main()
     // read from voxmap
     ivec3 vp = ivec3(gl_GlobalInvocationID.xyz);
 
-    const uint voxLen = conf.voxLen;
+    const uint voxLen = conf.voxGridSideCount;
     const uint roff = conf.readOffset;
     const uint woff = conf.writeOffset;
     const uint lv = conf.lv;
@@ -88,7 +88,8 @@ void main()
         {
             octTree[octNodeIdx].childs[ii] = nodes[ii];
         }
-        octTree[octNodeIdx].voxIdx = octNodeIdx;
+
+        octTree[octNodeIdx].dataIdx = octNodeIdx;
         octTree[octNodeIdx].lv = lv;
 
         uint vi = woff + vp.z * voxLen * voxLen + vp.y * voxLen + vp.x;
