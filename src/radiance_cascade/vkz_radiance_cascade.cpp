@@ -381,15 +381,14 @@ void prepareVoxDebugCmd(VoxDebugCmdGen& _debugCmd, const VoxDebugCmdInit& _init)
     passDesc.queue = kage::PassExeQueue::compute;
     kage::PassHandle pass = kage::registPass("rc_vox_debug_cmd", passDesc);
 
-    kage::BufferDesc cmdBufDesc{};
-    cmdBufDesc.size = 128 * 1024 * 1024; // 128M
-    cmdBufDesc.usage = kage::BufferUsageFlagBits::indirect | kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
-    kage::BufferHandle cmdBuf = kage::registBuffer("rc_vox_debug_cmd", cmdBufDesc);
+    kage::BufferHandle cmdBuf;
+    {
+        kage::BufferDesc cmdBufDesc{};
+        cmdBufDesc.size = sizeof(MeshDrawCommand);
+        cmdBufDesc.usage = kage::BufferUsageFlagBits::indirect | kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
 
-    kage::BufferDesc cmdCountBufDesc{};
-    cmdCountBufDesc.size = 16;
-    cmdCountBufDesc.usage = kage::BufferUsageFlagBits::indirect | kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
-    kage::BufferHandle cmdCountBuf = kage::registBuffer("rc_vox_debug_cmd_count", cmdCountBufDesc);
+        cmdBuf = kage::registBuffer("rc_vox_debug_cmd", cmdBufDesc);
+    }
 
     kage::BufferDesc voxDrawBufDesc{};
     voxDrawBufDesc.size = 128 * 1024 * 1024; // 128M
@@ -397,7 +396,6 @@ void prepareVoxDebugCmd(VoxDebugCmdGen& _debugCmd, const VoxDebugCmdInit& _init)
     kage::BufferHandle voxDrawBuf = kage::registBuffer("rc_vox_debug_draw", voxDrawBufDesc);
 
     kage::BufferHandle cmdBufAlias = kage::alias(cmdBuf);
-    kage::BufferHandle cmdCountBufAlias = kage::alias(cmdCountBuf);
     kage::BufferHandle voxDrawBufAlias = kage::alias(voxDrawBuf);
 
     kage::bindBuffer(pass, _init.voxMap
@@ -419,22 +417,15 @@ void prepareVoxDebugCmd(VoxDebugCmdGen& _debugCmd, const VoxDebugCmdInit& _init)
         , cmdBufAlias
     );
 
-    kage::bindBuffer(pass, cmdCountBuf
-        , 3
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
-        , cmdCountBufAlias
-    );
-
     kage::bindBuffer(pass, voxDrawBuf
-        , 4
+        , 3
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
         , voxDrawBufAlias
     );
 
     kage::SamplerHandle samp = kage::sampleImage(pass, _init.pyramid
-        , 5
+        , 4
         , kage::PipelineStageFlagBits::compute_shader
         , kage::SamplerFilter::linear
         , kage::SamplerMipmapMode::nearest
@@ -443,7 +434,7 @@ void prepareVoxDebugCmd(VoxDebugCmdGen& _debugCmd, const VoxDebugCmdInit& _init)
     );
 
     kage::bindBuffer(pass, _init.voxWorldPos
-        , 6
+        , 5
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read
     );
@@ -461,14 +452,13 @@ void prepareVoxDebugCmd(VoxDebugCmdGen& _debugCmd, const VoxDebugCmdInit& _init)
     _debugCmd.threadCountBuf = _init.threadCountBuf;
 
     _debugCmd.cmdBuf = cmdBuf;
-    _debugCmd.cmdCountBuf = cmdCountBuf;
     _debugCmd.drawBuf = voxDrawBuf;
     _debugCmd.sampler = samp;
 
     _debugCmd.outCmdAlias = cmdBufAlias;
-    _debugCmd.outCmdCountAlias = cmdCountBufAlias;
     _debugCmd.outDrawBufAlias = voxDrawBufAlias;
 }
+
 
 void recVoxDebugGen(const VoxDebugCmdGen& _vcmd, const DrawCull& _camCull, const float _sceneRadius)
 {
@@ -497,16 +487,14 @@ void recVoxDebugGen(const VoxDebugCmdGen& _vcmd, const DrawCull& _camCull, const
     memcpy(mem->data, &consts, mem->size);
     kage::setConstants(mem);
 
-
-
-    kage::fillBuffer(_vcmd.cmdCountBuf, 0);
     kage::fillBuffer(_vcmd.cmdBuf, 0);
+    kage::fillBuffer(_vcmd.drawBuf, 0);
+
     kage::Binding binds[] =
     {
         { _vcmd.voxmap,         Access::read,       Stage::compute_shader },
         { _vcmd.trans,          Access::read,       Stage::compute_shader },
         { _vcmd.cmdBuf,         Access::read_write, Stage::compute_shader },
-        { _vcmd.cmdCountBuf,    Access::read_write, Stage::compute_shader },
         { _vcmd.drawBuf,        Access::read_write, Stage::compute_shader },
         { _vcmd.pyramid,        _vcmd.sampler,      Stage::compute_shader },
         { _vcmd.voxWorldPos,    Access::read,       Stage::compute_shader },
@@ -522,7 +510,6 @@ void recVoxDebugGen(const VoxDebugCmdGen& _vcmd, const DrawCull& _camCull, const
 struct VoxDebugDrawInit
 {
     kage::BufferHandle cmd;
-    kage::BufferHandle cmdCount;
     kage::BufferHandle draw;
     kage::BufferHandle trans;
     kage::ImageHandle color;
@@ -588,7 +575,6 @@ void prepareVoxDebug(VoxDebug& _vd, const VoxDebugDrawInit _init)
     kage::bindIndexBuffer(pass, idxBuf, (uint32_t)geom.indices.size());
 
     kage::setIndirectBuffer(pass, _init.cmd, offsetof(MeshDrawCommand, indexCount), sizeof(MeshDrawCommand), (uint32_t)c_maxVoxDrawCmdCnt); 
-    kage::setIndirectCountBuffer(pass, _init.cmdCount, 0);
 
     kage::ImageHandle colorAlias =  kage::alias(_init.color);
     kage::setAttachmentOutput(pass, _init.color, 0, colorAlias);
@@ -603,7 +589,6 @@ void prepareVoxDebug(VoxDebug& _vd, const VoxDebugDrawInit _init)
 
     _vd.trans = _init.trans;
     _vd.drawCmdBuf = _init.cmd;
-    _vd.drawCmdCountBuf = _init.cmdCount;
     _vd.drawBuf = _init.draw;
     _vd.renderTarget = _init.color;
     _vd.rtOutAlias = colorAlias;
@@ -641,12 +626,11 @@ void recVoxDebug(const VoxDebug& _vd, const DrawCull& _camCull, const uint32_t _
     kage::setColorAttachments(colorAttchs, COUNTOF(colorAttchs));
 
     kage::setIndexBuffer(_vd.idxBuf, 0, kage::IndexType::uint32);
+    
     kage::drawIndexed(
         _vd.drawCmdBuf
         , offsetof(MeshDrawCommand, indexCount)
-        , _vd.drawCmdCountBuf
-        , 0
-        , c_maxVoxDrawCmdCnt
+        , 1
         , sizeof(MeshDrawCommand)
     );
 
@@ -1038,7 +1022,6 @@ void prepareRadianceCascade(RadianceCascade& _rc, const RadianceCascadeInitData 
 
     VoxDebugDrawInit drawInit{};
     drawInit.cmd = _rc.voxDebugCmdGen.outCmdAlias;
-    drawInit.cmdCount = _rc.voxDebugCmdGen.outCmdCountAlias;
     drawInit.draw = _rc.voxDebugCmdGen.outDrawBufAlias;
     drawInit.trans = _init.transBuf;
     drawInit.color = _init.color;

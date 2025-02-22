@@ -28,24 +28,19 @@ layout(binding = 1) readonly uniform Transform
 };
 
 // writeonly
-layout(binding = 2) writeonly buffer DrawCommands
+layout(binding = 2) writeonly buffer DrawCommand
 {
-    MeshDrawCommand drawCmds[];
+    MeshDrawCommand drawCmd;
 };
 
 // read/write 
-layout(binding = 3) buffer DrawCommandCount
-{
-    uint drawCmdCount;
-};
-
-layout(binding = 4) buffer DrawPos
+layout(binding = 3) buffer DrawPos
 {
     vec3 drawPos [];
 };
 
-layout(binding = 5) uniform sampler2D depthPyramid;
-layout(binding = 6, RGBA16F) uniform readonly imageBuffer wpos;
+layout(binding = 4) uniform sampler2D depthPyramid;
+layout(binding = 5, RGBA16F) uniform readonly imageBuffer wpos;
 
 ivec3 getWorld3DIdx(uint _idx, uint _sideCnt)
 { 
@@ -106,21 +101,23 @@ void main()
 
     if(visible)
     {
-        uint dci = atomicAdd(drawCmdCount, 1);
-        drawCmds[dci].drawId = dci;
-        drawCmds[dci].lateDrawVisibility = 0;
-        drawCmds[dci].taskCount = 0;
-        drawCmds[dci].taskOffset = 0;
-        drawCmds[dci].indexCount = 36;
-        drawCmds[dci].instanceCount = 1;
-        drawCmds[dci].firstIndex = 0;
-        drawCmds[dci].vertexOffset = 0;
-        drawCmds[dci].firstInstance = 0;
-        drawCmds[dci].local_x = 0;
-        drawCmds[dci].local_y = 1;
-        drawCmds[dci].local_z = 1;
+        drawCmd.drawId = 0;
+        drawCmd.taskOffset = 0;
+        drawCmd.taskCount = 1;
+        drawCmd.lateDrawVisibility = 0;
+        drawCmd.indexCount = 36;
 
-        drawPos[dci] = ocenter.xyz;
+        uint var = atomicAdd(drawCmd.instanceCount, 1);
+        
+        drawCmd.firstIndex = 0;
+        drawCmd.vertexOffset = 0;
+        drawCmd.firstInstance = 0;
+        drawCmd.local_x = 0;
+        drawCmd.local_y = 0;
+        drawCmd.local_z = 0;
+
+        uint idx = var - 1;
+        drawPos[idx] = ocenter.xyz;
     }
 }
 
