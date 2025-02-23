@@ -945,7 +945,7 @@ void recRCBuild(const RadianceCascadeBuild& _rc, const float _sceneRadius)
         config.probeSideLen = prob_sideLen;
 
         config.ot_voxSideCount = c_voxelLength;
-        config.ot_sceneSideLen = _sceneRadius * 2.f;
+        config.ot_sceneRadius = _sceneRadius;
 
         layerOffset += prob_sideCount;
 

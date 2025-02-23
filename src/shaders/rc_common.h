@@ -69,7 +69,7 @@ struct RadianceCascadesConfig
 
     // oct-tree data
     uint    ot_voxSideCount;
-    float   ot_sceneSideLen;
+    float   ot_sceneRadius;
 };
 
 struct VoxelizationConsts

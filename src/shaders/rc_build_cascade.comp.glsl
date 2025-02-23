@@ -71,7 +71,7 @@ void unfoldOctTreeChildNode(OT_UnfoldedNode _p, uint _cIdx, inout OT_UnfoldedNod
     ivec3 cPos = ivec3(_cIdx & 1, (_cIdx >> 1) & 1, (_cIdx >> 2) & 1);
 
     _c.sideLen = _p.sideLen * .5f;
-    _c.center = _p.center + _c.sideLen * (vec3(cPos) * 2.f - 1.f);
+    _c.center = _p.center + _c.sideLen * .5f * (vec3(cPos) * 2.f - 1.f);
 
     getAABB(_c.center, _c.sideLen * .5f, _c.aabb);
 }
@@ -136,30 +136,33 @@ void sortChilds(Ray _ray, uint _count, inout OT_UnfoldedNode _childs[8], inout u
 void main()
 {
     // the config for the radiance cascade.
-    const uint prob_diameter = config.probe_sideCount;
-    const uint ray_diameter = config.ray_gridSideCount;
+    const uint prob_gridSideCount = config.probe_sideCount;
+    const uint ray_gridSideCount = config.ray_gridSideCount;
 
-    const uint prob_per_layer = prob_diameter * prob_diameter;
-    const uint ray_count = ray_diameter * ray_diameter;
-    const uint prob_ray_idx = gl_GlobalInvocationID.x % ray_count;
-    const float scene_side_len = config.ot_sceneSideLen;
+    const uint prob_cnt_per_layer = prob_gridSideCount * prob_gridSideCount;
+    const uint ray_count = ray_gridSideCount * ray_gridSideCount;
+    const uint ray_idx = gl_GlobalInvocationID.x % ray_count;
+    const float sceneRadius = config.ot_sceneRadius;
 
     // Calculate the rayDir index
     uint prob_idx = gl_GlobalInvocationID.x / ray_count;
-    uint prob_layer_idx = prob_idx % prob_per_layer;
-    uint layer_idx = prob_idx / prob_per_layer + config.layerOffset;
+    uint prob_layer_idx = prob_idx % prob_cnt_per_layer;
+    uint layer_idx = prob_idx / prob_cnt_per_layer + config.layerOffset;
 
-    ivec2 sub_prob_coord = ivec2(prob_layer_idx % prob_diameter, prob_layer_idx / prob_diameter);
-    ivec2 sub_ray_coord = ivec2(prob_ray_idx % ray_diameter, prob_ray_idx / ray_diameter);
-    vec2 prob_2dcoord = sub_prob_coord * ray_diameter + sub_ray_coord;
+    ivec2 sub_prob_coord = ivec2(prob_layer_idx % prob_gridSideCount, prob_layer_idx / prob_gridSideCount);
+    ivec2 sub_ray_coord = ivec2(ray_idx % ray_gridSideCount, ray_idx / ray_gridSideCount);
+    vec2 prob_2dcoord = sub_prob_coord * ray_gridSideCount + sub_ray_coord;
+
+
+    const vec3 scene_origin_offset = vec3(-sceneRadius);
 
     // the rc grid ray 
     // origin: the center of the probe in world space
     // direction: the direction of the ray
     // length: the probe radius
-    const ivec3 probe_pos = ivec3(sub_prob_coord.xy, prob_idx / prob_per_layer);
-    const vec3 ray_origin = vec3(probe_pos) * config.probeSideLen + config.probeSideLen * .5f + trans.cameraPos;
-    const vec3 ray_dir = octDecode((sub_ray_coord + .5f) / ray_diameter);
+    const ivec3 probe_pos = ivec3(sub_prob_coord.xy, prob_idx / prob_cnt_per_layer);
+    const vec3 ray_origin = vec3(probe_pos) * config.probeSideLen + config.probeSideLen * .5f + trans.cameraPos + scene_origin_offset;
+    const vec3 ray_dir = octDecode((sub_ray_coord + .5f) / ray_gridSideCount);
     const float ray_len = config.rayLength;// use the longest diagnal length to make sure it covers the entire probe
 
     const Ray ray = Ray(ray_origin, ray_dir, ray_len);
@@ -170,7 +173,7 @@ void main()
 
     OT_UnfoldedNode uNode;
     uNode.center = vec3(0.f);
-    uNode.sideLen = scene_side_len;
+    uNode.sideLen = sceneRadius * 2.f;
     getAABB(uNode.center, uNode.sideLen * .5f, uNode.aabb);
 
     // traversal the octree to check the intersection

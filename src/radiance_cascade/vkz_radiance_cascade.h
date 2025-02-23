@@ -19,7 +19,7 @@ struct alignas(16) RadianceCascadesConfig
     
     // oct-tree dat
     uint32_t    ot_voxSideCount;
-    float       ot_sceneSideLen;
+    float       ot_sceneRadius;
 };
 
 struct VoxelizationCmd
