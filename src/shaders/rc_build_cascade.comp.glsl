@@ -15,6 +15,7 @@ layout(push_constant) uniform block
 	RadianceCascadesConfig config;
 };
 
+
 layout(binding = 0) readonly uniform Transform
 {
     TransformData trans;
@@ -230,7 +231,7 @@ void main()
     if (voxIdx != INVALID_OCT_IDX)
     {
         // TODO 
-        var = vec3(1.f);
+        var = imageLoad(in_voxAlbedo, int(voxIdx)).rgb;
     }
 
 

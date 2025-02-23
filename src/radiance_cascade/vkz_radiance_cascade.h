@@ -58,6 +58,8 @@ struct Voxelization
     kage::BufferHandle voxelAlbedo;
     kage::BufferHandle voxelNormal;
 
+    kage::BindlessHandle bindless;
+
     kage::ImageHandle rt;
 
     kage::BufferHandle threadCountBufOutAlias;
@@ -171,6 +173,7 @@ struct RadianceCascadeInitData
     kage::BufferHandle idxBuf;
     kage::BufferHandle vtxBuf;
     kage::BufferHandle transBuf;
+    kage::BindlessHandle bindless;
 
     uint32_t maxDrawCmdCount;
 };

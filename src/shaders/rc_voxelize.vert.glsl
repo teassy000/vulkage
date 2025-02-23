@@ -2,9 +2,9 @@
 
 # extension GL_EXT_shader_16bit_storage: require
 # extension GL_EXT_shader_8bit_storage: require
-
-# extension GL_GOOGLE_include_directive: require
 # extension GL_ARB_shader_draw_parameters : require
+# extension GL_GOOGLE_include_directive: require
+
 
 # include "mesh_gpu.h"
 # include "math.h"
@@ -12,7 +12,7 @@
 
 layout(push_constant) uniform block
 {
-    VoxelizationConfig config;
+    VoxelizationConsts consts;
 };
 
 layout(binding = 0) readonly buffer DrawCommands
@@ -57,5 +57,5 @@ void main()
 
     vec3 result = vec3(rotateQuat(pos, meshDraw.orit) * meshDraw.scale + meshDraw.pos);
 
-    gl_Position = config.proj * vec4(result, 1.0);
+    gl_Position = consts.proj * vec4(result, 1.0);
 }

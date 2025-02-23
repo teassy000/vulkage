@@ -2,6 +2,7 @@
 
 # extension GL_EXT_shader_16bit_storage: require
 # extension GL_EXT_shader_8bit_storage: require
+# extension GL_EXT_nonuniform_qualifier: require
 
 # extension GL_GOOGLE_include_directive: require
 
@@ -18,10 +19,20 @@ layout(location = 4) in vec3 in_pos;
 layout(location = 5) in flat vec3 in_minAABB;
 layout(location = 6) in flat vec3 in_maxAABB;
 
+
+layout(binding = 0, set = 1) uniform sampler2D textures[];
+
+
 layout(push_constant) uniform block
 {
     VoxelizationConsts consts;
 };
+
+layout(binding = 2) readonly buffer MeshDraws
+{
+    MeshDraw meshDraws [];
+};
+
 
 // read / write
 layout(binding = 3) buffer FragCount
@@ -59,7 +70,14 @@ void main()
     uint uidx = atomicAdd(fragCount, 1u);
     voxels[voxIdx] = uidx;
 
+    MeshDraw mDraw = meshDraws[in_drawId];
+    vec4 albedo = vec4(0, 0, 0, 1);
+    if (mDraw.albedoTex > 0)
+    {
+        albedo = texture(textures[nonuniformEXT(mDraw.albedoTex)], in_uv);
+    }
+
     imageStore(out_wpos, int(uidx), ivec4(voxIdx, 0, 0, 0));
-    imageStore(out_albedo, int(uidx), vec4(0.5));
+    imageStore(out_albedo, int(uidx), albedo);
     imageStore(out_norm, int(uidx), vec4(0.5));
 }

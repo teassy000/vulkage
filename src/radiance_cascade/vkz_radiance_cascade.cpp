@@ -9,7 +9,7 @@ using Access = kage::BindingAccess;
 using LoadOp = kage::AttachmentLoadOp;
 using StoreOp = kage::AttachmentStoreOp;
 
-constexpr uint32_t c_voxelLength = 512;
+constexpr uint32_t c_voxelLength = 256;
 
 void prepareFullDrawCmdPass(VoxelizationCmd& _vc, kage::BufferHandle _meshBuf, kage::BufferHandle _meshDrawBuf)
 {
@@ -104,6 +104,8 @@ struct VoxInitData
     kage::BufferHandle vtxBuf;
     kage::BufferHandle transBuf;
 
+    kage::BindlessHandle bindless;
+
     uint32_t maxDrawCmdCount;
 };
 
@@ -123,7 +125,7 @@ void prepareVoxelization(Voxelization& _vox, const VoxInitData& _init)
     kage::ShaderHandle vs = kage::registShader("vox", "shaders/rc_voxelize.vert.spv");
     kage::ShaderHandle gs = kage::registShader("vox", "shaders/rc_voxelize.geom.spv");
     kage::ShaderHandle fs = kage::registShader("vox", "shaders/rc_voxelize.frag.spv");
-    kage::ProgramHandle program = kage::registProgram("vox", { vs, gs, fs }, sizeof(VoxelizationConsts));
+    kage::ProgramHandle program = kage::registProgram("vox", { vs, gs, fs }, sizeof(VoxelizationConsts), _init.bindless);
 
     kage::PassDesc passDesc{};
     passDesc.programId = program.id;
@@ -284,6 +286,8 @@ void prepareVoxelization(Voxelization& _vox, const VoxInitData& _init)
     _vox.voxelAlbedo = albedo;
     _vox.voxelNormal = normal;
 
+    _vox.bindless = _init.bindless;
+
     _vox.voxMapOutAlias = voxMapAlias;
     _vox.wposOutAlias = wposAlias;
     _vox.albedoOutAlias = albedoAlias;
@@ -315,6 +319,8 @@ void recVoxelization(const Voxelization& _vox, const float _sceneRadius)
     const kage::Memory* mem = kage::alloc(sizeof(VoxelizationConsts));
     memcpy(mem->data, &vc, mem->size);
     kage::setConstants(mem);
+
+    kage::setBindless(_vox.bindless);
 
     kage::Binding binds[] =
     {
@@ -788,7 +794,7 @@ struct RCBuildInit
 
 void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
 {
-    _rc.lv0Config.probe_sideCount = 16;
+    _rc.lv0Config.probe_sideCount = 32;
     _rc.lv0Config.ray_gridSideCount = 16;
     _rc.lv0Config.level = 4;
     _rc.lv0Config.rayLength = 1.0f;
@@ -986,6 +992,7 @@ void prepareRadianceCascade(RadianceCascade& _rc, const RadianceCascadeInitData 
     voxelizeInitData.vtxBuf = _init.vtxBuf;
     voxelizeInitData.transBuf = _init.transBuf;
     voxelizeInitData.maxDrawCmdCount = _init.maxDrawCmdCount;
+    voxelizeInitData.bindless = _init.bindless;
     prepareVoxelization(_rc.vox, voxelizeInitData);
 
     prepareOctTree(_rc.octTree, _rc.vox.voxMapOutAlias);

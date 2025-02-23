@@ -18,6 +18,7 @@ layout(push_constant) uniform block
 };
 
 layout(location = 0) in flat uint in_drawId[];
+layout(location = 1) in vec2 in_uv[];
 layout(location = 2) in vec3 in_norm[];
 
 layout(location = 0) out flat uint out_drawId;
@@ -98,6 +99,8 @@ void main()
         out_pos = pos;
         out_minAABB = minAABB;
         out_maxAABB = maxAABB;
+        out_uv = in_uv[ii];
+        out_drawId = in_drawId[ii];
 
         switch (maxIdx)
         {

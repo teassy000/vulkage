@@ -592,6 +592,7 @@ namespace
                 rcInit.maxDrawCmdCount = (uint32_t)m_scene.meshDraws.size();
                 rcInit.color = cascadeColorIn;
                 rcInit.pyramid = m_pyramid.imgOutAlias;
+                rcInit.bindless = m_bindlessArray;
 
                 prepareRadianceCascade(m_radianceCascade, rcInit);
             }
