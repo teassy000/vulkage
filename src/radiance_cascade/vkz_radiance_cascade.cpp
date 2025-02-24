@@ -1,6 +1,9 @@
 #include "vkz_radiance_cascade.h"
+#include "config.h"
+
 #include "demo_structs.h"
 #include "mesh.h"
+
 
 
 using Binding = kage::Binding;
@@ -794,11 +797,6 @@ struct RCBuildInit
 
 void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
 {
-    _rc.lv0Config.probe_sideCount = 16;
-    _rc.lv0Config.ray_gridSideCount = 16;
-    _rc.lv0Config.level = 5;
-    _rc.lv0Config.rayLength = 1.0f;
-
     // build the cascade image
     kage::ShaderHandle cs = kage::registShader("build_cascade", "shaders/rc_build_cascade.comp.spv");
     kage::ProgramHandle program = kage::registProgram("build_cascade", { cs }, sizeof(RadianceCascadesConfig));
@@ -809,8 +807,8 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
 
     kage::PassHandle pass = kage::registPass("build_cascade", passDesc);
 
-    uint32_t texelSideCount = _rc.lv0Config.probe_sideCount * _rc.lv0Config.ray_gridSideCount;
-    uint32_t imgLayers = _rc.lv0Config.probe_sideCount * 2 - 1;
+    uint32_t texelSideCount = kage::k_rclv0_probeSideCount * kage::k_rclv0_rayGridSideCount;
+    uint32_t imgLayers = kage::k_rclv0_probeSideCount * 2 - 1;
 
     kage::ImageDesc imgDesc{};
     imgDesc.width = texelSideCount;
@@ -932,12 +930,12 @@ void recRCBuild(const RadianceCascadeBuild& _rc, const float _sceneRadius)
     kage::startRec(_rc.pass);
 
     uint32_t layerOffset = 0;
-    for (uint32_t ii = 0; ii < _rc.lv0Config.level; ++ii)
+    for (uint32_t ii = 0; ii < kage::k_rclv0_cascadeLv; ++ii)
     {
         uint32_t    level_factor    = uint32_t(1 << ii);
-        uint32_t    prob_sideCount  = _rc.lv0Config.probe_sideCount / level_factor;
+        uint32_t    prob_sideCount  = kage::k_rclv0_probeSideCount / level_factor;
         uint32_t    prob_count      = uint32_t(pow(prob_sideCount, 3));
-        uint32_t    ray_sideCount   = _rc.lv0Config.ray_gridSideCount * level_factor;
+        uint32_t    ray_sideCount   = kage::k_rclv0_rayGridSideCount * level_factor;
         uint32_t    ray_count       = ray_sideCount * ray_sideCount; // each probe has a 2d grid of rays
         float prob_sideLen = _sceneRadius * 2.f / float(prob_sideCount);
         float rayLen = length(vec3(prob_sideLen));

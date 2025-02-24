@@ -147,8 +147,6 @@ struct RadianceCascadeBuild
 
     kage::ImageHandle cascadeImg;
     kage::ImageHandle radCascdOutAlias;
-
-    RadianceCascadesConfig lv0Config;
 };
 
 struct RadianceCascade
