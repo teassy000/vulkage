@@ -77,6 +77,9 @@ void main()
         albedo = texture(textures[nonuniformEXT(mDraw.albedoTex)], in_uv);
     }
 
+    // temproray using albedo combines the emission info
+    albedo.w = mDraw.emissiveTex > 0 ? 1 : 0;
+
     imageStore(out_wpos, int(uidx), ivec4(voxIdx, 0, 0, 0));
     imageStore(out_albedo, int(uidx), albedo);
     imageStore(out_norm, int(uidx), vec4(0.5));
