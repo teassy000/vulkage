@@ -572,7 +572,7 @@ void prepareVoxDebug(VoxDebug& _vd, const VoxDebugDrawInit _init)
     kage::bindVertexBuffer(pass, vtxBuf);
     kage::bindIndexBuffer(pass, idxBuf, (uint32_t)geom.indices.size());
 
-    kage::setIndirectBuffer(pass, _init.cmd, offsetof(MeshDrawCommand, indexCount), sizeof(MeshDrawCommand), (uint32_t)c_maxVoxDrawCmdCnt); 
+    kage::setIndirectBuffer(pass, _init.cmd, offsetof(MeshDrawCommand, indexCount), sizeof(MeshDrawCommand), 1u); 
 
     kage::ImageHandle colorAlias =  kage::alias(_init.color);
     kage::setAttachmentOutput(pass, _init.color, 0, colorAlias);
@@ -794,9 +794,9 @@ struct RCBuildInit
 
 void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
 {
-    _rc.lv0Config.probe_sideCount = 32;
+    _rc.lv0Config.probe_sideCount = 16;
     _rc.lv0Config.ray_gridSideCount = 16;
-    _rc.lv0Config.level = 4;
+    _rc.lv0Config.level = 5;
     _rc.lv0Config.rayLength = 1.0f;
 
     // build the cascade image
@@ -924,7 +924,7 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
     _rc.voxAlbedo = _init.voxAlbedo;
 
     _rc.cascadeImg = img;
-    _rc.outAlias = outAlias;
+    _rc.radCascdOutAlias = outAlias;
 }
 
 void recRCBuild(const RadianceCascadeBuild& _rc, const float _sceneRadius)
@@ -940,7 +940,7 @@ void recRCBuild(const RadianceCascadeBuild& _rc, const float _sceneRadius)
         uint32_t    ray_sideCount   = _rc.lv0Config.ray_gridSideCount * level_factor;
         uint32_t    ray_count       = ray_sideCount * ray_sideCount; // each probe has a 2d grid of rays
         float prob_sideLen = _sceneRadius * 2.f / float(prob_sideCount);
-        float rayLen = length(vec3(prob_sideLen * .5f));
+        float rayLen = length(vec3(prob_sideLen));
 
         RadianceCascadesConfig config;
         config.probe_sideCount = prob_sideCount;
@@ -1017,7 +1017,7 @@ void prepareRadianceCascade(RadianceCascade& _rc, const RadianceCascadeInitData 
     cmdInit.voxMap = _rc.vox.voxMapOutAlias;
     cmdInit.voxWorldPos = _rc.vox.wposOutAlias;
     cmdInit.threadCountBuf = _rc.vox.threadCountBufOutAlias;
-    prepareVoxDebugCmd(_rc.voxDebugCmdGen, cmdInit);
+    //prepareVoxDebugCmd(_rc.voxDebugCmdGen, cmdInit);
 
     VoxDebugDrawInit drawInit{};
     drawInit.cmd = _rc.voxDebugCmdGen.outCmdAlias;
@@ -1025,7 +1025,7 @@ void prepareRadianceCascade(RadianceCascade& _rc, const RadianceCascadeInitData 
     drawInit.trans = _init.transBuf;
     drawInit.color = _init.color;
 
-    prepareVoxDebug(_rc.voxDebug, drawInit);
+    //prepareVoxDebug(_rc.voxDebug, drawInit);
 }
 
 void updateRadianceCascade(
@@ -1042,6 +1042,6 @@ void updateRadianceCascade(
     recOctTree(_rc.octTree);
     recRCBuild(_rc.rcBuild, _sceneRadius);
 
-    recVoxDebugGen(_rc.voxDebugCmdGen, _camCull, _sceneRadius);
-    recVoxDebug(_rc.voxDebug, _camCull, _width, _height, _sceneRadius);
+    //recVoxDebugGen(_rc.voxDebugCmdGen, _camCull, _sceneRadius);
+    //recVoxDebug(_rc.voxDebug, _camCull, _width, _height, _sceneRadius);
 }

@@ -146,7 +146,7 @@ struct RadianceCascadeBuild
     kage::BufferHandle voxAlbedo;
 
     kage::ImageHandle cascadeImg;
-    kage::ImageHandle outAlias;
+    kage::ImageHandle radCascdOutAlias;
 
     RadianceCascadesConfig lv0Config;
 };
@@ -178,6 +178,7 @@ struct RadianceCascadeInitData
     uint32_t maxDrawCmdCount;
 };
 
+
 void prepareRadianceCascade(RadianceCascade& _rc, const RadianceCascadeInitData _init);
 void updateRadianceCascade(
     const RadianceCascade& _rc
@@ -187,3 +188,4 @@ void updateRadianceCascade(
     , const uint32_t _height
     , const float _sceneRadiance
     );
+
