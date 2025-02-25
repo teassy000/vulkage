@@ -48,16 +48,25 @@ const GBuffer aliasGBuffer(const GBuffer& _gb)
     return result;
 }
 
-void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::ImageHandle _sky)
+struct alignas(16) DeferredConstants
+{
+    float sceneRadius;
+    uint32_t cascade_lv;
+    uint32_t cascade_0_probGridCount;
+    uint32_t cascade_0_rayGridCount;
+    vec2 imageSize;
+    vec3 camPos;
+};
+
+void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::ImageHandle _sky, const kage::ImageHandle _radCasc)
 {
     kage::ShaderHandle cs = kage::registShader("deferred", "shaders/deferred.comp.spv");
-    kage::ProgramHandle prog = kage::registProgram("deferred", { cs }, sizeof(glm::vec2));
+    kage::ProgramHandle prog = kage::registProgram("deferred", { cs }, sizeof(DeferredConstants));
 
     kage::PassDesc desc;
     desc.programId = prog.id;
     desc.queue = kage::PassExeQueue::compute;
     kage::PassHandle pass = kage::registPass("deferred", desc);
-
 
     kage::ImageDesc outColorDesc;
     outColorDesc.depth = 1;
@@ -103,7 +112,7 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
     );
 
     kage::SamplerHandle skySamp = kage::sampleImage(pass, _sky
-        , 3
+        , 4
         , kage::PipelineStageFlagBits::compute_shader
         , kage::SamplerFilter::nearest
         , kage::SamplerMipmapMode::nearest
@@ -111,9 +120,16 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
         , kage::SamplerReductionMode::min
     );
 
+    kage::bindImage(pass, _radCasc
+        , 5
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::AccessFlagBits::shader_read
+        , kage::ImageLayout::general
+    );
+
     _ds.outColorAlias = kage::alias(outColor);
     kage::bindImage(pass, outColor
-        , 5
+        , 6
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_write
         , kage::ImageLayout::general
@@ -126,7 +142,8 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
     _ds.cs = cs;
     _ds.outColor = outColor;
     _ds.gBuffer = _gb;
-    
+
+    _ds.radianceCascade = _radCasc;
 
     _ds.gBufSamplers.albedo = albedoSamp;
     _ds.gBufSamplers.normal = normSamp;
@@ -137,12 +154,20 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
     _ds.skySampler = skySamp;
 }
 
-void recDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uint32_t _h)
+void recDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uint32_t _h, const vec3 _camPos, const float _sceneRadius)
 {
     kage::startRec(_ds.pass);
-    vec2 resolution = vec2(_w, _h);
-    const kage::Memory* mem = kage::alloc(sizeof(resolution));
-    memcpy(mem->data, &resolution, sizeof(resolution));
+    DeferredConstants consts;
+    
+    consts.camPos = _camPos;
+    consts.imageSize = vec2(float(_w), float(_h));
+    consts.sceneRadius = 1.f;
+    consts.cascade_lv = kage::k_rclv0_cascadeLv;
+    consts.cascade_0_probGridCount = kage::k_rclv0_probeSideCount;
+    consts.cascade_0_rayGridCount = kage::k_rclv0_rayGridSideCount;
+
+    const kage::Memory* mem = kage::alloc(sizeof(consts));
+    memcpy(mem->data, &consts, sizeof(consts));
     kage::setConstants(mem);
 
     using Stage = kage::PipelineStageFlagBits::Enum;
@@ -154,6 +179,7 @@ void recDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uin
         {_ds.gBuffer.worldPos,  _ds.gBufSamplers.worldPos,  Stage::compute_shader},
         {_ds.gBuffer.emissive,  _ds.gBufSamplers.emissive,  Stage::compute_shader},
         {_ds.inSky,             _ds.skySampler,             Stage::compute_shader},
+        {_ds.radianceCascade,   0,                          Stage::compute_shader},
         {_ds.outColor,          0,                          Stage::compute_shader},
     };
 
@@ -164,7 +190,7 @@ void recDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uin
     kage::endRec();
 }
 
-void updateDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uint32_t _h)
+void updateDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uint32_t _h, const vec3 _camPos, const float _sceneRadius)
 {
-    recDeferredShading(_ds, _w, _h);
+    recDeferredShading(_ds, _w, _h, _camPos, _sceneRadius);
 }

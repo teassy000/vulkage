@@ -112,3 +112,14 @@ struct VoxDebugConsts
     float frustum[4];
     float pyramidWidth, pyramidHeight;
 };
+
+struct DeferredConstants
+{
+    float sceneRadius;
+    uint cascade_lv;
+    uint cascade_0_probGridCount;
+    uint cascade_0_rayGridCount;
+    vec2 imageSize;
+    vec3 camPos;
+};
+
