@@ -179,7 +179,7 @@ void recDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uin
         {_ds.gBuffer.worldPos,  _ds.gBufSamplers.worldPos,  Stage::compute_shader},
         {_ds.gBuffer.emissive,  _ds.gBufSamplers.emissive,  Stage::compute_shader},
         {_ds.inSky,             _ds.skySampler,             Stage::compute_shader},
-        {_ds.radianceCascade,   Access::read,               Stage::compute_shader},
+        {_ds.radianceCascade,   0,                          Stage::compute_shader},
         {_ds.outColor,          0,                          Stage::compute_shader},
     };
 
