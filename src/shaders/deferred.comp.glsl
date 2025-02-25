@@ -34,6 +34,8 @@ void main()
     vec4 albedo = texture(in_albedo, uv);
     vec4 normal = texture(in_normal, uv);
     vec4 wPos = texture(in_wPos, uv);
+    wPos.xyz = (wPos.xyz * 2.f - 1.f) * consts.sceneRadius;
+
     vec4 emmision = texture(in_emmision, uv);
     vec4 sky = texture(in_sky, uv);
 

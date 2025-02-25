@@ -38,6 +38,7 @@ struct Globals
     float screenWidth, screenHeight;
     int   enableMeshletOcclusion;
     float lodErrorThreshold;
+    float sceneRadius;
 };
 
 struct DrawCull

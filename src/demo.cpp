@@ -55,9 +55,8 @@ namespace
             kage::init(config);
             
             m_supportMeshShading = kage::checkSupports(kage::VulkanSupportExtension::ext_mesh_shader);
-            m_debugVox = true;
+            m_debugVox = false;
 
-            
             bool forceParse = false;
             bool seamlessLod = false;
 
@@ -685,6 +684,7 @@ namespace
             m_demoData.globals.screenHeight = (float)m_height;
             m_demoData.globals.enableMeshletOcclusion = 1;
             m_demoData.globals.lodErrorThreshold = lodErrThreshold;
+            m_demoData.globals.sceneRadius = m_scene.radius;
         }
 
         void createBindlessArray()

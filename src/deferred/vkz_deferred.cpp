@@ -161,7 +161,7 @@ void recDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uin
     
     consts.camPos = _camPos;
     consts.imageSize = vec2(float(_w), float(_h));
-    consts.sceneRadius = 1.f;
+    consts.sceneRadius = _sceneRadius;
     consts.cascade_lv = kage::k_rclv0_cascadeLv;
     consts.cascade_0_probGridCount = kage::k_rclv0_probeSideCount;
     consts.cascade_0_rayGridCount = kage::k_rclv0_rayGridSideCount;

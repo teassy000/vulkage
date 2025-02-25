@@ -24,6 +24,11 @@ layout(location = 3) out vec4 out_emissive;
 
 layout(binding = 0, set = 1) uniform sampler2D textures[];
 
+layout(push_constant) uniform block
+{
+    Globals globals;
+};
+
 // readonly
 layout(binding = 2) readonly buffer MeshDraws
 {
@@ -43,6 +48,8 @@ void main()
 	out_emissive = vec4(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255), 255) / 255.0;
 #else
     MeshDraw mDraw = meshDraws[in_drawId];
+    
+    vec3 wPos = (in_wPos / globals.sceneRadius) * 0.5f + .5f; // normalize to [0, 1]
 
     vec4 albedo = vec4(0.5, 0.5, 0.5, 1.0);
     if (mDraw.albedoTex > 0) { 
@@ -71,7 +78,7 @@ void main()
 
         out_albedo = albedo;
         out_normal = vec4(n, 1.0);
-        out_wPos = vec4(in_wPos, 1.0);
+        out_wPos = vec4(wPos, 1.0);
         out_emissive = vec4(emissive.rgb, 1.0);
         return;
     }
@@ -137,7 +144,7 @@ void main()
 
     out_albedo = vec4(albedo.xyz, 1.0);
     out_normal = vec4(n, 1.0);
-    out_wPos = vec4(in_wPos, 1.0);
+    out_wPos = vec4(wPos, 1.0);
     out_emissive = vec4(emissive.rgb, 1.0);
 #endif
 }
