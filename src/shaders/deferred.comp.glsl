@@ -22,7 +22,7 @@ layout(binding = 2) uniform sampler2D in_wPos;
 layout(binding = 3) uniform sampler2D in_emmision;
 layout(binding = 4) uniform sampler2D in_sky;
 
-layout(binding = 5, RGBA8) uniform readonly image2DArray octProbAtlas;
+layout(binding = 5) uniform sampler2DArray in_radianceCascade;
 
 layout(binding = 6) uniform writeonly image2D out_color;
 
@@ -33,14 +33,13 @@ void main()
 
     vec4 albedo = texture(in_albedo, uv);
     vec4 normal = texture(in_normal, uv);
-    vec4 wPos = texture(in_wPos, uv);
-    wPos.xyz = (wPos.xyz * 2.f - 1.f) * consts.sceneRadius;
+    vec3 wPos = texture(in_wPos, uv).xyz;
+    wPos = (wPos * 2.f - 1.f) * consts.sceneRadius;
 
     vec4 emmision = texture(in_emmision, uv);
     vec4 sky = texture(in_sky, uv);
 
     vec4 color = albedo;
-
 
     // locate the cascade based on the wpos
     uint layerOffset = 0;
@@ -67,17 +66,15 @@ void main()
         raySubUV *= float(ray_sideCount); // to probe pix Idx
         raySubUV += 0.5f; // to center of the pix
         raySubUV += vec2(probeIdx.xy * prob_sideCount);
+        raySubUV /= (ray_sideCount * prob_sideCount);
 
-        vec4 col = imageLoad(octProbAtlas, ivec3(raySubUV.xy, layerIdx));
+        vec4 col = texture(in_radianceCascade, ivec3(raySubUV.xy, layerIdx));
         if(col != vec4(0.f))
         {
             color = col;
             break;
         }
     }
-
-
-
 
     if (normal.w < 0.02)
         color = sky;

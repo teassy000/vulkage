@@ -120,11 +120,13 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
         , kage::SamplerReductionMode::min
     );
 
-    kage::bindImage(pass, _radCasc
+    kage::SamplerHandle rcSamp = kage::sampleImage(pass, _radCasc
         , 5
         , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read
-        , kage::ImageLayout::general
+        , kage::SamplerFilter::nearest
+        , kage::SamplerMipmapMode::nearest
+        , kage::SamplerAddressMode::clamp_to_edge
+        , kage::SamplerReductionMode::weighted_average
     );
 
     _ds.outColorAlias = kage::alias(outColor);
@@ -144,6 +146,7 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
     _ds.gBuffer = _gb;
 
     _ds.radianceCascade = _radCasc;
+    _ds.rcSampler = rcSamp;
 
     _ds.gBufSamplers.albedo = albedoSamp;
     _ds.gBufSamplers.normal = normSamp;
@@ -179,7 +182,7 @@ void recDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uin
         {_ds.gBuffer.worldPos,  _ds.gBufSamplers.worldPos,  Stage::compute_shader},
         {_ds.gBuffer.emissive,  _ds.gBufSamplers.emissive,  Stage::compute_shader},
         {_ds.inSky,             _ds.skySampler,             Stage::compute_shader},
-        {_ds.radianceCascade,   0,                          Stage::compute_shader},
+        {_ds.radianceCascade,   _ds.rcSampler,              Stage::compute_shader},
         {_ds.outColor,          0,                          Stage::compute_shader},
     };
 

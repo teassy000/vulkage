@@ -32,6 +32,7 @@ struct DeferredShading
     kage::SamplerHandle skySampler;
 
     kage::ImageHandle radianceCascade;
+    kage::SamplerHandle rcSampler;
 
     kage::ImageHandle outColor;
     kage::ImageHandle outColorAlias;
