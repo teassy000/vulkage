@@ -38,7 +38,7 @@ layout(binding = 3) uniform sampler2D depthPyramid;
 
 // readonly
 layout(binding = 4, R32UI) uniform readonly uimageBuffer wpos;
-layout(binding = 4, RGBA8) uniform readonly imageBuffer in_albedo;
+layout(binding = 5, RGBA8) uniform readonly imageBuffer in_albedo;
 
 
 void main()

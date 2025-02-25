@@ -103,6 +103,12 @@ void prepareVoxDebugCmd(VoxDebugCmdGen& _debugCmd, const VoxDebugCmdInit& _init)
         , kage::AccessFlagBits::shader_read
     );
 
+    kage::bindBuffer(pass, _init.voxAlbedo
+        , 5
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::AccessFlagBits::shader_read
+    );
+
     kage::setIndirectCountBuffer(pass, _init.threadCountBuf, 0);
 
     _debugCmd.pass = pass;
