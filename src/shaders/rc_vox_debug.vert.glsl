@@ -51,6 +51,7 @@ void main()
     pos += vpos;
 
     out_instId = instId;
+    out_color = color;
     // no view since the view already applied in the command gen pass
     gl_Position = trans.proj * trans.view * vec4(pos, 1.0);
 }

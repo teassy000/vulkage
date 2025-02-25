@@ -194,7 +194,7 @@ void prepareVoxDebugDraw(VoxDebugDraw& _vd, const VoxDebugDrawInit _init)
     kage::PassDesc passDesc;
     passDesc.programId = prog.id;
     passDesc.queue = kage::PassExeQueue::graphics;
-    passDesc.pipelineConfig = { true, false, kage::CompareOp::greater , kage::CullModeFlagBits::back, kage::PolygonMode::fill };
+    passDesc.pipelineConfig = { true, false, kage::CompareOp::greater_or_equal , kage::CullModeFlagBits::back, kage::PolygonMode::fill };
     kage::PassHandle pass = kage::registPass("rc_vox_debug", passDesc);
 
     // load cube mesh
