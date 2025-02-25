@@ -704,6 +704,14 @@ namespace kage
             stage = _stages;
         }
 
+        Binding(ImageHandle _hImg, BindingAccess _access, PipelineStageFlags _stages)
+        {
+            img = _hImg;
+            type = ResourceType::image;
+            access = _access;
+            stage = _stages;
+        }
+
         Binding(ImageHandle _hImg, uint16_t _mip, PipelineStageFlags _stages)
         {
             img = _hImg;
