@@ -123,3 +123,9 @@ struct DeferredConstants
     vec3 camPos;
 };
 
+
+struct VoxDraw
+{
+    vec3 pos;
+    vec3 col;
+};

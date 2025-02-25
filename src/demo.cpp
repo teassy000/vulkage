@@ -610,8 +610,8 @@ namespace
                 vdinit.rt = m_deferred.outColorAlias;
                 vdinit.trans = m_transformBuf;
 
+                vdinit.voxAlbedo = m_radianceCascade.vox.albedoOutAlias;
                 vdinit.threadCount = m_radianceCascade.vox.threadCountBufOutAlias;
-                vdinit.voxMap = m_radianceCascade.vox.voxMapOutAlias;
                 vdinit.voxWPos = m_radianceCascade.vox.wposOutAlias;
 
                 prepareVoxDebug(m_voxDebug, vdinit);

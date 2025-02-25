@@ -12,8 +12,8 @@ struct VoxDebugCmdGen
     kage::ProgramHandle program;
     kage::ShaderHandle cs;
 
-    kage::BufferHandle voxmap;
     kage::BufferHandle voxWorldPos;
+    kage::BufferHandle voxAlbedo;
     kage::BufferHandle trans;
     kage::ImageHandle  pyramid;
     kage::BufferHandle cmdBuf;
@@ -56,8 +56,8 @@ struct VoxDebugInit
     kage::ImageHandle pyramid;
     kage::ImageHandle rt;
     kage::BufferHandle trans;
-    kage::BufferHandle voxMap;
     kage::BufferHandle voxWPos;
+    kage::BufferHandle voxAlbedo;
     kage::BufferHandle threadCount;
 };
 

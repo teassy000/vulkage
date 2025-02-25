@@ -29,15 +29,16 @@ layout(binding = 1) writeonly buffer DrawCommand
 };
 
 // read/write 
-layout(binding = 2) buffer DrawPos
+layout(binding = 2) buffer VoxDraws
 {
-    vec3 drawPos [];
+    VoxDraw voxDraw [];
 };
 
 layout(binding = 3) uniform sampler2D depthPyramid;
 
 // readonly
 layout(binding = 4, R32UI) uniform readonly uimageBuffer wpos;
+layout(binding = 4, RGBA8) uniform readonly imageBuffer in_albedo;
 
 
 void main()
@@ -45,6 +46,7 @@ void main()
     uint di = gl_GlobalInvocationID.x;
 
     uint var = imageLoad(wpos, int(di)).x;
+    vec3 abledo = imageLoad(in_albedo, int(di)).xyz;
     ivec3 wIdx = getWorld3DIdx(var, info.sceneSideCnt);
     vec4 ocenter = vec4(getCenterWorldPos(wIdx, info.sceneRadius, info.voxSideLen), 1.f);
 
@@ -93,7 +95,9 @@ void main()
         drawCmd.local_z = 0;
 
         uint idx = var - 1;
-        drawPos[idx] = ocenter.xyz;
+
+        voxDraw[idx].pos = ocenter.xyz;
+        voxDraw[idx].col = abledo;
     }
 }
 

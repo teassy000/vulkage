@@ -26,11 +26,17 @@ struct alignas(16) VoxDebugConsts
 
 struct VoxDebugCmdInit
 {
-    kage::BufferHandle voxMap;
     kage::BufferHandle voxWorldPos;
+    kage::BufferHandle voxAlbedo;
     kage::ImageHandle pyramid;
     kage::BufferHandle trans;
     kage::BufferHandle threadCountBuf;
+};
+
+struct alignas(16) VoxDrawBuf
+{
+    vec3 pos;
+    vec3 col;
 };
 
 
@@ -103,8 +109,8 @@ void prepareVoxDebugCmd(VoxDebugCmdGen& _debugCmd, const VoxDebugCmdInit& _init)
     _debugCmd.program = prog;
     _debugCmd.cs = cs;
 
-    _debugCmd.voxmap = _init.voxMap;
     _debugCmd.voxWorldPos = _init.voxWorldPos;
+    _debugCmd.voxAlbedo = _init.voxAlbedo;
     _debugCmd.trans = _init.trans;
     _debugCmd.pyramid = _init.pyramid;
     _debugCmd.threadCountBuf = _init.threadCountBuf;
@@ -155,6 +161,7 @@ void recVoxDebugGen(const VoxDebugCmdGen& _vcmd, const DrawCull& _camCull, const
         { _vcmd.drawBuf,        Access::read_write, Stage::compute_shader },
         { _vcmd.pyramid,        _vcmd.sampler,      Stage::compute_shader },
         { _vcmd.voxWorldPos,    Access::read,       Stage::compute_shader },
+        { _vcmd.voxAlbedo,      Access::read,       Stage::compute_shader },
     };
 
     kage::pushBindings(binds, COUNTOF(binds));
@@ -181,7 +188,7 @@ void prepareVoxDebugDraw(VoxDebugDraw& _vd, const VoxDebugDrawInit _init)
     kage::PassDesc passDesc;
     passDesc.programId = prog.id;
     passDesc.queue = kage::PassExeQueue::graphics;
-    passDesc.pipelineConfig = { true, false, kage::CompareOp::greater , kage::CullModeFlagBits::back, kage::PolygonMode::line };
+    passDesc.pipelineConfig = { true, false, kage::CompareOp::greater , kage::CullModeFlagBits::back, kage::PolygonMode::fill };
     kage::PassHandle pass = kage::registPass("rc_vox_debug", passDesc);
 
     // load cube mesh
@@ -300,8 +307,8 @@ void prepareVoxDebug(VoxDebug& _vd, const VoxDebugInit& _init)
     VoxDebugCmdInit cmdInit{};
     cmdInit.pyramid = _init.pyramid;
     cmdInit.trans = _init.trans;
-    cmdInit.voxMap = _init.voxMap;
     cmdInit.voxWorldPos = _init.voxWPos;
+    cmdInit.voxAlbedo = _init.voxAlbedo;
     cmdInit.threadCountBuf = _init.threadCount;
     prepareVoxDebugCmd(_vd.cmdGen, cmdInit);
 

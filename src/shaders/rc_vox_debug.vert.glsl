@@ -29,17 +29,20 @@ layout(binding = 2) readonly buffer DrawCommand
     MeshDrawCommand drawCmds [];
 };
 
-layout(binding = 3) readonly buffer WorldPos
+layout(binding = 3) readonly buffer VoxDraws
 {
-    vec3 drawPositions [];
+    VoxDraw voxDraw [];
 };
 
 layout(location = 0) out flat uint out_instId;
+layout(location = 1) out vec3 out_color;
 
 void main()
 {
     int instId = gl_InstanceIndex;
-    vec3 vpos = drawPositions[instId];
+    VoxDraw draw = voxDraw[instId];
+    vec3 vpos = draw.pos;
+    vec3 color = draw.col;
 
     uint vi = gl_VertexIndex;
     vec3 pos = vec3(int(vertices[vi].vx), int(vertices[vi].vy), int(vertices[vi].vz));
