@@ -87,44 +87,6 @@ struct OctTree
     kage::BufferHandle octTreeOutAlias;
 };
 
-struct VoxDebugCmdGen
-{
-    kage::PassHandle pass;
-    kage::ProgramHandle program;
-    kage::ShaderHandle cs;
-
-    kage::BufferHandle voxmap;
-    kage::BufferHandle voxWorldPos;
-    kage::BufferHandle trans;
-    kage::ImageHandle  pyramid;
-    kage::BufferHandle cmdBuf;
-    kage::BufferHandle drawBuf;
-    kage::BufferHandle threadCountBuf;
-
-    kage::SamplerHandle sampler;
-
-    kage::BufferHandle outCmdAlias;
-    kage::BufferHandle outDrawBufAlias;
-};
-
-struct VoxDebug
-{
-    kage::PassHandle pass;
-    kage::ProgramHandle program;
-    kage::ShaderHandle vs;
-    kage::ShaderHandle fs;
-
-    kage::BufferHandle drawCmdBuf;
-    kage::BufferHandle drawBuf;
-    kage::BufferHandle trans;
-    kage::ImageHandle renderTarget;
-
-    kage::BufferHandle idxBuf;
-    kage::BufferHandle vtxBuf;
-
-
-    kage::ImageHandle rtOutAlias;
-};
 
 struct RadianceCascadeBuild
 {
@@ -139,6 +101,9 @@ struct RadianceCascadeBuild
 
     kage::ImageHandle inDepth;
     kage::SamplerHandle depthSampler;
+
+    kage::ImageHandle inSkybox;
+    kage::SamplerHandle skySampler;
 
     kage::BufferHandle inOctTreeNodeCount;
     kage::BufferHandle inOctTree;
@@ -155,17 +120,13 @@ struct RadianceCascade
     Voxelization vox;
     OctTree octTree;
     RadianceCascadeBuild rcBuild;
-
-    VoxDebugCmdGen voxDebugCmdGen;
-    VoxDebug voxDebug;
 };
 
 struct RadianceCascadeInitData
 {
     GBuffer g_buffer;
-    kage::ImageHandle color;
     kage::ImageHandle depth;
-    kage::ImageHandle pyramid;
+    kage::ImageHandle skybox;
     kage::BufferHandle meshBuf;
     kage::BufferHandle meshDrawBuf;
     kage::BufferHandle idxBuf;

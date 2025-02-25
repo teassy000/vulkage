@@ -18,6 +18,7 @@
 #include "vkz_smaa_pip.h"
 #include "radiance_cascade/vkz_radiance_cascade.h"
 #include "deferred/vkz_deferred.h"
+#include "radiance_cascade/vkz_rc_debug.h"
 
 namespace
 {
@@ -54,6 +55,7 @@ namespace
             kage::init(config);
             
             m_supportMeshShading = kage::checkSupports(kage::VulkanSupportExtension::ext_mesh_shader);
+            m_debugVox = true;
 
             
             bool forceParse = false;
@@ -139,7 +141,7 @@ namespace
             updateCulling(m_cullingLate, m_demoData.drawCull, m_scene.drawCount);
             updateCulling(m_cullingAlpha, m_demoData.drawCull, m_scene.drawCount);
 
-            updateDeferredShading(m_deferred, m_width, m_height);
+            updateDeferredShading(m_deferred, m_width, m_height, m_demoData.trans.cameraPos, m_scene.radius);
 
             if (m_supportMeshShading)
             {
@@ -181,6 +183,11 @@ namespace
 
             m_smaa.update(m_width, m_height);
             updateRadianceCascade(m_radianceCascade, m_scene.drawCount, m_demoData.drawCull, m_width, m_height, m_scene.radius);
+            if (m_debugVox)
+            {
+                updateVoxDebug(m_voxDebug, m_demoData.drawCull, m_width, m_height, m_scene.radius);
+            }
+
             updateUI(m_ui, m_demoData.input, m_demoData.renderOptions, m_demoData.profiling, m_demoData.logic);
 
             // render
@@ -569,12 +576,6 @@ namespace
                 prepareMeshShading(m_meshShadingAlpha, m_scene, m_width, m_height, msInit, true, true);
             }
 
-            // deferred
-            {
-                initDeferredShading(m_deferred, m_meshShadingAlpha.g_bufferOutAlias, m_skybox.colorOutAlias);
-            }
-
-
             // radiance cascade
             {
                 kage::ImageHandle cascadeDepthIn = m_supportMeshShading ? m_meshShadingAlpha.depthOutAlias : m_vtxShadingLate.depthOutAlias;
@@ -590,18 +591,39 @@ namespace
                 rcInit.vtxBuf = m_vtxBuf;
                 rcInit.transBuf = m_transformBuf;
                 rcInit.maxDrawCmdCount = (uint32_t)m_scene.meshDraws.size();
-                rcInit.color = cascadeColorIn;
-                rcInit.pyramid = m_pyramid.imgOutAlias;
                 rcInit.bindless = m_bindlessArray;
+                rcInit.skybox = m_skybox.colorOutAlias;
 
                 prepareRadianceCascade(m_radianceCascade, rcInit);
+            }
+
+            // deferred
+            {
+                initDeferredShading(m_deferred, m_meshShadingAlpha.g_bufferOutAlias, m_skybox.colorOutAlias, m_radianceCascade.rcBuild.radCascdOutAlias);
+            }
+
+            // vox debug
+            if (m_debugVox)
+            {
+                VoxDebugInit vdinit;
+                vdinit.pyramid = m_pyramid.imgOutAlias;
+                vdinit.rt = m_deferred.outColorAlias;
+                vdinit.trans = m_transformBuf;
+
+                vdinit.threadCount = m_radianceCascade.vox.threadCountBufOutAlias;
+                vdinit.voxMap = m_radianceCascade.vox.voxMapOutAlias;
+                vdinit.voxWPos = m_radianceCascade.vox.wposOutAlias;
+
+                prepareVoxDebug(m_voxDebug, vdinit);
             }
 
             // smaa
             {
                 kage::ImageHandle aaDepthIn = m_supportMeshShading ? m_meshShadingAlpha.depthOutAlias : m_vtxShadingLate.depthOutAlias;
 
-                kage::ImageHandle aaColorIn = m_supportMeshShading ? m_radianceCascade.voxDebug.rtOutAlias : m_vtxShadingLate.colorOutAlias;
+                kage::ImageHandle aaColorIn = m_supportMeshShading ?
+                    m_debugVox ? m_voxDebug.draw.rtOutAlias : m_deferred.outColorAlias
+                    : m_vtxShadingLate.colorOutAlias;
 
                 m_smaa.prepare(m_width, m_height, aaColorIn, aaDepthIn);
             }
@@ -611,7 +633,7 @@ namespace
             {
                 kage::ImageHandle uiColorIn = m_smaa.m_outAliasImg;
                 kage::ImageHandle uiDepthIn = m_supportMeshShading ? m_meshShadingAlpha.depthOutAlias : m_vtxShadingLate.depthOutAlias;
-                m_ui.dummyColor = m_radianceCascade.rcBuild.outAlias;
+                m_ui.dummyColor = m_radianceCascade.rcBuild.radCascdOutAlias;
                 prepareUI(m_ui, uiColorIn, uiDepthIn, 1.3f);
             }
         }
@@ -684,6 +706,7 @@ namespace
         Scene m_scene{};
         DemoData m_demoData{};
         bool m_supportMeshShading;
+        bool m_debugVox;
 
         std::vector<kage::ImageHandle> m_sceneImages;
 
@@ -730,6 +753,7 @@ namespace
         VtxShading m_vtxShadingLate{};
         Skybox m_skybox{};
         RadianceCascade m_radianceCascade{};
+        VoxDebug m_voxDebug{};
 
         UIRendering m_ui{};
 

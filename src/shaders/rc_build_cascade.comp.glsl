@@ -26,20 +26,21 @@ layout(binding = 2) uniform sampler2D in_normal;
 layout(binding = 3) uniform sampler2D in_wPos;
 layout(binding = 4) uniform sampler2D in_emmision;
 layout(binding = 5) uniform sampler2D in_depth;
+layout(binding = 6) uniform sampler2D in_skybox;
 
-layout(binding = 6) readonly buffer OctTreeNodeCount
+layout(binding = 7) readonly buffer OctTreeNodeCount
 {
     uint in_octTreeNodeCount;
 };
 
-layout(binding = 7) readonly buffer OctTree
+layout(binding = 8) readonly buffer OctTree
 {
     OctTreeNode in_octTree [];
 };
 
 
-layout(binding = 8, RGBA8) uniform imageBuffer in_voxAlbedo;
-layout(binding = 9, RGBA8) uniform writeonly image2DArray octProbAtlas;
+layout(binding = 9, RGBA8) uniform imageBuffer in_voxAlbedo;
+layout(binding = 10, RGBA8) uniform writeonly image2DArray octProbAtlas;
 
 struct Ray
 {
@@ -228,13 +229,20 @@ void main()
     }
 
     // write the result to the atlas
-    vec3 var = vec3(0.f);
-    if (voxIdx != INVALID_OCT_IDX)
+    vec4 var = vec4(0.f);
+    if (voxIdx != INVALID_VOX_ID)
     {
-        // TODO 
-        var = imageLoad(in_voxAlbedo, int(voxIdx)).rgb;
+        var = imageLoad(in_voxAlbedo, int(voxIdx)).rgba;
+        if (var.a == 0.f)
+        {
+            var = vec4(1.f, 0.5f, 0.5f, 1.f);
+        }
+    }
+    else
+    {
+        var = vec4(0.f, 0, 0.6f, 1.f);
     }
 
 
-    imageStore(octProbAtlas, ivec3(prob_2dcorrd_dir.xy, layer_idx), vec4(var, 1));
+    imageStore(octProbAtlas, ivec3(prob_2dcorrd_dir.xy, layer_idx), vec4(var));
 }
