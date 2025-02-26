@@ -3,6 +3,7 @@
 #include "demo_structs.h"
 #include "mesh.h"
 #include "kage_math.h"
+#include "gltf_loader.h"
 
 
 using Binding = kage::Binding;
@@ -335,6 +336,7 @@ struct alignas(16) ProbeDebugCmdConsts
 
     uint32_t probeSideCount;
     uint32_t layerOffset;
+    uint32_t idxCnt;
 
     float P00, P11;
     float znear, zfar;
@@ -360,6 +362,8 @@ struct ProbeDebugGenInit
 {
     kage::ImageHandle pyramid;
     kage::BufferHandle trans;
+
+    uint32_t idxCount;
 };
 
 struct ProbeDebugDrawInit
@@ -370,6 +374,11 @@ struct ProbeDebugDrawInit
     kage::BufferHandle trans;
     kage::BufferHandle cmd;
     kage::BufferHandle drawData;
+
+    const kage::Memory* idxMem;
+    const kage::Memory* vtxMem;
+
+    uint32_t idxCount;
 };
 
 void prepareProbeDbgCmdGen(ProbeDbgCmdGen& _gen, const ProbeDebugGenInit& _init)
@@ -392,7 +401,7 @@ void prepareProbeDbgCmdGen(ProbeDbgCmdGen& _gen, const ProbeDebugGenInit& _init)
     }
 
     kage::BufferDesc probeDrawBufDesc{};
-    probeDrawBufDesc.size = 128 * 1024 * 1024; // 128M
+    probeDrawBufDesc.size = kage::k_rclv0_probeSideCount * kage::k_rclv0_probeSideCount* kage::k_rclv0_probeSideCount* sizeof(ProbeDraw);
     probeDrawBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
     kage::BufferHandle probeDrawBuf = kage::registBuffer("rc_probe_debug_draw", probeDrawBufDesc);
 
@@ -440,6 +449,8 @@ void prepareProbeDbgCmdGen(ProbeDbgCmdGen& _gen, const ProbeDebugGenInit& _init)
     _gen.pyramid = _init.pyramid;
     _gen.sampler = samp;
 
+    _gen.idxCnt = _init.idxCount;
+
     _gen.outCmdAlias = cmdBufAlias;
     _gen.outDrawDataBufAlias = probeDrawBufAlias;
 }
@@ -457,6 +468,7 @@ void recProbeDbgCmdGen(const ProbeDbgCmdGen& _gen, const DrawCull& _camCull, con
     consts.sphereRadius = sphereRadius;
     consts.probeSideCount = probeSideCount;
     consts.layerOffset = (kage::k_rclv0_probeSideCount - probeSideCount) * 2;
+    consts.idxCnt = _gen.idxCnt;
 
     consts.P00 = _camCull.P00;
     consts.P11 = _camCull.P11;
@@ -473,6 +485,9 @@ void recProbeDbgCmdGen(const ProbeDbgCmdGen& _gen, const DrawCull& _camCull, con
     memcpy(mem->data, &consts, mem->size);
 
     kage::setConstants(mem);
+
+    kage::fillBuffer(_gen.cmdBuf, 0);
+    kage::fillBuffer(_gen.drawDataBuf, 0);
 
     kage::Binding binds[] =
     {
@@ -500,29 +515,15 @@ void prepareProbeDbgDraw(ProbeDbgDraw& _pd, const ProbeDebugDrawInit& _init)
     passDesc.pipelineConfig = { true, false, kage::CompareOp::greater_or_equal , kage::CullModeFlagBits::back, kage::PolygonMode::fill };
     kage::PassHandle pass = kage::registPass("rc_probe_debug", passDesc);
 
-    // load cube mesh
-    Geometry geom = {};
-    bool result = loadObj(geom, "./data/sphere.obj", false, false);
-    if (!result)
-    {
-        assert(0);
-    }
-
-    const kage::Memory* vtxMem = kage::alloc(uint32_t(geom.vertices.size() * sizeof(Vertex)));
-    memcpy(vtxMem->data, geom.vertices.data(), geom.vertices.size() * sizeof(Vertex));
-
-    const kage::Memory* idxMem = kage::alloc(uint32_t(geom.indices.size() * sizeof(uint32_t)));
-    memcpy(idxMem->data, geom.indices.data(), geom.indices.size() * sizeof(uint32_t));
-
     kage::BufferDesc vtxDesc;
-    vtxDesc.size = vtxMem->size;
+    vtxDesc.size = _init.vtxMem->size;
     vtxDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
-    kage::BufferHandle vtxBuf = kage::registBuffer("sphere_vtx", vtxDesc, vtxMem, kage::ResourceLifetime::non_transition);
+    kage::BufferHandle vtxBuf = kage::registBuffer("sphere_vtx", vtxDesc, _init.vtxMem, kage::ResourceLifetime::non_transition);
 
     kage::BufferDesc idxDesc;
-    idxDesc.size = idxMem->size;
+    idxDesc.size = _init.idxMem->size;
     idxDesc.usage = kage::BufferUsageFlagBits::index | kage::BufferUsageFlagBits::transfer_dst;
-    kage::BufferHandle idxBuf = kage::registBuffer("sphere_idx", idxDesc, idxMem, kage::ResourceLifetime::non_transition);
+    kage::BufferHandle idxBuf = kage::registBuffer("sphere_idx", idxDesc, _init.idxMem, kage::ResourceLifetime::non_transition);
 
     kage::bindBuffer(pass, _init.trans
         , 0
@@ -553,7 +554,7 @@ void prepareProbeDbgDraw(ProbeDbgDraw& _pd, const ProbeDebugDrawInit& _init)
     );
 
     kage::bindVertexBuffer(pass, vtxBuf);
-    kage::bindIndexBuffer(pass, idxBuf, (uint32_t)geom.indices.size());
+    kage::bindIndexBuffer(pass, idxBuf, (uint32_t)_init.idxCount);
 
     kage::setIndirectBuffer(pass, _init.cmd, offsetof(MeshDrawCommand, indexCount), sizeof(MeshDrawCommand), 1u);
 
@@ -619,14 +620,29 @@ void recProbeDbgDraw(const ProbeDbgDraw& _pd, const DrawCull& _camCull, const ui
         , 1
         , sizeof(MeshDrawCommand)
     );
+
     kage::endRec();
 }
 
 void prepareProbeDebug(ProbeDebug& _pd, const RCDebugInit& _init)
 {
+    // load cube mesh
+    Geometry geom = {};
+    bool result = loadObj(geom, "./data/sphere.obj", false, false);
+    assert(result);
+
+
+    const kage::Memory* vtxMem = kage::alloc(uint32_t(geom.vertices.size() * sizeof(Vertex)));
+    memcpy(vtxMem->data, geom.vertices.data(), geom.vertices.size() * sizeof(Vertex));
+
+    const kage::Memory* idxMem = kage::alloc(uint32_t(geom.indices.size() * sizeof(uint32_t)));
+    memcpy(idxMem->data, geom.indices.data(), geom.indices.size() * sizeof(uint32_t));
+
+
     ProbeDebugGenInit cmdInit{};
     cmdInit.pyramid = _init.pyramid;
     cmdInit.trans = _init.trans;
+    cmdInit.idxCount = (uint32_t)geom.indices.size();
 
     prepareProbeDbgCmdGen(_pd.cmdGen, cmdInit);
 
@@ -636,6 +652,8 @@ void prepareProbeDebug(ProbeDebug& _pd, const RCDebugInit& _init)
     drawInit.trans = _init.trans;
     drawInit.cmd = _pd.cmdGen.outCmdAlias;
     drawInit.drawData = _pd.cmdGen.outDrawDataBufAlias;
+    drawInit.idxMem = idxMem;
+    drawInit.vtxMem = vtxMem;
 
     prepareProbeDbgDraw(_pd.draw, drawInit);
 }

@@ -38,7 +38,7 @@ void main()
     ivec3 probeIdx = draw.idx;
 
     uint vi = gl_VertexIndex;
-    vec3 pos = vec3(int(vertices[vi].vx), int(vertices[vi].vy), int(vertices[vi].vz));
+    vec3 pos = vec3(vertices[vi].vx, vertices[vi].vy, vertices[vi].vz);
 
     pos *= (consts.sphereRadius * .5f);
     pos += vpos;

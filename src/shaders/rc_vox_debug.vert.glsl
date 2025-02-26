@@ -39,7 +39,7 @@ void main()
     vec3 color = draw.col;
 
     uint vi = gl_VertexIndex;
-    vec3 pos = vec3(int(vertices[vi].vx), int(vertices[vi].vy), int(vertices[vi].vz));
+    vec3 pos = vec3(vertices[vi].vx, vertices[vi].vy, vertices[vi].vz);
 
     pos *= (info.voxSideLen * .5f);
     pos += vpos;

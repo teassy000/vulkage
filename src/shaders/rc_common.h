@@ -137,6 +137,7 @@ struct ProbeDebugCmdConsts
     float sphereRadius;
     uint probeSideCount;
     uint layerOffset;
+    uint idxCnt;
 
     float P00, P11;
     float znear, zfar;

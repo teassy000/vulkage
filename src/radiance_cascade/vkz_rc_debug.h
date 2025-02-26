@@ -80,6 +80,8 @@ struct ProbeDbgCmdGen
 
     kage::BufferHandle outCmdAlias;
     kage::BufferHandle outDrawDataBufAlias;
+
+    uint32_t idxCnt;
 };
 
 struct ProbeDbgDraw

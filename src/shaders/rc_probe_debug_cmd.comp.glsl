@@ -9,7 +9,7 @@
 #include "math.h"
 #include "rc_common.h"
 
-layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
 layout(push_constant) uniform block
 {
@@ -78,7 +78,7 @@ void main()
         drawCmd.taskOffset = 0;
         drawCmd.taskCount = 1;
         drawCmd.lateDrawVisibility = 0;
-        drawCmd.indexCount = 36;
+        drawCmd.indexCount = consts.idxCnt; //HARDCODE
 
         uint var = atomicAdd(drawCmd.instanceCount, 1);
 
