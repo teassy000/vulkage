@@ -29,6 +29,7 @@ layout(binding = 2) readonly buffer ProbeDraws
 };
 
 layout(location = 0) out flat ivec3 out_probeId;
+layout(location = 1) out vec2 out_uv;
 
 void main()
 {
@@ -44,6 +45,7 @@ void main()
     pos += vpos;
 
     out_probeId = probeIdx;
-    
+    out_uv = vec2(vertices[vi].tu, vertices[vi].tv);
+
     gl_Position = trans.proj * trans.view * vec4(pos, 1.0);
 }

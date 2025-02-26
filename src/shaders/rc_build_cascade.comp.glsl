@@ -154,7 +154,7 @@ void main()
     ivec2 sub_prob_coord = ivec2(prob_layer_idx % prob_gridSideCount, prob_layer_idx / prob_gridSideCount);
     ivec2 sub_ray_coord = ivec2(ray_idx % ray_gridSideCount, ray_idx / ray_gridSideCount);
     ivec2 prob_2dcoord = sub_prob_coord * ivec2(ray_gridSideCount) + sub_ray_coord; // position first, each grid is a probe
-    ivec2 prob_2dcorrd_dir = sub_ray_coord * ivec2(prob_gridSideCount) + sub_prob_coord; // direction first, each grid is a ray
+    ivec2 prob_2dcoord_dir = sub_ray_coord * ivec2(prob_gridSideCount) + sub_prob_coord; // direction first, each grid is a ray
 
 
     const vec3 scene_origin_offset = vec3(-sceneRadius);
@@ -236,5 +236,5 @@ void main()
     }
 
 
-    imageStore(octProbAtlas, ivec3(prob_2dcorrd_dir.xy, layer_idx), vec4(var, 1.f));
+    imageStore(octProbAtlas, ivec3(prob_2dcoord_dir.xy, layer_idx), vec4(ray_dir, 1.f));
 }

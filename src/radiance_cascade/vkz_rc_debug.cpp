@@ -512,7 +512,7 @@ void prepareProbeDbgDraw(ProbeDbgDraw& _pd, const ProbeDebugDrawInit& _init)
     kage::PassDesc passDesc;
     passDesc.programId = prog.id;
     passDesc.queue = kage::PassExeQueue::graphics;
-    passDesc.pipelineConfig = { true, false, kage::CompareOp::greater_or_equal , kage::CullModeFlagBits::back, kage::PolygonMode::fill };
+    passDesc.pipelineConfig = { true, true, kage::CompareOp::greater, kage::CullModeFlagBits::back, kage::PolygonMode::fill };
     kage::PassHandle pass = kage::registPass("rc_probe_debug", passDesc);
 
     kage::BufferDesc vtxDesc;
@@ -628,7 +628,7 @@ void prepareProbeDebug(ProbeDebug& _pd, const RCDebugInit& _init)
 {
     // load cube mesh
     Geometry geom = {};
-    bool result = loadObj(geom, "./data/sphere.obj", false, false);
+    bool result = loadGltfMesh(geom, "./data/gltf/sphere.glb", false, false);
     assert(result);
 
 
