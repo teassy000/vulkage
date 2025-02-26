@@ -70,13 +70,11 @@ struct ProbeDbgCmdGen
     kage::ProgramHandle program;
     kage::ShaderHandle cs;
 
-    kage::BufferHandle probe;
-    kage::BufferHandle voxAlbedo;
     kage::BufferHandle trans;
-    kage::ImageHandle  pyramid;
     kage::BufferHandle cmdBuf;
     kage::BufferHandle drawDataBuf;
 
+    kage::ImageHandle  pyramid;
     kage::SamplerHandle sampler;
 
     kage::BufferHandle outCmdAlias;
@@ -94,6 +92,8 @@ struct ProbeDbgDraw
     kage::BufferHandle drawDataBuf;
     kage::BufferHandle trans;
     kage::ImageHandle renderTarget;
+    kage::ImageHandle radianceCascade;
+    kage::SamplerHandle rcSamp;
 
     kage::BufferHandle idxBuf;
     kage::BufferHandle vtxBuf;
@@ -105,18 +105,19 @@ struct ProbeDebug
 {
     ProbeDbgCmdGen cmdGen;
     ProbeDbgDraw draw;
+
+    uint32_t debugLv;
 };
 
 struct ProbeDebugInit
 {
+    kage::ImageHandle color;
+    kage::ImageHandle cascade;
     kage::ImageHandle pyramid;
-    kage::ImageHandle rt;
+
     kage::BufferHandle trans;
-    kage::BufferHandle voxWPos;
-    kage::BufferHandle voxAlbedo;
-    kage::BufferHandle threadCount;
 };
 
 
 void prepareProbeDebug(ProbeDebug& _pd, const ProbeDebugInit& _init);
-void updateProbeDebug(const ProbeDebug& _pd, const DrawCull& _camCull, const uint32_t _widt, const uint32_t _height, const float _sceneRadius);
+void updateProbeDebug(ProbeDebug& _pd, const DrawCull& _camCull, const uint32_t _widt, const uint32_t _height, const float _sceneRadius, const uint32_t _lv = 0u);

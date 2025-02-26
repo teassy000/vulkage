@@ -129,3 +129,30 @@ struct VoxDraw
     vec3 pos;
     vec3 col;
 };
+
+struct ProbeDebugCmdConsts
+{
+    float sceneRadius;
+    float probeSideLen;
+    float sphereRadius;
+    uint probeSideCount;
+    uint layerOffset;
+
+    float P00, P11;
+    float znear, zfar;
+    float frustum[4];
+    float pyramidWidth, pyramidHeight;
+};
+
+struct ProbeDraw
+{
+    vec3 pos;
+    ivec3 idx;
+};
+
+struct ProbeDebugDrawConsts
+{
+    float sceneRadius;
+    float probeSideLen;
+    float sphereRadius;
+};

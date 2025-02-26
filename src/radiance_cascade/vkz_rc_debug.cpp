@@ -2,6 +2,7 @@
 
 #include "demo_structs.h"
 #include "mesh.h"
+#include "kage_math.h"
 
 
 using Binding = kage::Binding;
@@ -184,7 +185,6 @@ void recVoxDebugGen(const VoxDebugCmdGen& _vcmd, const DrawCull& _camCull, const
 }
 
 
-
 void prepareVoxDebugDraw(VoxDebugDraw& _vd, const VoxDebugDrawInit _init)
 {
     kage::ShaderHandle vs = kage::registShader("rc_vox_debug", "shaders/rc_vox_debug.vert.spv");
@@ -228,14 +228,8 @@ void prepareVoxDebugDraw(VoxDebugDraw& _vd, const VoxDebugDrawInit _init)
         , kage::AccessFlagBits::shader_read
     );
 
-    kage::bindBuffer(pass, _init.cmd
-        , 2
-        , kage::PipelineStageFlagBits::vertex_shader
-        , kage::AccessFlagBits::shader_read
-    );
-
     kage::bindBuffer(pass, _init.draw
-        , 3
+        , 2
         , kage::PipelineStageFlagBits::vertex_shader
         , kage::AccessFlagBits::shader_read
     );
@@ -263,6 +257,7 @@ void prepareVoxDebugDraw(VoxDebugDraw& _vd, const VoxDebugDrawInit _init)
     _vd.rtOutAlias = colorAlias;
 }
 
+
 void recVoxDebugDraw(const VoxDebugDraw& _vd, const DrawCull& _camCull, const uint32_t _width, const uint32_t _height, float _sceneRadius)
 {
     kage::startRec(_vd.pass);
@@ -283,7 +278,6 @@ void recVoxDebugDraw(const VoxDebugDraw& _vd, const DrawCull& _camCull, const ui
     kage::Binding binds[] = {
         { _vd.trans,        Access::read,   Stage::vertex_shader | Stage::fragment_shader },
         { _vd.vtxBuf,       Access::read,   Stage::vertex_shader},
-        { _vd.drawCmdBuf,   Access::read,   Stage::vertex_shader},
         { _vd.drawBuf,      Access::read,   Stage::vertex_shader},
     };
     kage::pushBindings(binds, COUNTOF(binds));
@@ -333,29 +327,317 @@ void updateVoxDebug(const VoxDebug& _vd, const DrawCull& _camCull, const uint32_
     recVoxDebugDraw(_vd.draw, _camCull, _width, _height, _sceneRadius);
 }
 
-void prepareProbeDbgCmdGen(ProbeDebug& _pd, const ProbeDebugInit& _init)
+struct alignas(16) ProbeDebugCmdConsts
 {
+    float sceneRadius;
+    float probeSideLen;
+    float sphereRadius;
 
+    uint32_t probeSideCount;
+    uint32_t layerOffset;
+
+    float P00, P11;
+    float znear, zfar;
+    float frustum[4];
+    float pyramidWidth, pyramidHeight;
+};
+
+struct alignas(16) ProbeDraw
+{
+    vec3 pos;
+    uvec3 id;
+};
+
+struct alignas(16) ProbeDebugDrawConsts
+{
+    float sceneRadius;
+    float probeSideLen;
+    float sphereRadius;
+};
+
+struct ProbeDebugGenInit
+{
+    kage::ImageHandle pyramid;
+    kage::BufferHandle trans;
+};
+
+struct ProbeDebugDrawInit
+{
+    kage::ImageHandle color;
+    kage::ImageHandle cascade;
+
+    kage::BufferHandle trans;
+    kage::BufferHandle cmd;
+    kage::BufferHandle drawData;
+};
+
+void prepareProbeDbgCmdGen(ProbeDbgCmdGen& _gen, const ProbeDebugGenInit& _init)
+{
+    kage::ShaderHandle cs = kage::registShader("rc_probe_debug_cmd", "shaders/rc_probe_debug_cmd.comp.spv");
+    kage::ProgramHandle prog = kage::registProgram("rc_probe_debug_cmd", { cs }, sizeof(ProbeDebugCmdConsts));
+
+    kage::PassDesc passDesc;
+    passDesc.programId = prog.id;
+    passDesc.queue = kage::PassExeQueue::compute;
+    kage::PassHandle pass = kage::registPass("rc_probe_debug_cmd", passDesc);
+
+    kage::BufferHandle cmdBuf;
+    {
+        kage::BufferDesc cmdBufDesc{};
+        cmdBufDesc.size = sizeof(MeshDrawCommand);
+        cmdBufDesc.usage = kage::BufferUsageFlagBits::indirect | kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+
+        cmdBuf = kage::registBuffer("rc_probe_debug_cmd", cmdBufDesc);
+    }
+
+    kage::BufferDesc probeDrawBufDesc{};
+    probeDrawBufDesc.size = 128 * 1024 * 1024; // 128M
+    probeDrawBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+    kage::BufferHandle probeDrawBuf = kage::registBuffer("rc_probe_debug_draw", probeDrawBufDesc);
+
+    kage::BufferHandle cmdBufAlias = kage::alias(cmdBuf);
+    kage::BufferHandle probeDrawBufAlias = kage::alias(probeDrawBuf);
+
+
+    kage::bindBuffer(pass, _init.trans
+        , 0
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::AccessFlagBits::shader_read
+    );
+
+    kage::bindBuffer(pass, cmdBuf
+        , 1
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
+        , cmdBufAlias
+    );
+
+    kage::bindBuffer(pass, probeDrawBuf
+        , 2
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
+        , probeDrawBufAlias
+    );
+
+    kage::SamplerHandle samp = kage::sampleImage(pass, _init.pyramid
+        , 3
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::SamplerFilter::linear
+        , kage::SamplerMipmapMode::nearest
+        , kage::SamplerAddressMode::clamp_to_edge
+        , kage::SamplerReductionMode::min
+    );
+
+    _gen.pass = pass;
+    _gen.program = prog;
+    _gen.cs = cs;
+
+    _gen.trans = _init.trans;
+    _gen.cmdBuf = cmdBuf;
+    _gen.drawDataBuf = probeDrawBuf;
+
+    _gen.pyramid = _init.pyramid;
+    _gen.sampler = samp;
+
+    _gen.outCmdAlias = cmdBufAlias;
+    _gen.outDrawDataBufAlias = probeDrawBufAlias;
 }
 
-void recProbeDbgCmdGen(const ProbeDebug& _pd, const DrawCull& _camCull, const float _sceneRadius)
+void recProbeDbgCmdGen(const ProbeDbgCmdGen& _gen, const DrawCull& _camCull, const float _sceneRadius, uint32_t _lv)
 {
+    uint32_t probeSideCount = kage::k_rclv0_probeSideCount / (1 << glm::min(_lv, kage::k_rclv0_cascadeLv));
+    const float probeSideLen = _sceneRadius * 2.f / (float)probeSideCount;
+    const float sphereRadius = probeSideLen * 0.2f;
+
+    kage::startRec(_gen.pass);
+    ProbeDebugCmdConsts consts{};
+    consts.sceneRadius = _sceneRadius;
+    consts.probeSideLen = probeSideLen;
+    consts.sphereRadius = sphereRadius;
+    consts.probeSideCount = probeSideCount;
+    consts.layerOffset = (kage::k_rclv0_probeSideCount - probeSideCount) * 2;
+
+    consts.P00 = _camCull.P00;
+    consts.P11 = _camCull.P11;
+    consts.znear = _camCull.znear;
+    consts.zfar = _camCull.zfar;
+    consts.frustum[0] = _camCull.frustum[0];
+    consts.frustum[1] = _camCull.frustum[1];
+    consts.frustum[2] = _camCull.frustum[2];
+    consts.frustum[3] = _camCull.frustum[3];
+    consts.pyramidWidth = _camCull.pyramidWidth;
+    consts.pyramidHeight = _camCull.pyramidHeight;
+
+    const kage::Memory* mem = kage::alloc(sizeof(ProbeDebugCmdConsts));
+    memcpy(mem->data, &consts, mem->size);
+
+    kage::setConstants(mem);
+
+    kage::Binding binds[] =
+    {
+        { _gen.trans,       Access::read,       Stage::compute_shader },
+        { _gen.cmdBuf,      Access::read_write, Stage::compute_shader },
+        { _gen.drawDataBuf, Access::read_write, Stage::compute_shader },
+        { _gen.pyramid,     _gen.sampler,       Stage::compute_shader },
+    };
+
+    kage::pushBindings(binds, COUNTOF(binds));
+
+    kage::dispatch(probeSideCount, probeSideCount, probeSideCount);
+
+    kage::endRec();
 }
 
-void prepareProbeDbgDraw(ProbeDebug& _pd, const ProbeDebugInit& _init)
+void prepareProbeDbgDraw(ProbeDbgDraw& _pd, const ProbeDebugDrawInit& _init)
 {
+    kage::ShaderHandle vs = kage::registShader("rc_probe_debug", "shaders/rc_probe_debug.vert.spv");
+    kage::ShaderHandle fs = kage::registShader("rc_probe_debug", "shaders/rc_probe_debug.frag.spv");
+    kage::ProgramHandle prog = kage::registProgram("rc_probe_debug", { vs, fs }, sizeof(ProbeDebugDrawConsts));
+    kage::PassDesc passDesc;
+    passDesc.programId = prog.id;
+    passDesc.queue = kage::PassExeQueue::graphics;
+    passDesc.pipelineConfig = { true, false, kage::CompareOp::greater_or_equal , kage::CullModeFlagBits::back, kage::PolygonMode::fill };
+    kage::PassHandle pass = kage::registPass("rc_probe_debug", passDesc);
+
+    // load cube mesh
+    Geometry geom = {};
+    loadObj(geom, "./data/sphere.obj", false, false);
+
+    const kage::Memory* vtxMem = kage::alloc(uint32_t(geom.vertices.size() * sizeof(Vertex)));
+    memcpy(vtxMem->data, geom.vertices.data(), geom.vertices.size() * sizeof(Vertex));
+
+    const kage::Memory* idxMem = kage::alloc(uint32_t(geom.indices.size() * sizeof(uint32_t)));
+    memcpy(idxMem->data, geom.indices.data(), geom.indices.size() * sizeof(uint32_t));
+
+    kage::BufferDesc vtxDesc;
+    vtxDesc.size = vtxMem->size;
+    vtxDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+    kage::BufferHandle vtxBuf = kage::registBuffer("sphere_vtx", vtxDesc, vtxMem, kage::ResourceLifetime::non_transition);
+
+    kage::BufferDesc idxDesc;
+    idxDesc.size = idxMem->size;
+    idxDesc.usage = kage::BufferUsageFlagBits::index | kage::BufferUsageFlagBits::transfer_dst;
+    kage::BufferHandle idxBuf = kage::registBuffer("sphere_idx", idxDesc, idxMem, kage::ResourceLifetime::non_transition);
+
+    kage::bindBuffer(pass, _init.cmd
+        , 0
+        , kage::PipelineStageFlagBits::vertex_shader
+        , kage::AccessFlagBits::shader_read
+    );
+
+    kage::bindBuffer(pass, _init.trans
+        , 1
+        , kage::PipelineStageFlagBits::vertex_shader | kage::PipelineStageFlagBits::fragment_shader
+        , kage::AccessFlagBits::shader_read
+    );
+
+    kage::bindBuffer(pass, _init.drawData
+        , 2
+        , kage::PipelineStageFlagBits::vertex_shader
+        , kage::AccessFlagBits::shader_read
+    );
+
+    kage::SamplerHandle samp = kage::sampleImage(
+        pass, _init.cascade
+        , 3
+        , kage::PipelineStageFlagBits::fragment_shader
+        , kage::SamplerFilter::nearest
+        , kage::SamplerMipmapMode::nearest
+        , kage::SamplerAddressMode::clamp_to_edge
+        , kage::SamplerReductionMode::weighted_average
+    );
+
+    kage::bindVertexBuffer(pass, vtxBuf);
+    kage::bindIndexBuffer(pass, idxBuf, (uint32_t)geom.indices.size());
+
+    kage::setIndirectBuffer(pass, _init.cmd, offsetof(MeshDrawCommand, indexCount), sizeof(MeshDrawCommand), 1u);
+
+    kage::ImageHandle colorAlias = kage::alias(_init.color);
+    kage::setAttachmentOutput(pass, _init.color, 0, colorAlias);
+
+    _pd.pass = pass;
+    _pd.program = prog;
+    _pd.vs = vs;
+    _pd.fs = fs;
+
+    _pd.idxBuf = idxBuf;
+    _pd.vtxBuf = vtxBuf;
+
+    _pd.trans = _init.trans;
+    _pd.drawCmdBuf = _init.cmd;
+    _pd.drawDataBuf = _init.drawData;
+    _pd.renderTarget = _init.color;
+    _pd.radianceCascade = _init.cascade;
+    _pd.rcSamp = samp;
+
+    _pd.rtOutAlias = colorAlias;
 }
 
-void recProbeDbgDraw(const ProbeDebug& _pd, const DrawCull& _camCull, const uint32_t _width, const uint32_t _height, const float _sceneRadius)
+void recProbeDbgDraw(const ProbeDbgDraw& _pd, const DrawCull& _camCull, const uint32_t _width, const uint32_t _height, const float _sceneRadius, const uint32_t _lv, const float _szFactor = .5f)
 {
+    kage::startRec(_pd.pass);
+
+    kage::setViewport(0, 0, _width, _height);
+    kage::setScissor(0, 0, _width, _height);
+
+    uint32_t probeSideCount = kage::k_rclv0_probeSideCount / (1 << glm::min(_lv, kage::k_rclv0_cascadeLv));
+    float sphereRadius = _sceneRadius / probeSideCount;
+
+    ProbeDebugDrawConsts consts{};
+    consts.sceneRadius = _sceneRadius;
+    consts.sphereRadius = _szFactor * sphereRadius;
+
+    const kage::Memory* mem = kage::alloc(sizeof(ProbeDebugDrawConsts));
+    memcpy(mem->data, &consts, mem->size);
+    kage::setConstants(mem);
+
+    kage::Binding binds[] = {
+        { _pd.trans,            Access::read,   Stage::vertex_shader | Stage::fragment_shader },
+        { _pd.vtxBuf,           Access::read,   Stage::vertex_shader},
+        { _pd.drawDataBuf,      Access::read,   Stage::vertex_shader},
+        { _pd.radianceCascade,  _pd.rcSamp,  Stage::fragment_shader},
+    };
+    kage::pushBindings(binds, COUNTOF(binds));
+
+
+    kage::Attachment colorAttchs[] = {
+        {_pd.renderTarget, LoadOp::dont_care, StoreOp::store},
+    };
+    kage::setColorAttachments(colorAttchs, COUNTOF(colorAttchs));
+
+    kage::setIndexBuffer(_pd.idxBuf, 0, kage::IndexType::uint32);
+
+    kage::drawIndexed(
+        _pd.drawCmdBuf
+        , offsetof(MeshDrawCommand, indexCount)
+        , 1
+        , sizeof(MeshDrawCommand)
+    );
+    kage::endRec();
 }
 
 void prepareProbeDebug(ProbeDebug& _pd, const ProbeDebugInit& _init)
 {
+    ProbeDebugGenInit cmdInit{};
+    cmdInit.pyramid = _init.pyramid;
+    cmdInit.trans = cmdInit.trans;
 
+    prepareProbeDbgCmdGen(_pd.cmdGen, cmdInit);
+
+    ProbeDebugDrawInit drawInit{};
+    drawInit.color = _init.color;
+    drawInit.cascade = _init.cascade;
+    drawInit.trans = _init.trans;
+    drawInit.cmd = _pd.cmdGen.outCmdAlias;
+    drawInit.drawData = _pd.cmdGen.outDrawDataBufAlias;
+
+    prepareProbeDbgDraw(_pd.draw, drawInit);
 }
 
-void updateProbeDebug(const ProbeDebug& _pd, const DrawCull& _camCull, const uint32_t _widt, const uint32_t _height, const float _sceneRadius)
+void updateProbeDebug(ProbeDebug& _pd, const DrawCull& _camCull, const uint32_t _width, const uint32_t _height, const float _sceneRadius, const uint32_t _lv /* = 0u*/)
 {
+    _pd.debugLv = _lv;
 
+    recProbeDbgCmdGen(_pd.cmdGen, _camCull, _sceneRadius, _pd.debugLv);
+    recProbeDbgDraw(_pd.draw, _camCull, _width, _height, _sceneRadius, _lv);
 }

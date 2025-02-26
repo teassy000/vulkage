@@ -3,13 +3,47 @@
 # extension GL_EXT_shader_16bit_storage: require
 # extension GL_EXT_shader_8bit_storage: require
 # extension GL_ARB_draw_instanced : require
-//#extension GL_ARB_shader_draw_parameters : require
 
 # extension GL_GOOGLE_include_directive: require
 # include "mesh_gpu.h"
 # include "rc_common.h"
 
+layout(push_constant) uniform block
+{
+    ProbeDebugDrawConsts consts;
+};
+
+layout(binding = 0) readonly uniform Transform
+{
+    TransformData trans;
+};
+
+layout(binding = 1) readonly buffer Vertices
+{
+    Vertex vertices [];
+};
+
+layout(binding = 2) readonly buffer VoxDraws
+{
+    ProbeDraw probDraws [];
+};
+
+layout(location = 0) out flat uint out_probeId;
+
 void main()
 {
-    gl_Position = vec4(0.0, 0.0, 0.0, 1.0);
+    int instId = gl_InstanceIndex;
+    ProbeDraw draw = probDraws[instId];
+    vec3 vpos = draw.pos;
+    ivec3 probeIdx = draw.idx;
+
+    uint vi = gl_VertexIndex;
+    vec3 pos = vec3(int(vertices[vi].vx), int(vertices[vi].vy), int(vertices[vi].vz));
+
+    pos *= (consts.sphereRadius * .5f);
+    pos += vpos;
+
+    out_probeId = instId;
+    
+    gl_Position = trans.proj * trans.view * vec4(pos, 1.0);
 }
