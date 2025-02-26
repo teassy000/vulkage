@@ -52,9 +52,9 @@ namespace kage
     // ray grid is a 2d grid of rays encoded by octahedron mapping
     // following probe lv decreasing, probe count for each level decreates by 8, ray count for each level increases by 8
     constexpr unsigned int k_rclv0_cascadeLv = 4;
-    constexpr unsigned int k_rclv0_probeSideCount = 16;
-    constexpr unsigned int k_rclv0_rayGridSideCount = 16;
+    constexpr unsigned int k_rclv0_probeSideCount = 8;
+    constexpr unsigned int k_rclv0_rayGridSideCount = 8;
 
     // voxelization config
-    constexpr unsigned int kVoxelSideCount = 256;
+    constexpr unsigned int kVoxelSideCount = 128;
 }
