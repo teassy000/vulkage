@@ -465,3 +465,43 @@ bool loadGltfScene(Scene& _scene, const char* _path, bool _buildMeshlet, bool _s
     dumpScene(_scene, sceneName.c_str());
     return true;
 }
+
+bool loadGltfMesh(Geometry& _geo, const char* _path, bool _buildMeshlet, bool _seamlessLod)
+{
+    cgltf_options options = {};
+    cgltf_data* data = NULL;
+    cgltf_result res = cgltf_parse_file(&options, _path, &data);
+
+    if (res != cgltf_result_success)
+    {
+        kage::message(kage::error, "Failed to parse gltf file: %s", _path);
+        return false;
+    }
+
+    res = cgltf_load_buffers(&options, data, _path);
+    if (res != cgltf_result_success)
+    {
+        cgltf_free(data);
+        return false;
+    }
+
+    res = cgltf_validate(data);
+    if (res != cgltf_result_success)
+    {
+        cgltf_free(data);
+        return false;
+    }
+
+    // key: start offset, value: count
+    std::vector<std::pair<uint32_t, uint32_t>> primitives;
+    // -- meshes 
+    for (uint32_t ii = 0; ii < data->meshes_count; ++ii)
+    {
+        cgltf_mesh* gltfMesh = &data->meshes[ii];
+
+        processMesh(_geo, primitives, gltfMesh, _buildMeshlet);
+    }
+
+    cgltf_free(data);
+    return true;
+}
