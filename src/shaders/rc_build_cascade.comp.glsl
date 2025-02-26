@@ -164,7 +164,7 @@ void main()
     // direction: the direction of the ray
     // length: the probe radius
     const ivec3 probe_pos = ivec3(sub_prob_coord.xy, prob_idx / prob_cnt_per_layer);
-    const vec3 ray_origin = vec3(probe_pos) * config.probeSideLen + config.probeSideLen * .5f + trans.cameraPos + scene_origin_offset;
+    const vec3 ray_origin = vec3(probe_pos) * config.probeSideLen + config.probeSideLen * .5f + scene_origin_offset;
     const vec3 ray_dir = octDecode((sub_ray_coord + .5f) / ray_gridSideCount);
     const float ray_len = config.rayLength;// use the longest diagnal length to make sure it covers the entire probe
 
@@ -229,20 +229,12 @@ void main()
     }
 
     // write the result to the atlas
-    vec4 var = vec4(0.f);
+    vec3 var = vec3(0.f);
     if (voxIdx != INVALID_VOX_ID)
     {
-        var = imageLoad(in_voxAlbedo, int(voxIdx)).rgba;
-        if (var.a == 0.f)
-        {
-            var = vec4(1.f, 0.5f, 0.5f, 1.f);
-        }
-    }
-    else
-    {
-        var = vec4(0.f, 0, 0.6f, 1.f);
+        var = imageLoad(in_voxAlbedo, int(voxIdx)).rgb;
     }
 
 
-    imageStore(octProbAtlas, ivec3(prob_2dcorrd_dir.xy, layer_idx), vec4(var));
+    imageStore(octProbAtlas, ivec3(prob_2dcorrd_dir.xy, layer_idx), vec4(var, 1.f));
 }

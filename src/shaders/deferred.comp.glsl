@@ -56,7 +56,7 @@ void main()
         uint layerIdx = probeIdx.z + layerOffset;
 
         // calc the probe center based on the probe index
-        vec3 probeCenter = vec3(probeIdx) * prob_sideLen + prob_sideLen * 0.5f - vec3(consts.sceneRadius) - consts.camPos;
+        vec3 probeCenter = vec3(probeIdx) * prob_sideLen + prob_sideLen * 0.5f - vec3(consts.sceneRadius);
 
         // the direction of the ray, the opposite of the probe center to wPos
         vec3 rayDir = normalize(probeCenter - wPos.xyz);
