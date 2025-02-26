@@ -23,12 +23,7 @@ layout(binding = 1) readonly buffer Vertices
     Vertex vertices [];
 };
 
-layout(binding = 2) readonly buffer DrawCommand
-{
-    MeshDrawCommand drawCmds [];
-};
-
-layout(binding = 3) readonly buffer VoxDraws
+layout(binding = 2) readonly buffer VoxDraws
 {
     VoxDraw voxDraw [];
 };
@@ -51,6 +46,6 @@ void main()
 
     out_instId = instId;
     out_color = color;
-    // no view since the view already applied in the command gen pass
+
     gl_Position = trans.proj * trans.view * vec4(pos, 1.0);
 }
