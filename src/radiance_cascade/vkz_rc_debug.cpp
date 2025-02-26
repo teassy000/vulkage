@@ -23,7 +23,6 @@ struct alignas(16) VoxDebugConsts
     float pyramidWidth, pyramidHeight;
 };
 
-
 struct VoxDebugCmdInit
 {
     kage::BufferHandle voxWorldPos;
@@ -39,6 +38,13 @@ struct alignas(16) VoxDrawBuf
     vec3 col;
 };
 
+struct VoxDebugDrawInit
+{
+    kage::BufferHandle cmd;
+    kage::BufferHandle draw;
+    kage::BufferHandle trans;
+    kage::ImageHandle color;
+};
 
 void prepareVoxDebugCmd(VoxDebugCmdGen& _debugCmd, const VoxDebugCmdInit& _init)
 {
@@ -177,13 +183,6 @@ void recVoxDebugGen(const VoxDebugCmdGen& _vcmd, const DrawCull& _camCull, const
     kage::endRec();
 }
 
-struct VoxDebugDrawInit
-{
-    kage::BufferHandle cmd;
-    kage::BufferHandle draw;
-    kage::BufferHandle trans;
-    kage::ImageHandle color;
-};
 
 
 void prepareVoxDebugDraw(VoxDebugDraw& _vd, const VoxDebugDrawInit _init)
@@ -332,4 +331,31 @@ void updateVoxDebug(const VoxDebug& _vd, const DrawCull& _camCull, const uint32_
 {
     recVoxDebugGen(_vd.cmdGen, _camCull, _sceneRadius);
     recVoxDebugDraw(_vd.draw, _camCull, _width, _height, _sceneRadius);
+}
+
+void prepareProbeDbgCmdGen(ProbeDebug& _pd, const ProbeDebugInit& _init)
+{
+
+}
+
+void recProbeDbgCmdGen(const ProbeDebug& _pd, const DrawCull& _camCull, const float _sceneRadius)
+{
+}
+
+void prepareProbeDbgDraw(ProbeDebug& _pd, const ProbeDebugInit& _init)
+{
+}
+
+void recProbeDbgDraw(const ProbeDebug& _pd, const DrawCull& _camCull, const uint32_t _width, const uint32_t _height, const float _sceneRadius)
+{
+}
+
+void prepareProbeDebug(ProbeDebug& _pd, const ProbeDebugInit& _init)
+{
+
+}
+
+void updateProbeDebug(const ProbeDebug& _pd, const DrawCull& _camCull, const uint32_t _widt, const uint32_t _height, const float _sceneRadius)
+{
+
 }

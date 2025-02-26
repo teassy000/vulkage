@@ -63,3 +63,60 @@ struct VoxDebugInit
 
 void prepareVoxDebug(VoxDebug& _voxDebug, const VoxDebugInit& _init );
 void updateVoxDebug(const VoxDebug& _vd, const DrawCull& _camCull, const uint32_t _widt, const uint32_t _height, const float _sceneRadius);
+
+struct ProbeDbgCmdGen
+{
+    kage::PassHandle pass;
+    kage::ProgramHandle program;
+    kage::ShaderHandle cs;
+
+    kage::BufferHandle probe;
+    kage::BufferHandle voxAlbedo;
+    kage::BufferHandle trans;
+    kage::ImageHandle  pyramid;
+    kage::BufferHandle cmdBuf;
+    kage::BufferHandle drawDataBuf;
+
+    kage::SamplerHandle sampler;
+
+    kage::BufferHandle outCmdAlias;
+    kage::BufferHandle outDrawDataBufAlias;
+};
+
+struct ProbeDbgDraw
+{
+    kage::PassHandle pass;
+    kage::ProgramHandle program;
+    kage::ShaderHandle vs;
+    kage::ShaderHandle fs;
+
+    kage::BufferHandle drawCmdBuf;
+    kage::BufferHandle drawDataBuf;
+    kage::BufferHandle trans;
+    kage::ImageHandle renderTarget;
+
+    kage::BufferHandle idxBuf;
+    kage::BufferHandle vtxBuf;
+
+    kage::ImageHandle rtOutAlias;
+};
+
+struct ProbeDebug
+{
+    ProbeDbgCmdGen cmdGen;
+    ProbeDbgDraw draw;
+};
+
+struct ProbeDebugInit
+{
+    kage::ImageHandle pyramid;
+    kage::ImageHandle rt;
+    kage::BufferHandle trans;
+    kage::BufferHandle voxWPos;
+    kage::BufferHandle voxAlbedo;
+    kage::BufferHandle threadCount;
+};
+
+
+void prepareProbeDebug(ProbeDebug& _pd, const ProbeDebugInit& _init);
+void updateProbeDebug(const ProbeDebug& _pd, const DrawCull& _camCull, const uint32_t _widt, const uint32_t _height, const float _sceneRadius);
