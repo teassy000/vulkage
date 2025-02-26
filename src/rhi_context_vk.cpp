@@ -2691,8 +2691,9 @@ namespace kage { namespace vk
         {
             message(
                 warning
-                , "setRecord will not perform for pass %d! It might be useless after render pass sorted"
+                , "setRecord will not perform for pass %d[%s]! It might be useless after render pass sorted"
                 , _hPass.id
+                , getName(_hPass)
             );
             return;
         }
