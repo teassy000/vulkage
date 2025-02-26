@@ -301,7 +301,7 @@ void recVoxDebugDraw(const VoxDebugDraw& _vd, const DrawCull& _camCull, const ui
 }
 
 
-void prepareVoxDebug(VoxDebug& _vd, const VoxDebugInit& _init)
+void prepareVoxDebug(VoxDebug& _vd, const RCDebugInit& _init)
 {
     VoxDebugCmdInit cmdInit{};
     cmdInit.pyramid = _init.pyramid;
@@ -315,7 +315,7 @@ void prepareVoxDebug(VoxDebug& _vd, const VoxDebugInit& _init)
     drawInit.cmd = _vd.cmdGen.outCmdAlias;
     drawInit.draw = _vd.cmdGen.outDrawBufAlias;
     drawInit.trans = _init.trans;
-    drawInit.color = _init.rt;
+    drawInit.color = _init.color;
 
     prepareVoxDebugDraw(_vd.draw, drawInit);
 }
@@ -351,8 +351,9 @@ struct alignas(16) ProbeDraw
 struct alignas(16) ProbeDebugDrawConsts
 {
     float sceneRadius;
-    float probeSideLen;
     float sphereRadius;
+
+    uint32_t probeSideCount;
 };
 
 struct ProbeDebugGenInit
@@ -501,7 +502,11 @@ void prepareProbeDbgDraw(ProbeDbgDraw& _pd, const ProbeDebugDrawInit& _init)
 
     // load cube mesh
     Geometry geom = {};
-    loadObj(geom, "./data/sphere.obj", false, false);
+    bool result = loadObj(geom, "./data/sphere.obj", false, false);
+    if (!result)
+    {
+        assert(0);
+    }
 
     const kage::Memory* vtxMem = kage::alloc(uint32_t(geom.vertices.size() * sizeof(Vertex)));
     memcpy(vtxMem->data, geom.vertices.data(), geom.vertices.size() * sizeof(Vertex));
@@ -519,15 +524,15 @@ void prepareProbeDbgDraw(ProbeDbgDraw& _pd, const ProbeDebugDrawInit& _init)
     idxDesc.usage = kage::BufferUsageFlagBits::index | kage::BufferUsageFlagBits::transfer_dst;
     kage::BufferHandle idxBuf = kage::registBuffer("sphere_idx", idxDesc, idxMem, kage::ResourceLifetime::non_transition);
 
-    kage::bindBuffer(pass, _init.cmd
+    kage::bindBuffer(pass, _init.trans
         , 0
-        , kage::PipelineStageFlagBits::vertex_shader
+        , kage::PipelineStageFlagBits::vertex_shader | kage::PipelineStageFlagBits::fragment_shader
         , kage::AccessFlagBits::shader_read
     );
 
-    kage::bindBuffer(pass, _init.trans
+    kage::bindBuffer(pass, vtxBuf
         , 1
-        , kage::PipelineStageFlagBits::vertex_shader | kage::PipelineStageFlagBits::fragment_shader
+        , kage::PipelineStageFlagBits::vertex_shader
         , kage::AccessFlagBits::shader_read
     );
 
@@ -586,13 +591,14 @@ void recProbeDbgDraw(const ProbeDbgDraw& _pd, const DrawCull& _camCull, const ui
     ProbeDebugDrawConsts consts{};
     consts.sceneRadius = _sceneRadius;
     consts.sphereRadius = _szFactor * sphereRadius;
+    consts.probeSideCount = probeSideCount;
 
     const kage::Memory* mem = kage::alloc(sizeof(ProbeDebugDrawConsts));
     memcpy(mem->data, &consts, mem->size);
     kage::setConstants(mem);
 
     kage::Binding binds[] = {
-        { _pd.trans,            Access::read,   Stage::vertex_shader | Stage::fragment_shader },
+        { _pd.trans,            Access::read,   Stage::vertex_shader},
         { _pd.vtxBuf,           Access::read,   Stage::vertex_shader},
         { _pd.drawDataBuf,      Access::read,   Stage::vertex_shader},
         { _pd.radianceCascade,  _pd.rcSamp,  Stage::fragment_shader},
@@ -616,11 +622,11 @@ void recProbeDbgDraw(const ProbeDbgDraw& _pd, const DrawCull& _camCull, const ui
     kage::endRec();
 }
 
-void prepareProbeDebug(ProbeDebug& _pd, const ProbeDebugInit& _init)
+void prepareProbeDebug(ProbeDebug& _pd, const RCDebugInit& _init)
 {
     ProbeDebugGenInit cmdInit{};
     cmdInit.pyramid = _init.pyramid;
-    cmdInit.trans = cmdInit.trans;
+    cmdInit.trans = _init.trans;
 
     prepareProbeDbgCmdGen(_pd.cmdGen, cmdInit);
 
@@ -634,10 +640,8 @@ void prepareProbeDebug(ProbeDebug& _pd, const ProbeDebugInit& _init)
     prepareProbeDbgDraw(_pd.draw, drawInit);
 }
 
-void updateProbeDebug(ProbeDebug& _pd, const DrawCull& _camCull, const uint32_t _width, const uint32_t _height, const float _sceneRadius, const uint32_t _lv /* = 0u*/)
+void updateProbeDebug(const ProbeDebug& _pd, const DrawCull& _camCull, const uint32_t _width, const uint32_t _height, const float _sceneRadius, const uint32_t _lv /* = 0u*/)
 {
-    _pd.debugLv = _lv;
-
     recProbeDbgCmdGen(_pd.cmdGen, _camCull, _sceneRadius, _pd.debugLv);
     recProbeDbgDraw(_pd.draw, _camCull, _width, _height, _sceneRadius, _lv);
 }

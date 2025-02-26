@@ -56,6 +56,7 @@ namespace
             
             m_supportMeshShading = kage::checkSupports(kage::VulkanSupportExtension::ext_mesh_shader);
             m_debugVox = false;
+            m_debugProb = true;
 
             bool forceParse = false;
             bool seamlessLod = false;
@@ -185,6 +186,10 @@ namespace
             if (m_debugVox)
             {
                 updateVoxDebug(m_voxDebug, m_demoData.drawCull, m_width, m_height, m_scene.radius);
+            }
+            else if (m_debugProb)
+            {
+                updateProbeDebug(m_probDebug, m_demoData.drawCull, m_width, m_height, m_scene.radius, m_probDebug.debugLv);
             }
 
             updateUI(m_ui, m_demoData.input, m_demoData.renderOptions, m_demoData.profiling, m_demoData.logic);
@@ -604,9 +609,9 @@ namespace
             // vox debug
             if (m_debugVox)
             {
-                VoxDebugInit vdinit;
+                RCDebugInit vdinit;
                 vdinit.pyramid = m_pyramid.imgOutAlias;
-                vdinit.rt = m_deferred.outColorAlias;
+                vdinit.color = m_deferred.outColorAlias;
                 vdinit.trans = m_transformBuf;
 
                 vdinit.voxAlbedo = m_radianceCascade.vox.albedoOutAlias;
@@ -615,13 +620,28 @@ namespace
 
                 prepareVoxDebug(m_voxDebug, vdinit);
             }
+            else if (m_debugProb)
+            {
+                RCDebugInit vdinit;
+                vdinit.pyramid = m_pyramid.imgOutAlias;
+                vdinit.color = m_deferred.outColorAlias;
+                vdinit.trans = m_transformBuf;
+
+                vdinit.cascade = m_radianceCascade.rcBuild.radCascdOutAlias;
+
+                prepareProbeDebug(m_probDebug, vdinit);
+            }
 
             // smaa
             {
                 kage::ImageHandle aaDepthIn = m_supportMeshShading ? m_meshShadingAlpha.depthOutAlias : m_vtxShadingLate.depthOutAlias;
 
                 kage::ImageHandle aaColorIn = m_supportMeshShading ?
-                    m_debugVox ? m_voxDebug.draw.rtOutAlias : m_deferred.outColorAlias
+                    m_debugVox ? 
+                        m_voxDebug.draw.rtOutAlias 
+                        : m_debugProb ?
+                            m_probDebug.draw.rtOutAlias 
+                            : m_deferred.outColorAlias
                     : m_vtxShadingLate.colorOutAlias;
 
                 m_smaa.prepare(m_width, m_height, aaColorIn, aaDepthIn);
@@ -707,6 +727,7 @@ namespace
         DemoData m_demoData{};
         bool m_supportMeshShading;
         bool m_debugVox;
+        bool m_debugProb;
 
         std::vector<kage::ImageHandle> m_sceneImages;
 
@@ -754,6 +775,7 @@ namespace
         Skybox m_skybox{};
         RadianceCascade m_radianceCascade{};
         VoxDebug m_voxDebug{};
+        ProbeDebug m_probDebug{};
 
         UIRendering m_ui{};
 

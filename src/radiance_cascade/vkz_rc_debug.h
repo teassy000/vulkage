@@ -5,7 +5,6 @@
 #include "kage_structs.h"
 #include "demo_structs.h"
 
-
 struct VoxDebugCmdGen
 {
     kage::PassHandle pass;
@@ -51,17 +50,19 @@ struct VoxDebug
     VoxDebugDraw draw;
 };
 
-struct VoxDebugInit
+struct RCDebugInit
 {
-    kage::ImageHandle pyramid;
-    kage::ImageHandle rt;
     kage::BufferHandle trans;
     kage::BufferHandle voxWPos;
     kage::BufferHandle voxAlbedo;
     kage::BufferHandle threadCount;
+
+    kage::ImageHandle color;
+    kage::ImageHandle cascade;
+    kage::ImageHandle pyramid;
 };
 
-void prepareVoxDebug(VoxDebug& _voxDebug, const VoxDebugInit& _init );
+void prepareVoxDebug(VoxDebug& _voxDebug, const RCDebugInit& _init );
 void updateVoxDebug(const VoxDebug& _vd, const DrawCull& _camCull, const uint32_t _widt, const uint32_t _height, const float _sceneRadius);
 
 struct ProbeDbgCmdGen
@@ -109,15 +110,5 @@ struct ProbeDebug
     uint32_t debugLv;
 };
 
-struct ProbeDebugInit
-{
-    kage::ImageHandle color;
-    kage::ImageHandle cascade;
-    kage::ImageHandle pyramid;
-
-    kage::BufferHandle trans;
-};
-
-
-void prepareProbeDebug(ProbeDebug& _pd, const ProbeDebugInit& _init);
-void updateProbeDebug(ProbeDebug& _pd, const DrawCull& _camCull, const uint32_t _widt, const uint32_t _height, const float _sceneRadius, const uint32_t _lv = 0u);
+void prepareProbeDebug(ProbeDebug& _pd, const RCDebugInit& _init);
+void updateProbeDebug(const ProbeDebug& _pd, const DrawCull& _camCull, const uint32_t _width, const uint32_t _height, const float _sceneRadius, const uint32_t _lv = 0u);

@@ -153,6 +153,7 @@ struct ProbeDraw
 struct ProbeDebugDrawConsts
 {
     float sceneRadius;
-    float probeSideLen;
     float sphereRadius;
+
+    uint probeSideCount;
 };

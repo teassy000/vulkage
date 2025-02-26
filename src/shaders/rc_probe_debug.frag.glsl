@@ -11,7 +11,7 @@
 
 layout(push_constant) uniform block
 {
-    ProbeDebugConsts consts;
+    ProbeDebugDrawConsts consts;
 };
 
 layout(binding = 3) uniform sampler2DArray in_cascades;

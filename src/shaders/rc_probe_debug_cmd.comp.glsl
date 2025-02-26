@@ -16,7 +16,7 @@ layout(push_constant) uniform block
     ProbeDebugCmdConsts consts;
 };
 
-layout(binding  = 0) readonly buffer Transform
+layout(binding  = 0) readonly uniform Transform
 {
     TransformData trans;
 };

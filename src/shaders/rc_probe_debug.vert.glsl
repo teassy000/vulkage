@@ -23,12 +23,12 @@ layout(binding = 1) readonly buffer Vertices
     Vertex vertices [];
 };
 
-layout(binding = 2) readonly buffer VoxDraws
+layout(binding = 2) readonly buffer ProbeDraws
 {
     ProbeDraw probDraws [];
 };
 
-layout(location = 0) out flat uint out_probeId;
+layout(location = 0) out flat ivec3 out_probeId;
 
 void main()
 {
@@ -43,7 +43,7 @@ void main()
     pos *= (consts.sphereRadius * .5f);
     pos += vpos;
 
-    out_probeId = instId;
+    out_probeId = probeIdx;
     
     gl_Position = trans.proj * trans.view * vec4(pos, 1.0);
 }
