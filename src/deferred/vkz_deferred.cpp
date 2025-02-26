@@ -72,7 +72,7 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
     outColorDesc.depth = 1;
     outColorDesc.numLayers = 1;
     outColorDesc.numMips = 1;
-    outColorDesc.usage = kage::ImageUsageFlagBits::transfer_dst | kage::ImageUsageFlagBits::sampled | kage::BufferUsageFlagBits::storage;
+    outColorDesc.usage = kage::ImageUsageFlagBits::transfer_dst | kage::ImageUsageFlagBits::transfer_src | kage::ImageUsageFlagBits::sampled | kage::BufferUsageFlagBits::storage;
     kage::ImageHandle outColor = kage::registRenderTarget("deferred_out_color", outColorDesc, kage::ResourceLifetime::non_transition);
 
     kage::SamplerHandle albedoSamp = kage::sampleImage(pass, _gb.albedo
