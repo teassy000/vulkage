@@ -7,6 +7,7 @@
 # extension GL_GOOGLE_include_directive: require
 # include "mesh_gpu.h"
 # include "rc_common.h"
+#include "debug_gpu.h"
 
 
 layout(push_constant) uniform block
@@ -23,13 +24,17 @@ layout(location = 0) out vec4 outColor;
 
 void main()
 {
-    vec3 uv = ivec3(in_probeId);
+    ivec2 probeIdx = ivec2(in_probeId.xy);
     uint layerId = in_probeId.z;
 
     const float probeSideCnt = float(consts.probeSideCount);
     const float raySideCnt = float(consts.raySideCount);
-    vec2 subuv = in_uv + (uv.xy / (probeSideCnt * raySideCnt));
 
-    vec3 color = texture(in_cascades, vec3(subuv, layerId)).rgb;
-    outColor = vec4(color, 1.f);
+    ivec2 rayIdx = ivec2((in_uv * raySideCnt + 0.5f));
+    ivec2 dirOrderIdx = ivec2(rayIdx * int(probeSideCnt) + probeIdx);
+
+    vec2 uv = vec2(dirOrderIdx) / (probeSideCnt * raySideCnt);
+
+    vec3 color = texture(in_cascades, vec3(uv, layerId)).rgb;
+    outColor = vec4(color.rgb, 1.f);
 }

@@ -80,7 +80,7 @@ void main()
         drawCmd.lateDrawVisibility = 0;
         drawCmd.indexCount = consts.idxCnt;
 
-        uint var = atomicAdd(drawCmd.instanceCount, 1);
+        uint idx = atomicAdd(drawCmd.instanceCount, 1);
 
         drawCmd.firstIndex = 0;
         drawCmd.vertexOffset = 0;
@@ -88,8 +88,6 @@ void main()
         drawCmd.local_x = 0;
         drawCmd.local_y = 0;
         drawCmd.local_z = 0;
-
-        uint idx = var - 1;
 
         probeDraws[idx].pos = ocenter.xyz;
         probeDraws[idx].idx = ivec3(id.x, id.y, id.z + layerOffset);

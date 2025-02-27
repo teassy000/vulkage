@@ -659,7 +659,6 @@ void recRCBuild(const RadianceCascadeBuild& _rc, const float _sceneRadius)
 {
     kage::startRec(_rc.pass);
 
-    uint32_t layerOffset = 0;
     for (uint32_t ii = 0; ii < kage::k_rclv0_cascadeLv; ++ii)
     {
         uint32_t    level_factor    = uint32_t(1 << ii);
@@ -674,14 +673,12 @@ void recRCBuild(const RadianceCascadeBuild& _rc, const float _sceneRadius)
         config.probe_sideCount = prob_sideCount;
         config.ray_gridSideCount = ray_sideCount;
         config.level = ii;
-        config.layerOffset = layerOffset;
+        config.layerOffset = (kage::k_rclv0_probeSideCount - prob_sideCount) * 2;
         config.rayLength = rayLen;
         config.probeSideLen = prob_sideLen;
 
         config.ot_voxSideCount = kVoxelSideCount;
         config.ot_sceneRadius = _sceneRadius;
-
-        layerOffset += prob_sideCount;
 
         const kage::Memory* mem = kage::alloc(sizeof(RadianceCascadesConfig));
         memcpy(mem->data, &config, mem->size);
@@ -703,7 +700,9 @@ void recRCBuild(const RadianceCascadeBuild& _rc, const float _sceneRadius)
             {_rc.cascadeImg,            0,                              Stage::compute_shader},
         };
         kage::pushBindings(binds, COUNTOF(binds));
-        kage::dispatch(prob_count * ray_count, 1, 1);
+
+        uint32_t groupCnt = prob_sideCount * ray_sideCount;
+        kage::dispatch(groupCnt, groupCnt, prob_sideCount);
     }
 
     kage::endRec();

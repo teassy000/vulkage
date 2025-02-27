@@ -85,7 +85,7 @@ void main()
         drawCmd.lateDrawVisibility = 0;
         drawCmd.indexCount = 36;
 
-        uint var = atomicAdd(drawCmd.instanceCount, 1);
+        uint idx = atomicAdd(drawCmd.instanceCount, 1);
         
         drawCmd.firstIndex = 0;
         drawCmd.vertexOffset = 0;
@@ -94,7 +94,6 @@ void main()
         drawCmd.local_y = 0;
         drawCmd.local_z = 0;
 
-        uint idx = var - 1;
 
         voxDraw[idx].pos = ocenter.xyz;
         voxDraw[idx].col = abledo;

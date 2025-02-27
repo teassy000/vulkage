@@ -7,8 +7,9 @@
 
 #include "mesh_gpu.h"
 #include "rc_common.h"
+#include "debug_gpu.h"
 
-layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 
 layout(push_constant) uniform block
 {
@@ -137,36 +138,24 @@ void sortChilds(Ray _ray, uint _count, inout OT_UnfoldedNode _childs[8], inout u
 
 void main()
 {
+    const ivec2 pixIdx = ivec2(gl_GlobalInvocationID.xyz);
+    const uint lvLayer = gl_GlobalInvocationID.z;
+
     // the config for the radiance cascade.
     const uint prob_gridSideCount = config.probe_sideCount;
     const uint ray_gridSideCount = config.ray_gridSideCount;
-
-    const uint prob_cnt_per_layer = prob_gridSideCount * prob_gridSideCount;
-    const uint ray_count = ray_gridSideCount * ray_gridSideCount;
-    const uint ray_idx = gl_GlobalInvocationID.x % ray_count;
     const float sceneRadius = config.ot_sceneRadius;
 
-    // Calculate the rayDir index
-    uint prob_idx = gl_GlobalInvocationID.x / ray_count;
-    uint prob_layer_idx = prob_idx % prob_cnt_per_layer;
-    uint layer_idx = prob_idx / prob_cnt_per_layer + config.layerOffset;
-
-    ivec2 sub_prob_coord = ivec2(prob_layer_idx % prob_gridSideCount, prob_layer_idx / prob_gridSideCount);
-    ivec2 sub_ray_coord = ivec2(ray_idx % ray_gridSideCount, ray_idx / ray_gridSideCount);
-    ivec2 prob_2dcoord = sub_prob_coord * ivec2(ray_gridSideCount) + sub_ray_coord; // position first, each grid is a probe
-    ivec2 prob_2dcoord_dir = sub_ray_coord * ivec2(prob_gridSideCount) + sub_prob_coord; // direction first, each grid is a ray
-
-
-    const vec3 scene_origin_offset = vec3(-sceneRadius);
+    const ivec2 prob_idx = pixIdx / int(ray_gridSideCount);
+    const ivec2 ray_idx = pixIdx % int(ray_gridSideCount);
 
     // the rc grid ray 
     // origin: the center of the probe in world space
     // direction: the direction of the ray
     // length: the probe radius
-    const ivec3 probe_pos = ivec3(sub_prob_coord.xy, prob_idx / prob_cnt_per_layer);
-    const vec3 ray_origin = vec3(probe_pos) * config.probeSideLen + config.probeSideLen * .5f + scene_origin_offset;
-    const vec3 ray_dir = octDecode((sub_ray_coord + .5f) / ray_gridSideCount);
-    const float ray_len = config.rayLength;// use the longest diagnal length to make sure it covers the entire probe
+    const vec3 ray_origin = vec3(prob_idx, lvLayer) * config.probeSideLen + config.probeSideLen * .5f - vec3(sceneRadius);
+    const vec3 ray_dir = octDecode((ray_idx + .5f) / ray_gridSideCount);
+    const float ray_len = config.rayLength;
 
     const Ray ray = Ray(ray_origin, ray_dir, ray_len);
     
@@ -236,5 +225,15 @@ void main()
     }
 
 
-    imageStore(octProbAtlas, ivec3(prob_2dcoord_dir.xy, layer_idx), vec4(ray_dir, 1.f));
+    const uint layer_idx = lvLayer + config.layerOffset;
+    uint pidx = uint(prob_idx.y * prob_gridSideCount + prob_idx.x) + lvLayer * prob_gridSideCount * prob_gridSideCount;
+
+    uint mhash = hash(pidx);
+    vec4 color = vec4(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255), 255) / 255.0;
+
+    ivec2 dirOrderIdx = ivec2(ray_idx * int(prob_gridSideCount) + prob_idx);
+    ivec3 idx_dir = ivec3(dirOrderIdx.xy, layer_idx);// ray dir idx first
+    ivec3 idx = ivec3(pixIdx.xy, layer_idx); // probe idx first
+
+    imageStore(octProbAtlas, idx_dir, vec4((ray_dir.rgb + 1.f) * 0.5, 1.f));
 }
