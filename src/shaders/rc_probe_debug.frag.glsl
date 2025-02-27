@@ -26,10 +26,9 @@ void main()
     vec3 uv = ivec3(in_probeId);
     uint layerId = in_probeId.z;
 
-    vec2 subuv = in_uv * float(consts.probeSideCount);
-    subuv += uv.xy;
-
-    subuv.xy /= float(consts.probeSideCount);
+    const float probeSideCnt = float(consts.probeSideCount);
+    const float raySideCnt = float(consts.raySideCount);
+    vec2 subuv = in_uv + (uv.xy / (probeSideCnt * raySideCnt));
 
     vec3 color = texture(in_cascades, vec3(subuv, layerId)).rgb;
     outColor = vec4(color, 1.f);

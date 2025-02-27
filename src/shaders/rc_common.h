@@ -157,4 +157,5 @@ struct ProbeDebugDrawConsts
     float sphereRadius;
 
     uint probeSideCount;
+    uint raySideCount;
 };
