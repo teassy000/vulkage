@@ -196,7 +196,8 @@ namespace
             }
             else if (m_debugProb)
             {
-                updateProbeDebug(m_probDebug, m_demoData.drawCull, m_width, m_height, m_scene.radius, m_probDebug.debugLv);
+                m_probDebug.debugLv = m_demoData.renderOptions.debugCascadeLevel;
+                updateProbeDebug(m_probDebug, m_demoData.drawCull, m_width, m_height, m_scene.radius);
             }
 
             updateUI(m_ui, m_demoData.input, m_demoData.renderOptions, m_demoData.profiling, m_demoData.logic);

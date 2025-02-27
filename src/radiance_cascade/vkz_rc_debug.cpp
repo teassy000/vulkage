@@ -677,8 +677,8 @@ void prepareProbeDebug(ProbeDebug& _pd, const RCDebugInit& _init)
     prepareProbeDbgDraw(_pd.draw, drawInit);
 }
 
-void updateProbeDebug(const ProbeDebug& _pd, const DrawCull& _camCull, const uint32_t _width, const uint32_t _height, const float _sceneRadius, const uint32_t _lv /* = 0u*/)
+void updateProbeDebug(const ProbeDebug& _pd, const DrawCull& _camCull, const uint32_t _width, const uint32_t _height, const float _sceneRadius)
 {
     recProbeDbgCmdGen(_pd.cmdGen, _camCull, _sceneRadius, _pd.debugLv);
-    recProbeDbgDraw(_pd.draw, _camCull, _width, _height, _sceneRadius, _lv);
+    recProbeDbgDraw(_pd.draw, _camCull, _width, _height, _sceneRadius, _pd.debugLv);
 }

@@ -117,4 +117,4 @@ struct ProbeDebug
 };
 
 void prepareProbeDebug(ProbeDebug& _pd, const RCDebugInit& _init);
-void updateProbeDebug(const ProbeDebug& _pd, const DrawCull& _camCull, const uint32_t _width, const uint32_t _height, const float _sceneRadius, const uint32_t _lv = 0u);
+void updateProbeDebug(const ProbeDebug& _pd, const DrawCull& _camCull, const uint32_t _width, const uint32_t _height, const float _sceneRadius);

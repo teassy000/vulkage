@@ -33,6 +33,7 @@ struct DebugRenderOptionsData
     bool taskSubmitEnabled = true;
     bool showPyramid = false;
     int  debugPyramidLevel = 0;
+    int  debugCascadeLevel = 0;
 };
 
 struct DebugLogicData

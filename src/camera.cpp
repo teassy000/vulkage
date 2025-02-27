@@ -97,8 +97,8 @@ static const InputBinding s_camBindings[] =
     { entry::Key::GamepadShoulderR, entry::Modifier::None, 0, cmd, "move down"      },
 
     { entry::Key::KeyR,             entry::Modifier::None, 0, cmd, "op reset"       },
-    { entry::Key::KeyL,             entry::Modifier::None, 0, cmd, "op freecam"},
-    { entry::Key::KeyF,             entry::Modifier::None, 0, cmd, "op lockcam"},
+    { entry::Key::KeyF,             entry::Modifier::None, 0, cmd, "op freecam"},
+    { entry::Key::KeyL,             entry::Modifier::None, 0, cmd, "op lockcam"},
     
     { entry::Key::Esc,              entry::Modifier::None, 0, cmd, "exit"        },
 
