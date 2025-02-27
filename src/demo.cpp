@@ -50,7 +50,7 @@ namespace
             m_width = _width;
             m_height = _height;
 
-            
+            entry::setMouseLock(entry::kDefaultWindowHandle, false);
 
             kage::init(config);
             
@@ -130,11 +130,11 @@ namespace
             const float deltaTimeMS = float(frameTime / freq) * 1000.f;
 
             bool camRet = freeCameraUpdate(deltaTimeMS, m_mouseState);
-            static bool lockToggle = false;
+            static bool lockToggle = camRet;
             if (camRet != lockToggle)
             {
-                entry::setMouseLock(entry::kDefaultWindowHandle, lockToggle);
                 lockToggle = camRet;
+                entry::setMouseLock(entry::kDefaultWindowHandle, lockToggle);
             }
 
 

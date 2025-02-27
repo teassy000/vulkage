@@ -11,7 +11,7 @@
 #include "glm/gtx/rotate_vector.hpp"
 #include "glm/gtx/rotate_vector.hpp"
 
-void freeCameraSetKeyState(uint8_t _key, bool _down);
+void freeCameraSetKeyState(uint16_t _key, bool _down);
 
 int cmdMove(CmdContext* /*_context*/, void* /*_userData*/, int _argc, char const* const* _argv)
 {
@@ -63,6 +63,11 @@ int cmdOp(CmdContext* /*_context*/, void* /*_userData*/, int _argc, char const* 
         }
         else if (0 == bx::strCmp(_argv[1], "freecam"))
         {
+            freeCameraSetKeyState(CAMERA_KEY_TOGGLE_FREE, true);
+            return 0;
+        }
+        else if (0 == bx::strCmp(_argv[1], "lockcam"))
+        {
             freeCameraSetKeyState(CAMERA_KEY_TOGGLE_LOCK, true);
             return 0;
         }
@@ -92,7 +97,8 @@ static const InputBinding s_camBindings[] =
     { entry::Key::GamepadShoulderR, entry::Modifier::None, 0, cmd, "move down"      },
 
     { entry::Key::KeyR,             entry::Modifier::None, 0, cmd, "op reset"       },
-    { entry::Key::KeyF,             entry::Modifier::None, 0, cmd, "op freecam"},
+    { entry::Key::KeyL,             entry::Modifier::None, 0, cmd, "op freecam"},
+    { entry::Key::KeyF,             entry::Modifier::None, 0, cmd, "op lockcam"},
     
     { entry::Key::Esc,              entry::Modifier::None, 0, cmd, "exit"        },
 
@@ -134,7 +140,7 @@ struct FreeCamera
         inputRemoveBindings("camBindings");
     }
 
-    void setKeyState(uint8_t _key, bool _down)
+    void setKeyState(uint16_t _key, bool _down)
     {
         m_keys &= ~_key;
         m_keys |= _down ? _key : 0;
@@ -192,8 +198,14 @@ struct FreeCamera
 
         if (m_keys & CAMERA_KEY_TOGGLE_LOCK)
         {
-            m_lock = !m_lock;
+            m_lock = true;
             setKeyState(CAMERA_KEY_TOGGLE_LOCK, false);
+        }
+
+        if (m_keys & CAMERA_KEY_TOGGLE_FREE)
+        {
+            m_lock = false;
+            setKeyState(CAMERA_KEY_TOGGLE_FREE, false);
         }
 
     }
@@ -219,12 +231,10 @@ struct FreeCamera
 
     bool update(float _delta, const entry::MouseState& _mouseState) 
     {
-        if (!m_lock)
-        {
-            processMouse(float(_mouseState.m_mx), float(_mouseState.m_my), true);
-        }
-
         processKey(_delta);
+
+        if (m_lock)
+            processMouse(float(_mouseState.m_mx), float(_mouseState.m_my), true);
 
         return m_lock;
     }
@@ -292,7 +302,7 @@ struct FreeCamera
     float m_gamepadSpeed{ 0.f };
     float m_moveSpeed{ 0.f };
 
-    uint8_t m_keys;
+    uint16_t m_keys;
 
     bool m_exit;
 
@@ -348,7 +358,7 @@ bool freeCameraUpdate(float _delta, const entry::MouseState& _mouseState)
     return s_freeCamera->update(_delta, _mouseState);
 }
 
-void freeCameraSetKeyState(uint8_t _key, bool _down)
+void freeCameraSetKeyState(uint16_t _key, bool _down)
 {
     s_freeCamera->setKeyState(_key, _down);
 }
