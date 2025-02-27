@@ -612,6 +612,7 @@ namespace
                 RCDebugInit vdinit;
                 vdinit.pyramid = m_pyramid.imgOutAlias;
                 vdinit.color = m_deferred.outColorAlias;
+                vdinit.depth = m_supportMeshShading ? m_meshShadingAlpha.depthOutAlias : m_vtxShadingLate.depthOutAlias;
                 vdinit.trans = m_transformBuf;
 
                 vdinit.voxAlbedo = m_radianceCascade.vox.albedoOutAlias;
@@ -625,6 +626,8 @@ namespace
                 RCDebugInit vdinit;
                 vdinit.pyramid = m_pyramid.imgOutAlias;
                 vdinit.color = m_deferred.outColorAlias;
+                vdinit.depth = m_supportMeshShading ? m_meshShadingAlpha.depthOutAlias : m_vtxShadingLate.depthOutAlias;
+
                 vdinit.trans = m_transformBuf;
 
                 vdinit.cascade = m_radianceCascade.rcBuild.radCascdOutAlias;
@@ -634,13 +637,19 @@ namespace
 
             // smaa
             {
-                kage::ImageHandle aaDepthIn = m_supportMeshShading ? m_meshShadingAlpha.depthOutAlias : m_vtxShadingLate.depthOutAlias;
+                kage::ImageHandle aaDepthIn = m_supportMeshShading ? 
+                    m_debugVox ?
+                        m_voxDebug.draw.colorOutAlias
+                        : m_debugProb ?
+                            m_probDebug.draw.depthOutAlias
+                            : m_meshShadingAlpha.depthOutAlias
+                    : m_vtxShadingLate.depthOutAlias;
 
                 kage::ImageHandle aaColorIn = m_supportMeshShading ?
                     m_debugVox ? 
-                        m_voxDebug.draw.rtOutAlias 
+                        m_voxDebug.draw.colorOutAlias 
                         : m_debugProb ?
-                            m_probDebug.draw.rtOutAlias 
+                            m_probDebug.draw.colorOutAlias 
                             : m_deferred.outColorAlias
                     : m_vtxShadingLate.colorOutAlias;
 

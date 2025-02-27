@@ -46,6 +46,7 @@ struct VoxDebugDrawInit
     kage::BufferHandle draw;
     kage::BufferHandle trans;
     kage::ImageHandle color;
+    kage::ImageHandle depth;
 };
 
 void prepareVoxDebugCmd(VoxDebugCmdGen& _debugCmd, const VoxDebugCmdInit& _init)
@@ -243,6 +244,9 @@ void prepareVoxDebugDraw(VoxDebugDraw& _vd, const VoxDebugDrawInit _init)
     kage::ImageHandle colorAlias = kage::alias(_init.color);
     kage::setAttachmentOutput(pass, _init.color, 0, colorAlias);
 
+    kage::ImageHandle depthAlias = kage::alias(_init.depth);
+    kage::setAttachmentOutput(pass, _init.depth, 0, depthAlias);
+
     _vd.pass = pass;
     _vd.program = prog;
     _vd.vs = vs;
@@ -254,8 +258,10 @@ void prepareVoxDebugDraw(VoxDebugDraw& _vd, const VoxDebugDrawInit _init)
     _vd.trans = _init.trans;
     _vd.drawCmdBuf = _init.cmd;
     _vd.drawBuf = _init.draw;
-    _vd.renderTarget = _init.color;
-    _vd.rtOutAlias = colorAlias;
+    _vd.color = _init.color;
+    _vd.depth = _init.depth;
+    _vd.colorOutAlias = colorAlias;
+    _vd.depthOutAlias = depthAlias;
 }
 
 
@@ -285,7 +291,7 @@ void recVoxDebugDraw(const VoxDebugDraw& _vd, const DrawCull& _camCull, const ui
 
 
     kage::Attachment colorAttchs[] = {
-        {_vd.renderTarget, LoadOp::dont_care, StoreOp::store},
+        {_vd.color, LoadOp::dont_care, StoreOp::store},
     };
     kage::setColorAttachments(colorAttchs, COUNTOF(colorAttchs));
 
@@ -317,6 +323,7 @@ void prepareVoxDebug(VoxDebug& _vd, const RCDebugInit& _init)
     drawInit.draw = _vd.cmdGen.outDrawBufAlias;
     drawInit.trans = _init.trans;
     drawInit.color = _init.color;
+    drawInit.depth = _init.depth;
 
     prepareVoxDebugDraw(_vd.draw, drawInit);
 }
@@ -369,6 +376,7 @@ struct ProbeDebugGenInit
 struct ProbeDebugDrawInit
 {
     kage::ImageHandle color;
+    kage::ImageHandle depth;
     kage::ImageHandle cascade;
 
     kage::BufferHandle trans;
@@ -561,6 +569,9 @@ void prepareProbeDbgDraw(ProbeDbgDraw& _pd, const ProbeDebugDrawInit& _init)
     kage::ImageHandle colorAlias = kage::alias(_init.color);
     kage::setAttachmentOutput(pass, _init.color, 0, colorAlias);
 
+    kage::ImageHandle depthAlias = kage::alias(_init.depth);
+    kage::setAttachmentOutput(pass, _init.depth, 0, depthAlias);
+
     _pd.pass = pass;
     _pd.program = prog;
     _pd.vs = vs;
@@ -572,11 +583,14 @@ void prepareProbeDbgDraw(ProbeDbgDraw& _pd, const ProbeDebugDrawInit& _init)
     _pd.trans = _init.trans;
     _pd.drawCmdBuf = _init.cmd;
     _pd.drawDataBuf = _init.drawData;
-    _pd.renderTarget = _init.color;
     _pd.radianceCascade = _init.cascade;
     _pd.rcSamp = samp;
 
-    _pd.rtOutAlias = colorAlias;
+    _pd.color = _init.color;
+    _pd.depth = _init.depth;
+
+    _pd.colorOutAlias = colorAlias;
+    _pd.depthOutAlias = depthAlias;
 }
 
 void recProbeDbgDraw(const ProbeDbgDraw& _pd, const DrawCull& _camCull, const uint32_t _width, const uint32_t _height, const float _sceneRadius, const uint32_t _lv, const float _szFactor = .5f)
@@ -608,9 +622,11 @@ void recProbeDbgDraw(const ProbeDbgDraw& _pd, const DrawCull& _camCull, const ui
 
 
     kage::Attachment colorAttchs[] = {
-        {_pd.renderTarget, LoadOp::dont_care, StoreOp::store},
+        {_pd.color, LoadOp::dont_care, StoreOp::store},
     };
     kage::setColorAttachments(colorAttchs, COUNTOF(colorAttchs));
+
+    kage::setDepthAttachment({ _pd.depth, LoadOp::dont_care, StoreOp::store });
 
     kage::setIndexBuffer(_pd.idxBuf, 0, kage::IndexType::uint32);
 
@@ -648,6 +664,7 @@ void prepareProbeDebug(ProbeDebug& _pd, const RCDebugInit& _init)
 
     ProbeDebugDrawInit drawInit{};
     drawInit.color = _init.color;
+    drawInit.depth = _init.depth;
     drawInit.cascade = _init.cascade;
     drawInit.trans = _init.trans;
     drawInit.cmd = _pd.cmdGen.outCmdAlias;

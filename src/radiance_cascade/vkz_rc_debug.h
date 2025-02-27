@@ -35,13 +35,14 @@ struct VoxDebugDraw
     kage::BufferHandle drawCmdBuf;
     kage::BufferHandle drawBuf;
     kage::BufferHandle trans;
-    kage::ImageHandle renderTarget;
+    kage::ImageHandle color;
+    kage::ImageHandle depth;
 
     kage::BufferHandle idxBuf;
     kage::BufferHandle vtxBuf;
 
-
-    kage::ImageHandle rtOutAlias;
+    kage::ImageHandle colorOutAlias;
+    kage::ImageHandle depthOutAlias;
 };
 
 struct VoxDebug
@@ -58,6 +59,7 @@ struct RCDebugInit
     kage::BufferHandle threadCount;
 
     kage::ImageHandle color;
+    kage::ImageHandle depth;
     kage::ImageHandle cascade;
     kage::ImageHandle pyramid;
 };
@@ -94,14 +96,16 @@ struct ProbeDbgDraw
     kage::BufferHandle drawCmdBuf;
     kage::BufferHandle drawDataBuf;
     kage::BufferHandle trans;
-    kage::ImageHandle renderTarget;
+    kage::ImageHandle color;
+    kage::ImageHandle depth;
     kage::ImageHandle radianceCascade;
     kage::SamplerHandle rcSamp;
 
     kage::BufferHandle idxBuf;
     kage::BufferHandle vtxBuf;
 
-    kage::ImageHandle rtOutAlias;
+    kage::ImageHandle colorOutAlias;
+    kage::ImageHandle depthOutAlias;
 };
 
 struct ProbeDebug
