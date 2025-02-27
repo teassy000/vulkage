@@ -61,6 +61,11 @@ int cmdOp(CmdContext* /*_context*/, void* /*_userData*/, int _argc, char const* 
             freeCameraSetKeyState(CAMERA_KEY_RESET, true);
             return 0;
         }
+        else if (0 == bx::strCmp(_argv[1], "freecam"))
+        {
+            freeCameraSetKeyState(CAMERA_KEY_TOGGLE_LOCK, true);
+            return 0;
+        }
     }
 
     return 1;
@@ -81,12 +86,13 @@ static const InputBinding s_camBindings[] =
     { entry::Key::GamepadDown,      entry::Modifier::None, 0, cmd, "move backward"  },
     { entry::Key::KeyD,             entry::Modifier::None, 0, cmd, "move right"     },
     { entry::Key::GamepadRight,     entry::Modifier::None, 0, cmd, "move right"     },
-    { entry::Key::KeyQ,             entry::Modifier::None, 0, cmd, "move up"      },
-    { entry::Key::GamepadShoulderL, entry::Modifier::None, 0, cmd, "move up"      },
-    { entry::Key::KeyE,             entry::Modifier::None, 0, cmd, "move down"        },
-    { entry::Key::GamepadShoulderR, entry::Modifier::None, 0, cmd, "move down"        },
+    { entry::Key::KeyQ,             entry::Modifier::None, 0, cmd, "move up"        },
+    { entry::Key::GamepadShoulderL, entry::Modifier::None, 0, cmd, "move up"        },
+    { entry::Key::KeyE,             entry::Modifier::None, 0, cmd, "move down"      },
+    { entry::Key::GamepadShoulderR, entry::Modifier::None, 0, cmd, "move down"      },
 
     { entry::Key::KeyR,             entry::Modifier::None, 0, cmd, "op reset"       },
+    { entry::Key::KeyF,             entry::Modifier::None, 0, cmd, "op freecam"},
     
     { entry::Key::Esc,              entry::Modifier::None, 0, cmd, "exit"        },
 
@@ -184,6 +190,12 @@ struct FreeCamera
             setKeyState(CAMERA_KEY_RESET, false);
         }
 
+        if (m_keys & CAMERA_KEY_TOGGLE_LOCK)
+        {
+            m_lock = !m_lock;
+            setKeyState(CAMERA_KEY_TOGGLE_LOCK, false);
+        }
+
     }
 
     void processMouse(float _xpos, float _ypos, bool _constrainPitch = true)
@@ -205,10 +217,16 @@ struct FreeCamera
         updateVecs();
     }
 
-    void update(float _delta, const entry::MouseState& _mouseState) 
+    bool update(float _delta, const entry::MouseState& _mouseState) 
     {
-        processMouse(float(_mouseState.m_mx), float(_mouseState.m_my), true);
+        if (!m_lock)
+        {
+            processMouse(float(_mouseState.m_mx), float(_mouseState.m_my), true);
+        }
+
         processKey(_delta);
+
+        return m_lock;
     }
 
     mat4 getViewMat()
@@ -266,6 +284,7 @@ struct FreeCamera
     vec3 m_up{ 0.f};
     vec3 m_front{ 0.f};
     vec3 m_right{ 0.f};
+    bool m_lock{ false };
 
     float m_fov{ 0.f };
 
@@ -324,9 +343,9 @@ mat4 freeCameraGetViewMatrix()
     return s_freeCamera->getViewMat();
 }
 
-void freeCameraUpdate(float _delta, const entry::MouseState& _mouseState)
+bool freeCameraUpdate(float _delta, const entry::MouseState& _mouseState)
 {
-    s_freeCamera->update(_delta, _mouseState);
+    return s_freeCamera->update(_delta, _mouseState);
 }
 
 void freeCameraSetKeyState(uint8_t _key, bool _down)

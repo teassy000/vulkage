@@ -50,7 +50,7 @@ namespace
             m_width = _width;
             m_height = _height;
 
-            entry::setMouseLock(entry::kDefaultWindowHandle, true);
+            
 
             kage::init(config);
             
@@ -129,7 +129,14 @@ namespace
             const double freq = double(bx::getHPFrequency());
             const float deltaTimeMS = float(frameTime / freq) * 1000.f;
 
-            freeCameraUpdate(deltaTimeMS, m_mouseState);
+            bool camRet = freeCameraUpdate(deltaTimeMS, m_mouseState);
+            static bool lockToggle = false;
+            if (camRet != lockToggle)
+            {
+                entry::setMouseLock(entry::kDefaultWindowHandle, lockToggle);
+                lockToggle = camRet;
+            }
+
 
             updatePyramid(m_pyramid, m_width, m_height);
 

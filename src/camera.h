@@ -10,6 +10,7 @@
 #define CAMERA_KEY_UP        UINT8_C(0x10)
 #define CAMERA_KEY_DOWN      UINT8_C(0x20)
 #define CAMERA_KEY_RESET     UINT8_C(0x40)
+#define CAMERA_KEY_TOGGLE_LOCK     UINT8_C(0x80)
 
 
 void freeCameraInit(const vec3& _pos, const quat& _orit, const float _fov);
@@ -21,5 +22,5 @@ vec3 freeCameraGetPos();
 vec3 freeCameraGetFront();
 float freeCameraGetFov();
 
-void freeCameraUpdate(float _delta, const entry::MouseState& _mouseState);
+bool freeCameraUpdate(float _delta, const entry::MouseState& _mouseState);
 
