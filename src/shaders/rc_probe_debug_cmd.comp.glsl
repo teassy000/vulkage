@@ -78,7 +78,7 @@ void main()
         drawCmd.taskOffset = 0;
         drawCmd.taskCount = 1;
         drawCmd.lateDrawVisibility = 0;
-        drawCmd.indexCount = consts.idxCnt; //HARDCODE
+        drawCmd.indexCount = consts.idxCnt;
 
         uint var = atomicAdd(drawCmd.instanceCount, 1);
 
