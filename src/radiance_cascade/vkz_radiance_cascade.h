@@ -82,6 +82,7 @@ struct OctTree
     kage::BufferHandle voxMediemMap;
     kage::BufferHandle outOctTree;
     kage::BufferHandle nodeCount;
+    kage::BufferHandle voxVis;
 
     kage::BufferHandle nodeCountOutAlias;
     kage::BufferHandle octTreeOutAlias;

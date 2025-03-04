@@ -32,56 +32,49 @@ layout(binding = 2) buffer OctTree
 layout(binding = 3) buffer OctTreeNodeCount
 {
     uint octTreeNodeCount;
+    uint totalNodeCount;
 };
 
-
-// 8 child
-// zyx order from front to back, bottom to top, left to right
-// [z][y][x]
-// 0 = 000
-// 1 = 001
-// 2 = 010
-// 3 = 011
-// 4 = 100
-// 5 = 101
-// 6 = 110
-// 7 = 111
-uint getVoxChildPos(ivec3 _vi, uint _voxLen, uint _childIdx)
+layout(binding = 4) buffer VoxVisitedBuf
 {
-    uint actualVoxLen = _voxLen * 2;
-
-    ivec3 cPos = _vi * 2 + ivec3(_childIdx & 1u, (_childIdx >> 1) & 1u, (_childIdx >> 2) & 1u);
-
-    uint pos = cPos.z * actualVoxLen * actualVoxLen + cPos.y * actualVoxLen + cPos.x;
-    
-    return pos;
-}
+    uint voxVisited [];
+};
 
 void main()
 {
     // read from voxmap
     ivec3 vp = ivec3(gl_GlobalInvocationID.xyz);
 
-    const uint voxLen = conf.voxGridSideCount;
+    const uint voxSideCnt = conf.voxGridSideCount;
+
+    if (vp.x >= voxSideCnt || vp.y >= voxSideCnt || vp.z >= voxSideCnt)
+        return;
+
     const uint roff = conf.readOffset;
     const uint woff = conf.writeOffset;
     const uint lv = conf.lv;
+    const uint vi = woff + vp.z * voxSideCnt * voxSideCnt + vp.y * voxSideCnt + vp.x;
 
-    if (vp.x >= voxLen || vp.y >= voxLen || vp.z >= voxLen)
+    if (voxVisited[vi] == 1)
         return;
 
-    // check if any child is valid
+    uint t = atomicAdd(totalNodeCount, 1);
+
+    // level start from 0
+    // the 0 level is **not** the actual voxel level, but the one's childs contains the id of actual voxel data
+    // the actural voxel id is stored in the voxmap and the data stores in other image buffers
+    // e.g.: vox resolution was 32^3, the the 0 level has 16^3 nodes, each node contains 8 voxels
     uint nodes[8];
     uint res = 0;
     for (uint ii = 0; ii < 8; ii++)
     {
-        uint cIdx = getVoxChildPos(vp, voxLen, ii);
+        uint cIdx = getVoxChildGridIdx(vp, voxSideCnt, ii);
         uint var = (lv == 0) ? voxMap[cIdx] : voxMediumMap[cIdx + roff];
         nodes[ii] = var;
         res |= (var ^ INVALID_OCT_IDX);
     }
 
-    if(res > 0)
+    if (res > 0)
     {
         uint octNodeIdx = atomicAdd(octTreeNodeCount, 1);
         for (uint ii = 0; ii < 8; ii++)
@@ -91,8 +84,10 @@ void main()
 
         octTree[octNodeIdx].dataIdx = octNodeIdx;
         octTree[octNodeIdx].lv = lv;
-
-        uint vi = woff + vp.z * voxLen * voxLen + vp.y * voxLen + vp.x;
         voxMediumMap[vi] = octNodeIdx;
+
+        memoryBarrierBuffer();
     }
+
+    voxVisited[vi] = 1;
 }

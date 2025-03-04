@@ -45,9 +45,10 @@ void main()
     float probeSideLen = consts.probeSideLen;
     uint layerOffset = consts.layerOffset;
     float radius = consts.sphereRadius;
-    vec4 ocenter = vec4(vec3(id) * probeSideLen - sceneRadius + probeSideLen * .5f, 1.f);
+    vec3 ocenter = getCenterWorldPos(id, sceneRadius, probeSideLen);
+    ocenter += vec3(0.5f * probeSideLen);
+    vec4 center = trans.view * vec4(ocenter, 1.f);
 
-    vec4 center = trans.view * ocenter;
 
     bool visible = true;
     visible = visible && (center.z * consts.frustum[1] + abs(center.x) * consts.frustum[0] > -radius);

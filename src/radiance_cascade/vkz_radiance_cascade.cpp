@@ -25,7 +25,7 @@ void prepareFullDrawCmdPass(VoxelizationCmd& _vc, kage::BufferHandle _meshBuf, k
     kage::PassHandle pass = kage::registPass(passName, passDesc);
 
     kage::BufferDesc cmdBufDesc{};
-    cmdBufDesc.size = 128 * 1024 * 1024; // 128M
+    cmdBufDesc.size = 4 * 1024 * 1024; // 4M
     cmdBufDesc.usage = kage::BufferUsageFlagBits::indirect | kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
     cmdBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
     kage::BufferHandle cmdBuf = kage::registBuffer("rc_meshDrawCmd", cmdBufDesc);
@@ -87,7 +87,7 @@ void recFullDrawCmdPass(const VoxelizationCmd& _vc, uint32_t _dc)
     {
         {_vc.in_meshBuf,        Access::read,       Stage::compute_shader },
         { _vc.in_drawBuf,       Access::read,       Stage::compute_shader },
-        { _vc.out_cmdBuf,       Access::read_write,      Stage::compute_shader },
+        { _vc.out_cmdBuf,       Access::read_write, Stage::compute_shader },
         { _vc.out_cmdCountBuf,  Access::read_write, Stage::compute_shader },
     };
 
@@ -409,9 +409,22 @@ void prepareOctTree(OctTree& _oc, const kage::BufferHandle _voxMap)
     {
         kage::BufferDesc bufDesc{};
         bufDesc.size = 16;
-        bufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+        bufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst | kage::BufferUsageFlagBits::uniform;
         bufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
         nodeCountBuf = kage::registBuffer("rc_oct_tree_node_count", bufDesc);
+    }
+
+    kage::BufferHandle voxVisBuf;
+    {
+        uint32_t v0 = kVoxelSideCount / 2;
+        float size = static_cast<float>(v0 * v0 * v0 * sizeof(uint32_t)) * 1.2f;// 1.2 times the size of the voxel map which approximates the size of the oct tree
+        uint32_t fmtSz = static_cast<uint32_t>(glm::ceil(size));
+
+        kage::BufferDesc bufDesc{};
+        bufDesc.size = (fmtSz + (0x40 - (fmtSz % 0x40)));
+        bufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+        bufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+        voxVisBuf = kage::registBuffer("rc_vox_vis", bufDesc);
     }
 
     kage::bindBuffer(pass, _voxMap
@@ -441,7 +454,15 @@ void prepareOctTree(OctTree& _oc, const kage::BufferHandle _voxMap)
         , 3
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
-        , octTreeBufAlias
+        , nodeCountBufAlias
+    );
+
+    kage::BufferHandle voxVisBufAlias = kage::alias(voxVisBuf);
+    kage::bindBuffer(pass, voxVisBuf
+        , 4
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
+        , voxVisBufAlias
     );
 
     _oc.cs = cs;
@@ -452,6 +473,7 @@ void prepareOctTree(OctTree& _oc, const kage::BufferHandle _voxMap)
     _oc.voxMediemMap = VoxMediumMap;
     _oc.outOctTree = octTreeBuf;
     _oc.nodeCount = nodeCountBuf;
+    _oc.voxVis = voxVisBuf;
     _oc.nodeCountOutAlias = nodeCountBufAlias;
     _oc.octTreeOutAlias = octTreeBufAlias;
 }
@@ -463,20 +485,21 @@ void recOctTree(const OctTree& _oc)
     kage::fillBuffer(_oc.outOctTree, 0);
     kage::fillBuffer(_oc.nodeCount, 0);
     kage::fillBuffer(_oc.voxMediemMap, UINT32_MAX);
+    kage::fillBuffer(_oc.voxVis, 0);
 
     uint32_t maxLv = calcMipLevelCount(kVoxelSideCount);
-    uint32_t curr_vl = kVoxelSideCount;
+    uint32_t curr_voxGridCount = kVoxelSideCount;
     uint32_t writeOffset = 0;
     uint32_t readOffset = 0;
     for (uint32_t ii= 0; ii < maxLv; ++ii)
     {
-        curr_vl = glm::max(previousPow2(curr_vl), 1u);
+        curr_voxGridCount = kVoxelSideCount >> (ii + 1);
 
         OctTreeProcessConfig conf{};
         conf.lv = ii;
         conf.readOffset = readOffset;
         conf.currOffset = writeOffset;
-        conf.voxGridSideCount = curr_vl;
+        conf.voxGridSideCount = curr_voxGridCount;
 
         const kage::Memory* mem = kage::alloc(sizeof(OctTreeProcessConfig));
         memcpy(mem->data, &conf, mem->size);
@@ -488,13 +511,14 @@ void recOctTree(const OctTree& _oc)
             { _oc.voxMediemMap,     Access::read_write, Stage::compute_shader },
             { _oc.outOctTree,       Access::read_write, Stage::compute_shader },
             { _oc.nodeCount,        Access::read_write, Stage::compute_shader },
+            { _oc.voxVis,           Access::read_write, Stage::compute_shader },
         };
         kage::pushBindings(binds, COUNTOF(binds));
 
-        kage::dispatch(curr_vl, curr_vl, curr_vl);
+        kage::dispatch(curr_voxGridCount, curr_voxGridCount, curr_voxGridCount);
 
         readOffset = writeOffset;
-        writeOffset += curr_vl * curr_vl * curr_vl;
+        writeOffset += curr_voxGridCount * curr_voxGridCount * curr_voxGridCount;
     }
 
     kage::endRec();
@@ -667,7 +691,7 @@ void recRCBuild(const RadianceCascadeBuild& _rc, const float _sceneRadius)
         uint32_t    ray_sideCount   = kage::k_rclv0_rayGridSideCount * level_factor;
         uint32_t    ray_count       = ray_sideCount * ray_sideCount; // each probe has a 2d grid of rays
         float prob_sideLen = _sceneRadius * 2.f / float(prob_sideCount);
-        float rayLen = length(vec3(prob_sideLen));
+        float rayLen = length(vec3(prob_sideLen)) * .5f;
 
         RadianceCascadesConfig config;
         config.probe_sideCount = prob_sideCount;

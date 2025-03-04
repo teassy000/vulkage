@@ -1,7 +1,18 @@
 // ==============================================================================
 #define sectorize(value) step(0.0, (value)) * 2.0 - 1.0
 #define sum(value) dot(clamp((value), 1.0, 1.0), (value))
+#define EPSILON 0.00001f
+#define FLT_MAX 3.402823466e+38
 
+bool compare(float a, float b)
+{
+    return abs(a - b) < EPSILON;
+}
+
+bool compare(vec3 _a, vec3 _b)
+{
+    return compare(_a.x, _b.x) && compare(_a.y, _b.y) && compare(_a.z, _b.z);
+}
 
 // https://knarkowicz.wordpress.com/2014/04/16/octahedron-normal-vector-encoding/
 vec2 octWrap(vec2 _v)
@@ -35,7 +46,7 @@ vec3 octDecode(vec2 _uv)
 	return normalize(vec3(_uv.x, 1. - l, _uv.y));
 }
 
-// ==============================================================================
+// vox ==============================================================================
 
 // get 3d pos from linear index
 ivec3 getWorld3DIdx(uint _idx, uint _sideCnt)
@@ -48,13 +59,36 @@ ivec3 getWorld3DIdx(uint _idx, uint _sideCnt)
 }
 
 // get 3d world pos based on the index
-vec3 getCenterWorldPos(ivec3 _idx, float _sceneRadius, float _voxSideLen)
+vec3 getCenterWorldPos(ivec3 _idx, float _sceneRadius, float _gridSideLen)
 {
     // the voxel idx is from [0 ,sideCnt - 1]
     // the voxel in world space is [-_sceneRadius, _sceneRadius]
-    vec3 pos = vec3(_idx) * _voxSideLen - vec3(_sceneRadius) - vec3(_voxSideLen) * 0.5f;
+    vec3 pos = vec3(_idx) * _gridSideLen - vec3(_sceneRadius) ;
     return pos;
 }
+
+// probe ============================================================================
+
+// oct-tree =====================================================================
+
+// 8 child
+// zyx order from front to back, bottom to top, left to right
+// [z][y][x]
+// 0 = 000, 1 = 001, 2 = 010, 3 = 011
+// 4 = 100, 5 = 101, 6 = 110, 7 = 111
+
+// get the child 
+uint getVoxChildGridIdx(ivec3 _vi, uint _voxSideCnt, uint _childIdx)
+{
+    uint actualSideCount = _voxSideCnt * 2;
+
+    ivec3 cPos = _vi * 2 + ivec3(_childIdx & 1u, (_childIdx >> 1) & 1u, (_childIdx >> 2) & 1u);
+
+    uint pos = cPos.z * actualSideCount * actualSideCount + cPos.y * actualSideCount + cPos.x;
+
+    return pos;
+}
+
 
 // ==============================================================================
 struct RadianceCascadesConfig
