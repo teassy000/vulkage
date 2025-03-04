@@ -6,7 +6,7 @@
 
 #extension GL_GOOGLE_include_directive: require
 
-
+#include "debug_gpu.h"
 #include "mesh_gpu.h"
 #include "math.h"
 

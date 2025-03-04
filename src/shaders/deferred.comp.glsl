@@ -8,6 +8,7 @@
 
 #include "pbr.h"
 #include "rc_common.h"
+#include "debug_gpu.h"
 
 layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
@@ -33,11 +34,15 @@ void main()
 
     vec4 albedo = texture(in_albedo, uv);
     vec4 normal = texture(in_normal, uv);
+    vec4 emmision = texture(in_emmision, uv);
+    vec4 sky = texture(in_sky, uv);
     vec3 wPos = texture(in_wPos, uv).xyz;
     wPos = (wPos * 2.f - 1.f) * consts.sceneRadius;
 
-    vec4 emmision = texture(in_emmision, uv);
-    vec4 sky = texture(in_sky, uv);
+#if DEBUG_MESHLET
+    emmision.xyz *= 0.7f;
+    imageStore(out_color, ivec2(pos), emmision);
+#else
 
     vec4 color = albedo;
 
@@ -71,7 +76,8 @@ void main()
         vec4 col = texture(in_radianceCascade, ivec3(raySubUV.xy, layerIdx));
         if(col != vec4(0.f))
         {
-            color = col;
+            color *= 0.5f;
+            color += col;
             break;
         }
     }
@@ -80,4 +86,5 @@ void main()
         color = sky;
 
     imageStore(out_color, ivec2(pos), color);
+#endif
 }

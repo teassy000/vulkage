@@ -1,3 +1,5 @@
+#define DEBUG_MESHLET 0
+
 uint hash(uint a)
 {
     a = (a + 0x7ed55d16) + (a << 12);

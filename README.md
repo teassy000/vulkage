@@ -31,7 +31,7 @@ Supports:
 - task-submission
 - Lod
 - mesh level occlusion
-- mesh-let level occlusion
+- meshlet level occlusion
 - frustum culling
 - back-face culling
 
@@ -45,11 +45,21 @@ Supports:
   - sort and clip unnecessary passes and resources based on the contribution to the final result.
   - auto barrier: intend to record the resource state and transform states and layouts atomically.
   - auto alias: alias transition buffers if their lifetime is not overlapped. (Note: images are not been processed yet because a more specific condition required)
-    
+
 - gfx api abstraction
   - vulkan
 - profiling
   - based on Tracy
+- render command system
+  - allow store the command then translate to platform API (e.g. vulkan)
+
+- nanite style dynamic meshlet lod selection
+- deferred rendering
+- gltf scene loading
+- bindless texture
+- SMAA
+- geometry shader based voxelization（with oct-tree optimized）
+- radiance cascade(WIP)
 
 ------------
 
@@ -60,19 +70,30 @@ Supports:
 2. clone the repo via:
 
    `git clone https://github.com/teassy000/vulkage.git`
+   
 3. enter the root directory by: 
 
    `cd vulkage`
+   
 4. update sub-modules via : 
 
    `git submodule update --init --recursive`
+   
 5. generate project with command: 
 
    `premake5 vs2022 x64`
 
    you can find the solution file in `./build/vulkage.sln`
 
-Note: The project tested with vs2022 and worked on Nvidia 3070+ serials card. And it used the vulkan extension: `VK_EXT_mesh_shader`, default vertex pipeline might not work due to no testing for it.
+Note: METIS lib should be compiled manually.
+
+Working dir: `./`
+
+`project_root$> vulkage.exe [model_dir] [-p]`
+
+`[-p]` : Force parse the model. The project will parse the model file once and dump the medium data to reduce loading time. 
+
+Note2: The project tested with vs2022 and worked on Nvidia 3070+ serials card. And it used the vulkan extension: `VK_EXT_mesh_shader`, default vertex pipeline might not work due to no testing for it.
 
 ----------
 
@@ -92,11 +113,11 @@ Note: The project tested with vs2022 and worked on Nvidia 3070+ serials card. An
 
 ![near](./screenshot/near.png)
 
-![avg](./screenshot/avg.png)
-
 ![far](./screenshot/far.png)
 
+![blstro](./screenshot/bistro.png)
 
+![ml_bistro](./screenshot/ml_bistro.png)
 
 
 

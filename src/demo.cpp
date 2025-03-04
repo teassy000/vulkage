@@ -56,7 +56,7 @@ namespace
             
             m_supportMeshShading = kage::checkSupports(kage::VulkanSupportExtension::ext_mesh_shader);
             m_debugVox = false;
-            m_debugProb = true;
+            m_debugProb = false;
 
             bool forceParse = false;
             bool seamlessLod = false;
