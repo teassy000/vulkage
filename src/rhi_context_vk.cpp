@@ -3737,6 +3737,32 @@ namespace kage { namespace vk
             }
         }
 
+        for (const Attachment& att : m_colorAttachPerPass)
+        {
+            BarrierState_vk bs{};
+            bs.accessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            bs.stageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            bs.imgLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            const Image_vk& img = getImage(att.hImg.id);
+            m_barrierDispatcher.barrier(
+                img.image
+                , img.aspectMask
+                , bs);
+        }
+
+        if (m_depthAttachPerPass.hImg != kInvalidHandle)
+        {
+            BarrierState_vk bs{};
+            bs.accessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+            bs.stageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+            bs.imgLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            const Image_vk& img = getImage(m_depthAttachPerPass.hImg.id);
+            m_barrierDispatcher.barrier(
+                img.image
+                , img.aspectMask
+                , bs);
+        }
+
         dispatchBarriers();
     }
 
@@ -4715,7 +4741,7 @@ namespace kage { namespace vk
         bool colorAttch =   isAccessColorAttch(_access)  && isStageColorAttch(_stage)   && isLayoutColorAttch(_layout);
         bool depthAttch =   isAccessDepthAttch(_access)  && isStageDepthAttch(_stage)   && isLayoutDepthAttch(_layout);
         bool transfer =     isAccessTransfer(_access)    && isStageTransfer(_stage)     && isLayoutTransfer(_layout);
-        bool present =      true                         && isStageBottom(_stage)       && isLayoutPresent(_layout);
+        bool present =                                      isStageBottom(_stage)       && isLayoutPresent(_layout);
 
         valid &= (binding || colorAttch || depthAttch || transfer || present);
 
@@ -4760,11 +4786,11 @@ namespace kage { namespace vk
 
         BX_ASSERT(
             validateImageStatus(_dstBarrier.accessMask, _dstBarrier.stageMask, _dstBarrier.imgLayout)
-            , "image: [%s] status not valid! access: 0x%08x, stage: 0x%08x, layout: 0x%08x"
+            , "image: [%s] status not valid! access: %s, stage: %s, layout: %s"
             , getLocalDebugName(_img)
-            , _dstBarrier.accessMask
-            , _dstBarrier.stageMask
-            , _dstBarrier.imgLayout
+            , getVkAccessDebugName(_dstBarrier.accessMask)
+            , getVkPipelineStageDebugName(_dstBarrier.stageMask)
+            , getVkImageLayoutDebugName(_dstBarrier.imgLayout)
         );
     }
 
