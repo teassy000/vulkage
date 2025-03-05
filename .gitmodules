@@ -33,3 +33,6 @@
 [submodule "externs/cgltf"]
 	path = externs/cgltf
 	url = https://github.com/jkuhlmann/cgltf.git
+[submodule "externs/FidelityFX"]
+	path = externs/FidelityFX
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK.git
