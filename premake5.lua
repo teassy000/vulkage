@@ -15,6 +15,7 @@ VOLK_DIR 		= 	path.join(EXT_DIR, "volk")
 TINYSTL_DIR 	= 	path.join(EXT_DIR, "tinystl")
 BGFX_COMMON_DIR = 	path.join(EXT_DIR, "bgfx_common")
 CGLTF_DIR 		= 	path.join(EXT_DIR, "cgltf")
+FFX_DIR 		= 	path.join(EXT_DIR, "FidelityFX/sdk") -- FidelityFX builded with option: .\BuildFidelityFXSDK.bat -DFFX_API_BACKEND=VK_X64 -DFFX_ALL=ON -DFFX_AUTO_COMPILE_SHADERS=1
 
 
 VK_SDK_DIR 		= os.getenv("VULKAN_SDK")
@@ -118,9 +119,17 @@ project "vulkage"
 		path.join(SRC_DIR, "deferred/*.h"),
 		path.join(SRC_DIR, "deferred/*.cpp"),
 
+		-- ffx_intg
+		path.join(SRC_DIR, "ffx_intg/*.h"),
+		path.join(SRC_DIR, "ffx_intg/*.cpp"),
+
 		-- shaders
 		path.join(SRC_DIR, "shaders/*.glsl"),
 		path.join(SRC_DIR, "shaders/*.h"),
+
+		-- ffx
+		path.join(FFX_DIR, "include/FidelityFX/host/**.h"),
+		path.join(FFX_DIR, "include/FidelityFX/gpu/**.h"),
 		
 		-- volk
 		path.join(VOLK_DIR, "volk.c"),
@@ -134,6 +143,9 @@ project "vulkage"
 		-- cgltf
 		path.join(CGLTF_DIR, "cgltf.h"),
 		path.join(CGLTF_DIR, "cgltf_write.h"),
+
+		-- metis
+		path.join(METIS_DIR, "include/**.h"),
 	}
 
 	includedirs {
@@ -151,6 +163,7 @@ project "vulkage"
 		path.join(FAST_OBJ_DIR,	""),
 		path.join(GLM_DIR,		""),
 		path.join(METIS_DIR,	"include"),
+		path.join(FFX_DIR,		"include"),
 
 		path.join(VK_SDK_DIR,	"Include"),
 		path.join(KTX_SDK_DIR,	"include"),
@@ -173,6 +186,11 @@ project "vulkage"
 		["src/deferred"] = {
 			path.join(SRC_DIR, "deferred/*.h"),
 			path.join(SRC_DIR, "deferred/*.cpp"),
+		},
+
+		["src/ffx_intg"] = {
+			path.join(SRC_DIR, "ffx_intg/*.h"),
+			path.join(SRC_DIR, "ffx_intg/*.cpp"),
 		},
 		
 		["shaders"] = {
@@ -201,6 +219,7 @@ project "vulkage"
 		path.join(METIS_DIR, "lib", "gklib.lib"),
 		path.join(VK_SDK_DIR, "Lib", "vulkan-1.lib"),
 		path.join(KTX_SDK_DIR, "lib", "ktx.lib"),
+		path.join(FFX_DIR, "bin/ffx_sdk", "ffx_brixelizer_x64.lib"),
 	}
 
 	filter "action:vs*"
