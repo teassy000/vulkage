@@ -337,7 +337,7 @@ void recVoxelization(const Voxelization& _vox, const float _sceneRadius)
     kage::pushBindings(binds, COUNTOF(binds));
 
     kage::Attachment attachs[] = {
-        { _vox.rt,          LoadOp::dont_care,  StoreOp::dont_care  },
+        { _vox.rt, LoadOp::dont_care,  StoreOp::dont_care  },
     };
     kage::setColorAttachments(attachs, COUNTOF(attachs));
 

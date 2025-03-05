@@ -9,6 +9,7 @@ struct GBuffer
     kage::ImageHandle normal;
     kage::ImageHandle worldPos;
     kage::ImageHandle emissive;
+    kage::ImageHandle specular;
 };
 
 struct GBufferSamplers
@@ -17,6 +18,7 @@ struct GBufferSamplers
     kage::SamplerHandle normal;
     kage::SamplerHandle worldPos;
     kage::SamplerHandle emissive;
+    kage::SamplerHandle specular;
 };
 
 struct DeferredShading

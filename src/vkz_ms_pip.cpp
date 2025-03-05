@@ -64,7 +64,8 @@ void meshShadingRec(const MeshShading& _ms)
         {_ms.g_buffer.albedo,   _ms.late ? LoadOp::dont_care : LoadOp::clear, StoreOp::store},
         {_ms.g_buffer.normal,   _ms.late ? LoadOp::dont_care : LoadOp::clear, StoreOp::store},
         {_ms.g_buffer.worldPos, _ms.late ? LoadOp::dont_care : LoadOp::clear, StoreOp::store},
-        {_ms.g_buffer.emissive, _ms.late ? LoadOp::dont_care : LoadOp::clear, StoreOp::store}
+        {_ms.g_buffer.emissive, _ms.late ? LoadOp::dont_care : LoadOp::clear, StoreOp::store},
+        {_ms.g_buffer.specular, _ms.late ? LoadOp::dont_care : LoadOp::clear, StoreOp::store},
     };
     kage::setColorAttachments(attachments, COUNTOF(attachments));
 
@@ -177,6 +178,7 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
     kage::setAttachmentOutput(pass, _initData.g_buffer.normal, 1, gb_outAlias.normal);
     kage::setAttachmentOutput(pass, _initData.g_buffer.worldPos, 2, gb_outAlias.worldPos);
     kage::setAttachmentOutput(pass, _initData.g_buffer.emissive, 3, gb_outAlias.emissive);
+    kage::setAttachmentOutput(pass, _initData.g_buffer.specular, 4, gb_outAlias.specular);
 
     // set the data
     _meshShading.late = _late;

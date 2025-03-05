@@ -34,6 +34,13 @@ const GBuffer createGBuffer()
     emissiveDesc.usage = kage::ImageUsageFlagBits::transfer_src | kage::ImageUsageFlagBits::sampled | kage::BufferUsageFlagBits::storage;
     gb.emissive = kage::registRenderTarget("gbuf_emissive", emissiveDesc, kage::ResourceLifetime::non_transition);
 
+    kage::ImageDesc specularDesc;
+    specularDesc.depth = 1;
+    specularDesc.numLayers = 1;
+    specularDesc.numMips = 1;
+    specularDesc.usage = kage::ImageUsageFlagBits::transfer_src | kage::ImageUsageFlagBits::sampled | kage::BufferUsageFlagBits::storage;
+    gb.specular = kage::registRenderTarget("specularDesc", specularDesc, kage::ResourceLifetime::non_transition);
+
     return gb;
 }
 
@@ -44,6 +51,7 @@ const GBuffer aliasGBuffer(const GBuffer& _gb)
     result.normal = kage::alias(_gb.normal);
     result.worldPos = kage::alias(_gb.worldPos);
     result.emissive = kage::alias(_gb.emissive);
+    result.specular = kage::alias(_gb.specular);
 
     return result;
 }
@@ -111,7 +119,7 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
         , kage::SamplerReductionMode::min
     );
 
-    kage::SamplerHandle skySamp = kage::sampleImage(pass, _sky
+    kage::SamplerHandle specSamp = kage::sampleImage(pass, _gb.specular
         , 4
         , kage::PipelineStageFlagBits::compute_shader
         , kage::SamplerFilter::nearest
@@ -120,8 +128,17 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
         , kage::SamplerReductionMode::min
     );
 
-    kage::SamplerHandle rcSamp = kage::sampleImage(pass, _radCasc
+    kage::SamplerHandle skySamp = kage::sampleImage(pass, _sky
         , 5
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::SamplerFilter::nearest
+        , kage::SamplerMipmapMode::nearest
+        , kage::SamplerAddressMode::clamp_to_edge
+        , kage::SamplerReductionMode::min
+    );
+
+    kage::SamplerHandle rcSamp = kage::sampleImage(pass, _radCasc
+        , 6
         , kage::PipelineStageFlagBits::compute_shader
         , kage::SamplerFilter::nearest
         , kage::SamplerMipmapMode::nearest
@@ -131,7 +148,7 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
 
     _ds.outColorAlias = kage::alias(outColor);
     kage::bindImage(pass, outColor
-        , 6
+        , 7
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_write
         , kage::ImageLayout::general
@@ -152,6 +169,7 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
     _ds.gBufSamplers.normal = normSamp;
     _ds.gBufSamplers.worldPos = wpSamp;
     _ds.gBufSamplers.emissive = emmiSamp;
+    _ds.gBufSamplers.specular = specSamp;
 
     _ds.inSky = _sky;
     _ds.skySampler = skySamp;
@@ -181,6 +199,7 @@ void recDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uin
         {_ds.gBuffer.normal,    _ds.gBufSamplers.normal,    Stage::compute_shader},
         {_ds.gBuffer.worldPos,  _ds.gBufSamplers.worldPos,  Stage::compute_shader},
         {_ds.gBuffer.emissive,  _ds.gBufSamplers.emissive,  Stage::compute_shader},
+        {_ds.gBuffer.specular,  _ds.gBufSamplers.specular,  Stage::compute_shader},
         {_ds.inSky,             _ds.skySampler,             Stage::compute_shader},
         {_ds.radianceCascade,   _ds.rcSampler,              Stage::compute_shader},
         {_ds.outColor,          0,                          Stage::compute_shader},
