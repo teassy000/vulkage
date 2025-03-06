@@ -115,7 +115,7 @@ Note2: The project tested with vs2022 and worked on Nvidia 3070+ serials card. A
 
 ![far](./screenshot/far.png)
 
-![blstro](./screenshot/bistro.png)
+![blstro](./screenshot/pbr_no_gi.png)
 
 ![ml_bistro](./screenshot/ml_bistro.png)
 
