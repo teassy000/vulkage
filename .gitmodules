@@ -10,7 +10,7 @@
 [submodule "externs/volk"]
 	path = externs/volk
 	url = https://github.com/zeux/volk.git
-	branch = sdk-1.3.243
+	branch = vulkan-sdk-1.4.304
 [submodule "externs/meshoptimizer"]
 	path = externs/meshoptimizer
 	url = https://github.com/zeux/meshoptimizer
