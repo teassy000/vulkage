@@ -15,8 +15,7 @@ VOLK_DIR 		= 	path.join(EXT_DIR, "volk")
 TINYSTL_DIR 	= 	path.join(EXT_DIR, "tinystl")
 BGFX_COMMON_DIR = 	path.join(EXT_DIR, "bgfx_common")
 CGLTF_DIR 		= 	path.join(EXT_DIR, "cgltf")
-FFX_DIR 		= 	path.join(EXT_DIR, "FidelityFX/sdk") -- FidelityFX builded with option: .\BuildFidelityFXSDK.bat -DFFX_API_BACKEND=VK_X64 -DFFX_ALL=ON -DFFX_AUTO_COMPILE_SHADERS=1
-
+FFX_SDK_DIR 	= 	path.join(EXT_DIR, "FidelityFX/sdk") -- FidelityFX builded with option: .\BuildFidelityFXSDK.bat -DFFX_API_BACKEND=VK_X64 -DFFX_ALL=ON -DFFX_AUTO_COMPILE_SHADERS=1
 
 VK_SDK_DIR 		= os.getenv("VULKAN_SDK")
 if VK_SDK_DIR == nil then
@@ -128,8 +127,8 @@ project "vulkage"
 		path.join(SRC_DIR, "shaders/*.h"),
 
 		-- ffx
-		path.join(FFX_DIR, "include/FidelityFX/host/**.h"),
-		path.join(FFX_DIR, "include/FidelityFX/gpu/**.h"),
+		path.join(FFX_SDK_DIR, "include/FidelityFX/host/**.h"),
+		path.join(FFX_SDK_DIR, "include/FidelityFX/gpu/**.h"),
 		
 		-- volk
 		path.join(VOLK_DIR, "volk.c"),
@@ -163,7 +162,7 @@ project "vulkage"
 		path.join(FAST_OBJ_DIR,	""),
 		path.join(GLM_DIR,		""),
 		path.join(METIS_DIR,	"include"),
-		path.join(FFX_DIR,		"include"),
+		path.join(FFX_SDK_DIR,		"include"),
 
 		path.join(VK_SDK_DIR,	"Include"),
 		path.join(KTX_SDK_DIR,	"include"),
@@ -219,7 +218,6 @@ project "vulkage"
 		path.join(METIS_DIR, "lib", "gklib.lib"),
 		path.join(VK_SDK_DIR, "Lib", "vulkan-1.lib"),
 		path.join(KTX_SDK_DIR, "lib", "ktx.lib"),
-		path.join(FFX_DIR, "bin/ffx_sdk", "ffx_brixelizer_x64.lib"),
 	}
 
 	filter "action:vs*"
@@ -233,16 +231,32 @@ project "vulkage"
    	filter "configurations:debug"
 	   optimize "Debug"
 	   symbols "On"
+	   links {
+			path.join(FFX_SDK_DIR, "bin/ffx_sdk", "ffx_brixelizer_x64d.lib"),
+			path.join(FFX_SDK_DIR, "bin/ffx_sdk", "ffx_backend_vk_x64d.lib"),
+	   }
 	
 	filter "configurations:debug_prof"
 		optimize "Debug"
 		symbols "On"
+		links {
+			path.join(FFX_SDK_DIR, "bin/ffx_sdk", "ffx_brixelizer_x64d.lib"),
+			path.join(FFX_SDK_DIR, "bin/ffx_sdk", "ffx_backend_vk_x64d.lib"),
+	   	}
 
    	filter "configurations:release"
-	   optimize "Full"
+	   	optimize "Full"
+	   	links {
+			path.join(FFX_SDK_DIR, "bin/ffx_sdk", "ffx_brixelizer_x64.lib"),
+			path.join(FFX_SDK_DIR, "bin/ffx_sdk", "ffx_backend_vk_x64.lib"),
+	   	}
 	   
 	filter "configurations:release_prof"
 		optimize "Full"
+		links {
+			path.join(FFX_SDK_DIR, "bin/ffx_sdk", "ffx_brixelizer_x64.lib"),
+			path.join(FFX_SDK_DIR, "bin/ffx_sdk", "ffx_backend_vk_x64.lib"),
+	   	}
 	
 	using_vulkan()
 	using_glfw()

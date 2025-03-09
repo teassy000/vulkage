@@ -2,11 +2,8 @@
 #include "vk_swapchain.h"
 
 #include "macro.h"
-
-#include <glm/common.hpp> // for glm::max
-
 #include "rhi_context_vk.h"
-
+#include <glm/common.hpp> // for glm::max
 #include <windows.h>
 
 namespace kage { namespace vk

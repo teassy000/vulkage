@@ -19,6 +19,7 @@
 #include "radiance_cascade/vkz_radiance_cascade.h"
 #include "deferred/vkz_deferred.h"
 #include "radiance_cascade/vkz_rc_debug.h"
+#include "ffx_intg/brixelizer_intg.h"
 
 namespace
 {
@@ -588,6 +589,11 @@ namespace
                 prepareMeshShading(m_meshShadingAlpha, m_scene, m_width, m_height, msInit, true, true);
             }
 
+            // brixelizer 
+            {
+                initBrixelizerImpl(m_brixelzer);
+            }
+
             // radiance cascade
             {
                 kage::ImageHandle cascadeDepthIn = m_supportMeshShading ? m_meshShadingAlpha.depthOutAlias : m_vtxShadingLate.depthOutAlias;
@@ -790,6 +796,7 @@ namespace
         VtxShading m_vtxShading{};
         VtxShading m_vtxShadingLate{};
         Skybox m_skybox{};
+        FFX_Brixelizer_Impl m_brixelzer;
         RadianceCascade m_radianceCascade{};
         VoxDebug m_voxDebug{};
         ProbeDebug m_probDebug{};

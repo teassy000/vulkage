@@ -11,6 +11,10 @@
 #include "bx/readerwriter.h"
 #include "command_buffer.h"
 
+// ffx
+#include "FidelityFX/host/ffx_types.h"
+#include "FidelityFX/host/ffx_interface.h"
+
 namespace kage
 {
     enum class RHIContextOpMagic : uint32_t
@@ -194,6 +198,14 @@ namespace kage
         bx::AllocatorI* m_pAllocator;
 
         bx::MemoryBlockI*   m_pMemBlockBaked;
+
+
+        // ffx
+        virtual void initFFX() {};
+
+        void getFFXInterface(void* _ffxInterface) { *(FfxInterface*)_ffxInterface = m_ffxInterface; };
+        FfxDevice m_ffxDevice;
+        FfxInterface m_ffxInterface;
     };
 
 } // namespace kage

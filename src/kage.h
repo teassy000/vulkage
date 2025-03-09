@@ -230,4 +230,7 @@ namespace kage
     double getPassTime(const PassHandle _hPass);
     double getGpuTime();
     uint64_t getPassClipping(const PassHandle _hPass);
+
+    // ffx
+    void getFFXInterface(void* _ffxInterface);
 }

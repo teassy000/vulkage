@@ -9,7 +9,6 @@
 #include "vk_device.h"
 #include "vk_swapchain.h"
 #include "vk_shaders.h"
-#include "vk_swapchain.h"
 
 #include "kage_inner.h"
 #include "kage_rhi_vk.h"
@@ -429,6 +428,9 @@ namespace kage { namespace vk
 
         void setName(Handle _h, const char* _name, uint32_t _len) override;
 
+        // ffx
+        void initFFX() override;
+
         // rendering command start
         void setRecord(
             PassHandle _hPass
@@ -674,6 +676,7 @@ namespace kage { namespace vk
         VkAllocationCallbacks* m_allocatorCb;
 
         VkInstance m_instance;
+        PFN_vkGetDeviceProcAddr m_vkGetDeviceProcAddr;
         VkDevice m_device;
         VkPhysicalDevice m_physicalDevice;
         VkPhysicalDeviceMemoryProperties m_memProps;

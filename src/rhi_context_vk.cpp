@@ -10,6 +10,8 @@
 #include "bx/hash.h"
 #include "command_buffer.h"
 
+#include "FidelityFX/host/backends/vk/ffx_vk.h"
+#include "FidelityFX/host/ffx_interface.h"
 
 namespace kage { namespace vk
 {
@@ -1523,7 +1525,6 @@ namespace kage { namespace vk
 
         m_supportMeshShading = checkExtSupportness(supportedExtensions, VK_EXT_MESH_SHADER_EXTENSION_NAME, false);
 
-
         vkGetPhysicalDeviceProperties(m_physicalDevice, &m_phyDeviceProps);
         assert(m_phyDeviceProps.limits.timestampPeriod);
 
@@ -1535,6 +1536,8 @@ namespace kage { namespace vk
         
         // only single device used in this application.
         volkLoadDevice(m_device);
+
+
 
         m_nwh = _wnd;
 
@@ -1581,6 +1584,9 @@ namespace kage { namespace vk
 
         m_frameRecCmds.init();
 
+        // get the function pointers
+        m_vkGetDeviceProcAddr = vkGetDeviceProcAddr;
+        initFFX();
     }
 
     void RHIContext_vk::bake()
@@ -2676,6 +2682,28 @@ namespace kage { namespace vk
             BX_ASSERT(false, "invalid handle type? %d", _h.type);
             break;
         }
+    }
+
+    void RHIContext_vk::initFFX()
+    {
+        // Create the FFX context
+        constexpr uint32_t c_maxContexts = 2;
+        size_t scratchMemSz = ffxGetScratchMemorySizeVK(s_renderVK->m_physicalDevice, c_maxContexts);
+        const kage::Memory* mem = kage::alloc((uint32_t)scratchMemSz);
+        memset(mem->data, 0, mem->size);
+
+        //void* mem = bx::alloc(entry::getAllocator(), scratchMemSz);
+
+        VkDeviceContext vkdevCtx;
+        vkdevCtx.vkDevice = s_renderVK->m_device;
+        vkdevCtx.vkPhysicalDevice = s_renderVK->m_physicalDevice;
+        vkdevCtx.vkDeviceProcAddr = s_renderVK->m_vkGetDeviceProcAddr;
+
+
+        FfxDevice ffxDevice = ffxGetDeviceVK(&vkdevCtx);
+        FfxErrorCode err = ffxGetInterfaceVK(&m_ffxInterface, ffxDevice, mem->data, mem->size, c_maxContexts);
+
+        assert(err == FFX_OK);
     }
 
     void RHIContext_vk::setRecord(

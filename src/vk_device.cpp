@@ -79,8 +79,7 @@ namespace kage{ namespace vk
             VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
         };
         createInfo.ppEnabledExtensionNames = extensions;
-        createInfo.enabledExtensionCount = sizeof(extensions) / sizeof(extensions[0]);
-
+        createInfo.enabledExtensionCount = COUNTOF(extensions);
 
         VkInstance Instance = 0;
         VK_CHECK(vkCreateInstance(&createInfo, 0, &Instance));
@@ -176,6 +175,7 @@ namespace kage{ namespace vk
         stl::vector<const char*> extensions;
         extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
         extensions.push_back(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
+        extensions.push_back(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME); // for ffx
 
         if (meshShadingSupported)
         {
@@ -220,6 +220,8 @@ namespace kage{ namespace vk
         features12.descriptorBindingSampledImageUpdateAfterBind = true;
         // enable variable-sized array: the last binded descriptor decides the size
         features12.descriptorBindingVariableDescriptorCount = true;
+        // enable for ffx using StorageBufferArrayNonUniformIndexing
+        features12.shaderStorageBufferArrayNonUniformIndexing = true;
         
 
         VkPhysicalDeviceVulkan13Features features13 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };

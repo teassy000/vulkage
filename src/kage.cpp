@@ -11,11 +11,9 @@
 
 
 #include "bx/string.h"
-
 #include "bx/allocator.h"
 #include "bx/readerwriter.h"
 #include "bx/settings.h"
-#include "bx/string.h"
 #include "bx/handlealloc.h"
 #include "command_buffer.h"
 
@@ -340,6 +338,8 @@ namespace kage
         double getPassTime(const PassHandle _hPass);
         uint64_t getPassClipping(const PassHandle _hPass);
         double getGpuTime();
+
+        void getFFXInterface(void* _ffxInterface);
 
         // Render API Begin
         void startRec(const PassHandle _hPass);
@@ -2142,6 +2142,11 @@ namespace kage
         return m_rhiContext->getGPUTime();
     }
 
+    void Context::getFFXInterface(void* _ffxInterface)
+    {
+        m_rhiContext->getFFXInterface(_ffxInterface);
+    }
+
     void Context::startRec(const PassHandle _hPass)
     {
         if (isValid(m_recordingPass))
@@ -2735,6 +2740,11 @@ namespace kage
     uint64_t getPassClipping(const PassHandle _hPass)
     {
         return s_ctx->getPassClipping(_hPass);
+    }
+
+    void getFFXInterface(void* _ffxInterface)
+    {
+        s_ctx->getFFXInterface(_ffxInterface);
     }
 
 } // namespace kage
