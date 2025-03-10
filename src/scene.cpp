@@ -268,7 +268,6 @@ bool loadObjScene(Scene& _scene, const std::vector<std::string>& _pathes, bool _
     return true;
 }
 
-
 static size_t writeToFile(SceneDumpDataTags _tag, void* _data, size_t _stride , size_t _count, FILE* _file)
 {
     fwrite(&_tag, sizeof(SceneDumpDataTags), 1, _file);

@@ -37,7 +37,10 @@ struct alignas(16) Mesh
     vec3 center;
     float radius;
 
+    vec3 aabbMin;
     uint32_t vertexOffset;
+    
+    vec3 aabbMax;
     uint32_t lodCount;
 
     MeshLod lods[8];

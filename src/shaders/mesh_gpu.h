@@ -78,7 +78,10 @@ struct Mesh
     vec3 center;
     float radius;
 
+    vec3 aabbMin;
     uint vertexOffset;
+
+    vec3 aabbMax;
     uint lodCount;
 
     MeshLod lods[8];
