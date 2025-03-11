@@ -2692,8 +2692,6 @@ namespace kage { namespace vk
         const kage::Memory* mem = kage::alloc((uint32_t)scratchMemSz);
         memset(mem->data, 0, mem->size);
 
-        //void* mem = bx::alloc(entry::getAllocator(), scratchMemSz);
-
         VkDeviceContext vkdevCtx;
         vkdevCtx.vkDevice = s_renderVK->m_device;
         vkdevCtx.vkPhysicalDevice = s_renderVK->m_physicalDevice;
@@ -2704,6 +2702,18 @@ namespace kage { namespace vk
         FfxErrorCode err = ffxGetInterfaceVK(&m_ffxInterface, ffxDevice, mem->data, mem->size, c_maxContexts);
 
         assert(err == FFX_OK);
+    }
+
+    void* RHIContext_vk::getRhiResource(BufferHandle _buf)
+    {
+        const Buffer_vk& bufvk = m_bufferContainer.getIdToData(_buf.id);
+        return static_cast<void*>(bufvk.buffer);
+    }
+
+    void* RHIContext_vk::getRhiResource(ImageHandle _img)
+    {
+        const Image_vk& imgVk = m_imageContainer.getIdToData(_img.id);
+        return static_cast<void*>(imgVk.image);
     }
 
     void RHIContext_vk::setRecord(

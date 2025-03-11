@@ -2,6 +2,7 @@
 
 #include "FidelityFX/host/ffx_brixelizer.h"
 #include "kage.h"
+#include "scene.h"
 #include <vector>
 
 
@@ -26,6 +27,8 @@ struct FFX_Brixelizer_Impl
     kage::BufferHandle brickAABB;
     kage::BufferHandle cascadeAABBTrees[FFX_BRIXELIZER_MAX_CASCADES];
     kage::BufferHandle cascadeBrickMaps[FFX_BRIXELIZER_MAX_CASCADES];
+    kage::BufferHandle vtxBuf;
+    kage::BufferHandle idxBuf;
 
     FfxBrixelizerContextDescription initDesc;
     FfxBrixelizerContext context;
@@ -35,5 +38,6 @@ struct FFX_Brixelizer_Impl
     std::vector<BrielizerBufInfo> bufs;
 };
 
-void initBrixelizerImpl(FFX_Brixelizer_Impl& _ffx);
+void initBrixelizerImpl(FFX_Brixelizer_Impl& _ffx, const kage::BufferHandle _vtxBuf, const kage::BufferHandle _idxBuf);
+void postInitBrixelizerImpl(FFX_Brixelizer_Impl& _ffx, const Scene& _scene);
 void updateBrixellizerImpl(const FFX_Brixelizer_Impl& _ffx);

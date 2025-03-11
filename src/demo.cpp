@@ -591,7 +591,7 @@ namespace
 
             // brixelizer 
             {
-                initBrixelizerImpl(m_brixelzer);
+                initBrixelizerImpl(m_brixelzer, m_vtxBuf, m_idxBuf);
             }
 
             // radiance cascade

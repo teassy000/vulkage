@@ -339,7 +339,10 @@ namespace kage
         uint64_t getPassClipping(const PassHandle _hPass);
         double getGpuTime();
 
+        // FFX rhi exposes
         void getFFXInterface(void* _ffxInterface);
+        void* getRhiResource(BufferHandle _buf);
+        void* getRhiResource(ImageHandle _img);
 
         // Render API Begin
         void startRec(const PassHandle _hPass);
@@ -2147,6 +2150,16 @@ namespace kage
         m_rhiContext->getFFXInterface(_ffxInterface);
     }
 
+    void* Context::getRhiResource(BufferHandle _buf)
+    {
+        return m_rhiContext->getRhiResource(_buf);
+    }
+
+    void* Context::getRhiResource(ImageHandle _img)
+    {
+        return m_rhiContext->getRhiResource(_img);
+    }
+
     void Context::startRec(const PassHandle _hPass)
     {
         if (isValid(m_recordingPass))
@@ -2745,6 +2758,16 @@ namespace kage
     void getFFXInterface(void* _ffxInterface)
     {
         s_ctx->getFFXInterface(_ffxInterface);
+    }
+
+    void* getRHIResource(BufferHandle _buf)
+    {
+        return s_ctx->getRhiResource(_buf);
+    }
+
+    void* getRHIResource(ImageHandle _img)
+    {
+        return s_ctx->getRhiResource(_img);
     }
 
 } // namespace kage

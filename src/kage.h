@@ -231,6 +231,8 @@ namespace kage
     double getGpuTime();
     uint64_t getPassClipping(const PassHandle _hPass);
 
-    // ffx
+    // ffx expose
     void getFFXInterface(void* _ffxInterface);
+    void* getRHIResource(BufferHandle _buf);
+    void* getRHIResource(ImageHandle _img);
 }

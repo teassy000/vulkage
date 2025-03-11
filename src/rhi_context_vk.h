@@ -430,6 +430,8 @@ namespace kage { namespace vk
 
         // ffx
         void initFFX() override;
+        void* getRhiResource(BufferHandle _buf) override;
+        void* getRhiResource(ImageHandle _img) override;
 
         // rendering command start
         void setRecord(

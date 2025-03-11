@@ -202,10 +202,14 @@ namespace kage
 
         // ffx
         virtual void initFFX() {};
+        virtual void* getRhiResource(ImageHandle _img) {return nullptr; }
+        virtual void* getRhiResource(BufferHandle _buf) { return nullptr; }
 
         void getFFXInterface(void* _ffxInterface) { *(FfxInterface*)_ffxInterface = m_ffxInterface; };
+        
         FfxDevice m_ffxDevice;
         FfxInterface m_ffxInterface;
+        stl::vector<FfxResource> m_ffxRhiResources;
     };
 
 } // namespace kage
