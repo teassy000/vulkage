@@ -288,15 +288,15 @@ namespace kage
         void setIndirectBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset, uint32_t _stride, uint32_t _defaultMaxCount);
         void setIndirectCountBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset);
 
-        void bindBuffer(PassHandle _hPass, BufferHandle _buf, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, const BufferHandle _outAlias);
-        SamplerHandle sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, SamplerFilter _filter, SamplerMipmapMode _mipMode, SamplerAddressMode _addrMode, SamplerReductionMode _reductionMode);
+        void bindBuffer(PassHandle _hPass, BufferHandle _buf, PipelineStageFlags _stage, AccessFlags _access, const BufferHandle _outAlias);
+        SamplerHandle sampleImage(PassHandle _hPass, ImageHandle _hImg, PipelineStageFlags _stage, SamplerFilter _filter, SamplerMipmapMode _mipMode, SamplerAddressMode _addrMode, SamplerReductionMode _reductionMode);
 
         void setBindlessTextures(BindlessHandle _bindless, const Memory* _mem, uint32_t _texCount, SamplerReductionMode _reductionMode);
 
-        void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout
+        void bindImage(PassHandle _hPass, ImageHandle _hImg, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout
             , const ImageHandle _outAlias);
 
-        void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx, const ImageHandle _outAlias);
+        void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const ImageHandle _outAlias);
 
         void setMultiFrame(ImageHandle _img);
         void setMultiFrame(BufferHandle _buf);
@@ -1574,7 +1574,6 @@ namespace kage
         passMeta.vertexCount = _vtxCount;
 
         ResInteractDesc interact{};
-        interact.binding = kDescriptorSetBindingDontCare;
         interact.stage = PipelineStageFlagBits::vertex_input;
         interact.access = AccessFlagBits::vertex_attribute_read;
 
@@ -1591,7 +1590,6 @@ namespace kage
         passMeta.indexCount = _idxCount;
 
         ResInteractDesc interact{};
-        interact.binding = kDescriptorSetBindingDontCare;
         interact.stage = PipelineStageFlagBits::vertex_input;
         interact.access = AccessFlagBits::index_read;
 
@@ -1611,7 +1609,6 @@ namespace kage
         passMeta.indirectMaxDrawCount = _defaultMaxCount;
 
         ResInteractDesc interact{};
-        interact.binding = kDescriptorSetBindingDontCare;
         interact.stage = PipelineStageFlagBits::indirect;
         interact.access = AccessFlagBits::indirect_command_read;
 
@@ -1627,7 +1624,6 @@ namespace kage
         passMeta.indirectCountBufOffset = _offset;
 
         ResInteractDesc interact{};
-        interact.binding = kDescriptorSetBindingDontCare;
         interact.stage = PipelineStageFlagBits::indirect;
         interact.access = AccessFlagBits::indirect_command_read;
 
@@ -1636,16 +1632,9 @@ namespace kage
         setRenderGraphDataDirty();
     }
 
-    void Context::bindBuffer(PassHandle _hPass, BufferHandle _buf, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, const BufferHandle _outAlias)
+    void Context::bindBuffer(PassHandle _hPass, BufferHandle _buf, PipelineStageFlags _stage, AccessFlags _access, const BufferHandle _outAlias)
     {
-        if (!availableBinding(m_usedBindPoints, _hPass, _binding))
-        {
-            message(DebugMsgType::error, "trying to binding the same point: %d", _binding);
-            return;
-        }
-
         ResInteractDesc interact{};
-        interact.binding = _binding;
         interact.stage = _stage;
         interact.access = _access;
 
@@ -1672,14 +1661,8 @@ namespace kage
         }
     }
 
-    kage::SamplerHandle Context::sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, SamplerFilter _filter, SamplerMipmapMode _mipMode, SamplerAddressMode _addrMode, SamplerReductionMode _reductionMode)
+    kage::SamplerHandle Context::sampleImage(PassHandle _hPass, ImageHandle _hImg, PipelineStageFlags _stage, SamplerFilter _filter, SamplerMipmapMode _mipMode, SamplerAddressMode _addrMode, SamplerReductionMode _reductionMode)
     {
-        if (!availableBinding(m_usedBindPoints, _hPass, _binding))
-        {
-            message(DebugMsgType::error, "trying to binding the same point: %d", _binding);
-            return { kInvalidHandle };
-        }
-
         // get the sampler id
         SamplerDesc desc;
         desc.filter = _filter;
@@ -1690,7 +1673,6 @@ namespace kage
         SamplerHandle sampler = requestSampler(desc);
 
         ResInteractDesc interact{};
-        interact.binding = _binding;
         interact.stage = _stage;
         interact.access = AccessFlagBits::shader_read;
         interact.layout = ImageLayout::shader_read_only_optimal;
@@ -1736,20 +1718,13 @@ namespace kage
         setRenderGraphDataDirty();
     }
 
-    void Context::bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout
+    void Context::bindImage(PassHandle _hPass, ImageHandle _hImg, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout
         , const ImageHandle _outAlias)
     {
-        if (!availableBinding(m_usedBindPoints, _hPass, _binding))
-        {
-            message(DebugMsgType::error, "trying to binding the same point: %d", _binding);
-            return;
-        }
-
         const ImageMetaData& imgMeta = m_imageMetas[_hImg.id];
         PassMetaData& passMeta = m_passMetas[_hPass.id];
 
         ResInteractDesc interact{};
-        interact.binding = _binding; 
         interact.stage = _stage;
         interact.access = _access;
         interact.layout = _layout;
@@ -1799,11 +1774,11 @@ namespace kage
         }
     }
 
-    void Context::setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx, const ImageHandle _outAlias)
+    void Context::setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const ImageHandle _outAlias)
     {
-        if (isColorAttachment(_hImg) && !availableBinding(m_usedAttchBindPoints, _hPass, _attachmentIdx))
+        if (!isColorAttachment(_hImg) && !isDepthStencil(_hImg))
         {
-            message(DebugMsgType::error, "trying to binding the same point: %d", _attachmentIdx);
+            message(DebugMsgType::error, "check the attachment type! It must be either a color attachment or a depth attachment!");
             return;
         }
 
@@ -1814,8 +1789,6 @@ namespace kage
         PassMetaData& passMeta = m_passMetas[_hPass.id];
 
         ResInteractDesc interact{};
-        interact.binding = _attachmentIdx;
-        
 
         if (isDepthStencil(_hImg))
         {
@@ -2419,14 +2392,14 @@ namespace kage
         s_ctx->setIndirectCountBuffer(_hPass, _hBuf, _offset);
     }
 
-    void bindBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, const BufferHandle _outAlias /*= {kInvalidHandle}*/)
+    void bindBuffer(PassHandle _hPass, BufferHandle _hBuf, PipelineStageFlags _stage, AccessFlags _access, const BufferHandle _outAlias /*= {kInvalidHandle}*/)
     {
-        s_ctx->bindBuffer(_hPass, _hBuf, _binding, _stage, _access, _outAlias);
+        s_ctx->bindBuffer(_hPass, _hBuf, _stage, _access, _outAlias);
     }
 
-    kage::SamplerHandle sampleImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, SamplerFilter _filter, SamplerMipmapMode _mipmapMode, SamplerAddressMode _addrMode, SamplerReductionMode _reductionMode)
+    kage::SamplerHandle sampleImage(PassHandle _hPass, ImageHandle _hImg, PipelineStageFlags _stage, SamplerFilter _filter, SamplerMipmapMode _mipmapMode, SamplerAddressMode _addrMode, SamplerReductionMode _reductionMode)
     {
-        return s_ctx->sampleImage(_hPass, _hImg, _binding, _stage, _filter, _mipmapMode, _addrMode, _reductionMode);
+        return s_ctx->sampleImage(_hPass, _hImg, _stage, _filter, _mipmapMode, _addrMode, _reductionMode);
     }
 
     void setBindlessTextures(BindlessHandle _bindless, const Memory* _mem, uint32_t _texCount, SamplerReductionMode _reductionMode)
@@ -2435,15 +2408,15 @@ namespace kage
     }
 
 
-    void bindImage(PassHandle _hPass, ImageHandle _hImg, uint32_t _binding, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout
+    void bindImage(PassHandle _hPass, ImageHandle _hImg, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout
         , const ImageHandle _outAlias /*= {kInvalidHandle}*/)
     {
-        s_ctx->bindImage(_hPass, _hImg, _binding, _stage, _access, _layout, _outAlias);
+        s_ctx->bindImage(_hPass, _hImg, _stage, _access, _layout, _outAlias);
     }
 
-    void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx, const ImageHandle _outAlias)
+    void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const ImageHandle _outAlias)
     {
-        s_ctx->setAttachmentOutput(_hPass, _hImg, _attachmentIdx, _outAlias);
+        s_ctx->setAttachmentOutput(_hPass, _hImg, _outAlias);
     }
 
     void setPresentImage(ImageHandle _rt, uint32_t _mipLv /*= 0*/)

@@ -80,22 +80,18 @@ void prepareVtxShading(VtxShading& _vtxShading, const Scene& _scene, const VtxSh
 
     // bindings
     kage::bindBuffer(pass, _initData.meshDrawCmdBuf
-        , 0
         , kage::PipelineStageFlagBits::vertex_shader
         , kage::AccessFlagBits::shader_read);
 
     kage::bindBuffer(pass, _initData.vtxBuf
-        , 1
         , kage::PipelineStageFlagBits::vertex_shader
         , kage::AccessFlagBits::shader_read);
 
     kage::bindBuffer(pass, _initData.meshDrawBuf
-        , 2
         , kage::PipelineStageFlagBits::vertex_shader
         , kage::AccessFlagBits::shader_read);
 
     kage::bindBuffer(pass, _initData.transformBuf
-        , 3
         , kage::PipelineStageFlagBits::vertex_shader | kage::PipelineStageFlagBits::fragment_shader
         , kage::AccessFlagBits::shader_read);
 
@@ -103,8 +99,8 @@ void prepareVtxShading(VtxShading& _vtxShading, const Scene& _scene, const VtxSh
     kage::setIndirectBuffer(pass, _initData.meshDrawCmdBuf, offsetof(MeshDrawCommand, indexCount), sizeof(MeshDrawCommand), (uint32_t)_scene.meshDraws.size());
     kage::setIndirectCountBuffer(pass, _initData.meshDrawCmdCountBuf, 0);
 
-    kage::setAttachmentOutput(pass, _initData.color, 0, colorOutAlias);
-    kage::setAttachmentOutput(pass, _initData.depth, 0, depthOutAlias);
+    kage::setAttachmentOutput(pass, _initData.color, colorOutAlias);
+    kage::setAttachmentOutput(pass, _initData.depth, depthOutAlias);
 
 
     _vtxShading.late = _late;

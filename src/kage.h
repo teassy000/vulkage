@@ -35,7 +35,6 @@ namespace kage
     void bindBuffer(
         PassHandle _hPass
         , BufferHandle _hBuf
-        , uint32_t _binding
         , PipelineStageFlags _stage
         , AccessFlags _access
         , const BufferHandle _outAlias = { kInvalidHandle }
@@ -44,7 +43,6 @@ namespace kage
     void bindImage(
         PassHandle _hPass
         , ImageHandle _hImg
-        , uint32_t _binding
         , PipelineStageFlags _stage
         , AccessFlags _access
         , ImageLayout _layout
@@ -54,7 +52,6 @@ namespace kage
     SamplerHandle sampleImage(
         PassHandle _hPass
         , ImageHandle _hImg
-        , uint32_t _binding
         , PipelineStageFlags _stage
         , SamplerFilter _filter
         , SamplerMipmapMode _mipmapMode
@@ -64,7 +61,10 @@ namespace kage
 
     void setBindlessTextures(BindlessHandle _bindless, const Memory* _mem, uint32_t _texCount, SamplerReductionMode _reductionMode);
 
-    void setAttachmentOutput(const PassHandle _hPass, const ImageHandle _hImg, const uint32_t _attachmentIdx, const ImageHandle _outAlias = { kInvalidHandle });
+    void setAttachmentOutput(
+        const PassHandle _hPass
+        , const ImageHandle _hImg
+        , const ImageHandle _outAlias = { kInvalidHandle });
 
     void setPresentImage(ImageHandle _rt, uint32_t _mipLv = 0);
 

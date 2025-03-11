@@ -40,26 +40,22 @@ void prepareFullDrawCmdPass(VoxelizationCmd& _vc, kage::BufferHandle _meshBuf, k
     kage::BufferHandle cmdCountBufOutAlias = kage::alias(cmdCntBuf);
 
     kage::bindBuffer(pass, _meshBuf
-        , 0
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read
     );
 
     kage::bindBuffer(pass, _meshDrawBuf
-        , 1
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read
     );
 
     kage::bindBuffer(pass, cmdBuf
-        , 2
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
         , cmdBufOutAlias
     );
 
     kage::bindBuffer(pass, cmdCntBuf
-        , 3
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
         , cmdCountBufOutAlias
@@ -206,26 +202,22 @@ void prepareVoxelization(Voxelization& _vox, const VoxInitData& _init)
     kage::bindIndexBuffer(pass, _init.idxBuf);
 
     kage::bindBuffer(pass, _init.cmdBuf
-        , 0
         , kage::PipelineStageFlagBits::geometry_shader
         , kage::AccessFlagBits::shader_read
     );
 
     kage::bindBuffer(pass, _init.drawBuf
-        , 1
         , kage::PipelineStageFlagBits::geometry_shader
         , kage::AccessFlagBits::shader_read
     );
     
     kage::bindBuffer(pass, _init.vtxBuf
-        , 2
         , kage::PipelineStageFlagBits::geometry_shader
         , kage::AccessFlagBits::shader_read
     );
 
     kage::BufferHandle threadCountBufAlias = kage::alias(threadCount);
     kage::bindBuffer(pass, threadCount
-        , 3
         , kage::PipelineStageFlagBits::fragment_shader
         , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
         , threadCountBufAlias
@@ -233,7 +225,6 @@ void prepareVoxelization(Voxelization& _vox, const VoxInitData& _init)
 
     kage::BufferHandle wposAlias = kage::alias(worldPos);
     kage::bindBuffer(pass, worldPos
-        , 4
         , kage::PipelineStageFlagBits::geometry_shader
         , kage::AccessFlagBits::shader_write
         , wposAlias
@@ -241,7 +232,6 @@ void prepareVoxelization(Voxelization& _vox, const VoxInitData& _init)
 
     kage::BufferHandle albedoAlias = kage::alias(albedo);
     kage::bindBuffer(pass, albedo
-        , 5
         , kage::PipelineStageFlagBits::geometry_shader
         , kage::AccessFlagBits::shader_write
         , albedoAlias
@@ -249,7 +239,6 @@ void prepareVoxelization(Voxelization& _vox, const VoxInitData& _init)
 
     kage::BufferHandle normalAlias = kage::alias(normal);
     kage::bindBuffer(pass, normal
-        , 6
         , kage::PipelineStageFlagBits::geometry_shader
         , kage::AccessFlagBits::shader_write
         , normalAlias
@@ -257,7 +246,6 @@ void prepareVoxelization(Voxelization& _vox, const VoxInitData& _init)
 
     kage::BufferHandle voxMapAlias = kage::alias(voxMapBuf);
     kage::bindBuffer(pass, voxMapBuf
-        , 7
         , kage::PipelineStageFlagBits::geometry_shader
         , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
         , voxMapAlias
@@ -268,7 +256,7 @@ void prepareVoxelization(Voxelization& _vox, const VoxInitData& _init)
 
     kage::ImageHandle rtAlias = kage::alias(dummy_rt);
 
-    kage::setAttachmentOutput(pass, dummy_rt, 0, rtAlias);
+    kage::setAttachmentOutput(pass, dummy_rt, rtAlias);
 
     _vox.pass = pass;
     _vox.program = program;
@@ -428,14 +416,12 @@ void prepareOctTree(OctTree& _oc, const kage::BufferHandle _voxMap)
     }
 
     kage::bindBuffer(pass, _voxMap
-        , 0
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read
     );
 
     kage::BufferHandle VoxMediemMapAls = kage::alias(VoxMediumMap);
     kage::bindBuffer(pass, VoxMediumMap
-        , 1
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
         , VoxMediemMapAls
@@ -443,7 +429,6 @@ void prepareOctTree(OctTree& _oc, const kage::BufferHandle _voxMap)
 
     kage::BufferHandle octTreeBufAlias = kage::alias(octTreeBuf);
     kage::bindBuffer(pass, octTreeBuf
-        , 2
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
         , octTreeBufAlias
@@ -451,7 +436,6 @@ void prepareOctTree(OctTree& _oc, const kage::BufferHandle _voxMap)
 
     kage::BufferHandle nodeCountBufAlias = kage::alias(nodeCountBuf);
     kage::bindBuffer(pass, nodeCountBuf
-        , 3
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
         , nodeCountBufAlias
@@ -459,7 +443,6 @@ void prepareOctTree(OctTree& _oc, const kage::BufferHandle _voxMap)
 
     kage::BufferHandle voxVisBufAlias = kage::alias(voxVisBuf);
     kage::bindBuffer(pass, voxVisBuf
-        , 4
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
         , voxVisBufAlias
@@ -569,13 +552,11 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
     kage::ImageHandle outAlias = kage::alias(img);
 
     kage::bindBuffer(pass, _init.trans
-        , 0
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read
     );
 
     kage::SamplerHandle albedoSamp = kage::sampleImage(pass, _init.g_buffer.albedo
-        , 1
         , kage::PipelineStageFlagBits::compute_shader
         , kage::SamplerFilter::nearest
         , kage::SamplerMipmapMode::nearest
@@ -584,7 +565,6 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
     );
 
     kage::SamplerHandle normSamp = kage::sampleImage(pass, _init.g_buffer.normal
-        , 2
         , kage::PipelineStageFlagBits::compute_shader
         , kage::SamplerFilter::nearest
         , kage::SamplerMipmapMode::nearest
@@ -593,7 +573,6 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
     );
 
     kage::SamplerHandle wpSamp = kage::sampleImage(pass, _init.g_buffer.worldPos
-        , 3
         , kage::PipelineStageFlagBits::compute_shader
         , kage::SamplerFilter::nearest
         , kage::SamplerMipmapMode::nearest
@@ -602,7 +581,6 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
     );
 
     kage::SamplerHandle emmiSamp = kage::sampleImage(pass, _init.g_buffer.emissive
-        , 4
         , kage::PipelineStageFlagBits::compute_shader
         , kage::SamplerFilter::nearest
         , kage::SamplerMipmapMode::nearest
@@ -611,7 +589,6 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
     );
 
     kage::SamplerHandle depthSamp = kage::sampleImage(pass, _init.depth
-        , 5
         , kage::PipelineStageFlagBits::compute_shader
         , kage::SamplerFilter::nearest
         , kage::SamplerMipmapMode::nearest
@@ -620,7 +597,6 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
     );
 
     kage::SamplerHandle skySamp = kage::sampleImage(pass, _init.skybox
-        , 6
         , kage::PipelineStageFlagBits::compute_shader
         , kage::SamplerFilter::linear
         , kage::SamplerMipmapMode::nearest
@@ -629,25 +605,21 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
     );
 
     kage::bindBuffer(pass, _init.octTreeCount
-        , 7
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read
     );
 
     kage::bindBuffer(pass, _init.octTree
-        , 8
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read
     );
 
     kage::bindBuffer(pass, _init.voxAlbedo
-        , 9
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read
     );
 
     kage::bindImage(pass, img
-        , 10
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_write
         , kage::ImageLayout::general

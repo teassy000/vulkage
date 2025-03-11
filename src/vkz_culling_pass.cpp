@@ -60,40 +60,33 @@ void prepareCullingComp(Culling& _cullingComp, const CullingCompInitData& _initD
     kage::BufferHandle drawVisOutAlias = kage::alias(_initData.meshDrawVisBuf);
 
     kage::bindBuffer(pass, _initData.meshBuf
-        , 0
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read);
 
     kage::bindBuffer(pass, _initData.meshDrawBuf
-        , 1
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read);
 
     kage::bindBuffer(pass, _initData.transBuf
-        , 2
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read);
 
     kage::bindBuffer(pass, _initData.meshDrawCmdBuf
-        , 3
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
         , drawCmdOutAlias);
 
     kage::bindBuffer(pass, _initData.meshDrawCmdCountBuf
-        , 4
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
         , drawCmdCountOutAlias);
 
     kage::bindBuffer(pass, _initData.meshDrawVisBuf
-        , 5
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
         , drawVisOutAlias);
 
      kage::SamplerHandle samp = kage::sampleImage(pass, _initData.pyramid
-        , 6
         , kage::PipelineStageFlagBits::compute_shader
         , kage::SamplerFilter::linear
         , kage::SamplerMipmapMode::nearest

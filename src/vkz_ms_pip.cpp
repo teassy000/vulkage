@@ -119,48 +119,39 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
     GBuffer gb_outAlias = aliasGBuffer(_initData.g_buffer);
 
     kage::bindBuffer(pass, _initData.meshDrawCmdBuffer
-        , 0
         , kage::PipelineStageFlagBits::task_shader
         , kage::AccessFlagBits::shader_read);
     
     kage::bindBuffer(pass, _initData.meshBuffer
-        , 1
         , kage::PipelineStageFlagBits::task_shader
         , kage::AccessFlagBits::shader_read);
 
     kage::bindBuffer(pass, _initData.meshDrawBuffer
-        , 2
         , kage::PipelineStageFlagBits::task_shader
         , kage::AccessFlagBits::shader_read);
 
     kage::bindBuffer(pass, _initData.transformBuffer
-        , 3
         , kage::PipelineStageFlagBits::task_shader
         , kage::AccessFlagBits::shader_read);
 
     kage::bindBuffer(pass, _initData.vtxBuffer
-        , 4
         , kage::PipelineStageFlagBits::task_shader
         , kage::AccessFlagBits::shader_read);
 
     kage::bindBuffer(pass, _initData.meshletBuffer
-        , 5
         , kage::PipelineStageFlagBits::task_shader
         , kage::AccessFlagBits::shader_read);
 
     kage::bindBuffer(pass, _initData.meshletDataBuffer
-        , 6
         , kage::PipelineStageFlagBits::task_shader
         , kage::AccessFlagBits::shader_read);
 
     kage::bindBuffer(pass, _initData.meshletVisBuffer
-        , 7
         , kage::PipelineStageFlagBits::task_shader
         , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
         , mltVisBufOutAlias);
 
     kage::SamplerHandle pyrSampler = kage::sampleImage(pass, _initData.pyramid
-        , 8
         , kage::PipelineStageFlagBits::fragment_shader
         , kage::SamplerFilter::linear
         , kage::SamplerMipmapMode::nearest
@@ -171,14 +162,14 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
     kage::setIndirectBuffer(pass, _initData.meshDrawCmdCountBuffer, 4, 1, 0);
 
 
-    kage::setAttachmentOutput(pass, _initData.depth, 0, depthOutAlias);
+    kage::setAttachmentOutput(pass, _initData.depth, depthOutAlias);
 
     // bind g-buffer
-    kage::setAttachmentOutput(pass, _initData.g_buffer.albedo, 0, gb_outAlias.albedo);
-    kage::setAttachmentOutput(pass, _initData.g_buffer.normal, 1, gb_outAlias.normal);
-    kage::setAttachmentOutput(pass, _initData.g_buffer.worldPos, 2, gb_outAlias.worldPos);
-    kage::setAttachmentOutput(pass, _initData.g_buffer.emissive, 3, gb_outAlias.emissive);
-    kage::setAttachmentOutput(pass, _initData.g_buffer.specular, 4, gb_outAlias.specular);
+    kage::setAttachmentOutput(pass, _initData.g_buffer.albedo, gb_outAlias.albedo);
+    kage::setAttachmentOutput(pass, _initData.g_buffer.normal, gb_outAlias.normal);
+    kage::setAttachmentOutput(pass, _initData.g_buffer.worldPos, gb_outAlias.worldPos);
+    kage::setAttachmentOutput(pass, _initData.g_buffer.emissive, gb_outAlias.emissive);
+    kage::setAttachmentOutput(pass, _initData.g_buffer.specular, gb_outAlias.specular);
 
     // set the data
     _meshShading.late = _late;
@@ -233,12 +224,10 @@ void prepareTaskSubmit(TaskSubmit& _taskSubmit, kage::BufferHandle _drawCmdBuf, 
     kage::BufferHandle drawCmdBufferOutAlias = kage::alias(_drawCmdBuf);
 
     kage::bindBuffer(pass, _drawCmdCntBuf
-        , 0
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read);
     
     kage::bindBuffer(pass, _drawCmdBuf
-        , 1
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_write
         , drawCmdBufferOutAlias);

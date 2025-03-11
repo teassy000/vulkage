@@ -178,16 +178,13 @@ namespace kage
     // generate barrier, bind descriptor set
     struct NO_VTABLE ResInteractDesc
     {
-        uint32_t            binding{ kInvalidDescriptorSetIndex };
-
         PipelineStageFlags  stage{ PipelineStageFlagBits::none };
         AccessFlags         access{ AccessFlagBits::none };
 
         ImageLayout         layout{ ImageLayout::general };
 
         inline bool operator == (const ResInteractDesc& rhs) const {
-            return binding == rhs.binding &&
-                stage == rhs.stage &&
+            return stage == rhs.stage &&
                 access == rhs.access &&
                 layout == rhs.layout;
         }

@@ -75,13 +75,11 @@ void initSkyboxPass(Skybox& _skybox, const kage::BufferHandle _trans, const kage
     kage::bindIndexBuffer(pass, idxBuf, (uint32_t)geom.indices.size());
 
     kage::bindBuffer(pass, _trans
-        , 0
         , kage::PipelineStageFlagBits::vertex_shader
         , kage::AccessFlagBits::shader_read
     );
 
     _skybox.cubemapSampler = kage::sampleImage(pass, cubemap
-        , 1
         , kage::PipelineStageFlagBits::fragment_shader
         , kage::SamplerFilter::nearest
         , kage::SamplerMipmapMode::nearest
@@ -89,7 +87,7 @@ void initSkyboxPass(Skybox& _skybox, const kage::BufferHandle _trans, const kage
     , kage::SamplerReductionMode::weighted_average
     );
 
-    kage::setAttachmentOutput(pass, _color, 0, outColor);
+    kage::setAttachmentOutput(pass, _color, outColor);
 
     _skybox.pass = pass;
     _skybox.prog = prog;

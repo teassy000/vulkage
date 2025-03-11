@@ -402,44 +402,6 @@ namespace kage
         return _binding < kDescriptorSetBindingDontCare;
     }
 
-    const ResInteractDesc mergeIfNoConflict(const ResInteractDesc& _desc0, const ResInteractDesc& _desc1)
-    {
-        KG_ZoneScopedC(Color::light_yellow);
-        ResInteractDesc retVar = _desc1;
-
-        if (_desc0.layout == retVar.layout)
-        {
-
-            if (_desc0.binding == retVar.binding)
-            {
-                message(DebugMsgType::info, "resource interaction in current pass already exist! Now merging!");
-                retVar = merge(_desc0, retVar);
-            }
-            else
-            {
-                if (isValidBinding(_desc0.binding)) {
-                    message(DebugMsgType::info, "resource interaction in current pass already exist! Old: %d, New: %d, Using: %d", _desc0.binding, retVar.binding, _desc0.binding);
-                    retVar = merge(_desc0, retVar);
-                    retVar.binding = _desc0.binding;
-                }
-                else if (isValidBinding(retVar.binding)) {
-                    message(DebugMsgType::info, "resource interaction in current pass already exist! Now merging!");
-                    retVar = merge(_desc0, retVar);
-
-                }
-                else {
-                    message(DebugMsgType::error, "resource interaction in current pass already exist! conflicts detected!");
-                }
-            }
-        }
-        else
-        {
-            message(DebugMsgType::error, "resource interaction in current pass already exist! conflicts detected!");
-        }
-
-        return retVar;
-    }
-
     uint32_t Framegraph::readResource(const stl::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type)
     {
         KG_ZoneScopedC(Color::light_yellow);
@@ -463,7 +425,7 @@ namespace kage
             {
                 // update the existing interaction
                 ResInteractDesc& orig = existent->second;
-                orig = mergeIfNoConflict(orig, interact);
+                orig = merge(orig, interact);
             }
             else
             {
@@ -500,7 +462,7 @@ namespace kage
             {
                 // update the existing interaction
                 ResInteractDesc& orig = existent->second;
-                orig = mergeIfNoConflict(orig, interact);
+                orig = merge(orig, interact);
             }
             else
             {

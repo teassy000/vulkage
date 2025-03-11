@@ -192,7 +192,6 @@ void prepareUI(UIRendering& _ui, kage::ImageHandle _color, kage::ImageHandle _de
     kage::bindIndexBuffer(pass, ib); // TODO: bind in the custom func already, this is for frame-graph
     kage::bindVertexBuffer(pass, vb);
     _ui.fontSampler = kage::sampleImage(pass, fontImage
-        , 0
         , kage::PipelineStageFlagBits::fragment_shader
         , kage::SamplerFilter::linear
         , kage::SamplerMipmapMode::linear
@@ -201,7 +200,6 @@ void prepareUI(UIRendering& _ui, kage::ImageHandle _color, kage::ImageHandle _de
     );
 
     _ui.dummySampler = kage::sampleImage(pass, _ui.dummyColor
-        , 1
         , kage::PipelineStageFlagBits::fragment_shader
         , kage::SamplerFilter::linear
         , kage::SamplerMipmapMode::linear
@@ -209,8 +207,8 @@ void prepareUI(UIRendering& _ui, kage::ImageHandle _color, kage::ImageHandle _de
         , kage::SamplerReductionMode::weighted_average
     );
 
-    kage::setAttachmentOutput(_ui.pass, _color, 0, colorOutAlias);
-    kage::setAttachmentOutput(_ui.pass, _depth, 0, depthOutAlias);
+    kage::setAttachmentOutput(_ui.pass, _color, colorOutAlias);
+    kage::setAttachmentOutput(_ui.pass, _depth, depthOutAlias);
 }
 
 void destroyUI(UIRendering& _ui)

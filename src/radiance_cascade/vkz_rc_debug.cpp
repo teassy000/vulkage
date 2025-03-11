@@ -78,27 +78,23 @@ void prepareVoxDebugCmd(VoxDebugCmdGen& _debugCmd, const VoxDebugCmdInit& _init)
 
 
     kage::bindBuffer(pass, _init.trans
-        , 0
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read
     );
 
     kage::bindBuffer(pass, cmdBuf
-        , 1
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
         , cmdBufAlias
     );
 
     kage::bindBuffer(pass, voxDrawBuf
-        , 2
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
         , voxDrawBufAlias
     );
 
     kage::SamplerHandle samp = kage::sampleImage(pass, _init.pyramid
-        , 3
         , kage::PipelineStageFlagBits::compute_shader
         , kage::SamplerFilter::linear
         , kage::SamplerMipmapMode::nearest
@@ -107,13 +103,11 @@ void prepareVoxDebugCmd(VoxDebugCmdGen& _debugCmd, const VoxDebugCmdInit& _init)
     );
 
     kage::bindBuffer(pass, _init.voxWorldPos
-        , 4
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read
     );
 
     kage::bindBuffer(pass, _init.voxAlbedo
-        , 5
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read
     );
@@ -219,19 +213,16 @@ void prepareVoxDebugDraw(VoxDebugDraw& _vd, const VoxDebugDrawInit _init)
     kage::BufferHandle idxBuf = kage::registBuffer("cube_idx", idxDesc, idxMem, kage::ResourceLifetime::non_transition);
 
     kage::bindBuffer(pass, _init.cmd
-        , 0
         , kage::PipelineStageFlagBits::vertex_shader
         , kage::AccessFlagBits::shader_read
     );
 
     kage::bindBuffer(pass, _init.trans
-        , 1
         , kage::PipelineStageFlagBits::vertex_shader | kage::PipelineStageFlagBits::fragment_shader
         , kage::AccessFlagBits::shader_read
     );
 
     kage::bindBuffer(pass, _init.draw
-        , 2
         , kage::PipelineStageFlagBits::vertex_shader
         , kage::AccessFlagBits::shader_read
     );
@@ -242,10 +233,10 @@ void prepareVoxDebugDraw(VoxDebugDraw& _vd, const VoxDebugDrawInit _init)
     kage::setIndirectBuffer(pass, _init.cmd, offsetof(MeshDrawCommand, indexCount), sizeof(MeshDrawCommand), 1u);
 
     kage::ImageHandle colorAlias = kage::alias(_init.color);
-    kage::setAttachmentOutput(pass, _init.color, 0, colorAlias);
+    kage::setAttachmentOutput(pass, _init.color, colorAlias);
 
     kage::ImageHandle depthAlias = kage::alias(_init.depth);
-    kage::setAttachmentOutput(pass, _init.depth, 0, depthAlias);
+    kage::setAttachmentOutput(pass, _init.depth, depthAlias);
 
     _vd.pass = pass;
     _vd.program = prog;
@@ -419,27 +410,23 @@ void prepareProbeDbgCmdGen(ProbeDbgCmdGen& _gen, const ProbeDebugGenInit& _init)
 
 
     kage::bindBuffer(pass, _init.trans
-        , 0
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read
     );
 
     kage::bindBuffer(pass, cmdBuf
-        , 1
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
         , cmdBufAlias
     );
 
     kage::bindBuffer(pass, probeDrawBuf
-        , 2
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
         , probeDrawBufAlias
     );
 
     kage::SamplerHandle samp = kage::sampleImage(pass, _init.pyramid
-        , 3
         , kage::PipelineStageFlagBits::compute_shader
         , kage::SamplerFilter::linear
         , kage::SamplerMipmapMode::nearest
@@ -535,26 +522,22 @@ void prepareProbeDbgDraw(ProbeDbgDraw& _pd, const ProbeDebugDrawInit& _init)
     kage::BufferHandle idxBuf = kage::registBuffer("sphere_idx", idxDesc, _init.idxMem, kage::ResourceLifetime::non_transition);
 
     kage::bindBuffer(pass, _init.trans
-        , 0
         , kage::PipelineStageFlagBits::vertex_shader | kage::PipelineStageFlagBits::fragment_shader
         , kage::AccessFlagBits::shader_read
     );
 
     kage::bindBuffer(pass, vtxBuf
-        , 1
         , kage::PipelineStageFlagBits::vertex_shader
         , kage::AccessFlagBits::shader_read
     );
 
     kage::bindBuffer(pass, _init.drawData
-        , 2
         , kage::PipelineStageFlagBits::vertex_shader
         , kage::AccessFlagBits::shader_read
     );
 
     kage::SamplerHandle samp = kage::sampleImage(
         pass, _init.cascade
-        , 3
         , kage::PipelineStageFlagBits::fragment_shader
         , kage::SamplerFilter::nearest
         , kage::SamplerMipmapMode::nearest
@@ -568,10 +551,10 @@ void prepareProbeDbgDraw(ProbeDbgDraw& _pd, const ProbeDebugDrawInit& _init)
     kage::setIndirectBuffer(pass, _init.cmd, offsetof(MeshDrawCommand, indexCount), sizeof(MeshDrawCommand), 1u);
 
     kage::ImageHandle colorAlias = kage::alias(_init.color);
-    kage::setAttachmentOutput(pass, _init.color, 0, colorAlias);
+    kage::setAttachmentOutput(pass, _init.color, colorAlias);
 
     kage::ImageHandle depthAlias = kage::alias(_init.depth);
-    kage::setAttachmentOutput(pass, _init.depth, 0, depthAlias);
+    kage::setAttachmentOutput(pass, _init.depth, depthAlias);
 
     _pd.pass = pass;
     _pd.program = prog;

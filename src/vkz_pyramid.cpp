@@ -93,7 +93,6 @@ void setPyramidPassDependency(Pyramid& _pyramid, const kage::ImageHandle _inDept
     _pyramid.inDepth = _inDepth;
 
     _pyramid.sampler = kage::sampleImage(_pyramid.pass, _inDepth
-        , 0
         , kage::PipelineStageFlagBits::compute_shader
         , kage::SamplerFilter::linear
         , kage::SamplerMipmapMode::nearest
@@ -102,7 +101,6 @@ void setPyramidPassDependency(Pyramid& _pyramid, const kage::ImageHandle _inDept
     );
 
     kage::bindImage(_pyramid.pass, _pyramid.image
-        , 1
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_write
         , kage::ImageLayout::general
