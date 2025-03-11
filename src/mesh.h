@@ -32,15 +32,15 @@ struct MeshLod
     float error;
 };
 
+
 struct alignas(16) Mesh
 {
     vec3 center;
     float radius;
 
-    vec3 aabbMin;
+    uint32_t vertexCount;
+
     uint32_t vertexOffset;
-    
-    vec3 aabbMax;
     uint32_t lodCount;
 
     MeshLod lods[8];
@@ -76,7 +76,7 @@ struct Geometry
     std::vector<Mesh>       meshes;
 };
 
-struct SeamlessVertex
+struct alignas(16) SeamlessVertex
 {
     float px, py, pz;
     float nx, ny, nz;

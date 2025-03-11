@@ -106,19 +106,12 @@ bool appendMesh(Geometry& _result, std::vector<Vertex>& _vtxes, std::vector<uint
     meshCenter /= float(_vtxes.size());
 
     float radius = 0.0;
-    vec3 aabbMin = vec3(FLT_MAX);
-    vec3 aabbMax = vec3(-FLT_MAX);
     for (Vertex& v : _vtxes) {
         radius = glm::max(radius, glm::distance(meshCenter, vec3(v.vx, v.vy, v.vz)));
-        aabbMin = glm::min(aabbMin, vec3(v.vx, v.vy, v.vz));
-        aabbMax = glm::max(aabbMax, vec3(v.vx, v.vy, v.vz));
     }
 
     mesh.center = meshCenter;
     mesh.radius = radius;
-
-    mesh.aabbMin = aabbMin;
-    mesh.aabbMax = aabbMax;
 
     // extract normals as float3 because meshopt_simplifyWithAttributes requires
     std::vector<vec3> norms(_vtxes.size());
@@ -943,18 +936,12 @@ bool loadMeshSeamless(Geometry& _outGeo, const char* _path)
         meshCenter /= float(vertices.size());
 
         float radius = 0.0;
-        vec3 aabbMin = vec3(FLT_MAX);
-        vec3 aabbMax = vec3(-FLT_MAX);
         for (SeamlessVertex& v : vertices) {
             radius = glm::max(radius, glm::distance(meshCenter, vec3(v.px, v.py, v.pz)));
-            aabbMin = glm::min(aabbMin, vec3(v.px, v.py, v.pz));
-            aabbMax = glm::max(aabbMax, vec3(v.px, v.py, v.pz));
         }
 
         mesh.center = meshCenter;
         mesh.radius = radius;
-        mesh.aabbMin = aabbMin;
-        mesh.aabbMax = aabbMax;
 
         MeshLod lod;
 
