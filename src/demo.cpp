@@ -203,6 +203,9 @@ namespace
 
             updateUI(m_ui, m_demoData.input, m_demoData.renderOptions, m_demoData.profiling, m_demoData.logic);
 
+            // ffx
+            updateBrixellizerImpl(m_brixelzer, m_scene);
+
             // render
             kage::render();
 
@@ -311,7 +314,7 @@ namespace
 
                 kage::BufferDesc idxBufDesc;
                 idxBufDesc.size = memIdxBuf->size;
-                idxBufDesc.usage = kage::BufferUsageFlagBits::index | kage::BufferUsageFlagBits::transfer_dst;
+                idxBufDesc.usage = kage::BufferUsageFlagBits::index | kage::BufferUsageFlagBits::transfer_dst | kage::BufferUsageFlagBits::storage;
                 idxBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
                 m_idxBuf = kage::registBuffer("idx", idxBufDesc, memIdxBuf);
             }

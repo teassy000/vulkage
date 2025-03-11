@@ -232,6 +232,7 @@ namespace kage
     uint64_t getPassClipping(const PassHandle _hPass);
 
     // ffx expose
+    bool isBackendReady();
     void getFFXInterface(void* _ffxInterface);
     void* getRHIResource(BufferHandle _buf);
     void* getRHIResource(ImageHandle _img);

@@ -36,8 +36,9 @@ struct FFX_Brixelizer_Impl
 
     std::vector<BrixelizerInstInfo> insts;
     std::vector<BrielizerBufInfo> bufs;
+
+    bool postInitilized = false;
 };
 
 void initBrixelizerImpl(FFX_Brixelizer_Impl& _ffx, const kage::BufferHandle _vtxBuf, const kage::BufferHandle _idxBuf);
-void postInitBrixelizerImpl(FFX_Brixelizer_Impl& _ffx, const Scene& _scene);
-void updateBrixellizerImpl(const FFX_Brixelizer_Impl& _ffx);
+void updateBrixellizerImpl(const FFX_Brixelizer_Impl& _ffx, const Scene& _scene);

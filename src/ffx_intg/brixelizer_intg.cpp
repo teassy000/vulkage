@@ -68,10 +68,7 @@ mat4 modelMatrix(const vec3& _pos, const quat& _orit, const vec3& _scale, bool _
 void registerBrixelizerBuffers(FFX_Brixelizer_Impl& _ffx, const Scene& _scene, const kage::BufferHandle _vtxBuf, const kage::BufferHandle _idxBuf)
 {
     FfxBrixelizerBufferDescription bufferDescs[2] = {};
-    typedef struct FfxBrixelizerBufferDescription {
-        FfxResource  buffer;        ///< An <c><i>FfxResource</i></c> of the buffer.
-        uint32_t* outIndex;      ///< A pointer to a <c><i>uint32_t</i></c> to receive the index assigned to the buffer.
-    } FfxBrixelizerBufferDescription;
+    uint32_t bufferIdxes[2] = {};
 
     FfxResource vtxRes;
     vtxRes.resource = kage::getRHIResource(_vtxBuf);
@@ -102,7 +99,9 @@ void registerBrixelizerBuffers(FFX_Brixelizer_Impl& _ffx, const Scene& _scene, c
     std::copy(nameStr.begin(), nameStr.end(), idxRes.name);
 
     bufferDescs[0].buffer = vtxRes;
+    bufferDescs[0].outIndex = &(bufferIdxes[0]);
     bufferDescs[1].buffer = idxRes;
+    bufferDescs[1].outIndex = &(bufferIdxes[1]);
 
     ffxBrixelizerRegisterBuffers(&_ffx.context, bufferDescs, COUNTOF(bufferDescs));
 }
@@ -142,7 +141,7 @@ void createBrixelizerInstances(FFX_Brixelizer_Impl& _ffx, const Scene& _scene, b
         vec3 minAABB = vec3(FLT_MAX);
         vec3 maxAABB = vec3(FLT_MIN);
         for (uint32_t jj = 0; jj < 8; ++jj) {
-            vec3 worldPos = rotateQuat(aabbCorners[ii], mdraw.orit)* mdraw.scale + mdraw.pos;
+            vec3 worldPos = rotateQuat(aabbCorners[jj], mdraw.orit)* mdraw.scale + mdraw.pos;
             minAABB = glm::min(minAABB, worldPos);
             maxAABB = glm::max(maxAABB, worldPos);
         }
@@ -191,12 +190,27 @@ void initBrixelizerImpl(FFX_Brixelizer_Impl& _ffx, const kage::BufferHandle _vtx
 
     _ffx.vtxBuf = _vtxBuf;
     _ffx.idxBuf = _idxBuf;
+
+    kage::bindBuffer(_ffx.pass, _ffx.vtxBuf
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::AccessFlagBits::shader_read
+    );
+
+    kage::bindBuffer(_ffx.pass, _ffx.idxBuf
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::AccessFlagBits::shader_read
+    );
 }
 
 void postInitBrixelizerImpl(FFX_Brixelizer_Impl& _ffx, const Scene& _scene)
 {
-    registerBrixelizerBuffers(_ffx, _scene, _ffx.vtxBuf, _ffx.idxBuf);
-    createBrixelizerInstances(_ffx, _scene);
+    if(!_ffx.postInitilized && kage::isBackendReady())
+    {
+        registerBrixelizerBuffers(_ffx, _scene, _ffx.vtxBuf, _ffx.idxBuf);
+        createBrixelizerInstances(_ffx, _scene);
+
+        _ffx.postInitilized = true;
+    }
 }
 
 void destroyBrixelizerImpl(FFX_Brixelizer_Impl& _ffx)
@@ -204,7 +218,7 @@ void destroyBrixelizerImpl(FFX_Brixelizer_Impl& _ffx)
     ffxBrixelizerContextDestroy(&_ffx.context);
 }
 
-void updateBrixellizerImpl(const FFX_Brixelizer_Impl& _ffx)
+void updateBrixellizerImpl(const FFX_Brixelizer_Impl& _ffx, const Scene& _scene)
 {
-
+    postInitBrixelizerImpl(const_cast<FFX_Brixelizer_Impl&>(_ffx), _scene);
 }

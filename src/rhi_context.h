@@ -153,6 +153,7 @@ namespace kage
 
         virtual void bake();
         virtual bool run() { return false; };
+        virtual bool isBaked() { return m_baked; }
 
         virtual bool checkSupports(VulkanSupportExtension _ext) { return false; }
         virtual void updateResolution(const Resolution& _resolution) {};
@@ -210,6 +211,7 @@ namespace kage
         FfxDevice m_ffxDevice;
         FfxInterface m_ffxInterface;
         stl::vector<FfxResource> m_ffxRhiResources;
+        bool m_baked{ false };
     };
 
 } // namespace kage

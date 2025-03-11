@@ -337,6 +337,9 @@ namespace kage
 
         double getPassTime(const PassHandle _hPass);
         uint64_t getPassClipping(const PassHandle _hPass);
+
+        bool isBackendReady();
+
         double getGpuTime();
 
         // FFX rhi exposes
@@ -2113,6 +2116,11 @@ namespace kage
         return m_rhiContext->getPassClipping(_hPass);
     }
 
+    bool Context::isBackendReady()
+    {
+        return !m_isRenderGraphDataDirty && m_rhiContext->isBaked();
+    }
+
     double Context::getGpuTime()
     {
         return m_rhiContext->getGPUTime();
@@ -2726,6 +2734,11 @@ namespace kage
     uint64_t getPassClipping(const PassHandle _hPass)
     {
         return s_ctx->getPassClipping(_hPass);
+    }
+
+    bool isBackendReady()
+    {
+        return s_ctx->isBackendReady();
     }
 
     void getFFXInterface(void* _ffxInterface)

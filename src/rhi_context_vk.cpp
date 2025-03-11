@@ -1602,6 +1602,8 @@ namespace kage { namespace vk
         m_queryStatisticsCount = (uint32_t)(2 * m_passContainer.size());
         m_queryPoolStatistics = createQueryPool(m_device, m_queryStatisticsCount, VK_QUERY_TYPE_PIPELINE_STATISTICS);
         assert(m_queryPoolStatistics);
+
+        m_baked = true;
     }
 
     bool RHIContext_vk::run()
