@@ -60,15 +60,8 @@ namespace kage
     {
         graphics = 0,
         compute,
+        extern_abstract, // like the kage don't translate it to the real queue
         count,
-    };
-
-    enum class PipelineBindPoint : uint16_t
-    {
-        compute = 0,
-        graphics = 1,
-        raytracing = 2,
-        max_enum = 0x7FFF
     };
 
     enum class CompareOp : uint16_t
@@ -605,7 +598,7 @@ namespace kage
             : location(_location), binding(_binding), format(_format), offset(_offset) {}
     };
 
-    struct PipelineConfig
+    struct GraphicsPipelineConfig
     {
         bool enableDepthTest{ true };
         bool enableDepthWrite{ true };
@@ -660,7 +653,7 @@ namespace kage
 
         uint32_t        pipelineSpecNum{0}; // each constant is 4 byte
         void*           pipelineSpecData{nullptr};
-        PipelineConfig  pipelineConfig{};
+        GraphicsPipelineConfig  pipelineConfig{};
     };
 
     struct Binding

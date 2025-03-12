@@ -65,6 +65,66 @@ mat4 modelMatrix(const vec3& _pos, const quat& _orit, const vec3& _scale, bool _
     return model;
 }
 
+void createFfxKageResouces(FFX_Brixelizer_Impl& _ffx)
+{
+    {
+        kage::PassDesc pd{};
+        pd.queue = kage::PassExeQueue::extern_abstract;
+        
+        _ffx.pass = kage::registPass("brxl", pd);
+    }
+
+    {
+        kage::ImageDesc sdfAtlasDesc = {};
+        sdfAtlasDesc.width = FFX_BRIXELIZER_STATIC_CONFIG_SDF_ATLAS_SIZE;
+        sdfAtlasDesc.height = FFX_BRIXELIZER_STATIC_CONFIG_SDF_ATLAS_SIZE;
+        sdfAtlasDesc.numLayers = FFX_BRIXELIZER_STATIC_CONFIG_SDF_ATLAS_SIZE;
+        sdfAtlasDesc.format = kage::ResourceFormat::r8_unorm;
+        sdfAtlasDesc.usage = kage::ImageUsageFlagBits::storage | kage::ImageUsageFlagBits::sampled;
+        sdfAtlasDesc.layout = kage::ImageLayout::general;
+        sdfAtlasDesc.type = kage::ImageType::type_3d;
+        sdfAtlasDesc.viewType = kage::ImageViewType::type_3d;
+
+        _ffx.sdfAtlas = kage::registTexture("brxl_sdf_atlas", sdfAtlasDesc);
+    }
+
+    {
+        kage::BufferDesc brickAABBDesc = {};
+        brickAABBDesc.size = FFX_BRIXELIZER_BRICK_AABBS_SIZE;
+        brickAABBDesc.fillVal = 0;
+        brickAABBDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+        brickAABBDesc.usage = kage::BufferUsageFlagBits::storage;
+
+        _ffx.brickAABB = kage::registBuffer("brxl_brick_aabbs", brickAABBDesc);
+    }
+
+    {
+        kage::BufferDesc cascadeAABBTreeDesc = {};
+        cascadeAABBTreeDesc.size = FFX_BRIXELIZER_CASCADE_AABB_TREE_SIZE;
+        cascadeAABBTreeDesc.fillVal = 0;
+        cascadeAABBTreeDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+        cascadeAABBTreeDesc.usage = kage::BufferUsageFlagBits::storage;
+        
+        for (uint32_t ii = 0; ii < FFX_BRIXELIZER_MAX_CASCADES; ++ii)
+        {
+            _ffx.cascadeAABBTrees[ii] = kage::registBuffer("brxl_cascade_aabbs", cascadeAABBTreeDesc);
+        }
+    }
+
+    {
+        kage::BufferDesc cascadeBrickMapDesc = {};
+        cascadeBrickMapDesc.size = FFX_BRIXELIZER_MAX_CASCADES * FFX_BRIXELIZER_CASCADE_BRICK_MAP_SIZE;
+        cascadeBrickMapDesc.fillVal = 0;
+        cascadeBrickMapDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+        cascadeBrickMapDesc.usage = kage::BufferUsageFlagBits::storage;
+        for (uint32_t ii = 0; ii < FFX_BRIXELIZER_MAX_CASCADES; ++ii)
+        {
+            _ffx.cascadeBrickMaps[ii] = kage::registBuffer("brxl_cascade_brick_map", cascadeBrickMapDesc);
+        }
+    }
+
+}
+
 void registerBrixelizerBuffers(FFX_Brixelizer_Impl& _ffx, const Scene& _scene, const kage::BufferHandle _vtxBuf, const kage::BufferHandle _idxBuf)
 {
     FfxBrixelizerBufferDescription bufferDescs[2] = {};
@@ -103,7 +163,10 @@ void registerBrixelizerBuffers(FFX_Brixelizer_Impl& _ffx, const Scene& _scene, c
     bufferDescs[1].buffer = idxRes;
     bufferDescs[1].outIndex = &(bufferIdxes[1]);
 
-    ffxBrixelizerRegisterBuffers(&_ffx.context, bufferDescs, COUNTOF(bufferDescs));
+    FfxErrorCode err = ffxBrixelizerRegisterBuffers(&_ffx.context, bufferDescs, COUNTOF(bufferDescs));
+
+    if (err != FFX_OK)
+        kage::message(kage::error, "failed to register brixelizer buffer with error code %d.", err);
 }
 
 void createBrixelizerInstances(FFX_Brixelizer_Impl& _ffx, const Scene& _scene, bool _seamless = false)
@@ -179,14 +242,55 @@ void createBrixelizerInstances(FFX_Brixelizer_Impl& _ffx, const Scene& _scene, b
         instDescs.emplace_back(instDesc);
     }
 
-    ffxBrixelizerCreateInstances(&_ffx.context, instDescs.data(), (uint32_t)instDescs.size());
+    FfxErrorCode err = ffxBrixelizerCreateInstances(&_ffx.context, instDescs.data(), (uint32_t)instDescs.size());
+
+    if (err != FFX_OK)
+        kage::message(kage::error, "failed to create brixelizer instance with error code %d.", err);
 }
+
+
+void postInitBrixelizerImpl(FFX_Brixelizer_Impl& _ffx, const Scene& _scene)
+{
+    if(!_ffx.postInitilized && kage::isBackendReady())
+    {
+        registerBrixelizerBuffers(_ffx, _scene, _ffx.vtxBuf, _ffx.idxBuf);
+        createBrixelizerInstances(_ffx, _scene);
+
+        _ffx.postInitilized = true;
+    }
+}
+
+void updateBrixelizer(const FFX_Brixelizer_Impl& _ffx)
+{
+
+    FfxBrixelizerUpdateDescription updateDesc = {};
+
+    typedef struct FfxBrixelizerUpdateDescription {
+        FfxBrixelizerResources                      resources;                    ///< Structure containing all resources to be used by the Brixelizer context.
+        uint32_t                                    frameIndex;                   ///< The index of the current frame.
+        float                                       sdfCenter[3];                 ///< The center of the cascades.
+        FfxBrixelizerPopulateDebugAABBsFlags        populateDebugAABBsFlags;      ///< Flags determining which AABBs to draw in a debug visualization. See <c><i>FfxBrixelizerPopulateDebugAABBsFlag</i></c>.
+        FfxBrixelizerDebugVisualizationDescription* debugVisualizationDesc;       ///< An optional debug visualization description. If this parameter is set to <c><i>NULL</i></c> no debug visualization is drawn.
+        uint32_t                                    maxReferences;                ///< The maximum number of triangle voxel references to be stored in the update.
+        uint32_t                                    triangleSwapSize;             ///< The size of the swap space available to be used for storing triangles in the update.
+        uint32_t                                    maxBricksPerBake;             ///< The maximum number of bricks to be updated.
+        size_t* outScratchBufferSize;         ///< An optional pointer to a <c><i>size_t</i></c> to receive the size of the GPU scratch buffer needed to process the update.
+        FfxBrixelizerStats* outStats;                     ///< An optional pointer to an <c><i>FfxBrixelizerStats</i></c> struct to receive statistics for the update. Note, stats read back after a call to update do not correspond to the same frame that the stats were requested, as reading of stats requires readback from GPU buffers which is performed with a delay.
+    } FfxBrixelizerUpdateDescription;
+
+    // barriers pre
+
+    // barriers post
+}
+
 
 void initBrixelizerImpl(FFX_Brixelizer_Impl& _ffx, const kage::BufferHandle _vtxBuf, const kage::BufferHandle _idxBuf)
 {
     kage::getFFXInterface(static_cast<void*>(&_ffx.initDesc.backendInterface));
 
     createBrixelizerCtx(_ffx);
+
+    createFfxKageResouces(_ffx);
 
     _ffx.vtxBuf = _vtxBuf;
     _ffx.idxBuf = _idxBuf;
@@ -202,17 +306,6 @@ void initBrixelizerImpl(FFX_Brixelizer_Impl& _ffx, const kage::BufferHandle _vtx
     );
 }
 
-void postInitBrixelizerImpl(FFX_Brixelizer_Impl& _ffx, const Scene& _scene)
-{
-    if(!_ffx.postInitilized && kage::isBackendReady())
-    {
-        registerBrixelizerBuffers(_ffx, _scene, _ffx.vtxBuf, _ffx.idxBuf);
-        createBrixelizerInstances(_ffx, _scene);
-
-        _ffx.postInitilized = true;
-    }
-}
-
 void destroyBrixelizerImpl(FFX_Brixelizer_Impl& _ffx)
 {
     ffxBrixelizerContextDestroy(&_ffx.context);
@@ -221,4 +314,5 @@ void destroyBrixelizerImpl(FFX_Brixelizer_Impl& _ffx)
 void updateBrixellizerImpl(const FFX_Brixelizer_Impl& _ffx, const Scene& _scene)
 {
     postInitBrixelizerImpl(const_cast<FFX_Brixelizer_Impl&>(_ffx), _scene);
+
 }

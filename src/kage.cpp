@@ -246,6 +246,7 @@ namespace kage
         // conditions
         bool isCompute(const PassHandle _hPass);
         bool isGraphics(const PassHandle _hPass);
+        bool isExternal(const PassHandle _hPass);
         bool isRead(const AccessFlags _access);
         bool isWrite(const AccessFlags _access, const PipelineStageFlags _stage);
 
@@ -570,6 +571,12 @@ namespace kage
     {
         const PassMetaData& meta = m_passMetas[_hPass.id];
         return meta.queue == PassExeQueue::graphics;
+    }
+
+    bool Context::isExternal(const PassHandle _hPass)
+    {
+        const PassMetaData& meta = m_passMetas[_hPass.id];
+        return meta.queue == PassExeQueue::extern_abstract;
     }
 
     bool Context::isRead(const AccessFlags _access)
@@ -1571,6 +1578,10 @@ namespace kage
 
     void Context::bindVertexBuffer(const PassHandle _hPass, const BufferHandle _hBuf, const uint32_t _vtxCount)
     {
+        if (!(isValid(_hPass) && isValid(_hBuf))) {
+            message(DebugMsgType::error, "invalid input when trying to bindVertexBuffer! pass: 0x%x, buf: 0x%x", _hPass.id, _hBuf.id);
+        }
+
         PassMetaData& passMeta = m_passMetas[_hPass.id];
         passMeta.vertexBufferId = _hBuf.id;
 
@@ -1587,6 +1598,10 @@ namespace kage
 
     void Context::bindIndexBuffer(const PassHandle _hPass, const BufferHandle _hBuf, const uint32_t _idxCount)
     {
+        if (!(isValid(_hPass) && isValid(_hBuf))) {
+            message(DebugMsgType::error, "invalid input when trying to bindIndexBuffer! pass: 0x%x, buf: 0x%x", _hPass.id, _hBuf.id);
+        }
+
         PassMetaData& passMeta = m_passMetas[_hPass.id];
         passMeta.indexBufferId = _hBuf.id;
 
@@ -1603,6 +1618,10 @@ namespace kage
 
     void Context::setIndirectBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset, uint32_t _stride, uint32_t _defaultMaxCount)
     {
+        if (!(isValid(_hPass) && isValid(_hBuf))) {
+            message(DebugMsgType::error, "invalid input when trying to setIndirectBuffer ! pass: 0x%x, buf: 0x%x", _hPass.id, _hBuf.id);
+        }
+
         assert(isGraphics(_hPass));
 
         PassMetaData& passMeta = m_passMetas[_hPass.id];
@@ -1622,6 +1641,10 @@ namespace kage
 
     void Context::setIndirectCountBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset)
     {
+        if (!(isValid(_hPass) && isValid(_hBuf))) {
+            message(DebugMsgType::error, "invalid input when trying to setIndirectCountBuffer ! pass: 0x%x, buf: 0x%x", _hPass.id, _hBuf.id);
+        }
+
         PassMetaData& passMeta = m_passMetas[_hPass.id];
         passMeta.indirectCountBufferId = _hBuf.id;
         passMeta.indirectCountBufOffset = _offset;
@@ -1635,8 +1658,12 @@ namespace kage
         setRenderGraphDataDirty();
     }
 
-    void Context::bindBuffer(PassHandle _hPass, BufferHandle _buf, PipelineStageFlags _stage, AccessFlags _access, const BufferHandle _outAlias)
+    void Context::bindBuffer(PassHandle _hPass, BufferHandle _hBuf, PipelineStageFlags _stage, AccessFlags _access, const BufferHandle _outAlias)
     {
+        if (! (isValid(_hPass) && isValid(_hBuf))) {
+            message(DebugMsgType::error, "invalid input when trying to bind buffer! pass: 0x%x, buf: 0x%x", _hPass.id, _hBuf.id);
+        }
+
         ResInteractDesc interact{};
         interact.stage = _stage;
         interact.access = _access;
@@ -1644,7 +1671,7 @@ namespace kage
         PassMetaData& passMeta = m_passMetas[_hPass.id];
         if (isRead(_access))
         {
-            passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _buf.id, interact);
+            passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _hBuf.id, interact);
             setRenderGraphDataDirty();
         }
 
@@ -1656,8 +1683,8 @@ namespace kage
                 return;
             }
 
-            passMeta.writeBufferNum = insertResInteract(m_writeBuffers, _hPass, _buf.id, interact);
-            passMeta.writeBufAliasNum = insertWriteResAlias(m_writeForcedBufferAliases, _hPass, _buf.id, _outAlias.id);
+            passMeta.writeBufferNum = insertResInteract(m_writeBuffers, _hPass, _hBuf.id, interact);
+            passMeta.writeBufAliasNum = insertWriteResAlias(m_writeForcedBufferAliases, _hPass, _hBuf.id, _outAlias.id);
 
             assert(passMeta.writeBufferNum == passMeta.writeBufAliasNum);
             setRenderGraphDataDirty();
@@ -1666,6 +1693,10 @@ namespace kage
 
     kage::SamplerHandle Context::sampleImage(PassHandle _hPass, ImageHandle _hImg, PipelineStageFlags _stage, SamplerFilter _filter, SamplerMipmapMode _mipMode, SamplerAddressMode _addrMode, SamplerReductionMode _reductionMode)
     {
+        if (!(isValid(_hPass) && isValid(_hImg))) {
+            message(DebugMsgType::error, "invalid input when trying to sample image! pass: 0x%x, img: 0x%x", _hPass.id, _hImg.id);
+        }
+
         // get the sampler id
         SamplerDesc desc;
         desc.filter = _filter;
@@ -1724,6 +1755,10 @@ namespace kage
     void Context::bindImage(PassHandle _hPass, ImageHandle _hImg, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout
         , const ImageHandle _outAlias)
     {
+        if (!(isValid(_hPass) && isValid(_hImg))) {
+            message(DebugMsgType::error, "invalid input when trying to bindImage! pass: 0x%x, img: 0x%x", _hPass.id, _hImg.id);
+        }
+
         const ImageMetaData& imgMeta = m_imageMetas[_hImg.id];
         PassMetaData& passMeta = m_passMetas[_hPass.id];
 
@@ -1731,7 +1766,6 @@ namespace kage
         interact.stage = _stage;
         interact.access = _access;
         interact.layout = _layout;
-
 
         if (isRead(_access))
         {
@@ -1760,7 +1794,7 @@ namespace kage
                 message(DebugMsgType::error, "the _outAlias must be valid if trying to write to resource in pass");
             }
 
-            if (isCompute(_hPass) || isGraphics(_hPass))
+            if (isCompute(_hPass) || isGraphics(_hPass) || isExternal(_hPass))
             {
                 passMeta.writeImageNum = insertResInteract(m_writeImages, _hPass, _hImg.id, interact);
                 passMeta.writeImgAliasNum = insertWriteResAlias(m_writeForcedImageAliases, _hPass, _hImg.id, _outAlias.id);
@@ -2414,7 +2448,6 @@ namespace kage
     {
         return s_ctx->setBindlessTextures(_bindless, _mem, _texCount, _reductionMode);
     }
-
 
     void bindImage(PassHandle _hPass, ImageHandle _hImg, PipelineStageFlags _stage, AccessFlags _access, ImageLayout _layout
         , const ImageHandle _outAlias /*= {kInvalidHandle}*/)

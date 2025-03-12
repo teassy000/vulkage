@@ -2375,6 +2375,10 @@ namespace kage { namespace vk
             pipeline = kage::vk::createComputePipeline(m_device, cache, program.layout, shader, pipelineSpecData);
             assert(pipeline);
         }
+        else if (passMeta.queue == PassExeQueue::extern_abstract)
+        {
+            // do nothing because there no shaders here
+        }
 
         passInfo.pipeline = pipeline;
         m_passContainer.addOrUpdate(passInfo.passId, passInfo);
