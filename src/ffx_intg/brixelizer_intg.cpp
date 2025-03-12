@@ -19,6 +19,7 @@ struct BrixelizerConfig
 
 const static BrixelizerConfig s_conf{};
 
+
 void createBrixelizerCtx(FFX_Brixelizer_Impl& _ffx)
 {
     _ffx.initDesc.sdfCenter[0] = 0.f;
@@ -74,11 +75,23 @@ void createFfxKageResouces(FFX_Brixelizer_Impl& _ffx)
         _ffx.pass = kage::registPass("brxl", pd);
     }
 
+    // scratch buffer
+    {
+        kage::BufferDesc scratchDesc = {};
+        scratchDesc.size = _ffx.gpuScratchedBufferSize;
+        scratchDesc.fillVal = 0;
+        scratchDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+        scratchDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst | kage::BufferUsageFlagBits::transfer_src;
+        _ffx.scratchBuf = kage::registBuffer("brxl_scratch", scratchDesc);
+    }
+
+    // sdf atlas
     {
         kage::ImageDesc sdfAtlasDesc = {};
         sdfAtlasDesc.width = FFX_BRIXELIZER_STATIC_CONFIG_SDF_ATLAS_SIZE;
         sdfAtlasDesc.height = FFX_BRIXELIZER_STATIC_CONFIG_SDF_ATLAS_SIZE;
-        sdfAtlasDesc.numLayers = FFX_BRIXELIZER_STATIC_CONFIG_SDF_ATLAS_SIZE;
+        sdfAtlasDesc.depth = FFX_BRIXELIZER_STATIC_CONFIG_SDF_ATLAS_SIZE;
+        sdfAtlasDesc.numLayers = 1;
         sdfAtlasDesc.format = kage::ResourceFormat::r8_unorm;
         sdfAtlasDesc.usage = kage::ImageUsageFlagBits::storage | kage::ImageUsageFlagBits::sampled;
         sdfAtlasDesc.layout = kage::ImageLayout::general;
@@ -88,22 +101,24 @@ void createFfxKageResouces(FFX_Brixelizer_Impl& _ffx)
         _ffx.sdfAtlas = kage::registTexture("brxl_sdf_atlas", sdfAtlasDesc);
     }
 
+    // brick aabbs
     {
         kage::BufferDesc brickAABBDesc = {};
         brickAABBDesc.size = FFX_BRIXELIZER_BRICK_AABBS_SIZE;
         brickAABBDesc.fillVal = 0;
         brickAABBDesc.memFlags = kage::MemoryPropFlagBits::device_local;
-        brickAABBDesc.usage = kage::BufferUsageFlagBits::storage;
+        brickAABBDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst | kage::BufferUsageFlagBits::transfer_src;
 
         _ffx.brickAABB = kage::registBuffer("brxl_brick_aabbs", brickAABBDesc);
     }
 
+    // cascade aabb trees
     {
         kage::BufferDesc cascadeAABBTreeDesc = {};
         cascadeAABBTreeDesc.size = FFX_BRIXELIZER_CASCADE_AABB_TREE_SIZE;
         cascadeAABBTreeDesc.fillVal = 0;
         cascadeAABBTreeDesc.memFlags = kage::MemoryPropFlagBits::device_local;
-        cascadeAABBTreeDesc.usage = kage::BufferUsageFlagBits::storage;
+        cascadeAABBTreeDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst | kage::BufferUsageFlagBits::transfer_src;
         
         for (uint32_t ii = 0; ii < FFX_BRIXELIZER_MAX_CASCADES; ++ii)
         {
@@ -111,17 +126,59 @@ void createFfxKageResouces(FFX_Brixelizer_Impl& _ffx)
         }
     }
 
+    // cascade brick maps
     {
         kage::BufferDesc cascadeBrickMapDesc = {};
         cascadeBrickMapDesc.size = FFX_BRIXELIZER_MAX_CASCADES * FFX_BRIXELIZER_CASCADE_BRICK_MAP_SIZE;
         cascadeBrickMapDesc.fillVal = 0;
         cascadeBrickMapDesc.memFlags = kage::MemoryPropFlagBits::device_local;
-        cascadeBrickMapDesc.usage = kage::BufferUsageFlagBits::storage;
+        cascadeBrickMapDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst | kage::BufferUsageFlagBits::transfer_src;
+
         for (uint32_t ii = 0; ii < FFX_BRIXELIZER_MAX_CASCADES; ++ii)
         {
             _ffx.cascadeBrickMaps[ii] = kage::registBuffer("brxl_cascade_brick_map", cascadeBrickMapDesc);
         }
     }
+
+    kage::BufferHandle scratchAlias = kage::alias(_ffx.scratchBuf);
+    kage::bindBuffer(_ffx.pass, _ffx.scratchBuf
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::AccessFlagBits::shader_write
+        , scratchAlias
+    );
+
+
+    _ffx.sdfAtlasOutAlias = kage::alias(_ffx.sdfAtlas);
+    kage::bindImage(_ffx.pass, _ffx.sdfAtlas
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::AccessFlagBits::shader_write
+        , kage::ImageLayout::general
+        , _ffx.sdfAtlasOutAlias
+    );
+
+    kage::BufferHandle brickAABBAlias = kage::alias(_ffx.brickAABB);
+    kage::bindBuffer(_ffx.pass, _ffx.brickAABB
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::AccessFlagBits::shader_write
+        , brickAABBAlias
+    );
+
+    for (uint32_t ii = 0; ii < FFX_BRIXELIZER_MAX_CASCADES; ++ii)
+    {
+        kage::BufferHandle cascadeAABBAlias = kage::alias(_ffx.cascadeAABBTrees[ii]);
+        kage::bindBuffer(_ffx.pass, _ffx.cascadeAABBTrees[ii]
+            , kage::PipelineStageFlagBits::compute_shader
+                , kage::AccessFlagBits::shader_write
+                , cascadeAABBAlias
+                );
+        kage::BufferHandle cascadeBrickMapAlias = kage::alias(_ffx.cascadeBrickMaps[ii]);
+        kage::bindBuffer(_ffx.pass, _ffx.cascadeBrickMaps[ii]
+            , kage::PipelineStageFlagBits::compute_shader
+                , kage::AccessFlagBits::shader_write
+                , cascadeBrickMapAlias
+                );
+    }
+
 
 }
 
@@ -260,27 +317,148 @@ void postInitBrixelizerImpl(FFX_Brixelizer_Impl& _ffx, const Scene& _scene)
     }
 }
 
-void updateBrixelizer(const FFX_Brixelizer_Impl& _ffx)
+using Stage = kage::PipelineStageFlagBits::Enum;
+using Access = kage::BindingAccess;
+using LoadOp = kage::AttachmentLoadOp;
+using StoreOp = kage::AttachmentStoreOp;
+
+void recBrixelizer(FFX_Brixelizer_Impl& _ffx, FfxBrixelizerUpdateDescription& _updateDesc)
 {
+    FfxResource scratchRes{};
+    scratchRes.resource = kage::getRHIResource(_ffx.scratchBuf);
+    scratchRes.description.type = FFX_RESOURCE_TYPE_BUFFER;
+    scratchRes.description.format = FFX_SURFACE_FORMAT_UNKNOWN;
+    scratchRes.description.size = FFX_BRIXELIZER_CASCADE_BRICK_MAP_SIZE;
+    scratchRes.description.stride = FFX_BRIXELIZER_CASCADE_BRICK_MAP_STRIDE;
+    scratchRes.description.alignment = 0;
+    scratchRes.description.mipCount = 0;
+    scratchRes.description.flags = FFX_RESOURCE_FLAGS_NONE;
+    scratchRes.description.usage = FFX_RESOURCE_USAGE_UAV;
+    scratchRes.state = FFX_RESOURCE_STATE_UNORDERED_ACCESS;
+    std::string nameStr = "brixelizer scratch buffer";
+    std::copy(nameStr.begin(), nameStr.end(), scratchRes.name);
 
+    const kage::Memory* mem = kage::alloc(sizeof(scratchRes));
+    std::memcpy(mem->data, &scratchRes, mem->size);
+
+    kage::startRec(_ffx.pass);
+
+    std::vector<kage::Binding> binds;
+    binds.reserve(3 + FFX_BRIXELIZER_MAX_CASCADES * 2);
+    binds.emplace_back(kage::Binding{ _ffx.sdfAtlas, 0, Stage::compute_shader });
+    binds.emplace_back(kage::Binding{ _ffx.brickAABB, Access::read_write, Stage::compute_shader });
+    binds.emplace_back(kage::Binding{ _ffx.scratchBuf, Access::read_write, Stage::compute_shader });
+
+    for (uint32_t ii = 0; ii < FFX_BRIXELIZER_MAX_CASCADES; ++ii)
+    {
+        binds.emplace_back(kage::Binding{ _ffx.cascadeAABBTrees[ii], Access::read_write, Stage::compute_shader });
+        binds.emplace_back(kage::Binding{ _ffx.cascadeBrickMaps[ii], Access::read_write, Stage::compute_shader });
+    }
+
+    kage::pushBindings(binds.data(), (uint16_t)binds.size());
+
+    kage::updateBrixelizer((void*)&_ffx.context, &_updateDesc, mem);
+
+    kage::endRec();
+}
+
+void updateBrixelizer(FFX_Brixelizer_Impl& _ffx)
+{
     FfxBrixelizerUpdateDescription updateDesc = {};
+    std::string nameStr;
 
-    typedef struct FfxBrixelizerUpdateDescription {
-        FfxBrixelizerResources                      resources;                    ///< Structure containing all resources to be used by the Brixelizer context.
-        uint32_t                                    frameIndex;                   ///< The index of the current frame.
-        float                                       sdfCenter[3];                 ///< The center of the cascades.
-        FfxBrixelizerPopulateDebugAABBsFlags        populateDebugAABBsFlags;      ///< Flags determining which AABBs to draw in a debug visualization. See <c><i>FfxBrixelizerPopulateDebugAABBsFlag</i></c>.
-        FfxBrixelizerDebugVisualizationDescription* debugVisualizationDesc;       ///< An optional debug visualization description. If this parameter is set to <c><i>NULL</i></c> no debug visualization is drawn.
-        uint32_t                                    maxReferences;                ///< The maximum number of triangle voxel references to be stored in the update.
-        uint32_t                                    triangleSwapSize;             ///< The size of the swap space available to be used for storing triangles in the update.
-        uint32_t                                    maxBricksPerBake;             ///< The maximum number of bricks to be updated.
-        size_t* outScratchBufferSize;         ///< An optional pointer to a <c><i>size_t</i></c> to receive the size of the GPU scratch buffer needed to process the update.
-        FfxBrixelizerStats* outStats;                     ///< An optional pointer to an <c><i>FfxBrixelizerStats</i></c> struct to receive statistics for the update. Note, stats read back after a call to update do not correspond to the same frame that the stats were requested, as reading of stats requires readback from GPU buffers which is performed with a delay.
-    } FfxBrixelizerUpdateDescription;
+    // sdf atlas
+    updateDesc.resources.sdfAtlas.resource = kage::getRHIResource(_ffx.sdfAtlas);
+    updateDesc.resources.sdfAtlas.description.type = FFX_RESOURCE_TYPE_TEXTURE3D;
+    updateDesc.resources.sdfAtlas.description.format = FFX_SURFACE_FORMAT_R8_UINT;
+    updateDesc.resources.sdfAtlas.description.size = FFX_BRIXELIZER_STATIC_CONFIG_SDF_ATLAS_SIZE * FFX_BRIXELIZER_STATIC_CONFIG_SDF_ATLAS_SIZE * FFX_BRIXELIZER_STATIC_CONFIG_SDF_ATLAS_SIZE;
+    updateDesc.resources.sdfAtlas.description.stride = 1u;
+    updateDesc.resources.sdfAtlas.description.alignment = 0;
+    updateDesc.resources.sdfAtlas.description.mipCount = 0;
+    updateDesc.resources.sdfAtlas.description.flags = FFX_RESOURCE_FLAGS_NONE;
+    updateDesc.resources.sdfAtlas.description.usage = FFX_RESOURCE_USAGE_READ_ONLY;
+    updateDesc.resources.sdfAtlas.state = FFX_RESOURCE_STATE_COMMON;
+    nameStr = "brixelizer sdf atlas";
+    std::copy(nameStr.begin(), nameStr.end(), updateDesc.resources.sdfAtlas.name);
 
+    // brick aabbs
+    updateDesc.resources.brickAABBs.resource = kage::getRHIResource(_ffx.brickAABB);
+    updateDesc.resources.brickAABBs.description.type = FFX_RESOURCE_TYPE_BUFFER;
+    updateDesc.resources.brickAABBs.description.format = FFX_SURFACE_FORMAT_UNKNOWN;
+    updateDesc.resources.brickAABBs.description.size = FFX_BRIXELIZER_BRICK_AABBS_SIZE;
+    updateDesc.resources.brickAABBs.description.stride = FFX_BRIXELIZER_BRICK_AABBS_STRIDE;
+    updateDesc.resources.brickAABBs.description.alignment = 0;
+    updateDesc.resources.brickAABBs.description.mipCount = 0;
+    updateDesc.resources.brickAABBs.description.flags = FFX_RESOURCE_FLAGS_NONE;
+    updateDesc.resources.brickAABBs.description.usage = FFX_RESOURCE_USAGE_UAV;
+    updateDesc.resources.brickAABBs.state = FFX_RESOURCE_STATE_COMMON;
+    nameStr = "brixelizer brick aabbs";
+    std::copy(nameStr.begin(), nameStr.end(), updateDesc.resources.brickAABBs.name);
+
+    // cascade aabb tree
+    for (uint32_t ii = 0; ii < FFX_BRIXELIZER_MAX_CASCADES; ++ii)
+    {
+        FfxBrixelizerCascadeResources& refRes = updateDesc.resources.cascadeResources[ii];
+
+        refRes.aabbTree.resource = kage::getRHIResource(_ffx.cascadeAABBTrees[ii]);
+        refRes.aabbTree.description.type = FFX_RESOURCE_TYPE_BUFFER;
+        refRes.aabbTree.description.format = FFX_SURFACE_FORMAT_UNKNOWN;
+        refRes.aabbTree.description.size = FFX_BRIXELIZER_CASCADE_AABB_TREE_SIZE;
+        refRes.aabbTree.description.stride = FFX_BRIXELIZER_CASCADE_AABB_TREE_STRIDE;
+        refRes.aabbTree.description.alignment = 0;
+        refRes.aabbTree.description.mipCount = 0;
+        refRes.aabbTree.description.flags = FFX_RESOURCE_FLAGS_NONE;
+        refRes.aabbTree.description.usage = FFX_RESOURCE_USAGE_UAV;
+        refRes.aabbTree.state = FFX_RESOURCE_STATE_COMMON;
+        nameStr = "brixelizer cascade aabb:" + std::to_string(ii);
+        std::copy(nameStr.begin(), nameStr.end(), refRes.aabbTree.name);
+
+        refRes.brickMap.resource = kage::getRHIResource(_ffx.cascadeAABBTrees[ii]);
+        refRes.brickMap.description.type = FFX_RESOURCE_TYPE_BUFFER;
+        refRes.brickMap.description.format = FFX_SURFACE_FORMAT_UNKNOWN;
+        refRes.brickMap.description.size = FFX_BRIXELIZER_CASCADE_BRICK_MAP_SIZE;
+        refRes.brickMap.description.stride = FFX_BRIXELIZER_CASCADE_BRICK_MAP_STRIDE;
+        refRes.brickMap.description.alignment = 0;
+        refRes.brickMap.description.mipCount = 0;
+        refRes.brickMap.description.flags = FFX_RESOURCE_FLAGS_NONE;
+        refRes.brickMap.description.usage = FFX_RESOURCE_USAGE_UAV;
+        refRes.brickMap.state = FFX_RESOURCE_STATE_COMMON;
+        nameStr = "brixelizer cascade brick map:" + std::to_string(ii);
+        std::copy(nameStr.begin(), nameStr.end(), refRes.brickMap.name);
+    }
+
+    FfxBrixelizerStats stats = {};
+    size_t scratchBufferSize = 0;
+
+    updateDesc.frameIndex = _ffx.frameIdx;
+    updateDesc.sdfCenter[0] = _ffx.initDesc.sdfCenter[0];
+    updateDesc.sdfCenter[1] = _ffx.initDesc.sdfCenter[1];
+    updateDesc.sdfCenter[2] = _ffx.initDesc.sdfCenter[2];
+    updateDesc.populateDebugAABBsFlags = FFX_BRIXELIZER_POPULATE_AABBS_NONE;
+    updateDesc.debugVisualizationDesc = nullptr;
+    updateDesc.maxReferences = 32 * (1 << 20);
+    updateDesc.maxBricksPerBake = 1 << 14;
+    updateDesc.triangleSwapSize = 300 * (1 << 20);
+    updateDesc.outStats = &stats;
+    updateDesc.outScratchBufferSize = &scratchBufferSize;
+    
     // barriers pre
+    
+    FfxErrorCode err = ffxBrixelizerBakeUpdate(&_ffx.context, &updateDesc, &_ffx.bakedUpdateDesc);
+    if (err != FFX_OK) {
+        kage::message(kage::error, "failed to bake update with error code %d.", err);
+    }
 
-    // barriers post
+    if(scratchBufferSize > _ffx.gpuScratchedBufferSize)
+    {
+        kage::updateBuffer(_ffx.scratchBuf, nullptr, 0u, (uint32_t)scratchBufferSize);
+        _ffx.gpuScratchedBufferSize = scratchBufferSize;
+    }
+
+
+    recBrixelizer(_ffx, updateDesc);
+
+    _ffx.frameIdx++;
 }
 
 
@@ -315,4 +493,14 @@ void updateBrixellizerImpl(const FFX_Brixelizer_Impl& _ffx, const Scene& _scene)
 {
     postInitBrixelizerImpl(const_cast<FFX_Brixelizer_Impl&>(_ffx), _scene);
 
+    if (_ffx.postInitilized)
+    {
+        updateBrixelizer(const_cast<FFX_Brixelizer_Impl&>(_ffx));
+    }
+    else
+    {
+        // workaround for no record at first frame 
+        kage::startRec(_ffx.pass);
+        kage::endRec();
+    }
 }

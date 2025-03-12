@@ -89,6 +89,9 @@ namespace kage
 
     void pushBindings(const Binding* _desc, uint16_t _count);
 
+    // this is only for external commands
+    void freshBarriers(const Binding* _desc, uint16_t _count);
+
     void setColorAttachments(const Attachment* _colors, uint16_t _count);
 
     void setDepthAttachment(Attachment _depth);
@@ -210,6 +213,14 @@ namespace kage
         , const uint32_t _stride
     );
 
+    // update brixelizer content, and record external commands
+    void updateBrixelizer(
+        void* _brixelizerCtx
+        , void* _updateDesc
+        , const Memory* _scratchRes
+    );
+
+    // end recording
     void endRec();
     // loop API Ends
 

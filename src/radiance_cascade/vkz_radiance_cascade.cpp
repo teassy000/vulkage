@@ -516,6 +516,7 @@ struct RCBuildInit
     kage::BufferHandle voxNormal;
 
     GBuffer g_buffer;
+    kage::ImageHandle sdfAtlas;
     kage::ImageHandle depth;
     kage::ImageHandle skybox;
     kage::BufferHandle trans;
@@ -626,6 +627,12 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
         , outAlias
     );
 
+    kage::bindImage(pass, _init.sdfAtlas
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::AccessFlagBits::shader_read
+        , kage::ImageLayout::general
+    );
+
     _rc.pass = pass;
     _rc.program = program;
     _rc.cs = cs;
@@ -642,6 +649,7 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
 
     _rc.inOctTreeNodeCount = _init.octTreeCount;
     _rc.inOctTree = _init.octTree;
+    _rc.inSdfAtlas = _init.sdfAtlas;
     _rc.inDepth = _init.depth;
     _rc.depthSampler = depthSamp;
 
@@ -731,6 +739,7 @@ void prepareRadianceCascade(RadianceCascade& _rc, const RadianceCascadeInitData 
 
     rcInit.g_buffer = _init.g_buffer;
     rcInit.depth = _init.depth;
+    rcInit.sdfAtlas = _init.sdfAtlas;
     rcInit.skybox = _init.skybox;
     rcInit.trans = _init.transBuf;
     prepareRCbuild(_rc.rcBuild, rcInit);

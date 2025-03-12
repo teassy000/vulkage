@@ -562,6 +562,18 @@ namespace kage { namespace vk
             , uint32_t _drawCount
             , uint32_t _stride
         );
+
+        void freshExternalBarriers(
+            PassHandle _hPass
+            , const Memory* _mem
+        );
+
+        void updateBrixelizer(
+            PassHandle _hPass
+            , void* _brixelizerCtx
+            , void* _updateDesc
+            , const Memory* _scratchRes
+        );
         
         // rendering command end
         VkSampler getCachedSampler(SamplerFilter _filter, SamplerMipmapMode _mipmapMode, SamplerAddressMode _addrMd, SamplerReductionMode _reduMd);
@@ -574,7 +586,7 @@ namespace kage { namespace vk
         // private pass
         // e.g. upload buffer, copy image, etc.
         // 
-        void uploadBuffer(const uint16_t _bufId, const void* data, uint32_t size);
+        void uploadBuffer(const uint16_t _bufId, const void* _data, uint32_t _size, uint32_t _offset);
         void fillBuffer(const uint16_t _bufId, const uint32_t _value, uint32_t _size);
         void uploadImage(const uint16_t _imgId, const void* data, uint32_t size);
 
@@ -690,6 +702,7 @@ namespace kage { namespace vk
         uint32_t m_numFramesInFlight{ kMaxNumFrameLatency };
         CommandQueue_vk m_cmd;
         VkCommandBuffer m_cmdBuffer;
+        VkCommandBuffer m_cmdBufferExternal;
 
         VkQueue m_queue;
 

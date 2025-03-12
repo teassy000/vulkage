@@ -1679,8 +1679,8 @@ namespace kage { namespace vk
         m_cmd.addWaitSemaphore(m_swapchain.m_waitSemaphore, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
         m_cmd.addSignalSemaphore(m_swapchain.m_signalSemaphore);
 
-        m_cmd.kick();
-        m_cmd.alloc(&m_cmdBuffer);
+        m_cmd.kick(); // end and dispatch the command buffer
+        m_cmd.alloc(&m_cmdBuffer); // alloc a new command buffer
 
         m_swapchain.present();
         m_cmd.finish();
@@ -1993,7 +1993,7 @@ namespace kage { namespace vk
         }
 
         // re-create buffer if new size is larger than the old one
-        if (buf.size != _mem->size && baseBuf.size < _mem->size)
+        if (buf.size != _size && baseBuf.size < (_offset + _size))
         {
             m_barrierDispatcher.untrack(buf.buffer);
 
@@ -2003,7 +2003,7 @@ namespace kage { namespace vk
 
             // recreate buffer
             BufferAliasInfo info{};
-            info.size = _mem->size;
+            info.size = _size;
             info.bufId = _hBuf.id;
 
             Buffer_vk newBuf = kage::vk::createBuffer(
@@ -2023,14 +2023,15 @@ namespace kage { namespace vk
         }
 
         const Buffer_vk& newBuf = m_bufferContainer.getIdToData(_hBuf.id);
-        uploadBuffer(_hBuf.id, _mem->data, _mem->size);
 
+        if (_mem){
+            uploadBuffer(_hBuf.id, _mem->data, _mem->size, _offset);
+        }
 
         if (0 == (createInfo.memFlags & MemoryPropFlagBits::host_coherent))
         {
             flushBuffer(newBuf);
         }
-
     }
 
     void RHIContext_vk::updateImage(
@@ -2507,7 +2508,7 @@ namespace kage { namespace vk
         // initialize buffer
         if (info.pData != nullptr)
         {
-            uploadBuffer(info.bufId, info.pData, info.size);
+            uploadBuffer(info.bufId, info.pData, info.size, 0);
         }
         else
         {
@@ -3238,6 +3239,50 @@ namespace kage { namespace vk
         flushWriteBarriersRec(_hPass);
     }
 
+    void RHIContext_vk::freshExternalBarriers(PassHandle _hPass, const Memory* _mem)
+    {
+        KG_ZoneScopedC(Color::indian_red);
+
+        if (!m_passContainer.exist(_hPass.id))
+        {
+            message(
+                warning
+                , "setDescriptorSet will not perform for pass %d! It might be useless after render pass sorted"
+                , _hPass.id
+            );
+            return;
+        }
+
+        uint32_t count = _mem->size / sizeof(Binding);
+        Binding* bds = (Binding*)_mem->data;
+        m_descBindingSetsPerPass.assign(bds, bds + count);
+    }
+
+    void RHIContext_vk::updateBrixelizer(PassHandle _hPass, void* _brixelizerCtx, void* _updateDesc, const Memory* _scratchRes)
+    {
+        KG_ZoneScopedC(Color::indian_red);
+
+        if (!m_passContainer.exist(_hPass.id))
+        {
+            message(
+                warning
+                , "updateBrixelizer will not perform for pass %d! It might be cut after render pass sorted"
+                , _hPass.id
+            );
+            return;
+        }
+
+        // TODO
+        return;
+
+        createBarriersRec(_hPass);
+
+        // do nothing
+        //ffxBrixelizerBakeUpdate()
+
+        flushWriteBarriersRec(_hPass);
+    }
+
     VkSampler RHIContext_vk::getCachedSampler(SamplerFilter _filter, SamplerMipmapMode _mipMd, SamplerAddressMode _addrMd, SamplerReductionMode _reduMd)
     {
         KG_ZoneScopedC(Color::indian_red);
@@ -3355,7 +3400,7 @@ namespace kage { namespace vk
         assert(m_physicalDevice);
     }
 
-    void RHIContext_vk::uploadBuffer(const uint16_t _bufId, const void* _data, uint32_t _size)
+    void RHIContext_vk::uploadBuffer(const uint16_t _bufId, const void* _data, uint32_t _size, uint32_t _offset)
     {
         KG_ZoneScopedC(Color::indian_red);
 
@@ -3371,7 +3416,7 @@ namespace kage { namespace vk
 
         bx::memCopy(scratch.data, _data, _size);
 
-        VkBufferCopy region = { 0 , 0, VkDeviceSize(_size) };
+        VkBufferCopy region = { 0 , _offset, VkDeviceSize(_size) };
 
         const Buffer_vk& buffer = getBuffer(_bufId);
         
@@ -4324,8 +4369,8 @@ namespace kage { namespace vk
                     break;
                 case Command::record_dispatch_indirect:
                     {
-                    const RecordDispatchIndirectCmd* rc = reinterpret_cast<const RecordDispatchIndirectCmd*>(cmd);
-                    dispatchIndirect(_hPass, rc->m_buf, rc->m_off);
+                        const RecordDispatchIndirectCmd* rc = reinterpret_cast<const RecordDispatchIndirectCmd*>(cmd);
+                        dispatchIndirect(_hPass, rc->m_buf, rc->m_off);
                     }
                     break;
                 case Command::record_draw:
@@ -4409,6 +4454,19 @@ namespace kage { namespace vk
                         BX_ASSERT(0, "NOT IMPLEMENTED YET!!!");
                     }
                     break;
+                case Command::record_fresh_external_barriers:
+                    {
+                        const RecordFreshExternalBarriersCmd* rc = reinterpret_cast<const RecordFreshExternalBarriersCmd*>(cmd);
+                        freshExternalBarriers(_hPass, rc->m_mem);
+                    }
+                    break;
+                case Command::record_update_brixelizer:
+                    {
+                        const RecordUpdateBrixelizerCmd* rc = reinterpret_cast<const RecordUpdateBrixelizerCmd*>(cmd);
+                        updateBrixelizer(_hPass, rc->m_brixelizerCtx, rc->m_updateDesc, rc->m_scratchRes);
+                    }
+                    break;
+
                 case Command::record_end:
                     {
                         done = true;

@@ -27,17 +27,22 @@ struct FFX_Brixelizer_Impl
     kage::BufferHandle brickAABB;
     kage::BufferHandle cascadeAABBTrees[FFX_BRIXELIZER_MAX_CASCADES];
     kage::BufferHandle cascadeBrickMaps[FFX_BRIXELIZER_MAX_CASCADES];
+    kage::BufferHandle scratchBuf;
     kage::BufferHandle vtxBuf;
     kage::BufferHandle idxBuf;
 
     FfxBrixelizerContextDescription initDesc;
     FfxBrixelizerContext context;
-    FfxBrixelizerBakedUpdateDescription updateDesc;
+    FfxBrixelizerBakedUpdateDescription bakedUpdateDesc;
 
     std::vector<BrixelizerInstInfo> insts;
     std::vector<BrielizerBufInfo> bufs;
 
     bool postInitilized = false;
+    uint32_t frameIdx = 0;
+    uint32_t gpuScratchedBufferSize = 128 * 1024 * 1024; // 128MB
+
+    kage::ImageHandle sdfAtlasOutAlias;
 };
 
 void initBrixelizerImpl(FFX_Brixelizer_Impl& _ffx, const kage::BufferHandle _vtxBuf, const kage::BufferHandle _idxBuf);

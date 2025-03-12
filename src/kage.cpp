@@ -355,6 +355,8 @@ namespace kage
 
         void pushBindings(const Binding* _desc, uint16_t _count);
 
+        void freshBarriers(const Binding* _desc, uint16_t _count);
+
         void setColorAttachments(const Attachment* _colors, uint16_t _count);
 
         void setDepthAttachment(const Attachment _depth);
@@ -481,6 +483,12 @@ namespace kage
             , const uint32_t _countOffset
             , const uint32_t _maxCount
             , const uint32_t _stride
+        );
+
+        void updateBrixelizer(
+            void* _brixelizerCtx
+            , void* _updateDesc
+            , const Memory* _scratchRes
         );
 
         void endRec();
@@ -1882,11 +1890,6 @@ namespace kage
 
     void Context::updateBuffer(const BufferHandle _hBuf, const Memory* _mem, const uint32_t _offset, const uint32_t _size)
     {
-        if (_mem == nullptr)
-        {
-            return;
-        }
-
         m_cmdQueue.cmdUpdateBuffer(_hBuf, _mem, _offset, _size);
     }
 
@@ -1977,7 +1980,9 @@ namespace kage
                             , ubc->m_offset
                             , ubc->m_size
                         );
-                        release(ubc->m_mem);
+
+                        if (ubc->m_mem)
+                            release(ubc->m_mem);
                     }
                     break;
                 case Command::set_name:
@@ -2217,6 +2222,17 @@ namespace kage
         m_transientMemories.push_back(mem);
     }
 
+    void Context::freshBarriers(const Binding* _desc, uint16_t _count)
+    {
+        const uint32_t sz = sizeof(Binding) * _count;
+        const Memory* mem = alloc(sz);
+        bx::memCopy(mem->data, _desc, mem->size);
+
+        m_cmdQueue.cmdRecordFreshExternalBarriers(mem);
+
+        m_transientMemories.push_back(mem);
+    }
+
     void Context::setColorAttachments(const Attachment* _colors, uint16_t _count)
     {
         const uint32_t sz = sizeof(Attachment) * _count;
@@ -2327,6 +2343,13 @@ namespace kage
     void Context::drawMeshTask(const BufferHandle _hIndirectBuf, const uint32_t _offset, const BufferHandle _countBuf, const uint32_t _countOffset, const uint32_t _maxCount, const uint32_t _stride)
     {
         BX_ASSERT(0, "NOT IMPLEMENTED YET!!!");
+    }
+
+    void Context::updateBrixelizer(void* _brixelizerCtx, void* _updateDesc, const Memory* _scratchRes)
+    {
+        m_cmdQueue.cmdRecordUpdateBrixelizer(_brixelizerCtx, _updateDesc, _scratchRes);
+
+        m_transientMemories.push_back(_scratchRes);
     }
 
     void Context::endRec()
@@ -2472,17 +2495,14 @@ namespace kage
         , uint32_t _size /*= 0*/
     )
     {
-        const uint32_t offset =
-            (_offset == 0)
-            ? 0
-            : _offset;
+        uint32_t size =
+            (_mem == nullptr)
+            ? _size
+            :   (_size == 0)
+                ? _mem->size
+                : bx::clamp(_size, 0, _mem->size);
 
-        const uint32_t size =
-            (_size == 0)
-            ? _mem->size
-            : bx::clamp(_size, 0, _mem->size);
-
-        s_ctx->updateBuffer(_hBuf, _mem, offset, size);
+        s_ctx->updateBuffer(_hBuf, _mem, _offset, size);
     }
 
     void updateImage2D(
@@ -2508,6 +2528,11 @@ namespace kage
     void pushBindings( const Binding* _desc , uint16_t _count )
     {
         s_ctx->pushBindings(_desc, _count);
+    }
+
+    void freshBarriers(const Binding* _desc, uint16_t _count)
+    {
+        s_ctx->freshBarriers(_desc, _count);
     }
 
     void setColorAttachments(const Attachment* _colors, uint16_t _count)
@@ -2677,6 +2702,16 @@ namespace kage
     {
         s_ctx->drawMeshTask(_hIndirectBuf, _offset, _countBuf, _countOffset, _maxCount, _stride);
     }
+
+
+    void updateBrixelizer(
+        void* _brixelizerCtx
+        , void* _updateDesc
+        , const Memory* _scratchRes)
+    {
+        s_ctx->updateBrixelizer(_brixelizerCtx, _updateDesc, _scratchRes);
+    }
+
 
     void endRec()
     {

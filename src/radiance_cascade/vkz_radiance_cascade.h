@@ -100,6 +100,8 @@ struct RadianceCascadeBuild
 
     kage::BufferHandle trans;
 
+    kage::ImageHandle inSdfAtlas;
+
     kage::ImageHandle inDepth;
     kage::SamplerHandle depthSampler;
 
@@ -128,6 +130,7 @@ struct RadianceCascadeInitData
     GBuffer g_buffer;
     kage::ImageHandle depth;
     kage::ImageHandle skybox;
+    kage::ImageHandle sdfAtlas;
     kage::BufferHandle meshBuf;
     kage::BufferHandle meshDrawBuf;
     kage::BufferHandle idxBuf;

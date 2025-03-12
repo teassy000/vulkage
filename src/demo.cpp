@@ -611,6 +611,7 @@ namespace
                 rcInit.idxBuf = m_idxBuf;
                 rcInit.vtxBuf = m_vtxBuf;
                 rcInit.transBuf = m_transformBuf;
+                rcInit.sdfAtlas = m_brixelzer.sdfAtlasOutAlias;
                 rcInit.maxDrawCmdCount = (uint32_t)m_scene.meshDraws.size();
                 rcInit.bindless = m_bindlessArray;
                 rcInit.skybox = m_skybox.colorOutAlias;

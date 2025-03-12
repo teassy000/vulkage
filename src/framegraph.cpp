@@ -293,27 +293,28 @@ namespace kage
         passMeta.writeBufAliasNum = writeResForceAlias(writeBufAliasVec, passMeta.passId, ResourceType::buffer);
 
         // set bindless res
-        const ProgramInfo& progInfo = m_sparse_program_info[passMeta.programId];
+        if(passMeta.queue != PassExeQueue::extern_abstract) {
+            const ProgramInfo& progInfo = m_sparse_program_info[passMeta.programId];
 
-        if (progInfo.createInfo.bindlessId != kInvalidHandle)
-        {
-            BindlessMetaData bMeta = m_sparse_bindless_meta[progInfo.createInfo.bindlessId];
-
-            if (bMeta.resType == ResourceType::image)
+            if (progInfo.createInfo.bindlessId != kInvalidHandle)
             {
-                stl::vector<ImageHandle> bindlessVec(bMeta.resCount);
-                memcpy(bindlessVec.data(), bMeta.resIdMem->data, sizeof(ImageHandle) * bMeta.resCount);
+                BindlessMetaData bMeta = m_sparse_bindless_meta[progInfo.createInfo.bindlessId];
 
-                for (ImageHandle hRes : bindlessVec)
+                if (bMeta.resType == ResourceType::image)
                 {
-                    m_pass_rw_res[passMeta.passId].bindlessRes.insert({ hRes.id, bMeta.resType });
+                    stl::vector<ImageHandle> bindlessVec(bMeta.resCount);
+                    memcpy(bindlessVec.data(), bMeta.resIdMem->data, sizeof(ImageHandle) * bMeta.resCount);
+
+                    for (ImageHandle hRes : bindlessVec)
+                    {
+                        m_pass_rw_res[passMeta.passId].bindlessRes.insert({ hRes.id, bMeta.resType });
+                    }
+                }
+                else
+                {
+                    assert(0); // not suport yet
                 }
             }
-            else
-            {
-                assert(0); // not suport yet
-            }
-
         }
 
         // fill pass idx in queue
@@ -1768,6 +1769,9 @@ namespace kage
         for ( PassHandle pass : m_sortedPass)
         {
             const PassMetaData& passMeta = m_sparse_pass_meta[pass.id];
+
+            if (passMeta.queue == PassExeQueue::extern_abstract)
+                continue;
 
             const ProgramInfo& progInfo = m_sparse_program_info[passMeta.programId];
             usedProgram.push_back({ passMeta.programId });
