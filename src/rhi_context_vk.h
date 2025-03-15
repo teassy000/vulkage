@@ -109,7 +109,7 @@ namespace kage { namespace vk
         uint32_t vertexCount{ 0 };
 
         // barrier status expect in current pass
-        std::pair<uint16_t, BarrierState_vk> writeDepth{ kInvalidHandle, {} };
+        std::pair<uint16_t, BarrierState_vk> writeDepth{ {kInvalidHandle}, {} };
 
         ContinuousMap< uint16_t, BarrierState_vk> writeColors;
         ContinuousMap< uint16_t, BarrierState_vk> readImages;
@@ -117,7 +117,7 @@ namespace kage { namespace vk
         ContinuousMap< uint16_t, BarrierState_vk> writeBuffers;
 
         // write op base to alias
-        ContinuousMap<CombinedResID, CombinedResID> writeOpInToOut;
+        ContinuousMap<UnifiedResHandle, UnifiedResHandle> writeOpInToOut;
 
         bool recorded{ false };
     };
@@ -593,9 +593,9 @@ namespace kage { namespace vk
         // private pass
         // e.g. upload buffer, copy image, etc.
         // 
-        void uploadBuffer(const uint16_t _bufId, const void* _data, uint32_t _size, uint32_t _offset);
-        void fillBuffer(const uint16_t _bufId, const uint32_t _value, uint32_t _size);
-        void uploadImage(const uint16_t _imgId, const void* data, uint32_t size);
+        void uploadBuffer(const BufferHandle _hbuf, const void* _data, uint32_t _size, uint32_t _offset);
+        void fillBuffer(const BufferHandle _hbuf, const uint32_t _value, uint32_t _size);
+        void uploadImage(const ImageHandle _himg, const void* data, uint32_t size);
 
         // barriers
         void checkUnmatchedBarriers(uint16_t _passId);
@@ -618,24 +618,24 @@ namespace kage { namespace vk
         void blitToSwapchain(uint32_t _swapImgIdx);
         void copyToSwapchain(uint32_t _swapImgIdx);
 
-        const Buffer_vk& getBuffer(const uint16_t _bufId, bool _base = true) const
+        const Buffer_vk& getBuffer(const BufferHandle _hbuf, bool _base = true) const
         {
             if (_base)
             {
-                uint16_t baseId = m_aliasToBaseBuffers.getIdToData(_bufId);
-                return m_bufferContainer.getIdToData(baseId);
+                BufferHandle base = m_aliasToBaseBuffers.getIdToData(_hbuf);
+                return m_bufferContainer.getIdToData(base);
             }
-            return m_bufferContainer.getIdToData(_bufId);
+            return m_bufferContainer.getIdToData(_hbuf);
         }
 
-        const Image_vk& getImage(const uint16_t _imgId, bool _base = true) const
+        const Image_vk& getImage(const ImageHandle _himg, bool _base = true) const
         {
             if (_base)
             {
-                uint16_t baseId = m_aliasToBaseImages.getIdToData(_imgId);
-                return m_imageContainer.getIdToData(baseId);
+                ImageHandle base = m_aliasToBaseImages.getIdToData(_himg);
+                return m_imageContainer.getIdToData(base);
             }
-            return m_imageContainer.getIdToData(_imgId);
+            return m_imageContainer.getIdToData(_himg);
         }
 
         const VkDescriptorPool getDescriptorPool(const VkDescriptorSet _descSet) const
@@ -658,8 +658,8 @@ namespace kage { namespace vk
         Attachment m_depthAttachPerPass;
         // rec end
 
-        ContinuousMap<uint16_t, Buffer_vk>      m_bufferContainer;
-        ContinuousMap<uint16_t, Image_vk>       m_imageContainer;
+        ContinuousMap<BufferHandle, Buffer_vk>      m_bufferContainer;
+        ContinuousMap<ImageHandle, Image_vk>       m_imageContainer;
         ContinuousMap<uint16_t, Shader_vk>      m_shaderContainer;
         ContinuousMap<uint16_t, Program_vk>     m_programContainer;
         ContinuousMap<uint16_t, PassInfo_vk>    m_passContainer;
@@ -670,14 +670,14 @@ namespace kage { namespace vk
         StateCacheLru<VkImageView, 1024> m_imgViewCache;
         StateCacheLru<VkBufferView, 1024> m_bufViewCache;
 
-        ContinuousMap<uint16_t, BufferCreateInfo> m_bufferCreateInfos;
-        ContinuousMap<uint16_t, ImageCreateInfo> m_imgCreateInfos;
+        ContinuousMap<BufferHandle, BufferCreateInfo> m_bufferCreateInfos;
+        ContinuousMap<ImageHandle, ImageCreateInfo> m_imgCreateInfos;
 
         stl::vector<stl::vector<uint16_t>> m_programShaderIds;
         stl::vector<uint32_t>           m_progThreadCount;
 
-        ContinuousMap< uint16_t, uint16_t> m_aliasToBaseImages;
-        ContinuousMap< uint16_t, uint16_t> m_aliasToBaseBuffers;
+        ContinuousMap< ImageHandle, ImageHandle> m_aliasToBaseImages;
+        ContinuousMap< BufferHandle, BufferHandle> m_aliasToBaseBuffers;
 
         stl::vector<ImageHandle> m_colorAttchBase;
         stl::vector<ImageHandle> m_depthAttchBase;

@@ -521,6 +521,10 @@ namespace kage
         SamplerDesc             m_samplerDescs[kMaxNumOfSamplerHandle];
         BindlessMetaData        m_bindlessResMetas[kMaxNumOfBindlessResHandle];
 
+        // static resources
+        stl::vector<BufferHandle> m_staticBuffers; 
+        stl::vector<ImageHandle> m_staticImages;
+
         // running Pass
         PassHandle              m_recordingPass{ kInvalidHandle };
         RecordingCmd            m_recCmds[kMaxNumOfPassHandle];
@@ -783,7 +787,7 @@ namespace kage
         }
 
         BufferMetaData meta{ _desc };
-        meta.bufId = idx;
+        meta.hbuf = handle;
         meta.lifetime = _lifetime;
 
         if (_mem != nullptr)
@@ -818,7 +822,7 @@ namespace kage
         }
 
         ImageMetaData meta = _desc;
-        meta.imgId = idx;
+        meta.hImg = handle;
         meta.aspectFlags = ImageAspectFlagBits::color;
         meta.lifetime = _lifetime;
 
@@ -883,7 +887,7 @@ namespace kage
         meta.width = width;
         meta.height = height;
         meta.depth = _desc.depth;
-        meta.imgId = idx;
+        meta.hImg = handle;
         meta.format = _desc.format;
         meta.usage = ImageUsageFlagBits::color_attachment | _desc.usage;
         meta.aspectFlags = ImageAspectFlagBits::color;
@@ -945,7 +949,7 @@ namespace kage
         meta.width = m_resolution.width;
         meta.height = m_resolution.height;
         meta.depth = _desc.depth;
-        meta.imgId = idx;
+        meta.hImg = handle;
         meta.format = ResourceFormat::d32_sfloat;
         meta.usage = ImageUsageFlagBits::depth_stencil_attachment | _desc.usage;
         meta.aspectFlags = ImageAspectFlagBits::depth;
@@ -1234,7 +1238,7 @@ namespace kage
             bx::write(m_fgMemWriter, magic, nullptr);
 
             FGBufferCreateInfo info;
-            info.bufId = meta.bufId;
+            info.hBuf = meta.hbuf;
             info.size = meta.size;
             info.pData = meta.pData;
             info.usage = meta.usage;
@@ -1266,7 +1270,7 @@ namespace kage
             bx::write(m_fgMemWriter, magic, nullptr);
 
             FGImageCreateInfo info;
-            info.imgId = meta.imgId;
+            info.hImg = meta.hImg;
             info.width = meta.width;
             info.height = meta.height;
             info.depth = meta.depth;
@@ -1416,7 +1420,7 @@ namespace kage
         }
 
         BufferMetaData meta = m_bufferMetas[actualBase];
-        meta.bufId = aliasId;
+        meta.hbuf = aliasHandle;
         m_bufferMetas[aliasId] = meta;
 
         bx::StringView baseName = getName(actualBase);
@@ -1459,7 +1463,7 @@ namespace kage
         }
 
         ImageMetaData meta = m_imageMetas[actualBase.id];
-        meta.imgId = aliasId;
+        meta.hImg = aliasHandle;
         m_imageMetas[aliasId] = meta;
 
         bx::StringView baseName = getName(actualBase);
@@ -1469,7 +1473,7 @@ namespace kage
 
         m_cmdQueue.cmdAliasImage(aliasHandle, actualBase);
 
-        return { aliasId };
+        return aliasHandle;
     }
 
     void Context::setName(Handle _h, const char* _name, const size_t _len, bool _alias /*= false*/)
@@ -2171,6 +2175,12 @@ namespace kage
 
     void Context::bxl_setUserResources(const Memory* _reses)
     {
+        const uint32_t length = _reses->size / sizeof(UnifiedResHandle);
+        for (size_t i = 0; i < length; i++)
+        {
+
+        }
+
         m_rhiContext->bxl_setUserResources(_reses);
     }
 
@@ -2825,14 +2835,17 @@ namespace kage
 
     void bxl_setGeoInstances(const Memory* _desc)
     {
+        s_ctx->bxl_setGeoInstances(_desc);
     }
 
     void bxl_regGeoBuffers(const Memory* _bufs)
     {
+        s_ctx->bxl_regGeoBuffers(_bufs);
     }
 
     void bxl_setUserResources(const Memory* _reses)
     {
+        s_ctx->bxl_setUserResources(_reses);
     }
 
     bool isBackendReady()

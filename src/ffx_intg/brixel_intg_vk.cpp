@@ -5,7 +5,8 @@
 
 #include "common.h" // for stl
 
- 
+#include "FidelityFX/host/backends/vk/ffx_vk.h" // for init_ffx
+
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtx/matrix_major_storage.hpp>
 #include "rhi_context_vk.h" // for s_renderVK
@@ -48,7 +49,7 @@ void createCtx(FFXBrixelizer_vk& _blx)
         voxSize *= s_conf.cascadeSizeRatio;
     }
 
-    _blx.initDesc.backendInterface;
+    _blx.initDesc.backendInterface = _blx.ffxCtx.interface;
 
     FFX_CHECK(ffxBrixelizerContextCreate(&_blx.initDesc, &_blx.context));
 }
@@ -86,7 +87,7 @@ void setUserResources(FFXBrixelizer_vk& _blx, const Memory* _reses)
 void parseGeoInst_n_submit(FFXBrixelizer_vk& _blx)
 {
     if (nullptr == _blx.mem_geoInstDescs) {
-        message(error, "invalid geo instance descs or ids!");
+        message(error, "invalid geo instance descs!");
         return;
     }
     
@@ -121,7 +122,7 @@ void parseGeoBuf_n_submit(FFXBrixelizer_vk& _blx)
     }
 
     size_t count = _blx.mem_geoBuf->size / sizeof(BrixelBufDescs);
-    if (2 == count) {
+    if (2 != count) {
         message(error, "invalid geo buffer size!");
         return;
     }
@@ -140,7 +141,7 @@ void parseGeoBuf_n_submit(FFXBrixelizer_vk& _blx)
     for (size_t ii = 0; ii < count; ii++)
     {
         FfxBrixelizerBufferDescription& refDesc = _blx.bufferDescs[ii];
-        const Buffer_vk& kageBuf = s_renderVK->getBuffer(descs[ii].buf.id);
+        const Buffer_vk& kageBuf = s_renderVK->getBuffer(descs[ii].buf);
 
         refDesc.buffer.resource = kageBuf.buffer;
         refDesc.buffer.description.type = FFX_RESOURCE_TYPE_BUFFER;
@@ -174,13 +175,13 @@ void parseUserRes(FFXBrixelizer_vk& _blx)
         message(error, "invalid user resources!");
         return;
     }
-    size_t count = _blx.mem_userRes->size / sizeof(UserResHandle);
+    size_t count = _blx.mem_userRes->size / sizeof(UnifiedResHandle);
     if (count != 3 + FFX_BRIXELIZER_MAX_CASCADES * 2) {
         message(error, "invalid user resources size!");
         return;
     }
 
-    const UserResHandle* handles = (UserResHandle*)_blx.mem_userRes->data;
+    const UnifiedResHandle* handles = (UnifiedResHandle*)_blx.mem_userRes->data;
 
     // fill user resources of kage
     _blx.scratchBuf = handles[0].buf;
@@ -202,7 +203,7 @@ void parseUserRes(FFXBrixelizer_vk& _blx)
         // will store data to this ref
         FfxResource& atlasRef = _blx.updateDesc.resources.sdfAtlas;
 
-        const Image_vk& sdfAtlasBuf = s_renderVK->getImage(_blx.sdfAtlas.id);
+        const Image_vk& sdfAtlasBuf = s_renderVK->getImage(_blx.sdfAtlas);
 
         atlasRef.resource = sdfAtlasBuf.image;
         atlasRef.description.type = FFX_RESOURCE_TYPE_TEXTURE3D;
@@ -222,7 +223,7 @@ void parseUserRes(FFXBrixelizer_vk& _blx)
         // will store data to this ref
         FfxResource& brickAABBRef = _blx.updateDesc.resources.brickAABBs;
 
-        const Buffer_vk& brickAABB = s_renderVK->getBuffer(_blx.brickAABB.id);
+        const Buffer_vk& brickAABB = s_renderVK->getBuffer(_blx.brickAABB);
 
         brickAABBRef.resource = brickAABB.buffer;
         brickAABBRef.description.type = FFX_RESOURCE_TYPE_BUFFER;
@@ -244,7 +245,7 @@ void parseUserRes(FFXBrixelizer_vk& _blx)
         FfxResource& cascadeAABBRef = _blx.updateDesc.resources.cascadeResources[ii].aabbTree;
         FfxResource& cascadeBrickMapRef = _blx.updateDesc.resources.cascadeResources[ii].brickMap;
 
-        const Buffer_vk& cascadeAABB = s_renderVK->getBuffer(_blx.cascadeAABBTrees[ii].id);
+        const Buffer_vk& cascadeAABB = s_renderVK->getBuffer(_blx.cascadeAABBTrees[ii]);
 
         cascadeAABBRef.resource = cascadeAABB.buffer;
         cascadeAABBRef.description.type = FFX_RESOURCE_TYPE_BUFFER;
@@ -259,7 +260,7 @@ void parseUserRes(FFXBrixelizer_vk& _blx)
         nameStr = "brixelizer cascade aabb:" + std::to_string(ii);
         std::copy(nameStr.begin(), nameStr.end(), cascadeAABBRef.name);
 
-        const Buffer_vk& cascadeBrickMap = s_renderVK->getBuffer(_blx.cascadeBrickMaps[ii].id);
+        const Buffer_vk& cascadeBrickMap = s_renderVK->getBuffer(_blx.cascadeBrickMaps[ii]);
 
         cascadeBrickMapRef.resource = cascadeBrickMap.buffer;
         cascadeBrickMapRef.description.type = FFX_RESOURCE_TYPE_BUFFER;
@@ -305,7 +306,7 @@ void updateBlx(FFXBrixelizer_vk& _blx)
 
     FfxResource scratchRes;
     {
-        const Buffer_vk& scratchBuf = s_renderVK->getBuffer(_blx.scratchBuf.id);
+        const Buffer_vk& scratchBuf = s_renderVK->getBuffer(_blx.scratchBuf);
 
         scratchRes.resource = scratchBuf.buffer;
         scratchRes.description.type = FFX_RESOURCE_TYPE_BUFFER;
@@ -324,15 +325,45 @@ void updateBlx(FFXBrixelizer_vk& _blx)
     FFX_CHECK(ffxBrixelizerUpdate(&_blx.context, &_blx.bakedUpdateDesc, scratchRes, s_renderVK->m_cmdBuffer));
 }
 
+void init_ffx(FFXBrixelizer_vk::FfxCtx& _ffx)
+{
+    // Create the FFX context
+    constexpr uint32_t c_maxContexts = 2;
+    size_t scratchMemSz = ffxGetScratchMemorySizeVK(s_renderVK->m_physicalDevice, c_maxContexts);
+    const Memory* scratchMem = kage::alloc((uint32_t)scratchMemSz);
+    memset(scratchMem->data, 0, scratchMem->size);
+
+    VkDeviceContext vkdevCtx;
+    vkdevCtx.vkDevice = s_renderVK->m_device;
+    vkdevCtx.vkPhysicalDevice = s_renderVK->m_physicalDevice;
+    vkdevCtx.vkDeviceProcAddr = s_renderVK->m_vkGetDeviceProcAddr;
+
+    FfxDevice ffxDevice = ffxGetDeviceVK(&vkdevCtx);
+    FfxInterface interface;
+    FfxErrorCode err = ffxGetInterfaceVK(&interface, ffxDevice, scratchMem->data, scratchMem->size, c_maxContexts);
+
+    assert(err == FFX_OK);
+
+    _ffx.scratchMem = scratchMem;
+    _ffx.device = ffxDevice;
+    _ffx.interface = interface;
+}
+
 void init(FFXBrixelizer_vk& _blx)
 {
+    init_ffx(_blx.ffxCtx);
     createCtx(_blx);
 }
 
-void postBakeInit(FFXBrixelizer_vk& _blx)
+void initAfterCmdReady(FFXBrixelizer_vk& _blx)
 {
-    parseGeoInst_n_submit(_blx);
-    parseGeoBuf_n_submit(_blx);
+    static bool s_init = false;
+    if (!s_init)
+    {
+        s_init = true;
+        parseGeoInst_n_submit(_blx);
+        parseGeoBuf_n_submit(_blx);
+    }
 }
 
 void update(FFXBrixelizer_vk& _blx)

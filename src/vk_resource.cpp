@@ -117,7 +117,7 @@ namespace kage { namespace vk
             VK_CHECK(vkCreateBuffer(device, &createInfo, nullptr, &(buf.buffer)));
 
             buf.size = alignSize;
-            buf.resId = _infos[ii].bufId;
+            buf.hBuf = _infos[ii].hbuf;
             buf.format = _format;
         }
 
@@ -305,7 +305,7 @@ namespace kage { namespace vk
         {
             Image_vk& img = results[ii];
 
-            img.resId = _infos[ii].imgId;
+            img.himg = _infos[ii].himg;
             img.defaultView = createImageView(img.image, _initProps.format, 0, _initProps.numMips, _initProps.numLayers, _initProps.viewType); // ImageView bind to the image handle it self, should create a new one for alias
             img.memory = memory;
 

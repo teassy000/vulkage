@@ -8,6 +8,7 @@
 namespace kage { namespace vk { namespace bxl
 {
 
+
     struct FFXBrixelizer_vk
     {
         BufferHandle scratchBuf;
@@ -43,10 +44,18 @@ namespace kage { namespace vk { namespace bxl
         uint32_t frameIdx{ 0 };
         float sdfCenter[3]{ 0.f, 0.f, 0.f };
         size_t gpuScratchedBufferSize{ 128 * 1024 * 1024 }; // 128MB
+
+        struct FfxCtx
+        {
+            const Memory* scratchMem;
+            FfxDevice device;
+            FfxInterface interface;
+        }ffxCtx;
+
     };
 
     void init(FFXBrixelizer_vk&);
-    void postBakeInit(FFXBrixelizer_vk&);
+    void initAfterCmdReady(FFXBrixelizer_vk&);
     void update(FFXBrixelizer_vk&);
 
     void setGeoInstances(FFXBrixelizer_vk& _bxl, const Memory* _desc);

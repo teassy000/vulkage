@@ -1588,6 +1588,8 @@ namespace kage { namespace vk
         // get the function pointers
         m_vkGetDeviceProcAddr = vkGetDeviceProcAddr;
         initFFX();
+
+        bxl::init(m_bxl);
     }
 
     void RHIContext_vk::bake()
@@ -1611,6 +1613,8 @@ namespace kage { namespace vk
     {
         m_frameRecCmds.finish();
 
+        bxl::initAfterCmdReady(m_bxl);
+        bxl::update(m_bxl);
         bool result = render();
 
         m_frameRecCmds.start();
@@ -1784,8 +1788,8 @@ namespace kage { namespace vk
         // buffer
         for (uint32_t ii = 0; ii < m_bufferContainer.size(); ++ii)
         {
-            uint16_t bufId = m_bufferContainer.getIdAt(ii);
-            Buffer_vk& buf = m_bufferContainer.getDataRef(bufId);
+            BufferHandle hbuf = m_bufferContainer.getIdAt(ii);
+            Buffer_vk& buf = m_bufferContainer.getDataRef(hbuf);
             if (buf.buffer)
             {
                 vkDestroyBuffer(m_device, buf.buffer, nullptr);
@@ -1798,15 +1802,15 @@ namespace kage { namespace vk
                 buf.memory = VK_NULL_HANDLE;
             }
 
-            m_imgViewCache.invalidateWithParent(bufId);
+            m_imgViewCache.invalidateWithParent(hbuf.id);
         }
         m_bufferContainer.clear();
 
         // image
         for (uint32_t ii = 0; ii < m_imageContainer.size(); ++ii)
         {
-            uint16_t imgId = m_imageContainer.getIdAt(ii);
-            Image_vk& img = m_imageContainer.getDataRef(imgId);
+            ImageHandle hImg = m_imageContainer.getIdAt(ii);
+            Image_vk& img = m_imageContainer.getDataRef(hImg);
             if (img.image)
             {
                 vkDestroyImage(m_device, img.image, nullptr);
@@ -1824,7 +1828,7 @@ namespace kage { namespace vk
                 vkDestroyImageView(m_device, img.defaultView, nullptr);
                 img.defaultView = VK_NULL_HANDLE;
             }
-            m_imgViewCache.invalidateWithParent(imgId);
+            m_imgViewCache.invalidateWithParent(hImg.id);
         }
         m_imageContainer.clear();
 
@@ -1976,31 +1980,31 @@ namespace kage { namespace vk
     {
         KG_ZoneScopedC(Color::indian_red);
 
-        if (!m_bufferContainer.exist(_hBuf.id))
+        if (!m_bufferContainer.exist(_hBuf))
         {
             message(info, "updateBuffer will not perform for buffer %d! It might be useless after render pass sorted", _hBuf.id);
             return;
         }
 
-        const Buffer_vk& buf = m_bufferContainer.getIdToData(_hBuf.id);
-        uint16_t baseBufId = m_aliasToBaseBuffers.getIdToData(_hBuf.id);
-        const Buffer_vk& baseBuf = m_bufferContainer.getIdToData(baseBufId);
+        const Buffer_vk& buf = m_bufferContainer.getIdToData(_hBuf);
+        BufferHandle hbase = m_aliasToBaseBuffers.getIdToData(_hBuf);
+        const Buffer_vk& baseBuf = m_bufferContainer.getIdToData(hbase);
 
-        const BufferCreateInfo& createInfo = m_bufferCreateInfos.getDataRef(baseBufId);
+        const BufferCreateInfo& createInfo = m_bufferCreateInfos.getDataRef(hbase);
 
         // re-create buffer if new size is larger than the old one
         if (buf.size != _size && baseBuf.size < (_offset + _size))
         {
             m_barrierDispatcher.untrack(buf.buffer);
 
-            Buffer_vk& bufToRelease = m_bufferContainer.getDataRef(_hBuf.id);
+            Buffer_vk& bufToRelease = m_bufferContainer.getDataRef(_hBuf);
             release(bufToRelease.buffer);
             release(bufToRelease.memory);
 
             // recreate buffer
             BufferAliasInfo info{};
             info.size = _size;
-            info.bufId = _hBuf.id;
+            info.hbuf = _hBuf;
 
             Buffer_vk newBuf = kage::vk::createBuffer(
                 info
@@ -2008,7 +2012,7 @@ namespace kage { namespace vk
                 , getMemPropFlags(createInfo.memFlags)
                 , getFormat(createInfo.format)
             );
-            m_bufferContainer.update(_hBuf.id, newBuf);
+            m_bufferContainer.update(_hBuf, newBuf);
 
             ResInteractDesc interact{ createInfo.barrierState };
             m_barrierDispatcher.track(
@@ -2018,10 +2022,10 @@ namespace kage { namespace vk
             );
         }
 
-        const Buffer_vk& newBuf = m_bufferContainer.getIdToData(_hBuf.id);
+        const Buffer_vk& newBuf = m_bufferContainer.getIdToData(_hBuf);
 
         if (_mem){
-            uploadBuffer(_hBuf.id, _mem->data, _mem->size, _offset);
+            uploadBuffer(_hBuf, _mem->data, _mem->size, _offset);
         }
 
         // flush host visble but not coherented buf
@@ -2042,13 +2046,13 @@ namespace kage { namespace vk
     {
         KG_ZoneScopedC(Color::indian_red);
 
-        if (!m_imageContainer.exist(_hImg.id))
+        if (!m_imageContainer.exist(_hImg))
         {
             message(info, "updateImage will not perform for image %d! It might be useless after render pass sorted", _hImg.id);
             return;
         }
 
-        ImageHandle baseImg = { m_aliasToBaseImages.getIdToData(_hImg.id) };
+        ImageHandle baseImg = { m_aliasToBaseImages.getIdToData(_hImg) };
         const stl::vector<ImageHandle>& aliasRef = m_imgToAliases.find(baseImg)->second;
 
         updateImageWithAlias(_hImg, _width, _height, _mem, aliasRef);
@@ -2064,14 +2068,14 @@ namespace kage { namespace vk
     {
         KG_ZoneScopedC(Color::indian_red);
 
-        if (!m_imageContainer.exist(_hImg.id))
+        if (!m_imageContainer.exist(_hImg))
         {
             message(info, "updateImage will not perform for image %d! It might be useless after render pass sorted", _hImg.id);
             return;
         }
 
-        const ImageHandle baseImg = { m_aliasToBaseImages.getIdToData(_hImg.id) };
-        Image_vk baseImgVk = m_imageContainer.getIdToData(baseImg.id);
+        const ImageHandle baseImg = { m_aliasToBaseImages.getIdToData(_hImg) };
+        Image_vk baseImgVk = m_imageContainer.getIdToData(baseImg);
 
         // re-create image if new size is different from the old one
         if (baseImgVk.width != _width || baseImgVk.height != _height)
@@ -2083,10 +2087,10 @@ namespace kage { namespace vk
             for (const ImageHandle& img : _alias)
             {
                 ImageAliasInfo ali{};
-                ali.imgId = img.id;
+                ali.himg = img;
                 aliasInfos.push_back(ali);
 
-                Image_vk& imgVk = m_imageContainer.getDataRef(img.id);
+                Image_vk& imgVk = m_imageContainer.getDataRef(img);
                 toRelease.push_back(imgVk.image);
                 
                 m_barrierDispatcher.untrack(imgVk.image);
@@ -2101,7 +2105,7 @@ namespace kage { namespace vk
 
             release(baseImgVk.memory);
 
-            ImageCreateInfo& ci = m_imgCreateInfos.getDataRef(_hImg.id);
+            ImageCreateInfo& ci = m_imgCreateInfos.getDataRef(_hImg);
             ci.width = _width;
             ci.height = _height;
 
@@ -2132,7 +2136,7 @@ namespace kage { namespace vk
 
         if (_mem != nullptr)
         {
-            uploadImage(_hImg.id, _mem->data, _mem->size);
+            uploadImage(_hImg, _mem->data, _mem->size);
         }
     }
 
@@ -2227,11 +2231,11 @@ namespace kage { namespace vk
         bx::read(&_reader, interacts.data(), (uint32_t)(interactSz * sizeof(ResInteractDesc)), nullptr);
 
         // write op aliases
-        stl::vector<CombinedResID> writeOpAliasInIds(passMeta.writeBufAliasNum + passMeta.writeImgAliasNum);
-        bx::read(&_reader, writeOpAliasInIds.data(), (passMeta.writeBufAliasNum + passMeta.writeImgAliasNum) * sizeof(CombinedResID), nullptr);
+        stl::vector<UnifiedResHandle> writeOpAliasInIds(passMeta.writeBufAliasNum + passMeta.writeImgAliasNum);
+        bx::read(&_reader, writeOpAliasInIds.data(), (passMeta.writeBufAliasNum + passMeta.writeImgAliasNum) * sizeof(UnifiedResHandle), nullptr);
 
-        stl::vector<CombinedResID> writeOpAliasOutIds(passMeta.writeBufAliasNum + passMeta.writeImgAliasNum);
-        bx::read(&_reader, writeOpAliasOutIds.data(), (passMeta.writeBufAliasNum + passMeta.writeImgAliasNum) * sizeof(CombinedResID), nullptr);
+        stl::vector<UnifiedResHandle> writeOpAliasOutIds(passMeta.writeBufAliasNum + passMeta.writeImgAliasNum);
+        bx::read(&_reader, writeOpAliasOutIds.data(), (passMeta.writeBufAliasNum + passMeta.writeImgAliasNum) * sizeof(UnifiedResHandle), nullptr);
 
 
         // fill pass info
@@ -2319,7 +2323,7 @@ namespace kage { namespace vk
             {
                 uint16_t id = passInfo.writeColors.getIdAt(ii);
 
-                const Image_vk& img = m_imageContainer.getIdToData(id);
+                const Image_vk& img = m_imageContainer.getIdToData({id});
                 const BarrierState_vk& ba = passInfo.writeColors.getDataAt(ii);
                 if ((ba.accessMask & VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT) == 0)
                     continue;
@@ -2403,15 +2407,15 @@ namespace kage { namespace vk
         kage::vk::createImage(images, infoList, initPorps);
         assert(images.size() == info.resCount);
 
-        m_imgCreateInfos.addOrUpdate(info.imgId, info);
+        m_imgCreateInfos.addOrUpdate(info.himg, info);
 
         for (int ii = 0; ii < info.resCount; ++ii)
         {
-            m_imageContainer.addOrUpdate(resArr[ii].imgId, images[ii]);
-            m_aliasToBaseImages.addOrUpdate(resArr[ii].imgId, info.imgId);
+            m_imageContainer.addOrUpdate(resArr[ii].himg, images[ii]);
+            m_aliasToBaseImages.addOrUpdate(resArr[ii].himg, info.himg);
         }
 
-        const Image_vk& baseImage = getImage(info.imgId, true);
+        const Image_vk& baseImage = getImage(info.himg, true);
 
         for (int ii = 0; ii < info.resCount; ++ii)
         {
@@ -2428,33 +2432,33 @@ namespace kage { namespace vk
         {
             if (info.usage & ImageUsageFlagBits::color_attachment)
             {
-                m_colorAttchBase.push_back({ info.imgId });
+                m_colorAttchBase.push_back({ info.himg });
             }
 
             if (info.usage & ImageUsageFlagBits::depth_stencil_attachment)
             {
-                m_depthAttchBase.push_back({ info.imgId });
+                m_depthAttchBase.push_back({ info.himg });
             }
 
             if (info.usage & ImageUsageFlagBits::storage)
             {
-                m_storageImageBase.push_back({ info.imgId });
+                m_storageImageBase.push_back({ info.himg });
             }
 
             stl::vector<ImageHandle> alias;
             for (uint16_t ii = 0; ii < info.resCount; ++ii)
             {
-                alias.push_back({ resArr[ii].imgId });
+                alias.push_back({ resArr[ii].himg });
             }
 
             m_imgToAliases.insert(
-                stl::make_pair<ImageHandle, stl::vector<ImageHandle>>({ info.imgId }, alias)
+                stl::make_pair<ImageHandle, stl::vector<ImageHandle>>({ info.himg }, alias)
             );
         }
 
         if (info.pData != nullptr)
         {
-            uploadImage(info.imgId, info.pData, info.size);
+            uploadImage(info.himg, info.pData, info.size);
         }
 
         KAGE_DELETE_ARRAY(resArr);
@@ -2487,13 +2491,13 @@ namespace kage { namespace vk
         for (int ii = 0; ii < info.resCount; ++ii)
         {
             buffers[ii].fillVal = info.fillVal;
-            m_bufferContainer.addOrUpdate(resArr[ii].bufId, buffers[ii]);
-            m_aliasToBaseBuffers.addOrUpdate(resArr[ii].bufId, info.bufId);
+            m_bufferContainer.addOrUpdate(resArr[ii].hbuf, buffers[ii]);
+            m_aliasToBaseBuffers.addOrUpdate(resArr[ii].hbuf, info.hbuf);
         }
 
-        m_bufferCreateInfos.addOrUpdate(info.bufId, info);
+        m_bufferCreateInfos.addOrUpdate(info.hbuf, info);
 
-        const Buffer_vk& baseBuffer = getBuffer(info.bufId);
+        const Buffer_vk& baseBuffer = getBuffer(info.hbuf);
         for (int ii = 0; ii < info.resCount; ++ii)
         {
             ResInteractDesc interact{ info.barrierState };
@@ -2507,11 +2511,11 @@ namespace kage { namespace vk
         // initialize buffer
         if (info.pData != nullptr)
         {
-            uploadBuffer(info.bufId, info.pData, info.size, 0);
+            uploadBuffer(info.hbuf, info.pData, info.size, 0);
         }
         else
         {
-            fillBuffer(info.bufId, info.fillVal, info.size);
+            fillBuffer(info.hbuf, info.fillVal, info.size);
         }
 
         KAGE_DELETE_ARRAY(resArr);
@@ -2598,7 +2602,7 @@ namespace kage { namespace vk
                 message(warning, "imageIds[ii] is invalid! skipping");
                 continue;
             }
-            const Image_vk& img = m_imageContainer.getIdToData(hImg.id);
+            const Image_vk& img = m_imageContainer.getIdToData(hImg);
 
             
             VkDescriptorImageInfo imgInfo{};
@@ -2668,18 +2672,18 @@ namespace kage { namespace vk
             break;
         case Handle::Buffer:
             {
-                if (m_bufferContainer.exist(_h.id))
+            if (m_bufferContainer.exist({ _h.id }))
                 {
-                    const Buffer_vk& buf = m_bufferContainer.getIdToData(_h.id);
+                    const Buffer_vk& buf = m_bufferContainer.getIdToData({ _h.id });
                     setDebugObjName(m_device, buf.buffer, "%.*s", _len, _name);
                 }
             }
             break;
         case Handle::Image:
             {
-                if (m_imageContainer.exist(_h.id))
+                if (m_imageContainer.exist({ _h.id }))
                 {
-                    const Image_vk& img = m_imageContainer.getIdToData(_h.id);
+                    const Image_vk& img = m_imageContainer.getIdToData({ _h.id });
                     setDebugObjName(m_device, img.image, "%.*s", _len, _name);
                 }
             }
@@ -2711,13 +2715,13 @@ namespace kage { namespace vk
 
     void* RHIContext_vk::getRhiResource(BufferHandle _buf)
     {
-        const Buffer_vk& bufvk = m_bufferContainer.getIdToData(_buf.id);
+        const Buffer_vk& bufvk = m_bufferContainer.getIdToData(_buf);
         return static_cast<void*>(bufvk.buffer);
     }
 
     void* RHIContext_vk::getRhiResource(ImageHandle _img)
     {
-        const Image_vk& imgVk = m_imageContainer.getIdToData(_img.id);
+        const Image_vk& imgVk = m_imageContainer.getIdToData(_img);
         return static_cast<void*>(imgVk.image);
     }
 
@@ -2924,7 +2928,7 @@ namespace kage { namespace vk
             );
             return;
         }
-        const Buffer_vk& buf = getBuffer(_hBuf.id);
+        const Buffer_vk& buf = getBuffer(_hBuf);
 
         VkDeviceSize offsets[1] = { 0 };
         vkCmdBindVertexBuffers(m_cmdBuffer, 0, 1, &buf.buffer, offsets);
@@ -2944,7 +2948,7 @@ namespace kage { namespace vk
             return;
         }
 
-        const Buffer_vk& buf = getBuffer(_hBuf.id);
+        const Buffer_vk& buf = getBuffer(_hBuf);
         VkIndexType t = getIndexType(_type);
 
         vkCmdBindIndexBuffer(m_cmdBuffer, buf.buffer, _offset, t);
@@ -2963,7 +2967,7 @@ namespace kage { namespace vk
             return;
         }
 
-        const Buffer_vk& buf = getBuffer(_hBuf.id);
+        const Buffer_vk& buf = getBuffer(_hBuf);
         
         m_barrierDispatcher.barrier(buf.buffer,
             { VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT }
@@ -3033,7 +3037,7 @@ namespace kage { namespace vk
         lazySetDescriptorSet(_hPass);
 
         const PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
-        const Buffer_vk& ib = getBuffer(_hIndirectBuf.id);
+        const Buffer_vk& ib = getBuffer(_hIndirectBuf);
 
         // dispatch
         vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, passInfo.pipeline);
@@ -3156,7 +3160,7 @@ namespace kage { namespace vk
 
         vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, passInfo.pipeline);
 
-        const Buffer_vk& ib = getBuffer(_hIndirectBuf.id);
+        const Buffer_vk& ib = getBuffer(_hIndirectBuf);
 
         vkCmdDrawIndexedIndirect(
             m_cmdBuffer
@@ -3195,8 +3199,8 @@ namespace kage { namespace vk
 
         vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, passInfo.pipeline);
 
-        const Buffer_vk& ib = getBuffer(_hIndirectBuf.id);
-        const Buffer_vk& cb = getBuffer(_hIndirectCountBuf.id);
+        const Buffer_vk& ib = getBuffer(_hIndirectBuf);
+        const Buffer_vk& cb = getBuffer(_hIndirectCountBuf);
 
         vkCmdDrawIndexedIndirectCount(
             m_cmdBuffer
@@ -3236,7 +3240,7 @@ namespace kage { namespace vk
         const uint16_t progIdx = (uint16_t)m_programContainer.getIdIndex(passInfo.programId);
         vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, passInfo.pipeline);
 
-        const Buffer_vk& buf = getBuffer(_hBuf.id);
+        const Buffer_vk& buf = getBuffer(_hBuf);
         vkCmdDrawMeshTasksIndirectEXT(
             m_cmdBuffer
             , buf.buffer
@@ -3296,7 +3300,7 @@ namespace kage { namespace vk
         Res res;
         memcpy(&res, _scratchRes->data, sizeof(res));
 
-        const Buffer_vk& bufvk = m_bufferContainer.getIdToData(res.hbuf.id);
+        const Buffer_vk& bufvk = m_bufferContainer.getIdToData(res.hbuf);
         res.ffxRes.resource = static_cast<void*>(bufvk.buffer);
         assert(res.ffxRes.description.size == bufvk.size);
 
@@ -3341,7 +3345,7 @@ namespace kage { namespace vk
     {
         KG_ZoneScopedC(Color::indian_red);
 
-        const Image_vk& img = getImage(_hImg.id, true);
+        const Image_vk& img = getImage(_hImg, true);
 
         bx::HashMurmur2A hash;
         hash.begin();
@@ -3376,10 +3380,10 @@ namespace kage { namespace vk
     {
         KG_ZoneScopedC(Color::indian_red);
 
-        const Buffer_vk& buf = getBuffer(_hbuf.id);
+        const Buffer_vk& buf = getBuffer(_hbuf);
         bx::HashMurmur2A hash;
         hash.begin();
-        hash.add(buf.resId);
+        hash.add(buf.hBuf);
 
         uint32_t hashKey = hash.end();
 
@@ -3423,7 +3427,7 @@ namespace kage { namespace vk
         assert(m_physicalDevice);
     }
 
-    void RHIContext_vk::uploadBuffer(const uint16_t _bufId, const void* _data, uint32_t _size, uint32_t _offset)
+    void RHIContext_vk::uploadBuffer(const BufferHandle _hbuf, const void* _data, uint32_t _size, uint32_t _offset)
     {
         KG_ZoneScopedC(Color::indian_red);
 
@@ -3441,7 +3445,7 @@ namespace kage { namespace vk
 
         VkBufferCopy region = { 0 , _offset, VkDeviceSize(_size) };
 
-        const Buffer_vk& buffer = getBuffer(_bufId);
+        const Buffer_vk& buffer = getBuffer(_hbuf);
         
         m_barrierDispatcher.barrier(buffer.buffer,
             { VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT }
@@ -3460,13 +3464,13 @@ namespace kage { namespace vk
         release(scratch.memory);
     }
 
-    void RHIContext_vk::fillBuffer(const uint16_t _bufId, const uint32_t _value, uint32_t _size)
+    void RHIContext_vk::fillBuffer(const BufferHandle _hbuf, const uint32_t _value, uint32_t _size)
     {
         KG_ZoneScopedC(Color::indian_red);
 
         assert(_size > 0);
 
-        const Buffer_vk& buf = getBuffer(_bufId);
+        const Buffer_vk& buf = getBuffer(_hbuf);
 
         m_barrierDispatcher.barrier(buf.buffer,
             { VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT }
@@ -3533,7 +3537,7 @@ namespace kage { namespace vk
         return result;
     }
 
-    void RHIContext_vk::uploadImage(const uint16_t _imgId, const void* _data, uint32_t _size)
+    void RHIContext_vk::uploadImage(const ImageHandle _hImg, const void* _data, uint32_t _size)
     {
         KG_ZoneScopedC(Color::indian_red);
 
@@ -3550,8 +3554,8 @@ namespace kage { namespace vk
 
         memcpy(scratch.data, _data, _size);
 
-        const Image_vk& vkImg = getImage(_imgId);
-        const ImageCreateInfo& imgInfo = m_imgCreateInfos.getIdToData(_imgId);
+        const Image_vk& vkImg = getImage(_hImg);
+        const ImageCreateInfo& imgInfo = m_imgCreateInfos.getIdToData(_hImg);
 
         m_barrierDispatcher.barrier(
             vkImg.image
@@ -3619,9 +3623,9 @@ namespace kage { namespace vk
         // write depth
         if (kInvalidHandle != passInfo.writeDepthId)
         {
-            uint16_t depthId = passInfo.writeDepth.first;
-            const Image_vk& depthImg = getImage(depthId);
-            const Image_vk& baseImg = getImage(depthId, true);
+            ImageHandle hDepth = { passInfo.writeDepth.first };
+            const Image_vk& depthImg = getImage(hDepth);
+            const Image_vk& baseImg = getImage(hDepth, true);
 
 
             BarrierState_vk state = m_barrierDispatcher.getBarrierState(depthImg.image);
@@ -3630,8 +3634,8 @@ namespace kage { namespace vk
             if (baseState != state)
             {
                 message(warning, "expect state mismatched for image %s, base %s"
-                    , getName(ImageHandle{depthId})
-                    , getName(ImageHandle{ baseImg.resId }));
+                    , getName(ImageHandle{hDepth})
+                    , getName(ImageHandle{ baseImg.himg }));
                 m_barrierDispatcher.barrier(depthImg.image, baseImg.aspectMask, baseState);
             }
         }
@@ -3639,11 +3643,11 @@ namespace kage { namespace vk
         // write colors
         for (uint32_t ii = 0; ii < passInfo.writeColors.size(); ++ii)
         {
-            uint16_t id = passInfo.writeColors.getIdAt(ii);
-            uint16_t baseImgId = m_aliasToBaseImages.getIdToData(id);
+            uint16_t id = passInfo.readImages.getIdAt(ii);
+            ImageHandle hBaseImg = m_aliasToBaseImages.getIdToData({ id });
 
-            const Image_vk& img = getImage(id);
-            const Image_vk& baseImg = getImage(id, true);
+            const Image_vk& img = getImage({ id });
+            const Image_vk& baseImg = getImage({ id }, true);
 
             BarrierState_vk state = m_barrierDispatcher.getBarrierState(img.image);
             BarrierState_vk baseState = m_barrierDispatcher.getBaseBarrierState(baseImg.image);
@@ -3652,7 +3656,7 @@ namespace kage { namespace vk
             {
                 message(warning, "expect state mismatched for image %s, base %s"
                     , getName(ImageHandle{ id })
-                    , getName(ImageHandle{ baseImgId }));
+                    , getName(hBaseImg));
                 m_barrierDispatcher.barrier(img.image, baseImg.aspectMask, baseState);
             }
         }
@@ -3661,10 +3665,10 @@ namespace kage { namespace vk
         for (uint32_t ii = 0; ii < passInfo.writeBuffers.size(); ++ii)
         {
             uint16_t id = passInfo.writeBuffers.getIdAt(ii);
-            uint16_t baseBufId = m_aliasToBaseBuffers.getIdToData(id);
+            BufferHandle hBaseBuf = m_aliasToBaseBuffers.getIdToData({ id });
 
-            const Buffer_vk& buf = getBuffer(id);
-            const Buffer_vk& baseBuf = getBuffer(id, true);
+            const Buffer_vk& buf = getBuffer({ id });
+            const Buffer_vk& baseBuf = getBuffer({ id }, true);
 
             BarrierState_vk state = m_barrierDispatcher.getBarrierState(buf.buffer);
             BarrierState_vk baseState = m_barrierDispatcher.getBaseBarrierState(baseBuf.buffer);
@@ -3673,7 +3677,7 @@ namespace kage { namespace vk
             {
                 message(warning, "expect state mismatched for buffer %s, base %s"
                     , getName(BufferHandle{ id })
-                    , getName(BufferHandle{ baseBufId }));
+                    , getName(BufferHandle{ hBaseBuf }));
 
                 m_barrierDispatcher.barrier(buf.buffer, baseState);
             }
@@ -3683,10 +3687,10 @@ namespace kage { namespace vk
         for (uint32_t ii = 0; ii < passInfo.readImages.size(); ++ii)
         {
             uint16_t id = passInfo.readImages.getIdAt(ii);
-            uint16_t baseImgId = m_aliasToBaseImages.getIdToData(id);
+            ImageHandle hBaseImg = m_aliasToBaseImages.getIdToData({ id });
 
-            const Image_vk& img = getImage(id);
-            const Image_vk& baseImg = getImage(id, true);
+            const Image_vk& img = getImage({ id });
+            const Image_vk& baseImg = getImage({ id }, true);
 
             BarrierState_vk state = m_barrierDispatcher.getBarrierState(img.image);
             BarrierState_vk baseState = m_barrierDispatcher.getBaseBarrierState(baseImg.image);
@@ -3695,7 +3699,7 @@ namespace kage { namespace vk
             {
                 message(warning, "expect state mismatched for image %s, base %s"
                     , getName(ImageHandle{ id })
-                    , getName(ImageHandle{ baseImgId }));
+                    , getName(ImageHandle{ hBaseImg }));
 
                 m_barrierDispatcher.barrier(img.image, baseImg.aspectMask, baseState);
             }
@@ -3704,11 +3708,11 @@ namespace kage { namespace vk
         // read buffers
         for (uint32_t ii = 0; ii < passInfo.readBuffers.size(); ++ii)
         {
-            uint16_t id = passInfo.readBuffers.getIdAt(ii);
-            uint16_t baseBufId = m_aliasToBaseBuffers.getIdToData(id);
+            uint16_t id = passInfo.writeBuffers.getIdAt(ii);
+            BufferHandle hBaseBuf = m_aliasToBaseBuffers.getIdToData({ id });
 
-            const Buffer_vk& buf = getBuffer(id);
-            const Buffer_vk& baseBuf = getBuffer(id, true);
+            const Buffer_vk& buf = getBuffer({ id });
+            const Buffer_vk& baseBuf = getBuffer({ id }, true);
 
             BarrierState_vk state = m_barrierDispatcher.getBarrierState(buf.buffer);
             BarrierState_vk baseState = m_barrierDispatcher.getBaseBarrierState(baseBuf.buffer);
@@ -3717,7 +3721,7 @@ namespace kage { namespace vk
             {
                 message(warning, "expect state mismatched for buffer %s, base %s"
                     , getName(BufferHandle{ id })
-                    , getName(BufferHandle{ baseBufId }));
+                    , getName(hBaseBuf ));
                 m_barrierDispatcher.barrier(buf.buffer, baseState);
             }
         }
@@ -3737,7 +3741,7 @@ namespace kage { namespace vk
             uint16_t depth = passInfo.writeDepth.first;
 
             BarrierState_vk dst = passInfo.writeDepth.second;
-            const Image_vk& img = getImage(depth);
+            const Image_vk& img = getImage({ depth });
             m_barrierDispatcher.barrier(img.image, img.aspectMask, dst);
         }
 
@@ -3747,7 +3751,7 @@ namespace kage { namespace vk
             uint16_t id = passInfo.writeColors.getIdAt(ii);
 
             BarrierState_vk dst = passInfo.writeColors.getIdToData(id);
-            const Image_vk& img = getImage(id);
+            const Image_vk& img = getImage({ id });
             m_barrierDispatcher.barrier(img.image, img.aspectMask, dst);
         }
 
@@ -3758,7 +3762,7 @@ namespace kage { namespace vk
 
             BarrierState_vk dst = passInfo.writeBuffers.getIdToData(id);
 
-            m_barrierDispatcher.barrier(getBuffer(id).buffer, dst);
+            m_barrierDispatcher.barrier(getBuffer({ id }).buffer, dst);
         }
 
         // read images
@@ -3768,7 +3772,7 @@ namespace kage { namespace vk
 
             BarrierState_vk dst = passInfo.readImages.getIdToData(id);
 
-            const Image_vk& img = getImage(id);
+            const Image_vk& img = getImage({ id });
             m_barrierDispatcher.barrier(img.image, img.aspectMask, dst);
         }
 
@@ -3779,7 +3783,7 @@ namespace kage { namespace vk
 
             BarrierState_vk dst = passInfo.readBuffers.getIdToData(id);
 
-            m_barrierDispatcher.barrier(getBuffer(id).buffer, dst);
+            m_barrierDispatcher.barrier(getBuffer({ id }).buffer, dst);
         }
     }
 
@@ -3792,30 +3796,30 @@ namespace kage { namespace vk
         // flush in out resources
         for (uint32_t ii = 0; ii < passInfo.writeOpInToOut.size(); ++ii)
         {
-            CombinedResID inId = passInfo.writeOpInToOut.getIdAt(ii);
-            CombinedResID outId = passInfo.writeOpInToOut.getDataAt(ii);
+            UnifiedResHandle inId = passInfo.writeOpInToOut.getIdAt(ii);
+            UnifiedResHandle outId = passInfo.writeOpInToOut.getDataAt(ii);
 
-            if (isBuffer(outId))
+            if (outId.isBuffer())
             {
-                BarrierState_vk dst = passInfo.writeBuffers.getIdToData(inId.id);
+                BarrierState_vk dst = passInfo.writeBuffers.getIdToData(inId.buf.id);
 
-                m_barrierDispatcher.barrier(getBuffer(inId.id).buffer, dst);
+                m_barrierDispatcher.barrier(getBuffer(inId.buf).buffer, dst);
             }
-            else if (isImage(outId) && inId.id == passInfo.writeDepthId)
+            else if (outId.isImage() && inId.img == passInfo.writeDepthId)
             {
                 uint16_t depth = passInfo.writeDepth.first;
-                assert(depth == inId.id);
+                assert(depth == inId.img);
                 
                 BarrierState_vk dst = passInfo.writeDepth.second;
                 
-                const Image_vk& outImg = getImage(outId.id);
+                const Image_vk& outImg = getImage(outId.img);
                 m_barrierDispatcher.barrier(outImg.image, outImg.aspectMask, dst);
             }
-            else if (isImage(outId) && inId.id != passInfo.writeDepthId)
+            else if (outId.isImage() && inId.img != passInfo.writeDepthId)
             {
-                BarrierState_vk dst = passInfo.writeColors.getIdToData(inId.id);
+                BarrierState_vk dst = passInfo.writeColors.getIdToData(inId.img.id);
 
-                const Image_vk& outImg = getImage(outId.id);
+                const Image_vk& outImg = getImage(outId.img);
                 m_barrierDispatcher.barrier(outImg.image, outImg.aspectMask, dst);
             }
         }
@@ -3836,7 +3840,7 @@ namespace kage { namespace vk
             {
                 bs.imgLayout = getBindingLayout(binding.access);
 
-                const Image_vk& img = getImage(binding.img.id);
+                const Image_vk& img = getImage(binding.img);
                 m_barrierDispatcher.barrier(
                     img.image
                     , img.aspectMask
@@ -3844,7 +3848,7 @@ namespace kage { namespace vk
             }
             else if (ResourceType::buffer == binding.type)
             {
-                const Buffer_vk& buf = getBuffer(binding.buf.id);
+                const Buffer_vk& buf = getBuffer(binding.buf);
                 m_barrierDispatcher.barrier(buf.buffer, bs);
             }
         }
@@ -3855,7 +3859,7 @@ namespace kage { namespace vk
             bs.accessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
             bs.stageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
             bs.imgLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-            const Image_vk& img = getImage(att.hImg.id);
+            const Image_vk& img = getImage(att.hImg);
             m_barrierDispatcher.barrier(
                 img.image
                 , img.aspectMask
@@ -3868,7 +3872,7 @@ namespace kage { namespace vk
             bs.accessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
             bs.stageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
             bs.imgLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-            const Image_vk& img = getImage(m_depthAttachPerPass.hImg.id);
+            const Image_vk& img = getImage(m_depthAttachPerPass.hImg);
             m_barrierDispatcher.barrier(
                 img.image
                 , img.aspectMask
@@ -3901,7 +3905,7 @@ namespace kage { namespace vk
             {
                 bs.imgLayout = getBindingLayout(b.access);
 
-                const Image_vk& img = getImage(b.img.id);
+                const Image_vk& img = getImage(b.img);
                 m_barrierDispatcher.barrier(
                     img.image
                     , img.aspectMask
@@ -3909,7 +3913,7 @@ namespace kage { namespace vk
             }
             else if (ResourceType::buffer == b.type)
             {
-                const Buffer_vk& buf = getBuffer(b.buf.id);
+                const Buffer_vk& buf = getBuffer(b.buf);
                 m_barrierDispatcher.barrier(buf.buffer, bs);
             }
         }
@@ -3986,7 +3990,7 @@ namespace kage { namespace vk
         for (int ii = 0; ii < m_colorAttachPerPass.size(); ++ii)
         {
             const Attachment& att = m_colorAttachPerPass[ii];
-            const Image_vk& colorTarget = getImage(att.hImg.id);
+            const Image_vk& colorTarget = getImage(att.hImg);
 
             extent.width = extent.width == 0 ? colorTarget.width : extent.width;
             extent.height = extent.height == 0 ? colorTarget.height : extent.height;
@@ -4005,7 +4009,7 @@ namespace kage { namespace vk
         VkRenderingAttachmentInfo depthAttachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
         if (hasDepth)
         {
-            const Image_vk& depthTarget = getImage(m_depthAttachPerPass.hImg.id);
+            const Image_vk& depthTarget = getImage(m_depthAttachPerPass.hImg);
 
             extent.width = extent.width == 0 ? depthTarget.width : extent.width;
             extent.height = extent.height == 0 ? depthTarget.height : extent.height;
@@ -4046,7 +4050,7 @@ namespace kage { namespace vk
             sampler = m_samplerContainer.getIdToData(_hSampler.id);
         }
 
-        const Image_vk& img = getImage(_hImg.id);
+        const Image_vk& img = getImage(_hImg);
 
         VkImageView view = VK_NULL_HANDLE;
 
@@ -4068,7 +4072,7 @@ namespace kage { namespace vk
     {
         KG_ZoneScopedC(Color::indian_red);
 
-        const Buffer_vk& buf = getBuffer(_hBuf.id);
+        const Buffer_vk& buf = getBuffer(_hBuf);
 
         VkBufferView view = VK_NULL_HANDLE;
         if (buf.format != VK_FORMAT_UNDEFINED) {
@@ -4126,8 +4130,8 @@ namespace kage { namespace vk
      
     bool RHIContext_vk::checkCopyableToSwapchain(const ImageHandle _hImg) const
     {
-        const uint16_t baseId = m_aliasToBaseImages.getIdToData(_hImg.id);
-        const ImageCreateInfo& srcInfo = m_imgCreateInfos.getIdToData(baseId);
+        const ImageHandle base = m_aliasToBaseImages.getIdToData(_hImg);
+        const ImageCreateInfo& srcInfo = m_imgCreateInfos.getIdToData(base);
         
         bool result = true;
         
@@ -4145,8 +4149,8 @@ namespace kage { namespace vk
 
     bool RHIContext_vk::checkBlitableToSwapchain(const ImageHandle _hImg) const
     {
-        const uint16_t baseId = m_aliasToBaseImages.getIdToData(_hImg.id);
-        const ImageCreateInfo& srcInfo = m_imgCreateInfos.getIdToData(baseId);
+        const ImageHandle base = m_aliasToBaseImages.getIdToData(_hImg);
+        const ImageCreateInfo& srcInfo = m_imgCreateInfos.getIdToData(base);
 
         bool result = true;
 
@@ -4183,14 +4187,14 @@ namespace kage { namespace vk
     {
         KG_ZoneScopedC(Color::indian_red);
 
-        if (!m_imageContainer.exist(m_brief.presentImage.id))
+        if (!m_imageContainer.exist(m_brief.presentImage))
         {
             message(DebugMsgType::error, "Does the presentImageId set correctly?");
             return;
         }
 
         // barriers
-        const Image_vk& presentImg = getImage(m_brief.presentImage.id);
+        const Image_vk& presentImg = getImage(m_brief.presentImage);
         m_barrierDispatcher.barrier(
             presentImg.image, presentImg.aspectMask,
             { VK_ACCESS_TRANSFER_READ_BIT, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT }
@@ -4236,14 +4240,14 @@ namespace kage { namespace vk
     {
         KG_ZoneScopedC(Color::indian_red);
 
-        if (!m_imageContainer.exist(m_brief.presentImage.id))
+        if (!m_imageContainer.exist(m_brief.presentImage))
         {
             message(DebugMsgType::error, "Does the presentImageId set correctly?");
             return;
         }
         // add swapchain barrier
         // img to present
-        const Image_vk& presentImg = getImage(m_brief.presentImage.id);
+        const Image_vk& presentImg = getImage(m_brief.presentImage);
         m_barrierDispatcher.barrier(
             presentImg.image
             , presentImg.aspectMask,

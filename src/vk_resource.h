@@ -7,7 +7,7 @@ namespace kage { namespace vk
 {
     struct Buffer_vk
     {
-        uint16_t resId;
+        BufferHandle hBuf;
 
         VkBuffer buffer;
         VkDeviceMemory memory;
@@ -52,8 +52,7 @@ namespace kage { namespace vk
 
     struct Image_vk
     {
-        uint32_t ID;
-        uint16_t resId;
+        ImageHandle himg;
 
         VkImage image;
         VkImageView defaultView;
@@ -69,7 +68,7 @@ namespace kage { namespace vk
 
     struct ImgAliasInfo_vk
     {
-        uint16_t resId;
+        ImageHandle himg;
     };
 
     struct ImgInitProps_vk

@@ -723,4 +723,47 @@ namespace kage
         }
     };
 
+    struct UnifiedResHandle
+    {
+        union
+        {
+            uint16_t rawId{ kInvalidHandle };
+            BufferHandle buf;
+            ImageHandle img;
+        };
+
+        ResourceType type{ ResourceType::undefined };
+
+        UnifiedResHandle() = default;
+
+        UnifiedResHandle(BufferHandle _buf)
+        {
+            buf = _buf;
+            type = ResourceType::buffer;
+        }
+
+        UnifiedResHandle(ImageHandle _img)
+        {
+            img = _img;
+            type = ResourceType::image;
+        }
+
+        UnifiedResHandle(uint16_t _id, ResourceType _type)
+        {
+            rawId = _id;
+            type = _type;
+        }
+
+        bool operator== (const UnifiedResHandle& _rhs) const
+        {
+            return rawId == _rhs.rawId && type == _rhs.type;
+        }
+        
+        // for tinystl::hash(const T& value)
+        // which requires to cast to size_t
+        operator size_t() const { return (size_t)type << 16 | rawId; };
+        inline bool isBuffer() const { return ResourceType::buffer == type; }
+        inline bool isImage() const { return ResourceType::image == type; }
+    };
+
 } // namespace kage

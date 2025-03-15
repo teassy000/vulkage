@@ -62,7 +62,7 @@ namespace kage
 
     struct FGBufferCreateInfo : public BufferDesc
     {
-        uint16_t    bufId{ kInvalidHandle };
+        BufferHandle    hBuf{ kInvalidHandle };
         void*       pData{ nullptr };
         
         ResourceLifetime    lifetime{ ResourceLifetime::transition };
@@ -72,7 +72,7 @@ namespace kage
 
     struct FGImageCreateInfo : public ImageDesc
     {
-        uint16_t    imgId{ kInvalidHandle };
+        ImageHandle    hImg{ kInvalidHandle };
 
         uint32_t    size;
         void*       pData;
@@ -195,7 +195,7 @@ namespace kage
 
         void aliasResForce(bx::MemoryReader& _reader, ResourceType _type);
 
-        bool isForceAliased(const CombinedResID& _res_0, const CombinedResID _res_1) const;
+        bool isForceAliased(const UnifiedResHandle& _res_0, const UnifiedResHandle _res_1) const;
         // =======================================
         void buildGraph();
         void calcPriority();
@@ -227,14 +227,14 @@ namespace kage
         void createResources();
 
     private:
-        inline bool isDepthStencil(const CombinedResID _res)
+        inline bool isDepthStencil(const UnifiedResHandle _res)
         {
-            if (!isImage(_res))
+            if (!_res.isImage())
             {
                 return false;
             }
 
-            const FGImageCreateInfo& info = m_sparse_img_info[_res.id];
+            const FGImageCreateInfo& info = m_sparse_img_info[_res.img.id];
             return info.usage & ImageUsageFlagBits::depth_stencil_attachment;
         }
 
@@ -243,7 +243,7 @@ namespace kage
             BufBucket() = default;
             ~BufBucket()
             {
-                baseBufId = kInvalidHandle;
+                base_hbuf = { kInvalidHandle };
 
                 size = 0;
                 pData = nullptr;
@@ -251,7 +251,7 @@ namespace kage
                 reses.clear();
             }
 
-            uint16_t        baseBufId{kInvalidHandle};
+            BufferHandle    base_hbuf{kInvalidHandle};
 
             uint32_t        size{ 0 };
             void*           pData{ nullptr };
@@ -260,7 +260,7 @@ namespace kage
             ResInteractDesc initialBarrierState;
 
             bool            forceAliased{ false };
-            stl::vector<CombinedResID> reses;
+            stl::vector<UnifiedResHandle> reses;
         };
 
         struct ImgBucket
@@ -268,7 +268,7 @@ namespace kage
             ImgBucket() = default;
             ~ImgBucket()
             {
-                baseImgId = kInvalidHandle;
+                basse_himg = { kInvalidHandle };
 
                 size = 0;
                 pData = nullptr;
@@ -276,7 +276,7 @@ namespace kage
                 reses.clear();
             }
 
-            uint16_t    baseImgId;
+            ImageHandle    basse_himg;
             ImageDesc   desc;
 
             uint32_t    size;
@@ -287,26 +287,26 @@ namespace kage
 
             bool        forceAliased{ false };
 
-            stl::vector<CombinedResID> reses;
+            stl::vector<UnifiedResHandle> reses;
         };
 
-        bool isBufInfoAliasable(uint16_t _idx, const BufBucket& _bucket, const stl::vector<CombinedResID> _resInCurrStack) const;
-        bool isImgInfoAliasable(uint16_t _idx, const ImgBucket& _bucket, const stl::vector<CombinedResID> _resInCurrStack) const;
+        bool isBufInfoAliasable(BufferHandle _hbuf, const BufBucket& _bucket, const stl::vector<UnifiedResHandle> _resInCurrStack) const;
+        bool isImgInfoAliasable(ImageHandle _himg, const ImgBucket& _bucket, const stl::vector<UnifiedResHandle> _resInCurrStack) const;
 
-        bool isStackAliasable(const CombinedResID& _res, const stl::vector<CombinedResID>& _reses) const;
+        bool isStackAliasable(const UnifiedResHandle& _res, const stl::vector<UnifiedResHandle>& _reses) const;
 
-        bool isAliasable(const CombinedResID& _res, const BufBucket& _bucket, const stl::vector<CombinedResID>& _reses) const;
-        bool isAliasable(const CombinedResID& _res, const ImgBucket& _bucket, const stl::vector<CombinedResID>& _reses) const;
+        bool isAliasable(const UnifiedResHandle& _res, const BufBucket& _bucket, const stl::vector<UnifiedResHandle>& _reses) const;
+        bool isAliasable(const UnifiedResHandle& _res, const ImgBucket& _bucket, const stl::vector<UnifiedResHandle>& _reses) const;
 
         void fillBucketForceAlias();
         void fillBucketReadonly();
         void fillBucketMultiFrame();
 
-        void createBufBkt(BufBucket& _bkt, const FGBufferCreateInfo& _info, const stl::vector<CombinedResID>& _res, const bool _forceAliased = false);
-        void createImgBkt(ImgBucket& _bkt, const FGImageCreateInfo& _info, const stl::vector<CombinedResID>& _res, const bool _forceAliased = false);
+        void createBufBkt(BufBucket& _bkt, const FGBufferCreateInfo& _info, const stl::vector<UnifiedResHandle>& _res, const bool _forceAliased = false);
+        void createImgBkt(ImgBucket& _bkt, const FGImageCreateInfo& _info, const stl::vector<UnifiedResHandle>& _res, const bool _forceAliased = false);
 
-        void aliasBuffers(stl::vector<BufBucket>& _buckets, const stl::vector<uint16_t>& _sortedBufList);
-        void aliasImages(stl::vector<ImgBucket>& _buckets, const stl::vector< FGImageCreateInfo >& _infos, const stl::vector<uint16_t>& _sortedTexList, const ResourceType _type);
+        void aliasBuffers(stl::vector<BufBucket>& _buckets, const stl::vector<BufferHandle>& _sortedBufList);
+        void aliasImages(stl::vector<ImgBucket>& _buckets, const stl::vector< FGImageCreateInfo >& _infos, const stl::vector<ImageHandle>& _sortedTexList, const ResourceType _type);
 
         void fillBufferBuckets();
         void fillImageBuckets();
@@ -318,8 +318,8 @@ namespace kage
             {
                 readInteractMap.clear();
                 writeInteractMap.clear();
-                readCombinedRes.clear();
-                writeCombinedRes.clear();
+                readUnifiedRes.clear();
+                writeUnifiedRes.clear();
                 writeOpForcedAliasMap.clear();
             }
 
@@ -329,15 +329,15 @@ namespace kage
                 clear();
             }
 
-            stl::unordered_map<CombinedResID, ResInteractDesc> readInteractMap;
-            stl::unordered_map<CombinedResID, ResInteractDesc> writeInteractMap;
+            stl::unordered_map<UnifiedResHandle, ResInteractDesc> readInteractMap;
+            stl::unordered_map<UnifiedResHandle, ResInteractDesc> writeInteractMap;
 
-            stl::unordered_set<CombinedResID> readCombinedRes;
-            stl::unordered_set<CombinedResID> writeCombinedRes;
+            stl::unordered_set<UnifiedResHandle> readUnifiedRes;
+            stl::unordered_set<UnifiedResHandle> writeUnifiedRes;
 
-            ContinuousMap<CombinedResID, CombinedResID> writeOpForcedAliasMap;
+            ContinuousMap<UnifiedResHandle, UnifiedResHandle> writeOpForcedAliasMap;
 
-            stl::unordered_set<CombinedResID> bindlessRes;
+            stl::unordered_set<UnifiedResHandle> bindlessRes;
         };
 
         struct PassDependency
@@ -421,7 +421,7 @@ namespace kage
         
         stl::vector< String>                m_shader_path;
 
-        stl::vector< CombinedResID>         m_combinedResId;
+        stl::vector< UnifiedResHandle>         m_unifiedResId;
 
         stl::vector< VertexBindingDesc>     m_vtxBindingDesc;
         stl::vector< VertexAttributeDesc>   m_vtxAttrDesc;
@@ -429,9 +429,9 @@ namespace kage
 
         stl::vector< PassRWResource>                m_pass_rw_res;
         stl::vector< PassDependency>                m_pass_dependency;
-        stl::vector< CombinedResID>                 m_combinedForceAlias_base;
-        stl::vector< stl::vector<CombinedResID>>    m_combinedForceAlias;
-        stl::unordered_map<CombinedResID, CombinedResID> m_forceAliasMapToBase;
+        stl::vector< UnifiedResHandle>                 m_unifiedForceAlias_base;
+        stl::vector< stl::vector<UnifiedResHandle>>    m_unifiedForceAlias;
+        stl::unordered_map<UnifiedResHandle, UnifiedResHandle> m_forceAliasMapToBase;
 
         // sorted and cut passes
         stl::vector< PassHandle>    m_sortedPass;
@@ -455,17 +455,16 @@ namespace kage
         };
         stl::vector< PassInQueue >    m_nearestSyncPassIdx;
 
-        stl::vector< CombinedResID>     m_multiFrame_resList;
+        stl::vector< UnifiedResHandle>     m_multiFrame_resList;
 
-
-        stl::vector< CombinedResID>     m_resInUseUniList;
-        stl::vector< CombinedResID>     m_resToOptmUniList;
-        stl::vector< CombinedResID>     m_resInUseReadonlyList;
-        stl::vector< CombinedResID>     m_resInUseMultiframeList;
+        stl::vector< UnifiedResHandle>     m_resInUseUniList;
+        stl::vector< UnifiedResHandle>     m_resToOptmUniList;
+        stl::vector< UnifiedResHandle>     m_resInUseReadonlyList;
+        stl::vector< UnifiedResHandle>     m_resInUseMultiframeList;
 
         stl::vector< ResLifetime>       m_resLifeTime;
 
-        ContinuousMap< CombinedResID, CombinedResID> m_plainResAliasToBase;
+        ContinuousMap< UnifiedResHandle, UnifiedResHandle> m_plainResAliasToBase;
 
         stl::vector< BufBucket>          m_bufBuckets;
         stl::vector< ImgBucket>          m_imgBuckets;

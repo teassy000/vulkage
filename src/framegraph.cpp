@@ -63,15 +63,15 @@ namespace kage
         m_sparse_bindless_meta.clear();
         
         m_shader_path.clear();
-        m_combinedResId.clear();
+        m_unifiedResId.clear();
         m_vtxBindingDesc.clear();
         m_vtxAttrDesc.clear();
         m_pipelineSpecData.clear();
 
         m_pass_rw_res.clear();
         m_pass_dependency.clear();
-        m_combinedForceAlias_base.clear();
-        m_combinedForceAlias.clear();
+        m_unifiedForceAlias_base.clear();
+        m_unifiedForceAlias.clear();
         m_forceAliasMapToBase.clear();
 
         m_sortedPass.clear();
@@ -335,15 +335,15 @@ namespace kage
         FGBufferCreateInfo info;
         bx::read(&_reader, info, nullptr);
 
-        m_hBuf.push_back({ info.bufId });
-        m_sparse_buf_info[info.bufId] = info;
+        m_hBuf.push_back({ info.hBuf });
+        m_sparse_buf_info[info.hBuf] = info;
 
-        CombinedResID plainResID{ info.bufId, ResourceType::buffer };
-        m_combinedResId.push_back(plainResID);
+        UnifiedResHandle plainResID{ info.hBuf};
+        m_unifiedResId.push_back(plainResID);
 
         if (info.lifetime == ResourceLifetime::non_transition)
         {
-            CombinedResID plainIdx{ info.bufId, ResourceType::buffer };
+            UnifiedResHandle plainIdx{ info.hBuf};
             m_multiFrame_resList.push_back(plainIdx);
         }
     }
@@ -354,15 +354,15 @@ namespace kage
         FGImageCreateInfo info;
         bx::read(&_reader, info, nullptr);
 
-        m_hTex.push_back({ info.imgId });
-        m_sparse_img_info[info.imgId] = info;
+        m_hTex.push_back({ info.hImg });
+        m_sparse_img_info[info.hImg] = info;
 
-        CombinedResID plainResIdx{ info.imgId, ResourceType::image };
-        m_combinedResId.push_back(plainResIdx);
+        UnifiedResHandle plainResIdx{ info.hImg};
+        m_unifiedResId.push_back(plainResIdx);
 
         if (info.lifetime == ResourceLifetime::non_transition)
         {
-            CombinedResID plainIdx{ info.imgId, ResourceType::image };
+            UnifiedResHandle plainIdx{ info.hImg };
             m_multiFrame_resList.push_back(plainIdx);
         }
     }
@@ -418,7 +418,7 @@ namespace kage
             uint16_t resId = prInteract.resId;
             ResInteractDesc interact = prInteract.interact;
 
-            CombinedResID plainId{ resId, _type };
+            UnifiedResHandle plainId{ resId, _type };
 
 
             auto existent = m_pass_rw_res[hPassIdx].readInteractMap.find(plainId);
@@ -431,12 +431,12 @@ namespace kage
             else
             {
                 m_pass_rw_res[hPassIdx].readInteractMap.insert({ plainId, interact });
-                m_pass_rw_res[hPassIdx].readCombinedRes.insert(plainId);
+                m_pass_rw_res[hPassIdx].readUnifiedRes.insert(plainId);
                 actualSize++;
             }
         }
 
-        assert(m_pass_rw_res[hPassIdx].readCombinedRes.size() == m_pass_rw_res[hPassIdx].readInteractMap.size());
+        assert(m_pass_rw_res[hPassIdx].readUnifiedRes.size() == m_pass_rw_res[hPassIdx].readInteractMap.size());
 
         return actualSize;
     }
@@ -456,7 +456,7 @@ namespace kage
             uint16_t resId = prInteract.resId;
             ResInteractDesc interact = prInteract.interact;
 
-            CombinedResID plainId{ resId, _type };
+            UnifiedResHandle plainId{ resId, _type };
 
             auto existent = m_pass_rw_res[hPassIdx].writeInteractMap.find(plainId);
             if (existent != m_pass_rw_res[hPassIdx].writeInteractMap.end())
@@ -468,12 +468,12 @@ namespace kage
             else
             {
                 m_pass_rw_res[hPassIdx].writeInteractMap.insert({ plainId, interact });
-                m_pass_rw_res[hPassIdx].writeCombinedRes.insert(plainId);
+                m_pass_rw_res[hPassIdx].writeUnifiedRes.insert(plainId);
                 actualSize++;
             }
         }
 
-        assert(m_pass_rw_res[hPassIdx].writeCombinedRes.size() == m_pass_rw_res[hPassIdx].writeInteractMap.size());
+        assert(m_pass_rw_res[hPassIdx].writeUnifiedRes.size() == m_pass_rw_res[hPassIdx].writeInteractMap.size());
 
         return actualSize;
     }
@@ -487,8 +487,8 @@ namespace kage
         uint32_t actualSize = 0;
         for (const WriteOperationAlias& wra : _aliasMapVec)
         {
-            CombinedResID basdCombined{ wra.writeOpIn, _type };
-            CombinedResID aliasCombined{ wra.writeOpOut, _type };
+            UnifiedResHandle basdCombined{ wra.writeOpIn, _type };
+            UnifiedResHandle aliasCombined{ wra.writeOpOut, _type };
 
             if (m_pass_rw_res[hPassIdx].writeOpForcedAliasMap.exist(basdCombined))
             {
@@ -512,22 +512,22 @@ namespace kage
         void* mem = alloc(m_pAllocator, info.aliasNum * sizeof(uint16_t));
         bx::read(&_reader, mem, info.aliasNum * sizeof(uint16_t), nullptr);
 
-        CombinedResID combinedBaseIdx{ info.resBase, _type };
-        size_t idx = getElemIndex(m_combinedForceAlias_base, combinedBaseIdx);
+        UnifiedResHandle combinedBaseIdx{ info.resBase, _type };
+        size_t idx = getElemIndex(m_unifiedForceAlias_base, combinedBaseIdx);
         if (kInvalidIndex == idx)
         {
-            m_combinedForceAlias_base.push_back(combinedBaseIdx);
-            stl::vector<CombinedResID> aliasVec({ 1, combinedBaseIdx }); // store base resource into the list
+            m_unifiedForceAlias_base.push_back(combinedBaseIdx);
+            stl::vector<UnifiedResHandle> aliasVec({ 1, combinedBaseIdx }); // store base resource into the list
 
-            m_combinedForceAlias.push_back(aliasVec);
-            idx = m_combinedForceAlias.size() - 1;
+            m_unifiedForceAlias.push_back(aliasVec);
+            idx = m_unifiedForceAlias.size() - 1;
         }
 
         for (uint16_t ii = 0; ii < info.aliasNum; ++ii)
         {
             uint16_t resId = *((uint16_t*)mem + ii);
-            CombinedResID combinedId{resId, _type};
-            push_back_unique(m_combinedForceAlias[idx], combinedId);
+            UnifiedResHandle combinedId{resId, _type};
+            push_back_unique(m_unifiedForceAlias[idx], combinedId);
 
             m_forceAliasMapToBase.insert({ combinedId, combinedBaseIdx });
         }
@@ -535,11 +535,11 @@ namespace kage
         free(m_pAllocator, mem);
     }
 
-    bool Framegraph::isForceAliased(const CombinedResID& _res_0, const CombinedResID _res_1) const
+    bool Framegraph::isForceAliased(const UnifiedResHandle& _res_0, const UnifiedResHandle _res_1) const
     {
         KG_ZoneScopedC(Color::light_yellow);
-        const CombinedResID base_0 = m_forceAliasMapToBase.find(_res_0)->second;
-        const CombinedResID base_1 = m_forceAliasMapToBase.find(_res_1)->second;
+        const UnifiedResHandle base_0 = m_forceAliasMapToBase.find(_res_0)->second;
+        const UnifiedResHandle base_1 = m_forceAliasMapToBase.find(_res_1)->second;
 
         return base_0 == base_1;
     }
@@ -547,26 +547,26 @@ namespace kage
     void Framegraph::buildGraph()
     {
         KG_ZoneScopedC(Color::light_yellow);
-        stl::unordered_map<CombinedResID, uint16_t> linear_writeResPassIdxMap;
+        stl::unordered_map<UnifiedResHandle, uint16_t> linear_writeResPassIdxMap;
 
-        stl::unordered_set<CombinedResID> writeOpInSetO{};
+        stl::unordered_set<UnifiedResHandle> writeOpInSetO{};
         for (uint16_t ii = 0; ii < m_hPass.size(); ++ii)
         {
             const PassRWResource rwRes = m_pass_rw_res[ii];
-            stl::unordered_set<CombinedResID> writeOpInSet{};
+            stl::unordered_set<UnifiedResHandle> writeOpInSet{};
 
             size_t aliasMapNum = rwRes.writeOpForcedAliasMap.size();
             for (uint32_t jj = 0; jj < aliasMapNum; ++jj)
             {
-                CombinedResID writeOpIn = rwRes.writeOpForcedAliasMap.getIdAt(jj);
-                CombinedResID writeOpOut = rwRes.writeOpForcedAliasMap.getDataAt(jj);
+                UnifiedResHandle writeOpIn = rwRes.writeOpForcedAliasMap.getIdAt(jj);
+                UnifiedResHandle writeOpOut = rwRes.writeOpForcedAliasMap.getDataAt(jj);
 
                 writeOpInSet.insert(writeOpIn);
 
                 linear_writeResPassIdxMap.insert({ writeOpOut , ii });
             }
 
-            for (const CombinedResID combinedRes : rwRes.writeCombinedRes)
+            for (const UnifiedResHandle combinedRes : rwRes.writeUnifiedRes)
             {
                 if(writeOpInSet.find(combinedRes) == writeOpInSet.end()){
                     message(error, "what? there is res written but not added to writeOpInSet? check the vkz part!");
@@ -576,10 +576,10 @@ namespace kage
 
         for (const auto& resPassPair : linear_writeResPassIdxMap)
         {
-            CombinedResID cid = resPassPair.first;
+            UnifiedResHandle cid = resPassPair.first;
             uint16_t passIdx = resPassPair.second;
 
-            if (cid.id == m_presentImage.id)
+            if (cid.rawId == m_presentImage.id)
             {
                 m_finalPass = m_hPass[passIdx];
                 break;
@@ -590,24 +590,24 @@ namespace kage
         {
             const PassRWResource rwRes = m_pass_rw_res[ii];
 
-            stl::unordered_set<CombinedResID> resReadInPass{}; // includes two type of resources: 1. read in current pass. 2. resource alias before write.
+            stl::unordered_set<UnifiedResHandle> resReadInPass{}; // includes two type of resources: 1. read in current pass. 2. resource alias before write.
             
             size_t aliasMapNum = rwRes.writeOpForcedAliasMap.size();
             
             // writeOpIn is not in the readCombinedRes, should affect the graph here
             for (uint32_t jj = 0; jj < aliasMapNum; ++jj)
             {
-                const CombinedResID writeOpIn = rwRes.writeOpForcedAliasMap.getIdAt(jj);
+                const UnifiedResHandle writeOpIn = rwRes.writeOpForcedAliasMap.getIdAt(jj);
 
                 resReadInPass.insert(writeOpIn);
             }
 
-            for (const CombinedResID plainRes : rwRes.readCombinedRes)
+            for (const UnifiedResHandle plainRes : rwRes.readUnifiedRes)
             {
                 resReadInPass.insert(plainRes);
             }
 
-            for (const CombinedResID resReadIn : resReadInPass)
+            for (const UnifiedResHandle resReadIn : resReadInPass)
             {
                 auto it = linear_writeResPassIdxMap.find(resReadIn);
                 if (it == linear_writeResPassIdxMap.end()) {
@@ -719,7 +719,7 @@ namespace kage
             message(info, "sorted Idx: %d/%d", p.first, p.second);
         }
 
-        stl::unordered_map<CombinedResID, uint16_t> writeResPassIdxMap;
+        stl::unordered_map<UnifiedResHandle, uint16_t> writeResPassIdxMap;
 
         uint16_t order = 0;
         for (uint16_t passIdx : _sortedPassIdxes)
@@ -731,16 +731,16 @@ namespace kage
             // all flip point
             for (uint16_t ii = 0; ii < rwRes.writeOpForcedAliasMap.size(); ++ii)
             {
-                CombinedResID writeOpIn = rwRes.writeOpForcedAliasMap.getIdAt(ii);
+                UnifiedResHandle writeOpIn = rwRes.writeOpForcedAliasMap.getIdAt(ii);
 
                 bx::StringView resName;
-                if (writeOpIn.type == ResourceType::image)
+                if (writeOpIn.isImage())
                 {
-                    resName = getName( ImageHandle{ writeOpIn.id });
+                    resName = getName(writeOpIn.img);
                 }
-                else if (writeOpIn.type == ResourceType::buffer)
+                else if (writeOpIn.isBuffer())
                 {
-                    resName = getName(BufferHandle{ writeOpIn.id });
+                    resName = getName(writeOpIn.buf);
                 }
                 else
                 {
@@ -763,7 +763,7 @@ namespace kage
             PassRWResource rwRes = m_pass_rw_res[passIdx];
             PassHandle pass = m_hPass[passIdx];
 
-            for (const CombinedResID& plainRes : rwRes.readCombinedRes)
+            for (const UnifiedResHandle& plainRes : rwRes.readUnifiedRes)
             {
                 if (writeResPassIdxMap.find(plainRes) == writeResPassIdxMap.end())
                 {
@@ -1080,26 +1080,26 @@ namespace kage
     {
         KG_ZoneScopedC(Color::light_yellow);
 
-        stl::vector<CombinedResID> plainAliasRes;
+        stl::vector<UnifiedResHandle> plainAliasRes;
         stl::vector<uint16_t> plainAliasResIdx;
 
-        for (uint16_t ii = 0; ii < m_combinedForceAlias_base.size(); ++ii)
+        for (uint16_t ii = 0; ii < m_unifiedForceAlias_base.size(); ++ii)
         {
-            CombinedResID base = m_combinedForceAlias_base[ii];
+            UnifiedResHandle base = m_unifiedForceAlias_base[ii];
 
-            const stl::vector<CombinedResID>& aliasVec = m_combinedForceAlias[ii];
+            const stl::vector<UnifiedResHandle>& aliasVec = m_unifiedForceAlias[ii];
 
             plainAliasRes.insert(plainAliasRes.end(), aliasVec.begin(), aliasVec.end());
 
-            for (CombinedResID alias : aliasVec)
+            for (UnifiedResHandle alias : aliasVec)
             {
                 plainAliasResIdx.push_back(ii);
                 m_plainResAliasToBase.addOrUpdate(alias, base);
             }
         }
 
-        stl::vector<CombinedResID> fullMultiFrameRes = m_multiFrame_resList;
-        for (const CombinedResID cid : m_multiFrame_resList)
+        stl::vector<UnifiedResHandle> fullMultiFrameRes = m_multiFrame_resList;
+        for (const UnifiedResHandle cid : m_multiFrame_resList)
         {
             const size_t idx = getElemIndex(plainAliasRes, cid);
             if (kInvalidHandle == idx)
@@ -1108,8 +1108,8 @@ namespace kage
             }
 
             const uint16_t alisIdx = plainAliasResIdx[idx];
-            const stl::vector<CombinedResID>& aliasVec = m_combinedForceAlias[alisIdx];
-            for (CombinedResID alias : aliasVec)
+            const stl::vector<UnifiedResHandle>& aliasVec = m_unifiedForceAlias[alisIdx];
+            for (UnifiedResHandle alias : aliasVec)
             {
                 push_back_unique(fullMultiFrameRes, alias);
             }
@@ -1122,23 +1122,23 @@ namespace kage
     {
         KG_ZoneScopedC(Color::light_yellow);
 
-        stl::vector<CombinedResID> resInUseUniList;
-        stl::vector<CombinedResID> resToOptmUniList; // all used resources except: force alias, multi-frame, read-only
-        stl::vector<CombinedResID> readResUniList;
-        stl::vector<CombinedResID> writeResUniList;
+        stl::vector<UnifiedResHandle> resInUseUniList;
+        stl::vector<UnifiedResHandle> resToOptmUniList; // all used resources except: force alias, multi-frame, read-only
+        stl::vector<UnifiedResHandle> readResUniList;
+        stl::vector<UnifiedResHandle> writeResUniList;
         
         for (const uint16_t pIdx : m_sortedPassIdx)
         {
             PassRWResource rwRes = m_pass_rw_res[pIdx];
 
-            for (const CombinedResID combRes : rwRes.writeCombinedRes)
+            for (const UnifiedResHandle combRes : rwRes.writeUnifiedRes)
             {
                 push_back_unique(writeResUniList, combRes);
                 push_back_unique(resToOptmUniList, combRes);
                 push_back_unique(resInUseUniList, combRes);
             }
 
-            for (const CombinedResID combRes : rwRes.readCombinedRes)
+            for (const UnifiedResHandle combRes : rwRes.readUnifiedRes)
             {
                 push_back_unique(readResUniList, combRes);
                 push_back_unique(resToOptmUniList, combRes);
@@ -1148,8 +1148,8 @@ namespace kage
             size_t aliasMapNum = rwRes.writeOpForcedAliasMap.size();
             for (uint32_t ii = 0; ii < aliasMapNum; ++ii)
             {
-                CombinedResID writeOpIn = rwRes.writeOpForcedAliasMap.getIdAt(ii);
-                CombinedResID writeOpOut = rwRes.writeOpForcedAliasMap.getDataAt(ii);
+                UnifiedResHandle writeOpIn = rwRes.writeOpForcedAliasMap.getIdAt(ii);
+                UnifiedResHandle writeOpOut = rwRes.writeOpForcedAliasMap.getDataAt(ii);
 
                 push_back_unique(writeResUniList, writeOpOut);
                 push_back_unique(resToOptmUniList, writeOpOut);
@@ -1157,7 +1157,7 @@ namespace kage
             }
 
             // bindless resources
-            for (const CombinedResID combRes : rwRes.bindlessRes)
+            for (const UnifiedResHandle combRes : rwRes.bindlessRes)
             {
                 push_back_unique(resInUseUniList, combRes);
             }
@@ -1169,13 +1169,13 @@ namespace kage
             const uint16_t pIdx = m_sortedPassIdx[ii];
             PassRWResource rwRes = m_pass_rw_res[pIdx];
 
-            for (const CombinedResID combRes : rwRes.writeCombinedRes)
+            for (const UnifiedResHandle combRes : rwRes.writeUnifiedRes)
             {
                 const size_t usedIdx = getElemIndex(resToOptmUniList, combRes);
                 resToOptmPassIdxByOrder[usedIdx].push_back(ii); // store the idx in ordered pass
             }
 
-            for (const CombinedResID combRes : rwRes.readCombinedRes)
+            for (const UnifiedResHandle combRes : rwRes.readUnifiedRes)
             {
                 const size_t usedIdx = getElemIndex(resToOptmUniList, combRes);
                 resToOptmPassIdxByOrder[usedIdx].push_back(ii); // store the idx in ordered pass
@@ -1184,14 +1184,14 @@ namespace kage
             size_t aliasMapNum = rwRes.writeOpForcedAliasMap.size();
             for (uint32_t alisMapIdx = 0; alisMapIdx < aliasMapNum; ++alisMapIdx)
             {
-                CombinedResID writeOpOut = rwRes.writeOpForcedAliasMap.getDataAt(alisMapIdx);
+                UnifiedResHandle writeOpOut = rwRes.writeOpForcedAliasMap.getDataAt(alisMapIdx);
                 const size_t usedIdx = getElemIndex(resToOptmUniList, writeOpOut);
                 resToOptmPassIdxByOrder[usedIdx].push_back(ii); // store the idx in ordered pass
             }
         }
 
-        stl::vector<CombinedResID> readonlyResUniList;
-        for (const CombinedResID readRes : readResUniList)
+        stl::vector<UnifiedResHandle> readonlyResUniList;
+        for (const UnifiedResHandle readRes : readResUniList)
         {
             // not found in writeResUniList: no one write to it
             if (kInvalidIndex != getElemIndex(writeResUniList, readRes)) {
@@ -1202,7 +1202,7 @@ namespace kage
             // read-only has lower priority than force alias, if a resource is force aliased, it definitely will alias.
             // if not, then we consider to fill a individual bucket for it.
             if (m_plainResAliasToBase.exist(readRes)) {
-                message(warning, "%s %d is force aliased but it's read-only, is this by intention", isImage(readRes) ? "image" :"buffer", readRes.id );
+                message(warning, "%s %d is force aliased but it's read-only, is this by intention", readRes.isImage() ? "image" :"buffer", readRes.rawId );
                 continue;
             }
 
@@ -1210,8 +1210,8 @@ namespace kage
         }
 
 
-        stl::vector<CombinedResID> multiframeResUniList;
-        for (const CombinedResID multiFrameRes : m_multiFrame_resList)
+        stl::vector<UnifiedResHandle> multiframeResUniList;
+        for (const UnifiedResHandle multiFrameRes : m_multiFrame_resList)
         {
             // not in use 
             if (kInvalidIndex == getElemIndex(resInUseUniList, multiFrameRes)) {
@@ -1231,7 +1231,7 @@ namespace kage
         for (size_t ii = 0; ii < m_plainResAliasToBase.size(); ++ii)
         {
             // find current id in resToOptmUniList
-            const CombinedResID plainAlias = m_plainResAliasToBase.getIdAt(ii);
+            const UnifiedResHandle plainAlias = m_plainResAliasToBase.getIdAt(ii);
             const size_t idx = getElemIndex(resToOptmUniList, plainAlias);
             if (kInvalidIndex == idx) {
                 continue;
@@ -1242,7 +1242,7 @@ namespace kage
         }
 
         // remove read-only resource from resToOptmUniList
-        for (const CombinedResID readonlyRes : readonlyResUniList)
+        for (const UnifiedResHandle readonlyRes : readonlyResUniList)
         {
             const size_t idx = getElemIndex(resToOptmUniList, readonlyRes);
             if (kInvalidIndex == idx) {
@@ -1254,7 +1254,7 @@ namespace kage
         }
 
         // remove multi-frame resource from resToOptmUniList
-        for (const CombinedResID multiFrameRes : multiframeResUniList)
+        for (const UnifiedResHandle multiFrameRes : multiframeResUniList)
         {
             const size_t idx = getElemIndex(resToOptmUniList, multiFrameRes);
             if (kInvalidIndex == idx) {
@@ -1289,16 +1289,16 @@ namespace kage
 
     void Framegraph::fillBucketForceAlias()
     {
-        stl::vector<CombinedResID> actualAliasBase;
-        stl::vector<stl::vector<CombinedResID>> actualAlias;
-        for (const CombinedResID combRes : m_resInUseUniList)
+        stl::vector<UnifiedResHandle> actualAliasBase;
+        stl::vector<stl::vector<UnifiedResHandle>> actualAlias;
+        for (const UnifiedResHandle combRes : m_resInUseUniList)
         {
             if (!m_plainResAliasToBase.exist(combRes))
             {
                 continue;
             }
 
-            CombinedResID base2 = m_plainResAliasToBase.getIdToData(combRes);
+            UnifiedResHandle base2 = m_plainResAliasToBase.getIdToData(combRes);
 
             const size_t usedBaseIdx = push_back_unique(actualAliasBase, base2);
             if (actualAlias.size() == usedBaseIdx) // if it's new one
@@ -1312,13 +1312,13 @@ namespace kage
         // process force alias
         for (uint16_t ii = 0; ii < actualAliasBase.size(); ++ii)
         {
-            const CombinedResID base = actualAliasBase[ii];
-            const stl::vector<CombinedResID>& aliasVec = actualAlias[ii];
+            const UnifiedResHandle base = actualAliasBase[ii];
+            const stl::vector<UnifiedResHandle>& aliasVec = actualAlias[ii];
 
             // buffers
-            if (isBuffer(base)) 
+            if (base.isBuffer()) 
             {
-                const FGBufferCreateInfo info = m_sparse_buf_info[base.id];
+                const FGBufferCreateInfo info = m_sparse_buf_info[base.buf];
 
                 BufBucket bucket;
                 createBufBkt(bucket, info, aliasVec, true);
@@ -1326,9 +1326,9 @@ namespace kage
             }
 
             // images
-            if (isImage(base))
+            if (base.isImage())
             {
-                const FGImageCreateInfo info = m_sparse_img_info[base.id];
+                const FGImageCreateInfo info = m_sparse_img_info[base.img];
 
                 ImgBucket bucket;
                 createImgBkt(bucket, info, aliasVec, true);
@@ -1341,12 +1341,12 @@ namespace kage
     {
         KG_ZoneScopedC(Color::light_yellow);
 
-        for (const CombinedResID cid : m_resInUseReadonlyList)
+        for (const UnifiedResHandle cid : m_resInUseReadonlyList)
         {
             // buffers
-            if (isBuffer(cid))
+            if (cid.isBuffer())
             {
-                const FGBufferCreateInfo info = m_sparse_buf_info[cid.id];
+                const FGBufferCreateInfo info = m_sparse_buf_info[cid.buf];
 
                 BufBucket bucket;
                 createBufBkt(bucket, info, { 1, cid });
@@ -1354,9 +1354,9 @@ namespace kage
             }
 
             // images
-            if (isImage(cid))
+            if (cid.isImage())
             {
-                const FGImageCreateInfo info = m_sparse_img_info[cid.id];
+                const FGImageCreateInfo info = m_sparse_img_info[cid.img];
 
                 ImgBucket bucket;
                 createImgBkt(bucket, info, {1, cid});
@@ -1369,12 +1369,12 @@ namespace kage
     {
         KG_ZoneScopedC(Color::light_yellow);
 
-        for (const CombinedResID cid : m_resInUseMultiframeList)
+        for (const UnifiedResHandle cid : m_resInUseMultiframeList)
         {
             // buffers
-            if (isBuffer(cid))
+            if (cid.isBuffer())
             {
-                const FGBufferCreateInfo info = m_sparse_buf_info[cid.id];
+                const FGBufferCreateInfo info = m_sparse_buf_info[cid.buf];
 
                 BufBucket bucket;
                 createBufBkt(bucket, info, { 1, cid });
@@ -1382,9 +1382,9 @@ namespace kage
             }
 
             // images
-            if (isImage(cid))
+            if (cid.isImage())
             {
-                const FGImageCreateInfo info = m_sparse_img_info[cid.id];
+                const FGImageCreateInfo info = m_sparse_img_info[cid.img];
 
                 ImgBucket bucket;
                 createImgBkt(bucket, info, { 1, cid });
@@ -1393,7 +1393,7 @@ namespace kage
         }
     }
 
-    void Framegraph::createBufBkt(BufBucket& _bkt, const FGBufferCreateInfo& _info, const stl::vector<CombinedResID>& _reses, const bool _forceAliased /*= false*/)
+    void Framegraph::createBufBkt(BufBucket& _bkt, const FGBufferCreateInfo& _info, const stl::vector<UnifiedResHandle>& _reses, const bool _forceAliased /*= false*/)
     {
         KG_ZoneScopedC(Color::light_yellow);
 
@@ -1407,12 +1407,12 @@ namespace kage
         _bkt.desc.format = _info.format;
 
         _bkt.initialBarrierState = _info.initialState;
-        _bkt.baseBufId = _info.bufId;
+        _bkt.base_hbuf = _info.hBuf;
         _bkt.reses = _reses;
         _bkt.forceAliased = _forceAliased;
     }
 
-    void Framegraph::createImgBkt(ImgBucket& _bkt, const FGImageCreateInfo& _info, const stl::vector<CombinedResID>& _reses, const bool _forceAliased /*= false*/)
+    void Framegraph::createImgBkt(ImgBucket& _bkt, const FGImageCreateInfo& _info, const stl::vector<UnifiedResHandle>& _reses, const bool _forceAliased /*= false*/)
     {
         KG_ZoneScopedC(Color::light_yellow);
 
@@ -1435,18 +1435,18 @@ namespace kage
 
         _bkt.aspectFlags = _info.aspectFlags;
         _bkt.initialBarrierState = _info.initialState;
-        _bkt.baseImgId = _info.imgId;
+        _bkt.basse_himg = _info.hImg;
         _bkt.reses = _reses;
         _bkt.forceAliased = _forceAliased;
     }
 
-    void Framegraph::aliasBuffers(stl::vector<BufBucket>& _buckets, const stl::vector<uint16_t>& _sortedBufList)
+    void Framegraph::aliasBuffers(stl::vector<BufBucket>& _buckets, const stl::vector<BufferHandle>& _sortedBufList)
     {
         KG_ZoneScopedC(Color::light_yellow);
 
-        stl::vector<uint16_t> restRes = _sortedBufList;
+        stl::vector<BufferHandle> restRes = _sortedBufList;
 
-        stl::vector<stl::vector<CombinedResID>> resInLevel{{}};
+        stl::vector<stl::vector<UnifiedResHandle>> resInLevel{{}};
 
         if (restRes.empty()) {
             return;
@@ -1456,8 +1456,8 @@ namespace kage
         stl::vector<BufBucket> buckets;
         while (!restRes.empty())
         {
-            uint16_t baseRes = *restRes.begin();
-            const CombinedResID baseCid{ baseRes, ResourceType::buffer };
+            BufferHandle baseRes = { *restRes.begin() };
+            const UnifiedResHandle baseCid{ baseRes};
 
             // check if current resource can alias into any existing bucket
             bool aliased = false;
@@ -1473,9 +1473,9 @@ namespace kage
 
                 resInLevel.back().push_back(baseCid);
 
-                for (CombinedResID res : bkt.reses)
+                for (UnifiedResHandle res : bkt.reses)
                 {
-                    const size_t idx = getElemIndex(restRes, res.id);
+                    const size_t idx = getElemIndex(restRes, res.buf);
                     if(kInvalidIndex == idx)
                         continue;
 
@@ -1505,13 +1505,13 @@ namespace kage
         _buckets = _buckets;
     }
 
-    void Framegraph::aliasImages(stl::vector<ImgBucket>& _buckets,const stl::vector< FGImageCreateInfo >& _infos, const stl::vector<uint16_t>& _sortedTexList, const ResourceType _type)
+    void Framegraph::aliasImages(stl::vector<ImgBucket>& _buckets,const stl::vector< FGImageCreateInfo >& _infos, const stl::vector<ImageHandle>& _sortedTexList, const ResourceType _type)
     {
         KG_ZoneScopedC(Color::light_yellow);
 
-        stl::vector<uint16_t> restRes = _sortedTexList;
+        stl::vector<ImageHandle> restRes = _sortedTexList;
 
-        stl::vector<stl::vector<CombinedResID>> resInLevel{{}};
+        stl::vector<stl::vector<UnifiedResHandle>> resInLevel{{}};
 
         if (restRes.empty()) {
             return;
@@ -1521,8 +1521,8 @@ namespace kage
         stl::vector<ImgBucket> buckets;
         while (!restRes.empty())
         {
-            uint16_t baseRes = *restRes.begin();
-            const CombinedResID baseCid{ baseRes, _type };
+            ImageHandle baseRes = { *restRes.begin() };
+            const UnifiedResHandle baseCid{ baseRes };
 
             // check if current resource can alias into any existing bucket
             bool aliased = false;
@@ -1540,9 +1540,9 @@ namespace kage
 
                 resInLevel.back().push_back(baseCid);
 
-                for (CombinedResID res : bkt.reses)
+                for (UnifiedResHandle res : bkt.reses)
                 {
-                    const size_t idx = getElemIndex(restRes, res.id);
+                    const size_t idx = getElemIndex(restRes, res.img);
                     if (kInvalidIndex == idx)
                         continue;
 
@@ -1577,16 +1577,16 @@ namespace kage
         KG_ZoneScopedC(Color::light_yellow);
 
         // sort the resource by size
-        stl::vector<uint16_t> sortedBufIdx;
-        for (const CombinedResID& crid : m_resToOptmUniList)
+        stl::vector<BufferHandle> sortedBufIdx;
+        for (const UnifiedResHandle& crid : m_resToOptmUniList)
         {
-            if (!isBuffer(crid)) {
+            if (! crid.isBuffer()) {
                 continue;
             }
-            sortedBufIdx.push_back(crid.id);
+            sortedBufIdx.push_back(crid.buf);
         }
 
-        std::sort(sortedBufIdx.begin(), sortedBufIdx.end(), [&](uint16_t _l, uint16_t _r) {
+        std::sort(sortedBufIdx.begin(), sortedBufIdx.end(), [&](BufferHandle _l, BufferHandle _r) {
             return m_sparse_buf_info[_l].size > m_sparse_buf_info[_r].size;
         });
 
@@ -1602,16 +1602,16 @@ namespace kage
 
         const ResourceType type = ResourceType::image;
 
-        stl::vector<uint16_t> sortedTexIdx;
-        for (const CombinedResID& crid : m_resToOptmUniList)
+        stl::vector<ImageHandle> sortedTexIdx;
+        for (const UnifiedResHandle& crid : m_resToOptmUniList)
         {
-            if (!(isImage(crid))) {
+            if ( ! crid.isImage()) {
                 continue;
             }
-            sortedTexIdx.push_back(crid.id);
+            sortedTexIdx.push_back(crid.img);
         }
 
-        std::sort(sortedTexIdx.begin(), sortedTexIdx.end(), [&](uint16_t _l, uint16_t _r) {
+        std::sort(sortedTexIdx.begin(), sortedTexIdx.end(), [&](ImageHandle _l, ImageHandle _r) {
             FGImageCreateInfo info_l = m_sparse_img_info[_l];
             FGImageCreateInfo info_r = m_sparse_img_info[_r];
 
@@ -1677,7 +1677,7 @@ namespace kage
             bx::write(&m_rhiMemWriter, magic, nullptr);
 
             BufferCreateInfo info;
-            info.bufId = bkt.baseBufId;
+            info.hbuf = bkt.base_hbuf;
             info.size = bkt.desc.size;
             info.format = bkt.desc.format;
             info.fillVal = bkt.desc.fillVal;
@@ -1697,11 +1697,11 @@ namespace kage
             }
 
             stl::vector<BufferAliasInfo> aliasInfo;
-            for (const CombinedResID cid : bkt.reses)
+            for (const UnifiedResHandle cid : bkt.reses)
             {
                 BufferAliasInfo alias;
-                alias.bufId = cid.id;
-                alias.size = m_sparse_buf_info[cid.id].size;
+                alias.hbuf = cid.buf;
+                alias.size = m_sparse_buf_info[cid.buf].size;
                 aliasInfo.push_back(alias);
             }
 
@@ -1722,7 +1722,7 @@ namespace kage
             bx::write(&m_rhiMemWriter, magic, nullptr);
 
             ImageCreateInfo info;
-            info.imgId = bkt.baseImgId;
+            info.himg = bkt.basse_himg;
             info.numMips = bkt.desc.numMips;
             info.width = bkt.desc.width;
             info.height = bkt.desc.height;
@@ -1745,10 +1745,10 @@ namespace kage
             bx::write(&m_rhiMemWriter, info, nullptr);
 
             stl::vector<ImageAliasInfo> aliasInfo;
-            for (const CombinedResID cid : bkt.reses)
+            for (const UnifiedResHandle cid : bkt.reses)
             {
                 ImageAliasInfo alias;
-                alias.imgId = cid.id;
+                alias.himg = cid.img;
                 aliasInfo.push_back(alias);
             }
 
@@ -1896,7 +1896,7 @@ namespace kage
 
         stl::vector<ContinuousMap< BufferHandle, ResInteractDesc> > readBufferVec(m_sortedPass.size());
         stl::vector<ContinuousMap< BufferHandle, ResInteractDesc> > writeBufferVec(m_sortedPass.size());
-        stl::vector< ContinuousMap<CombinedResID, CombinedResID> >  writeOpAliasMapVec(m_sortedPass.size());
+        stl::vector< ContinuousMap<UnifiedResHandle, UnifiedResHandle> >  writeOpAliasMapVec(m_sortedPass.size());
 
         
         for (uint32_t ii = 0; ii < m_sortedPass.size(); ++ii)
@@ -1913,7 +1913,7 @@ namespace kage
             ContinuousMap< BufferHandle, ResInteractDesc>& readBuf = readBufferVec[ii];
             ContinuousMap< BufferHandle, ResInteractDesc>& writeBuf = writeBufferVec[ii];
 
-            ContinuousMap<CombinedResID, CombinedResID>& writeOpAliasMap = writeOpAliasMapVec[ii];
+            ContinuousMap<UnifiedResHandle, UnifiedResHandle>& writeOpAliasMap = writeOpAliasMapVec[ii];
             {
                 writeDS.first = { kInvalidHandle };
                 writeColor.clear();
@@ -1924,48 +1924,48 @@ namespace kage
 
                 const PassRWResource& rwRes = m_pass_rw_res[passIdx];
                 // set write resources
-                for (const CombinedResID writeRes : rwRes.writeCombinedRes)
+                for (const UnifiedResHandle writeRes : rwRes.writeUnifiedRes)
                 {
                     auto writeInteractPair = rwRes.writeInteractMap.find(writeRes);
                     assert(writeInteractPair != rwRes.writeInteractMap.end());
 
 
-                    if (isImage(writeRes))
+                    if (writeRes.isImage())
                     {
                         if (isDepthStencil(writeRes))
                         {
                             assert(writeDS.first.id == kInvalidHandle);
-                            writeDS.first = { writeRes.id };
+                            writeDS.first = { writeRes.img };
                             writeDS.second = writeInteractPair->second;
                         }
 
-                        writeColor.addOrUpdate({ writeRes.id }, writeInteractPair->second);
+                        writeColor.addOrUpdate({ writeRes.img }, writeInteractPair->second);
 
                     }
-                    else if (isBuffer(writeRes))
+                    else if (writeRes.isBuffer())
                     {
-                        writeBuf.addOrUpdate({ writeRes.id }, writeInteractPair->second);
+                        writeBuf.addOrUpdate({ writeRes.buf }, writeInteractPair->second);
                     }
                     else
                     {
-                        kage::message(DebugMsgType::error, "invalid write resource mapping: Res %4d, PassExeQueue: %d\n", writeRes.id, passMeta.queue);
+                        kage::message(DebugMsgType::error, "invalid write resource mapping: Res %4d, PassExeQueue: %d\n", writeRes.buf, passMeta.queue);
                     }
                 }
 
                 // set read resources
-                for (const CombinedResID readRes : rwRes.readCombinedRes)
+                for (const UnifiedResHandle readRes : rwRes.readUnifiedRes)
                 {
                     auto readInteractPair = rwRes.readInteractMap.find(readRes);
                     assert(readInteractPair != rwRes.readInteractMap.end());
 
-                    if (isImage(readRes))
+                    if (readRes.isImage())
                     {
-                        readImg.addOrUpdate({ readRes.id }, readInteractPair->second);
+                        readImg.addOrUpdate({ readRes.img}, readInteractPair->second);
                     }
-                    else if (isBuffer(readRes))
+                    else if (readRes.isBuffer())
                     {
-                        assert(!readBuf.exist({ readRes.id }));
-                        readBuf.addOrUpdate({ readRes.id }, readInteractPair->second);
+                        assert(!readBuf.exist({ readRes.buf }));
+                        readBuf.addOrUpdate({ readRes.buf }, readInteractPair->second);
                     }
                 }
 
@@ -1973,8 +1973,8 @@ namespace kage
                 uint32_t aliasMapNum = (uint32_t)rwRes.writeOpForcedAliasMap.size();
                 for (uint32_t ii = 0; ii < aliasMapNum; ++ii)
                 {
-                    const CombinedResID writeOpIn = rwRes.writeOpForcedAliasMap.getIdAt(ii);
-                    const CombinedResID writeOpOut = rwRes.writeOpForcedAliasMap.getDataAt(ii);
+                    const UnifiedResHandle writeOpIn = rwRes.writeOpForcedAliasMap.getIdAt(ii);
+                    const UnifiedResHandle writeOpOut = rwRes.writeOpForcedAliasMap.getDataAt(ii);
 
                     writeOpAliasMap.addOrUpdate(writeOpIn, writeOpOut);
                 }
@@ -2050,8 +2050,8 @@ namespace kage
             bx::write(&m_rhiMemWriter, (void*)writeBufferVec[ii].getDataPtr(), (int32_t)(createInfo.writeBufferNum * sizeof(ResInteractDesc)), nullptr);
 
             // write op alias
-            bx::write(&m_rhiMemWriter, (void*)writeOpAliasMapVec[ii].getIdPtr(), (int32_t)(createInfo.writeBufAliasNum + createInfo.writeImgAliasNum) * sizeof(CombinedResID), nullptr);
-            bx::write(&m_rhiMemWriter, (void*)writeOpAliasMapVec[ii].getDataPtr(), (int32_t)(createInfo.writeBufAliasNum + createInfo.writeImgAliasNum) * sizeof(CombinedResID), nullptr);
+            bx::write(&m_rhiMemWriter, (void*)writeOpAliasMapVec[ii].getIdPtr(), (int32_t)(createInfo.writeBufAliasNum + createInfo.writeImgAliasNum) * sizeof(UnifiedResHandle), nullptr);
+            bx::write(&m_rhiMemWriter, (void*)writeOpAliasMapVec[ii].getDataPtr(), (int32_t)(createInfo.writeBufAliasNum + createInfo.writeImgAliasNum) * sizeof(UnifiedResHandle), nullptr);
 
             bx::write(&m_rhiMemWriter, RHIContextOpMagic::magic_body_end, nullptr);
         }
@@ -2083,18 +2083,18 @@ namespace kage
         bx::write(&m_rhiMemWriter,  RHIContextOpMagic::end , nullptr);
     }
 
-    bool Framegraph::isBufInfoAliasable(uint16_t _idx, const BufBucket& _bucket, const stl::vector<CombinedResID> _resInCurrStack) const
+    bool Framegraph::isBufInfoAliasable(BufferHandle _hbuf, const BufBucket& _bucket, const stl::vector<UnifiedResHandle> _resInCurrStack) const
     {
         KG_ZoneScopedC(Color::light_yellow);
 
         // size check in current stack
-        const FGBufferCreateInfo& info = m_sparse_buf_info[_idx];
+        const FGBufferCreateInfo& info = m_sparse_buf_info[_hbuf];
 
         bool bCondMatch = (info.size <= _bucket.desc.size);
 
-        for (const CombinedResID res : _resInCurrStack)
+        for (const UnifiedResHandle res : _resInCurrStack)
         {
-            const FGBufferCreateInfo& stackInfo = m_sparse_buf_info[res.id];
+            const FGBufferCreateInfo& stackInfo = m_sparse_buf_info[res.buf];
 
             bCondMatch &= (info.pData == nullptr && stackInfo.pData == nullptr);
             bCondMatch &= (info.memFlags == stackInfo.memFlags);
@@ -2104,17 +2104,17 @@ namespace kage
         return bCondMatch;
     }
 
-    bool Framegraph::isImgInfoAliasable(uint16_t _ImgId, const ImgBucket& _bucket, const stl::vector<CombinedResID> _resInCurrStack) const
+    bool Framegraph::isImgInfoAliasable(ImageHandle _himg, const ImgBucket& _bucket, const stl::vector<UnifiedResHandle> _resInCurrStack) const
     {
         KG_ZoneScopedC(Color::light_yellow);
 
         bool bCondMatch = true;
 
         // condition check
-        const FGImageCreateInfo& info = m_sparse_img_info[_ImgId];
-        for (const CombinedResID res : _resInCurrStack)
+        const FGImageCreateInfo& info = m_sparse_img_info[_himg];
+        for (const UnifiedResHandle res : _resInCurrStack)
         {
-            const FGImageCreateInfo& stackInfo = m_sparse_img_info[res.id];
+            const FGImageCreateInfo& stackInfo = m_sparse_img_info[res.img];
 
             bCondMatch &= (info.numMips == stackInfo.numMips);
             bCondMatch &= (info.width == stackInfo.width && info.height == stackInfo.height && info.depth == stackInfo.depth);
@@ -2128,7 +2128,7 @@ namespace kage
         return bCondMatch;
     }
 
-    bool Framegraph::isStackAliasable(const CombinedResID& _res, const stl::vector<CombinedResID>& _reses) const
+    bool Framegraph::isStackAliasable(const UnifiedResHandle& _res, const stl::vector<UnifiedResHandle>& _reses) const
     {
         KG_ZoneScopedC(Color::light_yellow);
 
@@ -2137,7 +2137,7 @@ namespace kage
         // life time check in entire bucket
         const size_t idx = getElemIndex(m_resToOptmUniList, _res);
         const ResLifetime& resLifetime = m_resLifeTime[idx];
-        for (const CombinedResID resInStack : _reses)
+        for (const UnifiedResHandle resInStack : _reses)
         {
             const size_t resIdx = getElemIndex(m_resToOptmUniList, resInStack);
             const ResLifetime& stackLifetime = m_resLifeTime[resIdx];
@@ -2149,27 +2149,27 @@ namespace kage
         return bStackMatch;
     }
 
-    bool Framegraph::isAliasable(const CombinedResID& _res, const BufBucket& _bucket, const stl::vector<CombinedResID>& _resInCurrStack) const
+    bool Framegraph::isAliasable(const UnifiedResHandle& _res, const BufBucket& _bucket, const stl::vector<UnifiedResHandle>& _resInCurrStack) const
     {
         KG_ZoneScopedC(Color::light_yellow);
 
         // no stack checking for stacks, because each stack only contains 1 resource
         // bool bInfoMatch = isBufInfoAliasable(_res.id, _bucket, _resInCurrStack);
         
-        bool bInfoMatch = isBufInfoAliasable(_res.id, _bucket, _bucket.reses);
+        bool bInfoMatch = isBufInfoAliasable(_res.buf, _bucket, _bucket.reses);
         bool bStackMatch = isStackAliasable(_res, _bucket.reses);
 
         return bInfoMatch && bStackMatch;
     }
 
-    bool Framegraph::isAliasable(const CombinedResID& _res, const ImgBucket& _bucket, const stl::vector<CombinedResID>& _resInCurrStack) const
+    bool Framegraph::isAliasable(const UnifiedResHandle& _res, const ImgBucket& _bucket, const stl::vector<UnifiedResHandle>& _resInCurrStack) const
     {
         KG_ZoneScopedC(Color::light_yellow);
 
         // no stack checking for stacks, because each stack only contains 1 resource
         // bool bInfoMatch = isImgInfoAliasable(_res.id, _bucket, _resInCurrStack);
 
-        bool bInfoMatch = isImgInfoAliasable(_res.id, _bucket, _bucket.reses);
+        bool bInfoMatch = isImgInfoAliasable(_res.img, _bucket, _bucket.reses);
         bool bStackMatch = isStackAliasable(_res, _bucket.reses);
 
         return bInfoMatch && bStackMatch;

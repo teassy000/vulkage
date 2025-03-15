@@ -131,7 +131,7 @@ void bxlRegBuffers(kage::BufferHandle _vtx, uint32_t _vtxSz, uint32_t _vtxStride
 
 void bxlCreateBuffers(BrixelResources& _data)
 {
-    std::vector<UserResHandle> handles;
+    std::vector<kage::UnifiedResHandle> handles;
     handles.reserve(2 + FFX_BRIXELIZER_MAX_CASCADES * 2);
 
     // scratch buf
@@ -211,7 +211,7 @@ void bxlCreateBuffers(BrixelResources& _data)
         handles.emplace_back(_data.cascadeBrickMaps[ii]);
     }
 
-    const kage::Memory* bufMem = kage::alloc(uint32_t(handles.size() * sizeof(UserResHandle)));
+    const kage::Memory* bufMem = kage::alloc(uint32_t(handles.size() * sizeof(kage::UnifiedResHandle)));
     std::memcpy(bufMem->data, handles.data(), bufMem->size);
 
     kage::bxl_setUserResources(bufMem);

@@ -89,43 +89,6 @@ namespace kage
     IMPLEMENT_HANDLE(Image);
 
 #undef IMPLEMENT_HANDLE
-    
-
-    struct CombinedResID
-    {
-        uint16_t        id{kInvalidHandle};
-        ResourceType    type;
-
-        CombinedResID() = default;
-        CombinedResID(uint16_t id, ResourceType type) : id(id), type(type) {}
-
-        // for tinystl::hash(const T& value)
-        // which requires to cast to size_t
-        operator size_t() const
-        {
-            return (size_t)type << 16 | id;
-        }
-
-        bool operator == (const CombinedResID& rhs) const {
-            return id == rhs.id && type == rhs.type;
-        }
-
-        bool operator < (const CombinedResID& rhs) const {
-            uint32_t loc_c = (uint32_t)type << 16 | id;
-            uint32_t rhs_c = (uint32_t)rhs.type << 16 | rhs.id;
-            return loc_c < rhs_c;
-        }
-    };
-
-    inline bool isBuffer(const CombinedResID& _id)
-    {
-        return _id.type == ResourceType::buffer;
-    }
-
-    inline bool isImage(const CombinedResID& _id)
-    {
-        return _id.type == ResourceType::image;
-    }
 
     struct ImageMetaData : public ImageDesc
     {
@@ -133,7 +96,7 @@ namespace kage
         ImageMetaData(const ImageDesc& desc) : ImageDesc(desc) {}
 
         const char* name{ nullptr };
-        uint16_t    imgId{ kInvalidHandle };
+        ImageHandle    hImg{ kInvalidHandle };
         uint16_t    bpp{ 4u };
 
         uint32_t    size{ 0 };
@@ -170,7 +133,7 @@ namespace kage
 
         const char* name{ nullptr };
         void*       pData{ nullptr };
-        uint16_t    bufId{ kInvalidHandle };
+        BufferHandle    hbuf{ kInvalidHandle };
 
         ResourceLifetime    lifetime{ ResourceLifetime::transition };
     };
@@ -218,22 +181,22 @@ namespace kage
 
     struct BufferCreateInfo : public BufferDesc
     {
-        uint16_t    bufId{ kInvalidHandle };
-        void*       pData{ nullptr };
-        uint16_t    resCount{ 0 };
+        BufferHandle    hbuf{ kInvalidHandle };
+        void*           pData{ nullptr };
+        uint16_t        resCount{ 0 };
 
         ResInteractDesc    barrierState;
     };
 
     struct BufferAliasInfo
     {
-        uint16_t    bufId{ kInvalidHandle };
-        uint32_t    size{ 0 };
+        BufferHandle    hbuf{ kInvalidHandle };
+        uint32_t        size{ 0 };
     };
 
     struct ImageCreateInfo : public ImageDesc
     {
-        uint16_t    imgId{ kInvalidHandle };
+        ImageHandle    himg{ kInvalidHandle };
         uint16_t    resCount{ 0 };
 
         uint32_t    size;
@@ -245,7 +208,7 @@ namespace kage
 
     struct ImageAliasInfo
     {
-        uint16_t    imgId{ kInvalidHandle };
+        ImageHandle    himg{ kInvalidHandle };
     };
 
     struct SamplerDesc
