@@ -195,6 +195,9 @@ namespace kage
         virtual void setRecord(PassHandle _hPass, const CommandQueue& _cq, const uint32_t _offset, const uint32_t _size) {};
         // -- rendering commands ends
 
+        virtual void bxl_setGeoInstances(const Memory* _desc) {};
+        virtual void bxl_regGeoBuffers(const Memory* _bufs) {};
+        virtual void bxl_setUserResources(const Memory* _reses) {};
 
         bx::AllocatorI* m_pAllocator;
 
@@ -210,6 +213,7 @@ namespace kage
         
         FfxDevice m_ffxDevice;
         FfxInterface m_ffxInterface;
+        const Memory* m_ffxScratch{ nullptr };
         stl::vector<FfxResource> m_ffxRhiResources;
         bool m_baked{ false };
     };

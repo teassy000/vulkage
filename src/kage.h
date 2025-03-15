@@ -243,6 +243,23 @@ namespace kage
     uint64_t getPassClipping(const PassHandle _hPass);
 
     // ffx expose
+
+    // set brixelizer instances
+    void bxl_setGeoInstances(const Memory* _desc);
+    
+    // set index/vertex buffers for brixelizer
+    void bxl_regGeoBuffers(const Memory* _bufs);
+    
+    // set brixelizer buffers that required user provided data
+    // 0 scratch buffer
+    // 1 sdf-atlas
+    // 2 brick-aabb
+    // [3, 3 + FFX_BRIXELIZER_MAX_CASCADES - 1]: cascade aabb trees
+    // [3 + FFX_BRIXELIZER_MAX_CASCADES, 3 + FFX_BRIXELIZER_MAX_CASCADES * 2 - 1]: cascade brick maps
+    // ------------------------------------------------------------------------------------------
+    // this will mark these buffers as static to framegraph
+    void bxl_setUserResources(const Memory* _reses);
+
     bool isBackendReady();
     void getFFXInterface(void* _ffxInterface);
     void* getRHIResource(BufferHandle _buf);

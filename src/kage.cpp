@@ -339,6 +339,10 @@ namespace kage
         double getPassTime(const PassHandle _hPass);
         uint64_t getPassClipping(const PassHandle _hPass);
 
+        void bxl_setGeoInstances(const Memory* _desc);
+        void bxl_regGeoBuffers(const Memory* _bufs);
+        void bxl_setUserResources(const Memory* _reses);
+
         bool isBackendReady();
 
         double getGpuTime();
@@ -2155,6 +2159,21 @@ namespace kage
         return m_rhiContext->getPassClipping(_hPass);
     }
 
+    void Context::bxl_setGeoInstances(const Memory* _desc)
+    {
+        m_rhiContext->bxl_setGeoInstances(_desc);
+    }
+
+    void Context::bxl_regGeoBuffers(const Memory* _bufs)
+    {
+        m_rhiContext->bxl_regGeoBuffers(_bufs);
+    }
+
+    void Context::bxl_setUserResources(const Memory* _reses)
+    {
+        m_rhiContext->bxl_setUserResources(_reses);
+    }
+
     bool Context::isBackendReady()
     {
         return !m_isRenderGraphDataDirty && m_rhiContext->isBaked();
@@ -2802,6 +2821,18 @@ namespace kage
     uint64_t getPassClipping(const PassHandle _hPass)
     {
         return s_ctx->getPassClipping(_hPass);
+    }
+
+    void bxl_setGeoInstances(const Memory* _desc)
+    {
+    }
+
+    void bxl_regGeoBuffers(const Memory* _bufs)
+    {
+    }
+
+    void bxl_setUserResources(const Memory* _reses)
+    {
     }
 
     bool isBackendReady()

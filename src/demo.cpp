@@ -19,7 +19,7 @@
 #include "radiance_cascade/vkz_radiance_cascade.h"
 #include "deferred/vkz_deferred.h"
 #include "radiance_cascade/vkz_rc_debug.h"
-#include "ffx_intg/brixelizer_intg.h"
+#include "ffx_intg/brixel_intg_kage.h"
 
 namespace
 {
@@ -202,9 +202,6 @@ namespace
             }
 
             updateUI(m_ui, m_demoData.input, m_demoData.renderOptions, m_demoData.profiling, m_demoData.logic);
-
-            // ffx
-            updateBrixellizerImpl(m_brixelzer, m_scene);
 
             // render
             kage::render();
@@ -594,7 +591,16 @@ namespace
 
             // brixelizer 
             {
-                initBrixelizerImpl(m_brixelzer, m_vtxBuf, m_idxBuf);
+                BrixelInitDesc bxlInitDesc{};
+                bxlInitDesc.vtxBuf = m_vtxBuf;
+                bxlInitDesc.vtxSz = (uint32_t)(m_scene.geometry.vertices.size() * sizeof(Vertex));
+                bxlInitDesc.vtxStride = sizeof(Vertex);
+                bxlInitDesc.idxBuf = m_idxBuf;
+                bxlInitDesc.idxSz = (uint32_t)(m_scene.geometry.indices.size() * sizeof(uint32_t));
+                bxlInitDesc.idxStride = sizeof(uint32_t);
+                bxlInitDesc.seamless = kage::kSeamlessLod == 1;
+
+                bxlInit(m_brixel, bxlInitDesc, m_scene);
             }
 
             // radiance cascade
@@ -611,7 +617,7 @@ namespace
                 rcInit.idxBuf = m_idxBuf;
                 rcInit.vtxBuf = m_vtxBuf;
                 rcInit.transBuf = m_transformBuf;
-                rcInit.sdfAtlas = m_brixelzer.sdfAtlasOutAlias;
+                rcInit.sdfAtlas = m_brixel.sdfAtlas;
                 rcInit.maxDrawCmdCount = (uint32_t)m_scene.meshDraws.size();
                 rcInit.bindless = m_bindlessArray;
                 rcInit.skybox = m_skybox.colorOutAlias;
@@ -800,7 +806,8 @@ namespace
         VtxShading m_vtxShading{};
         VtxShading m_vtxShadingLate{};
         Skybox m_skybox{};
-        FFX_Brixelizer_Impl m_brixelzer;
+
+        BrixelResources m_brixel{};
         RadianceCascade m_radianceCascade{};
         VoxDebug m_voxDebug{};
         ProbeDebug m_probDebug{};

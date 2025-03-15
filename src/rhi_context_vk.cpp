@@ -12,6 +12,7 @@
 
 #include "FidelityFX/host/backends/vk/ffx_vk.h"
 #include "FidelityFX/host/ffx_interface.h"
+#include "FidelityFX/host/ffx_brixelizer.h"
 
 namespace kage { namespace vk
 {
@@ -1986,11 +1987,6 @@ namespace kage { namespace vk
         const Buffer_vk& baseBuf = m_bufferContainer.getIdToData(baseBufId);
 
         const BufferCreateInfo& createInfo = m_bufferCreateInfos.getDataRef(baseBufId);
-        if (!(createInfo.memFlags & MemoryPropFlagBits::host_visible))
-        {
-            message(info, "updateBuffer will not perform for buffer %d! Buffer must be host visible so we can map to host memory", _hBuf.id);
-            return;
-        }
 
         // re-create buffer if new size is larger than the old one
         if (buf.size != _size && baseBuf.size < (_offset + _size))
@@ -2028,7 +2024,10 @@ namespace kage { namespace vk
             uploadBuffer(_hBuf.id, _mem->data, _mem->size, _offset);
         }
 
-        if (0 == (createInfo.memFlags & MemoryPropFlagBits::host_coherent))
+        // flush host visble but not coherented buf
+        if (    0 == (createInfo.memFlags & MemoryPropFlagBits::host_coherent)
+            &&  0 != (createInfo.memFlags & MemoryPropFlagBits::host_visible)
+            )
         {
             flushBuffer(newBuf);
         }
@@ -2696,17 +2695,16 @@ namespace kage { namespace vk
         // Create the FFX context
         constexpr uint32_t c_maxContexts = 2;
         size_t scratchMemSz = ffxGetScratchMemorySizeVK(s_renderVK->m_physicalDevice, c_maxContexts);
-        const kage::Memory* mem = kage::alloc((uint32_t)scratchMemSz);
-        memset(mem->data, 0, mem->size);
+        m_ffxScratch = kage::alloc((uint32_t)scratchMemSz);
+        memset(m_ffxScratch->data, 0, m_ffxScratch->size);
 
         VkDeviceContext vkdevCtx;
         vkdevCtx.vkDevice = s_renderVK->m_device;
         vkdevCtx.vkPhysicalDevice = s_renderVK->m_physicalDevice;
         vkdevCtx.vkDeviceProcAddr = s_renderVK->m_vkGetDeviceProcAddr;
 
-
         FfxDevice ffxDevice = ffxGetDeviceVK(&vkdevCtx);
-        FfxErrorCode err = ffxGetInterfaceVK(&m_ffxInterface, ffxDevice, mem->data, mem->size, c_maxContexts);
+        FfxErrorCode err = ffxGetInterfaceVK(&m_ffxInterface, ffxDevice, m_ffxScratch->data, m_ffxScratch->size, c_maxContexts);
 
         assert(err == FFX_OK);
     }
@@ -2721,6 +2719,19 @@ namespace kage { namespace vk
     {
         const Image_vk& imgVk = m_imageContainer.getIdToData(_img.id);
         return static_cast<void*>(imgVk.image);
+    }
+
+    void RHIContext_vk::bxl_setGeoInstances(const Memory* _desc)
+    {
+        bxl::setGeoInstances(m_bxl, _desc);
+    }
+    void RHIContext_vk::bxl_regGeoBuffers(const Memory* _bufs)
+    {
+        bxl::setGeoBuffers(m_bxl, _bufs);
+    }
+    void RHIContext_vk::bxl_setUserResources(const Memory* _reses)
+    {
+        bxl::setUserResources(m_bxl, _reses);
     }
 
     void RHIContext_vk::setRecord(
@@ -3272,15 +3283,27 @@ namespace kage { namespace vk
             return;
         }
 
-        // TODO
         return;
 
-        createBarriersRec(_hPass);
+        //createBarriersRec(_hPass);
 
-        // do nothing
-        //ffxBrixelizerBakeUpdate()
+        struct Res
+        {
+            BufferHandle hbuf;
+            FfxResource ffxRes;
+        };
+        
+        Res res;
+        memcpy(&res, _scratchRes->data, sizeof(res));
 
-        flushWriteBarriersRec(_hPass);
+        const Buffer_vk& bufvk = m_bufferContainer.getIdToData(res.hbuf.id);
+        res.ffxRes.resource = static_cast<void*>(bufvk.buffer);
+        assert(res.ffxRes.description.size == bufvk.size);
+
+
+        //ffxBrixelizerUpdate(static_cast<FfxBrixelizerContext*>(_brixelizerCtx), static_cast<FfxBrixelizerBakedUpdateDescription*>(_updateDesc), res.ffxRes, m_cmdBuffer);
+
+        //flushWriteBarriersRec(_hPass);
     }
 
     VkSampler RHIContext_vk::getCachedSampler(SamplerFilter _filter, SamplerMipmapMode _mipMd, SamplerAddressMode _addrMd, SamplerReductionMode _reduMd)

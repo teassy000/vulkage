@@ -6,6 +6,7 @@
 #include <vector>
 
 
+/*
 struct BrixelizerInstInfo
 {
 
@@ -47,3 +48,4 @@ struct FFX_Brixelizer_Impl
 
 void initBrixelizerImpl(FFX_Brixelizer_Impl& _ffx, const kage::BufferHandle _vtxBuf, const kage::BufferHandle _idxBuf);
 void updateBrixellizerImpl(const FFX_Brixelizer_Impl& _ffx, const Scene& _scene);
+*/

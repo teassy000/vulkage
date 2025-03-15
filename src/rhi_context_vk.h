@@ -15,6 +15,7 @@
 
 #include "rhi_context.h"
 #include "command_buffer.h"
+#include "ffx_intg/brixel_intg_vk.h"
 
 namespace kage { namespace vk
 {
@@ -385,6 +386,7 @@ namespace kage { namespace vk
             , const stl::vector<ImageHandle>& _alias
         );
 
+        /*
         VkBuffer getVkBuffer(const BufferHandle _hBuf) const
         {
             assert(m_bufferContainer.exist(_hBuf.id));
@@ -397,6 +399,7 @@ namespace kage { namespace vk
 
             return m_imageContainer.getIdToData(_hImg.id).image;
         }
+        */
 
         void pushDescriptorSetWithTemplates(const VkCommandBuffer& _cmdBuf, const uint16_t _passId) const;
 
@@ -432,6 +435,10 @@ namespace kage { namespace vk
         void initFFX() override;
         void* getRhiResource(BufferHandle _buf) override;
         void* getRhiResource(ImageHandle _img) override;
+
+        void bxl_setGeoInstances(const Memory* _desc) override;
+        void bxl_regGeoBuffers(const Memory* _bufs) override;
+        void bxl_setUserResources(const Memory* _reses) override;
 
         // rendering command start
         void setRecord(
@@ -611,7 +618,7 @@ namespace kage { namespace vk
         void blitToSwapchain(uint32_t _swapImgIdx);
         void copyToSwapchain(uint32_t _swapImgIdx);
 
-        const Buffer_vk getBuffer(const uint16_t _bufId, bool _base = true) const
+        const Buffer_vk& getBuffer(const uint16_t _bufId, bool _base = true) const
         {
             if (_base)
             {
@@ -621,7 +628,7 @@ namespace kage { namespace vk
             return m_bufferContainer.getIdToData(_bufId);
         }
 
-        const Image_vk getImage(const uint16_t _imgId, bool _base = true) const
+        const Image_vk& getImage(const uint16_t _imgId, bool _base = true) const
         {
             if (_base)
             {
@@ -741,6 +748,9 @@ namespace kage { namespace vk
         VkCommandPool m_tracyCmdPool = VK_NULL_HANDLE;
         VkCommandBuffer m_tracyCmdBuf = VK_NULL_HANDLE;
 #endif //TRACY_ENABLE
+
+        // ffx brixelizer 
+        bxl::FFXBrixelizer_vk m_bxl;
     };
 
 
