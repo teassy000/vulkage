@@ -181,7 +181,9 @@ void bxlCreateBuffers(BrixelResources& _data)
 
         for (uint32_t ii = 0; ii < FFX_BRIXELIZER_MAX_CASCADES; ++ii)
         {
-            _data.cascadeAABBTrees[ii] = kage::registBuffer("brxl_cascade_aabbs", cascadeAABBTreeDesc);
+            std::string name = "brxl_cascade_aabbs_";
+            name += std::to_string(ii);
+            _data.cascadeAABBTrees[ii] = kage::registBuffer(name.c_str(), cascadeAABBTreeDesc);
         }
     }
 
@@ -195,7 +197,9 @@ void bxlCreateBuffers(BrixelResources& _data)
 
         for (uint32_t ii = 0; ii < FFX_BRIXELIZER_MAX_CASCADES; ++ii)
         {
-            _data.cascadeBrickMaps[ii] = kage::registBuffer("brxl_cascade_brick_map", cascadeBrickMapDesc);
+            std::string name = "brxl_cascade_brick_map_";
+            name += std::to_string(ii);
+            _data.cascadeBrickMaps[ii] = kage::registBuffer(name.c_str(), cascadeBrickMapDesc);
         }
     }
 

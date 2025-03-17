@@ -52,12 +52,11 @@ namespace kage { namespace vk { namespace bxl
     void init(FFXBrixelizer_vk&);
     void initAfterCmdReady(FFXBrixelizer_vk&);
     void update(FFXBrixelizer_vk&);
+    void shutdown(FFXBrixelizer_vk&);
 
     void setGeoInstances(FFXBrixelizer_vk& _bxl, const Memory* _desc);
     void setGeoBuffers(FFXBrixelizer_vk& _bxl, const Memory* _bufs);
     void setUserResources(FFXBrixelizer_vk& _bxl, const Memory* _reses);
-
-    void preUpdateBarriers(FFXBrixelizer_vk& _bxl);
 } // namespace kage::vk::bxl
 } // namespace kage::vk
 } // namespace kage

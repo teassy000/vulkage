@@ -137,7 +137,6 @@ void parseGeoBuf_n_submit(FFXBrixelizer_vk& _blx)
         "brixelizer index buffer"
     };
 
-
     for (size_t ii = 0; ii < count; ii++)
     {
         FfxBrixelizerBufferDescription& refDesc = _blx.bufferDescs[ii];
@@ -366,18 +365,11 @@ void initAfterCmdReady(FFXBrixelizer_vk& _blx)
     }
 }
 
-void update(FFXBrixelizer_vk& _blx)
-{
-    parseUserRes(_blx);
-
-    preUpdateBarriers(_blx);
-    updateBlx(_blx);
-}
 
 void preUpdateBarriers(FFXBrixelizer_vk& _bxl)
 {
     BarrierDispatcher& dispatcher = s_renderVK->m_barrierDispatcher;
-    
+
     // scratch buffer
     {
         const Buffer_vk& buf = s_renderVK->getBuffer(_bxl.scratchBuf);
@@ -424,6 +416,48 @@ void preUpdateBarriers(FFXBrixelizer_vk& _bxl)
 
     dispatcher.dispatch(s_renderVK->m_cmdBuffer);
 }
+
+void update(FFXBrixelizer_vk& _blx)
+{
+    parseUserRes(_blx);
+
+    preUpdateBarriers(_blx);
+    updateBlx(_blx);
+}
+
+void deleteInstances(FFXBrixelizer_vk& _blx)
+{
+    stl::vector<FfxBrixelizerInstanceID> instIds;
+    for (FfxBrixelizerInstanceID& inst : _blx.geoInstIds)
+    {
+        if (inst == FFX_BRIXELIZER_INVALID_ID)
+            continue;
+        instIds.push_back(inst);
+        inst == FFX_BRIXELIZER_INVALID_ID;
+    }
+    if (instIds.size() > 0) {
+        FFX_CHECK(ffxBrixelizerDeleteInstances(&_blx.context, instIds.data(), (uint32_t)instIds.size()));
+    }
+}
+
+void deleteBrixelizerContext(FFXBrixelizer_vk& _blx)
+{
+    FFX_CHECK(ffxBrixelizerContextDestroy(&_blx.context));
+}
+
+
+
+void shutdown(FFXBrixelizer_vk& _blx)
+{
+    deleteInstances(_blx);
+    deleteBrixelizerContext(_blx);
+
+    // shutdown ffx
+    _blx.ffxCtx.interface = {};
+    _blx.ffxCtx.device = {};
+    release(_blx.ffxCtx.scratchMem);
+}
+
 
 } // namespace bxl
 } // namespace vk

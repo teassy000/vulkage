@@ -1755,6 +1755,9 @@ namespace kage { namespace vk
 
         vkDeviceWaitIdle(m_device);
 
+        // shut brixelizer
+        bxl::shutdown(m_bxl);
+
         if (m_queryPoolTimeStamp)
         {
             vkDestroyQueryPool(m_device, m_queryPoolTimeStamp, 0);
