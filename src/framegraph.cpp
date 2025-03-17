@@ -145,6 +145,10 @@ namespace kage
                 registerBindless(reader);
                 break;
             }
+            case MagicTag::register_static: {
+                registerStaticResources(reader);
+                break;
+            }
             // Alias
             case MagicTag::force_alias_buffer: {
                 aliasResForce(reader, ResourceType::buffer);
@@ -385,6 +389,16 @@ namespace kage
 
         m_hBindless.push_back({ meta.bindlessId });
         m_sparse_bindless_meta[meta.bindlessId] = meta;
+    }
+
+    void Framegraph::registerStaticResources(bx::MemoryReader& _reader)
+    {
+        KG_ZoneScopedC(Color::light_yellow);
+        uint32_t resNum;
+        bx::read(&_reader, resNum, nullptr);
+
+        m_staticResources.resize(resNum);
+        bx::read(&_reader, m_staticResources.data(), sizeof(UnifiedResHandle) * resNum, nullptr);
     }
 
     const ResInteractDesc merge(const ResInteractDesc& _desc0, const ResInteractDesc& _desc1)
@@ -1126,23 +1140,24 @@ namespace kage
         stl::vector<UnifiedResHandle> resToOptmUniList; // all used resources except: force alias, multi-frame, read-only
         stl::vector<UnifiedResHandle> readResUniList;
         stl::vector<UnifiedResHandle> writeResUniList;
-        
+
+        // add resources used by passes
         for (const uint16_t pIdx : m_sortedPassIdx)
         {
             PassRWResource rwRes = m_pass_rw_res[pIdx];
 
-            for (const UnifiedResHandle combRes : rwRes.writeUnifiedRes)
+            for (const UnifiedResHandle uniRes : rwRes.writeUnifiedRes)
             {
-                push_back_unique(writeResUniList, combRes);
-                push_back_unique(resToOptmUniList, combRes);
-                push_back_unique(resInUseUniList, combRes);
+                push_back_unique(writeResUniList, uniRes);
+                push_back_unique(resToOptmUniList, uniRes);
+                push_back_unique(resInUseUniList, uniRes);
             }
 
-            for (const UnifiedResHandle combRes : rwRes.readUnifiedRes)
+            for (const UnifiedResHandle uniRes : rwRes.readUnifiedRes)
             {
-                push_back_unique(readResUniList, combRes);
-                push_back_unique(resToOptmUniList, combRes);
-                push_back_unique(resInUseUniList, combRes);
+                push_back_unique(readResUniList, uniRes);
+                push_back_unique(resToOptmUniList, uniRes);
+                push_back_unique(resInUseUniList, uniRes);
             }
 
             size_t aliasMapNum = rwRes.writeOpForcedAliasMap.size();
@@ -1157,9 +1172,9 @@ namespace kage
             }
 
             // bindless resources
-            for (const UnifiedResHandle combRes : rwRes.bindlessRes)
+            for (const UnifiedResHandle uniRes : rwRes.bindlessRes)
             {
-                push_back_unique(resInUseUniList, combRes);
+                push_back_unique(resInUseUniList, uniRes);
             }
         }
 
@@ -1169,15 +1184,15 @@ namespace kage
             const uint16_t pIdx = m_sortedPassIdx[ii];
             PassRWResource rwRes = m_pass_rw_res[pIdx];
 
-            for (const UnifiedResHandle combRes : rwRes.writeUnifiedRes)
+            for (const UnifiedResHandle uniRes : rwRes.writeUnifiedRes)
             {
-                const size_t usedIdx = getElemIndex(resToOptmUniList, combRes);
+                const size_t usedIdx = getElemIndex(resToOptmUniList, uniRes);
                 resToOptmPassIdxByOrder[usedIdx].push_back(ii); // store the idx in ordered pass
             }
 
-            for (const UnifiedResHandle combRes : rwRes.readUnifiedRes)
+            for (const UnifiedResHandle uniRes : rwRes.readUnifiedRes)
             {
-                const size_t usedIdx = getElemIndex(resToOptmUniList, combRes);
+                const size_t usedIdx = getElemIndex(resToOptmUniList, uniRes);
                 resToOptmPassIdxByOrder[usedIdx].push_back(ii); // store the idx in ordered pass
             }
 
@@ -1203,6 +1218,12 @@ namespace kage
             // if not, then we consider to fill a individual bucket for it.
             if (m_plainResAliasToBase.exist(readRes)) {
                 message(warning, "%s %d is force aliased but it's read-only, is this by intention", readRes.isImage() ? "image" :"buffer", readRes.rawId );
+                continue;
+            }
+
+            // skip statics
+            // leave it handle by the m_staticResources later, we don't need to consider it here.
+            if (kInvalidIndex != getElemIndex(m_staticResources, readRes)) {
                 continue;
             }
 
@@ -1287,18 +1308,41 @@ namespace kage
         m_resLifeTime = resLifeTime;
     }
 
+    void Framegraph::fillBucketStaticRes()
+    {
+        KG_ZoneScopedC(Color::light_yellow);
+
+        for (const UnifiedResHandle uniRes : m_staticResources)
+        {
+            // buffers
+            if (uniRes.isBuffer()) {
+                const FGBufferCreateInfo info = m_sparse_buf_info[uniRes.buf];
+                BufBucket bucket;
+                createBufBkt(bucket, info, { 1, uniRes }, true);
+                m_bufBuckets.push_back(bucket);
+            }
+            // images
+            if (uniRes.isImage()) {
+                const FGImageCreateInfo info = m_sparse_img_info[uniRes.img];
+                ImgBucket bucket;
+                createImgBkt(bucket, info, { 1, uniRes }, true);
+                m_imgBuckets.push_back(bucket);
+            }
+        }
+    }
+
     void Framegraph::fillBucketForceAlias()
     {
         stl::vector<UnifiedResHandle> actualAliasBase;
         stl::vector<stl::vector<UnifiedResHandle>> actualAlias;
-        for (const UnifiedResHandle combRes : m_resInUseUniList)
+        for (const UnifiedResHandle uniRes : m_resInUseUniList)
         {
-            if (!m_plainResAliasToBase.exist(combRes))
+            if (!m_plainResAliasToBase.exist(uniRes))
             {
                 continue;
             }
 
-            UnifiedResHandle base2 = m_plainResAliasToBase.getIdToData(combRes);
+            UnifiedResHandle base2 = m_plainResAliasToBase.getIdToData(uniRes);
 
             const size_t usedBaseIdx = push_back_unique(actualAliasBase, base2);
             if (actualAlias.size() == usedBaseIdx) // if it's new one
@@ -1306,7 +1350,7 @@ namespace kage
                 actualAlias.emplace_back();
             }
 
-            push_back_unique(actualAlias[usedBaseIdx], combRes);
+            push_back_unique(actualAlias[usedBaseIdx], uniRes);
         }
 
         // process force alias
@@ -1502,7 +1546,7 @@ namespace kage
             resInLevel.emplace_back();
         }
 
-        _buckets = _buckets;
+        _buckets.insert(_buckets.end(), buckets.begin(), buckets.end());
     }
 
     void Framegraph::aliasImages(stl::vector<ImgBucket>& _buckets,const stl::vector< FGImageCreateInfo >& _infos, const stl::vector<ImageHandle>& _sortedTexList, const ResourceType _type)
@@ -1650,6 +1694,10 @@ namespace kage
         KG_ZoneScopedC(Color::light_yellow);
 
         buildResLifetime();
+
+        // static resources ======================
+        // for those resources will handle by external libs(e.g. ffx brixelizer)
+        fillBucketStaticRes();
 
         // static aliases ========================
         // force aliases 

@@ -7,8 +7,6 @@
 
 namespace kage { namespace vk { namespace bxl
 {
-
-
     struct FFXBrixelizer_vk
     {
         BufferHandle scratchBuf;
@@ -19,7 +17,6 @@ namespace kage { namespace vk { namespace bxl
     
         BufferHandle vtxBuf;
         BufferHandle idxBuf;
-
 
         FfxBrixelizerContext context;
         FfxBrixelizerContextDescription initDesc;
@@ -62,6 +59,7 @@ namespace kage { namespace vk { namespace bxl
     void setGeoBuffers(FFXBrixelizer_vk& _bxl, const Memory* _bufs);
     void setUserResources(FFXBrixelizer_vk& _bxl, const Memory* _reses);
 
+    void preUpdateBarriers(FFXBrixelizer_vk& _bxl);
 } // namespace kage::vk::bxl
 } // namespace kage::vk
 } // namespace kage

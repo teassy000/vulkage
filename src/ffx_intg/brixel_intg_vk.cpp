@@ -369,9 +369,61 @@ void initAfterCmdReady(FFXBrixelizer_vk& _blx)
 void update(FFXBrixelizer_vk& _blx)
 {
     parseUserRes(_blx);
+
+    preUpdateBarriers(_blx);
     updateBlx(_blx);
 }
 
+void preUpdateBarriers(FFXBrixelizer_vk& _bxl)
+{
+    BarrierDispatcher& dispatcher = s_renderVK->m_barrierDispatcher;
+    
+    // scratch buffer
+    {
+        const Buffer_vk& buf = s_renderVK->getBuffer(_bxl.scratchBuf);
+        dispatcher.barrier(buf.buffer, {
+                VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT
+                , VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
+            });
+    }
+
+    // sdf atlas
+    {
+        const Image_vk& img = s_renderVK->getImage(_bxl.sdfAtlas);
+        dispatcher.barrier(img.image, 
+            VK_IMAGE_ASPECT_COLOR_BIT, {
+                VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT
+                , VK_IMAGE_LAYOUT_GENERAL
+                , VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
+            });
+    }
+
+    // brick aabb
+    {
+        const Buffer_vk& buf = s_renderVK->getBuffer(_bxl.brickAABB);
+        dispatcher.barrier(buf.buffer, {
+                VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT
+                , VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
+            });
+    }
+
+    // cascades
+    for (uint32_t ii = 0; ii < FFX_BRIXELIZER_MAX_CASCADES; ++ii)
+    {
+        const Buffer_vk& aabbTree = s_renderVK->getBuffer(_bxl.cascadeAABBTrees[ii]);
+        dispatcher.barrier(aabbTree.buffer, {
+                VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT
+                , VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
+            });
+        const Buffer_vk& brickMap = s_renderVK->getBuffer(_bxl.cascadeBrickMaps[ii]);
+        dispatcher.barrier(brickMap.buffer, {
+                VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT
+                , VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
+            });
+    }
+
+    dispatcher.dispatch(s_renderVK->m_cmdBuffer);
+}
 
 } // namespace bxl
 } // namespace vk

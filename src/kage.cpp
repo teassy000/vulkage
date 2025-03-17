@@ -323,6 +323,7 @@ namespace kage
         void storeAliasData();
         void storeSamplerData();
         void storeBindlessData();
+        void storeStaticResources();
 
         void init(const Init& _init);
 
@@ -522,8 +523,7 @@ namespace kage
         BindlessMetaData        m_bindlessResMetas[kMaxNumOfBindlessResHandle];
 
         // static resources
-        stl::vector<BufferHandle> m_staticBuffers; 
-        stl::vector<ImageHandle> m_staticImages;
+        stl::vector<UnifiedResHandle> m_staticUnifiedReses; 
 
         // running Pass
         PassHandle              m_recordingPass{ kInvalidHandle };
@@ -1390,6 +1390,18 @@ namespace kage
         }
     }
 
+    void Context::storeStaticResources()
+    {
+        BX_ASSERT(m_staticUnifiedReses.size() < UINT32_MAX, "Static Resources count should not more than UINT32_MAX");
+        uint32_t count = (uint32_t)m_staticUnifiedReses.size();
+
+        // magic tag
+        bx::write(m_fgMemWriter, MagicTag::register_static, nullptr);
+        bx::write(m_fgMemWriter, count, nullptr);
+        bx::write(m_fgMemWriter, m_staticUnifiedReses.data(), count * sizeof(UnifiedResHandle), nullptr);
+        bx::write(m_fgMemWriter, MagicTag::magic_body_end, nullptr);
+    }
+
     BufferHandle Context::aliasBuffer(const BufferHandle _baseBuf)
     {
         uint16_t aliasId = m_bufferHandles.alloc();
@@ -2095,6 +2107,7 @@ namespace kage
         storeBufferData();
         storeSamplerData();
         storeBindlessData();
+        storeStaticResources();
         storePassData();
         storeAliasData();
 
@@ -2176,10 +2189,9 @@ namespace kage
     void Context::bxl_setUserResources(const Memory* _reses)
     {
         const uint32_t length = _reses->size / sizeof(UnifiedResHandle);
-        for (size_t i = 0; i < length; i++)
-        {
-
-        }
+        UnifiedResHandle* pReses = (UnifiedResHandle*)_reses->data;
+        
+        m_staticUnifiedReses.insert(m_staticUnifiedReses.end(), pReses, pReses + length);
 
         m_rhiContext->bxl_setUserResources(_reses);
     }

@@ -702,6 +702,7 @@ void recRCBuild(const RadianceCascadeBuild& _rc, const float _sceneRadius)
             {_rc.inOctTree,             Access::read,                   Stage::compute_shader},
             {_rc.voxAlbedo,             Access::read,                   Stage::compute_shader},
             {_rc.cascadeImg,            0,                              Stage::compute_shader},
+            {_rc.inSdfAtlas,            0,                              Stage::compute_shader},
         };
         kage::pushBindings(binds, COUNTOF(binds));
 

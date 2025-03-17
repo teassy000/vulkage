@@ -1587,7 +1587,7 @@ namespace kage { namespace vk
 
         // get the function pointers
         m_vkGetDeviceProcAddr = vkGetDeviceProcAddr;
-        initFFX();
+        //initFFX();
 
         bxl::init(m_bxl);
     }
@@ -1613,8 +1613,10 @@ namespace kage { namespace vk
     {
         m_frameRecCmds.finish();
 
+        // brixelizer update
         bxl::initAfterCmdReady(m_bxl);
         bxl::update(m_bxl);
+
         bool result = render();
 
         m_frameRecCmds.start();

@@ -44,6 +44,7 @@ layout(binding = 8) readonly buffer OctTree
 
 layout(binding = 9, RGBA8) uniform imageBuffer in_voxAlbedo;
 layout(binding = 10, RGBA8) uniform writeonly image2DArray octProbAtlas;
+layout(binding = 11, R8) uniform writeonly image3D sdfAtlas;
 
 struct Segment
 {
@@ -111,10 +112,16 @@ bool intersect(const Segment _ray, const AABB _aabb)
 // https://bertolami.com/files/octrees.pdf
 // the method is trying to determine which quadrant the ray origin would be in the coordinate of the node
 // it does not care about the intersection
+//
+// with modification: 
+// 1. consider when ori_point could be 0.f
 uint determine_nearest_child(const Segment _seg, const OT_UnfoldedNode _pNode)
 {
     vec3 ori_point = _seg.origin - _pNode.center;
 
+    if(compare(ori_point, vec3(0.f)) ) {
+        ori_point = _seg.dir;
+    } 
 
     uint x_test = ori_point.x >= 0.f ? 1u : 0u;
     uint y_test = ori_point.y >= 0.f ? 1u : 0u;
@@ -217,7 +224,7 @@ void main()
     // direction: the direction of the seg
     // length: the probe radius
     const vec3 seg_origin = getCenterWorldPos(ivec3(prob_idx, lvLayer), sceneRadius, config.probeSideLen) + vec3(config.probeSideLen * 0.5f);
-    const vec3 seg_dir = octDecode((vec2(ray_idx) + .5f) / float(ray_gridSideCount));
+    const vec3 seg_dir = -octDecode((vec2(ray_idx) + .5f) / float(ray_gridSideCount));
     const float seg_len = config.rayLength;
 
     const Segment seg = Segment(seg_origin, seg_dir, seg_len);
@@ -269,8 +276,8 @@ void main()
     vec3 var = vec3(0.f);
     if (voxIdx != INVALID_VOX_ID)
     {
-        //var = imageLoad(in_voxAlbedo, int(voxIdx)).rgb;
-        var = vec3(1.f, 0.f, 0.f);
+        var = imageLoad(in_voxAlbedo, int(voxIdx)).rgb;
+        //var = vec3(1.f, 0.f, 0.f);
 
         //var = vec3(voxIdx & 255u, (voxIdx >> 8) & 255u, (voxIdx >> 16) & 255u) / 255.f;
     }

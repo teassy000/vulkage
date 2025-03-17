@@ -26,6 +26,7 @@ namespace kage
         register_image,
         register_sampler,
         register_bindless,
+        register_static,
 
         force_alias_buffer,
         force_alias_image,
@@ -187,6 +188,7 @@ namespace kage
 
         void registerSampler(bx::MemoryReader& _reader);
         void registerBindless(bx::MemoryReader& _reader);
+        void registerStaticResources(bx::MemoryReader& _reader);
         
 
         uint32_t readResource(const stl::vector<PassResInteract>& _resVec, const uint16_t _passId, const ResourceType _type);
@@ -298,6 +300,7 @@ namespace kage
         bool isAliasable(const UnifiedResHandle& _res, const BufBucket& _bucket, const stl::vector<UnifiedResHandle>& _reses) const;
         bool isAliasable(const UnifiedResHandle& _res, const ImgBucket& _bucket, const stl::vector<UnifiedResHandle>& _reses) const;
 
+        void fillBucketStaticRes();
         void fillBucketForceAlias();
         void fillBucketReadonly();
         void fillBucketMultiFrame();
@@ -453,21 +456,23 @@ namespace kage
         {
             uint16_t arr[(uint16_t)PassExeQueue::count];
         };
-        stl::vector< PassInQueue >    m_nearestSyncPassIdx;
+        stl::vector< PassInQueue >          m_nearestSyncPassIdx;
 
-        stl::vector< UnifiedResHandle>     m_multiFrame_resList;
+        stl::vector< UnifiedResHandle>      m_multiFrame_resList;
 
-        stl::vector< UnifiedResHandle>     m_resInUseUniList;
-        stl::vector< UnifiedResHandle>     m_resToOptmUniList;
-        stl::vector< UnifiedResHandle>     m_resInUseReadonlyList;
-        stl::vector< UnifiedResHandle>     m_resInUseMultiframeList;
+        stl::vector< UnifiedResHandle>      m_resInUseUniList;
+        stl::vector< UnifiedResHandle>      m_resToOptmUniList;
+        stl::vector< UnifiedResHandle>      m_resInUseReadonlyList;
+        stl::vector< UnifiedResHandle>      m_resInUseMultiframeList;
 
-        stl::vector< ResLifetime>       m_resLifeTime;
+        stl::vector< ResLifetime>           m_resLifeTime;
 
         ContinuousMap< UnifiedResHandle, UnifiedResHandle> m_plainResAliasToBase;
 
-        stl::vector< BufBucket>          m_bufBuckets;
-        stl::vector< ImgBucket>          m_imgBuckets;
+        stl::vector< BufBucket>             m_bufBuckets;
+        stl::vector< ImgBucket>             m_imgBuckets;
+
+        stl::vector< UnifiedResHandle>      m_staticResources;
     };
 
 }; // namespace kage

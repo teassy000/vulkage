@@ -386,21 +386,6 @@ namespace kage { namespace vk
             , const stl::vector<ImageHandle>& _alias
         );
 
-        /*
-        VkBuffer getVkBuffer(const BufferHandle _hBuf) const
-        {
-            assert(m_bufferContainer.exist(_hBuf.id));
-
-            return m_bufferContainer.getIdToData(_hBuf.id).buffer;
-        }
-        VkImage getVkImage(const ImageHandle _hImg) const
-        {
-            assert(m_imageContainer.exist(_hImg.id));
-
-            return m_imageContainer.getIdToData(_hImg.id).image;
-        }
-        */
-
         void pushDescriptorSetWithTemplates(const VkCommandBuffer& _cmdBuf, const uint16_t _passId) const;
 
         const Shader_vk& getShader(const ShaderHandle _hShader) const;
@@ -439,6 +424,8 @@ namespace kage { namespace vk
         void bxl_setGeoInstances(const Memory* _desc) override;
         void bxl_regGeoBuffers(const Memory* _bufs) override;
         void bxl_setUserResources(const Memory* _reses) override;
+
+        void bxl_update();
 
         // rendering command start
         void setRecord(
