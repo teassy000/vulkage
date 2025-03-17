@@ -56,5 +56,5 @@ namespace kage
     constexpr unsigned int k_rclv0_rayGridSideCount = 4;
 
     // voxelization config
-    constexpr unsigned int kVoxelSideCount = 8;
+    constexpr unsigned int kVoxelSideCount = 64;
 }

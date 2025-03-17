@@ -416,16 +416,10 @@ namespace kage { namespace vk
 
         void setName(Handle _h, const char* _name, uint32_t _len) override;
 
-        // ffx
-        void initFFX() override;
-        void* getRhiResource(BufferHandle _buf) override;
-        void* getRhiResource(ImageHandle _img) override;
-
+        // brixelizer
         void bxl_setGeoInstances(const Memory* _desc) override;
         void bxl_regGeoBuffers(const Memory* _bufs) override;
         void bxl_setUserResources(const Memory* _reses) override;
-
-        void bxl_update();
 
         // rendering command start
         void setRecord(
@@ -561,14 +555,6 @@ namespace kage { namespace vk
             PassHandle _hPass
             , const Memory* _mem
         );
-
-        void updateBrixelizer(
-            PassHandle _hPass
-            , void* _brixelizerCtx
-            , void* _updateDesc
-            , const Memory* _scratchRes
-        );
-        
         // rendering command end
         VkSampler getCachedSampler(SamplerFilter _filter, SamplerMipmapMode _mipmapMode, SamplerAddressMode _addrMd, SamplerReductionMode _reduMd);
         VkImageView getCachedImageView(const ImageHandle _hImg, uint16_t _mip, uint16_t _numMips, uint16_t _numLayers, VkImageViewType _type);

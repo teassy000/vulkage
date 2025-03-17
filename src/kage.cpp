@@ -344,14 +344,7 @@ namespace kage
         void bxl_regGeoBuffers(const Memory* _bufs);
         void bxl_setUserResources(const Memory* _reses);
 
-        bool isBackendReady();
-
         double getGpuTime();
-
-        // FFX rhi exposes
-        void getFFXInterface(void* _ffxInterface);
-        void* getRhiResource(BufferHandle _buf);
-        void* getRhiResource(ImageHandle _img);
 
         // Render API Begin
         void startRec(const PassHandle _hPass);
@@ -359,8 +352,6 @@ namespace kage
         void setConstants(const Memory* _mem);
 
         void pushBindings(const Binding* _desc, uint16_t _count);
-
-        void freshBarriers(const Binding* _desc, uint16_t _count);
 
         void setColorAttachments(const Attachment* _colors, uint16_t _count);
 
@@ -2196,29 +2187,9 @@ namespace kage
         m_rhiContext->bxl_setUserResources(_reses);
     }
 
-    bool Context::isBackendReady()
-    {
-        return !m_isRenderGraphDataDirty && m_rhiContext->isBaked();
-    }
-
     double Context::getGpuTime()
     {
         return m_rhiContext->getGPUTime();
-    }
-
-    void Context::getFFXInterface(void* _ffxInterface)
-    {
-        m_rhiContext->getFFXInterface(_ffxInterface);
-    }
-
-    void* Context::getRhiResource(BufferHandle _buf)
-    {
-        return m_rhiContext->getRhiResource(_buf);
-    }
-
-    void* Context::getRhiResource(ImageHandle _img)
-    {
-        return m_rhiContext->getRhiResource(_img);
     }
 
     void Context::startRec(const PassHandle _hPass)
@@ -2259,17 +2230,6 @@ namespace kage
         bx::memCopy(mem->data, _desc, mem->size);
 
         m_cmdQueue.cmdRecordPushDescriptorSet(mem);
-
-        m_transientMemories.push_back(mem);
-    }
-
-    void Context::freshBarriers(const Binding* _desc, uint16_t _count)
-    {
-        const uint32_t sz = sizeof(Binding) * _count;
-        const Memory* mem = alloc(sz);
-        bx::memCopy(mem->data, _desc, mem->size);
-
-        m_cmdQueue.cmdRecordFreshExternalBarriers(mem);
 
         m_transientMemories.push_back(mem);
     }
@@ -2384,13 +2344,6 @@ namespace kage
     void Context::drawMeshTask(const BufferHandle _hIndirectBuf, const uint32_t _offset, const BufferHandle _countBuf, const uint32_t _countOffset, const uint32_t _maxCount, const uint32_t _stride)
     {
         BX_ASSERT(0, "NOT IMPLEMENTED YET!!!");
-    }
-
-    void Context::updateBrixelizer(void* _brixelizerCtx, void* _updateDesc, const Memory* _scratchRes)
-    {
-        m_cmdQueue.cmdRecordUpdateBrixelizer(_brixelizerCtx, _updateDesc, _scratchRes);
-
-        m_transientMemories.push_back(_scratchRes);
     }
 
     void Context::endRec()
@@ -2571,11 +2524,6 @@ namespace kage
         s_ctx->pushBindings(_desc, _count);
     }
 
-    void freshBarriers(const Binding* _desc, uint16_t _count)
-    {
-        s_ctx->freshBarriers(_desc, _count);
-    }
-
     void setColorAttachments(const Attachment* _colors, uint16_t _count)
     {
         s_ctx->setColorAttachments(_colors, _count);
@@ -2744,16 +2692,6 @@ namespace kage
         s_ctx->drawMeshTask(_hIndirectBuf, _offset, _countBuf, _countOffset, _maxCount, _stride);
     }
 
-
-    void updateBrixelizer(
-        void* _brixelizerCtx
-        , void* _updateDesc
-        , const Memory* _scratchRes)
-    {
-        s_ctx->updateBrixelizer(_brixelizerCtx, _updateDesc, _scratchRes);
-    }
-
-
     void endRec()
     {
         s_ctx->endRec();
@@ -2858,26 +2796,6 @@ namespace kage
     void bxl_setUserResources(const Memory* _reses)
     {
         s_ctx->bxl_setUserResources(_reses);
-    }
-
-    bool isBackendReady()
-    {
-        return s_ctx->isBackendReady();
-    }
-
-    void getFFXInterface(void* _ffxInterface)
-    {
-        s_ctx->getFFXInterface(_ffxInterface);
-    }
-
-    void* getRHIResource(BufferHandle _buf)
-    {
-        return s_ctx->getRhiResource(_buf);
-    }
-
-    void* getRHIResource(ImageHandle _img)
-    {
-        return s_ctx->getRhiResource(_img);
     }
 
 } // namespace kage

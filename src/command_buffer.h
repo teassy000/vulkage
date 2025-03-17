@@ -198,9 +198,6 @@ namespace kage
             record_draw_mesh_task_indirect,
             record_draw_mesh_task_indirect_count,
 
-            record_fresh_external_barriers,
-            record_update_brixelizer,
-
             record_end,
 
             end,
@@ -511,20 +508,6 @@ namespace kage
         uint32_t m_cntOff;
         uint32_t m_maxCnt;
         uint32_t m_stride;
-    };
-
-    struct RecordFreshExternalBarriersCmd : public Command
-    {
-        ENTRY_IMPLEMENT_COMMAND(RecordFreshExternalBarriersCmd, Command::record_fresh_external_barriers);
-        const Memory* m_mem;
-    };
-
-    struct RecordUpdateBrixelizerCmd : public Command
-    {
-        ENTRY_IMPLEMENT_COMMAND(RecordUpdateBrixelizerCmd, Command::record_update_brixelizer);
-        void* m_brixelizerCtx;
-        void* m_updateDesc;
-        const Memory* m_scratchRes;
     };
 
     struct RecordEndCmd : public Command
@@ -931,22 +914,6 @@ namespace kage
             cmd.m_maxCnt = _maxCount;
             cmd.m_stride = _stride;
 
-            push(cmd);
-        }
-
-        void cmdRecordFreshExternalBarriers(const Memory* _mem)
-        {
-            RecordFreshExternalBarriersCmd cmd;
-            cmd.m_mem = _mem;
-            push(cmd);
-        }
-
-        void cmdRecordUpdateBrixelizer(void* _brixelizerCtx, void* _updateDesc, const Memory* _scratchRes)
-        {
-            RecordUpdateBrixelizerCmd cmd;
-            cmd.m_brixelizerCtx = _brixelizerCtx;
-            cmd.m_updateDesc = _updateDesc;
-            cmd.m_scratchRes = _scratchRes;
             push(cmd);
         }
 

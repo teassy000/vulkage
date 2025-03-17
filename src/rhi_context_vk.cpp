@@ -1587,7 +1587,6 @@ namespace kage { namespace vk
 
         // get the function pointers
         m_vkGetDeviceProcAddr = vkGetDeviceProcAddr;
-        //initFFX();
 
         bxl::init(m_bxl);
     }
@@ -1605,8 +1604,6 @@ namespace kage { namespace vk
         m_queryStatisticsCount = (uint32_t)(2 * m_passContainer.size());
         m_queryPoolStatistics = createQueryPool(m_device, m_queryStatisticsCount, VK_QUERY_TYPE_PIPELINE_STATISTICS);
         assert(m_queryPoolStatistics);
-
-        m_baked = true;
     }
 
     bool RHIContext_vk::run()
@@ -2696,37 +2693,6 @@ namespace kage { namespace vk
         }
     }
 
-    void RHIContext_vk::initFFX()
-    {
-        // Create the FFX context
-        constexpr uint32_t c_maxContexts = 2;
-        size_t scratchMemSz = ffxGetScratchMemorySizeVK(s_renderVK->m_physicalDevice, c_maxContexts);
-        m_ffxScratch = kage::alloc((uint32_t)scratchMemSz);
-        memset(m_ffxScratch->data, 0, m_ffxScratch->size);
-
-        VkDeviceContext vkdevCtx;
-        vkdevCtx.vkDevice = s_renderVK->m_device;
-        vkdevCtx.vkPhysicalDevice = s_renderVK->m_physicalDevice;
-        vkdevCtx.vkDeviceProcAddr = s_renderVK->m_vkGetDeviceProcAddr;
-
-        FfxDevice ffxDevice = ffxGetDeviceVK(&vkdevCtx);
-        FfxErrorCode err = ffxGetInterfaceVK(&m_ffxInterface, ffxDevice, m_ffxScratch->data, m_ffxScratch->size, c_maxContexts);
-
-        assert(err == FFX_OK);
-    }
-
-    void* RHIContext_vk::getRhiResource(BufferHandle _buf)
-    {
-        const Buffer_vk& bufvk = m_bufferContainer.getIdToData(_buf);
-        return static_cast<void*>(bufvk.buffer);
-    }
-
-    void* RHIContext_vk::getRhiResource(ImageHandle _img)
-    {
-        const Image_vk& imgVk = m_imageContainer.getIdToData(_img);
-        return static_cast<void*>(imgVk.image);
-    }
-
     void RHIContext_vk::bxl_setGeoInstances(const Memory* _desc)
     {
         bxl::setGeoInstances(m_bxl, _desc);
@@ -3273,43 +3239,6 @@ namespace kage { namespace vk
         uint32_t count = _mem->size / sizeof(Binding);
         Binding* bds = (Binding*)_mem->data;
         m_descBindingSetsPerPass.assign(bds, bds + count);
-    }
-
-    void RHIContext_vk::updateBrixelizer(PassHandle _hPass, void* _brixelizerCtx, void* _updateDesc, const Memory* _scratchRes)
-    {
-        KG_ZoneScopedC(Color::indian_red);
-
-        if (!m_passContainer.exist(_hPass.id))
-        {
-            message(
-                warning
-                , "updateBrixelizer will not perform for pass %d! It might be cut after render pass sorted"
-                , _hPass.id
-            );
-            return;
-        }
-
-        return;
-
-        //createBarriersRec(_hPass);
-
-        struct Res
-        {
-            BufferHandle hbuf;
-            FfxResource ffxRes;
-        };
-        
-        Res res;
-        memcpy(&res, _scratchRes->data, sizeof(res));
-
-        const Buffer_vk& bufvk = m_bufferContainer.getIdToData(res.hbuf);
-        res.ffxRes.resource = static_cast<void*>(bufvk.buffer);
-        assert(res.ffxRes.description.size == bufvk.size);
-
-
-        //ffxBrixelizerUpdate(static_cast<FfxBrixelizerContext*>(_brixelizerCtx), static_cast<FfxBrixelizerBakedUpdateDescription*>(_updateDesc), res.ffxRes, m_cmdBuffer);
-
-        //flushWriteBarriersRec(_hPass);
     }
 
     VkSampler RHIContext_vk::getCachedSampler(SamplerFilter _filter, SamplerMipmapMode _mipMd, SamplerAddressMode _addrMd, SamplerReductionMode _reduMd)
@@ -4483,19 +4412,6 @@ namespace kage { namespace vk
                         BX_ASSERT(0, "NOT IMPLEMENTED YET!!!");
                     }
                     break;
-                case Command::record_fresh_external_barriers:
-                    {
-                        const RecordFreshExternalBarriersCmd* rc = reinterpret_cast<const RecordFreshExternalBarriersCmd*>(cmd);
-                        freshExternalBarriers(_hPass, rc->m_mem);
-                    }
-                    break;
-                case Command::record_update_brixelizer:
-                    {
-                        const RecordUpdateBrixelizerCmd* rc = reinterpret_cast<const RecordUpdateBrixelizerCmd*>(cmd);
-                        updateBrixelizer(_hPass, rc->m_brixelizerCtx, rc->m_updateDesc, rc->m_scratchRes);
-                    }
-                    break;
-
                 case Command::record_end:
                     {
                         done = true;

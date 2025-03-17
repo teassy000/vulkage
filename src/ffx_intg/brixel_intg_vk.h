@@ -31,8 +31,6 @@ namespace kage { namespace vk { namespace bxl
         FfxBrixelizerBufferDescription bufferDescs[2]{};
         uint32_t bufferIdxes[2]{};
 
-        FfxResource res[2];
-
         const Memory* mem_geoInstDescs{ nullptr };
         const Memory* mem_geoBuf{ nullptr };
         const Memory* mem_userRes{ nullptr };

@@ -89,9 +89,6 @@ namespace kage
 
     void pushBindings(const Binding* _desc, uint16_t _count);
 
-    // this is only for external commands
-    void freshBarriers(const Binding* _desc, uint16_t _count);
-
     void setColorAttachments(const Attachment* _colors, uint16_t _count);
 
     void setDepthAttachment(Attachment _depth);
@@ -213,13 +210,6 @@ namespace kage
         , const uint32_t _stride
     );
 
-    // update brixelizer content, and record external commands
-    void updateBrixelizer(
-        void* _brixelizerCtx
-        , void* _updateDesc
-        , const Memory* _scratchRes
-    );
-
     // end recording
     void endRec();
     // loop API Ends
@@ -242,7 +232,7 @@ namespace kage
     double getGpuTime();
     uint64_t getPassClipping(const PassHandle _hPass);
 
-    // ffx expose
+    // ffx expose ========================================
 
     // set brixelizer instances
     void bxl_setGeoInstances(const Memory* _desc);
@@ -259,9 +249,4 @@ namespace kage
     // ------------------------------------------------------------------------------------------
     // this will mark these buffers as static to framegraph
     void bxl_setUserResources(const Memory* _reses);
-
-    bool isBackendReady();
-    void getFFXInterface(void* _ffxInterface);
-    void* getRHIResource(BufferHandle _buf);
-    void* getRHIResource(ImageHandle _img);
 }

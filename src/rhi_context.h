@@ -153,7 +153,6 @@ namespace kage
 
         virtual void bake();
         virtual bool run() { return false; };
-        virtual bool isBaked() { return m_baked; }
 
         virtual bool checkSupports(VulkanSupportExtension _ext) { return false; }
         virtual void updateResolution(const Resolution& _resolution) {};
@@ -202,20 +201,6 @@ namespace kage
         bx::AllocatorI* m_pAllocator;
 
         bx::MemoryBlockI*   m_pMemBlockBaked;
-
-
-        // ffx
-        virtual void initFFX() {};
-        virtual void* getRhiResource(ImageHandle _img) {return nullptr; }
-        virtual void* getRhiResource(BufferHandle _buf) { return nullptr; }
-
-        void getFFXInterface(void* _ffxInterface) { *(FfxInterface*)_ffxInterface = m_ffxInterface; };
-        
-        FfxDevice m_ffxDevice;
-        FfxInterface m_ffxInterface;
-        const Memory* m_ffxScratch{ nullptr };
-        stl::vector<FfxResource> m_ffxRhiResources;
-        bool m_baked{ false };
     };
 
 } // namespace kage
