@@ -21,7 +21,7 @@ struct UIRendering
 
     // image and for descriptor set push
     kage::ImageHandle fontImage{ kage::kInvalidHandle };
-    kage::SamplerHandle fontSampler{ kage::kInvalidHandle };
+    kage::SamplerHandle sampler{ kage::kInvalidHandle };
 
     kage::ImageHandle color{ kage::kInvalidHandle };
     kage::ImageHandle depth{ kage::kInvalidHandle };
@@ -50,4 +50,5 @@ void updateUI(
     , DebugRenderOptionsData& _rd
     , const DebugProfilingData& _pd
     , const DebugLogicData& _ld
+    , const DebugReources& _dr
 );

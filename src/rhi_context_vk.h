@@ -683,7 +683,6 @@ namespace kage { namespace vk
         uint32_t m_numFramesInFlight{ kMaxNumFrameLatency };
         CommandQueue_vk m_cmd;
         VkCommandBuffer m_cmdBuffer;
-        VkCommandBuffer m_cmdBufferExternal;
 
         VkQueue m_queue;
 

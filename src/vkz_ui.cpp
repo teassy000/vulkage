@@ -51,13 +51,6 @@ void recordUI(const UIRendering& _ui)
     memcpy(mem->data, &c, mem->size);
     kage::setConstants(mem);
 
-    kage::Binding binds[] = {
-        {_ui.fontImage, _ui.fontSampler, Stage::fragment_shader}
-        , {_ui.dummyColor, _ui.fontSampler, Stage::fragment_shader}
-    };
-    
-    kage::pushBindings(binds, COUNTOF(binds));
-
     int32_t vtxOffset = 0;
     int32_t idxOffset = 0;
     for (int32_t i = 0; i < imDrawData->CmdListsCount; ++i)
@@ -71,6 +64,18 @@ void recordUI(const UIRendering& _ui)
             uint32_t y = bx::max((int32_t)(cmd.ClipRect.y), 0);
             uint32_t w = (uint32_t)(cmd.ClipRect.z - cmd.ClipRect.x);
             uint32_t h = (uint32_t)(cmd.ClipRect.w - cmd.ClipRect.y);
+
+            BX_ASSERT((uint64_t)cmd.TextureId < UINT16_MAX, "the texture Id should be a valid kage::ImageHandle");
+
+            kage::ImageHandle img = 
+                (cmd.TextureId == 0) ? _ui.fontImage : kage::ImageHandle{ (uint16_t)((uint64_t)cmd.TextureId & 0xffff) };
+
+            kage::Binding binds[] = {
+                {img, _ui.sampler, Stage::fragment_shader}, 
+                {_ui.dummyColor, _ui.sampler, Stage::fragment_shader}
+            };
+
+            kage::pushBindings(binds, COUNTOF(binds));
 
             kage::setScissor(x, y, w, h);
 
@@ -191,7 +196,7 @@ void prepareUI(UIRendering& _ui, kage::ImageHandle _color, kage::ImageHandle _de
 
     kage::bindIndexBuffer(pass, ib); // TODO: bind in the custom func already, this is for frame-graph
     kage::bindVertexBuffer(pass, vb);
-    _ui.fontSampler = kage::sampleImage(pass, fontImage
+    _ui.sampler = kage::sampleImage(pass, fontImage
         , kage::PipelineStageFlagBits::fragment_shader
         , kage::SamplerFilter::linear
         , kage::SamplerMipmapMode::linear
@@ -236,7 +241,7 @@ void updateImGuiIO(const UIInput& input)
     io.MouseDown[2] = input.mouseButtons.middle;
 }
 
-void updateImGuiContent(DebugRenderOptionsData& _rod, const DebugProfilingData& _pd, const DebugLogicData& _ld)
+void updateImGuiContent(DebugRenderOptionsData& _rod, const DebugProfilingData& _pd, const DebugLogicData& _ld, const DebugReources& _dr)
 {
     KG_ZoneScopedC(kage::Color::blue);;
 
@@ -296,15 +301,20 @@ void updateImGuiContent(DebugRenderOptionsData& _rod, const DebugProfilingData& 
     ImGui::Text("dir: %.2f, %.2f, %.2f", _ld.frontX, _ld.frontY, _ld.frontZ);
 
     ImGui::End();
+
+    // debug window
+    ImGui::Begin("debug:");
+    ImGui::Image((ImTextureID)(_dr.brx_debug.id), { 2560, 1440 });
+    ImGui::End();
 }
 
-void updateImGui(const UIInput& input, DebugRenderOptionsData& rd, const DebugProfilingData& pd, const DebugLogicData& ld)
+void updateImGui(const UIInput& input, DebugRenderOptionsData& rd, const DebugProfilingData& pd, const DebugLogicData& ld, const DebugReources& _dr)
 {
     KG_ZoneScopedC(kage::Color::blue);
 
     updateImGuiIO(input);
 
-    updateImGuiContent(rd, pd, ld);
+    updateImGuiContent(rd, pd, ld, _dr);
 
     ImGui::Render();
 }
@@ -356,9 +366,10 @@ void updateUI(
     , DebugRenderOptionsData& _rd
     , const DebugProfilingData& _pd
     , const DebugLogicData& _ld
+    , const DebugReources& _dr
 )
 {
-    updateImGui(_input, _rd, _pd, _ld);
+    updateImGui(_input, _rd, _pd, _ld, _dr);
     updateUIRenderData(_ui);
     recordUI(_ui);
 }

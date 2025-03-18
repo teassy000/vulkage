@@ -211,7 +211,9 @@ namespace
                 updateProbeDebug(m_probDebug, m_demoData.drawCull, m_width, m_height, m_scene.radius);
             }
 
-            updateUI(m_ui, m_demoData.input, m_demoData.renderOptions, m_demoData.profiling, m_demoData.logic);
+            {
+                updateUI(m_ui, m_demoData.input, m_demoData.renderOptions, m_demoData.profiling, m_demoData.logic, m_debugRes);
+            }
 
             // render
             kage::render();
@@ -240,6 +242,8 @@ namespace
 
             m_demoData.profiling.meshletCount = (uint32_t)m_scene.geometry.meshlets.size();
             m_demoData.profiling.primitiveCount = (uint32_t)(m_scene.geometry.indices.size()) / 3; // include all lods
+
+            m_debugRes.brx_debug = m_brixel.debugDestImg;
 
             KG_FrameMark;
 
@@ -768,6 +772,7 @@ namespace
 
         Scene m_scene{};
         DemoData m_demoData{};
+        DebugReources m_debugRes;
         bool m_supportMeshShading;
         bool m_debugVox;
         bool m_debugProb;

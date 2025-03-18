@@ -1,5 +1,5 @@
 #pragma once
-
+#include "kage.h"
 struct DebugProfilingData
 {
     float avgCpuTime;
@@ -40,6 +40,11 @@ struct DebugLogicData
 {
     float posX, posY, posZ;
     float frontX, frontY, frontZ;
+};
+
+struct DebugReources
+{
+    kage::ImageHandle brx_debug;
 };
 
 struct UIInput

@@ -54,7 +54,7 @@ enum class SceneDumpDataTags : uint32_t
     camera,
 };
 
-static Scene_Enum se = Scene_Enum::MatrixScene;
+static Scene_Enum se = Scene_Enum::SingleMeshScene;
 
 void CreateRandomScene(Scene& scene, bool _seamlessLod)
 {
