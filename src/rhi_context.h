@@ -194,9 +194,10 @@ namespace kage
         virtual void setRecord(PassHandle _hPass, const CommandQueue& _cq, const uint32_t _offset, const uint32_t _size) {};
         // -- rendering commands ends
 
-        virtual void bxl_setGeoInstances(const Memory* _desc) {};
-        virtual void bxl_regGeoBuffers(const Memory* _bufs) {};
-        virtual void bxl_setUserResources(const Memory* _reses) {};
+        virtual void brx_setGeoInstances(const Memory* _desc) {};
+        virtual void brx_regGeoBuffers(const Memory* _bufs) {};
+        virtual void brx_setUserResources(const Memory* _reses) {};
+        virtual void brx_setDebugInfos(const Memory* _debug) {};
 
         bx::AllocatorI* m_pAllocator;
 

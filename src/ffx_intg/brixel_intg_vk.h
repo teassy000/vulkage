@@ -5,10 +5,11 @@
 #include "common.h" // for stl
 #include "FidelityFX/host/ffx_brixelizer.h"
 
-namespace kage { namespace vk { namespace bxl
+namespace kage { namespace vk { namespace brx
 {
     struct FFXBrixelizer_vk
     {
+        ImageHandle debugDestImg;
         BufferHandle scratchBuf;
         ImageHandle sdfAtlas;
         BufferHandle brickAABB;
@@ -21,7 +22,10 @@ namespace kage { namespace vk { namespace bxl
         FfxBrixelizerContext context;
         FfxBrixelizerContextDescription initDesc;
         FfxBrixelizerBakedUpdateDescription bakedUpdateDesc;
+        FfxBrixelizerDebugVisualizationDescription debugVisDesc;
         FfxBrixelizerUpdateDescription updateDesc;
+
+        bool bDebug{ false };
 
         stl::vector<FfxBrixelizerInstanceDescription> geoInstDescs;
         stl::vector<FfxBrixelizerInstanceID> geoInstIds;
@@ -34,6 +38,7 @@ namespace kage { namespace vk { namespace bxl
         const Memory* mem_geoInstDescs{ nullptr };
         const Memory* mem_geoBuf{ nullptr };
         const Memory* mem_userRes{ nullptr };
+        const Memory* mem_debugInfos{ nullptr };
 
         bool postInitilized{ false };
         uint32_t frameIdx{ 0 };
@@ -57,6 +62,7 @@ namespace kage { namespace vk { namespace bxl
     void setGeoInstances(FFXBrixelizer_vk& _bxl, const Memory* _desc);
     void setGeoBuffers(FFXBrixelizer_vk& _bxl, const Memory* _bufs);
     void setUserResources(FFXBrixelizer_vk& _bxl, const Memory* _reses);
-} // namespace kage::vk::bxl
+    void setDebugInfos(FFXBrixelizer_vk& _bxl, const Memory* _debug);
+} // namespace kage::vk::brx
 } // namespace kage::vk
 } // namespace kage

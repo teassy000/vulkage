@@ -139,6 +139,16 @@ namespace
             }
 
 
+            // update brixelizer 
+            {
+                BrixelTransform bxlTrans;
+                bxlTrans.camPos = m_demoData.trans.cameraPos;
+                bxlTrans.projMat = m_demoData.trans.proj;
+                bxlTrans.viewMat = m_demoData.trans.view;
+
+                brxUpdate(m_brixel, bxlTrans);
+            }
+
             updatePyramid(m_pyramid, m_width, m_height);
 
             refreshData();
@@ -600,7 +610,7 @@ namespace
                 bxlInitDesc.idxStride = sizeof(uint32_t);
                 bxlInitDesc.seamless = kage::kSeamlessLod == 1;
 
-                bxlInit(m_brixel, bxlInitDesc, m_scene);
+                brxInit(m_brixel, bxlInitDesc, m_scene);
             }
 
             // radiance cascade

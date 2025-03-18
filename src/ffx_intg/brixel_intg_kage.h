@@ -1,10 +1,11 @@
 #include "kage.h"
-#include "scene.h"
-#include "FidelityFX/host/ffx_brixelizer.h"
+#include "scene.h" // for Scene
+#include "FidelityFX/host/ffx_brixelizer.h" // for FFX_BRIXELIZER_MAX_CASCADES
 
 struct BrixelResources
 {
     // expose following data which would be use in other passes
+    kage::ImageHandle debugDestImg;
     kage::BufferHandle scratchBuf;
     kage::ImageHandle sdfAtlas;
     kage::BufferHandle brickAABB;
@@ -24,5 +25,14 @@ struct BrixelInitDesc
     bool seamless;
 };
 
+struct BrixelTransform
+{
+    mat4 viewMat;
+    mat4 projMat;
 
-void bxlInit(BrixelResources& _bxl, const BrixelInitDesc& _init, const Scene& _scene);
+    vec3 camPos;
+};
+
+
+void brxInit(BrixelResources& _bxl, const BrixelInitDesc& _init, const Scene& _scene);
+void brxUpdate(BrixelResources& _bxl, const BrixelTransform& _trans);

@@ -30,7 +30,7 @@ mat4 modelMatrix(const vec3& _pos, const quat& _orit, const vec3& _scale, bool _
     return model;
 }
 
-void bxlProcessScene(const Scene& _scene, bool _seamless)
+void brxProcessScene(const Scene& _scene, bool _seamless)
 {
     assert(!_seamless); // not support seamless yet
 
@@ -101,13 +101,10 @@ void bxlProcessScene(const Scene& _scene, bool _seamless)
     const kage::Memory* descMem = kage::alloc((uint32_t)(instDescs.size() * sizeof(FfxBrixelizerInstanceDescription)));
     std::memcpy(descMem->data, instDescs.data(), descMem->size);
 
-    // TODO
-    // set data to brixel_intg_vk
-    // then call ffxBrixelizerCreateInstances() in vk level
-    kage::bxl_setGeoInstances(descMem);
+    kage::brx_setGeoInstances(descMem);
 }
 
-void bxlRegBuffers(kage::BufferHandle _vtx, uint32_t _vtxSz, uint32_t _vtxStride, kage::BufferHandle _idx, uint32_t _idxSz, uint32_t _idxStride)
+void brxRegBuffers(kage::BufferHandle _vtx, uint32_t _vtxSz, uint32_t _vtxStride, kage::BufferHandle _idx, uint32_t _idxSz, uint32_t _idxStride)
 {
     BrixelBufDescs descs[2];
 
@@ -122,17 +119,27 @@ void bxlRegBuffers(kage::BufferHandle _vtx, uint32_t _vtxSz, uint32_t _vtxStride
     const kage::Memory* bufDescMem = kage::alloc(sizeof(descs));
     std::memcpy(bufDescMem->data, descs, bufDescMem->size);
 
-    //TODO
-    // set data to brixel_intg_vk
-    // then call ffxBrixelizerRegisterBuffers
-
-    kage::bxl_regGeoBuffers(bufDescMem);
+    kage::brx_regGeoBuffers(bufDescMem);
 }
 
-void bxlCreateBuffers(BrixelResources& _data)
+void brxCreateResources(BrixelResources& _data)
 {
     std::vector<kage::UnifiedResHandle> handles;
-    handles.reserve(2 + FFX_BRIXELIZER_MAX_CASCADES * 2);
+    handles.reserve(4 + FFX_BRIXELIZER_MAX_CASCADES * 2);
+
+    // debug dest image
+    {
+        kage::ImageDesc debugDestDesc = {};
+        debugDestDesc.width = 1920;
+        debugDestDesc.height = 1080;
+        debugDestDesc.depth = 1;
+        debugDestDesc.numLayers = 1;
+        debugDestDesc.format = kage::ResourceFormat::r8g8b8a8_unorm;
+        debugDestDesc.usage = kage::ImageUsageFlagBits::storage | kage::ImageUsageFlagBits::transfer_src;
+        debugDestDesc.layout = kage::ImageLayout::general;
+        debugDestDesc.viewType = kage::ImageViewType::type_2d;
+        _data.debugDestImg = kage::registTexture("brxl_debug_dest", debugDestDesc);
+    }
 
     // scratch buf
     {
@@ -203,6 +210,7 @@ void bxlCreateBuffers(BrixelResources& _data)
         }
     }
 
+    handles.emplace_back( _data.debugDestImg );
     handles.emplace_back( _data.scratchBuf );
     handles.emplace_back( _data.sdfAtlas );
     handles.emplace_back( _data.brickAABB );
@@ -218,13 +226,41 @@ void bxlCreateBuffers(BrixelResources& _data)
     const kage::Memory* bufMem = kage::alloc(uint32_t(handles.size() * sizeof(kage::UnifiedResHandle)));
     std::memcpy(bufMem->data, handles.data(), bufMem->size);
 
-    kage::bxl_setUserResources(bufMem);
+    kage::brx_setUserResources(bufMem);
 }
 
-void bxlInit(BrixelResources& _bxl, const BrixelInitDesc& _init, const Scene& _scene)
+void brxInit(BrixelResources& _bxl, const BrixelInitDesc& _init, const Scene& _scene)
 {
-    bxlProcessScene(_scene, _init.seamless);
-    bxlRegBuffers(_init.vtxBuf, _init.vtxSz, _init.vtxStride, _init.idxBuf, _init.idxSz, _init.idxStride);
-    bxlCreateBuffers(_bxl);
+    brxProcessScene(_scene, _init.seamless);
+    brxRegBuffers(_init.vtxBuf, _init.vtxSz, _init.vtxStride, _init.idxBuf, _init.idxSz, _init.idxStride);
+    brxCreateResources(_bxl);
+}
+
+void brxUpdate(BrixelResources& _bxl, const BrixelTransform& _trans)
+{
+    mat4 proj = glm::inverse(_trans.projMat);
+    mat4 view = glm::inverse(_trans.viewMat);
+    
+    proj = glm::rowMajor4(proj);
+    view = glm::rowMajor4(view);
+
+    vec3 cpos = _trans.camPos;
+
+    BrixelDebugDescs desc;
+    std::memcpy(desc.proj, &proj[0][0], sizeof(float) * 16);
+    std::memcpy(desc.view, &view[0][0], sizeof(float) * 16);
+    std::memcpy(desc.camPos, &cpos[0], sizeof(float) * 3);
+
+    desc.start_cas = 0;
+    desc.end_cas = FFX_BRIXELIZER_MAX_CASCADES - 1;
+    desc.sdf_eps = 0.01f;
+    desc.tmin = 0.0f;
+    desc.tmax = 1000.0f;
+
+    const kage::Memory* mem = kage::alloc(sizeof(BrixelDebugDescs));
+
+    std::memcpy(mem->data, &desc, sizeof(BrixelDebugDescs));
+
+    kage::brx_setDebugInfos(mem);
 }
 

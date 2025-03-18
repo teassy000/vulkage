@@ -235,18 +235,21 @@ namespace kage
     // ffx expose ========================================
 
     // set brixelizer instances
-    void bxl_setGeoInstances(const Memory* _desc);
+    void brx_setGeoInstances(const Memory* _desc);
     
     // set index/vertex buffers for brixelizer
-    void bxl_regGeoBuffers(const Memory* _bufs);
+    void brx_regGeoBuffers(const Memory* _bufs);
     
     // set brixelizer buffers that required user provided data
-    // 0 scratch buffer
-    // 1 sdf-atlas
-    // 2 brick-aabb
-    // [3, 3 + FFX_BRIXELIZER_MAX_CASCADES - 1]: cascade aabb trees
-    // [3 + FFX_BRIXELIZER_MAX_CASCADES, 3 + FFX_BRIXELIZER_MAX_CASCADES * 2 - 1]: cascade brick maps
+    // 0 debug descs
+    // 1 scratch buffer
+    // 2 sdf-atlas
+    // 3 brick-aabb
+    // [4, 4 + FFX_BRIXELIZER_MAX_CASCADES - 1]: cascade aabb trees
+    // [4 + FFX_BRIXELIZER_MAX_CASCADES, 4 + FFX_BRIXELIZER_MAX_CASCADES * 2 - 1]: cascade brick maps
     // ------------------------------------------------------------------------------------------
     // this will mark these buffers as static to framegraph
-    void bxl_setUserResources(const Memory* _reses);
+    void brx_setUserResources(const Memory* _reses);
+
+    void brx_setDebugInfos(const Memory* _info);
 }

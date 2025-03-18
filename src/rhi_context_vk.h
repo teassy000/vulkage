@@ -417,9 +417,10 @@ namespace kage { namespace vk
         void setName(Handle _h, const char* _name, uint32_t _len) override;
 
         // brixelizer
-        void bxl_setGeoInstances(const Memory* _desc) override;
-        void bxl_regGeoBuffers(const Memory* _bufs) override;
-        void bxl_setUserResources(const Memory* _reses) override;
+        void brx_setGeoInstances(const Memory* _desc) override;
+        void brx_regGeoBuffers(const Memory* _bufs) override;
+        void brx_setUserResources(const Memory* _reses) override;
+        void brx_setDebugInfos(const Memory* _debug) override;
 
         // rendering command start
         void setRecord(
@@ -723,7 +724,7 @@ namespace kage { namespace vk
 #endif //TRACY_ENABLE
 
         // ffx brixelizer 
-        bxl::FFXBrixelizer_vk m_bxl;
+        brx::FFXBrixelizer_vk m_brx;
     };
 
 

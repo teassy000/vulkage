@@ -1538,8 +1538,6 @@ namespace kage { namespace vk
         // only single device used in this application.
         volkLoadDevice(m_device);
 
-
-
         m_nwh = _wnd;
 
         m_swapchain.create(m_nwh, _resolution);
@@ -1588,7 +1586,7 @@ namespace kage { namespace vk
         // get the function pointers
         m_vkGetDeviceProcAddr = vkGetDeviceProcAddr;
 
-        bxl::init(m_bxl);
+        brx::init(m_brx);
     }
 
     void RHIContext_vk::bake()
@@ -1611,8 +1609,7 @@ namespace kage { namespace vk
         m_frameRecCmds.finish();
 
         // brixelizer update
-        bxl::initAfterCmdReady(m_bxl);
-        bxl::update(m_bxl);
+        brx::update(m_brx);
 
         bool result = render();
 
@@ -1756,7 +1753,7 @@ namespace kage { namespace vk
         vkDeviceWaitIdle(m_device);
 
         // shut brixelizer
-        bxl::shutdown(m_bxl);
+        brx::shutdown(m_brx);
 
         if (m_queryPoolTimeStamp)
         {
@@ -1807,7 +1804,7 @@ namespace kage { namespace vk
             m_imgViewCache.invalidateWithParent(hbuf.id);
         }
         m_bufferContainer.clear();
-
+        
         // image
         for (uint32_t ii = 0; ii < m_imageContainer.size(); ++ii)
         {
@@ -2696,17 +2693,24 @@ namespace kage { namespace vk
         }
     }
 
-    void RHIContext_vk::bxl_setGeoInstances(const Memory* _desc)
+    void RHIContext_vk::brx_setGeoInstances(const Memory* _desc)
     {
-        bxl::setGeoInstances(m_bxl, _desc);
+        brx::setGeoInstances(m_brx, _desc);
     }
-    void RHIContext_vk::bxl_regGeoBuffers(const Memory* _bufs)
+
+    void RHIContext_vk::brx_regGeoBuffers(const Memory* _bufs)
     {
-        bxl::setGeoBuffers(m_bxl, _bufs);
+        brx::setGeoBuffers(m_brx, _bufs);
     }
-    void RHIContext_vk::bxl_setUserResources(const Memory* _reses)
+
+    void RHIContext_vk::brx_setUserResources(const Memory* _reses)
     {
-        bxl::setUserResources(m_bxl, _reses);
+        brx::setUserResources(m_brx, _reses);
+    }
+
+    void RHIContext_vk::brx_setDebugInfos(const Memory* _infos)
+    {
+        brx::setDebugInfos(m_brx, _infos);
     }
 
     void RHIContext_vk::setRecord(

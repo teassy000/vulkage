@@ -340,9 +340,10 @@ namespace kage
         double getPassTime(const PassHandle _hPass);
         uint64_t getPassClipping(const PassHandle _hPass);
 
-        void bxl_setGeoInstances(const Memory* _desc);
-        void bxl_regGeoBuffers(const Memory* _bufs);
-        void bxl_setUserResources(const Memory* _reses);
+        void brx_setGeoInstances(const Memory* _desc);
+        void brx_regGeoBuffers(const Memory* _bufs);
+        void brx_setUserResources(const Memory* _reses);
+        void brx_setDebugInfos(const Memory* _debug);
 
         double getGpuTime();
 
@@ -2167,24 +2168,33 @@ namespace kage
         return m_rhiContext->getPassClipping(_hPass);
     }
 
-    void Context::bxl_setGeoInstances(const Memory* _desc)
+    void Context::brx_setGeoInstances(const Memory* _desc)
     {
-        m_rhiContext->bxl_setGeoInstances(_desc);
+        m_rhiContext->brx_setGeoInstances(_desc);
+        m_transientMemories.push_back(_desc);
     }
 
-    void Context::bxl_regGeoBuffers(const Memory* _bufs)
+    void Context::brx_regGeoBuffers(const Memory* _bufs)
     {
-        m_rhiContext->bxl_regGeoBuffers(_bufs);
+        m_rhiContext->brx_regGeoBuffers(_bufs);
+        m_transientMemories.push_back(_bufs);
     }
 
-    void Context::bxl_setUserResources(const Memory* _reses)
+    void Context::brx_setUserResources(const Memory* _reses)
     {
         const uint32_t length = _reses->size / sizeof(UnifiedResHandle);
         UnifiedResHandle* pReses = (UnifiedResHandle*)_reses->data;
         
         m_staticUnifiedReses.insert(m_staticUnifiedReses.end(), pReses, pReses + length);
 
-        m_rhiContext->bxl_setUserResources(_reses);
+        m_rhiContext->brx_setUserResources(_reses);
+        m_transientMemories.push_back(_reses);
+    }
+
+    void Context::brx_setDebugInfos(const Memory* _mem)
+    {
+        m_rhiContext->brx_setDebugInfos(_mem);
+        m_transientMemories.push_back(_mem);
     }
 
     double Context::getGpuTime()
@@ -2783,19 +2793,24 @@ namespace kage
         return s_ctx->getPassClipping(_hPass);
     }
 
-    void bxl_setGeoInstances(const Memory* _desc)
+    void brx_setGeoInstances(const Memory* _desc)
     {
-        s_ctx->bxl_setGeoInstances(_desc);
+        s_ctx->brx_setGeoInstances(_desc);
     }
 
-    void bxl_regGeoBuffers(const Memory* _bufs)
+    void brx_regGeoBuffers(const Memory* _bufs)
     {
-        s_ctx->bxl_regGeoBuffers(_bufs);
+        s_ctx->brx_regGeoBuffers(_bufs);
     }
 
-    void bxl_setUserResources(const Memory* _reses)
+    void brx_setUserResources(const Memory* _reses)
     {
-        s_ctx->bxl_setUserResources(_reses);
+        s_ctx->brx_setUserResources(_reses);
+    }
+
+    void brx_setDebugInfos(const Memory* _info)
+    {
+        s_ctx->brx_setDebugInfos(_info);
     }
 
 } // namespace kage
