@@ -25,14 +25,17 @@ struct BrixelInitDesc
     bool seamless;
 };
 
-struct BrixelTransform
+struct BrixelData
 {
     mat4 viewMat;
     mat4 projMat;
 
     vec3 camPos;
+
+    
+    uint32_t debugType;
 };
 
 
 void brxInit(BrixelResources& _bxl, const BrixelInitDesc& _init, const Scene& _scene);
-void brxUpdate(BrixelResources& _bxl, const BrixelTransform& _trans);
+void brxUpdate(BrixelResources& _bxl, const BrixelData& _trans);

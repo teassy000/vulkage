@@ -141,12 +141,13 @@ namespace
 
             // update brixelizer 
             {
-                BrixelTransform bxlTrans;
-                bxlTrans.camPos = m_demoData.trans.cameraPos;
-                bxlTrans.projMat = m_demoData.trans.proj;
-                bxlTrans.viewMat = m_demoData.trans.view;
+                BrixelData brxData;
+                brxData.camPos = m_demoData.trans.cameraPos;
+                brxData.projMat = m_demoData.trans.proj;
+                brxData.viewMat = m_demoData.trans.view;
+                brxData.debugType = m_demoData.renderOptions.debugBrixelType;
 
-                brxUpdate(m_brixel, bxlTrans);
+                brxUpdate(m_brixel, brxData);
             }
 
             updatePyramid(m_pyramid, m_width, m_height);

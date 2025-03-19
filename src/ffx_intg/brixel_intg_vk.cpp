@@ -22,7 +22,7 @@ constexpr uint32_t c_brixelizerCascadeCount = (FFX_BRIXELIZER_MAX_CASCADES / 3);
 
 struct BrixelizerConfig
 {
-    float meshUnitSize{ .02f };
+    float meshUnitSize{ .1f };
     float cascadeSizeRatio{ 2.f };
 };
 
@@ -114,6 +114,10 @@ void parseGeoInst_n_submit(FFXBrixelizer_vk& _brx)
     
     for (size_t ii = 0; ii < instCount; ii++)
     {
+        descsRef[ii].vertexBuffer = _brx.bufferIdxes[0];
+        descsRef[ii].indexBuffer = _brx.bufferIdxes[1];
+        descsRef[ii].maxCascade = c_brixelizerCascadeCount;
+
         idsRef[ii] = 0;
         descsRef[ii].outInstanceID = &idsRef[ii];
     }
@@ -135,9 +139,6 @@ void parseGeoBuf_n_submit(FFXBrixelizer_vk& _brx)
     }
 
     BrixelBufDescs* descs = (BrixelBufDescs*)_brx.mem_geoBuf->data;
-    
-    const BrixelBufDescs& vtxDesc = descs[0];
-    const BrixelBufDescs& idxDesc = descs[1];
     
     std::string nameStr[2] = { 
         "brixelizer vertex buffer",
@@ -290,9 +291,31 @@ void parseUserRes(FFXBrixelizer_vk& _brx)
     }
 }
 
+FfxBrixelizerTraceDebugModes getMode(BrixelDebugType _type)
+{
+    switch (_type)
+    {
+    case BrixelDebugType::distance:
+        return FFX_BRIXELIZER_TRACE_DEBUG_MODE_DISTANCE;
+    case BrixelDebugType::uvw:
+        return FFX_BRIXELIZER_TRACE_DEBUG_MODE_UVW;
+    case BrixelDebugType::iterations:
+        return FFX_BRIXELIZER_TRACE_DEBUG_MODE_ITERATIONS;
+    case BrixelDebugType::grad:
+        return FFX_BRIXELIZER_TRACE_DEBUG_MODE_GRAD;
+    case BrixelDebugType::brick_id:
+        return FFX_BRIXELIZER_TRACE_DEBUG_MODE_BRICK_ID;
+    case BrixelDebugType::cascade_id:
+        return FFX_BRIXELIZER_TRACE_DEBUG_MODE_CASCADE_ID;
+    default:
+        return FFX_BRIXELIZER_TRACE_DEBUG_MODE_DISTANCE;
+    }
+}
+
 void parseDebugVisDesc(FFXBrixelizer_vk& _brx)
 {
-    if (! _brx.mem_debugInfos && (_brx.mem_debugInfos->size == (uint32_t)sizeof(BrixelDebugDescs))) {
+    if (!_brx.mem_debugInfos
+        || (_brx.mem_debugInfos->size != (uint32_t)sizeof(BrixelDebugDescs))) {
         message(warning, "invalid debug vis info");
         _brx.bDebug = false;
         return;
@@ -322,7 +345,7 @@ void parseDebugVisDesc(FFXBrixelizer_vk& _brx)
 
     memcpy(&visDesc.inverseViewMatrix[0], &desc.view[0], sizeof(visDesc.inverseViewMatrix));
     memcpy(&visDesc.inverseProjectionMatrix[0], &desc.proj[0], sizeof(visDesc.inverseProjectionMatrix));
-    visDesc.debugState = FFX_BRIXELIZER_TRACE_DEBUG_MODE_BRICK_ID;
+    visDesc.debugState = getMode(desc.debugType);
     visDesc.startCascadeIndex = desc.start_cas;
     visDesc.endCascadeIndex = desc.end_cas;
     visDesc.sdfSolveEps = desc.sdf_eps;
@@ -333,6 +356,9 @@ void parseDebugVisDesc(FFXBrixelizer_vk& _brx)
     visDesc.commandList = s_renderVK->m_cmdBuffer;
     visDesc.numDebugAABBInstanceIDs = 0;
     visDesc.debugAABBInstanceIDs = nullptr;
+    for (uint32_t  ii = 0; ii < FFX_BRIXELIZER_MAX_CASCADES; ii++) {
+        visDesc.cascadeDebugAABB[ii] = FFX_BRIXELIZER_CASCADE_DEBUG_AABB_BOUNDING_BOX;
+    }
 
     // set the center
     memcpy(&(_brx.initDesc.sdfCenter[0]), &desc.camPos, sizeof(_brx.initDesc.sdfCenter));
@@ -342,7 +368,6 @@ void parseDebugVisDesc(FFXBrixelizer_vk& _brx)
 
 void updateBrx(FFXBrixelizer_vk& _brx)
 {
-    FfxBrixelizerStats stats = {};
     size_t scratchBufferSize = 0;
 
     // update desc
@@ -350,12 +375,12 @@ void updateBrx(FFXBrixelizer_vk& _brx)
     _brx.updateDesc.sdfCenter[0] = _brx.initDesc.sdfCenter[0];
     _brx.updateDesc.sdfCenter[1] = _brx.initDesc.sdfCenter[1];
     _brx.updateDesc.sdfCenter[2] = _brx.initDesc.sdfCenter[2];
-    _brx.updateDesc.populateDebugAABBsFlags = FFX_BRIXELIZER_POPULATE_AABBS_INSTANCES;
+    _brx.updateDesc.populateDebugAABBsFlags = FFX_BRIXELIZER_POPULATE_AABBS_CASCADE_AABBS;
     _brx.updateDesc.debugVisualizationDesc = _brx.bDebug ? &_brx.debugVisDesc : nullptr;
     _brx.updateDesc.maxReferences = 32 * (1 << 20);
     _brx.updateDesc.maxBricksPerBake = 1 << 14;
     _brx.updateDesc.triangleSwapSize = 300 * (1 << 20);
-    _brx.updateDesc.outStats = &stats;
+    _brx.updateDesc.outStats = &_brx.stats;
     _brx.updateDesc.outScratchBufferSize = &scratchBufferSize;
 
     // update brixelizer bake
@@ -423,8 +448,8 @@ void init(FFXBrixelizer_vk& _brx)
 
 void initAfterCmdReady(FFXBrixelizer_vk& _brx)
 {
-    parseGeoInst_n_submit(_brx);
     parseGeoBuf_n_submit(_brx);
+    parseGeoInst_n_submit(_brx);
 }
 
 void preUpdateBarriers(FFXBrixelizer_vk& _brx)
@@ -535,7 +560,6 @@ void shutdown(FFXBrixelizer_vk& _brx)
     _brx.ffxCtx.device = {};
     release(_brx.ffxCtx.scratchMem);
 }
-
 
 } // namespace brx
 } // namespace vk

@@ -7,6 +7,18 @@ struct BrixelBufDescs
     uint32_t stride;
 };
 
+// Based on FfxBrixelizerTraceDebugModes
+enum class BrixelDebugType : uint32_t
+{
+    distance = 0,       // distance to hit
+    uvw,                // uvw at hit
+    iterations,         // heatmap
+    grad,               // normals at hit
+    brick_id,
+    cascade_id,
+    count
+};
+
 struct BrixelDebugDescs
 {
     float proj[16];
@@ -18,6 +30,7 @@ struct BrixelDebugDescs
     float sdf_eps;
     float tmin;
     float tmax;
+    BrixelDebugType debugType;
 };
 
 

@@ -24,6 +24,7 @@ namespace kage { namespace vk { namespace brx
         FfxBrixelizerBakedUpdateDescription bakedUpdateDesc;
         FfxBrixelizerDebugVisualizationDescription debugVisDesc;
         FfxBrixelizerUpdateDescription updateDesc;
+        FfxBrixelizerStats stats;
 
         bool bDebug{ false };
 
@@ -51,7 +52,6 @@ namespace kage { namespace vk { namespace brx
             FfxDevice device;
             FfxInterface interface;
         }ffxCtx;
-
     };
 
     void init(FFXBrixelizer_vk&);

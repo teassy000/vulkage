@@ -7,13 +7,13 @@
 #include "vkz_ui.h"
 
 #include "bx/readerwriter.h"
+#include "ffx_intg/brixel_structs.h"
 
 
 constexpr uint32_t kInitialVertexBufferSize = 1024 * 1024; // 1MB
 constexpr uint32_t kInitialIndexBufferSize = 1024 * 1024; // 1MB
 
 using Stage = kage::PipelineStageFlagBits::Enum;
-
 
 struct PushConstBlock {
     glm::vec2 scale;
@@ -304,7 +304,11 @@ void updateImGuiContent(DebugRenderOptionsData& _rod, const DebugProfilingData& 
 
     // debug window
     ImGui::Begin("debug:");
-    ImGui::Image((ImTextureID)(_dr.brx_debug.id), { 2560, 1440 });
+
+    const char* const items[(uint32_t)BrixelDebugType::count] = { "distance", "uvw", "iterations", "grad", "brick_id", "cascade_id" };
+
+    ImGui::Combo("type", (int*)&_rod.debugBrixelType, items, COUNTOF(items));
+    ImGui::Image((ImTextureID)(_dr.brx_debug.id), { 640, 360 });
     ImGui::End();
 }
 
@@ -358,7 +362,6 @@ void updateUIRenderData(UIRendering& _ui)
     kage::updateBuffer(_ui.vb, vbMem);
     kage::updateBuffer(_ui.ib, ibMem);
 }
-
 
 void updateUI(
     UIRendering& _ui

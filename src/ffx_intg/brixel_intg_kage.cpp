@@ -78,9 +78,9 @@ void brxProcessScene(const Scene& _scene, bool _seamless)
             instDesc.aabb.max[jj] = maxAABB[jj];
         }
 
-        for (uint32_t jj = 0; jj < 3; ++jj)
-            for (uint32_t kk = 0; kk < 4; ++kk)
-                instDesc.transform[jj * 4 + kk] = transform[jj][kk];
+        for (uint32_t jj = 0; jj < 4; ++jj)
+            for (uint32_t kk = 0; kk < 3; ++kk)
+                instDesc.transform[jj * 3 + kk] = transform[jj][kk];
 
         instDesc.indexFormat = FFX_INDEX_TYPE_UINT32;
         instDesc.indexBuffer = 0; // now we only have one buffer
@@ -130,12 +130,12 @@ void brxCreateResources(BrixelResources& _data)
     // debug dest image
     {
         kage::ImageDesc debugDestDesc = {};
-        debugDestDesc.width = 1920;
-        debugDestDesc.height = 1080;
+        debugDestDesc.width = 2560;
+        debugDestDesc.height = 1440;
         debugDestDesc.depth = 1;
         debugDestDesc.numLayers = 1;
         debugDestDesc.format = kage::ResourceFormat::r8g8b8a8_unorm;
-        debugDestDesc.usage = kage::ImageUsageFlagBits::storage | kage::ImageUsageFlagBits::transfer_src;
+        debugDestDesc.usage = kage::ImageUsageFlagBits::storage | kage::ImageUsageFlagBits::transfer_src | kage::ImageUsageFlagBits::sampled;
         debugDestDesc.layout = kage::ImageLayout::general;
         debugDestDesc.viewType = kage::ImageViewType::type_2d;
         _data.debugDestImg = kage::registTexture("brxl_debug_dest", debugDestDesc);
@@ -231,31 +231,37 @@ void brxCreateResources(BrixelResources& _data)
 
 void brxInit(BrixelResources& _bxl, const BrixelInitDesc& _init, const Scene& _scene)
 {
-    brxProcessScene(_scene, _init.seamless);
     brxRegBuffers(_init.vtxBuf, _init.vtxSz, _init.vtxStride, _init.idxBuf, _init.idxSz, _init.idxStride);
+    brxProcessScene(_scene, _init.seamless);
     brxCreateResources(_bxl);
 }
 
-void brxUpdate(BrixelResources& _bxl, const BrixelTransform& _trans)
+void brxUpdate(BrixelResources& _bxl, const BrixelData& _data)
 {
-    mat4 proj = glm::inverse(_trans.projMat);
-    mat4 view = glm::inverse(_trans.viewMat);
+    mat4 invProj = glm::inverse(_data.projMat);
+    mat4 invView = glm::inverse(_data.viewMat);
     
-    proj = glm::rowMajor4(proj);
-    view = glm::rowMajor4(view);
+    invProj = glm::rowMajor4(invProj);
+    invView = glm::rowMajor4(invView);
 
-    vec3 cpos = _trans.camPos;
+    vec3 cpos = _data.camPos;
 
     BrixelDebugDescs desc;
-    std::memcpy(desc.proj, &proj[0][0], sizeof(float) * 16);
-    std::memcpy(desc.view, &view[0][0], sizeof(float) * 16);
+    for (uint32_t ii = 0; ii < 4; ii++) {
+        for (uint32_t jj = 0; jj < 4; jj++) {
+            desc.proj[ii * 4 + jj] = invProj[jj][ii];
+            desc.view[ii * 4 + jj] = invView[jj][ii];
+        }
+    }
+
     std::memcpy(desc.camPos, &cpos[0], sizeof(float) * 3);
 
     desc.start_cas = 0;
-    desc.end_cas = FFX_BRIXELIZER_MAX_CASCADES - 1;
+    desc.end_cas = c_brixelizerCascadeCount - 1;
     desc.sdf_eps = 0.01f;
     desc.tmin = 0.0f;
     desc.tmax = 1000.0f;
+    desc.debugType = (BrixelDebugType)_data.debugType;
 
     const kage::Memory* mem = kage::alloc(sizeof(BrixelDebugDescs));
 
