@@ -128,6 +128,7 @@ void main()
     float radius = 0.0;
     vec3 center = vec3(0.0, 0.0, 0.0);
 
+    float maxScaleAxis = maxElem(meshDraw.scale);
 
     if (SEAMLESS_LOD)
     {
@@ -137,14 +138,15 @@ void main()
         LodBounds s_bounds = clusters[mi].self;
         s_bounds.center = rotateQuat(s_bounds.center, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
 
+
         float p_dist = max(length(p_bounds.center - trans.cameraPos) - p_bounds.radius, 0);
-        float p_threshold = p_dist * globals.lodErrorThreshold / meshDraw.scale;
+        float p_threshold = p_dist * globals.lodErrorThreshold / maxScaleAxis;
         float s_dist = max(length(s_bounds.center - trans.cameraPos) - s_bounds.radius, 0);
-        float s_threshold = s_dist * globals.lodErrorThreshold / meshDraw.scale;
+        float s_threshold = s_dist * globals.lodErrorThreshold / maxScaleAxis;
 
         bool cond = s_bounds.error <= s_threshold && p_bounds.error > p_threshold;
 
-        radius = s_bounds.radius * meshDraw.scale;
+        radius = s_bounds.radius * maxScaleAxis;
         center = (trans.view * vec4(s_bounds.center, 1.0)).xyz;
         visible = visible && cond;
     }
@@ -155,7 +157,7 @@ void main()
 
         float cone_cutoff = int(meshlets[mi].cone_cutoff) / 127.0;
 
-        radius = meshlets[mi].radius * meshDraw.scale;
+        radius = meshlets[mi].radius * maxScaleAxis;
         center = (trans.view * vec4(ori_center, 1.0)).xyz;
 
         vec3 ori_cone_axis = rotateQuat(axis, meshDraw.orit);

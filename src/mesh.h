@@ -32,19 +32,22 @@ struct MeshLod
     float error;
 };
 
-
 struct alignas(16) Mesh
 {
     vec3 center;
     float radius;
 
+    vec3 aabbMax;
     uint32_t vertexCount;
 
+    vec3 aabbMin;
     uint32_t vertexOffset;
-    uint32_t lodCount;
 
     MeshLod lods[8];
     MeshLod seamlessLod;
+
+    uint32_t padding[3];
+    uint32_t lodCount;
 };
 
 struct alignas(16) LodBounds

@@ -54,7 +54,7 @@ enum class SceneDumpDataTags : uint32_t
     camera,
 };
 
-static Scene_Enum se = Scene_Enum::SingleMeshScene;
+static Scene_Enum se = Scene_Enum::TenMatrixScene;
 
 void CreateRandomScene(Scene& scene, bool _seamlessLod)
 {
@@ -74,7 +74,7 @@ void CreateRandomScene(Scene& scene, bool _seamlessLod)
         meshDraws[i].pos[0] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
         meshDraws[i].pos[1] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
         meshDraws[i].pos[2] = (float(rand()) / RAND_MAX) * randomDist * 2.f - randomDist;
-        meshDraws[i].scale = (float(rand()) / RAND_MAX) + 2.f; // 1.f ~ 2.f
+        meshDraws[i].scale = vec3(float(rand()) / RAND_MAX) + 2.f; // 1.f ~ 2.f
 
         meshDraws[i].orit = glm::rotate(
             quat(1, 0, 0, 0)
@@ -123,7 +123,7 @@ void CreateMatrixScene(Scene& scene, bool _seamlessLod)
         meshDraws[i].pos[1] = -2.f;
         meshDraws[i].pos[2] = float(i / 500) + basePos + 2.f;
 
-        meshDraws[i].scale = 1.f;
+        meshDraws[i].scale = vec3(1.f);
 
         meshDraws[i].orit = quat(1, 0, 0, 0);
         meshDraws[i].meshIdx = meshIdx;
@@ -157,20 +157,24 @@ void CreateTenObjScene(Scene& scene, bool _seamlessLod)
     float drawDist = 200;
     srand(42);
     uint32_t meshletVisibilityCount = 0;
-    float basePos =  ( - (float)side / 2.f);
+    float basePos =  ( - (float)side);
     for (uint32_t i = 0; i < drawCount; ++i)
     {
         uint32_t meshIdx = rand() % scene.geometry.meshes.size();
         Mesh& mesh = scene.geometry.meshes[meshIdx];
 
         //-- NOTE: simplification for occlusion test
-        meshDraws[i].pos[0] = float(i % side) + basePos + 1.f;
+        meshDraws[i].pos[0] = float(i % side) * 2.f + basePos + 1.f;
         meshDraws[i].pos[1] = -1.f;
-        meshDraws[i].pos[2] = float(i / side) + basePos;
+        meshDraws[i].pos[2] = float(i / side) * 2.f + basePos;
 
-        meshDraws[i].scale = 1.f;
+        meshDraws[i].scale = vec3(float(rand()) / RAND_MAX) + 2.f; // 1.f ~ 2.f;
 
-        meshDraws[i].orit = quat(1, 0, 0, 0);
+        meshDraws[i].orit = glm::rotate(
+            quat(1, 0, 0, 0)
+            , glm::radians((float(rand()) / RAND_MAX) * 360.f)
+            , vec3(0, 1, 0));
+
         meshDraws[i].meshIdx = meshIdx;
         meshDraws[i].vertexOffset = mesh.vertexOffset;
         meshDraws[i].meshletVisibilityOffset = meshletVisibilityCount;
@@ -204,7 +208,7 @@ void CreateSingleMeshScene(Scene& _scene, bool _seamlessLod)
     meshDraw.pos[0] = 0.f;
     meshDraw.pos[1] = 0.f;
     meshDraw.pos[2] = 2.f;
-    meshDraw.scale = 1.f;
+    meshDraw.scale = vec3(1.f);
     meshDraw.orit = quat(1, 0, 0, 0);
     meshDraw.meshIdx = 0;
     meshDraw.vertexOffset = mesh.vertexOffset;
@@ -365,7 +369,7 @@ float calcRadius(const Scene& _scene)
     for (const MeshDraw& md : _scene.meshDraws)
     {
         float r = _scene.geometry.meshes[md.meshIdx].radius;
-        r = length(md.pos) + r * md.scale;
+        r = length(md.pos) + r * std::max(md.scale.x, std::max(md.scale.y, md.scale.z));
 
         radius = std::max(radius, r);
     }

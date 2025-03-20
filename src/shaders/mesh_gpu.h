@@ -78,13 +78,17 @@ struct Mesh
     vec3 center;
     float radius;
 
+    vec3 aabbMax;
     uint vertexCount;
 
+    vec3 aabbMin;
     uint vertexOffset;
-    uint lodCount;
 
     MeshLod lods[8];
     MeshLod seamlessLod;
+
+    uint padding[3];
+    uint lodCount;
 };
 
 struct LodBounds
@@ -109,11 +113,11 @@ struct Cluster
 struct MeshDraw
 {
     vec3 pos;
-    float scale;
+    uint meshIdx;
+    vec3 scale;
+    uint vertexOffset; // same as mesh[meshIdx], for data locality
     vec4 orit;
 
-    uint meshIdx;
-    uint vertexOffset; // same as mesh[meshIdx], for data locality
     uint meshletVisibilityOffset;
 
     uint withAlpha;

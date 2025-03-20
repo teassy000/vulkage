@@ -74,7 +74,7 @@ void main()
     Mesh mesh = meshes[draw.meshIdx];
 
     vec4 center = transform.view * vec4(rotateQuat(mesh.center, draw.orit) * draw.scale + draw.pos, 1.0);
-    float radius = mesh.radius * draw.scale;
+    float radius = mesh.radius * maxElem(draw.scale);
 
     bool visible = true;
     visible = visible && (center.z * cull.frustum[1] + abs(center.x) * cull.frustum[0] > -radius);
@@ -107,7 +107,7 @@ void main()
     if(visible && (!LATE || cull.enableMeshletOcclusion == 1 || drawVisibility[di] == 0))
     {
         float dist = max(length(center.xyz) - radius, 0);
-        float threshold = dist * cull.lodErrorThreshold / draw.scale;
+        float threshold = dist * cull.lodErrorThreshold / maxElem(draw.scale);
         uint lodIdx = 0;
         for (uint ii = 0; ii < mesh.lodCount; ++ii){
             if (mesh.lods[ii].error < threshold){

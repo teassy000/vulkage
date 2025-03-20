@@ -26,7 +26,6 @@ bool projectSphere(vec3 c, float r, float znear, float P00, float P11, out vec4 
     return true;
 }
 
-
 bool coneCull(vec3 center, float radius, vec3 cone_axis, float cone_cutoff, vec3 camera_position)
 {
     return dot(center - camera_position, cone_axis) >= (cone_cutoff * length(center - camera_position) + radius);
@@ -46,4 +45,9 @@ float boundsError(LodBounds bounds, vec3 cam_pos, float cam_proj_1_1, float cam_
 
     float limd = max(d, cam_znear);
     return bounds.error / (limd * cam_proj_1_1 * 0.5);
+}
+
+float maxElem(vec3 _v)
+{
+    return max(max(_v.x, _v.y), _v.z);
 }

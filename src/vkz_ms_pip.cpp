@@ -81,8 +81,6 @@ void meshShadingRec(const MeshShading& _ms)
     kage::endRec();
 }
 
-
-
 void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t _width, uint32_t _height, const MeshShadingInitData _initData, bool _late /*= false*/, bool _alphaPass /*= false*/)
 {
     kage::ShaderHandle ms= kage::registShader("mesh_shader", "shaders/meshlet.mesh.spv");

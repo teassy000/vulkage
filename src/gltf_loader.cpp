@@ -238,7 +238,7 @@ bool processNode(Scene& _scene, std::vector<std::pair<uint32_t, uint32_t>>& _pri
             draw.pos[2] = _node->translation[2] * handednessFactor;
 
             // TODO: use the x scale temporary, fix it
-            draw.scale = glm::max(_node->scale[0], glm::max(_node->scale[1], _node->scale[2]));
+            draw.scale = vec3(_node->scale[0], _node->scale[1], _node->scale[2]);
 
             draw.orit[0] = _node->rotation[0];
             draw.orit[1] = _node->rotation[1];

@@ -9,11 +9,13 @@
 struct alignas(16) MeshDraw
 {
     vec3 pos;
-    float scale;
+    uint32_t meshIdx;
+
+    vec3 scale;
+    uint32_t vertexOffset; // same as mesh[meshIdx], for data locality
+
     quat orit;
 
-    uint32_t meshIdx;
-    uint32_t vertexOffset;
     uint32_t meshletVisibilityOffset;
     uint32_t withAlpha{0};
 
