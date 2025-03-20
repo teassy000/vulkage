@@ -15,12 +15,12 @@ struct alignas(16) MeshDraw
     uint32_t meshIdx;
     uint32_t vertexOffset;
     uint32_t meshletVisibilityOffset;
-    uint32_t withAlpha;
+    uint32_t withAlpha{0};
 
-    uint32_t albedoTex;
-    uint32_t normalTex;
-    uint32_t specularTex;
-    uint32_t emissiveTex;
+    uint32_t albedoTex{0};
+    uint32_t normalTex{0};
+    uint32_t specularTex{0};
+    uint32_t emissiveTex{0};
 };
 
 struct alignas(16) ImageInfo
