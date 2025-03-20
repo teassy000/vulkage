@@ -10,24 +10,16 @@
 
 constexpr uint32_t c_brixelizerCascadeCount = (FFX_BRIXELIZER_MAX_CASCADES / 3);
 
-// grab from shader/math.h
-vec3 rotateQuat(const vec3 _v, const quat _q)
-{
-    return _v + 2.f * glm::cross(vec3(_q.x, _q.y, _q.z), glm::cross(vec3(_q.x, _q.y, _q.z), _v) + _q.w * _v);
-}
-
-mat4 modelMatrix(const vec3& _pos, const quat& _orit, const vec3& _scale, bool _rowMajor = false)
+mat4 modelMatrix(const vec3& _pos, const quat& _orit, const vec3& _scale)
 {
     mat4 model = mat4(1.f);
 
-    model = glm::scale(model, _scale);
-    model = glm::toMat4(_orit) * model;
+    // m * t * r * s
     model = glm::translate(model, _pos);
+    model = model * glm::toMat4(_orit);
+    model = glm::scale(model, _scale);
 
-    if (_rowMajor)
-        model = glm::rowMajor4(model);
-
-    return model;
+    return  model;
 }
 
 void brxProcessScene(const Scene& _scene, bool _seamless)
@@ -44,8 +36,8 @@ void brxProcessScene(const Scene& _scene, bool _seamless)
 
         vec3 center = mesh.center;
         float radius = mesh.radius;
-        vec3 oriAabbMin = center - radius;
-        vec3 oriAabbMax = center + radius;
+        vec3 oriAabbMin = mesh.aabbMin;
+        vec3 oriAabbMax = mesh.aabbMax;
         vec3 aabbExtent = oriAabbMax - oriAabbMin;
 
         const vec3 aabbCorners[8] = {
@@ -59,15 +51,16 @@ void brxProcessScene(const Scene& _scene, bool _seamless)
             oriAabbMin + aabbExtent,
         };
 
+        glm::mat4 transform = modelMatrix(mdraw.pos, mdraw.orit, vec3(mdraw.scale));
+
         vec3 minAABB = vec3(FLT_MAX);
         vec3 maxAABB = vec3(FLT_MIN);
         for (uint32_t jj = 0; jj < 8; ++jj) {
-            vec3 worldPos = rotateQuat(aabbCorners[jj], mdraw.orit) * mdraw.scale + mdraw.pos;
-            minAABB = glm::min(minAABB, worldPos);
-            maxAABB = glm::max(maxAABB, worldPos);
+            vec3 cornerWorldPos = transform * vec4(aabbCorners[jj], 1.f);
+            minAABB = glm::min(minAABB, cornerWorldPos);
+            maxAABB = glm::max(maxAABB, cornerWorldPos);
         }
 
-        glm::mat4 transform = modelMatrix(mdraw.pos, mdraw.orit, vec3(mdraw.scale), true);
 
         FfxBrixelizerInstanceDescription instDesc = {};
         FfxBrixelizerInstanceID instId = FFX_BRIXELIZER_INVALID_ID;
@@ -77,16 +70,19 @@ void brxProcessScene(const Scene& _scene, bool _seamless)
             instDesc.aabb.min[jj] = minAABB[jj];
             instDesc.aabb.max[jj] = maxAABB[jj];
         }
-
-        for (uint32_t jj = 0; jj < 4; ++jj)
-            for (uint32_t kk = 0; kk < 3; ++kk)
-                instDesc.transform[jj * 3 + kk] = transform[jj][kk];
+        
+        // store the transformation matrix in row major
+        for (uint32_t jj = 0; jj < 3; ++jj) {
+            for (uint32_t kk = 0; kk < 4; ++kk) {
+                instDesc.transform[jj * 4 + kk] = transform[kk][jj];
+            }
+        }
 
         instDesc.indexFormat = FFX_INDEX_TYPE_UINT32;
-        instDesc.indexBuffer = 0; // now we only have one buffer
+        instDesc.indexBuffer = 0; // reserve and set in the backend part
         instDesc.indexBufferOffset = mesh.lods[0].indexOffset;
         instDesc.triangleCount = mesh.lods[0].indexCount / 3;
-        instDesc.vertexBuffer = 0; // now we only have one buffer
+        instDesc.vertexBuffer = 0; // reserve and set in the backend part
         instDesc.vertexStride = sizeof(Vertex);
         instDesc.vertexBufferOffset = mesh.vertexOffset;
         instDesc.vertexCount = mesh.vertexCount;
@@ -241,19 +237,15 @@ void brxUpdate(BrixelResources& _bxl, const BrixelData& _data)
     mat4 invProj = glm::inverse(_data.projMat);
     mat4 invView = glm::inverse(_data.viewMat);
     
-    invProj = glm::rowMajor4(invProj);
-    invView = glm::rowMajor4(invView);
-
-    vec3 cpos = _data.camPos;
-
     BrixelDebugDescs desc;
-    for (uint32_t ii = 0; ii < 4; ii++) {
-        for (uint32_t jj = 0; jj < 4; jj++) {
-            desc.proj[ii * 4 + jj] = invProj[jj][ii];
-            desc.view[ii * 4 + jj] = invView[jj][ii];
+    for (uint32_t ii = 0; ii < 4; ++ii) {
+        for (uint32_t jj = 0; jj < 4; ++jj) {
+            desc.proj[ii * 4 + jj] = invProj[ii][jj];
+            desc.view[ii * 4 + jj] = invView[ii][jj];
         }
     }
 
+    vec3 cpos = _data.camPos;
     std::memcpy(desc.camPos, &cpos[0], sizeof(float) * 3);
 
     desc.start_cas = 0;
