@@ -171,6 +171,8 @@ void main()
         
         culled = culled && (vertexClip[idx0].z > 0.0 && vertexClip[idx1].z > 0.0 && vertexClip[idx2].z > 0.0);
 
+        culled = culled && !(meshDraw.withAlpha > 0);
+
         gl_MeshPrimitivesEXT[i].gl_CullPrimitiveEXT = culled;
 #endif
     }

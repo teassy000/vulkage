@@ -160,8 +160,10 @@ void main()
 
         vec3 ori_cone_axis = rotateQuat(axis, meshDraw.orit);
         vec3 cone_axis = mat3(trans.view) * ori_cone_axis;
+
         // meshlet level back face culling, here we culling in the world space
-        visible = visible && !coneCull(ori_center, radius, ori_cone_axis, cone_cutoff, trans.cameraPos);
+        bool culled = coneCull(ori_center, radius, ori_cone_axis, cone_cutoff, trans.cameraPos);
+        visible = visible && ( (!culled) || (meshDraw.withAlpha > 0));
     }
 
     // frustum culling: left/right/top/bottom

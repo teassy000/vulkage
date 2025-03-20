@@ -102,6 +102,7 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
     desc.pipelineConfig.depthCompOp = kage::CompareOp::greater;
     desc.pipelineConfig.enableDepthTest = true;
     desc.pipelineConfig.enableDepthWrite = true;
+    desc.pipelineConfig.cullMode = _alphaPass ? kage::CullModeFlagBits::none : kage::CullModeFlagBits::back;
 
     desc.pipelineSpecNum = COUNTOF(pipelineSpecs);
     desc.pipelineSpecData = (void*)pConst->data;

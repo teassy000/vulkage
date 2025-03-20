@@ -200,7 +200,7 @@ bool processMesh(Geometry& _geo, std::vector<std::pair<uint32_t, uint32_t>>& _pr
         cgltf_accessor_unpack_indices(prim.indices, indices.data(), sizeof(uint32_t), indices.size());
 
         // swap the winding order if needed
-        if (handednessFactor < 0.f)
+        if (windingOrderFactor < 0.f)
         {
             for (size_t jj = 0; jj < indices.size(); jj += 3)
             {
@@ -274,7 +274,8 @@ bool processNode(Scene& _scene, std::vector<std::pair<uint32_t, uint32_t>>& _pri
 
                 draw.emissiveTex = getTextureIdx(mat, mat->emissive_texture.texture, 0);
 
-                if (mat && (mat->alpha_mode != cgltf_alpha_mode_opaque)) {
+                if (mat && 
+                    ((mat->alpha_mode != cgltf_alpha_mode_opaque) || (mat->double_sided))) {
                     draw.withAlpha = 1;
                 }
             }
