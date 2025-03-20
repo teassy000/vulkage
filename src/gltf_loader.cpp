@@ -256,30 +256,32 @@ bool processNode(Scene& _scene, std::vector<std::pair<uint32_t, uint32_t>>& _pri
 
             const cgltf_primitive* gltfPrim = &_data->meshes[meshIdx].primitives[ii];
             const cgltf_material* mat = gltfPrim->material;
-            draw.albedoTex = getTextureIdx(
-                mat
-                , mat->pbr_metallic_roughness.base_color_texture.texture, 
-                getTextureIdx(mat, mat->pbr_specular_glossiness.diffuse_texture.texture, 0)
+
+            if (mat) {
+                draw.albedoTex = getTextureIdx(
+                    mat
+                    , mat->pbr_metallic_roughness.base_color_texture.texture,
+                    getTextureIdx(mat, mat->pbr_specular_glossiness.diffuse_texture.texture, 0)
                 );
-            
-            draw.normalTex = getTextureIdx(mat, mat->normal_texture.texture, 0);
-            
-            draw.specularTex = getTextureIdx(
-                mat
-                , mat->pbr_metallic_roughness.metallic_roughness_texture.texture
-                , getTextureIdx(mat, mat->specular.specular_texture.texture, 0)
-            );
-            
-            draw.emissiveTex = getTextureIdx(mat, mat->emissive_texture.texture, 0);
+
+                draw.normalTex = getTextureIdx(mat, mat->normal_texture.texture, 0);
+
+                draw.specularTex = getTextureIdx(
+                    mat
+                    , mat->pbr_metallic_roughness.metallic_roughness_texture.texture
+                    , getTextureIdx(mat, mat->specular.specular_texture.texture, 0)
+                );
+
+                draw.emissiveTex = getTextureIdx(mat, mat->emissive_texture.texture, 0);
+
+                if (mat && (mat->alpha_mode != cgltf_alpha_mode_opaque)) {
+                    draw.withAlpha = 1;
+                }
+            }
 
             const Mesh& mesh = _scene.geometry.meshes[draw.meshIdx];
             draw.vertexOffset = mesh.vertexOffset;
             draw.meshletVisibilityOffset = meshletVisibilityOffset;
-
-            if (mat && (mat->alpha_mode != cgltf_alpha_mode_opaque)) {
-                draw.withAlpha = 1;
-            }
-            
             _scene.meshDraws.push_back(draw);
 
             uint32_t meshletCount = 0;
