@@ -145,7 +145,13 @@ namespace
                 brxData.camPos = m_demoData.trans.cameraPos;
                 brxData.projMat = m_demoData.trans.proj;
                 brxData.viewMat = m_demoData.trans.view;
+
                 brxData.debugType = m_demoData.renderOptions.debugBrixelType;
+                brxData.startCas = m_demoData.renderOptions.startCas;
+                brxData.endCas = m_demoData.renderOptions.endCas;
+                brxData.sdfEps = m_demoData.renderOptions.sdfEps;
+                brxData.tmin = m_demoData.renderOptions.tmin;
+                brxData.tmax = m_demoData.renderOptions.tmax;
 
                 brxUpdate(m_brixel, brxData);
             }

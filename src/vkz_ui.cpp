@@ -241,9 +241,27 @@ void updateImGuiIO(const UIInput& input)
     io.MouseDown[2] = input.mouseButtons.middle;
 }
 
+void updateBrixelDebugData(DebugRenderOptionsData& _rod, const DebugReources& _dr)
+{
+    KG_ZoneScopedC(kage::Color::blue);
+
+    ImGui::Begin("brx:");
+
+    const char* const items[(uint32_t)BrixelDebugType::count] = { "distance", "uvw", "iterations", "grad", "brick_id", "cascade_id" };
+
+    ImGui::Combo("type", (int*)&_rod.debugBrixelType, items, COUNTOF(items));
+    ImGui::SliderInt("start cas", (int*)&_rod.startCas, 0, 8);
+    ImGui::SliderInt("end cas", (int*)&_rod.endCas, 0, 24);
+    ImGui::SliderFloat("sdf eps", &_rod.sdfEps, 0.1f, 10.f);
+    ImGui::SliderFloat("tmin", &_rod.tmin, .2f, 10.f);
+    ImGui::SliderFloat("tmax", &_rod.tmax, 1000.f, 10000.f);
+    ImGui::Image((ImTextureID)(_dr.brx_debug.id), { 1920, 1080 });
+    ImGui::End();
+}
+
 void updateImGuiContent(DebugRenderOptionsData& _rod, const DebugProfilingData& _pd, const DebugLogicData& _ld, const DebugReources& _dr)
 {
-    KG_ZoneScopedC(kage::Color::blue);;
+    KG_ZoneScopedC(kage::Color::blue);
 
     ImGui::NewFrame();
     ImGui::SetNextWindowSize({ 400, 450 }, ImGuiCond_FirstUseEver);
@@ -302,14 +320,7 @@ void updateImGuiContent(DebugRenderOptionsData& _rod, const DebugProfilingData& 
 
     ImGui::End();
 
-    // debug window
-    ImGui::Begin("debug:");
-
-    const char* const items[(uint32_t)BrixelDebugType::count] = { "distance", "uvw", "iterations", "grad", "brick_id", "cascade_id" };
-
-    ImGui::Combo("type", (int*)&_rod.debugBrixelType, items, COUNTOF(items));
-    ImGui::Image((ImTextureID)(_dr.brx_debug.id), { 640, 360 });
-    ImGui::End();
+    updateBrixelDebugData(_rod, _dr);
 }
 
 void updateImGui(const UIInput& input, DebugRenderOptionsData& rd, const DebugProfilingData& pd, const DebugLogicData& ld, const DebugReources& _dr)

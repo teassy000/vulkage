@@ -248,11 +248,11 @@ void brxUpdate(BrixelResources& _bxl, const BrixelData& _data)
     vec3 cpos = _data.camPos;
     std::memcpy(desc.camPos, &cpos[0], sizeof(float) * 3);
 
-    desc.start_cas = 0;
-    desc.end_cas = c_brixelizerCascadeCount - 1;
-    desc.sdf_eps = 0.01f;
-    desc.tmin = 0.0f;
-    desc.tmax = 1000.0f;
+    desc.start_cas = std::min(_data.startCas, _data.endCas);
+    desc.end_cas = std::max(std::max(_data.startCas, _data.endCas), c_brixelizerCascadeCount - 1);
+    desc.sdf_eps = _data.sdfEps;
+    desc.tmin = _data.tmin;
+    desc.tmax = _data.tmax;
     desc.debugType = (BrixelDebugType)_data.debugType;
 
     const kage::Memory* mem = kage::alloc(sizeof(BrixelDebugDescs));

@@ -34,7 +34,13 @@ struct DebugRenderOptionsData
     bool showPyramid = false;
     int  debugPyramidLevel = 0;
     int  debugCascadeLevel = 0;
+    
     uint32_t debugBrixelType = 0;
+    uint32_t startCas = 0;
+    uint32_t endCas = 8;
+    float sdfEps = 1.5f;
+    float tmin = .5f;
+    float tmax = 1000.f;
 };
 
 struct DebugLogicData

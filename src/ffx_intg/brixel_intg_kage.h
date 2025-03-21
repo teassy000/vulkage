@@ -32,8 +32,12 @@ struct BrixelData
 
     vec3 camPos;
 
-    
     uint32_t debugType;
+    uint32_t startCas;
+    uint32_t endCas;
+    float sdfEps;
+    float tmin;
+    float tmax;
 };
 
 
