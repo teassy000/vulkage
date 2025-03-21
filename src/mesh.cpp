@@ -118,6 +118,7 @@ bool appendMesh(Geometry& _result, std::vector<Vertex>& _vtxes, std::vector<uint
     mesh.aabbMin = aabbMin;
     mesh.center = meshCenter;
     mesh.radius = radius;
+    mesh.vertexCount = (uint32_t)_vtxes.size();
 
     // extract normals as float3 because meshopt_simplifyWithAttributes requires
     std::vector<vec3> norms(_vtxes.size());

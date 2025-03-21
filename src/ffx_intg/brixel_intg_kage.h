@@ -2,6 +2,14 @@
 #include "scene.h" // for Scene
 #include "FidelityFX/host/ffx_brixelizer.h" // for FFX_BRIXELIZER_MAX_CASCADES
 
+struct BRX_Mesh
+{
+    uint32_t vtx_offset;
+    uint32_t vtx_count;
+    uint32_t idx_offset;
+    uint32_t idx_count;
+};
+
 struct BrixelResources
 {
     // expose following data which would be use in other passes
@@ -11,6 +19,10 @@ struct BrixelResources
     kage::BufferHandle brickAABB;
     kage::BufferHandle cascadeAABBTrees[FFX_BRIXELIZER_MAX_CASCADES];
     kage::BufferHandle cascadeBrickMaps[FFX_BRIXELIZER_MAX_CASCADES];
+
+    std::vector<BRX_Mesh> meshes;
+    std::vector<vec3> vtxes;
+    std::vector<uint32_t> idxes;
 };
 
 struct BrixelInitDesc

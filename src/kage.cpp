@@ -341,7 +341,7 @@ namespace kage
         uint64_t getPassClipping(const PassHandle _hPass);
 
         void brx_setGeoInstances(const Memory* _desc);
-        void brx_regGeoBuffers(const Memory* _bufs);
+        void brx_regGeoBuffers(const Memory* _bufs, BufferHandle _vtx, BufferHandle _idx);
         void brx_setUserResources(const Memory* _reses);
         void brx_setDebugInfos(const Memory* _debug);
 
@@ -2174,9 +2174,14 @@ namespace kage
         m_transientMemories.push_back(_desc);
     }
 
-    void Context::brx_regGeoBuffers(const Memory* _bufs)
+    void Context::brx_regGeoBuffers(const Memory* _bufs, BufferHandle _vtx, BufferHandle _idx)
     {
+        m_staticUnifiedReses.push_back({ _vtx });
+        m_staticUnifiedReses.push_back({ _idx });
+
+
         m_rhiContext->brx_regGeoBuffers(_bufs);
+
         m_transientMemories.push_back(_bufs);
     }
 
@@ -2798,9 +2803,9 @@ namespace kage
         s_ctx->brx_setGeoInstances(_desc);
     }
 
-    void brx_regGeoBuffers(const Memory* _bufs)
+    void brx_regGeoBuffers(const Memory* _bufs, BufferHandle _vtx, BufferHandle _idx)
     {
-        s_ctx->brx_regGeoBuffers(_bufs);
+        s_ctx->brx_regGeoBuffers(_bufs, _vtx, _idx);
     }
 
     void brx_setUserResources(const Memory* _reses)

@@ -10,6 +10,97 @@
 
 constexpr uint32_t c_brixelizerCascadeCount = (FFX_BRIXELIZER_MAX_CASCADES / 3);
 
+
+void brxRegBuffers(kage::BufferHandle _vtx, uint32_t _vtxSz, uint32_t _vtxStride, kage::BufferHandle _idx, uint32_t _idxSz, uint32_t _idxStride)
+{
+    BrixelBufDescs descs[2];
+
+    descs[0].buf = _vtx;
+    descs[0].size = _vtxSz;
+    descs[0].stride = _vtxStride;
+
+    descs[1].buf = _idx;
+    descs[1].size = _idxSz;
+    descs[1].stride = _idxStride;
+
+    const kage::Memory* bufDescMem = kage::alloc(sizeof(descs));
+    std::memcpy(bufDescMem->data, descs, bufDescMem->size);
+
+    kage::brx_regGeoBuffers(bufDescMem, _vtx, _idx);
+}
+
+void processBrxData(BrixelResources& _data, const Scene& _scene)
+{
+    size_t vtxCount = _scene.geometry.vertices.size();
+    _data.vtxes.reserve(vtxCount);
+    for (size_t ii = 0; ii < vtxCount; ++ii)
+    {
+        vec3 v;
+        v.x = _scene.geometry.vertices[ii].vx;
+        v.y = _scene.geometry.vertices[ii].vy;
+        v.z = _scene.geometry.vertices[ii].vz;
+
+        _data.vtxes.emplace_back(v);
+    }
+    _data.vtxes.shrink_to_fit();
+
+    _data.meshes.reserve(_scene.geometry.meshes.size());
+
+    size_t idxCount = _scene.geometry.indices.size();
+    _data.idxes.reserve(idxCount);
+
+    uint32_t idxOffset = 0;
+    for (size_t ii = 0; ii < _scene.geometry.meshes.size(); ii++)
+    {
+        BRX_Mesh bm;
+        const Mesh& mesh = _scene.geometry.meshes[ii];
+        const uint32_t* idxes = _scene.geometry.indices.data();
+
+        if (true) {
+            for (size_t jj = 0; jj < mesh.lods[0].indexCount; jj++)
+            {
+                uint32_t idx = idxes[mesh.lods[0].indexOffset + jj] + idxOffset + mesh.vertexOffset;
+                _data.idxes.emplace_back(idx);
+            }
+        } else {
+            idxes += mesh.lods[0].indexOffset;
+            _data.idxes.insert(_data.idxes.end(), idxes, idxes + mesh.lods[0].indexCount);
+        }
+
+
+        bm.vtx_count = mesh.vertexCount;
+        bm.vtx_offset = mesh.vertexOffset;
+        bm.idx_count = (uint32_t)_data.idxes.size();
+        bm.idx_offset = idxOffset;
+
+        _data.meshes.emplace_back(bm);
+
+        idxOffset += (uint32_t)_data.idxes.size();
+    }
+
+    _data.idxes.shrink_to_fit();
+    _data.meshes.shrink_to_fit();
+
+    // create the buffers
+    const kage::Memory* memVtxBuf = kage::alloc((uint32_t)(_data.vtxes.size() * sizeof(vec3)));
+    memcpy(memVtxBuf->data, _data.vtxes.data(), memVtxBuf->size);
+    kage::BufferDesc vtxBufDesc;
+    vtxBufDesc.size = memVtxBuf->size;
+    vtxBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+    vtxBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+    kage::BufferHandle brx_vtx_buf = kage::registBuffer("brx_vtx", vtxBufDesc, memVtxBuf);
+
+    const kage::Memory* memIdxBuf = kage::alloc((uint32_t)(_data.idxes.size() * sizeof(uint32_t)));
+    memcpy(memIdxBuf->data, _data.idxes.data(), memIdxBuf->size);
+    kage::BufferDesc idxBufDesc;
+    idxBufDesc.size = memIdxBuf->size;
+    idxBufDesc.usage = kage::BufferUsageFlagBits::index | kage::BufferUsageFlagBits::transfer_dst | kage::BufferUsageFlagBits::storage;
+    idxBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+    kage::BufferHandle brx_idx_buf = kage::registBuffer("brx_idx", idxBufDesc, memIdxBuf);
+
+    brxRegBuffers(brx_vtx_buf, memVtxBuf->size, sizeof(vec3), brx_idx_buf, memIdxBuf->size, sizeof(uint32_t));
+}
+
 mat4 modelMatrix(const vec3& _pos, const quat& _orit, const vec3& _scale)
 {
     mat4 model = mat4(1.f);
@@ -22,7 +113,7 @@ mat4 modelMatrix(const vec3& _pos, const quat& _orit, const vec3& _scale)
     return  model;
 }
 
-void brxProcessScene(const Scene& _scene, bool _seamless)
+void brxProcessScene(BrixelResources& _brx, const Scene& _scene, bool _seamless)
 {
     assert(!_seamless); // not support seamless yet
 
@@ -33,6 +124,7 @@ void brxProcessScene(const Scene& _scene, bool _seamless)
     {
         const MeshDraw& mdraw = _scene.meshDraws[ii];
         const Mesh& mesh = _scene.geometry.meshes[mdraw.meshIdx];
+        const BRX_Mesh& bMesh = _brx.meshes[mdraw.meshIdx];
 
         vec3 center = mesh.center;
         float radius = mesh.radius;
@@ -80,12 +172,12 @@ void brxProcessScene(const Scene& _scene, bool _seamless)
 
         instDesc.indexFormat = FFX_INDEX_TYPE_UINT32;
         instDesc.indexBuffer = 0; // reserve and set in the backend part
-        instDesc.indexBufferOffset = mesh.lods[0].indexOffset;
-        instDesc.triangleCount = mesh.lods[0].indexCount / 3;
+        instDesc.indexBufferOffset = 0; bMesh.idx_offset * sizeof(uint32_t);
+        instDesc.triangleCount = bMesh.idx_count / 3;
         instDesc.vertexBuffer = 0; // reserve and set in the backend part
-        instDesc.vertexStride = sizeof(Vertex);
-        instDesc.vertexBufferOffset = mesh.vertexOffset;
-        instDesc.vertexCount = mesh.vertexCount;
+        instDesc.vertexStride = sizeof(vec3);
+        instDesc.vertexBufferOffset = 0; bMesh.vtx_offset * sizeof(vec3);
+        instDesc.vertexCount = bMesh.vtx_count;
         instDesc.vertexFormat = FFX_SURFACE_FORMAT_R32G32B32_FLOAT;
         instDesc.flags = FFX_BRIXELIZER_INSTANCE_FLAG_NONE; //static
 
@@ -98,24 +190,6 @@ void brxProcessScene(const Scene& _scene, bool _seamless)
     std::memcpy(descMem->data, instDescs.data(), descMem->size);
 
     kage::brx_setGeoInstances(descMem);
-}
-
-void brxRegBuffers(kage::BufferHandle _vtx, uint32_t _vtxSz, uint32_t _vtxStride, kage::BufferHandle _idx, uint32_t _idxSz, uint32_t _idxStride)
-{
-    BrixelBufDescs descs[2];
-
-    descs[0].buf = _vtx;
-    descs[0].size = _vtxSz;
-    descs[0].stride = _vtxStride;
-
-    descs[1].buf = _idx;
-    descs[1].size = _idxSz;
-    descs[1].stride = _idxStride;
-
-    const kage::Memory* bufDescMem = kage::alloc(sizeof(descs));
-    std::memcpy(bufDescMem->data, descs, bufDescMem->size);
-
-    kage::brx_regGeoBuffers(bufDescMem);
 }
 
 void brxCreateResources(BrixelResources& _data)
@@ -227,8 +301,9 @@ void brxCreateResources(BrixelResources& _data)
 
 void brxInit(BrixelResources& _bxl, const BrixelInitDesc& _init, const Scene& _scene)
 {
-    brxRegBuffers(_init.vtxBuf, _init.vtxSz, _init.vtxStride, _init.idxBuf, _init.idxSz, _init.idxStride);
-    brxProcessScene(_scene, _init.seamless);
+    processBrxData(_bxl, _scene);
+    //brxRegBuffers(_init.vtxBuf, _init.vtxSz, _init.vtxStride, _init.idxBuf, _init.idxSz, _init.idxStride);
+    brxProcessScene(_bxl, _scene, _init.seamless);
     brxCreateResources(_bxl);
 }
 

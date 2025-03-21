@@ -238,7 +238,7 @@ namespace kage
     void brx_setGeoInstances(const Memory* _desc);
     
     // set index/vertex buffers for brixelizer
-    void brx_regGeoBuffers(const Memory* _bufs);
+    void brx_regGeoBuffers(const Memory* _bufs, BufferHandle _vtx, BufferHandle _idx);
     
     // set brixelizer buffers that required user provided data
     // 0 debug descs
