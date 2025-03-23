@@ -13,6 +13,7 @@ enum class Scene_Enum : uint64_t
     TenMatrixScene,
     SingleMeshScene,
     CornellBox,
+    InRowMeshScene,
 };
 
 struct SceneBiref
@@ -197,6 +198,53 @@ void CreateTenObjScene(Scene& scene, bool _seamlessLod)
     scene.meshDraws.insert(scene.meshDraws.end(), meshDraws.begin(), meshDraws.end());
 }
 
+void CreateInRowMeshScene(Scene& _scene, bool _seamlessLod)
+{
+    uint32_t drawCount = (uint32_t)_scene.geometry.meshes.size();
+
+    uint32_t meshletVisibilityCount = 0;
+    std::vector<MeshDraw> meshDraws(drawCount);
+
+    float step = 2.f;
+    float base = - (float(drawCount - 1) * step * .5f);
+
+    for (size_t ii = 0; ii < drawCount; ++ii)
+    {
+        Mesh& mesh = _scene.geometry.meshes[ii];
+        MeshDraw meshDraw;
+
+        meshDraw.pos[0] = base + ii * step;
+        meshDraw.pos[1] = 0.f;
+        meshDraw.pos[2] = 2.f;
+        meshDraw.scale = vec3(1.f);
+        meshDraw.orit = glm::rotate(
+            quat(1, 0, 0, 0)
+            , glm::radians((float(rand()) / RAND_MAX) * 360.f)
+            , vec3(0, 1, 0));
+
+        meshDraw.meshIdx = (uint32_t)ii;
+        meshDraw.vertexOffset = mesh.vertexOffset;
+        meshDraw.meshletVisibilityOffset = 0;
+
+        uint32_t meshletCount = 0;
+        if (_seamlessLod) {
+            meshletCount = std::max(meshletCount, mesh.seamlessLod.meshletCount);
+        }
+        else {
+            for (uint32_t lod = 0; lod < mesh.lodCount; lod++)
+                meshletCount = std::max(meshletCount, mesh.lods[lod].meshletCount); // use the maximum one for current mesh
+        }
+
+        meshletVisibilityCount += meshletCount;
+        meshDraws.push_back(meshDraw);
+    }
+
+    _scene.meshletVisibilityCount = meshletVisibilityCount;
+    _scene.drawCount = drawCount;
+    _scene.drawDistance = 100.f;
+    _scene.meshDraws.insert(_scene.meshDraws.end(), meshDraws.begin(), meshDraws.end());
+}
+
 void CreateSingleMeshScene(Scene& _scene, bool _seamlessLod)
 {
     uint32_t drawCount = 1;
@@ -261,6 +309,9 @@ bool loadObjScene(Scene& _scene, const std::vector<std::string>& _pathes, bool _
         break;
     case Scene_Enum::TenMatrixScene:
         CreateTenObjScene(_scene, _seamlessLod);
+        break;
+    case Scene_Enum::InRowMeshScene:
+        CreateInRowMeshScene(_scene, _seamlessLod);
         break;
     case Scene_Enum::RamdomScene:
     default:
