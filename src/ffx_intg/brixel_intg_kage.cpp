@@ -54,28 +54,20 @@ void processBrxData(BrixelResources& _data, const Scene& _scene)
     {
         BRX_Mesh bm;
         const Mesh& mesh = _scene.geometry.meshes[ii];
-        const uint32_t* idxes = _scene.geometry.indices.data();
 
-        if (true) {
-            for (size_t jj = 0; jj < mesh.lods[0].indexCount; jj++)
-            {
-                uint32_t idx = idxes[mesh.lods[0].indexOffset + jj] + idxOffset + mesh.vertexOffset;
-                _data.idxes.emplace_back(idx);
-            }
-        } else {
-            idxes += mesh.lods[0].indexOffset;
-            _data.idxes.insert(_data.idxes.end(), idxes, idxes + mesh.lods[0].indexCount);
-        }
+        const MeshLod& lod0 = mesh.lods[0];
+        const uint32_t* idxes = (const uint32_t*)_scene.geometry.indices.data() + lod0.indexOffset;
 
+        _data.idxes.insert(_data.idxes.end(), idxes, idxes + lod0.indexCount);
 
         bm.vtx_count = mesh.vertexCount;
         bm.vtx_offset = mesh.vertexOffset;
-        bm.idx_count = (uint32_t)_data.idxes.size();
+        bm.idx_count = lod0.indexCount;
         bm.idx_offset = idxOffset;
 
         _data.meshes.emplace_back(bm);
 
-        idxOffset += (uint32_t)_data.idxes.size();
+        idxOffset = (uint32_t)_data.idxes.size();
     }
 
     _data.idxes.shrink_to_fit();
@@ -172,11 +164,11 @@ void brxProcessScene(BrixelResources& _brx, const Scene& _scene, bool _seamless)
 
         instDesc.indexFormat = FFX_INDEX_TYPE_UINT32;
         instDesc.indexBuffer = 0; // reserve and set in the backend part
-        instDesc.indexBufferOffset = 0; bMesh.idx_offset * sizeof(uint32_t);
+        instDesc.indexBufferOffset = bMesh.idx_offset * sizeof(uint32_t);
         instDesc.triangleCount = bMesh.idx_count / 3;
         instDesc.vertexBuffer = 0; // reserve and set in the backend part
         instDesc.vertexStride = sizeof(vec3);
-        instDesc.vertexBufferOffset = 0; bMesh.vtx_offset * sizeof(vec3);
+        instDesc.vertexBufferOffset = bMesh.vtx_offset * sizeof(vec3);
         instDesc.vertexCount = bMesh.vtx_count;
         instDesc.vertexFormat = FFX_SURFACE_FORMAT_R32G32B32_FLOAT;
         instDesc.flags = FFX_BRIXELIZER_INSTANCE_FLAG_NONE; //static
@@ -302,7 +294,6 @@ void brxCreateResources(BrixelResources& _data)
 void brxInit(BrixelResources& _bxl, const BrixelInitDesc& _init, const Scene& _scene)
 {
     processBrxData(_bxl, _scene);
-    //brxRegBuffers(_init.vtxBuf, _init.vtxSz, _init.vtxStride, _init.idxBuf, _init.idxSz, _init.idxStride);
     brxProcessScene(_bxl, _scene, _init.seamless);
     brxCreateResources(_bxl);
 }
