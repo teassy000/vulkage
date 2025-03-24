@@ -282,7 +282,6 @@ void updateImGuiContent(DebugRenderOptionsData& _rod, const DebugProfilingData& 
 
     ImGui::Text("ui: [%.3f]ms", _pd.uiTime);
     ImGui::Text("deferred: [%.3f]ms", _pd.deferredTime);
-    ImGui::Text("voxelization: [%.3f]ms", _pd.voxelizationTime);
     ImGui::Text("build cascade: [%.3f]ms", _pd.buildCascadeTime);
 
     ImGui::SliderInt("cas lv", &_rod.debugCascadeLevel, 0, kage::k_rclv0_cascadeLv - 1);

@@ -29,22 +29,8 @@ layout(binding = 4) uniform sampler2D in_emmision;
 layout(binding = 5) uniform sampler2D in_depth;
 layout(binding = 6) uniform sampler2D in_skybox;
 
-
-layout(binding = 7) readonly buffer OctTreeNodeCount
-{
-    uint in_octTreeNodeCount;
-    uint in_totalNodeCount;
-};
-
-layout(binding = 8) readonly buffer OctTree
-{
-    OctTreeNode in_octTree [];
-};
-
-
-layout(binding = 9, RGBA8) uniform imageBuffer in_voxAlbedo;
-layout(binding = 10, RGBA8) uniform writeonly image2DArray octProbAtlas;
-layout(binding = 11, R8) uniform writeonly image3D sdfAtlas;
+layout(binding = 7, RGBA8) uniform writeonly image2DArray octProbAtlas;
+layout(binding = 8, R8) uniform writeonly image3D sdfAtlas;
 
 struct Segment
 {
@@ -229,58 +215,15 @@ void main()
 
     const Segment seg = Segment(seg_origin, seg_dir, seg_len);
     
-    
-    OctTreeNode node = in_octTree[in_octTreeNodeCount - 1];
-    uint treeLevel = 0;
 
-    OT_UnfoldedNode uNode;
-    uNode.center = vec3(0.f);
-    uNode.sideLen = sceneRadius * 2.f;
-    uNode.id = in_octTreeNodeCount - 1;
-    getAABB(uNode.center, uNode.sideLen * .5f, uNode.aabb);
-
-    // traversal the octree to check the intersection
-    uint voxIdx = INVALID_OCT_IDX;
-
-    while (true)
-    {
-        // unfold childs 
-        OT_UnfoldedNode childs[8];
-        for (uint ii = 0; ii < 8; ii++)
-        {
-            if (node.childs[ii] == INVALID_OCT_IDX)
-            {
-                childs[ii].id = INVALID_OCT_IDX;
-                continue;
-            }
-
-            unfoldOctTreeChildNode(uNode, node.childs[ii], ii, childs[ii]);
-        }
-
-        uint chindIdx = INVALID_OCT_IDX;
-        if (traceChilds(seg, uNode, childs, chindIdx)) {
-            if (node.lv == 0) {
-                voxIdx = node.childs[chindIdx];
-                break;
-            } else {
-                // enter the next level
-                uNode = childs[chindIdx];
-                node = in_octTree[node.childs[chindIdx]];
-            }
-        } else {
-            break;
-        }
-    }
 
     // write the result to the atlas
     vec3 var = vec3(0.f);
-    if (voxIdx != INVALID_VOX_ID)
-    {
-        var = imageLoad(in_voxAlbedo, int(voxIdx)).rgb;
-        //var = vec3(1.f, 0.f, 0.f);
 
-        //var = vec3(voxIdx & 255u, (voxIdx >> 8) & 255u, (voxIdx >> 16) & 255u) / 255.f;
-    }
+    var = vec3(1.f, 0.f, 0.f);
+
+    //var = vec3(voxIdx & 255u, (voxIdx >> 8) & 255u, (voxIdx >> 16) & 255u) / 255.f;
+
 
 
     const uint layer_idx = lvLayer + config.layerOffset;

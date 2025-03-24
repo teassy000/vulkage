@@ -16,78 +16,7 @@ struct alignas(16) RadianceCascadesConfig
 
     float       rayLength;
     float       probeSideLen;
-    
-    // oct-tree dat
-    uint32_t    ot_voxSideCount;
-    float       ot_sceneRadius;
 };
-
-struct VoxelizationCmd
-{
-    kage::PassHandle pass;
-    kage::ShaderHandle cs;
-    kage::ProgramHandle program;
-
-    kage::BufferHandle in_meshBuf;
-    kage::BufferHandle in_drawBuf;
-    kage::BufferHandle out_cmdBuf;
-    kage::BufferHandle out_cmdCountBuf;
-
-    kage::BufferHandle out_cmdBufAlias;
-    kage::BufferHandle out_cmdCountBufAlias;
-};
-
-struct Voxelization
-{
-    kage::PassHandle pass;
-    kage::ProgramHandle program;
-    kage::ShaderHandle vs;
-    kage::ShaderHandle gs;
-    kage::ShaderHandle fs;
-
-    kage::BufferHandle cmdBuf;
-    kage::BufferHandle cmdCountBuf;
-    kage::BufferHandle drawBuf;
-    kage::BufferHandle idxBuf;
-    kage::BufferHandle vtxBuf;
-
-    kage::BufferHandle threadCountBuf;
-
-    kage::BufferHandle voxMap;
-    kage::BufferHandle voxelWorldPos;
-    kage::BufferHandle voxelAlbedo;
-    kage::BufferHandle voxelNormal;
-
-    kage::BindlessHandle bindless;
-
-    kage::ImageHandle rt;
-
-    kage::BufferHandle threadCountBufOutAlias;
-
-    kage::BufferHandle voxMapOutAlias;
-    kage::BufferHandle wposOutAlias;
-    kage::BufferHandle albedoOutAlias;
-    kage::BufferHandle normalOutAlias;
-
-    uint32_t maxDrawCmdCount;
-};
-
-struct OctTree
-{
-    kage::PassHandle pass;
-    kage::ProgramHandle program;
-    kage::ShaderHandle cs;
-
-    kage::BufferHandle inVoxMap;
-    kage::BufferHandle voxMediemMap;
-    kage::BufferHandle outOctTree;
-    kage::BufferHandle nodeCount;
-    kage::BufferHandle voxVis;
-
-    kage::BufferHandle nodeCountOutAlias;
-    kage::BufferHandle octTreeOutAlias;
-};
-
 
 struct RadianceCascadeBuild
 {
@@ -108,20 +37,12 @@ struct RadianceCascadeBuild
     kage::ImageHandle inSkybox;
     kage::SamplerHandle skySampler;
 
-    kage::BufferHandle inOctTreeNodeCount;
-    kage::BufferHandle inOctTree;
-
-    kage::BufferHandle voxAlbedo;
-
     kage::ImageHandle cascadeImg;
     kage::ImageHandle radCascdOutAlias;
 };
 
 struct RadianceCascade
 {
-    VoxelizationCmd voxCmd;
-    Voxelization vox;
-    OctTree octTree;
     RadianceCascadeBuild rcBuild;
 };
 

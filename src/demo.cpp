@@ -56,7 +56,6 @@ namespace
             kage::init(config);
             
             m_supportMeshShading = kage::checkSupports(kage::VulkanSupportExtension::ext_mesh_shader);
-            m_debugVox = false;
             m_debugProb = false;
 
             bool forceParse = false;
@@ -208,11 +207,7 @@ namespace
 
             m_smaa.update(m_width, m_height);
             updateRadianceCascade(m_radianceCascade, m_scene.drawCount, m_demoData.drawCull, m_width, m_height, m_scene.radius);
-            if (m_debugVox)
-            {
-                updateVoxDebug(m_voxDebug, m_demoData.drawCull, m_width, m_height, m_scene.radius);
-            }
-            else if (m_debugProb)
+            if (m_debugProb)
             {
                 m_probDebug.debugLv = m_demoData.renderOptions.debugCascadeLevel;
                 updateProbeDebug(m_probDebug, m_demoData.drawCull, m_width, m_height, m_scene.radius);
@@ -240,7 +235,6 @@ namespace
             m_demoData.profiling.uiTime = (float)kage::getPassTime(m_ui.pass);
             m_demoData.profiling.deferredTime = (float)kage::getPassTime(m_deferred.pass);
 
-            m_demoData.profiling.voxelizationTime = (float)kage::getPassTime(m_radianceCascade.vox.pass);
             m_demoData.profiling.buildCascadeTime = (float)kage::getPassTime(m_radianceCascade.rcBuild.pass);
 
             m_demoData.profiling.triangleEarlyCount = (float)(kage::getPassClipping(m_meshShading.pass));
@@ -651,22 +645,8 @@ namespace
                 initDeferredShading(m_deferred, m_meshShadingAlpha.g_bufferOutAlias, m_skybox.colorOutAlias, m_radianceCascade.rcBuild.radCascdOutAlias);
             }
 
-            // vox debug
-            if (m_debugVox)
-            {
-                RCDebugInit vdinit;
-                vdinit.pyramid = m_pyramid.imgOutAlias;
-                vdinit.color = m_deferred.outColorAlias;
-                vdinit.depth = m_supportMeshShading ? m_meshShadingAlpha.depthOutAlias : m_vtxShadingLate.depthOutAlias;
-                vdinit.trans = m_transformBuf;
-
-                vdinit.voxAlbedo = m_radianceCascade.vox.albedoOutAlias;
-                vdinit.threadCount = m_radianceCascade.vox.threadCountBufOutAlias;
-                vdinit.voxWPos = m_radianceCascade.vox.wposOutAlias;
-
-                prepareVoxDebug(m_voxDebug, vdinit);
-            }
-            else if (m_debugProb)
+            // probe debug
+            if (m_debugProb)
             {
                 RCDebugInit vdinit;
                 vdinit.pyramid = m_pyramid.imgOutAlias;
@@ -683,19 +663,15 @@ namespace
             // smaa
             {
                 kage::ImageHandle aaDepthIn = m_supportMeshShading ? 
-                    m_debugVox ?
-                        m_voxDebug.draw.colorOutAlias
-                        : m_debugProb ?
-                            m_probDebug.draw.depthOutAlias
-                            : m_meshShadingAlpha.depthOutAlias
+                    m_debugProb ?
+                        m_probDebug.draw.depthOutAlias
+                        : m_meshShadingAlpha.depthOutAlias
                     : m_vtxShadingLate.depthOutAlias;
 
                 kage::ImageHandle aaColorIn = m_supportMeshShading ?
-                    m_debugVox ? 
-                        m_voxDebug.draw.colorOutAlias 
-                        : m_debugProb ?
-                            m_probDebug.draw.colorOutAlias 
-                            : m_deferred.outColorAlias
+                    m_debugProb ?
+                        m_probDebug.draw.colorOutAlias 
+                        : m_deferred.outColorAlias
                     : m_vtxShadingLate.colorOutAlias;
 
                 m_smaa.prepare(m_width, m_height, aaColorIn, aaDepthIn);
@@ -781,7 +757,6 @@ namespace
         DemoData m_demoData{};
         DebugReources m_debugRes;
         bool m_supportMeshShading;
-        bool m_debugVox;
         bool m_debugProb;
 
         std::vector<kage::ImageHandle> m_sceneImages;
@@ -831,7 +806,6 @@ namespace
 
         BrixelResources m_brixel{};
         RadianceCascade m_radianceCascade{};
-        VoxDebug m_voxDebug{};
         ProbeDebug m_probDebug{};
 
         UIRendering m_ui{};
