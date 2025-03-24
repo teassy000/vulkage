@@ -55,8 +55,6 @@ enum class SceneDumpDataTags : uint32_t
     camera,
 };
 
-static Scene_Enum se = Scene_Enum::TenMatrixScene;
-
 void CreateRandomScene(Scene& scene, bool _seamlessLod)
 {
     uint32_t drawCount = 1'000'000;
@@ -203,7 +201,8 @@ void CreateInRowMeshScene(Scene& _scene, bool _seamlessLod)
     uint32_t drawCount = (uint32_t)_scene.geometry.meshes.size();
 
     uint32_t meshletVisibilityCount = 0;
-    std::vector<MeshDraw> meshDraws(drawCount);
+    std::vector<MeshDraw> meshDraws;
+    meshDraws.reserve(drawCount);
 
     float step = 2.f;
     float base = - (float(drawCount - 1) * step * .5f);
@@ -236,7 +235,7 @@ void CreateInRowMeshScene(Scene& _scene, bool _seamlessLod)
         }
 
         meshletVisibilityCount += meshletCount;
-        meshDraws.push_back(meshDraw);
+        meshDraws.emplace_back(meshDraw);
     }
 
     _scene.meshletVisibilityCount = meshletVisibilityCount;
@@ -299,6 +298,7 @@ bool loadObjScene(Scene& _scene, const std::vector<std::string>& _pathes, bool _
         return false;
     }
 
+    static Scene_Enum se = Scene_Enum::InRowMeshScene;
     switch (se)
     {
     case Scene_Enum::MatrixScene:
