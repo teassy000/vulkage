@@ -8,6 +8,8 @@
 #include "mesh_gpu.h"
 #include "rc_common.h"
 #include "debug_gpu.h"
+#include "ffx_brx_integrate.h"
+
 
 layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 
@@ -190,6 +192,41 @@ bool traceChilds(const Segment _seg, const OT_UnfoldedNode _node, const OT_Unfol
     }
 
     return false;
+}
+
+// ffx brixelizer required functions
+// requred data:
+// 1. the cascade info
+// 2. the aabb trees
+// 3. the bricks aabb
+// 4. the sdf atlas
+// 5. the cascade brick map array
+
+FfxBrixelizerCascadeInfo GetCascadeInfo(FfxUInt32 cascadeID)
+{
+    FfxBrixelizerCascadeInfo info;
+    return info;
+}
+
+FfxFloat32x3 LoadCascadeAABBTreesFloat3(FfxUInt32 cascadeID, FfxUInt32 elementIndex) 
+{
+    return vec3(0.f);
+}
+FfxUInt32 LoadCascadeAABBTreesUInt(FfxUInt32 cascadeID, FfxUInt32 elementIndex)
+{
+    return 0;
+}
+FfxUInt32 LoadBricksAABB(FfxUInt32 elementIndex) 
+{
+    return 0;
+}
+FfxFloat32 SampleSDFAtlas(FfxFloat32x3 uvw)
+{
+    return 0.f;
+}
+FfxUInt32 LoadCascadeBrickMapArrayUniform(FfxUInt32 cascadeID, FfxUInt32 elementIndex)
+{ 
+    return 0;
 }
 
 void main()

@@ -69,10 +69,26 @@ end
 function custom_build_glsl()
 	local abs_filepath = path.join(SRC_DIR, "shaders", "%(Filename).glsl")
 	local abs_outputpath = path.join(_WORKING_DIR, "shaders", "%(Filename).spv")
+    -- Store include paths in an array
+    local include_paths = {
+        path.join(SRC_DIR, "shaders"),
+        path.join(FFX_SDK_DIR, "include/FidelityFX/gpu"),
+        path.join(FFX_SDK_DIR, "include/FidelityFX/gpu/brixelizer")
+    }
+
+	local include_args = ""
+    for _, include_path in ipairs(include_paths) do
+        include_args = include_args .. " -I" .. include_path
+    end
+
 	filter "files:**.glsl"
 		buildmessage "custom compiling to spv..."
 		buildcommands {
-			"$(VULKAN_SDK)\\Bin\\glslangValidator " .. abs_filepath .. " -V -o " .. abs_outputpath .. " --target-env spirv1.4"
+			"$(VULKAN_SDK)\\Bin\\glslangValidator " 
+            .. abs_filepath 
+            .. include_args 
+            .. " -V -o " .. abs_outputpath 
+            .. " --target-env spirv1.4"
 		}
 		buildoutputs {
 			abs_outputpath
@@ -192,10 +208,17 @@ project "vulkage"
 			path.join(SRC_DIR, "ffx_intg/*.cpp"),
 		},
 		
+		["shaders/ffx"] = {
+			path.join(SRC_DIR, 	"shaders/ffx/*.h"),
+		},
+
 		["shaders"] = {
 			path.join(SRC_DIR,	"shaders/*.glsl"),
 			path.join(SRC_DIR, 	"shaders/*.h"),
 		}
+
+		
+
 
 
 	}
