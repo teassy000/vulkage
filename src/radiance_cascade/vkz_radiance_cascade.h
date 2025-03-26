@@ -5,6 +5,7 @@
 #include "kage.h"
 #include "deferred/vkz_deferred.h"
 #include "demo_structs.h"
+#include "ffx_intg/brixel_intg_kage.h"
 
 // each page has a 3d grid of probes, each probe has a 2d grid of rays
 struct alignas(16) RadianceCascadesConfig
@@ -51,13 +52,19 @@ struct RadianceCascadeInitData
     GBuffer g_buffer;
     kage::ImageHandle depth;
     kage::ImageHandle skybox;
-    kage::ImageHandle sdfAtlas;
     kage::BufferHandle meshBuf;
     kage::BufferHandle meshDrawBuf;
     kage::BufferHandle idxBuf;
     kage::BufferHandle vtxBuf;
     kage::BufferHandle transBuf;
     kage::BindlessHandle bindless;
+
+    // brx input
+    kage::ImageHandle sdfAtlas;
+    kage::BufferHandle brickAABB;
+    kage::BufferHandle cascadeAABBTrees[FFX_BRIXELIZER_MAX_CASCADES];
+    kage::BufferHandle cascadeBrickMaps[FFX_BRIXELIZER_MAX_CASCADES];
+
 
     uint32_t maxDrawCmdCount;
 };

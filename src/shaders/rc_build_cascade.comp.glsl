@@ -31,8 +31,30 @@ layout(binding = 4) uniform sampler2D in_emmision;
 layout(binding = 5) uniform sampler2D in_depth;
 layout(binding = 6) uniform sampler2D in_skybox;
 
-layout(binding = 7, RGBA8) uniform writeonly image2DArray octProbAtlas;
-layout(binding = 8, R8) uniform writeonly image3D sdfAtlas;
+layout(binding = 7, RGBA8) uniform writeonly image2DArray out_octProbAtlas;
+
+// ffx brixelizer data
+layout(binding = 0, set = 2) uniform sampler3D in_sdfAtlas;
+
+layout(binding = 1, set = 2) buffer readonly BrxCascadeInfos
+{
+    FfxBrixelizerCascadeInfo in_cascades_info[];
+};
+
+layout(binding = 2, set = 2) buffer readonly cascadeAABBTrees
+{
+    uint aabb[];
+}in_cas[FFX_BRIXELIZER_MAX_CASCADES];
+
+layout(binding = 3, set = 2) buffer readonly brickAABBTrees
+{
+    uint in_bricks_aabb[];
+};
+
+layout(binding = 4, set = 2) buffer readonly cascadeBrickMaps
+{
+    uint map[];
+}in_cas_bricks[FFX_BRIXELIZER_MAX_CASCADES];
 
 
 struct Segment
@@ -50,31 +72,43 @@ struct Segment
 // 4. the sdf atlas
 // 5. the cascade brick map array
 
-FfxBrixelizerCascadeInfo GetCascadeInfo(FfxUInt32 cascadeID)
+uint getLinearBrickIdx(FfxUInt32 _casId, FfxUInt32 _elemIdx)
 {
-    FfxBrixelizerCascadeInfo info;
-    return info;
+    return _casId * 64 + _elemIdx;
 }
 
-FfxFloat32x3 LoadCascadeAABBTreesFloat3(FfxUInt32 cascadeID, FfxUInt32 elementIndex) 
+FfxBrixelizerCascadeInfo GetCascadeInfo(FfxUInt32 _casId)
 {
-    return vec3(0.f);
+    return in_cascades_info[_casId]; ;
 }
-FfxUInt32 LoadCascadeAABBTreesUInt(FfxUInt32 cascadeID, FfxUInt32 elementIndex)
+
+FfxFloat32x3 LoadCascadeAABBTreesFloat3(FfxUInt32 _casId, FfxUInt32 _elemIdx) 
 {
-    return 0;
+    return FfxFloat32x3(
+              float(in_cas[_casId].aabb[_elemIdx + 0])
+            , float(in_cas[_casId].aabb[_elemIdx + 1])
+            , float(in_cas[_casId].aabb[_elemIdx + 2])
+        );
 }
-FfxUInt32 LoadBricksAABB(FfxUInt32 elementIndex) 
+
+FfxUInt32 LoadCascadeAABBTreesUInt(FfxUInt32 _casId, FfxUInt32 _elemIdx)
 {
-    return 0;
+    return uint(in_cas[_casId].aabb[_elemIdx]);
 }
-FfxFloat32 SampleSDFAtlas(FfxFloat32x3 uvw)
+
+FfxUInt32 LoadBricksAABB(FfxUInt32 _elemIdx) 
 {
-    return 0.f;
+    return in_bricks_aabb[_elemIdx];
 }
-FfxUInt32 LoadCascadeBrickMapArrayUniform(FfxUInt32 cascadeID, FfxUInt32 elementIndex)
-{ 
-    return 0;
+
+FfxFloat32 SampleSDFAtlas(FfxFloat32x3 _uvw)
+{
+    return texture(in_sdfAtlas, _uvw).x;
+}
+
+FfxUInt32 LoadCascadeBrickMapArrayUniform(FfxUInt32 _casId, FfxUInt32 _elemIdx)
+{
+    return uint(in_cas_bricks[_casId].map[_elemIdx]);
 }
 
 void main()
@@ -127,5 +161,5 @@ void main()
     // vec3 ro = (seg_origin + sceneRadius) / (sceneRadius * 2.f);
 
 
-    imageStore(octProbAtlas, idx_dir, vec4(var, 1.f));
+    imageStore(out_octProbAtlas, idx_dir, vec4(var, 1.f));
 }
