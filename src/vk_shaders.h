@@ -57,7 +57,7 @@ namespace kage { namespace vk
     VkPipeline createComputePipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, const Shader_vk& shader, const stl::vector<int> constants = {});
 
     VkDescriptorSetLayout createDescSetLayout(VkDevice device, const stl::vector<Shader_vk>& shaders, bool _push = true);
-    VkPipelineLayout createPipelineLayout(VkDevice _device, VkDescriptorSetLayout _setLayout, VkDescriptorSetLayout _arrayLayout, VkShaderStageFlags _pushConstantStages, size_t _pushConstantSize);
+    VkPipelineLayout createPipelineLayout(VkDevice _device, uint32_t _layoutCount, VkDescriptorSetLayout* _layouts, VkShaderStageFlags _pushConstantStages, size_t _pushConstantSize);
 
     VkDescriptorPool createDescriptorPool(VkDevice _device);
     VkDescriptorSetLayout createDescArrayLayout(VkDevice _device, VkShaderStageFlags _stages);

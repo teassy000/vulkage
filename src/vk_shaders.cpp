@@ -287,7 +287,7 @@ namespace kage { namespace vk
             }
 
             // set 2 for nutual descriptors: for example, the descriptor set with resource array
-            if (id.opcode == SpvOpVariable && (id.storageClass == SpvStorageClassUniform || id.storageClass == SpvStorageClassUniformConstant || id.storageClass == SpvStorageClassStorageBuffer) && id.set == 10)
+            if (id.opcode == SpvOpVariable && (id.storageClass == SpvStorageClassUniform || id.storageClass == SpvStorageClassUniformConstant || id.storageClass == SpvStorageClassStorageBuffer) && id.set == 2)
             {
                 assert(ids[id.typeId].opcode == SpvOpTypePointer);
 
@@ -321,7 +321,7 @@ namespace kage { namespace vk
                 assert((shader.nonPushResMask & (1 << id.binding)) == 0 || shader.nonPushResTypes[id.binding] == resourceType);
 
                 shader.nonPushResTypes[id.binding] = resourceType;
-                shader.nonPushResCount[id.binding] = count;
+                shader.nonPushResCount[id.binding] = bx::max(count, 1);
                 shader.nonPushResMask |= 1 << id.binding;
             }
 
@@ -522,9 +522,35 @@ namespace kage { namespace vk
         return pipeline;
     }
 
-    static uint32_t gatherResources(const stl::vector<Shader_vk>& shaders, VkDescriptorType(&resourceTypes)[32])
+    static uint32_t gatherNonPushResources(const stl::vector<Shader_vk>& shaders, VkDescriptorType(&resourceTypes)[32], uint32_t(&resourceCounts)[32])
     {
-        uint32_t resourceMask = 0;
+        uint32_t outMask = 0;
+        for (const Shader_vk& shader : shaders)
+        {
+            for (uint32_t i = 0; i < 32; ++i)
+            {
+                if (shader.nonPushResMask & (1 << i))
+                {
+                    if (outMask & (1 << i))
+                    {
+                        assert(resourceTypes[i] == shader.nonPushResTypes[i]);
+                        assert(resourceCounts[i] == shader.nonPushResCount[i]);
+                    }
+                    else
+                    {
+                        resourceTypes[i] = shader.nonPushResTypes[i];
+                        resourceCounts[i] = shader.nonPushResCount[i];
+                        outMask |= 1 << i;
+                    }
+                }
+            }
+        }
+        return outMask;
+    }
+
+    static uint32_t gatherPushResources(const stl::vector<Shader_vk>& shaders, VkDescriptorType(&resourceTypes)[32])
+    {
+        uint32_t outMask = 0;
 
         for (const Shader_vk& shader : shaders)
         {
@@ -532,20 +558,20 @@ namespace kage { namespace vk
             {
                 if (shader.pushResMask & (1 << i))
                 {
-                    if (resourceMask & (1 << i))
+                    if (outMask & (1 << i))
                     {
                         assert(resourceTypes[i] == shader.pushResTypes[i]);
                     }
                     else
                     {
                         resourceTypes[i] = shader.pushResTypes[i];
-                        resourceMask |= 1 << i;
+                        outMask |= 1 << i;
                     }
                 }
             }
         }
 
-        return resourceMask;
+        return outMask;
     }
 
 
@@ -554,7 +580,7 @@ namespace kage { namespace vk
         stl::vector<VkDescriptorUpdateTemplateEntry> entries;
 
         VkDescriptorType resourceTypes[32] = {};
-        uint32_t resourceMask = gatherResources(shaders, resourceTypes);
+        uint32_t resourceMask = gatherPushResources(shaders, resourceTypes);
 
         for (uint32_t ii = 0; ii < 32; ++ii)
         {
@@ -601,9 +627,11 @@ namespace kage { namespace vk
                 pushConstantStages |= shader.stage;
 
         bool useBindless = false;
+        bool hasNonPushDesc = false;
         VkShaderStageFlags useBindlessStages = 0;
         for (const Shader_vk& shader : _shaders) {
             useBindless |= shader.usesBindless;
+            hasNonPushDesc |= shader.hasNonPushDesc;
             useBindlessStages |= shader.stage;
         }
 
@@ -614,16 +642,16 @@ namespace kage { namespace vk
         program.pushSetLayout = createDescSetLayout(_device, _shaders);
         assert(program.pushSetLayout);
 
-        program.nonPushSetLayout = createDescSetLayout(_device, _shaders, false);
+        program.nonPushSetLayout = 0;
+        if(hasNonPushDesc)
+            program.nonPushSetLayout = createDescSetLayout(_device, _shaders, false);
 
         stl::vector<VkDescriptorSetLayout> setLayouts;
-        setLayouts.push_back(program.pushSetLayout);
-        if (_bindlessLayout)
-            setLayouts.push_back(_bindlessLayout);
-        if (program.nonPushSetLayout)
-            setLayouts.push_back(program.nonPushSetLayout);
+        setLayouts.emplace_back(program.pushSetLayout);
+        if (_bindlessLayout) setLayouts.emplace_back(_bindlessLayout);
+        if (program.nonPushSetLayout) setLayouts.emplace_back(program.nonPushSetLayout);
 
-        program.layout = createPipelineLayout(_device, program.pushSetLayout, _bindlessLayout, pushConstantStages, _pushConstantSize);
+        program.layout = createPipelineLayout(_device, (uint32_t)setLayouts.size(), setLayouts.data(), pushConstantStages, _pushConstantSize);
         assert(program.layout);
 
         program.updateTemplate = createDescriptorTemplates(_device, _bindingPoint, program.layout, program.pushSetLayout, _shaders);
@@ -649,7 +677,12 @@ namespace kage { namespace vk
         stl::vector<VkDescriptorSetLayoutBinding> setBindings;
 
         VkDescriptorType resourceTypes[32] = {};
-        uint32_t resourceMask = gatherResources(shaders, resourceTypes);
+        uint32_t resCount[32] = {};
+        uint32_t resourceMask = 0;
+        if (_push)
+            resourceMask = gatherPushResources(shaders, resourceTypes);
+        else
+            resourceMask = gatherNonPushResources(shaders, resourceTypes, resCount);
 
         for (uint32_t ii = 0; ii < 32; ++ii)
         {
@@ -658,7 +691,7 @@ namespace kage { namespace vk
                 VkDescriptorSetLayoutBinding binding = {};
                 binding.binding = ii;
 
-                binding.descriptorCount = 1;
+                binding.descriptorCount = _push ? 1 : bx::max(resCount[ii], 1);
                 binding.descriptorType = resourceTypes[ii];
                 binding.stageFlags = 0;
                 for (const Shader_vk& shader : shaders)
@@ -684,13 +717,11 @@ namespace kage { namespace vk
         return setLayout;
     }
 
-    VkPipelineLayout createPipelineLayout(VkDevice _device, VkDescriptorSetLayout _setLayout, VkDescriptorSetLayout _arrayLayout, VkShaderStageFlags _pushConstantStages, size_t _pushConstantSize)
+    VkPipelineLayout createPipelineLayout(VkDevice _device, uint32_t _layoutCount, VkDescriptorSetLayout* _layouts, VkShaderStageFlags _pushConstantStages, size_t _pushConstantSize)
     {
-        const VkDescriptorSetLayout layouts[2] = { _setLayout, _arrayLayout };
-
         VkPipelineLayoutCreateInfo createInfo = { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
-        createInfo.setLayoutCount = _arrayLayout ? 2 : 1;
-        createInfo.pSetLayouts = &layouts[0];
+        createInfo.setLayoutCount = _layoutCount;
+        createInfo.pSetLayouts = &_layouts[0];
 
         VkPushConstantRange pushConstantRange = {};
         if (_pushConstantSize)
