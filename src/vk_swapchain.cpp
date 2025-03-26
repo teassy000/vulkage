@@ -17,7 +17,7 @@ namespace kage { namespace vk
         VK_CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModeCount, presentModes.data()));
 
         for (uint32_t i = 0; i < presentModeCount; ++i) {
-            if (presentModes[i] == VK_PRESENT_MODE_FIFO_KHR) {
+            if (presentModes[i] == VK_PRESENT_MODE_IMMEDIATE_KHR) {
                 return presentModes[i];
             }
         }
