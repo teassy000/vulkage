@@ -255,7 +255,7 @@ void updateBrixelDebugData(DebugRenderOptionsData& _rod, const DebugReources& _d
     ImGui::SliderFloat("sdf eps", &_rod.sdfEps, 0.1f, 10.f);
     ImGui::SliderFloat("tmin", &_rod.tmin, .2f, 10.f);
     ImGui::SliderFloat("tmax", &_rod.tmax, 1000.f, 10000.f);
-    ImGui::Image((ImTextureID)(_dr.brx_debug.id), { 1920, 1080 });
+    ImGui::Image((ImTextureID)(_dr.brx_debug.id), { 640, 360 });
     ImGui::End();
 }
 
