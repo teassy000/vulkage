@@ -199,6 +199,17 @@ namespace kage { namespace vk
                 assert(ids[id].opcode == 0);
                 ids[id].opcode = opcode;
             } break;
+            case SpvOpTypeArray: 
+            {
+                assert(wordCount >= 3);
+                uint32_t id = insn[1];
+                assert(id < idBound);
+                
+                assert(ids[id].opcode == 0);
+                ids[id].opcode = opcode;
+                ids[id].typeId = insn[2];
+                ids[id].constant = insn[3]; // the id of constant op
+            } break;
             case SpvOpTypePointer:
             {
                 assert(wordCount == 4);
@@ -243,7 +254,7 @@ namespace kage { namespace vk
 
         for (auto& id : ids)
         {
-            // reserve set 0 for push descriptors
+            // reserve set 0 for push descriptors with template
             if (id.opcode == SpvOpVariable && (id.storageClass == SpvStorageClassUniform || id.storageClass == SpvStorageClassUniformConstant || id.storageClass == SpvStorageClassStorageBuffer) && id.set == 0)
             {
                 assert(id.binding < 32);
@@ -263,17 +274,57 @@ namespace kage { namespace vk
                 }
 
 
-                assert((shader.resourceMask & (1 << id.binding)) == 0 || shader.resourceTypes[id.binding] == resourceType);
+                assert((shader.pushResMask & (1 << id.binding)) == 0 || shader.pushResTypes[id.binding] == resourceType);
 
-                shader.resourceTypes[id.binding] = resourceType;
-                shader.resourceMask |= 1 << id.binding;
+                shader.pushResTypes[id.binding] = resourceType;
+                shader.pushResMask |= 1 << id.binding;
             }
 
-            // set 1 for bind-less descriptor array
+            // set 1 for bindless descriptor array
             if (id.opcode == SpvOpVariable && id.storageClass == SpvStorageClassUniformConstant && id.set == 1)
             {
                 shader.usesBindless = true;
             }
+
+            // set 2 for nutual descriptors: for example, the descriptor set with resource array
+            if (id.opcode == SpvOpVariable && (id.storageClass == SpvStorageClassUniform || id.storageClass == SpvStorageClassUniformConstant || id.storageClass == SpvStorageClassStorageBuffer) && id.set == 10)
+            {
+                assert(ids[id.typeId].opcode == SpvOpTypePointer);
+
+                shader.hasNonPushDesc = true;
+
+                Id lv2Id = ids[ids[id.typeId].typeId];
+                uint32_t typeKind = 0;
+                uint32_t count = 1;
+
+                if (lv2Id.opcode == SpvOpTypeArray) {
+                    typeKind = ids[lv2Id.typeId].opcode;
+                    count = ids[lv2Id.constant].constant;
+                }
+                else {
+                    typeKind = lv2Id.opcode;
+                }
+
+                VkDescriptorType resourceType = getDescriptorType(SpvOp(typeKind));
+
+                if (VK_DESCRIPTOR_TYPE_STORAGE_BUFFER == resourceType)
+                {
+                    resourceType = getStorageDescriptorType((SpvStorageClass)id.storageClass);
+                }
+                else if (VK_DESCRIPTOR_TYPE_STORAGE_IMAGE == resourceType)
+                {
+                    uint32_t dim = ids[ids[id.typeId].typeId].typeId;
+                    resourceType = getStorageImageDescType((SpvDim)dim);
+                }
+
+
+                assert((shader.nonPushResMask & (1 << id.binding)) == 0 || shader.nonPushResTypes[id.binding] == resourceType);
+
+                shader.nonPushResTypes[id.binding] = resourceType;
+                shader.nonPushResCount[id.binding] = count;
+                shader.nonPushResMask |= 1 << id.binding;
+            }
+
 
             if (id.opcode == SpvOpVariable && id.storageClass == SpvStorageClassPushConstant)
             {
@@ -479,15 +530,15 @@ namespace kage { namespace vk
         {
             for (uint32_t i = 0; i < 32; ++i)
             {
-                if (shader.resourceMask & (1 << i))
+                if (shader.pushResMask & (1 << i))
                 {
                     if (resourceMask & (1 << i))
                     {
-                        assert(resourceTypes[i] == shader.resourceTypes[i]);
+                        assert(resourceTypes[i] == shader.pushResTypes[i]);
                     }
                     else
                     {
-                        resourceTypes[i] = shader.resourceTypes[i];
+                        resourceTypes[i] = shader.pushResTypes[i];
                         resourceMask |= 1 << i;
                     }
                 }
@@ -496,6 +547,7 @@ namespace kage { namespace vk
 
         return resourceMask;
     }
+
 
     static VkDescriptorUpdateTemplate createDescriptorTemplates(VkDevice device, VkPipelineBindPoint bindingPoint, VkPipelineLayout layout, VkDescriptorSetLayout setLayout, const stl::vector<Shader_vk>& shaders)
     {
@@ -541,7 +593,7 @@ namespace kage { namespace vk
     }
 
 
-    kage::vk::Program_vk createProgram(VkDevice _device, VkPipelineBindPoint _bindingPoint, const stl::vector<Shader_vk>& _shaders, uint32_t _pushConstantSize /*= 0*/, VkDescriptorSetLayout _arrayLayout /*= 0*/)
+    kage::vk::Program_vk createProgram(VkDevice _device, VkPipelineBindPoint _bindingPoint, const stl::vector<Shader_vk>& _shaders, uint32_t _pushConstantSize /*= 0*/, VkDescriptorSetLayout _bindlessLayout /*= 0*/)
     {
         VkShaderStageFlags pushConstantStages = 0;
         for (const Shader_vk& shader : _shaders)
@@ -555,20 +607,29 @@ namespace kage { namespace vk
             useBindlessStages |= shader.stage;
         }
 
-        assert(!useBindless || _arrayLayout); // TODO: create array layout for shaders that use bind-less
+        assert(!useBindless || _bindlessLayout); // TODO: create array layout for shaders that use bind-less
 
         Program_vk program = {};
 
-        program.setLayout = createDescSetLayout(_device, _shaders);
-        assert(program.setLayout);
+        program.pushSetLayout = createDescSetLayout(_device, _shaders);
+        assert(program.pushSetLayout);
 
-        program.layout = createPipelineLayout(_device, program.setLayout, _arrayLayout, pushConstantStages, _pushConstantSize);
+        program.nonPushSetLayout = createDescSetLayout(_device, _shaders, false);
+
+        stl::vector<VkDescriptorSetLayout> setLayouts;
+        setLayouts.push_back(program.pushSetLayout);
+        if (_bindlessLayout)
+            setLayouts.push_back(_bindlessLayout);
+        if (program.nonPushSetLayout)
+            setLayouts.push_back(program.nonPushSetLayout);
+
+        program.layout = createPipelineLayout(_device, program.pushSetLayout, _bindlessLayout, pushConstantStages, _pushConstantSize);
         assert(program.layout);
 
-        program.updateTemplate = createDescriptorTemplates(_device, _bindingPoint, program.layout, program.setLayout, _shaders);
+        program.updateTemplate = createDescriptorTemplates(_device, _bindingPoint, program.layout, program.pushSetLayout, _shaders);
         assert(program.updateTemplate);
 
-        program.arrayLayout = _arrayLayout;
+        program.bindlessLayout = _bindlessLayout;
         program.pushConstantStages = pushConstantStages;
         program.bindPoint = _bindingPoint;
         program.pushConstantSize = _pushConstantSize;
@@ -580,37 +641,40 @@ namespace kage { namespace vk
     {
         vkDestroyDescriptorUpdateTemplate(_device, _program.updateTemplate, 0);
         vkDestroyPipelineLayout(_device, _program.layout, 0);
-        vkDestroyDescriptorSetLayout(_device, _program.setLayout, 0);
-
+        vkDestroyDescriptorSetLayout(_device, _program.pushSetLayout, 0);
     }
 
-    VkDescriptorSetLayout createDescSetLayout(VkDevice device, const stl::vector<Shader_vk>& shaders)
+    VkDescriptorSetLayout createDescSetLayout(VkDevice device, const stl::vector<Shader_vk>& shaders, bool _push /* = true*/)
     {
         stl::vector<VkDescriptorSetLayoutBinding> setBindings;
 
         VkDescriptorType resourceTypes[32] = {};
         uint32_t resourceMask = gatherResources(shaders, resourceTypes);
 
-        for (uint32_t i = 0; i < 32; ++i)
+        for (uint32_t ii = 0; ii < 32; ++ii)
         {
-            if (resourceMask & (1 << i))
+            if (resourceMask & (1 << ii))
             {
                 VkDescriptorSetLayoutBinding binding = {};
-                binding.binding = i;
+                binding.binding = ii;
 
                 binding.descriptorCount = 1;
-                binding.descriptorType = resourceTypes[i];
+                binding.descriptorType = resourceTypes[ii];
                 binding.stageFlags = 0;
                 for (const Shader_vk& shader : shaders)
-                    if (shader.resourceMask & (1 << i))
+                    if (shader.pushResMask & (1 << ii))
                         binding.stageFlags |= shader.stage;
 
                 setBindings.push_back(binding);
             }
         }
+        
+        if(!setBindings.size())
+            return VK_NULL_HANDLE;
 
+        VkDescriptorSetLayoutCreateFlags flags = _push ? VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT : 0;
         VkDescriptorSetLayoutCreateInfo setCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-        setCreateInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
+        setCreateInfo.flags = flags;
         setCreateInfo.bindingCount = uint32_t(setBindings.size());
         setCreateInfo.pBindings = setBindings.data();
 
@@ -672,7 +736,9 @@ namespace kage { namespace vk
         setBinding.stageFlags = _stages;
         setBinding.pImmutableSamplers = nullptr;
          
-        VkDescriptorBindingFlags bindingFlags = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT |    VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT;
+        VkDescriptorBindingFlags bindingFlags = 
+            VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT 
+            | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT; // the bindless flag
         VkDescriptorSetLayoutBindingFlagsCreateInfo setBindingFlags =  { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO };
         setBindingFlags.bindingCount = 1;
         setBindingFlags.pBindingFlags = &bindingFlags;

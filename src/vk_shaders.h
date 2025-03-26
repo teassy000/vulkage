@@ -9,8 +9,13 @@ namespace kage { namespace vk
         VkShaderModule module;
         VkShaderStageFlagBits stage;
 
-        VkDescriptorType resourceTypes[32];
-        uint32_t resourceMask;
+        VkDescriptorType pushResTypes[32];
+        uint32_t pushResMask;
+        
+        VkDescriptorType nonPushResTypes[32];
+        uint32_t nonPushResCount[32];
+        uint32_t nonPushResMask;
+
 
         uint32_t localSizeX;
         uint32_t localSizeY;
@@ -18,13 +23,15 @@ namespace kage { namespace vk
 
         bool usesPushConstants;
         bool usesBindless;
+        bool hasNonPushDesc;
     };
 
     struct Program_vk
     {
         VkPipelineLayout        layout;
-        VkDescriptorSetLayout   setLayout;
-        VkDescriptorSetLayout   arrayLayout;
+        VkDescriptorSetLayout   pushSetLayout;
+        VkDescriptorSetLayout   nonPushSetLayout;
+        VkDescriptorSetLayout   bindlessLayout;
 
         VkDescriptorUpdateTemplate updateTemplate;
 
@@ -49,7 +56,7 @@ namespace kage { namespace vk
         , const stl::vector<Shader_vk>& shaders, VkPipelineVertexInputStateCreateInfo* vtxInputState, const stl::vector<int> constants = {}, const PipelineConfigs_vk& pipeConfigs = {});
     VkPipeline createComputePipeline(VkDevice device, VkPipelineCache pipelineCache, VkPipelineLayout layout, const Shader_vk& shader, const stl::vector<int> constants = {});
 
-    VkDescriptorSetLayout createDescSetLayout(VkDevice device, const stl::vector<Shader_vk>& shaders);
+    VkDescriptorSetLayout createDescSetLayout(VkDevice device, const stl::vector<Shader_vk>& shaders, bool _push = true);
     VkPipelineLayout createPipelineLayout(VkDevice _device, VkDescriptorSetLayout _setLayout, VkDescriptorSetLayout _arrayLayout, VkShaderStageFlags _pushConstantStages, size_t _pushConstantSize);
 
     VkDescriptorPool createDescriptorPool(VkDevice _device);
