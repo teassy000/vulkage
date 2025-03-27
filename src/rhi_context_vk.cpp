@@ -2781,7 +2781,7 @@ namespace kage { namespace vk
 
         uint32_t count = _mem->size / sizeof(Binding);
         Binding* bds = (Binding*)_mem->data;
-        m_descBindingSetsPerPass.assign(bds, bds + count);
+        m_pushDescSetsPerPass.assign(bds, bds + count);
     }
 
     void RHIContext_vk::setColorAttachments(PassHandle _hPass, const Memory* _mem)
@@ -3245,7 +3245,7 @@ namespace kage { namespace vk
 
         uint32_t count = _mem->size / sizeof(Binding);
         Binding* bds = (Binding*)_mem->data;
-        m_descBindingSetsPerPass.assign(bds, bds + count);
+        m_pushDescSetsPerPass.assign(bds, bds + count);
     }
 
     VkSampler RHIContext_vk::getCachedSampler(SamplerFilter _filter, SamplerMipmapMode _mipMd, SamplerAddressMode _addrMd, SamplerReductionMode _reduMd)
@@ -3768,7 +3768,7 @@ namespace kage { namespace vk
     void RHIContext_vk::createBarriersRec(const PassHandle _hPass)
     {
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_hPass.id);
-        for (const Binding& binding : m_descBindingSetsPerPass)
+        for (const Binding& binding : m_pushDescSetsPerPass)
         {
             BarrierState_vk bs{};
             bs.accessMask = getBindingAccess(binding.access);
@@ -3823,8 +3823,8 @@ namespace kage { namespace vk
     void RHIContext_vk::flushWriteBarriersRec(const PassHandle _hPass)
     {
         stl::vector<Binding> bindings;
-        bindings.reserve(m_descBindingSetsPerPass.size());
-        for (const Binding& b : m_descBindingSetsPerPass)
+        bindings.reserve(m_pushDescSetsPerPass.size());
+        for (const Binding& b : m_pushDescSetsPerPass)
         {
             if (b.access == BindingAccess::write 
                 || b.access == BindingAccess::read_write)
@@ -3856,24 +3856,24 @@ namespace kage { namespace vk
             }
         }
 
-        m_descBindingSetsPerPass.clear();
+        m_pushDescSetsPerPass.clear();
         m_colorAttachPerPass.clear();
         m_depthAttachPerPass = {};
     }
 
     void RHIContext_vk::lazySetDescriptorSet(const PassHandle _hPass)
     {
-        if (m_descBindingSetsPerPass.empty())
+        if (m_pushDescSetsPerPass.empty())
         {
             return;
         }
 
-        const uint32_t count = (uint32_t)m_descBindingSetsPerPass.size();
+        const uint32_t count = (uint32_t)m_pushDescSetsPerPass.size();
 
         stl::vector<DescriptorInfo> descInfos(count);
-        for (uint32_t ii = 0; ii < (uint32_t)m_descBindingSetsPerPass.size(); ++ii)
+        for (uint32_t ii = 0; ii < (uint32_t)m_pushDescSetsPerPass.size(); ++ii)
         {
-            const Binding& b = m_descBindingSetsPerPass[ii];
+            const Binding& b = m_pushDescSetsPerPass[ii];
 
             DescriptorInfo di;
             if (ResourceType::image == b.type)

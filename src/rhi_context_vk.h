@@ -627,7 +627,7 @@ namespace kage { namespace vk
 
         // rec
         void execRecQueue(PassHandle _hPass);
-        stl::vector<Binding> m_descBindingSetsPerPass;
+        stl::vector<Binding> m_pushDescSetsPerPass;
         stl::vector<Attachment> m_colorAttachPerPass;
         Attachment m_depthAttachPerPass;
         // rec end
