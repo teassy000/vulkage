@@ -2577,7 +2577,6 @@ namespace kage { namespace vk
         bindless.layout = layout;
         bindless.set = set;
         bindless.setIdx = meta.setIdx;
-        // TODO: where do the set Idx and set count come from?
         bindless.setCount = 1; 
         
 
@@ -2973,7 +2972,7 @@ namespace kage { namespace vk
         }
 
         createBarriersRec(_hPass);
-        lazySetDescriptorSet(_hPass);
+        lazyPushDescriptorSet(_hPass);
 
         // get the dispatch size
         PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
@@ -3009,7 +3008,7 @@ namespace kage { namespace vk
         }
 
         createBarriersRec(_hPass);
-        lazySetDescriptorSet(_hPass);
+        lazyPushDescriptorSet(_hPass);
 
         const PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
         const Buffer_vk& ib = getBuffer(_hIndirectBuf);
@@ -3040,7 +3039,7 @@ namespace kage { namespace vk
         }
 
         createBarriersRec(_hPass);
-        lazySetDescriptorSet(_hPass);
+        lazyPushDescriptorSet(_hPass);
 
         beginRendering(m_cmdBuffer, _hPass.id);
 
@@ -3084,7 +3083,7 @@ namespace kage { namespace vk
         }
 
         createBarriersRec(_hPass);
-        lazySetDescriptorSet(_hPass);
+        lazyPushDescriptorSet(_hPass);
 
         beginRendering(m_cmdBuffer, _hPass.id);
 
@@ -3126,7 +3125,7 @@ namespace kage { namespace vk
         }
 
         createBarriersRec(_hPass);
-        lazySetDescriptorSet(_hPass);
+        lazyPushDescriptorSet(_hPass);
 
         beginRendering(m_cmdBuffer, _hPass.id);
 
@@ -3165,7 +3164,7 @@ namespace kage { namespace vk
         }
 
         createBarriersRec(_hPass);
-        lazySetDescriptorSet(_hPass);
+        lazyPushDescriptorSet(_hPass);
 
         beginRendering(m_cmdBuffer, _hPass.id);
 
@@ -3207,7 +3206,7 @@ namespace kage { namespace vk
         }
 
         createBarriersRec(_hPass);
-        lazySetDescriptorSet(_hPass);
+        lazyPushDescriptorSet(_hPass);
 
         beginRendering(m_cmdBuffer, _hPass.id);
 
@@ -3861,7 +3860,7 @@ namespace kage { namespace vk
         m_depthAttachPerPass = {};
     }
 
-    void RHIContext_vk::lazySetDescriptorSet(const PassHandle _hPass)
+    void RHIContext_vk::lazyPushDescriptorSet(const PassHandle _hPass)
     {
         if (m_pushDescSetsPerPass.empty())
         {

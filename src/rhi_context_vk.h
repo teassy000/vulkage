@@ -581,7 +581,8 @@ namespace kage { namespace vk
         void flushWriteBarriersRec(const PassHandle _hPass);
 
         // lazy set desc after rec barrier
-        void lazySetDescriptorSet(const PassHandle _hPass);
+        void lazyPushDescriptorSet(const PassHandle _hPass);
+        void lazyBindDescriptorSet(const PassHandle _hPass);
 
         // push descriptor set with templates
         void executePass(const uint16_t _passId);
