@@ -83,7 +83,6 @@ namespace kage { namespace vk
     {
         VkDescriptorSetLayout   layout{ VK_NULL_HANDLE };
         VkDescriptorSet         set{ VK_NULL_HANDLE };
-        VkDescriptorPool        pool{ VK_NULL_HANDLE };
         uint32_t                setIdx{ 0 };
         uint32_t                setCount{ 0 };
     };
@@ -440,6 +439,12 @@ namespace kage { namespace vk
             , const Memory* _mem
         );
 
+        void bindDescriptorSet(
+            PassHandle _hPass
+            , const Memory* _binds
+            , const Memory* _counts
+        );
+
         void setColorAttachments(
             PassHandle _hPass
             , const Memory* _mem
@@ -552,10 +557,6 @@ namespace kage { namespace vk
             , uint32_t _stride
         );
 
-        void freshExternalBarriers(
-            PassHandle _hPass
-            , const Memory* _mem
-        );
         // rendering command end
         VkSampler getCachedSampler(SamplerFilter _filter, SamplerMipmapMode _mipmapMode, SamplerAddressMode _addrMd, SamplerReductionMode _reduMd);
         VkImageView getCachedImageView(const ImageHandle _hImg, uint16_t _mip, uint16_t _numMips, uint16_t _numLayers, VkImageViewType _type);
@@ -613,22 +614,17 @@ namespace kage { namespace vk
             return m_imageContainer.getIdToData(_himg);
         }
 
-        const VkDescriptorPool getDescriptorPool(const VkDescriptorSet _descSet) const
-        {
-            if (m_descSetToPool.find(_descSet) != m_descSetToPool.end())
-            {
-                const VkDescriptorPool pool = m_descSetToPool.find(_descSet)->second;
-                return pool;
-            }
-            return VK_NULL_HANDLE;
-        }
-
         template<typename Ty>
         void release(Ty& _object);
 
         // rec
         void execRecQueue(PassHandle _hPass);
         stl::vector<Binding> m_pushDescSetsPerPass;
+
+        stl::vector<Binding> m_bindDescSetsPerPass;
+        stl::vector<uint32_t> m_bindDescArrayCountPerPass;
+        stl::unordered_map<PassHandle, uint32_t> m_bindDescHashPerPass;
+
         stl::vector<Attachment> m_colorAttachPerPass;
         Attachment m_depthAttachPerPass;
         // rec end
@@ -659,8 +655,7 @@ namespace kage { namespace vk
         stl::vector<ImageHandle> m_storageImageBase;
 
         stl::unordered_map<ImageHandle, stl::vector<ImageHandle>> m_imgToAliases;
-        stl::vector<VkDescriptorPool> m_descPools;
-        stl::unordered_map<const VkDescriptorSet, const VkDescriptorPool> m_descSetToPool;
+        VkDescriptorPool m_descPool;
 
         RHIBrief m_brief;
 

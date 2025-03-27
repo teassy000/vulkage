@@ -8,10 +8,13 @@
 #include <vulkan/spirv.h>
 #endif
 #include "macro.h"
+#include "rhi_context_vk.h"
 
 
 namespace kage { namespace vk
 {
+    extern RHIContext_vk* s_renderVK;
+
     // https://github.com/KhronosGroup/SPIRV-Cross/wiki/Reflection-API-user-guide
     // https://www.khronos.org/registry/spir-v/specs/1.0/SPIRV.pdf
     struct Id
@@ -619,7 +622,7 @@ namespace kage { namespace vk
     }
 
 
-    kage::vk::Program_vk createProgram(VkDevice _device, VkPipelineBindPoint _bindingPoint, const stl::vector<Shader_vk>& _shaders, uint32_t _pushConstantSize /*= 0*/, VkDescriptorSetLayout _bindlessLayout /*= 0*/)
+    kage::vk::Program_vk createProgram(VkDevice _device, VkPipelineBindPoint _bindingPoint, const stl::vector<Shader_vk>& _shaders, uint32_t _pushConstantSize, VkDescriptorSetLayout _bindlessLayout, VkDescriptorPool _pool)
     {
         VkShaderStageFlags pushConstantStages = 0;
         for (const Shader_vk& shader : _shaders)
@@ -739,16 +742,23 @@ namespace kage { namespace vk
         return layout;
     }
 
-
     VkDescriptorPool createDescriptorPool(VkDevice _device)
     {
+        const VkPhysicalDeviceLimits& lmts = s_renderVK->m_phyDeviceProps.limits;
+
         VkDescriptorPoolSize poolSizes[] =
         {
-            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, kMaxNumOfSamplerDescSets},
+            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, lmts.maxDescriptorSetSampledImages }, // bindless
+            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, lmts.maxDescriptorSetUniformBuffers },
+            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, lmts.maxDescriptorSetStorageBuffers },
+            { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, lmts.maxDescriptorSetStorageImages },
+            { VK_DESCRIPTOR_TYPE_SAMPLER, lmts.maxDescriptorSetSamplers },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, lmts.maxTexelBufferElements },
+            { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, lmts.maxTexelBufferElements },
         };
          
         VkDescriptorPoolCreateInfo poolCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
-        poolCreateInfo.maxSets = 1;
+        poolCreateInfo.maxSets = lmts.maxBoundDescriptorSets;
         poolCreateInfo.poolSizeCount = COUNTOF(poolSizes);
         poolCreateInfo.pPoolSizes = poolSizes;
          
@@ -785,7 +795,7 @@ namespace kage { namespace vk
         return setLayout;
     }
 
-    VkDescriptorSet createDescriptorSets(VkDevice _device, VkDescriptorSetLayout _layout , VkDescriptorPool _pool, uint32_t _descCount)
+    VkDescriptorSet createDescriptorSet(VkDevice _device, VkDescriptorSetLayout _layout , VkDescriptorPool _pool, uint32_t _descCount)
     {
         VkDescriptorSetVariableDescriptorCountAllocateInfo setAllocateCountInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO };
         setAllocateCountInfo.descriptorSetCount = 1;

@@ -34,6 +34,7 @@ namespace kage { namespace vk
         VkDescriptorSetLayout   bindlessLayout;
 
         VkDescriptorUpdateTemplate updateTemplate;
+        VkDescriptorSet nonPushDescSet;
 
         VkShaderStageFlags pushConstantStages;
         VkPipelineBindPoint bindPoint;
@@ -61,9 +62,9 @@ namespace kage { namespace vk
 
     VkDescriptorPool createDescriptorPool(VkDevice _device);
     VkDescriptorSetLayout createDescArrayLayout(VkDevice _device, VkShaderStageFlags _stages);
-    VkDescriptorSet createDescriptorSets(VkDevice _device, VkDescriptorSetLayout _layout, VkDescriptorPool _pool, uint32_t _descCount);
+    VkDescriptorSet createDescriptorSet(VkDevice _device, VkDescriptorSetLayout _layout, VkDescriptorPool _pool, uint32_t _descCount);
 
-    Program_vk createProgram(VkDevice _device, VkPipelineBindPoint _bindingPoint, const stl::vector<Shader_vk>& _shaders, uint32_t _pushConstantSize = 0, VkDescriptorSetLayout _dsLayout = NULL);
+    Program_vk createProgram(VkDevice _device, VkPipelineBindPoint _bindingPoint, const stl::vector<Shader_vk>& _shaders, uint32_t _pushConstantSize, VkDescriptorSetLayout _dsLayout, VkDescriptorPool _pool);
     void destroyProgram(VkDevice device, const Program_vk& program);
 
     inline uint32_t calcGroupCount(uint32_t threadCount, uint32_t localSize)

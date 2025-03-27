@@ -64,7 +64,7 @@ namespace kage { namespace vk
         KG_ZoneScopedC(Color::indian_red);
         if (VK_NULL_HANDLE != _obj)
         {
-            vkFreeDescriptorSets(s_renderVK->m_device, s_renderVK->getDescriptorPool(_obj), 1, &_obj);
+            vkFreeDescriptorSets(s_renderVK->m_device, s_renderVK->m_descPool, 1, &_obj);
             _obj = VK_NULL_HANDLE;
         }
     }
@@ -1563,6 +1563,9 @@ namespace kage { namespace vk
 
         initTracy(m_queue, m_gfxFamilyIdx);
 
+        m_descPool =  createDescriptorPool(m_device);
+        assert(m_descPool);
+
         {
             m_numFramesInFlight = _resolution.maxFrameLatency == 0
                 ? kMaxNumFrameLatency
@@ -1767,13 +1770,6 @@ namespace kage { namespace vk
             m_queryPoolStatistics = VK_NULL_HANDLE;
         }
 
-        for (VkDescriptorPool& pool : m_descPools)
-        {
-            vkDestroyDescriptorPool(m_device, pool, 0);
-            pool = VK_NULL_HANDLE;
-        }
-        m_descPools.clear();
-
         destroyTracy();
 
         if (m_cmdBuffer)
@@ -1782,6 +1778,21 @@ namespace kage { namespace vk
         }
 
         m_swapchain.destroy();
+
+        for (uint32_t ii = 0; ii < m_bindlessContainer.size(); ++ii)
+        {
+            Bindless_vk& bindless = m_bindlessContainer.getDataRef(m_bindlessContainer.getIdAt(ii));
+
+            if (bindless.layout) {
+                vkDestroyDescriptorSetLayout(m_device, bindless.layout, nullptr);
+                bindless.layout = VK_NULL_HANDLE;
+            }
+
+            if (bindless.set) {
+                vkFreeDescriptorSets(m_device, m_descPool, 1, &bindless.set);
+                bindless.set = VK_NULL_HANDLE;
+            }
+        }
 
         /// containers
         // buffer
@@ -1881,6 +1892,12 @@ namespace kage { namespace vk
                 vkDestroyPipelineLayout(m_device, program.layout, nullptr);
                 program.layout = VK_NULL_HANDLE;
             }
+        }
+
+        if (m_descPool)
+        {
+            vkDestroyDescriptorPool(m_device, m_descPool, 0);
+            m_descPool = VK_NULL_HANDLE;
         }
 
         if (m_device)
@@ -2180,7 +2197,7 @@ namespace kage { namespace vk
         }
 
         VkPipelineBindPoint bindPoint = getBindPoint(shaders);
-        Program_vk prog = kage::vk::createProgram(m_device, bindPoint, shaders, info.sizePushConstants, setArrLayout);
+        Program_vk prog = kage::vk::createProgram(m_device, bindPoint, shaders, info.sizePushConstants, setArrLayout, m_descPool);
 
         m_programContainer.addOrUpdate(info.progId, prog);
         m_programShaderIds.emplace_back(shaderIds);
@@ -2563,25 +2580,20 @@ namespace kage { namespace vk
         stl::vector<ImageHandle> imageIds(imgCnt);
         memcpy(imageIds.data(), meta.resIdMem->data, meta.resIdMem->size);
 
-        VkDescriptorPool pool = createDescriptorPool(m_device);
-        assert(pool);
         VkDescriptorSetLayout layout = createDescArrayLayout(m_device, stages);
         assert(layout);
 
         uint32_t descCount = (uint32_t)imageIds.size() + 1;
-        VkDescriptorSet set = createDescriptorSets(m_device, layout, pool, descCount);
+        VkDescriptorSet set = createDescriptorSet(m_device, layout, m_descPool, descCount);
         assert(set);
 
         Bindless_vk bindless{};
-        bindless.pool = pool;
         bindless.layout = layout;
         bindless.set = set;
         bindless.setIdx = meta.setIdx;
         bindless.setCount = 1; 
-        
 
         m_bindlessContainer.addOrUpdate(meta.bindlessId, bindless);
-        m_descSetToPool.insert({ set, pool });
 
         const VkSampler& sampler = getCachedSampler(
             SamplerFilter::linear
@@ -2772,7 +2784,7 @@ namespace kage { namespace vk
         {
             message(
                 warning
-                , "setDescriptorSet will not perform for pass %d! It might be useless after render pass sorted"
+                , "pushDescriptorSet will not perform for pass %d! It might be useless after render pass sorted"
                 , _hPass.id
             );
             return;
@@ -2781,6 +2793,29 @@ namespace kage { namespace vk
         uint32_t count = _mem->size / sizeof(Binding);
         Binding* bds = (Binding*)_mem->data;
         m_pushDescSetsPerPass.assign(bds, bds + count);
+    }
+
+    void RHIContext_vk::bindDescriptorSet(PassHandle _hPass, const Memory* _binds, const Memory* _arrayCounts)
+    {
+        KG_ZoneScopedC(Color::indian_red);
+        
+        if (!m_passContainer.exist(_hPass.id))
+        {
+            message(
+                warning
+                , "bindDescriptorSet will not perform for pass %d! It might be useless after render pass sorted"
+                , _hPass.id
+            );
+            return;
+        }
+
+        uint32_t count = _binds->size / sizeof(Binding);
+        Binding* bds = (Binding*)_binds->data;
+        m_bindDescSetsPerPass.assign(bds, bds + count);
+
+        uint32_t bindCount = _arrayCounts->size / sizeof(uint32_t);
+        uint32_t* counts = (uint32_t*)_arrayCounts->data;
+        m_bindDescArrayCountPerPass.assign(counts, counts + bindCount);
     }
 
     void RHIContext_vk::setColorAttachments(PassHandle _hPass, const Memory* _mem)
@@ -2837,12 +2872,11 @@ namespace kage { namespace vk
         // get program layout
         const PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
         const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
-        prog.layout;
         
         // get bind point
         const Bindless_vk& bindless = m_bindlessContainer.getIdToData(_hBindless.id);
 
-        vkCmdBindDescriptorSets(m_cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, prog.layout, bindless.setIdx, bindless.setCount, &bindless.set, 0, nullptr);
+        vkCmdBindDescriptorSets(m_cmdBuffer, prog.bindPoint, prog.layout, bindless.setIdx, bindless.setCount, &bindless.set, 0, nullptr);
     }
 
     void RHIContext_vk::setViewport(PassHandle _hPass, int32_t _x, int32_t _y, uint32_t _w, uint32_t _h)
@@ -3226,25 +3260,6 @@ namespace kage { namespace vk
         endRendering(m_cmdBuffer);
 
         flushWriteBarriersRec(_hPass);
-    }
-
-    void RHIContext_vk::freshExternalBarriers(PassHandle _hPass, const Memory* _mem)
-    {
-        KG_ZoneScopedC(Color::indian_red);
-
-        if (!m_passContainer.exist(_hPass.id))
-        {
-            message(
-                warning
-                , "setDescriptorSet will not perform for pass %d! It might be useless after render pass sorted"
-                , _hPass.id
-            );
-            return;
-        }
-
-        uint32_t count = _mem->size / sizeof(Binding);
-        Binding* bds = (Binding*)_mem->data;
-        m_pushDescSetsPerPass.assign(bds, bds + count);
     }
 
     VkSampler RHIContext_vk::getCachedSampler(SamplerFilter _filter, SamplerMipmapMode _mipMd, SamplerAddressMode _addrMd, SamplerReductionMode _reduMd)
@@ -3892,6 +3907,42 @@ namespace kage { namespace vk
         PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
         const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
         vkCmdPushDescriptorSetWithTemplateKHR(m_cmdBuffer, prog.updateTemplate, prog.layout, 0, descInfos.data());
+    }
+
+    void RHIContext_vk::lazyBindDescriptorSet(const PassHandle _hPass)
+    {
+        KG_ZoneScopedC(Color::indian_red);
+
+        if (m_pushDescSetsPerPass.empty()) {
+            return;
+        }
+
+        const uint32_t bindCount = (uint32_t)m_bindDescSetsPerPass.size();
+        
+        uint32_t bindingPoint = 0;
+        for (size_t i = 0; i < bindCount; i++)
+        {
+
+        }
+
+        // should update?
+
+        // bind sets
+
+        /*
+        VkCommandBuffer                             commandBuffer,
+            VkPipelineBindPoint                         pipelineBindPoint,
+            VkPipelineLayout                            layout,
+            uint32_t                                    firstSet,
+            uint32_t                                    descriptorSetCount,
+            const VkDescriptorSet* pDescriptorSets,
+            uint32_t                                    dynamicOffsetCount,
+            const uint32_t* pDynamicOffsets);
+
+        PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
+        const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
+        vkCmdBindDescriptorSets(m_cmdBuffer, prog.bindPoint, prog.layout, 0, bindCount, descSets.data(), 0, nullptr);
+        */
     }
 
     const Shader_vk& RHIContext_vk::getShader(const ShaderHandle _hShader) const
