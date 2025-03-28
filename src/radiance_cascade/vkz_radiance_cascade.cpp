@@ -17,7 +17,7 @@ struct RCBuildInit
     kage::ImageHandle skybox;
     kage::BufferHandle trans;
 
-    BRXInfos brx;
+    BRX_UserResources brx;
 };
 
 void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
@@ -128,7 +128,7 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
 
 
     // brx input
-    memcpy(&_rc.brx, &_init.brx, sizeof(BRXInfos));
+    memcpy(&_rc.brx, &_init.brx, sizeof(BRX_UserResources));
 
     _rc.cascadeImg = img;
     _rc.radCascdOutAlias = outAlias;
@@ -203,10 +203,7 @@ void prepareRadianceCascade(RadianceCascade& _rc, const RadianceCascadeInitData 
     rcInit.depth = _init.depth;
     rcInit.skybox = _init.skybox;
     rcInit.trans = _init.transBuf;
-    memcpy(&rcInit.brx, &_init.brx, sizeof(BRXInfos));
-
-    FfxBrixelizerCascadeInfo info;
-
+    memcpy(&rcInit.brx, &_init.brx, sizeof(BRX_UserResources));
     prepareRCbuild(_rc.rcBuild, rcInit);
 }
 

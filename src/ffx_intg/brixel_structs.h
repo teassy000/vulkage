@@ -1,5 +1,7 @@
 #pragma once
 
+#include "FidelityFX/host/ffx_brixelizer.h" // for FFX_BRIXELIZER_MAX_CASCADES
+
 struct BrixelBufDescs
 {
     kage::BufferHandle buf;
@@ -31,6 +33,16 @@ struct BrixelDebugDescs
     float tmin;
     float tmax;
     BrixelDebugType debugType;
+};
+
+
+struct BRX_UserResources
+{
+    kage::ImageHandle   sdfAtlas;
+    kage::BufferHandle  brickAABB;
+    kage::BufferHandle  cascadeInfos;
+    kage::BufferHandle  cascadeAABBTrees[FFX_BRIXELIZER_MAX_CASCADES];
+    kage::BufferHandle  cascadeBrickMaps[FFX_BRIXELIZER_MAX_CASCADES];
 };
 
 

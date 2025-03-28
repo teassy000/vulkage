@@ -19,15 +19,6 @@ struct alignas(16) RadianceCascadesConfig
     float       probeSideLen;
 };
 
-struct BRXInfos
-{
-    kage::ImageHandle   sdfAtlas;
-    kage::BufferHandle  brickAABB;
-    kage::BufferHandle  cascadeInfos;
-    kage::BufferHandle  cascadeAABBTrees[FFX_BRIXELIZER_MAX_CASCADES];
-    kage::BufferHandle  cascadeBrickMaps[FFX_BRIXELIZER_MAX_CASCADES];
-};
-
 struct RadianceCascadeBuild
 {
     kage::PassHandle pass;
@@ -48,7 +39,7 @@ struct RadianceCascadeBuild
     kage::ImageHandle cascadeImg;
     kage::ImageHandle radCascdOutAlias;
 
-    BRXInfos brx;
+    BRX_UserResources brx;
 };
 
 struct RadianceCascade
@@ -69,7 +60,7 @@ struct RadianceCascadeInitData
     kage::BindlessHandle bindless;
 
     // brx
-    BRXInfos brx;
+    BRX_UserResources brx;
 
     uint32_t maxDrawCmdCount;
 };

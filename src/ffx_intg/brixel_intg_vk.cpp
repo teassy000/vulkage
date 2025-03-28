@@ -186,7 +186,7 @@ void parseUserRes(FFXBrixelizer_vk& _brx)
         return;
     }
     size_t count = _brx.mem_userRes->size / sizeof(UnifiedResHandle);
-    if (count != 4 + FFX_BRIXELIZER_MAX_CASCADES * 2) {
+    if (count != 5 + FFX_BRIXELIZER_MAX_CASCADES * 2) {
         message(error, "invalid user resources size!");
         return;
     }
@@ -196,18 +196,20 @@ void parseUserRes(FFXBrixelizer_vk& _brx)
     // fill user resources of kage
     _brx.debugDestImg = handles[0].img;
     _brx.scratchBuf = handles[1].buf;
-    _brx.sdfAtlas = handles[2].img;
-    _brx.brickAABB = handles[3].buf;
+    _brx.userReses.sdfAtlas = handles[2].img;
+    _brx.userReses.brickAABB = handles[3].buf;
 
     for (uint32_t ii = 0; ii < FFX_BRIXELIZER_MAX_CASCADES; ++ii)
     {
-        _brx.cascadeAABBTrees[ii] = handles[4 + ii].buf;
+        _brx.userReses.cascadeAABBTrees[ii] = handles[4 + ii].buf;
     }
 
     for (uint32_t ii = 0; ii < FFX_BRIXELIZER_MAX_CASCADES; ++ii)
     {
-        _brx.cascadeBrickMaps[ii] = handles[4 + FFX_BRIXELIZER_MAX_CASCADES + ii].buf;
+        _brx.userReses.cascadeBrickMaps[ii] = handles[4 + FFX_BRIXELIZER_MAX_CASCADES + ii].buf;
     }
+
+    _brx.userReses.cascadeInfos = handles[4 + FFX_BRIXELIZER_MAX_CASCADES * 2].buf;
 
 
     const uint32_t alignmnet = (uint32_t)s_renderVK->m_phyDeviceProps.limits.minStorageBufferOffsetAlignment;
@@ -217,7 +219,7 @@ void parseUserRes(FFXBrixelizer_vk& _brx)
         // will store data to this ref
         FfxResource& atlasRef = _brx.updateDesc.resources.sdfAtlas;
 
-        const Image_vk& sdfAtlasBuf = s_renderVK->getImage(_brx.sdfAtlas);
+        const Image_vk& sdfAtlasBuf = s_renderVK->getImage(_brx.userReses.sdfAtlas);
 
         atlasRef.resource = sdfAtlasBuf.image;
         atlasRef.description.type = FFX_RESOURCE_TYPE_TEXTURE3D;
@@ -237,7 +239,7 @@ void parseUserRes(FFXBrixelizer_vk& _brx)
         // will store data to this ref
         FfxResource& brickAABBRef = _brx.updateDesc.resources.brickAABBs;
 
-        const Buffer_vk& brickAABB = s_renderVK->getBuffer(_brx.brickAABB);
+        const Buffer_vk& brickAABB = s_renderVK->getBuffer(_brx.userReses.brickAABB);
 
         brickAABBRef.resource = brickAABB.buffer;
         brickAABBRef.description.type = FFX_RESOURCE_TYPE_BUFFER;
@@ -259,7 +261,7 @@ void parseUserRes(FFXBrixelizer_vk& _brx)
         FfxResource& cascadeAABBRef = _brx.updateDesc.resources.cascadeResources[ii].aabbTree;
         FfxResource& cascadeBrickMapRef = _brx.updateDesc.resources.cascadeResources[ii].brickMap;
 
-        const Buffer_vk& cascadeAABB = s_renderVK->getBuffer(_brx.cascadeAABBTrees[ii]);
+        const Buffer_vk& cascadeAABB = s_renderVK->getBuffer(_brx.userReses.cascadeAABBTrees[ii]);
 
         cascadeAABBRef.resource = cascadeAABB.buffer;
         cascadeAABBRef.description.type = FFX_RESOURCE_TYPE_BUFFER;
@@ -274,7 +276,7 @@ void parseUserRes(FFXBrixelizer_vk& _brx)
         nameStr = "brixelizer cascade aabb:" + std::to_string(ii);
         std::copy(nameStr.begin(), nameStr.end(), cascadeAABBRef.name);
 
-        const Buffer_vk& cascadeBrickMap = s_renderVK->getBuffer(_brx.cascadeBrickMaps[ii]);
+        const Buffer_vk& cascadeBrickMap = s_renderVK->getBuffer(_brx.userReses.cascadeBrickMaps[ii]);
 
         cascadeBrickMapRef.resource = cascadeBrickMap.buffer;
         cascadeBrickMapRef.description.type = FFX_RESOURCE_TYPE_BUFFER;
@@ -478,7 +480,7 @@ void preUpdateBarriers(FFXBrixelizer_vk& _brx)
 
     // sdf atlas
     {
-        const Image_vk& img = s_renderVK->getImage(_brx.sdfAtlas);
+        const Image_vk& img = s_renderVK->getImage(_brx.userReses.sdfAtlas);
         dispatcher.barrier(img.image, 
             VK_IMAGE_ASPECT_COLOR_BIT, {
                 VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT
@@ -489,7 +491,7 @@ void preUpdateBarriers(FFXBrixelizer_vk& _brx)
 
     // brick aabb
     {
-        const Buffer_vk& buf = s_renderVK->getBuffer(_brx.brickAABB);
+        const Buffer_vk& buf = s_renderVK->getBuffer(_brx.userReses.brickAABB);
         dispatcher.barrier(buf.buffer, {
                 VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT
                 , VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
@@ -499,12 +501,12 @@ void preUpdateBarriers(FFXBrixelizer_vk& _brx)
     // cascades
     for (uint32_t ii = 0; ii < FFX_BRIXELIZER_MAX_CASCADES; ++ii)
     {
-        const Buffer_vk& aabbTree = s_renderVK->getBuffer(_brx.cascadeAABBTrees[ii]);
+        const Buffer_vk& aabbTree = s_renderVK->getBuffer(_brx.userReses.cascadeAABBTrees[ii]);
         dispatcher.barrier(aabbTree.buffer, {
                 VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT
                 , VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
             });
-        const Buffer_vk& brickMap = s_renderVK->getBuffer(_brx.cascadeBrickMaps[ii]);
+        const Buffer_vk& brickMap = s_renderVK->getBuffer(_brx.userReses.cascadeBrickMaps[ii]);
         dispatcher.barrier(brickMap.buffer, {
                 VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT
                 , VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT

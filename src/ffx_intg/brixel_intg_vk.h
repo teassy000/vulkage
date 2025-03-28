@@ -4,18 +4,18 @@
 #include "kage_inner.h"
 #include "common.h" // for stl
 #include "FidelityFX/host/ffx_brixelizer.h"
+#include "brixel_structs.h"
 
 namespace kage { namespace vk { namespace brx
 {
+
     struct FFXBrixelizer_vk
     {
         ImageHandle debugDestImg;
         BufferHandle scratchBuf;
-        ImageHandle sdfAtlas;
-        BufferHandle brickAABB;
-        BufferHandle cascadeAABBTrees[FFX_BRIXELIZER_MAX_CASCADES];
-        BufferHandle cascadeBrickMaps[FFX_BRIXELIZER_MAX_CASCADES];
-    
+        
+        BRX_UserResources userReses;
+        
         BufferHandle vtxBuf;
         BufferHandle idxBuf;
 

@@ -1,7 +1,9 @@
 #pragma once
+
 #include "kage.h"
 #include "scene.h" // for Scene
 #include "FidelityFX/host/ffx_brixelizer.h" // for FFX_BRIXELIZER_MAX_CASCADES
+#include "brixel_structs.h"
 
 struct BRX_Mesh
 {
@@ -11,15 +13,14 @@ struct BRX_Mesh
     uint32_t idx_count;
 };
 
+
 struct BrixelResources
 {
     // expose following data which would be use in other passes
     kage::ImageHandle debugDestImg;
     kage::BufferHandle scratchBuf;
-    kage::ImageHandle sdfAtlas;
-    kage::BufferHandle brickAABB;
-    kage::BufferHandle cascadeAABBTrees[FFX_BRIXELIZER_MAX_CASCADES];
-    kage::BufferHandle cascadeBrickMaps[FFX_BRIXELIZER_MAX_CASCADES];
+    
+    BRX_UserResources userReses;
 
     std::vector<BRX_Mesh> meshes;
     std::vector<vec3> vtxes;

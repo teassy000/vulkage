@@ -226,7 +226,7 @@ void brxCreateResources(BrixelResources& _data)
         sdfAtlasDesc.type = kage::ImageType::type_3d;
         sdfAtlasDesc.viewType = kage::ImageViewType::type_3d;
 
-        _data.sdfAtlas = kage::registTexture("brxl_sdf_atlas", sdfAtlasDesc);
+        _data.userReses.sdfAtlas = kage::registTexture("brxl_sdf_atlas", sdfAtlasDesc);
     }
 
     // brick aabbs
@@ -237,7 +237,7 @@ void brxCreateResources(BrixelResources& _data)
         brickAABBDesc.memFlags = kage::MemoryPropFlagBits::device_local;
         brickAABBDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst | kage::BufferUsageFlagBits::transfer_src;
 
-        _data.brickAABB = kage::registBuffer("brxl_brick_aabbs", brickAABBDesc);
+        _data.userReses.brickAABB = kage::registBuffer("brxl_brick_aabbs", brickAABBDesc);
     }
 
     // cascade aabb trees
@@ -252,7 +252,7 @@ void brxCreateResources(BrixelResources& _data)
         {
             std::string name = "brxl_cascade_aabbs_";
             name += std::to_string(ii);
-            _data.cascadeAABBTrees[ii] = kage::registBuffer(name.c_str(), cascadeAABBTreeDesc);
+            _data.userReses.cascadeAABBTrees[ii] = kage::registBuffer(name.c_str(), cascadeAABBTreeDesc);
         }
     }
 
@@ -268,22 +268,33 @@ void brxCreateResources(BrixelResources& _data)
         {
             std::string name = "brxl_cascade_brick_map_";
             name += std::to_string(ii);
-            _data.cascadeBrickMaps[ii] = kage::registBuffer(name.c_str(), cascadeBrickMapDesc);
+            _data.userReses.cascadeBrickMaps[ii] = kage::registBuffer(name.c_str(), cascadeBrickMapDesc);
         }
+    }
+
+    // reserved cascade infos
+    {
+        kage::BufferDesc cascadeInfoDesc = {};
+        cascadeInfoDesc.size = sizeof(FfxBrixelizerCascadeInfo) * FFX_BRIXELIZER_MAX_CASCADES;
+        cascadeInfoDesc.fillVal = 0;
+        cascadeInfoDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+        cascadeInfoDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst | kage::BufferUsageFlagBits::transfer_src;
+        _data.userReses.cascadeInfos = kage::registBuffer("brxl_cascade_infos", cascadeInfoDesc);
     }
 
     handles.emplace_back( _data.debugDestImg );
     handles.emplace_back( _data.scratchBuf );
-    handles.emplace_back( _data.sdfAtlas );
-    handles.emplace_back( _data.brickAABB );
+    handles.emplace_back( _data.userReses.sdfAtlas );
+    handles.emplace_back( _data.userReses.brickAABB );
     for (uint32_t ii = 0; ii < FFX_BRIXELIZER_MAX_CASCADES; ++ii)
     {
-        handles.emplace_back( _data.cascadeAABBTrees[ii] );
+        handles.emplace_back( _data.userReses.cascadeAABBTrees[ii] );
     }
     for (uint32_t ii = 0; ii < FFX_BRIXELIZER_MAX_CASCADES; ++ii)
     {
-        handles.emplace_back(_data.cascadeBrickMaps[ii]);
+        handles.emplace_back(_data.userReses.cascadeBrickMaps[ii]);
     }
+    handles.emplace_back(_data.userReses.cascadeInfos);
 
     const kage::Memory* bufMem = kage::alloc(uint32_t(handles.size() * sizeof(kage::UnifiedResHandle)));
     std::memcpy(bufMem->data, handles.data(), bufMem->size);

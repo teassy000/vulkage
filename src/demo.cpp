@@ -636,14 +636,7 @@ namespace
                 rcInit.bindless = m_bindlessArray;
                 rcInit.skybox = m_skybox.colorOutAlias;
 
-                rcInit.brx.sdfAtlas = m_brixel.sdfAtlas;
-                rcInit.brx.brickAABB = m_brixel.brickAABB;
-                
-                for (uint32_t ii = 0; ii < COUNTOF(rcInit.brx.cascadeAABBTrees); ii++)
-                {
-                    rcInit.brx.cascadeAABBTrees[ii] = m_brixel.cascadeAABBTrees[ii];
-                    rcInit.brx.cascadeBrickMaps[ii] = m_brixel.cascadeBrickMaps[ii];
-                }
+                memcpy(&rcInit.brx, &m_brixel.userReses, sizeof(BRX_UserResources));
 
                 prepareRadianceCascade(m_radianceCascade, rcInit);
             }
