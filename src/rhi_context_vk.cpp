@@ -3006,7 +3006,7 @@ namespace kage { namespace vk
         }
 
         createBarriersRec(_hPass);
-        lazyPushDescriptorSet(_hPass);
+        lazySetDescriptors(_hPass);
 
         // get the dispatch size
         PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
@@ -3042,7 +3042,7 @@ namespace kage { namespace vk
         }
 
         createBarriersRec(_hPass);
-        lazyPushDescriptorSet(_hPass);
+        lazySetDescriptors(_hPass);
 
         const PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
         const Buffer_vk& ib = getBuffer(_hIndirectBuf);
@@ -3073,7 +3073,7 @@ namespace kage { namespace vk
         }
 
         createBarriersRec(_hPass);
-        lazyPushDescriptorSet(_hPass);
+        lazySetDescriptors(_hPass);
 
         beginRendering(m_cmdBuffer, _hPass.id);
 
@@ -3117,7 +3117,7 @@ namespace kage { namespace vk
         }
 
         createBarriersRec(_hPass);
-        lazyPushDescriptorSet(_hPass);
+        lazySetDescriptors(_hPass);
 
         beginRendering(m_cmdBuffer, _hPass.id);
 
@@ -3159,7 +3159,7 @@ namespace kage { namespace vk
         }
 
         createBarriersRec(_hPass);
-        lazyPushDescriptorSet(_hPass);
+        lazySetDescriptors(_hPass);
 
         beginRendering(m_cmdBuffer, _hPass.id);
 
@@ -3198,7 +3198,7 @@ namespace kage { namespace vk
         }
 
         createBarriersRec(_hPass);
-        lazyPushDescriptorSet(_hPass);
+        lazySetDescriptors(_hPass);
 
         beginRendering(m_cmdBuffer, _hPass.id);
 
@@ -3240,7 +3240,7 @@ namespace kage { namespace vk
         }
 
         createBarriersRec(_hPass);
-        lazyPushDescriptorSet(_hPass);
+        lazySetDescriptors(_hPass);
 
         beginRendering(m_cmdBuffer, _hPass.id);
 

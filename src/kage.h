@@ -249,6 +249,7 @@ namespace kage
     // 3 brick-aabb
     // [4, 4 + FFX_BRIXELIZER_MAX_CASCADES - 1]: cascade aabb trees
     // [4 + FFX_BRIXELIZER_MAX_CASCADES, 4 + FFX_BRIXELIZER_MAX_CASCADES * 2 - 1]: cascade brick maps
+    // [4 + FFX_BRIXELIZER_MAX_CASCADES * 2]: cascade infos
     // ------------------------------------------------------------------------------------------
     // this will mark these buffers as static to framegraph
     void brx_setUserResources(const Memory* _reses);
