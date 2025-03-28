@@ -662,12 +662,12 @@ namespace kage { namespace vk
         program.pushSetLayout = createDescSetLayout(_device, _shaders);
         assert(program.pushSetLayout);
 
-        uint32_t nonPushDescCount = gatherNonPushDescCount(_shaders);
+        // uint32_t nonPushDescCount = gatherNonPushDescCount(_shaders);
         program.nonPushSetLayout = 0;
         program.nonPushDescSet = 0;
         if (hasNonPushDesc) {
             program.nonPushSetLayout = createDescSetLayout(_device, _shaders, false);
-            program.nonPushDescSet = createDescriptorSet(_device, program.nonPushSetLayout, _pool, nonPushDescCount);
+            program.nonPushDescSet = createDescriptorSet(_device, program.nonPushSetLayout, _pool);
         }
 
         stl::vector<VkDescriptorSetLayout> setLayouts;
@@ -822,14 +822,14 @@ namespace kage { namespace vk
         return setLayout;
     }
 
-    VkDescriptorSet createDescriptorSet(VkDevice _device, VkDescriptorSetLayout _layout , VkDescriptorPool _pool, uint32_t _descCount)
+    VkDescriptorSet createDescriptorSet(VkDevice _device, VkDescriptorSetLayout _layout , VkDescriptorPool _pool, uint32_t _descCount /*= 0*/, bool _bindless /* = false*/)
     {
         VkDescriptorSetVariableDescriptorCountAllocateInfo setAllocateCountInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO };
         setAllocateCountInfo.descriptorSetCount = 1;
         setAllocateCountInfo.pDescriptorCounts = &_descCount;
 
         VkDescriptorSetAllocateInfo allocInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
-        allocInfo.pNext = &setAllocateCountInfo;
+        allocInfo.pNext = _bindless ? &setAllocateCountInfo : NULL;
         allocInfo.descriptorPool = _pool;
         allocInfo.descriptorSetCount = 1;
         allocInfo.pSetLayouts = &_layout;
