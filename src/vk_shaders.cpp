@@ -326,6 +326,7 @@ namespace kage { namespace vk
                 shader.nonPushResTypes[id.binding] = resourceType;
                 shader.nonPushResCount[id.binding] = bx::max(count, 1);
                 shader.nonPushResMask |= 1 << id.binding;
+                shader.nonPushDescCount += bx::max(count, 1);
             }
 
 
@@ -622,6 +623,24 @@ namespace kage { namespace vk
     }
 
 
+    uint32_t gatherNonPushDescCount(const stl::vector<Shader_vk>& shaders)
+    {
+        uint32_t count = 0;
+        for (uint32_t ii = 0; ii < 32; ii++)
+        {
+            uint32_t maxCount = 0;
+            for (const Shader_vk& shader : shaders)
+            {
+                if (shader.nonPushResMask & (1 << ii)) {
+                    maxCount = bx::max(maxCount, shader.nonPushResCount[ii]);
+                }
+            }
+            count += maxCount;
+        }
+
+        return count;
+    }
+
     kage::vk::Program_vk createProgram(VkDevice _device, VkPipelineBindPoint _bindingPoint, const stl::vector<Shader_vk>& _shaders, uint32_t _pushConstantSize, VkDescriptorSetLayout _bindlessLayout, VkDescriptorPool _pool)
     {
         VkShaderStageFlags pushConstantStages = 0;
@@ -631,11 +650,9 @@ namespace kage { namespace vk
 
         bool useBindless = false;
         bool hasNonPushDesc = false;
-        VkShaderStageFlags useBindlessStages = 0;
         for (const Shader_vk& shader : _shaders) {
             useBindless |= shader.usesBindless;
             hasNonPushDesc |= shader.hasNonPushDesc;
-            useBindlessStages |= shader.stage;
         }
 
         assert(!useBindless || _bindlessLayout); // TODO: create array layout for shaders that use bind-less
@@ -645,9 +662,13 @@ namespace kage { namespace vk
         program.pushSetLayout = createDescSetLayout(_device, _shaders);
         assert(program.pushSetLayout);
 
+        uint32_t nonPushDescCount = gatherNonPushDescCount(_shaders);
         program.nonPushSetLayout = 0;
-        if(hasNonPushDesc)
+        program.nonPushDescSet = 0;
+        if (hasNonPushDesc) {
             program.nonPushSetLayout = createDescSetLayout(_device, _shaders, false);
+            program.nonPushDescSet = createDescriptorSet(_device, program.nonPushSetLayout, _pool, nonPushDescCount);
+        }
 
         stl::vector<VkDescriptorSetLayout> setLayouts;
         setLayouts.emplace_back(program.pushSetLayout);
@@ -670,9 +691,15 @@ namespace kage { namespace vk
 
     void destroyProgram(VkDevice _device, const Program_vk& _program)
     {
+        const VkDescriptorPool pool = s_renderVK->m_descPool;
+        assert(pool);
+
         vkDestroyDescriptorUpdateTemplate(_device, _program.updateTemplate, 0);
         vkDestroyPipelineLayout(_device, _program.layout, 0);
         vkDestroyDescriptorSetLayout(_device, _program.pushSetLayout, 0);
+        vkDestroyDescriptorSetLayout(_device, _program.bindlessLayout, 0);
+        vkFreeDescriptorSets(_device, pool, 1, &_program.nonPushDescSet);
+        vkDestroyDescriptorSetLayout(_device, _program.nonPushSetLayout, 0);
     }
 
     VkDescriptorSetLayout createDescSetLayout(VkDevice device, const stl::vector<Shader_vk>& shaders, bool _push /* = true*/)

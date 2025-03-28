@@ -585,6 +585,9 @@ namespace kage { namespace vk
         void lazyPushDescriptorSet(const PassHandle _hPass);
         void lazyBindDescriptorSet(const PassHandle _hPass);
 
+        void lazySetDescriptors(const PassHandle _hPass);
+
+
         // push descriptor set with templates
         void executePass(const uint16_t _passId);
 

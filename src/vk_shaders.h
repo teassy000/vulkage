@@ -16,11 +16,11 @@ namespace kage { namespace vk
         uint32_t nonPushResCount[32];
         uint32_t nonPushResMask;
 
-
         uint32_t localSizeX;
         uint32_t localSizeY;
         uint32_t localSizeZ;
 
+        uint32_t nonPushDescCount;
         bool usesPushConstants;
         bool usesBindless;
         bool hasNonPushDesc;

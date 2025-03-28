@@ -3782,7 +3782,12 @@ namespace kage { namespace vk
     void RHIContext_vk::createBarriersRec(const PassHandle _hPass)
     {
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_hPass.id);
-        for (const Binding& binding : m_pushDescSetsPerPass)
+        stl::vector<Binding> bindings;
+        bindings.reserve(m_pushDescSetsPerPass.size() + m_bindDescSetsPerPass.size());
+        bindings.insert(bindings.end(), m_pushDescSetsPerPass.begin(), m_pushDescSetsPerPass.end());
+        bindings.insert(bindings.end(), m_bindDescSetsPerPass.begin(), m_bindDescSetsPerPass.end());
+
+        for (const Binding& binding : bindings)
         {
             BarrierState_vk bs{};
             bs.accessMask = getBindingAccess(binding.access);
@@ -3837,13 +3842,24 @@ namespace kage { namespace vk
     void RHIContext_vk::flushWriteBarriersRec(const PassHandle _hPass)
     {
         stl::vector<Binding> bindings;
-        bindings.reserve(m_pushDescSetsPerPass.size());
+        bindings.reserve(m_pushDescSetsPerPass.size() + m_bindDescSetsPerPass.size());
+        // push descs
         for (const Binding& b : m_pushDescSetsPerPass)
         {
             if (b.access == BindingAccess::write 
                 || b.access == BindingAccess::read_write)
             {
-                bindings.push_back(b);
+                bindings.emplace_back(b);
+            }
+        }
+
+        // bind descs
+        for (const Binding& b : m_bindDescSetsPerPass)
+        {
+            if (b.access == BindingAccess::write
+                || b.access == BindingAccess::read_write)
+            {
+                bindings.emplace_back(b);
             }
         }
 
@@ -3872,22 +3888,26 @@ namespace kage { namespace vk
 
         m_pushDescSetsPerPass.clear();
         m_colorAttachPerPass.clear();
+        m_bindDescSetsPerPass.clear();
+        m_bindDescArrayCountPerPass.clear();
         m_depthAttachPerPass = {};
     }
 
     void RHIContext_vk::lazyPushDescriptorSet(const PassHandle _hPass)
     {
-        if (m_pushDescSetsPerPass.empty())
+        const stl::vector<Binding>& bindings = m_pushDescSetsPerPass;
+
+        if (bindings.empty())
         {
             return;
         }
 
-        const uint32_t count = (uint32_t)m_pushDescSetsPerPass.size();
+        const uint32_t count = (uint32_t)bindings.size();
 
         stl::vector<DescriptorInfo> descInfos(count);
-        for (uint32_t ii = 0; ii < (uint32_t)m_pushDescSetsPerPass.size(); ++ii)
+        for (uint32_t ii = 0; ii < (uint32_t)bindings.size(); ++ii)
         {
-            const Binding& b = m_pushDescSetsPerPass[ii];
+            const Binding& b = bindings[ii];
 
             DescriptorInfo di;
             if (ResourceType::image == b.type)
@@ -3909,40 +3929,162 @@ namespace kage { namespace vk
         vkCmdPushDescriptorSetWithTemplateKHR(m_cmdBuffer, prog.updateTemplate, prog.layout, 0, descInfos.data());
     }
 
+    uint32_t getBindsHash(const stl::vector<Binding>& _binds, const stl::vector<uint32_t>& _arrCounts)
+    {
+        bx::HashMurmur2A hash;
+        hash.begin();
+        for (const Binding& binding : _binds)
+        {
+            hash.add(binding.type);
+            hash.add(binding.buf.id);
+            hash.add(binding.img.id);
+        }
+
+        for (uint32_t count : _arrCounts)
+        {
+            hash.add(count);
+        }
+
+        return hash.end();
+    }
+
     void RHIContext_vk::lazyBindDescriptorSet(const PassHandle _hPass)
     {
         KG_ZoneScopedC(Color::indian_red);
 
-        if (m_pushDescSetsPerPass.empty()) {
+        const stl::vector<Binding>& bindings = m_bindDescSetsPerPass;
+        const stl::vector<uint32_t>& arrayCounts = m_bindDescArrayCountPerPass;
+
+        if (bindings.empty()) {
             return;
         }
 
-        const uint32_t bindCount = (uint32_t)m_bindDescSetsPerPass.size();
-        
-        uint32_t bindingPoint = 0;
-        for (size_t i = 0; i < bindCount; i++)
-        {
-
-        }
-
-        // should update?
-
-        // bind sets
-
-        /*
-        VkCommandBuffer                             commandBuffer,
-            VkPipelineBindPoint                         pipelineBindPoint,
-            VkPipelineLayout                            layout,
-            uint32_t                                    firstSet,
-            uint32_t                                    descriptorSetCount,
-            const VkDescriptorSet* pDescriptorSets,
-            uint32_t                                    dynamicOffsetCount,
-            const uint32_t* pDynamicOffsets);
 
         PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
         const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
-        vkCmdBindDescriptorSets(m_cmdBuffer, prog.bindPoint, prog.layout, 0, bindCount, descSets.data(), 0, nullptr);
-        */
+
+        const uint32_t bindCount = (uint32_t)bindings.size();
+        const uint32_t arrayCount = (uint32_t)arrayCounts.size();
+            
+        uint32_t hash = getBindsHash(bindings, arrayCounts);
+
+        bool shouldUpdate = (m_bindDescHashPerPass.find(_hPass) == m_bindDescHashPerPass.end()
+                    || m_bindDescHashPerPass[_hPass] != hash);
+
+        if (shouldUpdate) {
+
+            struct DescInfo {
+                uint32_t offset;
+                uint32_t bindPoint;
+            };
+
+            struct BindInfo {
+                uint32_t bindPoint;
+                uint32_t count;
+            };
+
+            stl::vector<DescInfo> imageBinds;
+            stl::vector<DescInfo> bufferBinds;
+            stl::vector<VkDescriptorImageInfo> imgInfos;
+            stl::vector<VkDescriptorBufferInfo> bufInfos;
+
+            stl::vector<BindInfo> imgBindInfos;
+            stl::vector<BindInfo> bufBindInfos;
+
+            imageBinds.reserve(bindCount);
+            bufferBinds.reserve(bindCount);
+
+            uint32_t imgCount = 0;
+            uint32_t bufCount = 0;
+            uint32_t offset = 0;
+            for (uint32_t ii = 0; ii < arrayCount; ++ii)
+            {
+                const uint32_t count = arrayCounts[ii];
+                const Binding& baseBinding = bindings[offset];
+
+                if (ResourceType::image == baseBinding.type)
+                {
+                    imgBindInfos.emplace_back(BindInfo{ii, count});
+                    imgCount += count;
+
+                    for (uint32_t jj = 0; jj < count; ++jj)
+                    {
+                        const Binding& binding = bindings[offset];
+                        imageBinds.emplace_back(DescInfo{jj, ii});
+                        imgInfos.emplace_back(getImageDescInfo(binding.img, binding.mip, binding.sampler).image);
+
+                        offset++;
+                    }
+                }
+                else if (ResourceType::buffer == baseBinding.type)
+                {
+                    bufBindInfos.emplace_back(BindInfo{ ii, count });
+                    bufCount += count;
+
+                    for (uint32_t jj = 0; jj < count; ++jj)
+                    {
+                        const Binding& binding = bindings[offset];
+                        bufferBinds.emplace_back(DescInfo{ jj, ii });
+                        bufInfos.emplace_back(getBufferDescInfo(binding.buf).buffer);
+
+                        offset++;
+                    }
+                }
+            }
+
+            assert(imgCount == imageBinds.size());
+            assert(bufCount == bufferBinds.size());
+
+
+            stl::vector<VkWriteDescriptorSet> writes;
+            offset = 0;
+            for (uint32_t ii = 0; ii < imgBindInfos.size(); ++ii) 
+            {
+                const BindInfo& bi = imgBindInfos[ii];
+
+                VkWriteDescriptorSet write{};
+                write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                write.dstSet = prog.nonPushDescSet;
+                write.dstBinding = bi.bindPoint;
+                write.dstArrayElement = 0; // the first element
+                write.descriptorCount = bi.count;
+                write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                write.pImageInfo = imgInfos.data() + offset;
+
+                writes.push_back(write);
+            }
+
+            offset = 0;
+            for (uint32_t ii = 0; ii < bufBindInfos.size(); ++ii)
+            {
+                const BindInfo& bi = bufBindInfos[ii];
+                VkWriteDescriptorSet write{};
+                write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                write.dstSet = prog.nonPushDescSet;
+                write.dstBinding = bi.bindPoint;
+                write.dstArrayElement = 0; // the first element
+                write.descriptorCount = bi.count;
+                write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
+                write.pBufferInfo = bufInfos.data() + offset;
+                
+                writes.push_back(write);
+            }
+
+            vkUpdateDescriptorSets(m_device, (uint32_t)writes.size(), writes.data(), 0, nullptr);
+        }
+
+        // bind sets
+        //PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
+        //const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
+        vkCmdBindDescriptorSets(m_cmdBuffer, prog.bindPoint, prog.layout, 0, 1, &prog.nonPushDescSet, 0, nullptr);
+        
+    }
+
+    void RHIContext_vk::lazySetDescriptors(const PassHandle _hPass)
+    {
+        KG_ZoneScopedC(Color::indian_red);
+        lazyPushDescriptorSet(_hPass);
+        lazyBindDescriptorSet(_hPass);
     }
 
     const Shader_vk& RHIContext_vk::getShader(const ShaderHandle _hShader) const
