@@ -4458,6 +4458,12 @@ namespace kage { namespace vk
                         pushDescriptorSet(_hPass, rc->m_mem);
                     }
                     break;
+                case Command::record_bind_descriptor_set:
+                    {
+                        const RecordBindDescriptorSetCmd* rc = reinterpret_cast<const RecordBindDescriptorSetCmd*>(cmd);
+                        bindDescriptorSet(_hPass, rc->m_binds, rc->m_counts);
+                    }
+                    break;
                 case Command::record_set_color_attachments:
                     {
                         const RecordSetColorAttachmentsCmd* rc = reinterpret_cast<const RecordSetColorAttachmentsCmd*>(cmd);

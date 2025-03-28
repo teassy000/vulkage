@@ -13,10 +13,11 @@ using StoreOp = kage::AttachmentStoreOp;
 struct RCBuildInit
 {
     GBuffer g_buffer;
-    kage::ImageHandle sdfAtlas;
     kage::ImageHandle depth;
     kage::ImageHandle skybox;
     kage::BufferHandle trans;
+
+    BRXInfos brx;
 };
 
 void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
@@ -109,12 +110,6 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
         , outAlias
     );
 
-    kage::bindImage(pass, _init.sdfAtlas
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read
-        , kage::ImageLayout::general
-    );
-
     _rc.pass = pass;
     _rc.program = program;
     _rc.cs = cs;
@@ -128,9 +123,12 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
     _rc.skySampler = skySamp;
 
     _rc.trans = _init.trans;
-    _rc.inSdfAtlas = _init.sdfAtlas;
     _rc.inDepth = _init.depth;
     _rc.depthSampler = depthSamp;
+
+
+    // brx input
+    memcpy(&_rc.brx, &_init.brx, sizeof(BRXInfos));
 
     _rc.cascadeImg = img;
     _rc.radCascdOutAlias = outAlias;
@@ -163,7 +161,7 @@ void recRCBuild(const RadianceCascadeBuild& _rc, const float _sceneRadius)
 
         kage::setConstants(mem);
 
-        kage::Binding binds[] =
+        kage::Binding pushBinds[] =
         {
             {_rc.trans,                 Access::read,                   Stage::compute_shader},
             {_rc.g_buffer.albedo,       _rc.g_bufferSamplers.albedo,    Stage::compute_shader},
@@ -173,9 +171,23 @@ void recRCBuild(const RadianceCascadeBuild& _rc, const float _sceneRadius)
             {_rc.inDepth,               _rc.depthSampler,               Stage::compute_shader},
             {_rc.inSkybox,              _rc.skySampler,                 Stage::compute_shader},
             {_rc.cascadeImg,            0,                              Stage::compute_shader},
-            {_rc.inSdfAtlas,            0,                              Stage::compute_shader},
         };
-        kage::pushBindings(binds, COUNTOF(binds));
+        kage::pushBindings(pushBinds, COUNTOF(pushBinds));
+
+        std::vector<kage::Binding> setBinds;
+        setBinds.emplace_back(kage::Binding{ _rc.brx.sdfAtlas, 0, Stage::compute_shader });
+        setBinds.emplace_back(kage::Binding{ _rc.brx.cascadeInfos, Access::read, Stage::compute_shader });
+        setBinds.emplace_back(kage::Binding{ _rc.brx.brickAABB, Access::read, Stage::compute_shader });
+
+        for (uint32_t jj = 0; jj < FFX_BRIXELIZER_MAX_CASCADES; jj++)
+            setBinds.emplace_back(kage::Binding{ _rc.brx.cascadeAABBTrees[jj], Access::read, Stage::compute_shader });
+        for (uint32_t jj = 0; jj < FFX_BRIXELIZER_MAX_CASCADES; jj++)
+            setBinds.emplace_back(kage::Binding{ _rc.brx.cascadeBrickMaps[jj], Access::read, Stage::compute_shader });
+
+        uint32_t arrayCounts[] = { 1, 1, 1, FFX_BRIXELIZER_MAX_CASCADES, FFX_BRIXELIZER_MAX_CASCADES};
+
+        kage::bindBindings(setBinds.data(), uint16_t(setBinds.size()), arrayCounts, COUNTOF(arrayCounts));
+
 
         uint32_t groupCnt = prob_sideCount * ray_sideCount;
         kage::dispatch(groupCnt, groupCnt, prob_sideCount);
@@ -189,9 +201,12 @@ void prepareRadianceCascade(RadianceCascade& _rc, const RadianceCascadeInitData 
     RCBuildInit rcInit{};
     rcInit.g_buffer = _init.g_buffer;
     rcInit.depth = _init.depth;
-    rcInit.sdfAtlas = _init.sdfAtlas;
     rcInit.skybox = _init.skybox;
     rcInit.trans = _init.transBuf;
+    memcpy(&rcInit.brx, &_init.brx, sizeof(BRXInfos));
+
+    FfxBrixelizerCascadeInfo info;
+
     prepareRCbuild(_rc.rcBuild, rcInit);
 }
 

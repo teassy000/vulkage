@@ -632,10 +632,18 @@ namespace
                 rcInit.idxBuf = m_idxBuf;
                 rcInit.vtxBuf = m_vtxBuf;
                 rcInit.transBuf = m_transformBuf;
-                rcInit.sdfAtlas = m_brixel.sdfAtlas;
                 rcInit.maxDrawCmdCount = (uint32_t)m_scene.meshDraws.size();
                 rcInit.bindless = m_bindlessArray;
                 rcInit.skybox = m_skybox.colorOutAlias;
+
+                rcInit.brx.sdfAtlas = m_brixel.sdfAtlas;
+                rcInit.brx.brickAABB = m_brixel.brickAABB;
+                
+                for (uint32_t ii = 0; ii < COUNTOF(rcInit.brx.cascadeAABBTrees); ii++)
+                {
+                    rcInit.brx.cascadeAABBTrees[ii] = m_brixel.cascadeAABBTrees[ii];
+                    rcInit.brx.cascadeBrickMaps[ii] = m_brixel.cascadeBrickMaps[ii];
+                }
 
                 prepareRadianceCascade(m_radianceCascade, rcInit);
             }

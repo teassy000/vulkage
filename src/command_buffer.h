@@ -173,6 +173,7 @@ namespace kage
 
             record_set_constants,
             record_push_descriptor_set,
+            record_bind_descriptor_set,
             record_set_color_attachments,
             record_set_depth_attachment,
             record_set_bindless,
@@ -334,6 +335,13 @@ namespace kage
     {
         ENTRY_IMPLEMENT_COMMAND(RecordPushDescriptorSetCmd, Command::record_push_descriptor_set);
         const Memory* m_mem;
+    };
+
+    struct RecordBindDescriptorSetCmd : public Command
+    {
+        ENTRY_IMPLEMENT_COMMAND(RecordBindDescriptorSetCmd, Command::record_bind_descriptor_set);
+        const Memory* m_binds;
+        const Memory* m_counts;
     };
 
     struct RecordSetColorAttachmentsCmd : public Command
@@ -705,6 +713,14 @@ namespace kage
             RecordPushDescriptorSetCmd cmd;
             cmd.m_mem = _mem;
 
+            push(cmd);
+        }
+
+        void cmdRecordBindDescriptorSet(const Memory* _binds, const Memory* _counts)
+        {
+            RecordBindDescriptorSetCmd cmd;
+            cmd.m_binds = _binds;
+            cmd.m_counts = _counts;
             push(cmd);
         }
 

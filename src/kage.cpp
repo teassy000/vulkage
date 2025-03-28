@@ -354,6 +354,8 @@ namespace kage
 
         void pushBindings(const Binding* _desc, uint16_t _count);
 
+        void bindBindings(const Binding* _desc, uint16_t _descCount, const uint32_t* _arrayCounts, uint32_t _bindCount);
+
         void setColorAttachments(const Attachment* _colors, uint16_t _count);
 
         void setDepthAttachment(const Attachment _depth);
@@ -2249,6 +2251,21 @@ namespace kage
         m_transientMemories.push_back(mem);
     }
 
+    void Context::bindBindings(const Binding* _desc, uint16_t _descCount, const uint32_t* _arrayCounts, uint32_t _bindCount)
+    {
+        const uint32_t sz = sizeof(Binding) * _descCount;
+        const Memory* descMem = alloc(sz);
+        bx::memCopy(descMem->data, _desc, descMem->size);
+
+        const uint32_t sz2 = sizeof(uint32_t) * _bindCount;
+        const Memory* arrayCountMem = alloc(sz2);
+        bx::memCopy(arrayCountMem->data, _arrayCounts, arrayCountMem->size);
+
+        m_cmdQueue.cmdRecordBindDescriptorSet(descMem, arrayCountMem);
+        m_transientMemories.push_back(descMem);
+        m_transientMemories.push_back(arrayCountMem);
+    }
+
     void Context::setColorAttachments(const Attachment* _colors, uint16_t _count)
     {
         const uint32_t sz = sizeof(Attachment) * _count;
@@ -2537,6 +2554,11 @@ namespace kage
     void pushBindings( const Binding* _desc , uint16_t _count )
     {
         s_ctx->pushBindings(_desc, _count);
+    }
+
+    void bindBindings(const Binding* _desc, uint16_t _descCount, const uint32_t* _arrayCounts, uint32_t _bindCount)
+    {
+        s_ctx->bindBindings(_desc, _descCount, _arrayCounts, _bindCount);
     }
 
     void setColorAttachments(const Attachment* _colors, uint16_t _count)

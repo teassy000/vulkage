@@ -89,6 +89,8 @@ namespace kage
 
     void pushBindings(const Binding* _desc, uint16_t _count);
 
+    void bindBindings(const Binding* _desc, uint16_t _descCount, const uint32_t* _arrayCounts, uint32_t _bindCount);
+
     void setColorAttachments(const Attachment* _colors, uint16_t _count);
 
     void setDepthAttachment(Attachment _depth);

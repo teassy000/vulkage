@@ -41,15 +41,17 @@ layout(binding = 1, set = 2) buffer readonly BrxCascadeInfos
     FfxBrixelizerCascadeInfo in_cascades_info[];
 };
 
-layout(binding = 2, set = 2) buffer readonly cascadeAABBTrees
-{
-    uint aabb[];
-}in_cas[FFX_BRIXELIZER_MAX_CASCADES];
-
-layout(binding = 3, set = 2) buffer readonly brickAABBTrees
+layout(binding = 2, set = 2) buffer readonly brickAABBTrees
 {
     uint in_bricks_aabb[];
 };
+
+layout(binding = 3, set = 2) buffer readonly cascadeAABBTrees
+{
+    uint aabb[];
+}
+in_cas[FFX_BRIXELIZER_MAX_CASCADES];
+
 
 layout(binding = 4, set = 2) buffer readonly cascadeBrickMaps
 {
@@ -66,10 +68,10 @@ struct Segment
 
 // ffx brixelizer required functions
 // requred data:
-// 1. the cascade info
-// 2. the aabb trees
+// 1. the sdf atlas
+// 2. the cascade info
 // 3. the bricks aabb
-// 4. the sdf atlas
+// 4. the aabb trees
 // 5. the cascade brick map array
 
 uint getLinearBrickIdx(FfxUInt32 _casId, FfxUInt32 _elemIdx)
