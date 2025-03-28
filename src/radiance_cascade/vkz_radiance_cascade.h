@@ -40,6 +40,7 @@ struct RadianceCascadeBuild
     kage::ImageHandle radCascdOutAlias;
 
     BRX_UserResources brx;
+    kage::SamplerHandle brxAtlasSamp;
 };
 
 struct RadianceCascade

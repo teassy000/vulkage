@@ -670,12 +670,14 @@ namespace kage { namespace vk
             program.nonPushDescSet = createDescriptorSet(_device, program.nonPushSetLayout, _pool);
         }
 
-        stl::vector<VkDescriptorSetLayout> setLayouts;
-        setLayouts.emplace_back(program.pushSetLayout);
-        if (_bindlessLayout) setLayouts.emplace_back(_bindlessLayout);
-        if (program.nonPushSetLayout) setLayouts.emplace_back(program.nonPushSetLayout);
+        //stl::vector<VkDescriptorSetLayout> setLayouts;
+        //setLayouts.emplace_back(program.pushSetLayout);
+        //if (_bindlessLayout) setLayouts.emplace_back(_bindlessLayout);
+        //if (program.nonPushSetLayout) setLayouts.emplace_back(program.nonPushSetLayout);
 
-        program.layout = createPipelineLayout(_device, (uint32_t)setLayouts.size(), setLayouts.data(), pushConstantStages, _pushConstantSize);
+        VkDescriptorSetLayout setLayoutsArray[3] = { program.pushSetLayout, _bindlessLayout, program.nonPushSetLayout };
+
+        program.layout = createPipelineLayout(_device, COUNTOF(setLayoutsArray), setLayoutsArray, pushConstantStages, _pushConstantSize);
         assert(program.layout);
 
         program.updateTemplate = createDescriptorTemplates(_device, _bindingPoint, program.layout, program.pushSetLayout, _shaders);

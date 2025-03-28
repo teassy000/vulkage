@@ -110,6 +110,14 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
         , outAlias
     );
 
+    kage::SamplerHandle brxAtlasSamp = kage::sampleImage(pass, _init.brx.sdfAtlas
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::SamplerFilter::nearest
+        , kage::SamplerMipmapMode::nearest
+        , kage::SamplerAddressMode::clamp_to_edge
+        , kage::SamplerReductionMode::min
+    );
+
     _rc.pass = pass;
     _rc.program = program;
     _rc.cs = cs;
@@ -129,6 +137,7 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
 
     // brx input
     memcpy(&_rc.brx, &_init.brx, sizeof(BRX_UserResources));
+    _rc.brxAtlasSamp = brxAtlasSamp;
 
     _rc.cascadeImg = img;
     _rc.radCascdOutAlias = outAlias;
@@ -175,7 +184,7 @@ void recRCBuild(const RadianceCascadeBuild& _rc, const float _sceneRadius)
         kage::pushBindings(pushBinds, COUNTOF(pushBinds));
 
         std::vector<kage::Binding> setBinds;
-        setBinds.emplace_back(kage::Binding{ _rc.brx.sdfAtlas, 0, Stage::compute_shader });
+        setBinds.emplace_back(kage::Binding{ _rc.brx.sdfAtlas, _rc.brxAtlasSamp, Stage::compute_shader });
         setBinds.emplace_back(kage::Binding{ _rc.brx.cascadeInfos, Access::read, Stage::compute_shader });
         setBinds.emplace_back(kage::Binding{ _rc.brx.brickAABB, Access::read, Stage::compute_shader });
 

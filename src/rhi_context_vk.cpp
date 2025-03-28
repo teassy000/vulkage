@@ -3973,26 +3973,16 @@ namespace kage { namespace vk
 
         if (shouldUpdate) {
 
-            struct DescInfo {
-                uint32_t offset;
-                uint32_t bindPoint;
-            };
-
             struct BindInfo {
                 uint32_t bindPoint;
                 uint32_t count;
             };
 
-            stl::vector<DescInfo> imageBinds;
-            stl::vector<DescInfo> bufferBinds;
             stl::vector<VkDescriptorImageInfo> imgInfos;
             stl::vector<VkDescriptorBufferInfo> bufInfos;
 
             stl::vector<BindInfo> imgBindInfos;
             stl::vector<BindInfo> bufBindInfos;
-
-            imageBinds.reserve(bindCount);
-            bufferBinds.reserve(bindCount);
 
             uint32_t imgCount = 0;
             uint32_t bufCount = 0;
@@ -4010,7 +4000,6 @@ namespace kage { namespace vk
                     for (uint32_t jj = 0; jj < count; ++jj)
                     {
                         const Binding& binding = bindings[offset];
-                        imageBinds.emplace_back(DescInfo{jj, ii});
                         imgInfos.emplace_back(getImageDescInfo(binding.img, binding.mip, binding.sampler).image);
 
                         offset++;
@@ -4024,7 +4013,6 @@ namespace kage { namespace vk
                     for (uint32_t jj = 0; jj < count; ++jj)
                     {
                         const Binding& binding = bindings[offset];
-                        bufferBinds.emplace_back(DescInfo{ jj, ii });
                         bufInfos.emplace_back(getBufferDescInfo(binding.buf).buffer);
 
                         offset++;
@@ -4032,11 +4020,12 @@ namespace kage { namespace vk
                 }
             }
 
-            assert(imgCount == imageBinds.size());
-            assert(bufCount == bufferBinds.size());
+            assert(imgCount == imgInfos.size());
+            assert(bufCount == bufInfos.size());
 
 
             stl::vector<VkWriteDescriptorSet> writes;
+            writes.reserve(imgCount + bufCount);
             offset = 0;
             for (uint32_t ii = 0; ii < imgBindInfos.size(); ++ii) 
             {
@@ -4049,9 +4038,12 @@ namespace kage { namespace vk
                 write.dstArrayElement = 0; // the first element
                 write.descriptorCount = bi.count;
                 write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-                write.pImageInfo = imgInfos.data() + offset;
+                write.pImageInfo = ((const VkDescriptorImageInfo*)imgInfos.data() + offset);
+                write.pTexelBufferView = NULL;
 
                 writes.push_back(write);
+
+                offset += bi.count;
             }
 
             offset = 0;
@@ -4064,19 +4056,20 @@ namespace kage { namespace vk
                 write.dstBinding = bi.bindPoint;
                 write.dstArrayElement = 0; // the first element
                 write.descriptorCount = bi.count;
-                write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
-                write.pBufferInfo = bufInfos.data() + offset;
+                write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                write.pBufferInfo = ((const VkDescriptorBufferInfo*)bufInfos.data() + offset);
+                write.pTexelBufferView = NULL;
                 
                 writes.push_back(write);
+
+                offset += bi.count;
             }
 
             vkUpdateDescriptorSets(m_device, (uint32_t)writes.size(), writes.data(), 0, nullptr);
         }
 
         // bind sets
-        //PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
-        //const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
-        vkCmdBindDescriptorSets(m_cmdBuffer, prog.bindPoint, prog.layout, 0, 1, &prog.nonPushDescSet, 0, nullptr);
+        vkCmdBindDescriptorSets(m_cmdBuffer, prog.bindPoint, prog.layout, 2, 1, &prog.nonPushDescSet, 0, nullptr);
         
     }
 
