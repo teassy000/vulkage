@@ -164,6 +164,7 @@ void recRCBuild(const RadianceCascadeBuild& _rc, const float _sceneRadius)
         config.layerOffset = (kage::k_rclv0_probeSideCount - prob_sideCount) * 2;
         config.rayLength = rayLen;
         config.probeSideLen = prob_sideLen;
+        config.sceneRadius = _sceneRadius;
 
         const kage::Memory* mem = kage::alloc(sizeof(RadianceCascadesConfig));
         memcpy(mem->data, &config, mem->size);

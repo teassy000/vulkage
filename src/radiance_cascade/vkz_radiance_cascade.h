@@ -17,6 +17,7 @@ struct alignas(16) RadianceCascadesConfig
 
     float       rayLength;
     float       probeSideLen;
+    float       sceneRadius;
 };
 
 struct RadianceCascadeBuild

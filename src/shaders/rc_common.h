@@ -100,10 +100,7 @@ struct RadianceCascadesConfig
 
     float   rayLength;
     float   probeSideLen;
-
-    // oct-tree data
-    uint    ot_voxSideCount;
-    float   ot_sceneRadius;
+    float   sceneRadius;
 };
 
 struct VoxelizationConsts

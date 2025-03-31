@@ -58,14 +58,6 @@ layout(binding = 4, set = 2) buffer readonly cascadeBrickMaps
     uint map[];
 }in_cas_bricks[FFX_BRIXELIZER_MAX_CASCADES];
 
-
-struct Segment
-{
-    vec3 origin;
-    vec3 dir;
-    float len;
-};
-
 // ffx brixelizer required functions
 // requred data:
 // 1. the sdf atlas
@@ -74,14 +66,9 @@ struct Segment
 // 4. the aabb trees
 // 5. the cascade brick map array
 
-uint getLinearBrickIdx(FfxUInt32 _casId, FfxUInt32 _elemIdx)
-{
-    return _casId * 64 + _elemIdx;
-}
-
 FfxBrixelizerCascadeInfo GetCascadeInfo(FfxUInt32 _casId)
 {
-    return in_cascades_info[_casId]; ;
+    return in_cascades_info[_casId];
 }
 
 FfxFloat32x3 LoadCascadeAABBTreesFloat3(FfxUInt32 _casId, FfxUInt32 _elemIdx) 
@@ -121,7 +108,7 @@ void main()
     // the config for the radiance cascade.
     const uint prob_gridSideCount = config.probe_sideCount;
     const uint ray_gridSideCount = config.ray_gridSideCount;
-    const float sceneRadius = config.ot_sceneRadius;
+    const float sceneRadius = config.sceneRadius;
 
     const ivec2 prob_idx = pixIdx / int(ray_gridSideCount);
     const ivec2 ray_idx = pixIdx % int(ray_gridSideCount);
@@ -130,35 +117,35 @@ void main()
     // origin: the center of the probe in world space
     // direction: the direction of the seg
     // length: the probe radius
-    const vec3 seg_origin = getCenterWorldPos(ivec3(prob_idx, lvLayer), sceneRadius, config.probeSideLen) + vec3(config.probeSideLen * 0.5f);
-    const vec3 seg_dir = -octDecode((vec2(ray_idx) + .5f) / float(ray_gridSideCount));
+    const vec3 seg_origin = getCenterWorldPos(ivec3(prob_idx, lvLayer), sceneRadius, config.probeSideLen) + vec3(config.probeSideLen * 0.5f) + trans.cameraPos;
+    const vec3 seg_dir = octDecode((vec2(ray_idx) + .5f) / float(ray_gridSideCount));
     const float seg_len = config.rayLength;
-
-    const Segment seg = Segment(seg_origin, seg_dir, seg_len);
-    
-
 
     // write the result to the atlas
     vec3 var = vec3(0.f);
-
-    var = vec3(1.f, 0.f, 0.f);
-
-    //var = vec3(voxIdx & 255u, (voxIdx >> 8) & 255u, (voxIdx >> 16) & 255u) / 255.f;
-
 
     // ffx traverse
     FfxBrixelizerRayDesc ffx_ray;
     ffx_ray.start_cascade_id = 0;
     ffx_ray.end_cascade_id = 8;
-    ffx_ray.t_max = seg.len;
     ffx_ray.t_min = 0.f;
-    ffx_ray.origin = seg.origin;
-    ffx_ray.direction = seg.dir;
+    ffx_ray.t_max = 1000;
+    ffx_ray.origin = seg_origin;
+    ffx_ray.direction = seg_dir;
 
     FfxBrixelizerHitRaw ffx_hit;
 
-    FfxBrixelizerTraverseRaw(ffx_ray, ffx_hit);
+    bool hit = FfxBrixelizerTraverseRaw(ffx_ray, ffx_hit);
 
+    if (hit) {
+
+        vec3 norm = FfxBrixelizerGetHitNormal(ffx_hit);
+        var = norm;
+    }
+    else
+    {
+        var = vec3(1.f, 0.f, 0.f);
+    }
 
 
     const uint layer_idx = lvLayer + config.layerOffset;
