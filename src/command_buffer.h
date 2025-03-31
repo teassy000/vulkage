@@ -356,9 +356,9 @@ namespace kage
         Attachment m_depthAttachment;
     };
 
-    struct RecordSetBindingCmd : public Command
+    struct RecordSetBindlessCmd : public Command
     {
-        ENTRY_IMPLEMENT_COMMAND(RecordSetBindingCmd, Command::record_set_bindless);
+        ENTRY_IMPLEMENT_COMMAND(RecordSetBindlessCmd, Command::record_set_bindless);
         BindlessHandle m_bindless;
     };
 
@@ -740,7 +740,7 @@ namespace kage
 
         void cmdRecordSetBindless(BindlessHandle _bindless)
         {
-            RecordSetBindingCmd cmd;
+            RecordSetBindlessCmd cmd;
             cmd.m_bindless = _bindless;
             push(cmd);
         }
