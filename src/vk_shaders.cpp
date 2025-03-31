@@ -670,11 +670,6 @@ namespace kage { namespace vk
             program.nonPushDescSet = createDescriptorSet(_device, program.nonPushSetLayout, _pool);
         }
 
-        //stl::vector<VkDescriptorSetLayout> setLayouts;
-        //setLayouts.emplace_back(program.pushSetLayout);
-        //if (_bindlessLayout) setLayouts.emplace_back(_bindlessLayout);
-        //if (program.nonPushSetLayout) setLayouts.emplace_back(program.nonPushSetLayout);
-
         VkDescriptorSetLayout setLayoutsArray[3] = { program.pushSetLayout, _bindlessLayout, program.nonPushSetLayout };
 
         program.layout = createPipelineLayout(_device, COUNTOF(setLayoutsArray), setLayoutsArray, pushConstantStages, _pushConstantSize);
@@ -751,9 +746,15 @@ namespace kage { namespace vk
 
     VkPipelineLayout createPipelineLayout(VkDevice _device, uint32_t _layoutCount, VkDescriptorSetLayout* _layouts, VkShaderStageFlags _pushConstantStages, size_t _pushConstantSize)
     {
+        bool hasNullLayout = false;
+        for (uint32_t ii = 0; ii < _layoutCount; ii++)
+            hasNullLayout |= (NULL == (_layouts [ii]));
+
         VkPipelineLayoutCreateInfo createInfo = { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
         createInfo.setLayoutCount = _layoutCount;
         createInfo.pSetLayouts = &_layouts[0];
+
+        createInfo.flags = hasNullLayout ? VK_PIPELINE_LAYOUT_CREATE_INDEPENDENT_SETS_BIT_EXT : 0;
 
         VkPushConstantRange pushConstantRange = {};
         if (_pushConstantSize)

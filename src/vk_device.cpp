@@ -176,6 +176,8 @@ namespace kage{ namespace vk
         extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
         extensions.push_back(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
         extensions.push_back(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME); // for ffx
+        extensions.push_back(VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME); // for VK_EXT_GRAPHICS_PIPELINE_LIBRARY_EXTENSION_NAME
+        extensions.push_back(VK_EXT_GRAPHICS_PIPELINE_LIBRARY_EXTENSION_NAME); // for VK_PIPELINE_LAYOUT_CREATE_INDEPENDENT_SETS_BIT_KHR
 
         if (meshShadingSupported)
         {
@@ -235,6 +237,9 @@ namespace kage{ namespace vk
         VkPhysicalDeviceFragmentShadingRateFeaturesKHR featuresFSR = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADING_RATE_FEATURES_KHR };
         featuresFSR.pipelineFragmentShadingRate = true;
 
+        VkPhysicalDeviceGraphicsPipelineLibraryFeaturesEXT featuresGPL = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_GRAPHICS_PIPELINE_LIBRARY_FEATURES_EXT };
+        featuresGPL.graphicsPipelineLibrary = true; // enable for VK_PIPELINE_LAYOUT_CREATE_INDEPENDENT_SETS_BIT_EXT, which allows descriptor sets to be **null** in the chain.
+
         VkDeviceCreateInfo createInfo = { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
         createInfo.queueCreateInfoCount = 1;
         createInfo.pQueueCreateInfos = &queueInfo;
@@ -246,9 +251,10 @@ namespace kage{ namespace vk
         features11.pNext = &features12;
         features12.pNext = &features13;
         features13.pNext = &featuresFSR;
+        featuresFSR.pNext = &featuresGPL;
 
         if (meshShadingSupported)
-            featuresFSR.pNext = &featuresMesh;
+            featuresGPL.pNext = &featuresMesh;
 
 
         VkDevice device = 0;
