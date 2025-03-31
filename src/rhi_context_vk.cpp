@@ -4002,6 +4002,13 @@ namespace kage { namespace vk
                         const Binding& binding = bindings[offset];
                         imgInfos.emplace_back(getImageDescInfo(binding.img, binding.mip, binding.sampler).image);
 
+                        const Image_vk& img = getImage(binding.img);
+                        m_barrierDispatcher.barrier(
+                            img.image
+                            , img.aspectMask
+                            , { VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT }
+                        );
+
                         offset++;
                     }
                 }
@@ -4014,6 +4021,12 @@ namespace kage { namespace vk
                     {
                         const Binding& binding = bindings[offset];
                         bufInfos.emplace_back(getBufferDescInfo(binding.buf).buffer);
+
+                        const Buffer_vk& buf = getBuffer(binding.buf);
+                        m_barrierDispatcher.barrier(
+                            buf.buffer
+                            , { VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT }
+                        );
 
                         offset++;
                     }
@@ -4066,11 +4079,14 @@ namespace kage { namespace vk
             }
 
             vkUpdateDescriptorSets(m_device, (uint32_t)writes.size(), writes.data(), 0, nullptr);
+
+            m_bindDescHashPerPass[_hPass] = hash;
+
+            dispatchBarriers();
         }
 
         // bind sets
         vkCmdBindDescriptorSets(m_cmdBuffer, prog.bindPoint, prog.layout, 2, 1, &prog.nonPushDescSet, 0, nullptr);
-        
     }
 
     void RHIContext_vk::lazySetDescriptors(const PassHandle _hPass)
@@ -4471,7 +4487,7 @@ namespace kage { namespace vk
                     break;
                 case Command::record_set_bindless:
                     {
-                        const RecordSetBindingCmd* rc = reinterpret_cast<const RecordSetBindingCmd*>(cmd);
+                        const RecordSetBindlessCmd* rc = reinterpret_cast<const RecordSetBindlessCmd*>(cmd);
                         setBindless(_hPass, rc->m_bindless);
                     }
                     break;
