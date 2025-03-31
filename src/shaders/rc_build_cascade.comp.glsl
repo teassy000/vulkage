@@ -146,6 +146,20 @@ void main()
     //var = vec3(voxIdx & 255u, (voxIdx >> 8) & 255u, (voxIdx >> 16) & 255u) / 255.f;
 
 
+    // ffx traverse
+    FfxBrixelizerRayDesc ffx_ray;
+    ffx_ray.start_cascade_id = 0;
+    ffx_ray.end_cascade_id = 8;
+    ffx_ray.t_max = seg.len;
+    ffx_ray.t_min = 0.f;
+    ffx_ray.origin = seg.origin;
+    ffx_ray.direction = seg.dir;
+
+    FfxBrixelizerHitRaw ffx_hit;
+
+    FfxBrixelizerTraverseRaw(ffx_ray, ffx_hit);
+
+
 
     const uint layer_idx = lvLayer + config.layerOffset;
     uint pidx = uint(prob_idx.y * prob_gridSideCount + prob_idx.x) + lvLayer * prob_gridSideCount * prob_gridSideCount;

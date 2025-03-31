@@ -516,6 +516,21 @@ void preUpdateBarriers(FFXBrixelizer_vk& _brx)
     dispatcher.dispatch(s_renderVK->m_cmdBuffer);
 }
 
+void updateContextInfo(FFXBrixelizer_vk& _brx)
+{
+    FfxBrixelizerContextInfo contextInfo = {};
+    FFX_CHECK(ffxBrixelizerGetContextInfo(&_brx.context, &contextInfo));
+
+    const Memory* mem = alloc(sizeof(FfxBrixelizerCascadeInfo) * FFX_BRIXELIZER_MAX_CASCADES);
+    memcpy(mem->data, contextInfo.cascades, mem->size);
+
+    // update the context info to user res
+    const Buffer_vk& cascadeInfos = s_renderVK->getBuffer(_brx.userReses.cascadeInfos);
+    s_renderVK->updateBuffer(_brx.userReses.cascadeInfos, mem, 0u, mem->size);
+
+    release (mem);
+}
+
 void update(FFXBrixelizer_vk& _brx)
 {
     static bool s_init = false;
@@ -526,10 +541,11 @@ void update(FFXBrixelizer_vk& _brx)
         parseUserRes(_brx);
     }
 
-
     parseDebugVisDesc(_brx);
     preUpdateBarriers(_brx);
     updateBrx(_brx);
+
+    updateContextInfo(_brx);
 }
 
 void deleteInstances(FFXBrixelizer_vk& _brx)
