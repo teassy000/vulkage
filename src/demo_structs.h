@@ -61,7 +61,7 @@ struct MeshDrawCommand
 struct DemoData
 {
     UIInput input;
-    DebugRenderOptionsData renderOptions;
+    DebugFeatures dbg_features;
     DebugProfilingData profiling;
     DebugLogicData logic;
 

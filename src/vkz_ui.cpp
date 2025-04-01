@@ -241,7 +241,7 @@ void updateImGuiIO(const UIInput& input)
     io.MouseDown[2] = input.mouseButtons.middle;
 }
 
-void updateBrixelDebugData(DebugRenderOptionsData& _rod, const DebugReources& _dr)
+void updateContentBrx(Dbg_Brixel& _brx)
 {
     KG_ZoneScopedC(kage::Color::blue);
 
@@ -249,17 +249,17 @@ void updateBrixelDebugData(DebugRenderOptionsData& _rod, const DebugReources& _d
 
     const char* const items[(uint32_t)BrixelDebugType::count] = { "distance", "uvw", "iterations", "grad", "brick_id", "cascade_id" };
 
-    ImGui::Combo("type", (int*)&_rod.debugBrixelType, items, COUNTOF(items));
-    ImGui::SliderInt("start cas", (int*)&_rod.startCas, 0, 8);
-    ImGui::SliderInt("end cas", (int*)&_rod.endCas, 0, 24);
-    ImGui::SliderFloat("sdf eps", &_rod.sdfEps, 0.1f, 10.f);
-    ImGui::SliderFloat("tmin", &_rod.tmin, .2f, 10.f);
-    ImGui::SliderFloat("tmax", &_rod.tmax, 1000.f, 10000.f);
-    ImGui::Image((ImTextureID)(_dr.brx_debug.id), { 640, 360 });
+    ImGui::Combo("type", (int*)&_brx.debugBrixelType, items, COUNTOF(items));
+    ImGui::SliderInt("start cas", (int*)&_brx.startCas, 0, 8);
+    ImGui::SliderInt("end cas", (int*)&_brx.endCas, 0, 24);
+    ImGui::SliderFloat("sdf eps", &_brx.sdfEps, 0.1f, 10.f);
+    ImGui::SliderFloat("tmin", &_brx.tmin, .2f, 10.f);
+    ImGui::SliderFloat("tmax", &_brx.tmax, 1000.f, 10000.f);
+    ImGui::Image((ImTextureID)(_brx.presentImg.id), { 640, 360 });
     ImGui::End();
 }
 
-void updateImGuiContent(DebugRenderOptionsData& _rod, const DebugProfilingData& _pd, const DebugLogicData& _ld, const DebugReources& _dr)
+void updateContentCommon(Dbg_Common& _common, const DebugProfilingData& _pd, const DebugLogicData& _ld)
 {
     KG_ZoneScopedC(kage::Color::blue);
 
@@ -272,8 +272,8 @@ void updateImGuiContent(DebugRenderOptionsData& _rod, const DebugProfilingData& 
     ImGui::Text("avg gpu: [%.3f]ms", _pd.avgGpuTime);
     ImGui::Text("cull early: [%.3f]ms", _pd.cullEarlyTime);
     ImGui::Text("draw early: [%.3f]ms", _pd.drawEarlyTime);
-    
-    if (_rod.ocEnabled)
+
+    if (_common.ocEnabled)
     {
         ImGui::Text("pyramid: [%.3f]ms", _pd.pyramidTime);
         ImGui::Text("cull late: [%.3f]ms", _pd.cullLateTime);
@@ -284,7 +284,7 @@ void updateImGuiContent(DebugRenderOptionsData& _rod, const DebugProfilingData& 
     ImGui::Text("deferred: [%.3f]ms", _pd.deferredTime);
     ImGui::Text("build cascade: [%.3f]ms", _pd.buildCascadeTime);
 
-    ImGui::SliderInt("cas lv", &_rod.debugCascadeLevel, 0, kage::k_rclv0_cascadeLv - 1);
+    ImGui::SliderInt("cas lv", &_common.debugCascadeLevel, 0, kage::k_rclv0_cascadeLv - 1);
 
     if (ImGui::TreeNode("Static Data:"))
     {
@@ -299,11 +299,11 @@ void updateImGuiContent(DebugRenderOptionsData& _rod, const DebugProfilingData& 
 
     if (ImGui::TreeNode("Options"))
     {
-        ImGui::Checkbox("Mesh Shading", &_rod.meshShadingEnabled);
-        ImGui::Checkbox("Cull", &_rod.objCullEnabled);
-        ImGui::Checkbox("Lod", &_rod.lodEnabled);
-        ImGui::Checkbox("Occlusion", &_rod.ocEnabled);
-        ImGui::Checkbox("Task Submit", &_rod.taskSubmitEnabled);
+        ImGui::Checkbox("Mesh Shading", &_common.meshShadingEnabled);
+        ImGui::Checkbox("Cull", &_common.objCullEnabled);
+        ImGui::Checkbox("Lod", &_common.lodEnabled);
+        ImGui::Checkbox("Occlusion", &_common.ocEnabled);
+        ImGui::Checkbox("Task Submit", &_common.taskSubmitEnabled);
         ImGui::TreePop();
     }
 
@@ -318,17 +318,23 @@ void updateImGuiContent(DebugRenderOptionsData& _rod, const DebugProfilingData& 
     ImGui::Text("dir: %.2f, %.2f, %.2f", _ld.frontX, _ld.frontY, _ld.frontZ);
 
     ImGui::End();
-
-    updateBrixelDebugData(_rod, _dr);
 }
 
-void updateImGui(const UIInput& input, DebugRenderOptionsData& rd, const DebugProfilingData& pd, const DebugLogicData& ld, const DebugReources& _dr)
+void updateImGuiContent(DebugFeatures& ft, const DebugProfilingData& _pd, const DebugLogicData& _ld)
+{
+    KG_ZoneScopedC(kage::Color::blue);
+
+    updateContentCommon(ft.common, _pd, _ld);
+    updateContentBrx(ft.brx);
+}
+
+void updateImGui(const UIInput& input, DebugFeatures& ft, const DebugProfilingData& pd, const DebugLogicData& ld)
 {
     KG_ZoneScopedC(kage::Color::blue);
 
     updateImGuiIO(input);
 
-    updateImGuiContent(rd, pd, ld, _dr);
+    updateImGuiContent(ft, pd, ld);
 
     ImGui::Render();
 }
@@ -376,13 +382,12 @@ void updateUIRenderData(UIRendering& _ui)
 void updateUI(
     UIRendering& _ui
     , const UIInput& _input
-    , DebugRenderOptionsData& _rd
+    , DebugFeatures& _features
     , const DebugProfilingData& _pd
     , const DebugLogicData& _ld
-    , const DebugReources& _dr
 )
 {
-    updateImGui(_input, _rd, _pd, _ld, _dr);
+    updateImGui(_input, _features, _pd, _ld);
     updateUIRenderData(_ui);
     recordUI(_ui);
 }

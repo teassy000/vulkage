@@ -129,7 +129,7 @@ void main()
     ffx_ray.start_cascade_id = 0;
     ffx_ray.end_cascade_id = 8;
     ffx_ray.t_min = 0.f;
-    ffx_ray.t_max = 1000;
+    ffx_ray.t_max = seg_len;
     ffx_ray.origin = seg_origin;
     ffx_ray.direction = seg_dir;
 
@@ -147,6 +147,8 @@ void main()
         var = vec3(1.f, 0.f, 0.f);
     }
 
+    // debug the probe pos
+    // var = (seg_origin - trans.cameraPos) / sceneRadius + 0.5f;
 
     const uint layer_idx = lvLayer + config.layerOffset;
     uint pidx = uint(prob_idx.y * prob_gridSideCount + prob_idx.x) + lvLayer * prob_gridSideCount * prob_gridSideCount;
@@ -164,5 +166,5 @@ void main()
     // vec3 ro = (seg_origin + sceneRadius) / (sceneRadius * 2.f);
 
 
-    imageStore(out_octProbAtlas, idx_dir, vec4(var, 1.f));
+    imageStore(out_octProbAtlas, idx, vec4(var, 1.f));
 }

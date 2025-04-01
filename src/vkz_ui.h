@@ -47,8 +47,7 @@ void destroyUI(UIRendering& _ui);
 void updateUI(
     UIRendering& _ui
     , const UIInput& _input
-    , DebugRenderOptionsData& _rd
+    , DebugFeatures& _features
     , const DebugProfilingData& _pd
     , const DebugLogicData& _ld
-    , const DebugReources& _dr
 );

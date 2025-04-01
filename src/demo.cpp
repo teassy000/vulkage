@@ -145,12 +145,13 @@ namespace
                 brxData.projMat = m_demoData.trans.proj;
                 brxData.viewMat = m_demoData.trans.view;
 
-                brxData.debugType = m_demoData.renderOptions.debugBrixelType;
-                brxData.startCas = m_demoData.renderOptions.startCas;
-                brxData.endCas = m_demoData.renderOptions.endCas;
-                brxData.sdfEps = m_demoData.renderOptions.sdfEps;
-                brxData.tmin = m_demoData.renderOptions.tmin;
-                brxData.tmax = m_demoData.renderOptions.tmax;
+                const Dbg_Brixel& brx = m_demoData.dbg_features.brx;
+                brxData.debugType = brx.debugBrixelType;
+                brxData.startCas = brx.startCas;
+                brxData.endCas = brx.endCas;
+                brxData.sdfEps = brx.sdfEps;
+                brxData.tmin = brx.tmin;
+                brxData.tmax = brx.tmax;
 
                 brxUpdate(m_brixel, brxData);
             }
@@ -209,12 +210,13 @@ namespace
             updateRadianceCascade(m_radianceCascade, m_scene.drawCount, m_demoData.drawCull, m_width, m_height, m_scene.radius);
             if (m_debugProb)
             {
-                m_probDebug.debugLv = m_demoData.renderOptions.debugCascadeLevel;
+                m_probDebug.debugLv = m_demoData.dbg_features.common.debugCascadeLevel;
                 updateProbeDebug(m_probDebug, m_demoData.drawCull, m_width, m_height, m_scene.radius);
             }
 
             {
-                updateUI(m_ui, m_demoData.input, m_demoData.renderOptions, m_demoData.profiling, m_demoData.logic, m_debugRes);
+                m_demoData.dbg_features.brx.presentImg = m_brixel.debugDestImg;
+                updateUI(m_ui, m_demoData.input, m_demoData.dbg_features, m_demoData.profiling, m_demoData.logic);
             }
 
             // render
@@ -243,8 +245,6 @@ namespace
 
             m_demoData.profiling.meshletCount = (uint32_t)m_scene.geometry.meshlets.size();
             m_demoData.profiling.primitiveCount = (uint32_t)(m_scene.geometry.indices.size()) / 3; // include all lods
-
-            m_debugRes.brx_debug = m_brixel.debugDestImg;
 
             KG_FrameMark;
 
@@ -756,7 +756,6 @@ namespace
 
         Scene m_scene{};
         DemoData m_demoData{};
-        DebugReources m_debugRes;
         bool m_supportMeshShading;
         bool m_debugProb;
 
