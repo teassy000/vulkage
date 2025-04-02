@@ -258,7 +258,7 @@ void updataContentRCBuild(Dbg_RCBuild& _rc)
     ImGui::SliderInt("debug_type", (int*)&_rc.debug_type, 0, 3);
 
     ImGui::Text("rc:");
-    ImGui::SliderFloat3("probeCenter", &_rc.probeCenter[0], -100.f, 100.f);
+    ImGui::SliderFloat3("probeCenter", &_rc.probePosOffset[0], -100.f, 100.f);
     ImGui::SliderFloat("probeDebugScale", &_rc.probeDebugScale, 0.01f, 1.f);
     ImGui::SliderInt("rcLv", (int*)&_rc.rcLv, 0, 8);
     

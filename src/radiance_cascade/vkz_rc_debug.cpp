@@ -165,9 +165,9 @@ void recProbeDbgCmdGen(const ProbeDbgCmdGen& _gen, const DrawCull& _camCull, con
     consts.pyramidWidth = _camCull.pyramidWidth;
     consts.pyramidHeight = _camCull.pyramidHeight;
 
-    consts.posOffsets[0] = _rcDbg.probeCenter[0];
-    consts.posOffsets[1] = _rcDbg.probeCenter[1];
-    consts.posOffsets[2] = _rcDbg.probeCenter[2];
+    consts.posOffsets[0] = _rcDbg.probePosOffset[0];
+    consts.posOffsets[1] = _rcDbg.probePosOffset[1];
+    consts.posOffsets[2] = _rcDbg.probePosOffset[2];
 
     const kage::Memory* mem = kage::alloc(sizeof(ProbeDebugCmdConsts));
     memcpy(mem->data, &consts, mem->size);
@@ -231,8 +231,8 @@ void prepareProbeDbgDraw(ProbeDbgDraw& _pd, const ProbeDebugDrawInit& _init)
     kage::SamplerHandle samp = kage::sampleImage(
         pass, _init.cascade
         , kage::PipelineStageFlagBits::fragment_shader
-        , kage::SamplerFilter::nearest
-        , kage::SamplerMipmapMode::nearest
+        , kage::SamplerFilter::linear
+        , kage::SamplerMipmapMode::linear
         , kage::SamplerAddressMode::mirrored_repeat
         , kage::SamplerReductionMode::weighted_average
     );

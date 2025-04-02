@@ -169,9 +169,9 @@ void recRCBuild(const RadianceCascadeBuild& _rc , const Dbg_RCBuild& _dbg)
         config.brx_tmin = _dbg.brx_tmin;
         config.brx_tmax = _dbg.brx_tmax;
 
-        config.cx = _dbg.probeCenter[0];
-        config.cy = _dbg.probeCenter[1];
-        config.cz = _dbg.probeCenter[2];
+        config.cx = _dbg.probePosOffset[0];
+        config.cy = _dbg.probePosOffset[1];
+        config.cz = _dbg.probePosOffset[2];
 
         uint32_t offset = 2 * kage::k_brixelizerCascadeCount;
         config.brx_offset = _dbg.brx_offset;

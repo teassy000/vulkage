@@ -59,11 +59,11 @@ struct Dbg_RCBuild
     uint32_t brx_endCas = 8;
 
     // radius
-    float totalRadius = 200.f;
+    float totalRadius = 50.f;
     uint32_t debug_type = 0;
 
-    float probeCenter[3] = { 0.f, 0.f, 0.f };
-    float probeDebugScale = 1.f;
+    float probePosOffset[3] = { 0.f, 0.f, 0.f };
+    float probeDebugScale = 0.05f;
     uint32_t rcLv = 0;
 };
 
