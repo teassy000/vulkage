@@ -2584,7 +2584,7 @@ namespace kage { namespace vk
         assert(layout);
 
         uint32_t descCount = (uint32_t)imageIds.size() + 1;
-        VkDescriptorSet set = createDescriptorSet(m_device, layout, m_descPool, descCount);
+        VkDescriptorSet set = createDescriptorSet(m_device, layout, m_descPool, descCount, true);
         assert(set);
 
         Bindless_vk bindless{};
@@ -2629,7 +2629,6 @@ namespace kage { namespace vk
             write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
             write.pImageInfo = &imgInfo;
             vkUpdateDescriptorSets(m_device, 1, &write, 0, nullptr);
-
 
             m_barrierDispatcher.barrier(
                 img.image
