@@ -117,7 +117,9 @@ void main()
     // origin: the center of the probe in world space
     // direction: the direction of the seg
     // length: the probe radius
-    const vec3 seg_origin = getCenterWorldPos(ivec3(prob_idx, lvLayer), sceneRadius, config.probeSideLen) + vec3(config.probeSideLen * 0.5f) + trans.cameraPos;
+    const vec3 centOffset = vec3(config.cx, config.cy, config.cz);
+
+    const vec3 seg_origin = getCenterWorldPos(ivec3(prob_idx, lvLayer), sceneRadius, config.probeSideLen) + vec3(config.probeSideLen * 0.5f) + centOffset;
     const vec3 seg_dir = octDecode((vec2(ray_idx) + .5f) / float(ray_gridSideCount));
     const float seg_len = config.rayLength;
 
@@ -126,25 +128,26 @@ void main()
 
     // ffx traverse
     FfxBrixelizerRayDesc ffx_ray;
-    ffx_ray.start_cascade_id = 0;
-    ffx_ray.end_cascade_id = 8;
-    ffx_ray.t_min = 0.f;
-    ffx_ray.t_max = seg_len;
-    ffx_ray.origin = seg_origin;
+    ffx_ray.start_cascade_id = config.brx_startCas + config.brx_offset;
+    ffx_ray.end_cascade_id = config.brx_endCas + config.brx_offset;
+    ffx_ray.t_min = config.brx_tmin;
+    ffx_ray.t_max = config.brx_tmax;
+    ffx_ray.origin = vec3(0.f, 4.f, 0.f);
     ffx_ray.direction = seg_dir;
 
     FfxBrixelizerHitRaw ffx_hit;
 
     bool hit = FfxBrixelizerTraverseRaw(ffx_ray, ffx_hit);
-
+        
     if (hit) {
-
         vec3 norm = FfxBrixelizerGetHitNormal(ffx_hit);
-        var = norm;
+        //var = norm;
+        var = vec3(1.f, 1.f, 0.f);
     }
     else
     {
-        var = vec3(1.f, 0.f, 0.f);
+        var = (seg_origin / sceneRadius) + vec3(.5f);
+        //var = vec3(0.4f, 0.f, 0.f);
     }
 
     // debug the probe pos
@@ -165,6 +168,25 @@ void main()
     // debug: seg origin
     // vec3 ro = (seg_origin + sceneRadius) / (sceneRadius * 2.f);
 
+    ivec3 iuv = ivec3(0);
+    switch(config.debug_type)
+    {
+        case 0:
+        iuv = idx;
+        break;
+    case 1:
+        iuv = idx_dir;
+        break;
+    case 2:
+        iuv = idx;
+        var = seg_dir;
+        break;
+    case 3:
+        iuv = idx_dir;
+        var = seg_dir;
+        break;
+    }
 
-    imageStore(out_octProbAtlas, idx, vec4(var, 1.f));
+
+    imageStore(out_octProbAtlas, iuv, vec4(var, 1.f));
 }

@@ -48,10 +48,31 @@ struct Dbg_Brixel
     kage::ImageHandle presentImg;
 };
 
+struct Dbg_RCBuild
+{
+    // brx
+    float brx_tmin = .2f;
+    float brx_tmax = 100.f;
+
+    uint32_t brx_offset = 0;
+    uint32_t brx_startCas = 0;
+    uint32_t brx_endCas = 8;
+
+    // radius
+    float totalRadius = 200.f;
+    uint32_t debug_type = 0;
+
+    float probeCenter[3] = { 0.f, 0.f, 0.f };
+    float probeDebugScale = 1.f;
+    uint32_t rcLv = 0;
+};
+
 struct DebugFeatures
 {
     Dbg_Common common;
     Dbg_Brixel brx;
+
+    Dbg_RCBuild rcBuild;
 };
 
 struct DebugLogicData

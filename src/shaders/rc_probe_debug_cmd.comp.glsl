@@ -47,6 +47,7 @@ void main()
     float radius = consts.sphereRadius;
     vec3 ocenter = getCenterWorldPos(id, sceneRadius, probeSideLen);
     ocenter += vec3(0.5f * probeSideLen);
+    ocenter += vec3(consts.posOffsets[0], consts.posOffsets[1], consts.posOffsets[2]);
     vec4 center = trans.view * vec4(ocenter, 1.f);
 
 

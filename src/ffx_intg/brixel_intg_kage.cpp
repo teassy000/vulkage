@@ -8,9 +8,6 @@
 #include <vector>
 
 
-constexpr uint32_t c_brixelizerCascadeCount = (FFX_BRIXELIZER_MAX_CASCADES / 3);
-
-
 void brxRegBuffers(kage::BufferHandle _vtx, uint32_t _vtxSz, uint32_t _vtxStride, kage::BufferHandle _idx, uint32_t _idxSz, uint32_t _idxStride)
 {
     BrixelBufDescs descs[2];
@@ -149,7 +146,7 @@ void brxProcessScene(BrixelResources& _brx, const Scene& _scene, bool _seamless)
         FfxBrixelizerInstanceDescription instDesc = {};
         FfxBrixelizerInstanceID instId = FFX_BRIXELIZER_INVALID_ID;
 
-        instDesc.maxCascade = c_brixelizerCascadeCount;
+        instDesc.maxCascade = kage::k_brixelizerCascadeCount;
         for (uint32_t jj = 0; jj < 3; ++jj) {
             instDesc.aabb.min[jj] = minAABB[jj];
             instDesc.aabb.max[jj] = maxAABB[jj];
@@ -326,7 +323,7 @@ void brxUpdate(BrixelResources& _bxl, const BrixelData& _data)
     std::memcpy(desc.camPos, &cpos[0], sizeof(float) * 3);
 
     desc.start_cas = std::min(_data.startCas, _data.endCas);
-    desc.end_cas = std::max(std::max(_data.startCas, _data.endCas), c_brixelizerCascadeCount - 1);
+    desc.end_cas = std::max(std::max(_data.startCas, _data.endCas), kage::k_brixelizerCascadeCount - 1);
     desc.sdf_eps = _data.sdfEps;
     desc.tmin = _data.tmin;
     desc.tmax = _data.tmax;

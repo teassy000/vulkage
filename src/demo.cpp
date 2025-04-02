@@ -56,7 +56,7 @@ namespace
             kage::init(config);
             
             m_supportMeshShading = kage::checkSupports(kage::VulkanSupportExtension::ext_mesh_shader);
-            m_debugProb = false;
+            m_debugProb = true;
 
             bool forceParse = false;
             bool seamlessLod = false;
@@ -207,12 +207,15 @@ namespace
 
 
             m_smaa.update(m_width, m_height);
-            updateRadianceCascade(m_radianceCascade, m_scene.drawCount, m_demoData.drawCull, m_width, m_height, m_scene.radius);
+
+
+            updateRadianceCascade(m_radianceCascade, m_demoData.dbg_features.rcBuild);
             if (m_debugProb)
             {
                 m_probDebug.debugLv = m_demoData.dbg_features.common.debugCascadeLevel;
-                updateProbeDebug(m_probDebug, m_demoData.drawCull, m_width, m_height, m_scene.radius);
+                updateProbeDebug(m_probDebug, m_demoData.drawCull, m_width, m_height, m_demoData.dbg_features.rcBuild);
             }
+
 
             {
                 m_demoData.dbg_features.brx.presentImg = m_brixel.debugDestImg;

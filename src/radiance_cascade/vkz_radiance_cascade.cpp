@@ -143,7 +143,7 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
     _rc.radCascdOutAlias = outAlias;
 }
 
-void recRCBuild(const RadianceCascadeBuild& _rc, const float _sceneRadius)
+void recRCBuild(const RadianceCascadeBuild& _rc , const Dbg_RCBuild& _dbg)
 {
     kage::startRec(_rc.pass);
 
@@ -154,7 +154,7 @@ void recRCBuild(const RadianceCascadeBuild& _rc, const float _sceneRadius)
         uint32_t    prob_count      = uint32_t(pow(prob_sideCount, 3));
         uint32_t    ray_sideCount   = kage::k_rclv0_rayGridSideCount * level_factor;
         uint32_t    ray_count       = ray_sideCount * ray_sideCount; // each probe has a 2d grid of rays
-        float prob_sideLen = _sceneRadius * 2.f / float(prob_sideCount);
+        float prob_sideLen = _dbg.totalRadius * 2.f / float(prob_sideCount);
         float rayLen = length(vec3(prob_sideLen)) * .5f;
 
         RadianceCascadesConfig config;
@@ -164,7 +164,21 @@ void recRCBuild(const RadianceCascadeBuild& _rc, const float _sceneRadius)
         config.layerOffset = (kage::k_rclv0_probeSideCount - prob_sideCount) * 2;
         config.rayLength = rayLen;
         config.probeSideLen = prob_sideLen;
-        config.sceneRadius = _sceneRadius;
+        config.sceneRadius = _dbg.totalRadius;
+
+        config.brx_tmin = _dbg.brx_tmin;
+        config.brx_tmax = _dbg.brx_tmax;
+
+        config.cx = _dbg.probeCenter[0];
+        config.cy = _dbg.probeCenter[1];
+        config.cz = _dbg.probeCenter[2];
+
+        uint32_t offset = 2 * kage::k_brixelizerCascadeCount;
+        config.brx_offset = _dbg.brx_offset;
+        config.brx_startCas = bx::min(_dbg.brx_startCas, _dbg.brx_endCas);
+        config.brx_endCas = bx::max(_dbg.brx_startCas, _dbg.brx_endCas);
+
+        config.debug_type = _dbg.debug_type;
 
         const kage::Memory* mem = kage::alloc(sizeof(RadianceCascadesConfig));
         memcpy(mem->data, &config, mem->size);
@@ -219,12 +233,8 @@ void prepareRadianceCascade(RadianceCascade& _rc, const RadianceCascadeInitData 
 
 void updateRadianceCascade(
     const RadianceCascade& _rc
-    , uint32_t _drawCount
-    , const DrawCull& _camCull
-    , const uint32_t _width
-    , const uint32_t _height
-    , const float _sceneRadius
+    , const Dbg_RCBuild& _dbgRcBuild
 )
 {
-    recRCBuild(_rc.rcBuild, _sceneRadius);
+    recRCBuild(_rc.rcBuild, _dbgRcBuild);
 }

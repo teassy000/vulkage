@@ -15,10 +15,22 @@ struct alignas(16) RadianceCascadesConfig
     uint32_t    level;
     uint32_t    layerOffset;
 
+    float cx, cy, cz;
+
     float       rayLength;
     float       probeSideLen;
     float       sceneRadius;
+
+    float brx_tmin;
+    float brx_tmax;
+
+    uint32_t brx_offset;
+    uint32_t brx_startCas;
+    uint32_t brx_endCas;
+
+    uint32_t debug_type;
 };
+
 
 struct RadianceCascadeBuild
 {
@@ -69,12 +81,5 @@ struct RadianceCascadeInitData
 
 
 void prepareRadianceCascade(RadianceCascade& _rc, const RadianceCascadeInitData _init);
-void updateRadianceCascade(
-    const RadianceCascade& _rc
-    , uint32_t _drawCount
-    , const DrawCull& _camCull
-    , const uint32_t _width
-    , const uint32_t _height
-    , const float _sceneRadiance
-    );
+void updateRadianceCascade(const RadianceCascade& _rc, const Dbg_RCBuild& _dbgRcBuild);
 

@@ -543,9 +543,10 @@ void update(FFXBrixelizer_vk& _brx)
 
     parseDebugVisDesc(_brx);
     preUpdateBarriers(_brx);
+    updateContextInfo(_brx);
     updateBrx(_brx);
 
-    updateContextInfo(_brx);
+
 }
 
 void deleteInstances(FFXBrixelizer_vk& _brx)

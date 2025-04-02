@@ -98,9 +98,20 @@ struct RadianceCascadesConfig
     uint    level;
     uint    layerOffset;
 
+    float cx, cy, cz;
+
     float   rayLength;
     float   probeSideLen;
     float   sceneRadius;
+
+    float brx_tmin;
+    float brx_tmax;
+
+    uint brx_offset;
+    uint brx_startCas;
+    uint brx_endCas;
+
+    uint debug_type;
 };
 
 struct VoxelizationConsts
@@ -174,6 +185,8 @@ struct ProbeDebugCmdConsts
     float znear, zfar;
     float frustum[4];
     float pyramidWidth, pyramidHeight;
+
+    float posOffsets[3];
 };
 
 struct ProbeDraw

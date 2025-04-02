@@ -36,6 +36,6 @@ void main()
     vec2 uv = vec2(dirOrderIdx) / (probeSideCnt * raySideCnt);
     uv.y = 1 - uv.y;
 
-    vec3 color = texture(in_cascades, vec3(uv.yx, layerId)).rgb;
+    vec3 color = texture(in_cascades, vec3(uv.xy, layerId)).rgb;
     outColor = vec4(color.rgb, 1.f);
 }

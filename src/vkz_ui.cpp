@@ -241,6 +241,30 @@ void updateImGuiIO(const UIInput& input)
     io.MouseDown[2] = input.mouseButtons.middle;
 }
 
+void updataContentRCBuild(Dbg_RCBuild& _rc)
+{
+    KG_ZoneScopedC(kage::Color::blue);
+    ImGui::Begin("rc build:");
+    
+    ImGui::SliderFloat("brx_tmin", &_rc.brx_tmin, 0.f, 100.f);
+    ImGui::SliderFloat("brx_tmax", &_rc.brx_tmax, 100.f, 1000.f);
+
+    ImGui::SliderInt("brx_offset", (int*)&_rc.brx_offset, 0, 100);
+    ImGui::SliderInt("brx_startCas", (int*)&_rc.brx_startCas, 0, 8);
+    ImGui::SliderInt("brx_endCas", (int*)&_rc.brx_endCas, 0, 24);
+    
+    ImGui::SliderFloat("totalRadius", &_rc.totalRadius, 0.f, 1000.f);
+    
+    ImGui::SliderInt("debug_type", (int*)&_rc.debug_type, 0, 3);
+
+    ImGui::Text("rc:");
+    ImGui::SliderFloat3("probeCenter", &_rc.probeCenter[0], -100.f, 100.f);
+    ImGui::SliderFloat("probeDebugScale", &_rc.probeDebugScale, 0.01f, 1.f);
+    ImGui::SliderInt("rcLv", (int*)&_rc.rcLv, 0, 8);
+    
+    ImGui::End();
+}
+
 void updateContentBrx(Dbg_Brixel& _brx)
 {
     KG_ZoneScopedC(kage::Color::blue);
@@ -335,6 +359,8 @@ void updateImGui(const UIInput& input, DebugFeatures& ft, const DebugProfilingDa
     updateImGuiIO(input);
 
     updateImGuiContent(ft, pd, ld);
+
+    updataContentRCBuild(ft.rcBuild);
 
     ImGui::Render();
 }

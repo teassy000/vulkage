@@ -26,6 +26,8 @@ struct alignas(16) ProbeDebugCmdConsts
     float znear, zfar;
     float frustum[4];
     float pyramidWidth, pyramidHeight;
+
+    float posOffsets[3];
 };
 
 struct alignas(16) ProbeDraw
@@ -137,15 +139,15 @@ void prepareProbeDbgCmdGen(ProbeDbgCmdGen& _gen, const ProbeDebugGenInit& _init)
     _gen.outDrawDataBufAlias = probeDrawBufAlias;
 }
 
-void recProbeDbgCmdGen(const ProbeDbgCmdGen& _gen, const DrawCull& _camCull, const float _sceneRadius, uint32_t _lv)
+void recProbeDbgCmdGen(const ProbeDbgCmdGen& _gen, const DrawCull& _camCull, const Dbg_RCBuild _rcDbg)
 {
-    uint32_t probeSideCount = kage::k_rclv0_probeSideCount / (1 << glm::min(_lv, kage::k_rclv0_cascadeLv));
-    const float probeSideLen = _sceneRadius * 2.f / (float)probeSideCount;
-    const float sphereRadius = probeSideLen * 0.2f;
+    uint32_t probeSideCount = kage::k_rclv0_probeSideCount / (1 << glm::min(_rcDbg.rcLv, kage::k_rclv0_cascadeLv));
+    const float probeSideLen = _rcDbg.totalRadius * 2.f / (float)probeSideCount;
+    const float sphereRadius = probeSideLen * 0.2f * _rcDbg.probeDebugScale;
 
     kage::startRec(_gen.pass);
     ProbeDebugCmdConsts consts{};
-    consts.sceneRadius = _sceneRadius;
+    consts.sceneRadius = _rcDbg.totalRadius;
     consts.probeSideLen = probeSideLen;
     consts.sphereRadius = sphereRadius;
     consts.probeSideCount = probeSideCount;
@@ -162,6 +164,10 @@ void recProbeDbgCmdGen(const ProbeDbgCmdGen& _gen, const DrawCull& _camCull, con
     consts.frustum[3] = _camCull.frustum[3];
     consts.pyramidWidth = _camCull.pyramidWidth;
     consts.pyramidHeight = _camCull.pyramidHeight;
+
+    consts.posOffsets[0] = _rcDbg.probeCenter[0];
+    consts.posOffsets[1] = _rcDbg.probeCenter[1];
+    consts.posOffsets[2] = _rcDbg.probeCenter[2];
 
     const kage::Memory* mem = kage::alloc(sizeof(ProbeDebugCmdConsts));
     memcpy(mem->data, &consts, mem->size);
@@ -227,7 +233,7 @@ void prepareProbeDbgDraw(ProbeDbgDraw& _pd, const ProbeDebugDrawInit& _init)
         , kage::PipelineStageFlagBits::fragment_shader
         , kage::SamplerFilter::nearest
         , kage::SamplerMipmapMode::nearest
-        , kage::SamplerAddressMode::clamp_to_edge
+        , kage::SamplerAddressMode::mirrored_repeat
         , kage::SamplerReductionMode::weighted_average
     );
 
@@ -263,19 +269,19 @@ void prepareProbeDbgDraw(ProbeDbgDraw& _pd, const ProbeDebugDrawInit& _init)
     _pd.depthOutAlias = depthAlias;
 }
 
-void recProbeDbgDraw(const ProbeDbgDraw& _pd, const DrawCull& _camCull, const uint32_t _width, const uint32_t _height, const float _sceneRadius, const uint32_t _lv, const float _szFactor = .5f)
+void recProbeDbgDraw(const ProbeDbgDraw& _pd, const DrawCull& _camCull, const uint32_t _width, const uint32_t _height, const Dbg_RCBuild _rcDbg)
 {
     kage::startRec(_pd.pass);
 
     kage::setViewport(0, 0, _width, _height);
     kage::setScissor(0, 0, _width, _height);
 
-    uint32_t probeSideCount = kage::k_rclv0_probeSideCount / (1 << glm::min(_lv, kage::k_rclv0_cascadeLv));
-    float sphereRadius = _sceneRadius / probeSideCount;
+    uint32_t probeSideCount = kage::k_rclv0_probeSideCount / (1 << glm::min(_rcDbg.rcLv, kage::k_rclv0_cascadeLv));
+    float sphereRadius = (_rcDbg.totalRadius / probeSideCount) * _rcDbg.probeDebugScale;
 
     ProbeDebugDrawConsts consts{};
-    consts.sceneRadius = _sceneRadius;
-    consts.sphereRadius = _szFactor * sphereRadius;
+    consts.sceneRadius = _rcDbg.totalRadius;
+    consts.sphereRadius = sphereRadius;
     consts.probeSideCount = probeSideCount;
     consts.raySideCount = kage::k_rclv0_rayGridSideCount;
 
@@ -346,8 +352,8 @@ void prepareProbeDebug(ProbeDebug& _pd, const RCDebugInit& _init)
     prepareProbeDbgDraw(_pd.draw, drawInit);
 }
 
-void updateProbeDebug(const ProbeDebug& _pd, const DrawCull& _camCull, const uint32_t _width, const uint32_t _height, const float _sceneRadius)
+void updateProbeDebug(const ProbeDebug& _pd, const DrawCull& _camCull, const uint32_t _width, const uint32_t _height, const Dbg_RCBuild _rcDbg)
 {
-    recProbeDbgCmdGen(_pd.cmdGen, _camCull, _sceneRadius, _pd.debugLv);
-    recProbeDbgDraw(_pd.draw, _camCull, _width, _height, _sceneRadius, _pd.debugLv);
+    recProbeDbgCmdGen(_pd.cmdGen, _camCull, _rcDbg);
+    recProbeDbgDraw(_pd.draw, _camCull, _width, _height, _rcDbg);
 }
