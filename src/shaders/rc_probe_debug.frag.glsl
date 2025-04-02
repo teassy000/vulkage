@@ -18,7 +18,7 @@ layout(push_constant) uniform block
 layout(binding = 3) uniform sampler2DArray in_cascades;
 
 layout(location = 0) in flat ivec3 in_probeId;
-layout(location = 1) in vec2 in_uv;
+layout(location = 1) in vec3 in_dir;
 
 layout(location = 0) out vec4 outColor;
 
@@ -30,12 +30,15 @@ void main()
     const float probeSideCnt = float(consts.probeSideCount);
     const float raySideCnt = float(consts.raySideCount);
 
-    ivec2 rayIdx = ivec2((in_uv * raySideCnt + 0.5f));
+    vec2 uv0 = float32x3_to_oct(in_dir);
+    uv0 = uv0 * 0.5f + 0.5f; // map to [0, 1]
+
+    ivec2 rayIdx = ivec2((uv0 * raySideCnt + 0.5f));
     ivec2 dirOrderIdx = ivec2(rayIdx * int(probeSideCnt) + probeIdx);
 
     vec2 uv = vec2(dirOrderIdx) / (probeSideCnt * raySideCnt);
-    uv.y = 1 - uv.y;
 
     vec3 color = texture(in_cascades, vec3(uv.xy, layerId)).rgb;
+
     outColor = vec4(color.rgb, 1.f);
 }

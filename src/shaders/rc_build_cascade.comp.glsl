@@ -120,7 +120,11 @@ void main()
     const vec3 centOffset = vec3(config.cx, config.cy, config.cz);
 
     const vec3 seg_origin = getCenterWorldPos(ivec3(prob_idx, lvLayer), sceneRadius, config.probeSideLen) + vec3(config.probeSideLen * 0.5f) + centOffset;
-    const vec3 seg_dir = octDecode((vec2(ray_idx) + .5f) / float(ray_gridSideCount));
+
+    vec2 uv = (vec2(ray_idx) + .5f) / float(ray_gridSideCount);
+    // mapping uv to [-1, 1]
+    uv = uv * 2.f - 1.f;
+    const vec3 seg_dir = oct_to_float32x3(uv);
     const float seg_len = config.rayLength;
 
     // write the result to the atlas

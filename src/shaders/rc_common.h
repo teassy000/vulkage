@@ -15,6 +15,7 @@ bool compare(vec3 _a, vec3 _b)
 }
 
 // https://knarkowicz.wordpress.com/2014/04/16/octahedron-normal-vector-encoding/
+// following methods are from the above link
 vec2 octWrap(vec2 _v)
 {
 	return (1.0 - abs(_v.yx)) * (_v.y >= 0.0 ? 1.0 : -1.0);
@@ -22,29 +23,43 @@ vec2 octWrap(vec2 _v)
 
 vec2 octEncode(vec3 _n)
 {
-    _n /= sum(_n);
+    _n /= (abs(_n.x) + abs(_n.y) + abs(_n.z));
     _n.xy = _n.z >= 0.0 ? _n.xy : octWrap(_n.xy);
     _n.xy = _n.xy * 0.5 + 0.5;
     return _n.xy;
 }
 
-// https://knarkowicz.wordpress.com/2014/04/16/octahedron-normal-vector-encoding/
 vec3 octDecode(vec2 _uv)
 {
 	_uv = _uv * 2.0 - 1.0;
 
-	vec2 suv = sectorize(_uv);
-    vec2 auv = abs(_uv);
-
-    float l = sum(auv);
-
-	if (l > 1.0)
-	{
-		_uv = (1. - auv.yx) * suv;
-	}
-
-	return normalize(vec3(_uv.x, 1. - l, _uv.y));
+    // https://twitter.com/Stubbesaurus/status/937994790553227264
+    vec3 n = vec3(_uv.x, _uv.y, 1.0 - abs(_uv.x) - abs(_uv.y));
+    float t = clamp(-n.z, 0.f, 1.f);
+    n.xy = vec2(n.xy.x >= 0.0 ? n.xy.x - t : n.xy.x + t, n.xy.y >= 0.0 ? n.xy.y - t : n.xy.y + t);
+    return normalize(n);
 }
+
+// https://jcgt.org/published/0003/02/01/paper.pdf
+// following methods are from the above link
+// Returns ¡À1
+vec2 signNotZero(vec2 v) {
+    return vec2((v.x >= 0.0) ? +1.0 : -1.0, (v.y >= 0.0) ? +1.0 : -1.0);
+}
+// Assume normalized input. Output is on [-1, 1] for each component.
+vec2 float32x3_to_oct(in vec3 v) {
+    // Project the sphere onto the octahedron, and then onto the xy plane
+    vec2 p = v.xy * (1.0 / (abs(v.x) + abs(v.y) + abs(v.z)));
+    // Reflect the folds of the lower hemisphere over the diagonals
+    return (v.z <= 0.0) ? ((1.0 - abs(p.yx)) * signNotZero(p)) : p;
+}
+
+vec3 oct_to_float32x3(vec2 e) {
+    vec3 v = vec3(e.xy, 1.0 - abs(e.x) - abs(e.y));
+    if (v.z < 0) v.xy = (1.0 - abs(v.yx)) * signNotZero(v.xy);
+    return normalize(v);
+}
+
 
 // vox ==============================================================================
 
