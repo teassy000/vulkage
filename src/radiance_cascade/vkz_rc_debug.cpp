@@ -14,7 +14,7 @@ using StoreOp = kage::AttachmentStoreOp;
 
 struct alignas(16) ProbeDebugCmdConsts
 {
-    float sceneRadius;
+    float rcRadius;
     float probeSideLen;
     float sphereRadius;
 
@@ -147,7 +147,7 @@ void recProbeDbgCmdGen(const ProbeDbgCmdGen& _gen, const DrawCull& _camCull, con
 
     kage::startRec(_gen.pass);
     ProbeDebugCmdConsts consts{};
-    consts.sceneRadius = _rcDbg.totalRadius;
+    consts.rcRadius = _rcDbg.totalRadius;
     consts.probeSideLen = probeSideLen;
     consts.sphereRadius = sphereRadius;
     consts.probeSideCount = probeSideCount;

@@ -45,6 +45,7 @@ struct BrixelData
     mat4 projMat;
 
     vec3 camPos;
+    bool followCam;
 
     uint32_t debugType;
     uint32_t startCas;

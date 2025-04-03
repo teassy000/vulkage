@@ -49,14 +49,13 @@ layout(binding = 2, set = 2) buffer readonly brickAABBTrees
 layout(binding = 3, set = 2) buffer readonly cascadeAABBTrees
 {
     uint aabb[];
-}
-in_cas[FFX_BRIXELIZER_MAX_CASCADES];
+} in_cas_aabb_trees[FFX_BRIXELIZER_MAX_CASCADES];
 
 
 layout(binding = 4, set = 2) buffer readonly cascadeBrickMaps
 {
     uint map[];
-}in_cas_bricks[FFX_BRIXELIZER_MAX_CASCADES];
+} in_cas_brick_maps[FFX_BRIXELIZER_MAX_CASCADES];
 
 // ffx brixelizer required functions
 // requred data:
@@ -74,15 +73,15 @@ FfxBrixelizerCascadeInfo GetCascadeInfo(FfxUInt32 _casId)
 FfxFloat32x3 LoadCascadeAABBTreesFloat3(FfxUInt32 _casId, FfxUInt32 _elemIdx) 
 {
     return FfxFloat32x3(
-              float(in_cas[_casId].aabb[_elemIdx + 0])
-            , float(in_cas[_casId].aabb[_elemIdx + 1])
-            , float(in_cas[_casId].aabb[_elemIdx + 2])
+              float(in_cas_aabb_trees[_casId].aabb[_elemIdx + 0])
+            , float(in_cas_aabb_trees[_casId].aabb[_elemIdx + 1])
+            , float(in_cas_aabb_trees[_casId].aabb[_elemIdx + 2])
         );
 }
 
 FfxUInt32 LoadCascadeAABBTreesUInt(FfxUInt32 _casId, FfxUInt32 _elemIdx)
 {
-    return uint(in_cas[_casId].aabb[_elemIdx]);
+    return uint(in_cas_aabb_trees[_casId].aabb[_elemIdx]);
 }
 
 FfxUInt32 LoadBricksAABB(FfxUInt32 _elemIdx) 
@@ -92,12 +91,12 @@ FfxUInt32 LoadBricksAABB(FfxUInt32 _elemIdx)
 
 FfxFloat32 SampleSDFAtlas(FfxFloat32x3 _uvw)
 {
-    return texture(in_sdfAtlas, _uvw).x;
+    return textureLod(in_sdfAtlas, _uvw, 0.f).x;
 }
 
 FfxUInt32 LoadCascadeBrickMapArrayUniform(FfxUInt32 _casId, FfxUInt32 _elemIdx)
 {
-    return uint(in_cas_bricks[_casId].map[_elemIdx]);
+    return uint(in_cas_brick_maps[_casId].map[_elemIdx]);
 }
 
 void main()
@@ -108,7 +107,7 @@ void main()
     // the config for the radiance cascade.
     const uint prob_gridSideCount = config.probe_sideCount;
     const uint ray_gridSideCount = config.ray_gridSideCount;
-    const float sceneRadius = config.sceneRadius;
+    const float rcRadius = config.radius;
 
     const ivec2 prob_idx = pixIdx / int(ray_gridSideCount);
     const ivec2 ray_idx = pixIdx % int(ray_gridSideCount);
@@ -119,12 +118,12 @@ void main()
     // length: the probe radius
     const vec3 centOffset = vec3(config.cx, config.cy, config.cz);
 
-    const vec3 seg_origin = getCenterWorldPos(ivec3(prob_idx, lvLayer), sceneRadius, config.probeSideLen) + vec3(config.probeSideLen * 0.5f) + centOffset;
+    const vec3 seg_origin = getCenterWorldPos(ivec3(prob_idx, lvLayer), rcRadius, config.probeSideLen) + vec3(config.probeSideLen * 0.5f) + centOffset;
 
     vec2 uv = (vec2(ray_idx) + .5f) / float(ray_gridSideCount);
     // mapping uv to [-1, 1]
     uv = uv * 2.f - 1.f;
-    const vec3 seg_dir = oct_to_float32x3(uv);
+    const vec3 seg_dir = normalize(oct_to_float32x3(uv));
     const float seg_len = config.rayLength;
 
     // write the result to the atlas
@@ -136,7 +135,7 @@ void main()
     ffx_ray.end_cascade_id = config.brx_endCas + config.brx_offset;
     ffx_ray.t_min = config.brx_tmin;
     ffx_ray.t_max = config.brx_tmax;
-    ffx_ray.origin = vec3(0.f, 4.f, 0.f);
+    ffx_ray.origin = seg_origin;
     ffx_ray.direction = seg_dir;
 
     FfxBrixelizerHitRaw ffx_hit;
@@ -150,12 +149,12 @@ void main()
     }
     else
     {
-        var = (seg_origin / sceneRadius) + vec3(.5f);
+        var = (seg_origin / rcRadius) + vec3(.5f);
         //var = vec3(0.4f, 0.f, 0.f);
     }
 
     // debug the probe pos
-    // var = (seg_origin - trans.cameraPos) / sceneRadius + 0.5f;
+    // var = (seg_origin - trans.cameraPos) / rcRadius + 0.5f;
 
     const uint layer_idx = lvLayer + config.layerOffset;
     uint pidx = uint(prob_idx.y * prob_gridSideCount + prob_idx.x) + lvLayer * prob_gridSideCount * prob_gridSideCount;
@@ -170,7 +169,7 @@ void main()
     // debug: seg dir
     vec3 rd = (seg_dir.rgb + 1.f) * 0.5;
     // debug: seg origin
-    // vec3 ro = (seg_origin + sceneRadius) / (sceneRadius * 2.f);
+    // vec3 ro = (seg_origin + rcRadius) / (rcRadius * 2.f);
 
     ivec3 iuv = ivec3(0);
     switch(config.debug_type)

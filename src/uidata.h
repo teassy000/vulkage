@@ -46,6 +46,7 @@ struct Dbg_Brixel
     float tmax = 1000.f;
 
     kage::ImageHandle presentImg;
+    bool followCam = true;
 };
 
 struct Dbg_RCBuild

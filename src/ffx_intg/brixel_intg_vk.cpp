@@ -362,8 +362,9 @@ void parseDebugVisDesc(FFXBrixelizer_vk& _brx)
         visDesc.cascadeDebugAABB[ii] = FFX_BRIXELIZER_CASCADE_DEBUG_AABB_BOUNDING_BOX;
     }
 
-    // set the center
-    memcpy(&(_brx.initDesc.sdfCenter[0]), &desc.camPos, sizeof(_brx.initDesc.sdfCenter));
+    // update sdf center if follow cam
+    if(desc.followCam) 
+        memcpy(&(_brx.sdfCenter[0]), &desc.camPos, sizeof(_brx.initDesc.sdfCenter));
 
     _brx.bDebug = true;
 }
@@ -374,9 +375,9 @@ void updateBrx(FFXBrixelizer_vk& _brx)
 
     // update desc
     _brx.updateDesc.frameIndex = _brx.frameIdx;
-    _brx.updateDesc.sdfCenter[0] = _brx.initDesc.sdfCenter[0];
-    _brx.updateDesc.sdfCenter[1] = _brx.initDesc.sdfCenter[1];
-    _brx.updateDesc.sdfCenter[2] = _brx.initDesc.sdfCenter[2];
+    _brx.updateDesc.sdfCenter[0] = _brx.sdfCenter[0];
+    _brx.updateDesc.sdfCenter[1] = _brx.sdfCenter[1];
+    _brx.updateDesc.sdfCenter[2] = _brx.sdfCenter[2];
     _brx.updateDesc.populateDebugAABBsFlags = FFX_BRIXELIZER_POPULATE_AABBS_CASCADE_AABBS;
     _brx.updateDesc.debugVisualizationDesc = _brx.bDebug ? &_brx.debugVisDesc : nullptr;
     _brx.updateDesc.maxReferences = 32 * (1 << 20);
@@ -545,8 +546,6 @@ void update(FFXBrixelizer_vk& _brx)
     preUpdateBarriers(_brx);
     updateContextInfo(_brx);
     updateBrx(_brx);
-
-
 }
 
 void deleteInstances(FFXBrixelizer_vk& _brx)

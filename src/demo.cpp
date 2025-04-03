@@ -152,6 +152,7 @@ namespace
                 brxData.sdfEps = brx.sdfEps;
                 brxData.tmin = brx.tmin;
                 brxData.tmax = brx.tmax;
+                brxData.followCam = brx.followCam;
 
                 brxUpdate(m_brixel, brxData);
             }

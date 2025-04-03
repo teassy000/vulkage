@@ -164,7 +164,7 @@ void recRCBuild(const RadianceCascadeBuild& _rc , const Dbg_RCBuild& _dbg)
         config.layerOffset = (kage::k_rclv0_probeSideCount - prob_sideCount) * 2;
         config.rayLength = rayLen;
         config.probeSideLen = prob_sideLen;
-        config.sceneRadius = _dbg.totalRadius;
+        config.radius = _dbg.totalRadius;
 
         config.brx_tmin = _dbg.brx_tmin;
         config.brx_tmax = _dbg.brx_tmax;
@@ -199,13 +199,13 @@ void recRCBuild(const RadianceCascadeBuild& _rc , const Dbg_RCBuild& _dbg)
         kage::pushBindings(pushBinds, COUNTOF(pushBinds));
 
         std::vector<kage::Binding> setBinds;
-        setBinds.emplace_back(kage::Binding{ _rc.brx.sdfAtlas, _rc.brxAtlasSamp, Stage::compute_shader });
-        setBinds.emplace_back(kage::Binding{ _rc.brx.cascadeInfos, Access::read, Stage::compute_shader });
-        setBinds.emplace_back(kage::Binding{ _rc.brx.brickAABB, Access::read, Stage::compute_shader });
+        setBinds.emplace_back(kage::Binding{ _rc.brx.sdfAtlas, _rc.brxAtlasSamp, Stage::compute_shader }); // 0
+        setBinds.emplace_back(kage::Binding{ _rc.brx.cascadeInfos, Access::read, Stage::compute_shader }); // 1
+        setBinds.emplace_back(kage::Binding{ _rc.brx.brickAABB, Access::read, Stage::compute_shader }); // 2
 
-        for (uint32_t jj = 0; jj < FFX_BRIXELIZER_MAX_CASCADES; jj++)
+        for (uint32_t jj = 0; jj < FFX_BRIXELIZER_MAX_CASCADES; jj++) // 3
             setBinds.emplace_back(kage::Binding{ _rc.brx.cascadeAABBTrees[jj], Access::read, Stage::compute_shader });
-        for (uint32_t jj = 0; jj < FFX_BRIXELIZER_MAX_CASCADES; jj++)
+        for (uint32_t jj = 0; jj < FFX_BRIXELIZER_MAX_CASCADES; jj++) // 4
             setBinds.emplace_back(kage::Binding{ _rc.brx.cascadeBrickMaps[jj], Access::read, Stage::compute_shader });
 
         uint32_t arrayCounts[] = { 1, 1, 1, FFX_BRIXELIZER_MAX_CASCADES, FFX_BRIXELIZER_MAX_CASCADES};

@@ -247,11 +247,11 @@ void updataContentRCBuild(Dbg_RCBuild& _rc)
     ImGui::Begin("rc build:");
     
     ImGui::SliderFloat("brx_tmin", &_rc.brx_tmin, 0.f, 100.f);
-    ImGui::SliderFloat("brx_tmax", &_rc.brx_tmax, 100.f, 1000.f);
+    ImGui::SliderFloat("brx_tmax", &_rc.brx_tmax, 1.f, 1000.f);
 
     ImGui::SliderInt("brx_offset", (int*)&_rc.brx_offset, 0, 100);
-    ImGui::SliderInt("brx_startCas", (int*)&_rc.brx_startCas, 0, 8);
-    ImGui::SliderInt("brx_endCas", (int*)&_rc.brx_endCas, 0, 24);
+    ImGui::SliderInt("brx_startCas", (int*)&_rc.brx_startCas, 0, kage::k_brixelizerCascadeCount - 1);
+    ImGui::SliderInt("brx_endCas", (int*)&_rc.brx_endCas, 0, kage::k_brixelizerCascadeCount - 1);
     
     ImGui::SliderFloat("totalRadius", &_rc.totalRadius, 0.f, 1000.f);
     
@@ -274,12 +274,14 @@ void updateContentBrx(Dbg_Brixel& _brx)
     const char* const items[(uint32_t)BrixelDebugType::count] = { "distance", "uvw", "iterations", "grad", "brick_id", "cascade_id" };
 
     ImGui::Combo("type", (int*)&_brx.debugBrixelType, items, COUNTOF(items));
-    ImGui::SliderInt("start cas", (int*)&_brx.startCas, 0, 8);
-    ImGui::SliderInt("end cas", (int*)&_brx.endCas, 0, 24);
+    ImGui::SliderInt("start cas", (int*)&_brx.startCas, 0, kage::k_brixelizerCascadeCount - 1);
+    ImGui::SliderInt("end cas", (int*)&_brx.endCas, 0, kage::k_brixelizerCascadeCount - 1);
     ImGui::SliderFloat("sdf eps", &_brx.sdfEps, 0.1f, 10.f);
     ImGui::SliderFloat("tmin", &_brx.tmin, .2f, 10.f);
     ImGui::SliderFloat("tmax", &_brx.tmax, 1000.f, 10000.f);
+    ImGui::Checkbox("follow Cam", &_brx.followCam);
     ImGui::Image((ImTextureID)(_brx.presentImg.id), { 640, 360 });
+
     ImGui::End();
 }
 

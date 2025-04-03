@@ -33,6 +33,7 @@ struct BrixelDebugDescs
     float tmin;
     float tmax;
     BrixelDebugType debugType;
+    bool followCam{ true };
 };
 
 

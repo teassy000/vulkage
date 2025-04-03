@@ -117,7 +117,7 @@ struct RadianceCascadesConfig
 
     float   rayLength;
     float   probeSideLen;
-    float   sceneRadius;
+    float   radius;
 
     float brx_tmin;
     float brx_tmax;
@@ -189,7 +189,7 @@ struct VoxDraw
 
 struct ProbeDebugCmdConsts
 {
-    float sceneRadius;
+    float rcRadius;
     float probeSideLen;
     float sphereRadius;
     uint probeSideCount;

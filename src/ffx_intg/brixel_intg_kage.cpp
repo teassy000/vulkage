@@ -328,6 +328,7 @@ void brxUpdate(BrixelResources& _bxl, const BrixelData& _data)
     desc.tmin = _data.tmin;
     desc.tmax = _data.tmax;
     desc.debugType = (BrixelDebugType)_data.debugType;
+    desc.followCam = _data.followCam;
 
     const kage::Memory* mem = kage::alloc(sizeof(BrixelDebugDescs));
 
