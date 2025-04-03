@@ -58,6 +58,7 @@ struct Dbg_RCBuild
     uint32_t brx_offset = 0;
     uint32_t brx_startCas = 0;
     uint32_t brx_endCas = 8;
+    float brx_sdfEps = 1.5f;
 
     // radius
     float totalRadius = 50.f;

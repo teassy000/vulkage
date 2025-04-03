@@ -8,16 +8,22 @@
 #include "mesh_gpu.h"
 #include "rc_common.h"
 #include "debug_gpu.h"
-#include "ffx_brx_integrate.h"
-
-
-layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 
 layout(push_constant) uniform block
 {
-	RadianceCascadesConfig config;
+    RadianceCascadesConfig config;
 };
 
+// predefined macros for ffx_brixelizer_trace_ops.h
+#define FFX_GPU
+#define FFX_GLSL
+#define FFX_BRIXELIZER_TRAVERSAL_EPS config.brx_sdfEps
+#define FFX_WAVE 1
+
+#include "ffx_brixelizer_trace_ops.h"
+
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 
 layout(binding = 0) readonly uniform Transform
 {
@@ -58,13 +64,19 @@ layout(binding = 4, set = 2) buffer readonly cascadeBrickMaps
 } in_cas_brick_maps[FFX_BRIXELIZER_MAX_CASCADES];
 
 // ffx brixelizer required functions
-// requred data:
+// FfxFloat32x3     LoadCascadeAABBTreesFloat3(FfxUInt32 cascadeID, FfxUInt32 elementIndex);
+// FfxUInt32        LoadCascadeAABBTreesUInt(FfxUInt32 cascadeID, FfxUInt32 elementIndex);
+// FfxUInt32        LoadBricksAABB(FfxUInt32 elementIndex);
+// FfxBrixelizerCascadeInfo GetCascadeInfo(FfxUInt32 cascadeID);
+// FfxFloat32       SampleSDFAtlas(FfxFloat32x3 uvw);
+// FfxUInt32        LoadCascadeBrickMapArrayUniform(FfxUInt32 cascadeID, FfxUInt32 elementIndex);
+// ================================================================================================
+// required data:
 // 1. the sdf atlas
 // 2. the cascade info
 // 3. the bricks aabb
-// 4. the aabb trees
+// 4. the aabb trees array
 // 5. the cascade brick map array
-
 FfxBrixelizerCascadeInfo GetCascadeInfo(FfxUInt32 _casId)
 {
     return in_cascades_info[_casId];
@@ -73,9 +85,9 @@ FfxBrixelizerCascadeInfo GetCascadeInfo(FfxUInt32 _casId)
 FfxFloat32x3 LoadCascadeAABBTreesFloat3(FfxUInt32 _casId, FfxUInt32 _elemIdx) 
 {
     return FfxFloat32x3(
-              float(in_cas_aabb_trees[_casId].aabb[_elemIdx + 0])
-            , float(in_cas_aabb_trees[_casId].aabb[_elemIdx + 1])
-            , float(in_cas_aabb_trees[_casId].aabb[_elemIdx + 2])
+              uintBitsToFloat(in_cas_aabb_trees[_casId].aabb[_elemIdx + 0])
+            , uintBitsToFloat(in_cas_aabb_trees[_casId].aabb[_elemIdx + 1])
+            , uintBitsToFloat(in_cas_aabb_trees[_casId].aabb[_elemIdx + 2])
         );
 }
 
@@ -134,23 +146,17 @@ void main()
     ffx_ray.start_cascade_id = config.brx_startCas + config.brx_offset;
     ffx_ray.end_cascade_id = config.brx_endCas + config.brx_offset;
     ffx_ray.t_min = config.brx_tmin;
-    ffx_ray.t_max = config.brx_tmax;
+    ffx_ray.t_max = seg_len;//config.brx_tmax;
     ffx_ray.origin = seg_origin;
     ffx_ray.direction = seg_dir;
 
     FfxBrixelizerHitRaw ffx_hit;
 
     bool hit = FfxBrixelizerTraverseRaw(ffx_ray, ffx_hit);
-        
+
     if (hit) {
         vec3 norm = FfxBrixelizerGetHitNormal(ffx_hit);
-        //var = norm;
-        var = vec3(1.f, 1.f, 0.f);
-    }
-    else
-    {
-        var = (seg_origin / rcRadius) + vec3(.5f);
-        //var = vec3(0.4f, 0.f, 0.f);
+        var = norm;
     }
 
     // debug the probe pos

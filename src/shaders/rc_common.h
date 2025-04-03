@@ -125,6 +125,7 @@ struct RadianceCascadesConfig
     uint brx_offset;
     uint brx_startCas;
     uint brx_endCas;
+    float brx_sdfEps;
 
     uint debug_type;
 };

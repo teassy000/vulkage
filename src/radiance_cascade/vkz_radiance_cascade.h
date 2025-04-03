@@ -27,6 +27,7 @@ struct alignas(16) RadianceCascadesConfig
     uint32_t brx_offset;
     uint32_t brx_startCas;
     uint32_t brx_endCas;
+    float brx_sdfEps;
 
     uint32_t debug_type;
 };

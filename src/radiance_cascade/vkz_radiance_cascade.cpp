@@ -177,6 +177,7 @@ void recRCBuild(const RadianceCascadeBuild& _rc , const Dbg_RCBuild& _dbg)
         config.brx_offset = _dbg.brx_offset;
         config.brx_startCas = bx::min(_dbg.brx_startCas, _dbg.brx_endCas);
         config.brx_endCas = bx::max(_dbg.brx_startCas, _dbg.brx_endCas);
+        config.brx_sdfEps = _dbg.brx_sdfEps;
 
         config.debug_type = _dbg.debug_type;
 
@@ -199,7 +200,7 @@ void recRCBuild(const RadianceCascadeBuild& _rc , const Dbg_RCBuild& _dbg)
         kage::pushBindings(pushBinds, COUNTOF(pushBinds));
 
         std::vector<kage::Binding> setBinds;
-        setBinds.emplace_back(kage::Binding{ _rc.brx.sdfAtlas, _rc.brxAtlasSamp, Stage::compute_shader }); // 0
+        setBinds.emplace_back(kage::Binding{ _rc.brx.sdfAtlas, 0, _rc.brxAtlasSamp, Stage::compute_shader }); // 0
         setBinds.emplace_back(kage::Binding{ _rc.brx.cascadeInfos, Access::read, Stage::compute_shader }); // 1
         setBinds.emplace_back(kage::Binding{ _rc.brx.brickAABB, Access::read, Stage::compute_shader }); // 2
 

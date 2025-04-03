@@ -252,6 +252,7 @@ void updataContentRCBuild(Dbg_RCBuild& _rc)
     ImGui::SliderInt("brx_offset", (int*)&_rc.brx_offset, 0, 100);
     ImGui::SliderInt("brx_startCas", (int*)&_rc.brx_startCas, 0, kage::k_brixelizerCascadeCount - 1);
     ImGui::SliderInt("brx_endCas", (int*)&_rc.brx_endCas, 0, kage::k_brixelizerCascadeCount - 1);
+    ImGui::SliderFloat("brx_sdfEps", &_rc.brx_sdfEps, 0.01f, 10.f);
     
     ImGui::SliderFloat("totalRadius", &_rc.totalRadius, 0.f, 1000.f);
     
