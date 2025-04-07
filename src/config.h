@@ -51,9 +51,14 @@ namespace kage
     // radiance cascade config, it's a 3d grid of probes, each probe has a 2d grid of rays
     // ray grid is a 2d grid of rays encoded by octahedron mapping
     // following probe lv decreasing, probe count for each level decreates by 8, ray count for each level increases by 8
-    constexpr unsigned int k_rclv0_cascadeLv = 1;
-    constexpr unsigned int k_rclv0_probeSideCount = 1;
-    constexpr unsigned int k_rclv0_rayGridSideCount = 512;
+    constexpr unsigned int k_rclv0_cascadeLv = 6;
+    constexpr unsigned int k_rclv0_probeSideCount = 32;
+    constexpr unsigned int k_rclv0_rayGridSideCount = 32;
 
+
+    // Brixelizer supports a maximum of 24 raw cascades
+    // In the sample each cascade level we build is created by building a static cascade,
+    // a dynamic cascade, and then merging those into a merged cascade. Hence we require
+    // 3 raw cascades per cascade level.
     constexpr unsigned int k_brixelizerCascadeCount = 8;
 }

@@ -218,4 +218,6 @@ struct ProbeDebugDrawConsts
 
     uint probeSideCount;
     uint raySideCount;
+
+    uint debugIdxType;
 };

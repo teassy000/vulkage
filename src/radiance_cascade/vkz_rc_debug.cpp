@@ -43,6 +43,8 @@ struct alignas(16) ProbeDebugDrawConsts
 
     uint32_t probeSideCount;
     uint32_t raySideCount;
+
+    uint32_t debugIdxType;
 };
 
 struct ProbeDebugGenInit
@@ -277,13 +279,15 @@ void recProbeDbgDraw(const ProbeDbgDraw& _pd, const DrawCull& _camCull, const ui
     kage::setScissor(0, 0, _width, _height);
 
     uint32_t probeSideCount = kage::k_rclv0_probeSideCount / (1 << glm::min(_rcDbg.rcLv, kage::k_rclv0_cascadeLv));
+    uint32_t raySideCount = kage::k_rclv0_rayGridSideCount * (1 << glm::min(_rcDbg.rcLv, kage::k_rclv0_cascadeLv));
     float sphereRadius = (_rcDbg.totalRadius / probeSideCount) * _rcDbg.probeDebugScale;
 
     ProbeDebugDrawConsts consts{};
     consts.sceneRadius = _rcDbg.totalRadius;
     consts.sphereRadius = sphereRadius;
     consts.probeSideCount = probeSideCount;
-    consts.raySideCount = kage::k_rclv0_rayGridSideCount;
+    consts.raySideCount = raySideCount;
+    consts.debugIdxType = _rcDbg.debug_type % 2;
 
     const kage::Memory* mem = kage::alloc(sizeof(ProbeDebugDrawConsts));
     memcpy(mem->data, &consts, mem->size);

@@ -156,7 +156,7 @@ void main()
 
     if (hit) {
         vec3 norm = FfxBrixelizerGetHitNormal(ffx_hit);
-        var = norm;
+        var = vec3(1.f);
     }
 
     // debug the probe pos
