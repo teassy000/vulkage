@@ -34,7 +34,7 @@ void main()
     uv0 = uv0 * 0.5f + 0.5f; // map to [0, 1]
 
 
-    ivec2 rayIdx = ivec2((uv0 * raySideCnt + 0.5f));
+    ivec2 rayIdx = ivec2((uv0 * raySideCnt));
     ivec2 pixelIdx = ivec2(0u);
     switch (consts.debugIdxType)
     {
@@ -46,8 +46,7 @@ void main()
             break;
     }
 
-
-    vec2 uv = vec2(pixelIdx) / (probeSideCnt * raySideCnt);
+    vec2 uv = (vec2(pixelIdx) + vec2(0.5f)) / (probeSideCnt * raySideCnt);
 
     vec3 color = texture(in_cascades, vec3(uv.xy, layerId)).rgb;
 
