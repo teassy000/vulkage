@@ -262,6 +262,7 @@ void updataContentRCBuild(Dbg_RCBuild& _rc)
     ImGui::SliderFloat3("probeCenter", &_rc.probePosOffset[0], -100.f, 100.f);
     ImGui::SliderFloat("probeDebugScale", &_rc.probeDebugScale, 0.01f, 1.f);
     ImGui::SliderInt("rcLv", (int*)&_rc.rcLv, 0, 8);
+    ImGui::Checkbox("follow Cam", &_rc.followCam);
     
     ImGui::End();
 }
@@ -310,8 +311,6 @@ void updateContentCommon(Dbg_Common& _common, const DebugProfilingData& _pd, con
     ImGui::Text("ui: [%.3f]ms", _pd.uiTime);
     ImGui::Text("deferred: [%.3f]ms", _pd.deferredTime);
     ImGui::Text("build cascade: [%.3f]ms", _pd.buildCascadeTime);
-
-    ImGui::SliderInt("cas lv", &_common.debugCascadeLevel, 0, kage::k_rclv0_cascadeLv - 1);
 
     if (ImGui::TreeNode("Static Data:"))
     {

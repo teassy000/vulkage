@@ -206,14 +206,12 @@ namespace
             m_demoData.logic.frontY = front.y;
             m_demoData.logic.frontZ = front.z;
 
-
             m_smaa.update(m_width, m_height);
 
-
-            updateRadianceCascade(m_radianceCascade, m_demoData.dbg_features.rcBuild);
+            updateRadianceCascade(m_radianceCascade, m_demoData.dbg_features.rcBuild, m_demoData.trans);
             if (m_debugProb)
             {
-                m_probDebug.debugLv = m_demoData.dbg_features.common.debugCascadeLevel;
+                m_probDebug.debugLv = m_demoData.dbg_features.rcBuild.rcLv;
                 updateProbeDebug(m_probDebug, m_demoData.drawCull, m_width, m_height, m_demoData.dbg_features.rcBuild);
             }
 
@@ -635,7 +633,6 @@ namespace
                 rcInit.meshDrawBuf = m_meshDrawBuf;
                 rcInit.idxBuf = m_idxBuf;
                 rcInit.vtxBuf = m_vtxBuf;
-                rcInit.transBuf = m_transformBuf;
                 rcInit.maxDrawCmdCount = (uint32_t)m_scene.meshDraws.size();
                 rcInit.bindless = m_bindlessArray;
                 rcInit.skybox = m_skybox.colorOutAlias;
@@ -658,7 +655,7 @@ namespace
                 vdinit.color = m_deferred.outColorAlias;
                 vdinit.depth = m_supportMeshShading ? m_meshShadingAlpha.depthOutAlias : m_vtxShadingLate.depthOutAlias;
 
-                vdinit.trans = m_transformBuf;
+                vdinit.trans = m_radianceCascade.rcBuild.trans;
 
                 vdinit.cascade = m_radianceCascade.rcBuild.radCascdOutAlias;
 

@@ -15,7 +15,6 @@ struct RCBuildInit
     GBuffer g_buffer;
     kage::ImageHandle depth;
     kage::ImageHandle skybox;
-    kage::BufferHandle trans;
 
     BRX_UserResources brx;
 };
@@ -50,7 +49,13 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
     kage::ImageHandle img = kage::registTexture("cascade", imgDesc, nullptr, kage::ResourceLifetime::non_transition);
     kage::ImageHandle outAlias = kage::alias(img);
 
-    kage::bindBuffer(pass, _init.trans
+    // transform buffer
+    kage::BufferDesc transDesc{};
+    transDesc.size = sizeof(RadianceCascadesTransform);
+    transDesc.usage = kage::BufferUsageFlagBits::uniform | kage::BufferUsageFlagBits::transfer_dst;
+    kage::BufferHandle trans = kage::registBuffer("rc_trans", transDesc);
+
+    kage::bindBuffer(pass, trans
         , kage::PipelineStageFlagBits::compute_shader
         , kage::AccessFlagBits::shader_read
     );
@@ -130,7 +135,7 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
     _rc.inSkybox = _init.skybox;
     _rc.skySampler = skySamp;
 
-    _rc.trans = _init.trans;
+    _rc.trans = trans;
     _rc.inDepth = _init.depth;
     _rc.depthSampler = depthSamp;
 
@@ -227,15 +232,33 @@ void prepareRadianceCascade(RadianceCascade& _rc, const RadianceCascadeInitData 
     rcInit.g_buffer = _init.g_buffer;
     rcInit.depth = _init.depth;
     rcInit.skybox = _init.skybox;
-    rcInit.trans = _init.transBuf;
     memcpy(&rcInit.brx, &_init.brx, sizeof(BRX_UserResources));
     prepareRCbuild(_rc.rcBuild, rcInit);
 }
 
 void updateRadianceCascade(
-    const RadianceCascade& _rc
+    RadianceCascade& _rc
     , const Dbg_RCBuild& _dbgRcBuild
+    , const TransformData& _trans
 )
 {
+    // update trans buf
+    RadianceCascadesTransform trans;
+
+    if (_dbgRcBuild.followCam) {
+        _rc.rcBuild.cameraPos = _trans.cameraPos;
+    }
+    
+
+    trans.cameraPos = _rc.rcBuild.cameraPos;
+    trans.view = _trans.view;
+    trans.proj = _trans.proj;
+
+    const kage::Memory* memTransform = kage::alloc(sizeof(RadianceCascadesTransform));
+    memcpy_s(memTransform->data, memTransform->size, &trans, sizeof(RadianceCascadesTransform));
+    kage::updateBuffer(_rc.rcBuild.trans, memTransform);
+
+
+
     recRCBuild(_rc.rcBuild, _dbgRcBuild);
 }

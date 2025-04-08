@@ -15,7 +15,7 @@ layout(push_constant) uniform block
 
 layout(binding = 0) readonly uniform Transform
 {
-    TransformData trans;
+    RadianceCascadesTransform trans;
 };
 
 layout(binding = 1) readonly buffer Vertices

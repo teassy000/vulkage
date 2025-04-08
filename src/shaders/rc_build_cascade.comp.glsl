@@ -27,7 +27,7 @@ layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 
 layout(binding = 0) readonly uniform Transform
 {
-    TransformData trans;
+    RadianceCascadesTransform trans;
 };
 
 layout(binding = 1) uniform sampler2D in_albedo;
@@ -130,7 +130,7 @@ void main()
     // length: the probe radius
     const vec3 centOffset = vec3(config.cx, config.cy, config.cz);
 
-    const vec3 seg_origin = getCenterWorldPos(ivec3(prob_idx, lvLayer), rcRadius, config.probeSideLen) + vec3(config.probeSideLen * 0.5f) + centOffset;
+    const vec3 seg_origin = getCenterWorldPos(ivec3(prob_idx, lvLayer), rcRadius, config.probeSideLen) + vec3(config.probeSideLen * 0.5f) + centOffset + trans.cameraPos;
 
     vec2 uv = (vec2(ray_idx) + .5f) / float(ray_gridSideCount);
     // mapping uv to [-1, 1]
@@ -139,6 +139,7 @@ void main()
     const float seg_len = config.rayLength;
 
     // write the result to the atlas
+
     vec3 var = vec3(0.f);
 
     // ffx traverse
@@ -156,10 +157,23 @@ void main()
 
     if (hit) {
         vec3 norm = FfxBrixelizerGetHitNormal(ffx_hit);
-        var = vec3(1.f);
+        vec3 hit_pos = seg_origin + ffx_hit.t * seg_dir;
+
+        // hit pos is in world space, now to uv space
+
+
+        vec3 hit_uvw = (trans.proj * trans.view * vec4(hit_pos, 1.0)).xyz;
+
+        float depth = texture(in_depth, hit_uvw.xy).x;
+        if (depth > hit_uvw.z) {
+            vec3 albedo = texture(in_albedo, hit_uvw.xy).xyz;
+            vec3 emision = texture(in_emmision, hit_uvw.xy).xyz;
+
+            var = albedo;
+        }
     }
 
-    // debug the probe pos
+    // debug the probe hit_pos
     // var = (seg_origin - trans.cameraPos) / rcRadius + 0.5f;
 
     const uint layer_idx = lvLayer + config.layerOffset;

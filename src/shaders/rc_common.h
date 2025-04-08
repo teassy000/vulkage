@@ -105,6 +105,24 @@ uint getVoxChildGridIdx(ivec3 _vi, uint _voxSideCnt, uint _childIdx)
 }
 
 
+// screen space to view space
+vec3 screenSpaceToViewSpace(vec3 _uv, mat4 _invPorj)
+{
+    return (_invPorj * vec4(_uv, 1.f)).xyz;
+}
+
+// view space to world space
+vec3 viewSpaceToWorldSpace(vec3 _coord, mat4 _invView)
+{
+    _coord.y = 1.f - _coord.y; // flip y
+    _coord.xy = _coord.xy * 2.f - 1.f; // [-1, 1]
+
+    vec4 worldPos = _invView * vec4(_coord, 1.f);
+    worldPos.xyz /= worldPos.w;
+
+    return worldPos.xyz;
+}
+
 // ==============================================================================
 struct RadianceCascadesConfig
 {
@@ -220,4 +238,11 @@ struct ProbeDebugDrawConsts
     uint raySideCount;
 
     uint debugIdxType;
+};
+
+struct RadianceCascadesTransform
+{
+    mat4 view;
+    mat4 proj;
+    vec3 cameraPos;
 };

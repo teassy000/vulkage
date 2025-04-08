@@ -33,7 +33,6 @@ struct Dbg_Common
     bool taskSubmitEnabled = true;
     bool showPyramid = false;
     int  debugPyramidLevel = 0;
-    int  debugCascadeLevel = 0;
 };
 
 struct Dbg_Brixel
@@ -67,6 +66,8 @@ struct Dbg_RCBuild
     float probePosOffset[3] = { 0.f, 0.f, 0.f };
     float probeDebugScale = 0.05f;
     uint32_t rcLv = 0;
+
+    bool followCam = true;
 };
 
 struct DebugFeatures

@@ -32,6 +32,13 @@ struct alignas(16) RadianceCascadesConfig
     uint32_t debug_type;
 };
 
+struct alignas(16) RadianceCascadesTransform
+{
+    mat4 view;
+    mat4 proj;
+    vec3 cameraPos;
+};
+
 
 struct RadianceCascadeBuild
 {
@@ -55,6 +62,8 @@ struct RadianceCascadeBuild
 
     BRX_UserResources brx;
     kage::SamplerHandle brxAtlasSamp;
+
+    vec3 cameraPos{vec3(0.f)};
 };
 
 struct RadianceCascade
@@ -71,7 +80,6 @@ struct RadianceCascadeInitData
     kage::BufferHandle meshDrawBuf;
     kage::BufferHandle idxBuf;
     kage::BufferHandle vtxBuf;
-    kage::BufferHandle transBuf;
     kage::BindlessHandle bindless;
 
     // brx
@@ -82,5 +90,5 @@ struct RadianceCascadeInitData
 
 
 void prepareRadianceCascade(RadianceCascade& _rc, const RadianceCascadeInitData _init);
-void updateRadianceCascade(const RadianceCascade& _rc, const Dbg_RCBuild& _dbgRcBuild);
+void updateRadianceCascade(RadianceCascade& _rc, const Dbg_RCBuild& _dbgRcBuild, const TransformData& _trans);
 
