@@ -145,7 +145,8 @@ struct RadianceCascadesConfig
     uint brx_endCas;
     float brx_sdfEps;
 
-    uint debug_type;
+    uint debug_idx_type;
+    uint debug_color_type;
 };
 
 struct VoxelizationConsts

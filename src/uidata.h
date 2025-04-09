@@ -33,6 +33,7 @@ struct Dbg_Common
     bool taskSubmitEnabled = true;
     bool showPyramid = false;
     int  debugPyramidLevel = 0;
+    float speed = 0.01f;
 };
 
 struct Dbg_Brixel
@@ -60,14 +61,16 @@ struct Dbg_RCBuild
     float brx_sdfEps = 1.5f;
 
     // radius
-    float totalRadius = 50.f;
-    uint32_t debug_type = 0;
+    float totalRadius = 5.f;
+    uint32_t idx_type = 0;
+    uint32_t color_type = 0;
 
     float probePosOffset[3] = { 0.f, 0.f, 0.f };
     float probeDebugScale = 0.05f;
     uint32_t rcLv = 0;
 
     bool followCam = true;
+    bool pauseUpdate = false;
 };
 
 struct DebugFeatures

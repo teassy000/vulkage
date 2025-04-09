@@ -8,6 +8,7 @@
 
 #include "bx/readerwriter.h"
 #include "ffx_intg/brixel_structs.h"
+#include "radiance_cascade/vkz_radiance_cascade.h"
 
 
 constexpr uint32_t kInitialVertexBufferSize = 1024 * 1024; // 1MB
@@ -245,6 +246,10 @@ void updataContentRCBuild(Dbg_RCBuild& _rc)
 {
     KG_ZoneScopedC(kage::Color::blue);
     ImGui::Begin("rc build:");
+
+
+    static const char* const debug_idx_types[(uint32_t)RCDbgIndexType::count] = { "probe", "ray"};
+    static const char* const debug_color_types[(uint32_t)RCDbgColorType::count] = { "albedo", "normal", "world pos", "emmision", "hit distance", "hit normal", "ray dir", "probe center"};
     
     ImGui::SliderFloat("brx_tmin", &_rc.brx_tmin, 0.f, 100.f);
     ImGui::SliderFloat("brx_tmax", &_rc.brx_tmax, 1.f, 1000.f);
@@ -255,14 +260,16 @@ void updataContentRCBuild(Dbg_RCBuild& _rc)
     ImGui::SliderFloat("brx_sdfEps", &_rc.brx_sdfEps, 0.01f, 10.f);
     
     ImGui::SliderFloat("totalRadius", &_rc.totalRadius, 0.f, 1000.f);
-    
-    ImGui::SliderInt("debug_type", (int*)&_rc.debug_type, 0, 3);
+
+    ImGui::Combo("idx type", (int*)&_rc.idx_type, debug_idx_types, COUNTOF(debug_idx_types));
+    ImGui::Combo("color type", (int*)&_rc.color_type, debug_color_types, COUNTOF(debug_color_types));
 
     ImGui::Text("rc:");
     ImGui::SliderFloat3("probeCenter", &_rc.probePosOffset[0], -100.f, 100.f);
     ImGui::SliderFloat("probeDebugScale", &_rc.probeDebugScale, 0.01f, 1.f);
     ImGui::SliderInt("rcLv", (int*)&_rc.rcLv, 0, 8);
     ImGui::Checkbox("follow Cam", &_rc.followCam);
+    ImGui::Checkbox("pause update", &_rc.pauseUpdate);  
     
     ImGui::End();
 }
@@ -335,6 +342,7 @@ void updateContentCommon(Dbg_Common& _common, const DebugProfilingData& _pd, con
 
     if (ImGui::TreeNode("camera:"))
     {
+        ImGui::SliderFloat("speed", &_common.speed, 0.01f, 3.f);
         ImGui::Text("pos: %.2f, %.2f, %.2f", _ld.posX, _ld.posY, _ld.posZ);
         ImGui::Text("dir: %.2f, %.2f, %.2f", _ld.frontX, _ld.frontY, _ld.frontZ);
         ImGui::TreePop();

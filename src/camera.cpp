@@ -377,3 +377,8 @@ float freeCameraGetFov()
 {
     return s_freeCamera->m_fov;
 }
+
+void freeCameraSetSpeed(float _speed)
+{
+    s_freeCamera->m_moveSpeed = _speed;
+}

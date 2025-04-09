@@ -184,7 +184,8 @@ void recRCBuild(const RadianceCascadeBuild& _rc , const Dbg_RCBuild& _dbg)
         config.brx_endCas = bx::max(_dbg.brx_startCas, _dbg.brx_endCas);
         config.brx_sdfEps = _dbg.brx_sdfEps;
 
-        config.debug_type = _dbg.debug_type;
+        config.debug_idx_type = _dbg.idx_type;
+        config.debug_color_type = _dbg.color_type;
 
         const kage::Memory* mem = kage::alloc(sizeof(RadianceCascadesConfig));
         memcpy(mem->data, &config, mem->size);
@@ -248,11 +249,15 @@ void updateRadianceCascade(
     if (_dbgRcBuild.followCam) {
         _rc.rcBuild.cameraPos = _trans.cameraPos;
     }
-    
+
+    if (! _dbgRcBuild.pauseUpdate) {
+        _rc.rcBuild.view = _trans.view;
+        _rc.rcBuild.proj = _trans.proj;
+    }
 
     trans.cameraPos = _rc.rcBuild.cameraPos;
-    trans.view = _trans.view;
-    trans.proj = _trans.proj;
+    trans.view = _rc.rcBuild.view;
+    trans.proj = _rc.rcBuild.proj;
 
     const kage::Memory* memTransform = kage::alloc(sizeof(RadianceCascadesTransform));
     memcpy_s(memTransform->data, memTransform->size, &trans, sizeof(RadianceCascadesTransform));

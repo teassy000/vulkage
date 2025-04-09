@@ -129,6 +129,7 @@ namespace
             const double freq = double(bx::getHPFrequency());
             const float deltaTimeMS = float(frameTime / freq) * 1000.f;
 
+            freeCameraSetSpeed(m_demoData.dbg_features.common.speed);
             bool camRet = freeCameraUpdate(deltaTimeMS, m_mouseState);
             static bool lockToggle = camRet;
             if (camRet != lockToggle)

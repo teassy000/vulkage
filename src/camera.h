@@ -23,5 +23,7 @@ vec3 freeCameraGetPos();
 vec3 freeCameraGetFront();
 float freeCameraGetFov();
 
+void freeCameraSetSpeed(float _speed);
+
 bool freeCameraUpdate(float _delta, const entry::MouseState& _mouseState);
 

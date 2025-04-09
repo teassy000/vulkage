@@ -7,6 +7,26 @@
 #include "demo_structs.h"
 #include "ffx_intg/brixel_intg_kage.h"
 
+enum class RCDbgIndexType : uint32_t
+{
+    probe_first = 0,
+    ray_first,
+    count
+};
+
+enum class RCDbgColorType : uint32_t
+{
+    albedo = 0,
+    normal,
+    worldPos,
+    emissive,
+    brxDistance,
+    brxNormal,
+    rayDir,
+    probePos,
+    count
+};
+
 // each page has a 3d grid of probes, each probe has a 2d grid of rays
 struct alignas(16) RadianceCascadesConfig
 {
@@ -29,7 +49,8 @@ struct alignas(16) RadianceCascadesConfig
     uint32_t brx_endCas;
     float brx_sdfEps;
 
-    uint32_t debug_type;
+    uint32_t debug_idx_type;
+    uint32_t debug_color_type;
 };
 
 struct alignas(16) RadianceCascadesTransform
@@ -64,6 +85,8 @@ struct RadianceCascadeBuild
     kage::SamplerHandle brxAtlasSamp;
 
     vec3 cameraPos{vec3(0.f)};
+    mat4 view{ mat4(1.f) };
+    mat4 proj{ mat4(1.f) };
 };
 
 struct RadianceCascade

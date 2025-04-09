@@ -111,6 +111,16 @@ FfxUInt32 LoadCascadeBrickMapArrayUniform(FfxUInt32 _casId, FfxUInt32 _elemIdx)
     return uint(in_cas_brick_maps[_casId].map[_elemIdx]);
 }
 
+bool inScreenSpaceRange(vec3 _uvw, float _depth)
+{
+    bool res = true;
+    res = res && (_uvw.x >= 0.f && _uvw.x <= 1.f);
+    res = res && (_uvw.y >= 0.f && _uvw.y <= 1.f);
+    res = res && (_uvw.z >= _depth && _uvw.z <= 1.f);
+
+    return res;
+}
+
 void main()
 {
     const ivec2 pixIdx = ivec2(gl_GlobalInvocationID.xy);
@@ -133,21 +143,17 @@ void main()
     const vec3 seg_origin = getCenterWorldPos(ivec3(prob_idx, lvLayer), rcRadius, config.probeSideLen) + vec3(config.probeSideLen * 0.5f) + centOffset + trans.cameraPos;
 
     vec2 uv = (vec2(ray_idx) + .5f) / float(ray_gridSideCount);
-    // mapping uv to [-1, 1]
-    uv = uv * 2.f - 1.f;
+    
+    uv = uv * 2.f - 1.f; // to [-1.f, 1.f]
     const vec3 seg_dir = normalize(oct_to_float32x3(uv));
     const float seg_len = config.rayLength;
-
-    // write the result to the atlas
-
-    vec3 var = vec3(0.f);
 
     // ffx traverse
     FfxBrixelizerRayDesc ffx_ray;
     ffx_ray.start_cascade_id = config.brx_startCas + config.brx_offset;
     ffx_ray.end_cascade_id = config.brx_endCas + config.brx_offset;
     ffx_ray.t_min = config.brx_tmin;
-    ffx_ray.t_max = seg_len;//config.brx_tmax;
+    ffx_ray.t_max = config.brx_tmax; //seg_len;//
     ffx_ray.origin = seg_origin;
     ffx_ray.direction = seg_dir;
 
@@ -155,26 +161,34 @@ void main()
 
     bool hit = FfxBrixelizerTraverseRaw(ffx_ray, ffx_hit);
 
+    vec3 albedo = vec3(0.f);
+    vec3 normal = vec3(0.f);
+    vec3 wpos = vec3(0.f);
+    vec3 emision = vec3(0.f);
+    float hit_distance = ffx_ray.t_max;
+    vec3 hit_normal = vec3(0.f);
+
     if (hit) {
         vec3 norm = FfxBrixelizerGetHitNormal(ffx_hit);
         vec3 hit_pos = seg_origin + ffx_hit.t * seg_dir;
 
         // hit pos is in world space, now to uv space
-
-
-        vec3 hit_uvw = (trans.proj * trans.view * vec4(hit_pos, 1.0)).xyz;
+        vec4 hit_ppos = (trans.proj * trans.view * vec4(hit_pos, 1.0)).xyzw;
+        
+        hit_ppos.xyz /= hit_ppos.w;
+        hit_ppos.y = -hit_ppos.y; // flip y
+        vec3 hit_uvw = hit_ppos.xyz * 0.5f + 0.5f; // map to [0, 1]
 
         float depth = texture(in_depth, hit_uvw.xy).x;
-        if (depth > hit_uvw.z) {
-            vec3 albedo = texture(in_albedo, hit_uvw.xy).xyz;
-            vec3 emision = texture(in_emmision, hit_uvw.xy).xyz;
-
-            var = albedo;
+        if (inScreenSpaceRange(hit_uvw, depth)) {
+            albedo = texture(in_albedo, hit_uvw.xy).xyz;
+            normal = texture(in_normal, hit_uvw.xy).xyz;
+            wpos = texture(in_wPos, hit_uvw.xy).xyz;
+            emision = texture(in_emmision, hit_uvw.xy).xyz;
         }
+        hit_distance = ffx_hit.t;
+        hit_normal = norm;
     }
-
-    // debug the probe hit_pos
-    // var = (seg_origin - trans.cameraPos) / rcRadius + 0.5f;
 
     const uint layer_idx = lvLayer + config.layerOffset;
     uint pidx = uint(prob_idx.y * prob_gridSideCount + prob_idx.x) + lvLayer * prob_gridSideCount * prob_gridSideCount;
@@ -186,13 +200,8 @@ void main()
     ivec3 idx_dir = ivec3(dirOrderIdx.xy, layer_idx);// seg dir idx first
     ivec3 idx = ivec3(pixIdx.xy, layer_idx); // probe idx first
 
-    // debug: seg dir
-    vec3 rd = (seg_dir.rgb + 1.f) * 0.5;
-    // debug: seg origin
-    // vec3 ro = (seg_origin + rcRadius) / (rcRadius * 2.f);
-
     ivec3 iuv = ivec3(0);
-    switch(config.debug_type)
+    switch(config.debug_idx_type)
     {
         case 0:
         iuv = idx;
@@ -200,16 +209,36 @@ void main()
     case 1:
         iuv = idx_dir;
         break;
-    case 2:
-        iuv = idx;
-        var = seg_dir;
-        break;
-    case 3:
-        iuv = idx_dir;
-        var = seg_dir;
-        break;
     }
 
+    // write the var to the radiance cascade atlas
+    vec3 var = vec3(0.f);
+    switch (config.debug_color_type) {
+        case 0:
+            var = albedo;
+            break;
+        case 1:
+            var = normal;
+            break;
+        case 2:
+            var = normalize(wpos);
+            break;
+        case 3:
+            var = emision;
+            break;
+        case 4:
+            var = vec3(1.f - (hit_distance / ffx_ray.t_max));
+            break;
+        case 5:
+            var = hit_normal;
+            break;
+        case 6:
+            var = seg_dir;
+            break;
+        case 7:
+            var = vec3(seg_origin) / rcRadius;
+            break;
+    }
 
     imageStore(out_octProbAtlas, iuv, vec4(var, 1.f));
 }
