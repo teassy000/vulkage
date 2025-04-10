@@ -56,7 +56,7 @@ namespace
             kage::init(config);
             
             m_supportMeshShading = kage::checkSupports(kage::VulkanSupportExtension::ext_mesh_shader);
-            m_debugProb = true;
+            m_debugProb = false;
 
             bool forceParse = false;
             bool seamlessLod = false;
@@ -138,7 +138,6 @@ namespace
                 entry::setMouseLock(entry::kDefaultWindowHandle, lockToggle);
             }
 
-
             // update brixelizer 
             {
                 BrixelData brxData;
@@ -168,7 +167,8 @@ namespace
             updateCulling(m_cullingLate, m_demoData.drawCull, m_scene.drawCount);
             updateCulling(m_cullingAlpha, m_demoData.drawCull, m_scene.drawCount);
 
-            updateDeferredShading(m_deferred, m_width, m_height, m_demoData.trans.cameraPos, m_scene.radius);
+
+            updateDeferredShading(m_deferred, m_width, m_height, m_demoData.trans.cameraPos, m_demoData.dbg_features.rcBuild.totalRadius, m_demoData.dbg_features.rcBuild.idx_type);
 
             if (m_supportMeshShading)
             {
@@ -737,7 +737,7 @@ namespace
             m_demoData.globals.screenHeight = (float)m_height;
             m_demoData.globals.enableMeshletOcclusion = 1;
             m_demoData.globals.lodErrorThreshold = lodErrThreshold;
-            m_demoData.globals.sceneRadius = m_scene.radius;
+            m_demoData.globals.probeRangeRadius = m_demoData.dbg_features.rcBuild.totalRadius;
         }
 
         void createBindlessArray()

@@ -28,10 +28,17 @@ layout(binding = 6) uniform sampler2DArray in_radianceCascade;
 
 layout(binding = 7) uniform writeonly image2D out_color;
 
+
+bool allLessThan(vec4 _v1, vec4 _v2)
+{
+    return _v1.x < _v2.x && _v1.y < _v2.y && _v1.z < _v2.z && _v1.w < _v2.w;
+}
+
 void main()
 {
     uvec2 pos = gl_GlobalInvocationID.xy;
-    vec2 uv = (vec2(pos) + vec2(.5)) / consts.imageSize;
+    vec2 uv = vec2((pos.x + .5f) / consts.w, (pos.y + .5f) / consts.h);
+    vec3 camPos = vec3(consts.camx, consts.camy, consts.camz);
 
     vec4 albedo = texture(in_albedo, uv);
     vec4 normal = texture(in_normal, uv);
@@ -39,15 +46,15 @@ void main()
     vec4 sky = texture(in_sky, uv);
     vec3 wPos = texture(in_wPos, uv).xyz;
     vec4 specular = texture(in_specular, uv);
-    wPos = (wPos * 2.f - 1.f) * consts.sceneRadius;
+    float radius = consts.totalRadius;
+    wPos = (wPos * 2.f - 1.f) * radius; // [0.f, 1.f] to [-radius, +radius]
 
 #if DEBUG_MESHLET
     emmision.xyz *= 0.7f;
     imageStore(out_color, ivec2(pos), emmision);
 #else
 
-    /*
-    vec4 color = albedo;
+    vec4 rc = vec4(0.f);//albedo;
 
     // locate the cascade based on the wpos
     uint layerOffset = 0;
@@ -55,37 +62,42 @@ void main()
     {
         uint level_factor = uint(1u << ii);
         uint prob_sideCount = consts.cascade_0_probGridCount / level_factor;
-        uint prob_count = uint(pow(prob_sideCount, 3));
         uint ray_sideCount = consts.cascade_0_rayGridCount * level_factor;
-        uint ray_count = ray_sideCount * ray_sideCount; // each probe has a 2d grid of rays
-        float prob_sideLen = consts.sceneRadius * 2.f / float(prob_sideCount);
+        float prob_sideLen = radius * 2.f / float(prob_sideCount);
 
-        ivec3 probeIdx = ivec3(floor(wPos.xyz / prob_sideLen));
-        uint layerIdx = probeIdx.z + layerOffset;
+        vec3 mappedPos = wPos + vec3(radius);
+        ivec3 probeIdx = ivec3(floor(mappedPos / prob_sideLen));
+        vec3 probeCenter = vec3(probeIdx) * prob_sideLen + prob_sideLen * .5f - vec3(radius) + camPos;
+        vec3 rayDir = normalize(wPos.xyz - probeCenter);
+        
+        vec2 rayUV = float32x3_to_oct(rayDir);
+        rayUV = rayUV * .5f + .5f; // map octrahedral uv to [0, 1]
 
-        // calc the probe center based on the probe index
-        vec3 probeCenter = vec3(probeIdx) * prob_sideLen + prob_sideLen * 0.5f - vec3(consts.sceneRadius);
-
-        // the direction of the ray, the opposite of the probe center to wPos
-        vec3 rayDir = normalize(probeCenter - wPos.xyz);
-
-        // map the uv to the ray grid
-        vec2 raySubUV = octEncode(rayDir);
-        raySubUV *= float(ray_sideCount); // to probe pix Idx
-        raySubUV += 0.5f; // to center of the pix
-        raySubUV += vec2(probeIdx.xy * prob_sideCount);
-        raySubUV /= (ray_sideCount * prob_sideCount);
-
-        vec4 col = texture(in_radianceCascade, ivec3(raySubUV.xy, layerIdx));
-        if(col != vec4(0.f))
+        ivec2 rayIdx = ivec2(rayUV * float(ray_sideCount));
+        ivec2 pixelIdx = ivec2(0u);
+        // now base on the index type, locate the ray in the cascade
+        switch (consts.debugIdxType)
         {
-            color *= 0.5f;
-            color += col;
+            case 0:  // probe first index
+                pixelIdx = probeIdx.xy * int(prob_sideCount) + rayIdx;
+                break;
+            case 1: // ray first index
+                pixelIdx = rayIdx * int(prob_sideCount) + probeIdx.xy;
+                break;
+        }
+
+        vec2 cascadeUV = (vec2(pixelIdx) + vec2(0.5f)) / float(prob_sideCount * ray_sideCount);
+        uint layerIdx = probeIdx.z + layerOffset;
+        layerOffset += prob_sideCount;
+
+        vec4 col = texture(in_radianceCascade, vec3(cascadeUV, layerIdx));
+        if (!allLessThan(col, vec4(0.f))) {
+            rc = col;
             break;
         }
     }
-    */
 
+    /*
     float lightIntensity = 2.0;
     float indirectIntensity = 0.32;
 
@@ -142,6 +154,9 @@ void main()
 
     color = Tonemap_ACES(color);
     color = OECF_sRGBFast(color);
+    */
+
+    vec3 color = rc.xyz;
     if (albedo.a < 0.5 || normal.w < 0.02)
         color = sky.xyz;
 

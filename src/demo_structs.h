@@ -35,7 +35,7 @@ struct alignas(16) Globals
     float screenWidth, screenHeight;
     int enableMeshletOcclusion;
     float lodErrorThreshold;
-    float sceneRadius;
+    float probeRangeRadius;
 };
 
 struct MeshDrawCommand

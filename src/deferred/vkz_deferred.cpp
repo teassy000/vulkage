@@ -58,12 +58,13 @@ const GBuffer aliasGBuffer(const GBuffer& _gb)
 
 struct alignas(16) DeferredConstants
 {
-    float sceneRadius;
+    float totalRadius;
     uint32_t cascade_lv;
     uint32_t cascade_0_probGridCount;
     uint32_t cascade_0_rayGridCount;
-    vec2 imageSize;
-    vec3 camPos;
+    uint32_t debugIdxType;
+    float w, h;
+    float camx, camy, camz;
 };
 
 void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::ImageHandle _sky, const kage::ImageHandle _radCasc)
@@ -167,17 +168,21 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
     _ds.skySampler = skySamp;
 }
 
-void recDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uint32_t _h, const vec3 _camPos, const float _sceneRadius)
+void recDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uint32_t _h, const vec3 _camPos, const float _totalRadius, const uint32_t _idxType)
 {
     kage::startRec(_ds.pass);
     DeferredConstants consts;
     
-    consts.camPos = _camPos;
-    consts.imageSize = vec2(float(_w), float(_h));
-    consts.sceneRadius = _sceneRadius;
+    consts.totalRadius = _totalRadius;
     consts.cascade_lv = kage::k_rclv0_cascadeLv;
     consts.cascade_0_probGridCount = kage::k_rclv0_probeSideCount;
     consts.cascade_0_rayGridCount = kage::k_rclv0_rayGridSideCount;
+    consts.debugIdxType = _idxType;
+    consts.w = (float)_w;
+    consts.h = (float)_h;
+    consts.camx = _camPos.x;
+    consts.camy = _camPos.y;
+    consts.camz = _camPos.z;
 
     const kage::Memory* mem = kage::alloc(sizeof(consts));
     memcpy(mem->data, &consts, sizeof(consts));
@@ -204,7 +209,7 @@ void recDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uin
     kage::endRec();
 }
 
-void updateDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uint32_t _h, const vec3 _camPos, const float _sceneRadius)
+void updateDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uint32_t _h, const vec3 _camPos, const float _tatalRadius, const uint32_t _idxType)
 {
-    recDeferredShading(_ds, _w, _h, _camPos, _sceneRadius);
+    recDeferredShading(_ds, _w, _h, _camPos, _tatalRadius, _idxType);
 }

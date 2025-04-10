@@ -192,12 +192,13 @@ struct VoxDebugConsts
 
 struct DeferredConstants
 {
-    float sceneRadius;
+    float totalRadius;
     uint cascade_lv;
     uint cascade_0_probGridCount;
     uint cascade_0_rayGridCount;
-    vec2 imageSize;
-    vec3 camPos;
+    uint debugIdxType;
+    float w, h;
+    float camx, camy, camz;
 };
 
 
@@ -232,7 +233,7 @@ struct ProbeDraw
 
 struct ProbeDebugDrawConsts
 {
-    float sceneRadius;
+    float probeDebugRadius;
     float sphereRadius;
 
     uint probeSideCount;
