@@ -153,7 +153,7 @@ void main()
     ffx_ray.start_cascade_id = config.brx_startCas + config.brx_offset;
     ffx_ray.end_cascade_id = config.brx_endCas + config.brx_offset;
     ffx_ray.t_min = config.brx_tmin;
-    ffx_ray.t_max = config.brx_tmax; //seg_len;//
+    ffx_ray.t_max = seg_len;//config.brx_tmax
     ffx_ray.origin = seg_origin;
     ffx_ray.direction = seg_dir;
 
