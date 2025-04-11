@@ -193,14 +193,26 @@ struct VoxDebugConsts
 struct DeferredConstants
 {
     float totalRadius;
-    uint cascade_lv;
     uint cascade_0_probGridCount;
     uint cascade_0_rayGridCount;
     uint debugIdxType;
+
+    uint startCascade;
+    uint endCascade;
+
     float w, h;
     float camx, camy, camz;
 };
 
+struct RCAccessData
+{
+    uint lv;
+    uint raySideCount;
+    uint probeSideCount;
+    uint layerOffset;
+    float rayLen;
+    float probeSideLen;
+};
 
 struct VoxDraw
 {

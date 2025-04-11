@@ -1,6 +1,4 @@
 # version 450
-
-
 # extension GL_EXT_shader_16bit_storage: require
 # extension GL_EXT_shader_8bit_storage: require
 
@@ -17,21 +15,38 @@ layout(push_constant) uniform blocks
     DeferredConstants consts;
 };
 
-layout(binding = 0) uniform sampler2D in_albedo;
-layout(binding = 1) uniform sampler2D in_normal;
-layout(binding = 2) uniform sampler2D in_wPos;
-layout(binding = 3) uniform sampler2D in_emmision;
-layout(binding = 4) uniform sampler2D in_specular;
-layout(binding = 5) uniform sampler2D in_sky;
+layout(binding = 0) readonly buffer RadianceConstants
+{
+    RCAccessData rcAccesses [];
+};
 
-layout(binding = 6) uniform sampler2DArray in_radianceCascade;
+layout(binding = 1) uniform sampler2D in_albedo;
+layout(binding = 2) uniform sampler2D in_normal;
+layout(binding = 3) uniform sampler2D in_wPos;
+layout(binding = 4) uniform sampler2D in_emmision;
+layout(binding = 5) uniform sampler2D in_specular;
+layout(binding = 6) uniform sampler2D in_sky;
 
-layout(binding = 7) uniform writeonly image2D out_color;
+layout(binding = 7) uniform sampler2DArray in_radianceCascade;
+
+layout(binding = 8) uniform writeonly image2D out_color;
 
 
 bool allLessThan(vec4 _v1, vec4 _v2)
 {
     return _v1.x < _v2.x && _v1.y < _v2.y && _v1.z < _v2.z && _v1.w < _v2.w;
+}
+
+vec3 brdfSpecular(float _nov, float _nol, float _noh, float _loh, vec3 _f0, float _linearRough)
+{
+    // Schlick Fresnel
+    vec3 F = F_Schlick(_f0, _loh);
+    // GGX Normal Distribution
+    float D = D_GGX(_linearRough, _noh);
+    // Smith Visibility
+    float V = V_SmithGGXCorrelated(_linearRough, _nov, _nol);
+    
+    return F * D * V;
 }
 
 void main()
@@ -54,18 +69,18 @@ void main()
     imageStore(out_color, ivec2(pos), emmision);
 #else
 
-    vec4 rc = vec4(0.f);//albedo;
+    vec4 rayCol = vec4(0.f);
 
     // locate the cascade based on the wpos
-    uint layerOffset = 0;
-    for(uint ii = 0; ii < consts.cascade_lv; ++ii)
+    for (uint ii = consts.startCascade; ii < consts.endCascade; ++ii)
     {
-        uint level_factor = uint(1u << ii);
-        uint prob_sideCount = consts.cascade_0_probGridCount / level_factor;
-        uint ray_sideCount = consts.cascade_0_rayGridCount * level_factor;
-        float prob_sideLen = radius * 2.f / float(prob_sideCount);
+        const RCAccessData rcAccess = rcAccesses[ii];
+        uint prob_sideCount = rcAccess.probeSideCount;
+        uint ray_sideCount = rcAccess.raySideCount;
+        float prob_sideLen = rcAccess.probeSideLen;
+        uint layerOffset = rcAccess.layerOffset;
 
-        vec3 mappedPos = wPos + vec3(radius);
+        vec3 mappedPos = wPos + vec3(radius); // map to [0, 2 * radius]
         ivec3 probeIdx = ivec3(floor(mappedPos / prob_sideLen));
         vec3 probeCenter = vec3(probeIdx) * prob_sideLen + prob_sideLen * .5f - vec3(radius) + camPos;
         vec3 rayDir = normalize(wPos.xyz - probeCenter);
@@ -88,17 +103,12 @@ void main()
 
         vec2 cascadeUV = (vec2(pixelIdx) + vec2(0.5f)) / float(prob_sideCount * ray_sideCount);
         uint layerIdx = probeIdx.z + layerOffset;
-        layerOffset += prob_sideCount;
 
-        vec4 col = texture(in_radianceCascade, vec3(cascadeUV, layerIdx));
-        if (!allLessThan(col, vec4(0.f))) {
-            rc = col;
-            break;
-        }
+        rayCol = texture(in_radianceCascade, vec3(cascadeUV, layerIdx));
     }
 
-    /*
-    float lightIntensity = 2.0;
+    
+    float lightIntensity = 1.0;
     float indirectIntensity = 0.32;
 
     float occlusion = specular.r;
@@ -110,7 +120,7 @@ void main()
     vec3 lightColor = vec3(0.98, 0.92, 0.89);
 
     vec3 l = normalize(vec3(0.7, 1.0, 0.7)); // in world space, from surface to light source
-    vec3 v = normalize(vec3(consts.camPos - wPos)); // from surface to observer
+    vec3 v = normalize(vec3(camPos - wPos)); // from surface to observer
 
     // BRDF
     vec3 n = normal.xyz;
@@ -126,13 +136,11 @@ void main()
     float linearRoughness = roughness * roughness;
 
     // specular BRDF
-    vec3 F = F_Schlick(f0, LoH);
-    float D = D_GGX(linearRoughness, NoH);
-    float V = V_SmithGGXCorrelated(linearRoughness, NoV, NoL);
-    vec3 Fr = F * D * V;
+    vec3 Fr = brdfSpecular(NoV, NoL, NoH, LoH, f0, linearRoughness);
 
     // diffuse BRDF
     vec3 Fd = diffuseColor * Fd_Burley(linearRoughness, NoV, NoL, LoH);
+    
     vec3 color = Fd + Fr;
     color *= lightIntensity * lightColor * NoL;
     //color *= occlusion;
@@ -154,9 +162,7 @@ void main()
 
     color = Tonemap_ACES(color);
     color = OECF_sRGBFast(color);
-    */
 
-    vec3 color = rc.xyz;
     if (albedo.a < 0.5 || normal.w < 0.02)
         color = sky.xyz;
 

@@ -21,6 +21,16 @@ struct GBufferSamplers
     kage::SamplerHandle specular;
 };
 
+struct RCAccessData
+{
+    uint32_t lv;
+    uint32_t raySideCount;
+    uint32_t probeSideCount;
+    uint32_t layerOffset;
+    float rayLen;
+    float probeSideLen;
+};
+
 struct DeferredShading
 {
     GBuffer gBuffer;
@@ -33,6 +43,7 @@ struct DeferredShading
     kage::ImageHandle inSky;
     kage::SamplerHandle skySampler;
 
+    kage::BufferHandle rcAccessData;
     kage::ImageHandle radianceCascade;
     kage::SamplerHandle rcSampler;
 
