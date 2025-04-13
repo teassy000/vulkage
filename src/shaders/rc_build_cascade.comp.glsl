@@ -177,7 +177,9 @@ void main()
         
         hit_ppos.xyz /= hit_ppos.w;
         hit_ppos.y = -hit_ppos.y; // flip y
-        vec3 hit_uvw = hit_ppos.xyz * 0.5f + 0.5f; // map to [0, 1]
+
+
+        vec3 hit_uvw = vec3(vec2(hit_ppos.xy * 0.5f + 0.5f), hit_ppos.z); // map to [0, 1]
 
         float depth = texture(in_depth, hit_uvw.xy).x;
         if (inScreenSpaceRange(hit_uvw, depth)) {
