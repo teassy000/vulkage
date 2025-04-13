@@ -241,6 +241,8 @@ void updateDeferredShading(const DeferredShading& _ds, const uint32_t _w, const 
         consts[ii].layerOffset = offset;
         consts[ii].rayLen = glm::length(vec3(_tatalRadius)) / float(probeSideCount);
         consts[ii].probeSideLen = _tatalRadius * 2.f / float(probeSideCount);
+
+        offset += probeSideCount;
     }
     
     const kage::Memory* mem = kage::alloc(uint32_t(consts.size() * sizeof(RCAccessData)));
