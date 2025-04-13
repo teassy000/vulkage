@@ -60,8 +60,6 @@ struct ProbeDebug
 {
     ProbeDbgCmdGen cmdGen;
     ProbeDbgDraw draw;
-
-    uint32_t debugLv;
 };
 
 void prepareProbeDebug(ProbeDebug& _pd, const RCDebugInit& _init);

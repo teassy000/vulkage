@@ -143,7 +143,7 @@ void prepareProbeDbgCmdGen(ProbeDbgCmdGen& _gen, const ProbeDebugGenInit& _init)
 
 void recProbeDbgCmdGen(const ProbeDbgCmdGen& _gen, const DrawCull& _camCull, const Dbg_RCBuild _rcDbg)
 {
-    uint32_t probeSideCount = kage::k_rclv0_probeSideCount / (1 << glm::min(_rcDbg.rcLv, kage::k_rclv0_cascadeLv));
+    uint32_t probeSideCount = kage::k_rclv0_probeSideCount / (1 << glm::min(_rcDbg.startCascade, kage::k_rclv0_cascadeLv));
     const float probeSideLen = _rcDbg.totalRadius * 2.f / (float)probeSideCount;
     const float sphereRadius = probeSideLen * 0.2f * _rcDbg.probeDebugScale;
 
@@ -278,8 +278,9 @@ void recProbeDbgDraw(const ProbeDbgDraw& _pd, const DrawCull& _camCull, const ui
     kage::setViewport(0, 0, _width, _height);
     kage::setScissor(0, 0, _width, _height);
 
-    uint32_t probeSideCount = kage::k_rclv0_probeSideCount / (1 << glm::min(_rcDbg.rcLv, kage::k_rclv0_cascadeLv));
-    uint32_t raySideCount = kage::k_rclv0_rayGridSideCount * (1 << glm::min(_rcDbg.rcLv, kage::k_rclv0_cascadeLv));
+    uint32_t shift = (1 << glm::min(_rcDbg.startCascade, kage::k_rclv0_cascadeLv));
+    uint32_t probeSideCount = kage::k_rclv0_probeSideCount / shift;
+    uint32_t raySideCount = kage::k_rclv0_rayGridSideCount * shift;
     float sphereRadius = (_rcDbg.totalRadius / probeSideCount) * _rcDbg.probeDebugScale;
 
     ProbeDebugDrawConsts consts{};

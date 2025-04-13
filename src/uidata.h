@@ -67,7 +67,8 @@ struct Dbg_RCBuild
 
     float probePosOffset[3] = { 0.f, 0.f, 0.f };
     float probeDebugScale = 0.05f;
-    uint32_t rcLv = 0;
+    uint32_t startCascade = 0;
+    uint32_t endCascade = 0;
 
     bool followCam = true;
     bool pauseUpdate = false;

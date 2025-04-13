@@ -265,9 +265,11 @@ void updataContentRCBuild(Dbg_RCBuild& _rc)
     ImGui::Combo("color type", (int*)&_rc.color_type, debug_color_types, COUNTOF(debug_color_types));
 
     ImGui::Text("rc:");
-    ImGui::SliderFloat3("probeCenter", &_rc.probePosOffset[0], -100.f, 100.f);
+    ImGui::SliderFloat3("probeCenter", &_rc.probePosOffset[0], -30.f, 30.f);
     ImGui::SliderFloat("probeDebugScale", &_rc.probeDebugScale, 0.01f, 1.f);
-    ImGui::SliderInt("rcLv", (int*)&_rc.rcLv, 0, 8);
+
+    ImGui::SliderInt("start cas", (int*)&_rc.startCascade, 0, 8);
+    ImGui::SliderInt("end cas", (int*)&_rc.endCascade, 0, 8);
     ImGui::Checkbox("follow Cam", &_rc.followCam);
     ImGui::Checkbox("pause update", &_rc.pauseUpdate);  
     
