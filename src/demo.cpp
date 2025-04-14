@@ -56,7 +56,7 @@ namespace
             kage::init(config);
             
             m_supportMeshShading = kage::checkSupports(kage::VulkanSupportExtension::ext_mesh_shader);
-            m_debugProb = false;
+            m_debugProb = true;
 
             bool forceParse = false;
             bool seamlessLod = false;
@@ -168,7 +168,7 @@ namespace
             updateCulling(m_cullingAlpha, m_demoData.drawCull, m_scene.drawCount);
 
 
-            updateDeferredShading(m_deferred, m_width, m_height, m_demoData.trans.cameraPos, m_demoData.dbg_features.rcBuild.totalRadius, m_demoData.dbg_features.rcBuild.idx_type);
+            updateDeferredShading(m_deferred, m_width, m_height, m_demoData.trans.cameraPos, m_demoData.dbg_features.rcBuild.totalRadius, m_demoData.dbg_features.rcBuild.idx_type, m_demoData.dbg_features.rcBuild);
 
             if (m_supportMeshShading)
             {
@@ -212,10 +212,8 @@ namespace
             updateRadianceCascade(m_radianceCascade, m_demoData.dbg_features.rcBuild, m_demoData.trans);
             if (m_debugProb)
             {
-                m_probDebug.debugLv = m_demoData.dbg_features.rcBuild.rcLv;
                 updateProbeDebug(m_probDebug, m_demoData.drawCull, m_width, m_height, m_demoData.dbg_features.rcBuild);
             }
-
 
             {
                 m_demoData.dbg_features.brx.presentImg = m_brixel.debugDestImg;

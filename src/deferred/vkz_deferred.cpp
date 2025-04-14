@@ -182,22 +182,33 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
     _ds.skySampler = skySamp;
 }
 
-void recDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uint32_t _h, const vec3 _camPos, const float _totalRadius, const uint32_t _idxType)
+void recDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uint32_t _h, const vec3 _camPos, const float _totalRadius, const uint32_t _idxType, const Dbg_RadianceCascades& _rc)
 {
     kage::startRec(_ds.pass);
     DeferredConstants consts;
     
-    consts.totalRadius = _totalRadius;
+    consts.totalRadius = _rc.totalRadius;
     consts.cascade_0_probGridCount = kage::k_rclv0_probeSideCount;
     consts.cascade_0_rayGridCount = kage::k_rclv0_rayGridSideCount;
-    consts.startCascade = 0;
-    consts.endCascade = kage::k_rclv0_cascadeLv - 1;
-    consts.debugIdxType = _idxType;
+    consts.startCascade = _rc.startCascade;
+    consts.endCascade = _rc.endCascade;
+    consts.debugIdxType = _rc.idx_type;
     consts.w = (float)_w;
     consts.h = (float)_h;
-    consts.camx = _camPos.x;
-    consts.camy = _camPos.y;
-    consts.camz = _camPos.z;
+
+    static float campos[3] = { 0.f, 0.f, 0.f };
+    static bool camPosSet = false;
+    if (!camPosSet || _rc.followCam) {
+        campos[0] = _camPos.x;
+        campos[1] = _camPos.y;
+        campos[2] = _camPos.z;
+
+        camPosSet = true;
+    }
+
+    consts.camx = campos[0];
+    consts.camy = campos[1];
+    consts.camz = campos[2];
 
     const kage::Memory* mem = kage::alloc(sizeof(consts));
     memcpy(mem->data, &consts, sizeof(consts));
@@ -225,7 +236,7 @@ void recDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uin
     kage::endRec();
 }
 
-void updateDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uint32_t _h, const vec3 _camPos, const float _tatalRadius, const uint32_t _idxType)
+void updateBuffers(const DeferredShading& _ds, const float _tatalRadius)
 {
     std::vector<RCAccessData> consts(kage::k_rclv0_cascadeLv);
     uint32_t offset = 0;
@@ -244,10 +255,14 @@ void updateDeferredShading(const DeferredShading& _ds, const uint32_t _w, const 
 
         offset += probeSideCount;
     }
-    
+
     const kage::Memory* mem = kage::alloc(uint32_t(consts.size() * sizeof(RCAccessData)));
     memcpy(mem->data, consts.data(), mem->size);
     kage::updateBuffer(_ds.rcAccessData, mem);
+}
 
-    recDeferredShading(_ds, _w, _h, _camPos, _tatalRadius, _idxType);
+void updateDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uint32_t _h, const vec3 _camPos, const float _tatalRadius, const uint32_t _idxType, const Dbg_RadianceCascades& _rc)
+{
+    updateBuffers(_ds, _tatalRadius);
+    recDeferredShading(_ds, _w, _h, _camPos, _tatalRadius, _idxType, _rc);
 }

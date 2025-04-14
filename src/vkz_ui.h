@@ -2,6 +2,7 @@
 
 #include "kage.h"
 #include "uidata.h"
+#include "demo_structs.h"
 
 
 struct UIRendering

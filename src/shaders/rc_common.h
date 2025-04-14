@@ -78,7 +78,7 @@ vec3 getCenterWorldPos(ivec3 _idx, float _sceneRadius, float _gridSideLen)
 {
     // the voxel idx is from [0 ,sideCnt - 1]
     // the voxel in world space is [-_sceneRadius, _sceneRadius]
-    vec3 pos = vec3(_idx) * _gridSideLen - vec3(_sceneRadius) ;
+    vec3 pos = vec3(_idx) * _gridSideLen - vec3(_sceneRadius) + _gridSideLen * .5f;
     return pos;
 }
 

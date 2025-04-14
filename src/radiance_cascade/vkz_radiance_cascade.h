@@ -24,6 +24,7 @@ enum class RCDbgColorType : uint32_t
     brxNormal,
     rayDir,
     probePos,
+    probeHash,
     count
 };
 
@@ -89,9 +90,26 @@ struct RadianceCascadeBuild
     mat4 proj{ mat4(1.f) };
 };
 
+struct RadianceCascadeMerge
+{
+    kage::PassHandle pass;
+    kage::ProgramHandle program;
+    kage::ShaderHandle cs;
+
+    kage::ImageHandle radianceCascade;
+    kage::SamplerHandle rcSampler;
+
+    kage::ImageHandle skybox;
+    kage::SamplerHandle skySampler;
+    
+    kage::ImageHandle mergedCascades;
+    kage::ImageHandle mergedCascadesAlias;
+};
+
 struct RadianceCascade
 {
     RadianceCascadeBuild rcBuild;
+    RadianceCascadeMerge rcMerge;
 };
 
 struct RadianceCascadeInitData
@@ -113,5 +131,5 @@ struct RadianceCascadeInitData
 
 
 void prepareRadianceCascade(RadianceCascade& _rc, const RadianceCascadeInitData _init);
-void updateRadianceCascade(RadianceCascade& _rc, const Dbg_RCBuild& _dbgRcBuild, const TransformData& _trans);
+void updateRadianceCascade(RadianceCascade& _rc, const Dbg_RadianceCascades& _dbgRcBuild, const TransformData& _trans);
 

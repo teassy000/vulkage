@@ -148,7 +148,7 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
     _rc.radCascdOutAlias = outAlias;
 }
 
-void recRCBuild(const RadianceCascadeBuild& _rc , const Dbg_RCBuild& _dbg)
+void recRCBuild(const RadianceCascadeBuild& _rc, const Dbg_RadianceCascades& _dbg)
 {
     kage::startRec(_rc.pass);
 
@@ -227,6 +227,15 @@ void recRCBuild(const RadianceCascadeBuild& _rc , const Dbg_RCBuild& _dbg)
     kage::endRec();
 }
 
+void prepareRCMerge(const RadianceCascadeMerge& _rc, const RCBuildInit& _init)
+{
+}
+
+void recRCMerge(const RadianceCascadeMerge& _rc, const Dbg_RadianceCascades& _dbg)
+{
+}
+
+
 void prepareRadianceCascade(RadianceCascade& _rc, const RadianceCascadeInitData _init)
 {
     RCBuildInit rcInit{};
@@ -239,7 +248,7 @@ void prepareRadianceCascade(RadianceCascade& _rc, const RadianceCascadeInitData 
 
 void updateRadianceCascade(
     RadianceCascade& _rc
-    , const Dbg_RCBuild& _dbgRcBuild
+    , const Dbg_RadianceCascades& _dbgRcBuild
     , const TransformData& _trans
 )
 {

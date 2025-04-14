@@ -33,7 +33,6 @@ void main()
     vec2 uv0 = float32x3_to_oct(in_dir);
     uv0 = uv0 * 0.5f + 0.5f; // map to [0, 1]
 
-
     ivec2 rayIdx = ivec2((uv0 * raySideCnt));
     ivec2 pixelIdx = ivec2(0u);
     switch (consts.debugIdxType)

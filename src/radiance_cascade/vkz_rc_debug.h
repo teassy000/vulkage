@@ -63,4 +63,4 @@ struct ProbeDebug
 };
 
 void prepareProbeDebug(ProbeDebug& _pd, const RCDebugInit& _init);
-void updateProbeDebug(const ProbeDebug& _pd, const DrawCull& _camCull, const uint32_t _width, const uint32_t _height, const Dbg_RCBuild _rcDbg);
+void updateProbeDebug(const ProbeDebug& _pd, const DrawCull& _camCull, const uint32_t _width, const uint32_t _height, const Dbg_RadianceCascades _rcDbg);

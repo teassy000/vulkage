@@ -140,7 +140,7 @@ void main()
     // length: the probe radius
     const vec3 centOffset = vec3(config.cx, config.cy, config.cz);
 
-    const vec3 seg_origin = getCenterWorldPos(ivec3(prob_idx, lvLayer), rcRadius, config.probeSideLen) + vec3(config.probeSideLen * 0.5f) + centOffset + trans.cameraPos;
+    const vec3 seg_origin = getCenterWorldPos(ivec3(prob_idx, lvLayer), rcRadius, config.probeSideLen) + centOffset + trans.cameraPos;
 
     vec2 uv = (vec2(ray_idx) + .5f) / float(ray_gridSideCount);
     
@@ -193,10 +193,7 @@ void main()
     }
 
     const uint layer_idx = lvLayer + config.layerOffset;
-    uint pidx = uint(prob_idx.y * prob_gridSideCount + prob_idx.x) + lvLayer * prob_gridSideCount * prob_gridSideCount;
 
-    uint mhash = hash(pidx);
-    vec4 color = vec4(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255), 255) / 255.0;
 
     ivec2 dirOrderIdx = ivec2(ray_idx * int(prob_gridSideCount) + prob_idx);
     ivec3 idx_dir = ivec3(dirOrderIdx.xy, layer_idx);// seg dir idx first
@@ -235,12 +232,17 @@ void main()
             var = hit_normal;
             break;
         case 6:
-            var = seg_dir;
+            var = seg_dir * .5f + .5f;
             break;
         case 7:
             var = vec3(seg_origin) / rcRadius;
             break;
+        case 8:
+            uint pidx = uint(prob_idx.y * prob_gridSideCount + prob_idx.x) + lvLayer * prob_gridSideCount * prob_gridSideCount;
+            uint mhash = hash(pidx);
+            var = vec3(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255)) / 255.0;
+            break;
     }
-
-    imageStore(out_octProbAtlas, iuv, vec4(var, 1.f));
+    float hitvar = hit ? 1.f : 0.f;
+    imageStore(out_octProbAtlas, iuv, vec4(var, hitvar));
 }

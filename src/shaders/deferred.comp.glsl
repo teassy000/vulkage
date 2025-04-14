@@ -32,9 +32,15 @@ layout(binding = 7) uniform sampler2DArray in_radianceCascade;
 layout(binding = 8) uniform writeonly image2D out_color;
 
 
-bool allLessThan(vec4 _v1, vec4 _v2)
+bool allLessThanEqual(vec4 _v1, vec4 _v2)
 {
-    return _v1.x < _v2.x && _v1.y < _v2.y && _v1.z < _v2.z && _v1.w < _v2.w;
+    return _v1.x <= _v2.x && _v1.y <= _v2.y && _v1.z <= _v2.z && _v1.w <= _v2.w;
+}
+
+ivec3 getNearestProbeIdx(vec3 _wPos, float _radius, float _probeSideLen)
+{
+    vec3 mappedPos = _wPos + vec3(_radius); // map to [0, 2 * radius]
+    return ivec3(floor(mappedPos / _probeSideLen));
 }
 
 vec3 brdfSpecular(float _nov, float _nol, float _noh, float _loh, vec3 _f0, float _linearRough)
@@ -70,6 +76,7 @@ void main()
 #else
 
     vec4 rayCol = vec4(0.f);
+    vec3 rayDir = vec3(0.f);
 
     // locate the cascade based on the wpos
     for (uint ii = consts.startCascade; ii < consts.endCascade; ++ii)
@@ -80,12 +87,12 @@ void main()
         float prob_sideLen = rcAccess.probeSideLen;
         uint layerOffset = rcAccess.layerOffset;
 
-        vec3 mappedPos = wPos + vec3(radius); // map to [0, 2 * radius]
+        vec3 mappedPos = wPos - camPos + vec3(radius); // map to camera related pos then shift to [0, 2 * radius]
         ivec3 probeIdx = ivec3(floor(mappedPos / prob_sideLen));
-        vec3 probeCenter = vec3(probeIdx) * prob_sideLen + prob_sideLen * .5f - vec3(radius) + camPos;
-        vec3 rayDir = normalize(wPos.xyz - probeCenter);
+        vec3 probeCenter = getCenterWorldPos(probeIdx, radius, prob_sideLen) + camPos; // probes follows the camera and in world space
+        vec3 rd = normalize(wPos.xyz - probeCenter);
         
-        vec2 rayUV = float32x3_to_oct(rayDir);
+        vec2 rayUV = float32x3_to_oct(rd);
         rayUV = rayUV * .5f + .5f; // map octrahedral uv to [0, 1]
 
         ivec2 rayIdx = ivec2(rayUV * float(ray_sideCount));
@@ -94,7 +101,7 @@ void main()
         switch (consts.debugIdxType)
         {
             case 0:  // probe first index
-                pixelIdx = probeIdx.xy * int(prob_sideCount) + rayIdx;
+                pixelIdx = probeIdx.xy * int(ray_sideCount) + rayIdx;
                 break;
             case 1: // ray first index
                 pixelIdx = rayIdx * int(prob_sideCount) + probeIdx.xy;
@@ -104,7 +111,13 @@ void main()
         vec2 cascadeUV = (vec2(pixelIdx) + vec2(0.5f)) / float(prob_sideCount * ray_sideCount);
         uint layerIdx = probeIdx.z + layerOffset;
 
-        rayCol = texture(in_radianceCascade, vec3(cascadeUV, layerIdx));
+        vec4 rcc = texture(in_radianceCascade, vec3(cascadeUV, layerIdx));
+        if (!allLessThanEqual(rcc, vec4(0.f)))
+        {
+            rayCol = rcc;// rcc * (1.f / float(ii));
+            rayDir = rd;
+            break;
+        }
     }
 
     
@@ -117,9 +130,9 @@ void main()
     //vec3 baseColor = vec3(specular.r); // for env-test
     vec3 baseColor = albedo.rgb; // for bistor
 
-    vec3 lightColor = vec3(0.98, 0.92, 0.89);
+    vec3 lightColor = rayCol.xyz;//vec3(0.98, 0.92, 0.89);
 
-    vec3 l = normalize(vec3(0.7, 1.0, 0.7)); // in world space, from surface to light source
+    vec3 l = rayDir;//normalize(vec3(0.7, 1.0, 0.7)); // in world space, from surface to light source
     vec3 v = normalize(vec3(camPos - wPos)); // from surface to observer
 
     // BRDF
@@ -162,6 +175,10 @@ void main()
 
     color = Tonemap_ACES(color);
     color = OECF_sRGBFast(color);
+
+    //color = color * (1.0 - occlusion) + rayCol.rgb * occlusion;
+    //color = rayCol.rgb;
+    //color = Fr;
 
     if (albedo.a < 0.5 || normal.w < 0.02)
         color = sky.xyz;

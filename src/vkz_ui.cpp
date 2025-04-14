@@ -242,14 +242,14 @@ void updateImGuiIO(const UIInput& input)
     io.MouseDown[2] = input.mouseButtons.middle;
 }
 
-void updataContentRCBuild(Dbg_RCBuild& _rc)
+void updataContentRCBuild(Dbg_RadianceCascades& _rc)
 {
     KG_ZoneScopedC(kage::Color::blue);
     ImGui::Begin("rc build:");
 
 
     static const char* const debug_idx_types[(uint32_t)RCDbgIndexType::count] = { "probe", "ray"};
-    static const char* const debug_color_types[(uint32_t)RCDbgColorType::count] = { "albedo", "normal", "world pos", "emmision", "hit distance", "hit normal", "ray dir", "probe center"};
+    static const char* const debug_color_types[(uint32_t)RCDbgColorType::count] = { "albedo", "normal", "world pos", "emmision", "hit distance", "hit normal", "ray dir", "probe center", "probe hash"};
     
     ImGui::SliderFloat("brx_tmin", &_rc.brx_tmin, 0.f, 100.f);
     ImGui::SliderFloat("brx_tmax", &_rc.brx_tmax, 1.f, 1000.f);

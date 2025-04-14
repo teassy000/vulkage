@@ -141,7 +141,7 @@ void prepareProbeDbgCmdGen(ProbeDbgCmdGen& _gen, const ProbeDebugGenInit& _init)
     _gen.outDrawDataBufAlias = probeDrawBufAlias;
 }
 
-void recProbeDbgCmdGen(const ProbeDbgCmdGen& _gen, const DrawCull& _camCull, const Dbg_RCBuild _rcDbg)
+void recProbeDbgCmdGen(const ProbeDbgCmdGen& _gen, const DrawCull& _camCull, const Dbg_RadianceCascades _rcDbg)
 {
     uint32_t probeSideCount = kage::k_rclv0_probeSideCount / (1 << glm::min(_rcDbg.startCascade, kage::k_rclv0_cascadeLv));
     const float probeSideLen = _rcDbg.totalRadius * 2.f / (float)probeSideCount;
@@ -271,7 +271,7 @@ void prepareProbeDbgDraw(ProbeDbgDraw& _pd, const ProbeDebugDrawInit& _init)
     _pd.depthOutAlias = depthAlias;
 }
 
-void recProbeDbgDraw(const ProbeDbgDraw& _pd, const DrawCull& _camCull, const uint32_t _width, const uint32_t _height, const Dbg_RCBuild _rcDbg)
+void recProbeDbgDraw(const ProbeDbgDraw& _pd, const DrawCull& _camCull, const uint32_t _width, const uint32_t _height, const Dbg_RadianceCascades _rcDbg)
 {
     kage::startRec(_pd.pass);
 
@@ -357,7 +357,7 @@ void prepareProbeDebug(ProbeDebug& _pd, const RCDebugInit& _init)
     prepareProbeDbgDraw(_pd.draw, drawInit);
 }
 
-void updateProbeDebug(const ProbeDebug& _pd, const DrawCull& _camCull, const uint32_t _width, const uint32_t _height, const Dbg_RCBuild _rcDbg)
+void updateProbeDebug(const ProbeDebug& _pd, const DrawCull& _camCull, const uint32_t _width, const uint32_t _height, const Dbg_RadianceCascades _rcDbg)
 {
     recProbeDbgCmdGen(_pd.cmdGen, _camCull, _rcDbg);
     recProbeDbgDraw(_pd.draw, _camCull, _width, _height, _rcDbg);

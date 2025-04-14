@@ -2,6 +2,7 @@
 
 #include "kage.h"
 #include "kage_math.h"
+#include "demo_structs.h"
 
 struct GBuffer
 {
@@ -54,4 +55,4 @@ struct DeferredShading
 const GBuffer createGBuffer();
 const GBuffer aliasGBuffer(const GBuffer& _gb);
 void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::ImageHandle _rt, const kage::ImageHandle _rc);
-void updateDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uint32_t _h, const vec3 _camPos, const float _tatalRadius, const uint32_t _idxType);
+void updateDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uint32_t _h, const vec3 _camPos, const float _tatalRadius, const uint32_t _idxType, const Dbg_RadianceCascades& _rc);

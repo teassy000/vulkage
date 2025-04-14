@@ -58,6 +58,66 @@ struct MeshDrawCommand
     uint32_t    local_z;
 };
 
+
+struct Dbg_Common
+{
+    bool meshShadingEnabled = true;
+    bool objCullEnabled = true;
+    bool lodEnabled = true;
+    bool ocEnabled = true;
+    bool meshletOcEnabled = true;
+    bool taskSubmitEnabled = true;
+    bool showPyramid = false;
+    int  debugPyramidLevel = 0;
+    float speed = 0.01f;
+};
+
+struct Dbg_Brixel
+{
+    uint32_t debugBrixelType = 0;
+    uint32_t startCas = 0;
+    uint32_t endCas = 8;
+    float sdfEps = 1.5f;
+    float tmin = .5f;
+    float tmax = 1000.f;
+
+    kage::ImageHandle presentImg;
+    bool followCam = true;
+};
+
+struct Dbg_RadianceCascades
+{
+    // brx
+    float brx_tmin = .2f;
+    float brx_tmax = 100.f;
+
+    uint32_t brx_offset = 0;
+    uint32_t brx_startCas = 0;
+    uint32_t brx_endCas = 8;
+    float brx_sdfEps = 1.5f;
+
+    // radius
+    float totalRadius = 5.f;
+    uint32_t idx_type = 0;
+    uint32_t color_type = 0;
+
+    float probePosOffset[3] = { 0.f, 0.f, 0.f };
+    float probeDebugScale = 0.05f;
+    uint32_t startCascade = 0;
+    uint32_t endCascade = kage::k_rclv0_cascadeLv - 1;
+
+    bool followCam = true;
+    bool pauseUpdate = false;
+};
+
+struct DebugFeatures
+{
+    Dbg_Common common;
+    Dbg_Brixel brx;
+
+    Dbg_RadianceCascades rcBuild;
+};
+
 struct DemoData
 {
     UIInput input;
