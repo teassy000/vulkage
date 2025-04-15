@@ -97,19 +97,18 @@ struct RadianceCascadeMerge
     kage::ShaderHandle cs;
 
     kage::ImageHandle radianceCascade;
-    kage::SamplerHandle rcSampler;
 
     kage::ImageHandle skybox;
     kage::SamplerHandle skySampler;
     
-    kage::ImageHandle mergedCascades;
-    kage::ImageHandle mergedCascadesAlias;
+    kage::ImageHandle mergedCascades[kage::k_rclv0_cascadeLv];
+    kage::ImageHandle mergedCascadesAlias[kage::k_rclv0_cascadeLv];
 };
 
 struct RadianceCascade
 {
-    RadianceCascadeBuild rcBuild;
-    RadianceCascadeMerge rcMerge;
+    RadianceCascadeBuild build;
+    RadianceCascadeMerge merge;
 };
 
 struct RadianceCascadeInitData

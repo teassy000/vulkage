@@ -3,6 +3,7 @@
 #define sum(value) dot(clamp((value), 1.0, 1.0), (value))
 #define EPSILON 0.00001f
 #define FLT_MAX 3.402823466e+38
+#define MAX_RADIANCE_CASCADES 8
 
 bool compare(float a, float b)
 {
@@ -12,6 +13,11 @@ bool compare(float a, float b)
 bool compare(vec3 _a, vec3 _b)
 {
     return compare(_a.x, _b.x) && compare(_a.y, _b.y) && compare(_a.z, _b.z);
+}
+
+bool compare(vec4 _a, vec4 _b)
+{
+    return compare(_a.x, _b.x) && compare(_a.y, _b.y) && compare(_a.z, _b.z) && compare(_a.w, _b.w);
 }
 
 // https://knarkowicz.wordpress.com/2014/04/16/octahedron-normal-vector-encoding/
@@ -147,6 +153,14 @@ struct RadianceCascadesConfig
 
     uint debug_idx_type;
     uint debug_color_type;
+};
+
+struct RCMergeData
+{
+    uint probe_sideCount;
+    uint ray_sideCount;
+    uint lv;
+    uint idxType;
 };
 
 struct VoxelizationConsts

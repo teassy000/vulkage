@@ -238,7 +238,7 @@ namespace
             m_demoData.profiling.uiTime = (float)kage::getPassTime(m_ui.pass);
             m_demoData.profiling.deferredTime = (float)kage::getPassTime(m_deferred.pass);
 
-            m_demoData.profiling.buildCascadeTime = (float)kage::getPassTime(m_radianceCascade.rcBuild.pass);
+            m_demoData.profiling.buildCascadeTime = (float)kage::getPassTime(m_radianceCascade.build.pass);
 
             m_demoData.profiling.triangleEarlyCount = (float)(kage::getPassClipping(m_meshShading.pass));
             m_demoData.profiling.triangleLateCount = (float)(kage::getPassClipping(m_meshShadingLate.pass));
@@ -643,7 +643,15 @@ namespace
 
             // deferred
             {
-                initDeferredShading(m_deferred, m_meshShadingAlpha.g_bufferOutAlias, m_skybox.colorOutAlias, m_radianceCascade.rcBuild.radCascdOutAlias);
+                RadianceCascadesData rcData{};
+                rcData.cascades = m_radianceCascade.build.radCascdOutAlias;
+                for (uint32_t ii = 0; ii < kage::k_rclv0_cascadeLv; ++ii)
+                {
+                    rcData.mergedCascades[ii] = m_radianceCascade.merge.mergedCascadesAlias[ii];
+                }
+
+
+                initDeferredShading(m_deferred, m_meshShadingAlpha.g_bufferOutAlias, m_skybox.colorOutAlias, rcData);
             }
 
             // probe debug
@@ -654,9 +662,9 @@ namespace
                 vdinit.color = m_deferred.outColorAlias;
                 vdinit.depth = m_supportMeshShading ? m_meshShadingAlpha.depthOutAlias : m_vtxShadingLate.depthOutAlias;
 
-                vdinit.trans = m_radianceCascade.rcBuild.trans;
+                vdinit.trans = m_radianceCascade.build.trans;
 
-                vdinit.cascade = m_radianceCascade.rcBuild.radCascdOutAlias;
+                vdinit.cascade = m_radianceCascade.build.radCascdOutAlias;
 
                 prepareProbeDebug(m_probDebug, vdinit);
             }
@@ -683,7 +691,7 @@ namespace
             {
                 kage::ImageHandle uiColorIn = m_smaa.m_outAliasImg;
                 kage::ImageHandle uiDepthIn = m_supportMeshShading ? m_meshShadingAlpha.depthOutAlias : m_vtxShadingLate.depthOutAlias;
-                m_ui.dummyColor = m_radianceCascade.rcBuild.radCascdOutAlias;
+                m_ui.dummyColor = m_radianceCascade.build.radCascdOutAlias;
                 prepareUI(m_ui, uiColorIn, uiDepthIn, 1.3f);
             }
         }

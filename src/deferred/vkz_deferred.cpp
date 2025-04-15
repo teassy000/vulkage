@@ -71,7 +71,18 @@ struct alignas(16) DeferredConstants
     float camx, camy, camz;
 };
 
-void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::ImageHandle _sky, const kage::ImageHandle _radCasc)
+
+struct RCAccessData
+{
+    uint32_t lv;
+    uint32_t raySideCount;
+    uint32_t probeSideCount;
+    uint32_t layerOffset;
+    float rayLen;
+    float probeSideLen;
+};
+
+void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::ImageHandle _sky, const RadianceCascadesData& _rcData)
 {
     kage::ShaderHandle cs = kage::registShader("deferred", "shaders/deferred.comp.spv");
     kage::ProgramHandle prog = kage::registProgram("deferred", { cs }, sizeof(DeferredConstants));
@@ -141,13 +152,27 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
         , kage::SamplerReductionMode::min
     );
 
-    kage::SamplerHandle rcSamp = kage::sampleImage(pass, _radCasc
+    kage::SamplerHandle rcSamp = kage::sampleImage(pass, _rcData.cascades
         , kage::PipelineStageFlagBits::compute_shader
         , kage::SamplerFilter::linear
         , kage::SamplerMipmapMode::linear
         , kage::SamplerAddressMode::mirrored_repeat
         , kage::SamplerReductionMode::weighted_average
     );
+
+    for (size_t ii = 0; ii < kage::k_rclv0_cascadeLv; ii++)
+    {
+        kage::SamplerHandle rcMergedSamp = kage::sampleImage(pass, _rcData.mergedCascades[ii]
+            , kage::PipelineStageFlagBits::compute_shader
+            , kage::SamplerFilter::nearest
+            , kage::SamplerMipmapMode::nearest
+            , kage::SamplerAddressMode::mirrored_repeat
+            , kage::SamplerReductionMode::weighted_average
+        );
+
+        _ds.rcMergedData[ii] = _rcData.mergedCascades[ii];
+        _ds.rcMergedSamplers[ii] = rcMergedSamp;
+    }
 
     _ds.outColorAlias = kage::alias(outColor);
     kage::bindImage(pass, outColor
@@ -169,8 +194,9 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
     _ds.gBuffer = _gb;
 
     _ds.rcAccessData = rcAccessConfigBuf;
-    _ds.radianceCascade = _radCasc;
+    _ds.radianceCascades = _rcData.cascades;
     _ds.rcSampler = rcSamp;
+
 
     _ds.gBufSamplers.albedo = albedoSamp;
     _ds.gBufSamplers.normal = normSamp;
@@ -225,11 +251,19 @@ void recDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uin
         {_ds.gBuffer.emissive,  _ds.gBufSamplers.emissive,  Stage::compute_shader},
         {_ds.gBuffer.specular,  _ds.gBufSamplers.specular,  Stage::compute_shader},
         {_ds.inSky,             _ds.skySampler,             Stage::compute_shader},
-        {_ds.radianceCascade,   _ds.rcSampler,              Stage::compute_shader},
+        {_ds.radianceCascades,  _ds.rcSampler,              Stage::compute_shader},
         {_ds.outColor,          0,                          Stage::compute_shader},
     };
 
     kage::pushBindings(binds, COUNTOF(binds));
+
+    std::vector<kage::Binding> setBinds;
+    for (size_t ii = 0; ii < kage::k_rclv0_cascadeLv; ++ii) 
+        setBinds.emplace_back(kage::Binding{ _ds.rcMergedData[ii], _ds.rcMergedSamplers[ii], Stage::compute_shader });
+
+    uint32_t arrayCounts = kage::k_rclv0_cascadeLv;
+
+    kage::bindBindings(setBinds.data(), uint16_t(setBinds.size()), &arrayCounts, 1);
 
     kage::dispatch(_w, _h, 1);
 

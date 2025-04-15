@@ -194,20 +194,16 @@ void main()
 
     const uint layer_idx = lvLayer + config.layerOffset;
 
-
-    ivec2 dirOrderIdx = ivec2(ray_idx * int(prob_gridSideCount) + prob_idx);
-    ivec3 idx_dir = ivec3(dirOrderIdx.xy, layer_idx);// seg dir idx first
-    ivec3 idx = ivec3(pixIdx.xy, layer_idx); // probe idx first
-
     ivec3 iuv = ivec3(0);
     switch(config.debug_idx_type)
     {
         case 0:
-        iuv = idx;
-        break;
-    case 1:
-        iuv = idx_dir;
-        break;
+            iuv = ivec3(pixIdx.xy, layer_idx); // probe idx first;
+            break;
+        case 1:
+            ivec2 dirOrderIdx = ivec2(ray_idx * int(prob_gridSideCount) + prob_idx);
+            iuv = ivec3(dirOrderIdx.xy, layer_idx);// seg dir idx first
+            break;
     }
 
     // write the var to the radiance cascade atlas

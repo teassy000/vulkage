@@ -19,6 +19,12 @@ struct RCBuildInit
     BRX_UserResources brx;
 };
 
+struct RCMergeInit
+{
+    kage::ImageHandle radianceCascade;
+    kage::ImageHandle skybox;
+};
+
 void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
 {
     // build the cascade image
@@ -148,6 +154,29 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
     _rc.radCascdOutAlias = outAlias;
 }
 
+void updateRCBuild(RadianceCascadeBuild& _rc, const Dbg_RadianceCascades& _dbg, const TransformData& _trans)
+{
+    // update trans buf
+    RadianceCascadesTransform trans;
+
+    if (_dbg.followCam) {
+        _rc.cameraPos = _trans.cameraPos;
+    }
+
+    if (!_dbg.pauseUpdate) {
+        _rc.view = _trans.view;
+        _rc.proj = _trans.proj;
+    }
+
+    trans.cameraPos = _rc.cameraPos;
+    trans.view = _rc.view;
+    trans.proj = _rc.proj;
+
+    const kage::Memory* memTransform = kage::alloc(sizeof(RadianceCascadesTransform));
+    memcpy_s(memTransform->data, memTransform->size, &trans, sizeof(RadianceCascadesTransform));
+    kage::updateBuffer(_rc.trans, memTransform);
+}
+
 void recRCBuild(const RadianceCascadeBuild& _rc, const Dbg_RadianceCascades& _dbg)
 {
     kage::startRec(_rc.pass);
@@ -227,12 +256,110 @@ void recRCBuild(const RadianceCascadeBuild& _rc, const Dbg_RadianceCascades& _db
     kage::endRec();
 }
 
-void prepareRCMerge(const RadianceCascadeMerge& _rc, const RCBuildInit& _init)
+struct alignas(16) RCMergeData
 {
+    uint32_t probe_sideCount;
+    uint32_t ray_gridSideCount;
+    uint32_t lv;
+    uint32_t idxType;
+};
+
+
+void prepareRCMerge(RadianceCascadeMerge& _rc, const RCMergeInit& _init)
+{
+    // merge cascade image
+    kage::ShaderHandle cs = kage::registShader("merge_radiance_cascade", "shaders/rc_merge_cascade.comp.spv");
+    kage::ProgramHandle program = kage::registProgram("merge_radiance_cascade", { cs }, sizeof(RCMergeData));
+
+    kage::PassDesc passDesc{};
+    passDesc.programId = program.id;
+    passDesc.queue = kage::PassExeQueue::compute;
+
+    kage::PassHandle pass = kage::registPass("merge_radiance_cascade", passDesc);
+
+
+    for (size_t ii = 0; ii < kage::k_rclv0_cascadeLv; ii++) {
+        uint32_t level_factor = uint32_t(1 << ii);
+        uint32_t prob_sideCount = kage::k_rclv0_probeSideCount / level_factor;
+
+        kage::ImageDesc mergedImgDesc{};
+        mergedImgDesc.width = prob_sideCount;
+        mergedImgDesc.height = prob_sideCount;
+        mergedImgDesc.numLayers = prob_sideCount;
+        mergedImgDesc.format = kage::ResourceFormat::r8g8b8a8_unorm;
+        mergedImgDesc.depth = 1;
+        mergedImgDesc.numMips = 1;
+        mergedImgDesc.type = kage::ImageType::type_2d;
+        mergedImgDesc.viewType = kage::ImageViewType::type_2d_array;
+        mergedImgDesc.usage = kage::ImageUsageFlagBits::transfer_dst | kage::ImageUsageFlagBits::storage | kage::ImageUsageFlagBits::sampled;
+        mergedImgDesc.layout = kage::ImageLayout::general;
+        _rc.mergedCascades[ii] = kage::registTexture("merged_cascade", mergedImgDesc, nullptr, kage::ResourceLifetime::non_transition);
+
+        _rc.mergedCascadesAlias[ii] = kage::alias(_rc.mergedCascades[ii]);
+
+        kage::bindImage(pass, _rc.mergedCascades[ii]
+            , kage::PipelineStageFlagBits::compute_shader
+            , kage::AccessFlagBits::shader_write
+            , kage::ImageLayout::general
+            , _rc.mergedCascadesAlias[ii]
+        );
+    }
+
+    kage::SamplerHandle skySamp = kage::sampleImage(pass, _init.skybox
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::SamplerFilter::linear
+        , kage::SamplerMipmapMode::nearest
+        , kage::SamplerAddressMode::clamp_to_edge
+        , kage::SamplerReductionMode::weighted_average
+    );
+
+    kage::bindImage(pass, _init.radianceCascade
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::AccessFlagBits::shader_read
+        , kage::ImageLayout::general
+    );
+
+    _rc.pass = pass;
+    _rc.program = program;
+    _rc.cs = cs;
+
+    _rc.skybox = _init.skybox;
+    _rc.skySampler = skySamp;
+    _rc.radianceCascade = _init.radianceCascade;
 }
 
 void recRCMerge(const RadianceCascadeMerge& _rc, const Dbg_RadianceCascades& _dbg)
 {
+    kage::startRec(_rc.pass);
+
+    for (size_t ii = _dbg.startCascade; ii <= _dbg.endCascade ; ii++) {
+        uint32_t level_factor = uint32_t(1 << ii);
+        uint32_t prob_sideCount = kage::k_rclv0_probeSideCount / level_factor;
+        uint32_t ray_sideCount = kage::k_rclv0_rayGridSideCount * level_factor;
+
+        RCMergeData data;
+        data.probe_sideCount = prob_sideCount;
+        data.ray_gridSideCount = ray_sideCount;
+        data.lv = (uint32_t)ii;
+
+        const kage::Memory* mem = kage::alloc(sizeof(RCMergeData));
+        memcpy(mem->data, &data, mem->size);
+        
+        kage::setConstants(mem);
+
+        kage::Binding binds[] = {
+            {_rc.skybox, _rc.skySampler, Stage::compute_shader},
+            {_rc.radianceCascade, 0, Stage::compute_shader},
+            {_rc.mergedCascades[ii], 0, Stage::compute_shader},
+        };
+
+        kage::pushBindings(binds, COUNTOF(binds));
+
+        uint32_t groupCnt = prob_sideCount * ray_sideCount;
+        kage::dispatch(prob_sideCount, prob_sideCount, prob_sideCount);
+    }
+
+    kage::endRec();
 }
 
 
@@ -243,7 +370,12 @@ void prepareRadianceCascade(RadianceCascade& _rc, const RadianceCascadeInitData 
     rcInit.depth = _init.depth;
     rcInit.skybox = _init.skybox;
     memcpy(&rcInit.brx, &_init.brx, sizeof(BRX_UserResources));
-    prepareRCbuild(_rc.rcBuild, rcInit);
+    prepareRCbuild(_rc.build, rcInit);
+
+    RCMergeInit mergeInit{};
+    mergeInit.radianceCascade = _rc.build.radCascdOutAlias;
+    mergeInit.skybox = _init.skybox;
+    prepareRCMerge(_rc.merge, mergeInit);
 }
 
 void updateRadianceCascade(
@@ -252,27 +384,8 @@ void updateRadianceCascade(
     , const TransformData& _trans
 )
 {
-    // update trans buf
-    RadianceCascadesTransform trans;
+    updateRCBuild(_rc.build, _dbgRcBuild, _trans);
+    recRCBuild(_rc.build, _dbgRcBuild);
 
-    if (_dbgRcBuild.followCam) {
-        _rc.rcBuild.cameraPos = _trans.cameraPos;
-    }
-
-    if (! _dbgRcBuild.pauseUpdate) {
-        _rc.rcBuild.view = _trans.view;
-        _rc.rcBuild.proj = _trans.proj;
-    }
-
-    trans.cameraPos = _rc.rcBuild.cameraPos;
-    trans.view = _rc.rcBuild.view;
-    trans.proj = _rc.rcBuild.proj;
-
-    const kage::Memory* memTransform = kage::alloc(sizeof(RadianceCascadesTransform));
-    memcpy_s(memTransform->data, memTransform->size, &trans, sizeof(RadianceCascadesTransform));
-    kage::updateBuffer(_rc.rcBuild.trans, memTransform);
-
-
-
-    recRCBuild(_rc.rcBuild, _dbgRcBuild);
+    recRCMerge(_rc.merge, _dbgRcBuild);
 }

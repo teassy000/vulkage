@@ -28,14 +28,9 @@ layout(binding = 5) uniform sampler2D in_specular;
 layout(binding = 6) uniform sampler2D in_sky;
 
 layout(binding = 7) uniform sampler2DArray in_radianceCascade;
-
 layout(binding = 8) uniform writeonly image2D out_color;
 
-
-bool allLessThanEqual(vec4 _v1, vec4 _v2)
-{
-    return _v1.x <= _v2.x && _v1.y <= _v2.y && _v1.z <= _v2.z && _v1.w <= _v2.w;
-}
+layout(binding = 0, set = 2) uniform sampler2DArray in_rcMerged[MAX_RADIANCE_CASCADES];
 
 ivec3 getNearestProbeIdx(vec3 _wPos, float _radius, float _probeSideLen)
 {
@@ -79,7 +74,7 @@ void main()
     vec3 rayDir = vec3(0.f);
 
     // locate the cascade based on the wpos
-    for (uint ii = consts.startCascade; ii < consts.endCascade; ++ii)
+    for (uint ii = consts.startCascade; ii <= consts.endCascade; ++ii)
     {
         const RCAccessData rcAccess = rcAccesses[ii];
         uint prob_sideCount = rcAccess.probeSideCount;
@@ -112,7 +107,7 @@ void main()
         uint layerIdx = probeIdx.z + layerOffset;
 
         vec4 rcc = texture(in_radianceCascade, vec3(cascadeUV, layerIdx));
-        if (!allLessThanEqual(rcc, vec4(0.f)))
+        if (!compare(rcc, vec4(0.f)))
         {
             rayCol = rcc;// rcc * (1.f / float(ii));
             rayDir = rd;

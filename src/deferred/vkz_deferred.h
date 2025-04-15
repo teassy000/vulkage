@@ -22,14 +22,10 @@ struct GBufferSamplers
     kage::SamplerHandle specular;
 };
 
-struct RCAccessData
+struct RadianceCascadesData
 {
-    uint32_t lv;
-    uint32_t raySideCount;
-    uint32_t probeSideCount;
-    uint32_t layerOffset;
-    float rayLen;
-    float probeSideLen;
+    kage::ImageHandle cascades{};
+    kage::ImageHandle mergedCascades[kage::k_rclv0_cascadeLv]{};
 };
 
 struct DeferredShading
@@ -45,8 +41,11 @@ struct DeferredShading
     kage::SamplerHandle skySampler;
 
     kage::BufferHandle rcAccessData;
-    kage::ImageHandle radianceCascade;
+    kage::ImageHandle radianceCascades;
     kage::SamplerHandle rcSampler;
+
+    kage::ImageHandle rcMergedData[kage::k_rclv0_cascadeLv];
+    kage::SamplerHandle rcMergedSamplers[kage::k_rclv0_cascadeLv];
 
     kage::ImageHandle outColor;
     kage::ImageHandle outColorAlias;
@@ -54,5 +53,5 @@ struct DeferredShading
 
 const GBuffer createGBuffer();
 const GBuffer aliasGBuffer(const GBuffer& _gb);
-void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::ImageHandle _rt, const kage::ImageHandle _rc);
+void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::ImageHandle _sky, const RadianceCascadesData& _rcData);
 void updateDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uint32_t _h, const vec3 _camPos, const float _tatalRadius, const uint32_t _idxType, const Dbg_RadianceCascades& _rc);
