@@ -374,6 +374,7 @@ namespace kage { namespace vk
             const ImageHandle _hImg
             , const uint16_t _width
             , const uint16_t _height
+            , const uint16_t _layers
             , const Memory* _mem
         ) override;
 
@@ -381,6 +382,7 @@ namespace kage { namespace vk
             const ImageHandle _hImg
             , const uint16_t _width
             , const uint16_t _height
+            , const uint16_t _layers
             , const Memory* _mem
             , const stl::vector<ImageHandle>& _alias
         );

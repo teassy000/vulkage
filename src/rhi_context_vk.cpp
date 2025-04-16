@@ -1967,12 +1967,12 @@ namespace kage { namespace vk
             // update attachments
             for (const kage::ImageHandle & hImg : m_colorAttchBase)
             {
-                updateImage(hImg, _resolution.width, _resolution.height, nullptr);
+                updateImage(hImg, _resolution.width, _resolution.height, 1, nullptr);
             }
 
             for (const kage::ImageHandle & hImg : m_depthAttchBase)
             {
-                updateImage(hImg, _resolution.width, _resolution.height, nullptr);
+                updateImage(hImg, _resolution.width, _resolution.height, 1, nullptr);
             }
 
             m_resolution = _resolution;
@@ -2057,6 +2057,7 @@ namespace kage { namespace vk
         const ImageHandle _hImg
         , const uint16_t _width
         , const uint16_t _height
+        , const uint16_t _layers
         , const Memory* _mem
     )
     {
@@ -2071,13 +2072,14 @@ namespace kage { namespace vk
         ImageHandle baseImg = { m_aliasToBaseImages.getIdToData(_hImg) };
         const stl::vector<ImageHandle>& aliasRef = m_imgToAliases.find(baseImg)->second;
 
-        updateImageWithAlias(_hImg, _width, _height, _mem, aliasRef);
+        updateImageWithAlias(_hImg, _width, _height, _layers, _mem, aliasRef);
     }
 
     void RHIContext_vk::updateImageWithAlias(
         const ImageHandle _hImg
         , const uint16_t _width
         , const uint16_t _height
+        , const uint16_t _layers
         , const Memory* _mem
         , const stl::vector<ImageHandle>& _alias
     )
@@ -2094,7 +2096,7 @@ namespace kage { namespace vk
         Image_vk baseImgVk = m_imageContainer.getIdToData(baseImg);
 
         // re-create image if new size is different from the old one
-        if (baseImgVk.width != _width || baseImgVk.height != _height)
+        if (baseImgVk.width != _width || baseImgVk.height != _height || baseImgVk.numLayers != _layers)
         {
             const BarrierState_vk baseBarrier = m_barrierDispatcher.getBaseBarrierState(baseImgVk.image);
 
@@ -2124,6 +2126,7 @@ namespace kage { namespace vk
             ImageCreateInfo& ci = m_imgCreateInfos.getDataRef(_hImg);
             ci.width = _width;
             ci.height = _height;
+            ci.numLayers = _layers;
 
             // recreate image
             ImgInitProps_vk initPorps = getImageInitProp(ci, m_swapchainFormat, m_depthFormat);

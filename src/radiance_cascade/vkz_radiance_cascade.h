@@ -130,7 +130,7 @@ struct RadianceCascadeInitData
     BRX_UserResources brx;
 
     uint32_t maxDrawCmdCount;
-    uint32_t startCascade;
+    uint32_t currCas;
 };
 
 

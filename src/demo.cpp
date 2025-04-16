@@ -639,6 +639,7 @@ namespace
                 rcInit.maxDrawCmdCount = (uint32_t)m_scene.meshDraws.size();
                 rcInit.bindless = m_bindlessArray;
                 rcInit.skybox = m_skybox.colorOutAlias;
+                rcInit.currCas = glm::min(1u, glm::min(m_demoData.dbg_features.rcBuild.startCascade, m_demoData.dbg_features.rcBuild.endCascade));
 
                 memcpy(&rcInit.brx, &m_brixel.userReses, sizeof(BRX_UserResources));
 

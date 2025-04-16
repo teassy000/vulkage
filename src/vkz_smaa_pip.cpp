@@ -413,12 +413,12 @@ void SMAA::update(uint32_t _rtWidth, uint32_t _rtHeight)
         m_weight.data.imageSize[0] = _rtWidth;
         m_weight.data.imageSize[1] = _rtHeight;
 
-        kage::updateImage2D(m_edgeDepth.depth, _rtWidth, _rtHeight);
-        kage::updateImage2D(m_edgeColor.color, _rtWidth, _rtHeight);
-        kage::updateImage2D(m_edgeLuma.luma, _rtWidth, _rtHeight);
+        kage::updateImage(m_edgeDepth.depth, _rtWidth, _rtHeight);
+        kage::updateImage(m_edgeColor.color, _rtWidth, _rtHeight);
+        kage::updateImage(m_edgeLuma.luma, _rtWidth, _rtHeight);
 
-        kage::updateImage2D(m_weight.weight, _rtWidth, _rtHeight);
-        kage::updateImage2D(m_blend.blend, _rtWidth, _rtHeight);
+        kage::updateImage(m_weight.weight, _rtWidth, _rtHeight);
+        kage::updateImage(m_blend.blend, _rtWidth, _rtHeight);
     }
 
     recordCmd(m_edgeDepth, m_w, m_h);

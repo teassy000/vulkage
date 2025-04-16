@@ -75,10 +75,11 @@ namespace kage
         , uint32_t _size = 0
     );
 
-    void updateImage2D(
+    void updateImage(
         const ImageHandle _hImg
         , uint32_t _width
         , uint32_t _height
+        , uint32_t _layers = 1
         , const Memory* _mem = nullptr
     );
 

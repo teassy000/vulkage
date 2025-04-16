@@ -301,6 +301,7 @@ namespace kage
         ImageHandle m_handle;
         uint32_t m_width;
         uint32_t m_height;
+        uint32_t m_layers;
         const Memory* m_mem;
     };
 
@@ -662,12 +663,13 @@ namespace kage
             push(cmd);
         }
 
-        void cmdUpdateImage(ImageHandle _handle, uint32_t _width, uint32_t _height, const Memory* _mem)
+        void cmdUpdateImage(ImageHandle _handle, uint32_t _width, uint32_t _height, uint32_t _layers, const Memory* _mem)
         {
             UpdateImageCmd cmd;
             cmd.m_handle = _handle;
             cmd.m_width = _width;
             cmd.m_height = _height;
+            cmd.m_layers = _layers;
             cmd.m_mem = _mem;
 
             push(cmd);

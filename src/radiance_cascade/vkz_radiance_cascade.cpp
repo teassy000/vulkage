@@ -24,7 +24,7 @@ struct RCMergeInit
     kage::ImageHandle radianceCascade;
     kage::ImageHandle skybox;
 
-    uint32_t startCascade;
+    uint32_t currCas;
 };
 
 void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
@@ -289,7 +289,7 @@ void prepareRCMerge(RadianceCascadeMerge& _rc, const RCMergeInit& _init, bool _r
     kage::PassHandle pass = kage::registPass(name, passDesc);
 
     
-    uint32_t lvFactor = uint32_t(1 << _init.startCascade);
+    uint32_t lvFactor = uint32_t(1 << _init.currCas);
     uint32_t probSideCnt = kage::k_rclv0_probeSideCount / lvFactor;
     uint32_t pixSideCnt = kage::k_rclv0_probeSideCount * kage::k_rclv0_rayGridSideCount;
 
@@ -344,15 +344,30 @@ void prepareRCMerge(RadianceCascadeMerge& _rc, const RCMergeInit& _init, bool _r
     _rc.mergedCascade = mergedCas;
     _rc.mergedCascadesAlias = mergedCasAlias;
 
-    _rc.currLv = _init.startCascade;
+    _rc.currLv = _init.currCas;
     _rc.rayPrime = _rayPrime;
+}
+
+void updateRCMerge(RadianceCascadeMerge& _rc, const Dbg_RadianceCascades& _dbg)
+{
+    // should update the merged ascade(probe) resolution if currLv changed
+    uint32_t currCas = glm::min(1u, glm::min(_dbg.startCascade, _dbg.endCascade));
+    if (!_rc.rayPrime && currCas == _rc.currLv)
+        return;
+
+    uint32_t lvFactor = uint32_t(1 << currCas);
+    uint32_t probSideCnt = kage::k_rclv0_probeSideCount / lvFactor;
+
+    kage::updateImage(_rc.mergedCascade, probSideCnt, probSideCnt, probSideCnt);
+
+    _rc.currLv = currCas;
 }
 
 void recRCMerge(const RadianceCascadeMerge& _rc, const Dbg_RadianceCascades& _dbg)
 {
     kage::startRec(_rc.pass);
 
-    uint32_t lvFactor = uint32_t(1 << _dbg.startCascade);
+    uint32_t lvFactor = uint32_t(1 << _rc.currLv);
     uint32_t probSideCnt = kage::k_rclv0_probeSideCount / lvFactor;
     uint32_t raySideCnt = kage::k_rclv0_rayGridSideCount * lvFactor;
     uint32_t resolution = _rc.rayPrime ? probSideCnt * raySideCnt : probSideCnt;
@@ -360,7 +375,7 @@ void recRCMerge(const RadianceCascadeMerge& _rc, const Dbg_RadianceCascades& _db
     RCMergeData data;
     data.probe_sideCount = probSideCnt;
     data.ray_gridSideCount = raySideCnt;
-    data.lv = _dbg.startCascade;
+    data.lv = _rc.currLv;
 
     const kage::Memory* mem = kage::alloc(sizeof(RCMergeData));
     memcpy(mem->data, &data, mem->size);
@@ -381,6 +396,7 @@ void recRCMerge(const RadianceCascadeMerge& _rc, const Dbg_RadianceCascades& _db
 }
 
 
+
 void prepareRadianceCascade(RadianceCascade& _rc, const RadianceCascadeInitData _init)
 {
     RCBuildInit rcInit{};
@@ -394,7 +410,7 @@ void prepareRadianceCascade(RadianceCascade& _rc, const RadianceCascadeInitData 
         RCMergeInit mergeInit{};
         mergeInit.radianceCascade = _rc.build.radCascdOutAlias;
         mergeInit.skybox = _init.skybox;
-        mergeInit.startCascade = _init.startCascade;
+        mergeInit.currCas = _init.currCas;
         prepareRCMerge(_rc.mergeRay, mergeInit, true);
     }
 
@@ -402,7 +418,7 @@ void prepareRadianceCascade(RadianceCascade& _rc, const RadianceCascadeInitData 
         RCMergeInit mergeInit{};
         mergeInit.radianceCascade = _rc.mergeRay.mergedCascadesAlias;
         mergeInit.skybox = _init.skybox;
-        mergeInit.startCascade = _init.startCascade;
+        mergeInit.currCas = _init.currCas;
         prepareRCMerge(_rc.mergeProbe, mergeInit, false);
     }
 }

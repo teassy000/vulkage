@@ -170,6 +170,7 @@ namespace kage
             const ImageHandle _hImg
             , const uint16_t _width
             , const uint16_t _height
+            , const uint16_t _layers
             , const Memory* _mem
         ) {};
 

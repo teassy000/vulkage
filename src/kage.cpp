@@ -305,10 +305,7 @@ namespace kage
         void setPresentImage(ImageHandle _rt, uint32_t _mipLv);
 
         void updateBuffer(const BufferHandle _hbuf, const Memory* _mem, const uint32_t _offset, const uint32_t _size);
-        void updateImage(const ImageHandle _hImg 
-            , uint32_t _width
-            , uint32_t _height
-            , const Memory* _mem);
+        void updateImage(const ImageHandle _hImg, uint32_t _width, uint32_t _height, uint32_t _layers, const Memory* _mem);
 
         // renderer execute commands
         void rendererExecCmdQ(CommandQueue& _cmdQ);
@@ -1911,10 +1908,11 @@ namespace kage
         const ImageHandle _hImg
         , uint32_t _width
         , uint32_t _height
+        , uint32_t _layers
         , const Memory* _mem
     )
     {
-        m_cmdQueue.cmdUpdateImage(_hImg, _width, _height, _mem);
+        m_cmdQueue.cmdUpdateImage(_hImg, _width, _height, _layers, _mem);
     }
 
     void Context::rendererExecCmdQ(CommandQueue& _cmdQ)
@@ -1981,9 +1979,10 @@ namespace kage
                             uic->m_handle
                             , uic->m_width
                             , uic->m_height
+                            , uic->m_layers
                             , uic->m_mem
                         );
-                    }
+                }
                     break;
                 case Command::update_buffer:
                     {
@@ -2531,14 +2530,14 @@ namespace kage
         s_ctx->updateBuffer(_hBuf, _mem, _offset, size);
     }
 
-    void updateImage2D(
-        const ImageHandle _hImg
+    void kage::updateImage(const ImageHandle _hImg
         , uint32_t _width
         , uint32_t _height
+        , uint32_t _layers /* = 1*/
         , const Memory* _mem /*= nullptr */
     )
     {
-        s_ctx->updateImage(_hImg, _width, _height, _mem);
+        s_ctx->updateImage(_hImg, _width, _height, _layers, _mem);
     }
 
     void startRec(const PassHandle _hPass)
