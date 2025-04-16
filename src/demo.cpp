@@ -239,6 +239,10 @@ namespace
             m_demoData.profiling.deferredTime = (float)kage::getPassTime(m_deferred.pass);
 
             m_demoData.profiling.buildCascadeTime = (float)kage::getPassTime(m_radianceCascade.build.pass);
+            m_demoData.profiling.mergeCascadeRayTime = (float)kage::getPassTime(m_radianceCascade.mergeRay.pass);
+            m_demoData.profiling.mergeCascadeProbeTime = (float)kage::getPassTime(m_radianceCascade.mergeProbe.pass);
+            m_demoData.profiling.debugProbeGenTime = (float)kage::getPassTime(m_probDebug.cmdGen.pass);
+            m_demoData.profiling.debugProbeDrawTime = (float)kage::getPassTime(m_probDebug.draw.pass);
 
             m_demoData.profiling.triangleEarlyCount = (float)(kage::getPassClipping(m_meshShading.pass));
             m_demoData.profiling.triangleLateCount = (float)(kage::getPassClipping(m_meshShadingLate.pass));
@@ -645,11 +649,7 @@ namespace
             {
                 RadianceCascadesData rcData{};
                 rcData.cascades = m_radianceCascade.build.radCascdOutAlias;
-                for (uint32_t ii = 0; ii < kage::k_rclv0_cascadeLv; ++ii)
-                {
-                    rcData.mergedCascades[ii] = m_radianceCascade.merge.mergedCascadesAlias[ii];
-                }
-
+                rcData.mergedCascade = m_radianceCascade.mergeProbe.mergedCascadesAlias;
 
                 initDeferredShading(m_deferred, m_meshShadingAlpha.g_bufferOutAlias, m_skybox.colorOutAlias, rcData);
             }

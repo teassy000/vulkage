@@ -320,6 +320,10 @@ void updateContentCommon(Dbg_Common& _common, const DebugProfilingData& _pd, con
     ImGui::Text("ui: [%.3f]ms", _pd.uiTime);
     ImGui::Text("deferred: [%.3f]ms", _pd.deferredTime);
     ImGui::Text("build cascade: [%.3f]ms", _pd.buildCascadeTime);
+    ImGui::Text("merge cascade ray: [%.3f]ms", _pd.mergeCascadeRayTime);
+    ImGui::Text("build cascade probe: [%.3f]ms", _pd.mergeCascadeProbeTime);
+    ImGui::Text("debug probe gen: [%.3f]ms", _pd.debugProbeGenTime);
+    ImGui::Text("debug probe draw: [%.3f]ms", _pd.debugProbeDrawTime);
 
     if (ImGui::TreeNode("Static Data:"))
     {

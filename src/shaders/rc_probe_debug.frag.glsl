@@ -27,23 +27,14 @@ void main()
     ivec2 probeIdx = ivec2(in_probeId.xy);
     uint layerId = in_probeId.z;
 
-    const float probeSideCnt = float(consts.probeSideCount);
-    const float raySideCnt = float(consts.raySideCount);
+    const uint probeSideCnt = consts.probeSideCount;
+    const uint raySideCnt = consts.raySideCount;
 
-    vec2 uv0 = float32x3_to_oct(in_dir);
-    uv0 = uv0 * 0.5f + 0.5f; // map to [0, 1]
+    vec2 raySubUV = float32x3_to_oct(in_dir);
+    raySubUV = raySubUV * 0.5f + 0.5f; // map to [0, 1]
 
-    ivec2 rayIdx = ivec2((uv0 * raySideCnt));
-    ivec2 pixelIdx = ivec2(0u);
-    switch (consts.debugIdxType)
-    {
-        case 0:  // probe first index
-            pixelIdx = ivec2(probeIdx * int(raySideCnt) + rayIdx);
-            break;
-        case 1: // ray first index
-            pixelIdx = ivec2(rayIdx * int(probeSideCnt) + probeIdx);
-            break;
-    }
+    ivec2 rayIdx = ivec2((raySubUV * raySideCnt));
+    vec2 pixelIdx = getRCTexelPos(consts.debugIdxType, raySideCnt, probeSideCnt, probeIdx, rayIdx);
 
     vec2 uv = (vec2(pixelIdx) + vec2(0.5f)) / (probeSideCnt * raySideCnt);
 

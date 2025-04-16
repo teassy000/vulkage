@@ -101,14 +101,18 @@ struct RadianceCascadeMerge
     kage::ImageHandle skybox;
     kage::SamplerHandle skySampler;
     
-    kage::ImageHandle mergedCascades[kage::k_rclv0_cascadeLv];
-    kage::ImageHandle mergedCascadesAlias[kage::k_rclv0_cascadeLv];
+    kage::ImageHandle mergedCascade;
+    kage::ImageHandle mergedCascadesAlias;
+
+    uint32_t currLv;
+    bool    rayPrime;
 };
 
 struct RadianceCascade
 {
     RadianceCascadeBuild build;
-    RadianceCascadeMerge merge;
+    RadianceCascadeMerge mergeRay;
+    RadianceCascadeMerge mergeProbe;
 };
 
 struct RadianceCascadeInitData
@@ -126,6 +130,7 @@ struct RadianceCascadeInitData
     BRX_UserResources brx;
 
     uint32_t maxDrawCmdCount;
+    uint32_t startCascade;
 };
 
 

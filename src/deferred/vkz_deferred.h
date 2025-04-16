@@ -25,7 +25,7 @@ struct GBufferSamplers
 struct RadianceCascadesData
 {
     kage::ImageHandle cascades{};
-    kage::ImageHandle mergedCascades[kage::k_rclv0_cascadeLv]{};
+    kage::ImageHandle mergedCascade{};
 };
 
 struct DeferredShading
@@ -44,8 +44,8 @@ struct DeferredShading
     kage::ImageHandle radianceCascades;
     kage::SamplerHandle rcSampler;
 
-    kage::ImageHandle rcMergedData[kage::k_rclv0_cascadeLv];
-    kage::SamplerHandle rcMergedSamplers[kage::k_rclv0_cascadeLv];
+    kage::ImageHandle rcMergedData;
+    kage::SamplerHandle rcMergedSampler;
 
     kage::ImageHandle outColor;
     kage::ImageHandle outColorAlias;

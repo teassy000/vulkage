@@ -12,6 +12,10 @@ struct DebugProfilingData
     float uiTime;
     float deferredTime;
     float buildCascadeTime;
+    float mergeCascadeRayTime;
+    float mergeCascadeProbeTime;
+    float debugProbeGenTime;
+    float debugProbeDrawTime;
 
     uint32_t primitiveCount;
     uint32_t meshletCount;

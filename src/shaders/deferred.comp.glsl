@@ -28,9 +28,9 @@ layout(binding = 5) uniform sampler2D in_specular;
 layout(binding = 6) uniform sampler2D in_sky;
 
 layout(binding = 7) uniform sampler2DArray in_radianceCascade;
-layout(binding = 8) uniform writeonly image2D out_color;
+layout(binding = 8) uniform sampler2DArray in_rcMerged;
+layout(binding = 9) uniform writeonly image2D out_color;
 
-layout(binding = 0, set = 2) uniform sampler2DArray in_rcMerged[MAX_RADIANCE_CASCADES];
 
 ivec3 getNearestProbeIdx(vec3 _wPos, float _radius, float _probeSideLen)
 {
@@ -91,17 +91,7 @@ void main()
         rayUV = rayUV * .5f + .5f; // map octrahedral uv to [0, 1]
 
         ivec2 rayIdx = ivec2(rayUV * float(ray_sideCount));
-        ivec2 pixelIdx = ivec2(0u);
-        // now base on the index type, locate the ray in the cascade
-        switch (consts.debugIdxType)
-        {
-            case 0:  // probe first index
-                pixelIdx = probeIdx.xy * int(ray_sideCount) + rayIdx;
-                break;
-            case 1: // ray first index
-                pixelIdx = rayIdx * int(prob_sideCount) + probeIdx.xy;
-                break;
-        }
+        vec2 pixelIdx = getRCTexelPos(consts.debugIdxType, ray_sideCount, prob_sideCount, probeIdx.xy, rayIdx);
 
         vec2 cascadeUV = (vec2(pixelIdx) + vec2(0.5f)) / float(prob_sideCount * ray_sideCount);
         uint layerIdx = probeIdx.z + layerOffset;

@@ -22,7 +22,7 @@ layout(push_constant) uniform block
 layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 
 layout(binding = 0) uniform sampler2D in_skybox;
-layout(binding = 1, RGBA8) uniform readonly image2DArray in_rc; // radiance cascade
+layout(binding = 1, RGBA8) uniform readonly image2DArray in_rc; // radiance cascade 
 layout(binding = 2, RGBA8) uniform writeonly image2DArray out_merged_rc;
 
 void main()
@@ -33,7 +33,7 @@ void main()
 
     if (RAY_PRIME)
     {
-        return;
+        imageStore(out_merged_rc, ivec3(di.xyz), vec4(1.f));
     }
     else
     {
