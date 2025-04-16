@@ -129,6 +129,21 @@ vec3 viewSpaceToWorldSpace(vec3 _coord, mat4 _invView)
     return worldPos.xyz;
 }
 
+vec2 getRCTexelPos(uint _idxType, uint _raySideCount, uint _probSideCount, ivec2 _probIdx, ivec2 _rayIdx)
+{
+    ivec2 texelPos = ivec2(0);
+    switch (_idxType) {
+    case 0:  // probe first index
+        texelPos = _probIdx.xy * int(_raySideCount) + _rayIdx;
+        break;
+    case 1: // ray first index
+        texelPos = _rayIdx * int(_probSideCount) + _probIdx.xy;
+        break;
+    }
+
+    return texelPos;
+}
+
 // ==============================================================================
 struct RadianceCascadesConfig
 {
