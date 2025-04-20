@@ -22,18 +22,179 @@ layout(push_constant) uniform block
 layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 
 layout(binding = 0) uniform sampler2D in_skybox;
-layout(binding = 1, RGBA8) uniform readonly image2DArray in_rc; // radiance cascade 
-layout(binding = 2, RGBA8) uniform writeonly image2DArray out_merged_rc;
+layout(binding = 1) uniform sampler2DArray in_rc; // rc data
+layout(binding = 2) uniform sampler2DArray in_merged_rc; // intermediate data, which is merged [current level + 1] + [next level + 1] into the current level
+layout(binding = 3, RGBA8) uniform image2DArray merged_rc; // store the merged data
+
+vec4 MergeIntervals(vec4 _near, vec4 _far)
+{
+    return vec4(_near.rgb + _near.a * _far.rgb, _near.a * _far.a);
+}
+
+ivec3 getTrilinearProbeOffset(uint _idx)
+{
+    _idx = clamp(_idx, 0u, 7u);
+    switch (_idx) {
+        case 0u: return ivec3(0, 0, 0);
+        case 1u: return ivec3(1, 0, 0);
+        case 2u: return ivec3(0, 1, 0);
+        case 3u: return ivec3(1, 1, 0);
+        case 4u: return ivec3(0, 0, 1);
+        case 5u: return ivec3(1, 0, 1);
+        case 6u: return ivec3(0, 1, 1);
+        case 7u: return ivec3(1, 1, 1);
+    }
+}
+
+ivec2 getBilinearRayOffset(uint _idx)
+{
+    _idx = clamp(_idx, 0u, 4u);
+    switch (_idx)
+    {
+        case 0u: return ivec2(0, 0);
+        case 1u: return ivec2(1, 0);
+        case 2u: return ivec2(0, 1);
+        case 3u: return ivec2(1, 1);
+    }
+} 
+
+struct ProbeSample
+{
+    ivec3 baseIdx;
+    vec3 ratio;
+};
+
+ProbeSample getNextLvProbeIdx(vec3 _pervProbeIdx)
+{
+    vec3 nextIdx = _pervProbeIdx / 2.f;
+
+    ProbeSample samp;
+    samp.baseIdx = ivec3(floor(nextIdx));
+    samp.ratio = fract(nextIdx);
+
+    return samp;
+}
 
 void main()
 {
     ivec3 di = ivec3(gl_GlobalInvocationID.xyz);
     uint raySideCount = data.ray_sideCount;
     uint probeSideCount = data.probe_sideCount;
+    uint lv = data.lv;
+    uint layer = di.z;
 
     if (RAY_PRIME)
     {
-        imageStore(out_merged_rc, ivec3(di.xyz), vec4(1.f));
+        // sample 8 probes for each ray, weighted average
+        // but for 2 types of idx, there's are 2 different ways to sample (with optimize) to take advantage of hardware bilinear filtering
+        // 1. probe idx:
+        //   neighboring texels are 2x2 of near rays
+        // 2. ray idx:
+        //      neighboring texels are 2x2 of near probes
+        //      but it still requires bilinear filtering for cross layers, maybe 3D texture would help
+        ivec2 rayIdx = ivec2(0u);
+        ivec2 probeIdx = ivec2(0u);
+
+        ivec2 c0_rayIdx = ivec2(0u);
+        ivec2 c0_probeIdx = ivec2(0u);
+        switch (data.idxType) { 
+            case 0: // probe idx
+                probeIdx = ivec2(di.xy / raySideCount);
+                rayIdx = ivec2(di.xy % raySideCount);
+                c0_probeIdx = ivec2(di.xy / data.c0_raySideCount);
+                c0_rayIdx = ivec2(di.xy % data.c0_raySideCount);
+                break;
+            case 1: // ray idx
+                probeIdx = ivec2(di.xy % probeSideCount);
+                rayIdx = ivec2(di.xy / probeSideCount);
+                c0_probeIdx = ivec2(di.xy % data.c0_probeSideCount);
+                c0_rayIdx = ivec2(di.xy / data.c0_probeSideCount);
+                break;
+        }
+
+        ivec2 currTexelPos = getRCTexelPos(data.idxType, raySideCount, probeSideCount, probeIdx, rayIdx);
+        uint layerIdx = data.offset + layer;
+        vec2 uv0 = vec2(currTexelPos) / float(probeSideCount * raySideCount); // 0-1 range
+        vec4 radiance0 = vec4(0.f);
+
+        radiance0 = texture(in_rc, vec3(uv0, layerIdx));  // current lv would always use the in_rc value;
+
+        uint nextProbeSideCount = probeSideCount >> 1;
+        uint nextRaySideCount = raySideCount * 2;
+        ProbeSample probe_samp = getNextLvProbeIdx(vec3(vec2(probeIdx), float(layerIdx)));
+
+        
+        vec4 c = vec4(0.0f);
+        switch (lv)
+        { 
+            case 0:
+                c = vec4(1.0f, 0.f, 0.f, 1.f);
+                break;
+            case 1:
+                c = vec4(0.0f, 1.f, 0.f, 1.f);
+                break;
+            case 2:
+                c = vec4(0.0f, 0.f, 1.f, 1.f);
+                break;
+            case 3:
+                c = vec4(0.5f, 0.f, 1.f, 1.f);
+                break;
+            case 4:
+                c = vec4(1.0f, 1.f, 0.f, 1.f);
+                break;
+            case 5:
+                c = vec4(0.f, 1.f, 1.f, 1.f);
+                break;
+        }
+        
+
+        switch (data.idxType)
+        {
+            case 0: 
+                // probe idx
+                // neighboring texels are 2x2 of near rays
+                // simply use bilinear filtering for 4 rays in one probe, and sperate sample between 8 probes
+
+                // for 8 porbes of next level of cascade
+
+                ivec2 nextTexelPos = ivec2(0u);
+                for (uint ii = 0; ii < 8; ++ii)
+                {
+                    ivec3 offset = getTrilinearProbeOffset(ii);
+                    nextTexelPos = getRCTexelPos(data.idxType, nextRaySideCount, nextProbeSideCount, probe_samp.baseIdx.xy + offset.xy, rayIdx);
+
+                    vec2 uv = vec2(nextTexelPos) / float(probeSideCount * raySideCount);
+
+                    vec4 radianceN_1 = c;// texture(in_merged_rc, vec3(uv, layerIdx + probeSideCount));
+
+                    radiance0 += radianceN_1 * 0.125;
+                }
+
+                break;
+            case 1: 
+                // ray idx
+                // neighboring texels are 2x2 of near probes
+                // but it still requires bilinear filtering for cross layers, maybe 3D texture would help
+                // simply use bilinear filtering 4 probes in one ray grid, and between 2 layers
+                // then 4 times for 4 ray grid
+                // for 2 layers
+                //      for 4 ray grid
+
+                for (uint ii = 0; ii < 8; ++ii)
+                {
+                    ivec3 offset = getTrilinearProbeOffset(ii);
+                    currTexelPos = getRCTexelPos(data.idxType, nextRaySideCount, nextProbeSideCount, probe_samp.baseIdx.xy + offset.xy, rayIdx);
+                    vec2 uv = vec2(nextTexelPos) / float(probeSideCount * raySideCount);
+                    vec4 radianceN_1 = c; //texture(in_merged_rc, vec3(uv, layerIdx + probeSideCount + ii / 4));
+
+                    radiance0 += radianceN_1 * 0.125;
+                }
+
+                break;
+        }
+
+
+        imageStore(merged_rc, ivec3(currTexelPos, layerIdx), radiance0);
     }
     else
     {
@@ -47,7 +208,7 @@ void main()
             {
                 vec2 texelPos = getRCTexelPos(0, raySideCount, probeSideCount, di.xy, ivec2(ww, hh));
 
-                vec4 radiance = imageLoad(in_rc, ivec3(texelPos, di.z));
+                vec4 radiance = texture(in_rc, vec3(texelPos, di.z));
 
                 if (radiance.w < EPSILON)
                     continue;
@@ -57,6 +218,6 @@ void main()
         }
 
         mergedRadiance /= float(raySideCount * raySideCount);
-        imageStore(out_merged_rc, ivec3(di.xyz), mergedRadiance);
+        imageStore(merged_rc, ivec3(di.xyz), mergedRadiance);
     }
 }

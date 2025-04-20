@@ -263,7 +263,12 @@ struct alignas(16) RCMergeData
     uint32_t probe_sideCount;
     uint32_t ray_gridSideCount;
     uint32_t lv;
+    uint32_t startLv;
     uint32_t idxType;
+    uint32_t offset;
+
+    uint32_t c0_probeSideCount;
+    uint32_t c0_raySideCount;
 };
 
 
@@ -288,19 +293,16 @@ void prepareRCMerge(RadianceCascadeMerge& _rc, const RCMergeInit& _init, bool _r
 
     kage::PassHandle pass = kage::registPass(name, passDesc);
 
-    
     uint32_t lvFactor = uint32_t(1 << _init.currCas);
     uint32_t probSideCnt = kage::k_rclv0_probeSideCount / lvFactor;
     uint32_t pixSideCnt = kage::k_rclv0_probeSideCount * kage::k_rclv0_rayGridSideCount;
-
     uint32_t resolution = _rayPrime ? pixSideCnt : probSideCnt;
-
 
     const char* imgName = _rayPrime ? "merged_cascade_ray" : "merged_cascade_probe";
     kage::ImageDesc mergedImgDesc{};
     mergedImgDesc.width = resolution;
     mergedImgDesc.height = resolution;
-    mergedImgDesc.numLayers = resolution;
+    mergedImgDesc.numLayers = probSideCnt * 2;
     mergedImgDesc.format = kage::ResourceFormat::r8g8b8a8_unorm;
     mergedImgDesc.depth = 1;
     mergedImgDesc.numMips = 1;
@@ -312,9 +314,10 @@ void prepareRCMerge(RadianceCascadeMerge& _rc, const RCMergeInit& _init, bool _r
 
     kage::ImageHandle mergedCasAlias = kage::alias(mergedCas);
 
+
     kage::bindImage(pass, mergedCas
         , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_write
+        , kage::AccessFlagBits::shader_write | kage::AccessFlagBits::shader_read
         , kage::ImageLayout::general
         , mergedCasAlias
     );
@@ -327,10 +330,20 @@ void prepareRCMerge(RadianceCascadeMerge& _rc, const RCMergeInit& _init, bool _r
         , kage::SamplerReductionMode::weighted_average
     );
 
-    kage::bindImage(pass, _init.radianceCascade
+    kage::SamplerHandle rcSamp = kage::sampleImage(pass, _init.radianceCascade
         , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read
-        , kage::ImageLayout::general
+        , kage::SamplerFilter::linear
+        , kage::SamplerMipmapMode::linear
+        , kage::SamplerAddressMode::clamp_to_edge
+        , kage::SamplerReductionMode::min
+    );
+
+    kage::SamplerHandle scratchSamp = kage::sampleImage(pass, mergedCas
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::SamplerFilter::linear
+        , kage::SamplerMipmapMode::nearest
+        , kage::SamplerAddressMode::clamp_to_edge
+        , kage::SamplerReductionMode::min
     );
 
     _rc.pass = pass;
@@ -340,6 +353,9 @@ void prepareRCMerge(RadianceCascadeMerge& _rc, const RCMergeInit& _init, bool _r
     _rc.skybox = _init.skybox;
     _rc.skySampler = skySamp;
     _rc.radianceCascade = _init.radianceCascade;
+    _rc.rcSampler = rcSamp;
+
+    _rc.mergedSampler = scratchSamp;
 
     _rc.mergedCascade = mergedCas;
     _rc.mergedCascadesAlias = mergedCasAlias;
@@ -367,30 +383,52 @@ void recRCMerge(const RadianceCascadeMerge& _rc, const Dbg_RadianceCascades& _db
 {
     kage::startRec(_rc.pass);
 
-    uint32_t lvFactor = uint32_t(1 << _rc.currLv);
-    uint32_t probSideCnt = kage::k_rclv0_probeSideCount / lvFactor;
-    uint32_t raySideCnt = kage::k_rclv0_rayGridSideCount * lvFactor;
-    uint32_t resolution = _rc.rayPrime ? probSideCnt * raySideCnt : probSideCnt;
+    uint32_t startLv = _rc.currLv;
+    uint32_t endLv = _rc.rayPrime ? glm::max(startLv, _dbg.endCascade) : _rc.currLv;
 
-    RCMergeData data;
-    data.probe_sideCount = probSideCnt;
-    data.ray_gridSideCount = raySideCnt;
-    data.lv = _rc.currLv;
+    uint32_t offsets[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+    uint32_t offset = 0u;
+    for (int ii = 0; ii < 8; ++ii) {
+        offsets[ii] = offset;
+        offset += kage::k_rclv0_probeSideCount >> ii;
+    }
 
-    const kage::Memory* mem = kage::alloc(sizeof(RCMergeData));
-    memcpy(mem->data, &data, mem->size);
+    // for ray prime: https://mini.gmshaders.com/p/radiance-cascades
+    // there would be nearly 4(next lv ray dir) * 8(next lv probes) = 32 samples
+    for (uint32_t ii = endLv + 1; ii > startLv ; --ii)
+    {
+        uint32_t lv = ii - 1;
+        uint32_t lvFactor = uint32_t(1 << lv);
+        uint32_t probSideCnt = kage::k_rclv0_probeSideCount / lvFactor;
+        uint32_t raySideCnt = kage::k_rclv0_rayGridSideCount * lvFactor;
+        uint32_t resolution_xy = _rc.rayPrime ? probSideCnt * raySideCnt : probSideCnt;
+
+        RCMergeData data;
+        data.probe_sideCount = probSideCnt;
+        data.ray_gridSideCount = raySideCnt;
+        data.lv = lv;
+        data.startLv = startLv;
+        data.idxType = _dbg.idx_type;
+        data.offset = offsets[lv];
+        data.c0_probeSideCount = kage::k_rclv0_probeSideCount;
+        data.c0_raySideCount = kage::k_rclv0_rayGridSideCount;
+
+        const kage::Memory* mem = kage::alloc(sizeof(RCMergeData));
+        memcpy(mem->data, &data, mem->size);
+
+        kage::setConstants(mem);
         
-    kage::setConstants(mem);
+        kage::Binding binds[] = {
+            {_rc.skybox,            _rc.skySampler,     Stage::compute_shader},
+            {_rc.radianceCascade,   _rc.rcSampler,      Stage::compute_shader},
+            {_rc.mergedCascade,     _rc.mergedSampler,  Stage::compute_shader}, // next cas lv
+            {_rc.mergedCascade,     0,                  Stage::compute_shader}, // current lv
+        };
 
-    kage::Binding binds[] = {
-        {_rc.skybox,            _rc.skySampler,     Stage::compute_shader},
-        {_rc.radianceCascade,   0,                  Stage::compute_shader},
-        {_rc.mergedCascade,     0,                  Stage::compute_shader},
-    };
+        kage::pushBindings(binds, COUNTOF(binds));
 
-    kage::pushBindings(binds, COUNTOF(binds));
-
-    kage::dispatch(resolution, resolution, resolution);
+        kage::dispatch(resolution_xy, resolution_xy, probSideCnt);
+    }
 
     kage::endRec();
 }
