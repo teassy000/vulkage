@@ -17,7 +17,8 @@ struct RadianceCascadesConfig
 
     float cx, cy, cz;
 
-    float   rayLength;
+    float   rayEndLength;
+    float   rayStartLength;
     float   probeSideLen;
     float   radius;
 
@@ -37,8 +38,9 @@ struct RCMergeData
 {
     uint probe_sideCount;
     uint ray_sideCount;
-    uint lv;
+    uint currLv;
     uint startLv;
+    uint endLv;
     uint idxType;
     uint offset;
 
@@ -296,4 +298,13 @@ ivec2 getRCTexelPos(uint _idxType, uint _raySideCount, uint _probSideCount, ivec
     }
 
     return texelPos;
+}
+
+ivec3 getNextLvProbeIdx(ivec3 _probeIdx, uint _probeSideCount, ivec3 _subOffset)
+{
+    ivec3 nextIdx = _probeIdx / 2;
+    nextIdx += _subOffset;
+
+    nextIdx = clamp(nextIdx, ivec3(0), ivec3((_probeSideCount / 2) - 1));
+    return nextIdx;
 }

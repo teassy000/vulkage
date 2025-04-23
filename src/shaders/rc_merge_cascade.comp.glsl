@@ -9,6 +9,8 @@
 #include "rc_common.h"
 #include "debug_gpu.h"
 
+#define DEBUG_LEVELS 0
+
 // there's 2 types of merge:
 // 1. merge all cascades into the level 0, can be understood as merge rays along the ray direction, cross all cascades
 // 2. merge each probe(cascade interval) into 1 texel, which can be treated as a LoD of the level 0
@@ -64,7 +66,7 @@ struct ProbeSample
     vec3 ratio;
 };
 
-ProbeSample getNextLvProbeIdx(vec3 _pervProbeIdx)
+ProbeSample getNextLvProbeIdx(vec3 _pervProbeIdx, uint _probeCount, uint _offset)
 {
     vec3 nextIdx = _pervProbeIdx / 2.f;
 
@@ -75,12 +77,43 @@ ProbeSample getNextLvProbeIdx(vec3 _pervProbeIdx)
     return samp;
 }
 
+vec4 getDebugLvColor(uint _lv)
+{
+    vec4 c = vec4(0.0f);
+    switch (_lv)
+    {
+        case 0:
+            c = vec4(1.0f, 0.f, 0.f, 1.f);
+            break;
+        case 1:
+            c = vec4(0.0f, 1.f, 0.f, 1.f);
+            break;
+        case 2:
+            c = vec4(0.0f, 0.f, 1.f, 1.f);
+            break;
+        case 3:
+            c = vec4(0.5f, 0.f, 1.f, 1.f);
+            break;
+        case 4:
+            c = vec4(1.0f, 1.f, 0.f, 1.f);
+            break;
+        case 5:
+            c = vec4(0.f, 1.f, 1.f, 1.f);
+            break;
+        case 6:
+            c = vec4(1.f, 0.f, 1.f, 1.f);
+            break;
+    }
+    return c;
+}
+
+
 void main()
 {
     ivec3 di = ivec3(gl_GlobalInvocationID.xyz);
     uint raySideCount = data.ray_sideCount;
     uint probeSideCount = data.probe_sideCount;
-    uint lv = data.lv;
+    uint currLv = data.currLv;
     uint layer = di.z;
 
     if (RAY_PRIME)
@@ -117,37 +150,18 @@ void main()
         vec2 uv0 = vec2(currTexelPos) / float(probeSideCount * raySideCount); // 0-1 range
         vec4 radiance0 = vec4(0.f);
 
-        radiance0 = texture(in_rc, vec3(uv0, layerIdx));  // current lv would always use the in_rc value;
+#if DEBUG_LEVELS
+        radiance0 = getDebugLvColor(currLv);
+#else
+        radiance0 = texture(in_rc, vec3(uv0, layerIdx));  // current currLv would always use the in_rc value;
+#endif
+
+        ProbeSample probe_samp = getNextLvProbeIdx(vec3(vec2(probeIdx), float(layer)), probeSideCount, data.offset);
+
+
 
         uint nextProbeSideCount = probeSideCount >> 1;
         uint nextRaySideCount = raySideCount * 2;
-        ProbeSample probe_samp = getNextLvProbeIdx(vec3(vec2(probeIdx), float(layerIdx)));
-
-        
-        vec4 c = vec4(0.0f);
-        switch (lv)
-        { 
-            case 0:
-                c = vec4(1.0f, 0.f, 0.f, 1.f);
-                break;
-            case 1:
-                c = vec4(0.0f, 1.f, 0.f, 1.f);
-                break;
-            case 2:
-                c = vec4(0.0f, 0.f, 1.f, 1.f);
-                break;
-            case 3:
-                c = vec4(0.5f, 0.f, 1.f, 1.f);
-                break;
-            case 4:
-                c = vec4(1.0f, 1.f, 0.f, 1.f);
-                break;
-            case 5:
-                c = vec4(0.f, 1.f, 1.f, 1.f);
-                break;
-        }
-        
-
         switch (data.idxType)
         {
             case 0: 
@@ -156,7 +170,6 @@ void main()
                 // simply use bilinear filtering for 4 rays in one probe, and sperate sample between 8 probes
 
                 // for 8 porbes of next level of cascade
-
                 ivec2 nextTexelPos = ivec2(0u);
                 for (uint ii = 0; ii < 8; ++ii)
                 {
@@ -164,8 +177,16 @@ void main()
                     nextTexelPos = getRCTexelPos(data.idxType, nextRaySideCount, nextProbeSideCount, probe_samp.baseIdx.xy + offset.xy, rayIdx);
 
                     vec2 uv = vec2(nextTexelPos) / float(probeSideCount * raySideCount);
+                    ivec3 nextLvProbeIdx = getNextLvProbeIdx(di, probeSideCount, offset);
+                    uint nextLvLayerIdx = nextLvProbeIdx.z + data.offset + probeSideCount;
 
-                    vec4 radianceN_1 = c;// texture(in_merged_rc, vec3(uv, layerIdx + probeSideCount));
+                    vec4 radianceN_1 = texture(in_merged_rc, vec3(uv, nextLvLayerIdx));
+#if DEBUG_LEVELS
+                    if (currLv == data.endLv - 1)
+                    {
+                        radianceN_1 = getDebugLvColor(currLv + 1) - vec4(0.05);
+                    }
+#endif // DEBUG_LEVELS
 
                     radiance0 += radianceN_1 * 0.125;
                 }
@@ -185,14 +206,22 @@ void main()
                     ivec3 offset = getTrilinearProbeOffset(ii);
                     currTexelPos = getRCTexelPos(data.idxType, nextRaySideCount, nextProbeSideCount, probe_samp.baseIdx.xy + offset.xy, rayIdx);
                     vec2 uv = vec2(nextTexelPos) / float(probeSideCount * raySideCount);
-                    vec4 radianceN_1 = c; //texture(in_merged_rc, vec3(uv, layerIdx + probeSideCount + ii / 4));
+
+                    ivec3 nextLvProbeIdx = getNextLvProbeIdx(di, probeSideCount, offset);
+                    uint nextLvLayerIdx = nextLvProbeIdx.z + data.offset + probeSideCount;
+                    vec4 radianceN_1 = texture(in_merged_rc, vec3(uv, nextLvLayerIdx));
+#if DEBUG_LEVELS
+                    if (currLv == data.endLv - 1)
+                    {
+                        radianceN_1 = getDebugLvColor(currLv + 1) - vec4(0.05);
+                    }
+#endif // DEBUG_LEVELS
 
                     radiance0 += radianceN_1 * 0.125;
                 }
 
                 break;
         }
-
 
         imageStore(merged_rc, ivec3(currTexelPos, layerIdx), radiance0);
     }

@@ -146,14 +146,15 @@ void main()
     
     uv = uv * 2.f - 1.f; // to [-1.f, 1.f]
     const vec3 seg_dir = normalize(oct_to_float32x3(uv));
-    const float seg_len = config.rayLength;
+    const float seg_end = config.rayEndLength;
+    const float seg_start = config.rayStartLength;
 
     // ffx traverse
     FfxBrixelizerRayDesc ffx_ray;
     ffx_ray.start_cascade_id = config.brx_startCas + config.brx_offset;
     ffx_ray.end_cascade_id = config.brx_endCas + config.brx_offset;
-    ffx_ray.t_min = config.brx_tmin;
-    ffx_ray.t_max = seg_len;//config.brx_tmax
+    ffx_ray.t_min = seg_start;  // config.brx_tmin;
+    ffx_ray.t_max = seg_end;        // config.brx_tmax
     ffx_ray.origin = seg_origin;
     ffx_ray.direction = seg_dir;
 

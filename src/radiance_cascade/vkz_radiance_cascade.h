@@ -38,7 +38,8 @@ struct alignas(16) RadianceCascadesConfig
 
     float cx, cy, cz;
 
-    float       rayLength;
+    float       rayEndLength;
+    float       rayStartLength;
     float       probeSideLen;
     float       radius;
 
