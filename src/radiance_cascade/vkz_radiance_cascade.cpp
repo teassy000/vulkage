@@ -433,8 +433,9 @@ void recRCMerge(const RadianceCascadeMerge& _rc, const Dbg_RadianceCascades& _db
         
         // should sample the original cascades for the [endLv - 1]. The merged cascade
         // Also, using sampler istead of bind image directly is to take advantage of the hardware bilinear sampling
-        kage::ImageHandle accessImg = (lv == endLv - 1) ? _rc.radianceCascade : _rc.mergedCascade;
-        kage::SamplerHandle accessSamp = (lv == endLv - 1) ? _rc.rcSampler : _rc.mergedSampler;
+        bool useOriginalCas = _rc.rayPrime && (lv == endLv - 1);
+        kage::ImageHandle accessImg = useOriginalCas ? _rc.radianceCascade : _rc.mergedCascade;
+        kage::SamplerHandle accessSamp = useOriginalCas ? _rc.rcSampler : _rc.mergedSampler;
 
         kage::Binding binds[] = {
             {_rc.skybox,            _rc.skySampler,     Stage::compute_shader},

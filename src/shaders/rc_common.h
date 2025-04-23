@@ -300,11 +300,11 @@ ivec2 getRCTexelPos(uint _idxType, uint _raySideCount, uint _probSideCount, ivec
     return texelPos;
 }
 
-ivec3 getNextLvProbeIdx(ivec3 _probeIdx, uint _probeSideCount, ivec3 _subOffset)
+ivec3 getNextLvProbeIdx(ivec3 _probeIdx, uint _nxtProbeSideCnt, ivec3 _subOffset)
 {
     ivec3 nextIdx = _probeIdx / 2;
     nextIdx += _subOffset;
 
-    nextIdx = clamp(nextIdx, ivec3(0), ivec3((_probeSideCount / 2) - 1));
+    nextIdx = clamp(nextIdx, ivec3(0), ivec3(_nxtProbeSideCnt - 1));
     return nextIdx;
 }

@@ -66,13 +66,47 @@ struct ProbeSample
     vec3 ratio;
 };
 
-ProbeSample getNextLvProbeIdx(vec3 _pervProbeIdx, uint _probeCount, uint _offset)
+void trilinearWeights(vec3 _ratio, out float _weights[8] )
 {
-    vec3 nextIdx = _pervProbeIdx / 2.f;
+    _weights[0] = (1.0 - _ratio.x) * (1.0 - _ratio.y) * (1.0 - _ratio.z);
+    _weights[1] =  _ratio.x * (1.0 - _ratio.y) * (1.0 - _ratio.z);
+    _weights[2] = (1.0 - _ratio.x) * _ratio.y * (1.0 - _ratio.z);
+    _weights[3] = _ratio.x* _ratio.y * (1.0 - _ratio.z);
+    _weights[4] = (1.0 - _ratio.x) * (1.0 - _ratio.y) * _ratio.z;
+    _weights[5] = _ratio.x * (1.0 - _ratio.y) * _ratio.z;
+    _weights[6] = (1.0 - _ratio.x) * _ratio.y * _ratio.z;
+    _weights[7] = _ratio.x * _ratio.y * _ratio.z;
+
+    // no need to normalize weights, because the sum of weights is 1.0
+    /*
+    // normalize weights
+    float sum = 0.0;
+    for (uint ii = 0; ii < 8; ++ii)
+    {
+        sum += _weights[ii];
+    }
+
+    sum = sum < EPSILON ? 1.0 : sum; // avoid divide by zero
+
+    for (uint ii = 0; ii < 8; ++ii)
+    {
+        _weights[ii] /= sum;
+    }
+    */
+}
+
+// find the index of current probe in the 8 * 8 * 8 grid
+ProbeSample getProbeNextLvSamp(ivec3 _probeIdx)
+{
+    // get the probe index in the 8 * 8 * 8 grid
+    ivec3 nextIdx = _probeIdx / 2;
+    ivec3 probeIdx = _probeIdx - nextIdx * 2;
+
+    float step = 1.f / 8.f;
 
     ProbeSample samp;
-    samp.baseIdx = ivec3(floor(nextIdx));
-    samp.ratio = fract(nextIdx);
+    samp.baseIdx = nextIdx;
+    samp.ratio = step * (probeIdx + 1);
 
     return samp;
 }
@@ -147,7 +181,7 @@ void main()
 
         ivec2 currTexelPos = getRCTexelPos(data.idxType, raySideCount, probeSideCount, probeIdx, rayIdx);
         uint layerIdx = data.offset + layer;
-        vec2 uv0 = vec2(currTexelPos) / float(probeSideCount * raySideCount); // 0-1 range
+        vec2 uv0 = vec2(currTexelPos + .5f) / float(probeSideCount * raySideCount); // 0-1 range
         vec4 radiance0 = vec4(0.f);
 
 #if DEBUG_LEVELS
@@ -156,9 +190,12 @@ void main()
         radiance0 = texture(in_rc, vec3(uv0, layerIdx));  // current currLv would always use the in_rc value;
 #endif
 
-        ProbeSample probe_samp = getNextLvProbeIdx(vec3(vec2(probeIdx), float(layer)), probeSideCount, data.offset);
+        ProbeSample probe_samp = getProbeNextLvSamp(ivec3(probeIdx.xy, float(layer)));
 
+        vec4 colors[8];
+        float weights[8];
 
+        trilinearWeights(probe_samp.ratio, weights);
 
         uint nextProbeSideCount = probeSideCount >> 1;
         uint nextRaySideCount = raySideCount * 2;
@@ -176,8 +213,8 @@ void main()
                     ivec3 offset = getTrilinearProbeOffset(ii);
                     nextTexelPos = getRCTexelPos(data.idxType, nextRaySideCount, nextProbeSideCount, probe_samp.baseIdx.xy + offset.xy, rayIdx);
 
-                    vec2 uv = vec2(nextTexelPos) / float(probeSideCount * raySideCount);
-                    ivec3 nextLvProbeIdx = getNextLvProbeIdx(di, probeSideCount, offset);
+                    vec2 uv = vec2(nextTexelPos + .5f) / float(probeSideCount * raySideCount);
+                    ivec3 nextLvProbeIdx = getNextLvProbeIdx(di, nextProbeSideCount, offset);
                     uint nextLvLayerIdx = nextLvProbeIdx.z + data.offset + probeSideCount;
 
                     vec4 radianceN_1 = texture(in_merged_rc, vec3(uv, nextLvLayerIdx));
@@ -188,11 +225,11 @@ void main()
                     }
 #endif // DEBUG_LEVELS
 
-                    radiance0 += radianceN_1 * 0.125;
+                    radiance0 += radianceN_1 * weights[ii];
                 }
 
                 break;
-            case 1: 
+            case 1:
                 // ray idx
                 // neighboring texels are 2x2 of near probes
                 // but it still requires bilinear filtering for cross layers, maybe 3D texture would help
@@ -200,16 +237,17 @@ void main()
                 // then 4 times for 4 ray grid
                 // for 2 layers
                 //      for 4 ray grid
-
                 for (uint ii = 0; ii < 8; ++ii)
                 {
                     ivec3 offset = getTrilinearProbeOffset(ii);
                     currTexelPos = getRCTexelPos(data.idxType, nextRaySideCount, nextProbeSideCount, probe_samp.baseIdx.xy + offset.xy, rayIdx);
-                    vec2 uv = vec2(nextTexelPos) / float(probeSideCount * raySideCount);
+                    vec2 uv = vec2(nextTexelPos + .5f) / float(probeSideCount * raySideCount);
 
-                    ivec3 nextLvProbeIdx = getNextLvProbeIdx(di, probeSideCount, offset);
+                    ivec3 nextLvProbeIdx = getNextLvProbeIdx(di, nextProbeSideCount, offset);
                     uint nextLvLayerIdx = nextLvProbeIdx.z + data.offset + probeSideCount;
                     vec4 radianceN_1 = texture(in_merged_rc, vec3(uv, nextLvLayerIdx));
+                    colors[ii] = radianceN_1;
+                    
 #if DEBUG_LEVELS
                     if (currLv == data.endLv - 1)
                     {
@@ -217,7 +255,7 @@ void main()
                     }
 #endif // DEBUG_LEVELS
 
-                    radiance0 += radianceN_1 * 0.125;
+                    radiance0 += radianceN_1 * weights[ii];
                 }
 
                 break;
@@ -230,23 +268,25 @@ void main()
         if (di.x >= probeSideCount || di.y >= probeSideCount || di.z >= probeSideCount)
             return;
 
-        vec4 mergedRadiance = vec4(0.f);
+        vec4 mergedRadiance = vec4(0.f, 0.f, 0.f, 1.f);
         for (uint hh = 0; hh < raySideCount; ++hh)
         {
             for (uint ww = 0; ww < raySideCount; ++ww)
             {
-                vec2 texelPos = getRCTexelPos(0, raySideCount, probeSideCount, di.xy, ivec2(ww, hh));
+                vec2 texelPos = getRCTexelPos(data.idxType, raySideCount, probeSideCount, di.xy, ivec2(ww, hh));
 
-                vec4 radiance = texture(in_rc, vec3(texelPos, di.z));
+                vec2 uv = vec2(texelPos + .5f) / float(probeSideCount * raySideCount);
+                vec4 radiance = texture(in_rc, vec3(uv.xy, di.z));
 
                 if (radiance.w < EPSILON)
                     continue;
 
-                mergedRadiance += radiance;
+                mergedRadiance.xyz += radiance.xyz;
             }
         }
 
         mergedRadiance /= float(raySideCount * raySideCount);
+
         imageStore(merged_rc, ivec3(di.xyz), mergedRadiance);
     }
 }
