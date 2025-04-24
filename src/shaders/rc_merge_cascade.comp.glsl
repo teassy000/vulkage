@@ -207,11 +207,10 @@ void main()
                 // simply use bilinear filtering for 4 rays in one probe, and sperate sample between 8 probes
 
                 // for 8 porbes of next level of cascade
-                ivec2 nextTexelPos = ivec2(0u);
                 for (uint ii = 0; ii < 8; ++ii)
                 {
                     ivec3 offset = getTrilinearProbeOffset(ii);
-                    nextTexelPos = getRCTexelPos(data.idxType, nextRaySideCount, nextProbeSideCount, probe_samp.baseIdx.xy + offset.xy, rayIdx);
+                    ivec2 nextTexelPos = getRCTexelPos(data.idxType, nextRaySideCount, nextProbeSideCount, probe_samp.baseIdx.xy + offset.xy, rayIdx);
 
                     vec2 uv = vec2(nextTexelPos + .5f) / float(probeSideCount * raySideCount);
                     ivec3 nextLvProbeIdx = getNextLvProbeIdx(di, nextProbeSideCount, offset);
@@ -226,6 +225,7 @@ void main()
 #endif // DEBUG_LEVELS
 
                     radiance0 += radianceN_1 * weights[ii];
+                    MergeIntervals(radiance0, radianceN_1);
                 }
 
                 break;
@@ -240,14 +240,12 @@ void main()
                 for (uint ii = 0; ii < 8; ++ii)
                 {
                     ivec3 offset = getTrilinearProbeOffset(ii);
-                    currTexelPos = getRCTexelPos(data.idxType, nextRaySideCount, nextProbeSideCount, probe_samp.baseIdx.xy + offset.xy, rayIdx);
+                    ivec2 nextTexelPos = getRCTexelPos(data.idxType, nextRaySideCount, nextProbeSideCount, probe_samp.baseIdx.xy + offset.xy, rayIdx);
                     vec2 uv = vec2(nextTexelPos + .5f) / float(probeSideCount * raySideCount);
 
                     ivec3 nextLvProbeIdx = getNextLvProbeIdx(di, nextProbeSideCount, offset);
                     uint nextLvLayerIdx = nextLvProbeIdx.z + data.offset + probeSideCount;
                     vec4 radianceN_1 = texture(in_merged_rc, vec3(uv, nextLvLayerIdx));
-                    colors[ii] = radianceN_1;
-                    
 #if DEBUG_LEVELS
                     if (currLv == data.endLv - 1)
                     {
