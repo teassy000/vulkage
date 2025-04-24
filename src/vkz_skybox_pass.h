@@ -22,10 +22,9 @@ struct Skybox
     kage::ImageHandle colorOutAlias;
 };
 
-void initSkyboxPass(
-    Skybox& _skybox
+void initSkyboxPass(Skybox& _skybox
     , const kage::BufferHandle _trans
-    , const kage::ImageHandle _color
+    , const kage::ImageHandle _color, const kage::ImageHandle _skycube
 );
 
 void updateSkybox(const Skybox& _skybox, uint32_t _w, uint32_t _h);

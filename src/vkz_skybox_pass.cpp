@@ -1,10 +1,9 @@
 
 #include "vkz_skybox_pass.h"
 #include "scene.h"
-#include "file_helper.h"
 #include "profiler.h"
 
-void initSkyboxPass(Skybox& _skybox, const kage::BufferHandle _trans, const kage::ImageHandle _color)
+void initSkyboxPass(Skybox& _skybox, const kage::BufferHandle _trans, const kage::ImageHandle _color, const kage::ImageHandle _skycube)
 {
     // shader
     kage::ShaderHandle vs = kage::registShader("skybox_vert_shader", "shaders/skybox.vert.spv");
@@ -68,7 +67,7 @@ void initSkyboxPass(Skybox& _skybox, const kage::BufferHandle _trans, const kage
 
 
     // load texture 
-    kage::ImageHandle cubemap = loadImageFromFile("skybox_tex", "./data/textures/cubemap_vulkan.ktx");
+
     kage::ImageHandle outColor = kage::alias(_color);
 
     kage::bindVertexBuffer(pass, vtxBuf);
@@ -79,12 +78,12 @@ void initSkyboxPass(Skybox& _skybox, const kage::BufferHandle _trans, const kage
         , kage::AccessFlagBits::shader_read
     );
 
-    _skybox.cubemapSampler = kage::sampleImage(pass, cubemap
+    _skybox.cubemapSampler = kage::sampleImage(pass, _skycube
         , kage::PipelineStageFlagBits::fragment_shader
-        , kage::SamplerFilter::nearest
-        , kage::SamplerMipmapMode::nearest
+        , kage::SamplerFilter::linear
+        , kage::SamplerMipmapMode::linear
         , kage::SamplerAddressMode::clamp_to_edge
-    , kage::SamplerReductionMode::weighted_average
+        , kage::SamplerReductionMode::weighted_average
     );
 
     kage::setAttachmentOutput(pass, _color, outColor);
@@ -98,7 +97,7 @@ void initSkyboxPass(Skybox& _skybox, const kage::BufferHandle _trans, const kage
     _skybox.ib = idxBuf;
 
     _skybox.color = _color;
-    _skybox.cubemap = cubemap;
+    _skybox.cubemap = _skycube;
     _skybox.trans = _trans;
 
     _skybox.colorOutAlias = outColor;

@@ -23,7 +23,7 @@ layout(push_constant) uniform block
 
 layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 
-layout(binding = 0) uniform sampler2D in_skybox;
+layout(binding = 0) uniform samplerCube in_skybox;
 layout(binding = 1) uniform sampler2DArray in_rc; // rc data
 layout(binding = 2) uniform sampler2DArray in_merged_rc; // intermediate data, which is merged [current level + 1] + [next level + 1] into the current level
 layout(binding = 3, RGBA8) uniform image2DArray merged_rc; // store the merged data
@@ -146,6 +146,34 @@ vec4 getDebugLvColor(uint _lv)
 }
 
 
+vec3 dirToCubemapUV(vec3 _dir)
+{
+    vec3 uv = vec3(0.f);
+    float absX = abs(_dir.x);
+    float absY = abs(_dir.y);
+    float absZ = abs(_dir.z);
+    if (absX >= absY && absX >= absZ)
+    {
+        uv.x = (_dir.x > 0.f) ? _dir.z : -_dir.z;
+        uv.y = _dir.y;
+        uv.z = _dir.x;
+    }
+    else if (absY >= absX && absY >= absZ)
+    {
+        uv.x = _dir.x;
+        uv.y = (_dir.y > 0.f) ? -_dir.z : _dir.z;
+        uv.z = _dir.y;
+    }
+    else
+    {
+        uv.x = _dir.x;
+        uv.y = _dir.y;
+        uv.z = (_dir.z > 0.f) ? -_dir.y : _dir.y;
+    }
+    return uv * .5f + .5f; // map to [0, 1]
+}
+
+
 void main()
 {
     ivec3 di = ivec3(gl_GlobalInvocationID.xyz);
@@ -203,6 +231,7 @@ void main()
 
         uint nextProbeSideCount = probeSideCount >> 1;
         uint nextRaySideCount = raySideCount * 2;
+        ivec2 nextRayIdx = rayIdx * 2;
 
         vec4 mergedRadiance = vec4(0.f);
 
@@ -226,9 +255,9 @@ void main()
         for (uint ii = 0; ii < 8; ++ii)
         {
             ivec3 offset = getTrilinearProbeOffset(ii);
-            ivec2 nextTexelPos = getRCTexelPos(data.idxType, nextRaySideCount, nextProbeSideCount, probe_samp.baseIdx.xy + offset.xy, rayIdx);
+            ivec2 nextTexelPos = getRCTexelPos(data.idxType, nextRaySideCount, nextProbeSideCount, probe_samp.baseIdx.xy + offset.xy, nextRayIdx);
 
-            vec2 uv = vec2(nextTexelPos + .5f) / float(probeSideCount * raySideCount);
+            vec2 uv = vec2(nextTexelPos + .5f) / float(nextProbeSideCount * nextRaySideCount);
             ivec3 nextLvProbeIdx = getNextLvProbeIdx(di, nextProbeSideCount, offset);
             uint nextLvLayerIdx = nextLvProbeIdx.z + data.offset + probeSideCount;
 
@@ -239,6 +268,14 @@ void main()
                 radianceN_1 = getDebugLvColor(currLv + 1) - vec4(0.05);
             }
 #endif // DEBUG_LEVELS
+
+            if (currLv == data.endLv - 1 && compare(radianceN_1.a, 1.f))
+            {
+                vec2 rayUV = (vec2(nextRayIdx) + .5f) / float(nextRaySideCount);
+                rayUV = rayUV * 2.f - 1.f; // to [-1.f, 1.f]
+                vec3 skyUV = dirToCubemapUV(oct_to_float32x3(rayUV));
+                radianceN_1 = texture(in_skybox, skyUV);
+            }
 
             mergedRadiance += mergeIntervals(radiance0, radianceN_1) * weights[ii];
         }

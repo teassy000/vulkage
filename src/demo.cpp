@@ -12,6 +12,7 @@
 #include "vkz_culling_pass.h"
 #include "time.h"
 #include "vkz_skybox_pass.h"
+#include "file_helper.h"
 
 #include "entry/entry.h"
 #include "bx/timer.h"
@@ -441,6 +442,10 @@ namespace
             }
 
             {
+                m_skybox_cube = loadImageFromFile("skybox_cubemap", "./data/textures/cubemap_vulkan.ktx");
+            }
+
+            {
                 m_gBuffer = createGBuffer();
             }
         }
@@ -465,8 +470,9 @@ namespace
 
             // skybox pass
             {
+
                 kage::ImageHandle sbColorIn = m_color;
-                initSkyboxPass(m_skybox, m_transformBuf, sbColorIn);
+                initSkyboxPass(m_skybox, m_transformBuf, sbColorIn, m_skybox_cube);
             }
 
             // draw early pass
@@ -638,7 +644,7 @@ namespace
                 rcInit.vtxBuf = m_vtxBuf;
                 rcInit.maxDrawCmdCount = (uint32_t)m_scene.meshDraws.size();
                 rcInit.bindless = m_bindlessArray;
-                rcInit.skybox = m_skybox.colorOutAlias;
+                rcInit.skybox = m_skybox_cube;
                 rcInit.currCas = glm::min(1u, glm::min(m_demoData.dbg_features.rcBuild.startCascade, m_demoData.dbg_features.rcBuild.endCascade));
 
                 memcpy(&rcInit.brx, &m_brixel.userReses, sizeof(BRX_UserResources));
@@ -787,6 +793,8 @@ namespace
         kage::BufferHandle m_meshletBuffer;
         kage::BufferHandle m_meshletDataBuffer;
         kage::BufferHandle m_transformBuf;
+
+        kage::ImageHandle m_skybox_cube;
 
         kage::BindlessHandle m_bindlessArray;
 

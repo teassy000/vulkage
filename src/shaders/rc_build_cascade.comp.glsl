@@ -35,7 +35,7 @@ layout(binding = 2) uniform sampler2D in_normal;
 layout(binding = 3) uniform sampler2D in_wPos;
 layout(binding = 4) uniform sampler2D in_emmision;
 layout(binding = 5) uniform sampler2D in_depth;
-layout(binding = 6) uniform sampler2D in_skybox;
+layout(binding = 6) uniform samplerCube in_skybox;
 
 layout(binding = 7, RGBA8) uniform writeonly image2DArray out_octProbAtlas;
 

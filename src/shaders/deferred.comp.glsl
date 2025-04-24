@@ -74,39 +74,33 @@ void main()
     vec3 rayDir = vec3(0.f);
 
     // locate the cascade based on the wpos
-    for (uint ii = consts.startCascade; ii <= consts.endCascade; ++ii)
-    {
-        const RCAccessData rcAccess = rcAccesses[ii];
-        uint prob_sideCount = rcAccess.probeSideCount;
-        uint ray_sideCount = rcAccess.raySideCount;
-        float prob_sideLen = rcAccess.probeSideLen;
-        uint layerOffset = rcAccess.layerOffset;
+    const uint currLv = consts.startCascade;
+    const RCAccessData rcAccess = rcAccesses[currLv];
+    uint prob_sideCount = rcAccess.probeSideCount;
+    uint ray_sideCount = rcAccess.raySideCount;
+    float prob_sideLen = rcAccess.probeSideLen;
+    uint layerOffset = rcAccess.layerOffset;
 
-        vec3 mappedPos = wPos - camPos + vec3(radius); // map to camera related pos then shift to [0, 2 * radius]
-        ivec3 probeIdx = ivec3(floor(mappedPos / prob_sideLen));
-        vec3 probeCenter = getCenterWorldPos(probeIdx, radius, prob_sideLen) + camPos; // probes follows the camera and in world space
-        vec3 rd = normalize(wPos.xyz - probeCenter);
+    vec3 mappedPos = wPos - camPos + vec3(radius); // map to camera related pos then shift to [0, 2 * radius]
+    ivec3 probeIdx = ivec3(floor(mappedPos / prob_sideLen));
+    vec3 probeCenter = getCenterWorldPos(probeIdx, radius, prob_sideLen) + camPos; // probes follows the camera and in world space
+    vec3 rd = normalize(wPos.xyz - probeCenter);
         
-        vec2 rayUV = float32x3_to_oct(rd);
-        rayUV = rayUV * .5f + .5f; // map octrahedral uv to [0, 1]
+    vec2 rayUV = float32x3_to_oct(rd);
+    rayUV = rayUV * .5f + .5f; // map octrahedral uv to [0, 1]
 
-        ivec2 rayIdx = ivec2(rayUV * float(ray_sideCount));
-        vec2 pixelIdx = getRCTexelPos(consts.debugIdxType, ray_sideCount, prob_sideCount, probeIdx.xy, rayIdx);
+    ivec2 rayIdx = ivec2(rayUV * float(ray_sideCount));
+    vec2 pixelIdx = getRCTexelPos(consts.debugIdxType, ray_sideCount, prob_sideCount, probeIdx.xy, rayIdx);
 
-        vec2 cascadeUV = (vec2(pixelIdx) + vec2(0.5f)) / float(prob_sideCount * ray_sideCount);
-        uint layerIdx = probeIdx.z + layerOffset;
+    vec2 cascadeUV = (vec2(pixelIdx) + vec2(0.5f)) / float(prob_sideCount * ray_sideCount);
 
-        vec4 rcc = texture(in_radianceCascade, vec3(cascadeUV, layerIdx));
-        if (!compare(rcc, vec4(0.f)))
-        {
-            rayCol = rcc;// rcc * (1.f / float(ii));
-            rayDir = rd;
-            break;
-        }
+    vec4 rcc = texture(in_rcMerged, vec3(cascadeUV, probeIdx.z));
+    {
+        rayCol = rcc;
+        rayDir = rd;
     }
 
-    
-    float lightIntensity = 1.0;
+    float lightIntensity = 4.0;
     float indirectIntensity = 0.32;
 
     float occlusion = specular.r;
@@ -115,7 +109,7 @@ void main()
     //vec3 baseColor = vec3(specular.r); // for env-test
     vec3 baseColor = albedo.rgb; // for bistor
 
-    vec3 lightColor = rayCol.xyz;//vec3(0.98, 0.92, 0.89);
+    vec3 lightColor = rayCol.rgb;//vec3(0.98, 0.92, 0.89);
 
     vec3 l = rayDir;//normalize(vec3(0.7, 1.0, 0.7)); // in world space, from surface to light source
     vec3 v = normalize(vec3(camPos - wPos)); // from surface to observer
@@ -148,22 +142,8 @@ void main()
     vec3 ibl = indirectDiffuse * diffuseColor;
     color += ibl * indirectIntensity;
 
-    // specular indirect
-    // ?
-    // image based lighting?
-
-    // diffuse occlusion
-    // sample baked oc
-
-    // specular occlusion
-    // sample baked oc
-
     color = Tonemap_ACES(color);
     color = OECF_sRGBFast(color);
-
-    //color = color * (1.0 - occlusion) + rayCol.rgb * occlusion;
-    //color = rayCol.rgb;
-    //color = Fr;
 
     if (albedo.a < 0.5 || normal.w < 0.02)
         color = sky.xyz;
