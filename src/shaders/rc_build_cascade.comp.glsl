@@ -240,6 +240,6 @@ void main()
             var = vec3(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255)) / 255.0;
             break;
     }
-    float hitvar = (hit || (config.debug_color_type >5)) ? 1.f : 0.f;
+    float hitvar = (hit || (config.debug_color_type >5)) ? 0.f : 1.f;
     imageStore(out_octProbAtlas, iuv, vec4(var, hitvar));
 }

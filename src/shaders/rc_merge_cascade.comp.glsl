@@ -28,7 +28,11 @@ layout(binding = 1) uniform sampler2DArray in_rc; // rc data
 layout(binding = 2) uniform sampler2DArray in_merged_rc; // intermediate data, which is merged [current level + 1] + [next level + 1] into the current level
 layout(binding = 3, RGBA8) uniform image2DArray merged_rc; // store the merged data
 
-vec4 MergeIntervals(vec4 _near, vec4 _far)
+
+// merge intervals based on the alpha channel
+// a = 0.0 means hitted
+// a = 1.0 means not hitted
+vec4 mergeIntervals(vec4 _near, vec4 _far)
 {
     return vec4(_near.rgb + _near.a * _far.rgb, _near.a * _far.a);
 }
@@ -236,10 +240,10 @@ void main()
             }
 #endif // DEBUG_LEVELS
 
-            mergedRadiance += MergeIntervals(radiance0, radianceN_1) * weights[ii];
+            mergedRadiance += mergeIntervals(radiance0, radianceN_1) * weights[ii];
         }
 
-        mergedRadiance /= 8.f;
+        //mergedRadiance /= 8.f;
 
         imageStore(merged_rc, ivec3(currTexelPos, layerIdx), mergedRadiance);
     }
