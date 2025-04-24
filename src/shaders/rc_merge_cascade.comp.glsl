@@ -199,67 +199,49 @@ void main()
 
         uint nextProbeSideCount = probeSideCount >> 1;
         uint nextRaySideCount = raySideCount * 2;
-        switch (data.idxType)
+
+        vec4 mergedRadiance = vec4(0.f);
+
+        // ==========================================================================================
+        // A === probe idx
+        // ==========================================================================================
+        // neighboring texels are 2x2 of near rays
+        // simply use bilinear filtering for 4 rays in one probe, and sperate sample between 8 probes
+        // for 8 porbes of next level of cascades
+        // ==========================================================================================
+        // B === ray idx
+        // ==========================================================================================
+        // neighboring texels are 2x2 of near probes
+        // but it still requires bilinear filtering for cross layers
+        // simply use bilinear filtering 4 probes in one ray grid, and between 2 layers
+        // then 4 times for 4 ray grid
+        // for 2 layers
+        //      for 4 ray grid
+        // thus using 8 samples for 2 layers
+        // ==========================================================================================
+        for (uint ii = 0; ii < 8; ++ii)
         {
-            case 0: 
-                // probe idx
-                // neighboring texels are 2x2 of near rays
-                // simply use bilinear filtering for 4 rays in one probe, and sperate sample between 8 probes
+            ivec3 offset = getTrilinearProbeOffset(ii);
+            ivec2 nextTexelPos = getRCTexelPos(data.idxType, nextRaySideCount, nextProbeSideCount, probe_samp.baseIdx.xy + offset.xy, rayIdx);
 
-                // for 8 porbes of next level of cascade
-                for (uint ii = 0; ii < 8; ++ii)
-                {
-                    ivec3 offset = getTrilinearProbeOffset(ii);
-                    ivec2 nextTexelPos = getRCTexelPos(data.idxType, nextRaySideCount, nextProbeSideCount, probe_samp.baseIdx.xy + offset.xy, rayIdx);
+            vec2 uv = vec2(nextTexelPos + .5f) / float(probeSideCount * raySideCount);
+            ivec3 nextLvProbeIdx = getNextLvProbeIdx(di, nextProbeSideCount, offset);
+            uint nextLvLayerIdx = nextLvProbeIdx.z + data.offset + probeSideCount;
 
-                    vec2 uv = vec2(nextTexelPos + .5f) / float(probeSideCount * raySideCount);
-                    ivec3 nextLvProbeIdx = getNextLvProbeIdx(di, nextProbeSideCount, offset);
-                    uint nextLvLayerIdx = nextLvProbeIdx.z + data.offset + probeSideCount;
-
-                    vec4 radianceN_1 = texture(in_merged_rc, vec3(uv, nextLvLayerIdx));
+            vec4 radianceN_1 = texture(in_merged_rc, vec3(uv, nextLvLayerIdx));
 #if DEBUG_LEVELS
-                    if (currLv == data.endLv - 1)
-                    {
-                        radianceN_1 = getDebugLvColor(currLv + 1) - vec4(0.05);
-                    }
+            if (currLv == data.endLv - 1)
+            {
+                radianceN_1 = getDebugLvColor(currLv + 1) - vec4(0.05);
+            }
 #endif // DEBUG_LEVELS
 
-                    radiance0 += radianceN_1 * weights[ii];
-                    MergeIntervals(radiance0, radianceN_1);
-                }
-
-                break;
-            case 1:
-                // ray idx
-                // neighboring texels are 2x2 of near probes
-                // but it still requires bilinear filtering for cross layers, maybe 3D texture would help
-                // simply use bilinear filtering 4 probes in one ray grid, and between 2 layers
-                // then 4 times for 4 ray grid
-                // for 2 layers
-                //      for 4 ray grid
-                for (uint ii = 0; ii < 8; ++ii)
-                {
-                    ivec3 offset = getTrilinearProbeOffset(ii);
-                    ivec2 nextTexelPos = getRCTexelPos(data.idxType, nextRaySideCount, nextProbeSideCount, probe_samp.baseIdx.xy + offset.xy, rayIdx);
-                    vec2 uv = vec2(nextTexelPos + .5f) / float(probeSideCount * raySideCount);
-
-                    ivec3 nextLvProbeIdx = getNextLvProbeIdx(di, nextProbeSideCount, offset);
-                    uint nextLvLayerIdx = nextLvProbeIdx.z + data.offset + probeSideCount;
-                    vec4 radianceN_1 = texture(in_merged_rc, vec3(uv, nextLvLayerIdx));
-#if DEBUG_LEVELS
-                    if (currLv == data.endLv - 1)
-                    {
-                        radianceN_1 = getDebugLvColor(currLv + 1) - vec4(0.05);
-                    }
-#endif // DEBUG_LEVELS
-
-                    radiance0 += radianceN_1 * weights[ii];
-                }
-
-                break;
+            mergedRadiance += MergeIntervals(radiance0, radianceN_1) * weights[ii];
         }
 
-        imageStore(merged_rc, ivec3(currTexelPos, layerIdx), radiance0);
+        mergedRadiance /= 8.f;
+
+        imageStore(merged_rc, ivec3(currTexelPos, layerIdx), mergedRadiance);
     }
     else
     {
