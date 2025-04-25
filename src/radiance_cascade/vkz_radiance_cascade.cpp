@@ -207,7 +207,7 @@ void recRCBuild(const RadianceCascadeBuild& _rc, const Dbg_RadianceCascades& _db
         uint32_t    ray_sideCount   = kage::k_rclv0_rayGridSideCount * level_factor;
         uint32_t    ray_count       = ray_sideCount * ray_sideCount; // each probe has a 2d grid of rays
         float prob_sideLen = _dbg.totalRadius * 2.f / float(prob_sideCount);
-        float rayEndLen = length(vec3(prob_sideLen)) * .5f;
+        float rayEndLen =  (ii == endLv - 1) ? 200.f : length(vec3(prob_sideLen)) * .5f;
 
         RadianceCascadesConfig config;
         config.probe_sideCount = prob_sideCount;
