@@ -355,16 +355,24 @@ void prepareRCMerge(RadianceCascadeMerge& _rc, const RCMergeInit& _init, bool _r
     kage::SamplerHandle rcSamp = kage::sampleImage(pass, _init.radianceCascade
         , kage::PipelineStageFlagBits::compute_shader
         , kage::SamplerFilter::linear
-        , kage::SamplerMipmapMode::linear
-        , kage::SamplerAddressMode::clamp_to_edge
+        , kage::SamplerMipmapMode::nearest
+        , kage::SamplerAddressMode::mirrored_repeat
         , kage::SamplerReductionMode::min
     );
 
-    kage::SamplerHandle scratchSamp = kage::sampleImage(pass, mergedCas
+    kage::SamplerHandle linearSamp = kage::sampleImage(pass, mergedCas
         , kage::PipelineStageFlagBits::compute_shader
         , kage::SamplerFilter::linear
         , kage::SamplerMipmapMode::nearest
-        , kage::SamplerAddressMode::clamp_to_edge
+        , kage::SamplerAddressMode::mirrored_repeat
+        , kage::SamplerReductionMode::min
+    );
+
+    kage::SamplerHandle nearedSamp = kage::sampleImage(pass, mergedCas
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::SamplerFilter::linear
+        , kage::SamplerMipmapMode::nearest
+        , kage::SamplerAddressMode::mirrored_repeat
         , kage::SamplerReductionMode::min
     );
 
@@ -377,7 +385,8 @@ void prepareRCMerge(RadianceCascadeMerge& _rc, const RCMergeInit& _init, bool _r
     _rc.radianceCascade = _init.radianceCascade;
     _rc.rcSampler = rcSamp;
 
-    _rc.mergedSampler = scratchSamp;
+    _rc.linearSamp = linearSamp;
+    _rc.nearedSamp = nearedSamp;
 
     _rc.mergedCascade = mergedCas;
     _rc.mergedCascadesAlias = mergedCasAlias;
@@ -451,7 +460,12 @@ void recRCMerge(const RadianceCascadeMerge& _rc, const Dbg_RadianceCascades& _db
         // Also, using sampler istead of bind image directly is to take advantage of the hardware bilinear sampling
         bool useOriginalCas = _rc.rayPrime && (lv == endLv - 1);
         kage::ImageHandle accessImg = useOriginalCas ? _rc.radianceCascade : _rc.mergedCascade;
-        kage::SamplerHandle accessSamp = useOriginalCas ? _rc.rcSampler : _rc.mergedSampler;
+        kage::SamplerHandle accessSamp = 
+            _rc.rayPrime 
+            ? useOriginalCas 
+                ? _rc.rcSampler 
+                : _rc.linearSamp 
+            : _rc.nearedSamp;
 
         kage::Binding binds[] = {
             {_rc.skybox,            _rc.skySampler,     Stage::compute_shader},

@@ -100,7 +100,9 @@ struct RadianceCascadeMerge
     kage::ImageHandle radianceCascade;
     kage::SamplerHandle rcSampler;
 
-    kage::SamplerHandle mergedSampler;
+
+    kage::SamplerHandle linearSamp;
+    kage::SamplerHandle nearedSamp;
 
     kage::ImageHandle skybox;
     kage::SamplerHandle skySampler;
