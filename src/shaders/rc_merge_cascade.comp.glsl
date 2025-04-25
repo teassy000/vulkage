@@ -176,14 +176,20 @@ vec3 dirToCubemapUV(vec3 _dir)
 
 void main()
 {
-    ivec3 di = ivec3(gl_GlobalInvocationID.xyz);
-    uint raySideCount = data.ray_sideCount;
-    uint probeSideCount = data.probe_sideCount;
-    uint currLv = data.currLv;
-    uint layer = di.z;
+    const ivec3 di = ivec3(gl_GlobalInvocationID.xyz);
+    const uint raySideCount = data.ray_sideCount;
+    const uint probeSideCount = data.probe_sideCount;
+    const uint currLv = data.currLv;
+    const uint layer = di.z;
 
     if (RAY_PRIME)
     {
+        uint pixelCount = raySideCount * probeSideCount;
+        if ((di.z > probeSideCount - 1) || (di.x > pixelCount - 1) || (di.y > pixelCount)) {
+
+            return;
+        }
+
         // sample 8 probes for each ray, weighted average
         // but for 2 types of idx, there's are 2 different ways to sample (with optimize) to take advantage of hardware bilinear filtering
         // 1. probe idx:
@@ -211,7 +217,7 @@ void main()
                 break;
         }
 
-        ivec2 currTexelPos = getRCTexelPos(data.idxType, raySideCount, probeSideCount, probeIdx, rayIdx);
+        const ivec2 currTexelPos = getRCTexelPos(data.idxType, raySideCount, probeSideCount, probeIdx, rayIdx);
         uint layerIdx = data.offset + layer;
         vec2 uv0 = vec2(currTexelPos + .5f) / float(probeSideCount * raySideCount); // 0-1 range
         vec4 radiance0 = vec4(0.f);
@@ -224,17 +230,12 @@ void main()
 
         ProbeSample probe_samp = getProbeNextLvSamp(ivec3(probeIdx.xy, float(layer)));
 
-        vec4 colors[8];
         float weights[8];
-
         trilinearWeights(probe_samp.ratio, weights);
 
-        uint nextProbeSideCount = probeSideCount >> 1;
-        uint nextRaySideCount = raySideCount * 2;
-        ivec2 nextRayIdx = rayIdx * 2;
-
-        vec4 mergedRadiance = vec4(0.f);
-
+        const uint nextProbeSideCount = probeSideCount >> 1;
+        const uint nextRaySideCount = raySideCount * 2;
+        const ivec2 nextRayIdx = rayIdx * 2;
         // ==========================================================================================
         // A === probe idx
         // ==========================================================================================
@@ -252,6 +253,7 @@ void main()
         //      for 4 ray grid
         // thus using 8 samples for 2 layers
         // ==========================================================================================
+        vec4 mergedRadiance = vec4(0.f);
         for (uint ii = 0; ii < 8; ++ii)
         {
             ivec3 offset = getTrilinearProbeOffset(ii);
@@ -269,7 +271,7 @@ void main()
             }
 #endif // DEBUG_LEVELS
 
-            if (currLv == data.endLv - 1 && compare(radianceN_1.a, 1.f))
+            if ((currLv == data.endLv - 1) && compare(radianceN_1.a, 1.f))
             {
                 vec2 rayUV = (vec2(nextRayIdx) + .5f) / float(nextRaySideCount);
                 rayUV = rayUV * 2.f - 1.f; // to [-1.f, 1.f]
@@ -280,8 +282,6 @@ void main()
             mergedRadiance += mergeIntervals(radiance0, radianceN_1) * weights[ii];
         }
 
-        //mergedRadiance /= 8.f;
-
         imageStore(merged_rc, ivec3(currTexelPos, layerIdx), mergedRadiance);
     }
     else
@@ -289,7 +289,7 @@ void main()
         if (di.x >= probeSideCount || di.y >= probeSideCount || di.z >= probeSideCount)
             return;
 
-        vec4 mergedRadiance = vec4(0.f, 0.f, 0.f, 1.f);
+        vec4 mergedRadiance = vec4(0.f);
         for (uint hh = 0; hh < raySideCount; ++hh)
         {
             for (uint ww = 0; ww < raySideCount; ++ww)
@@ -299,7 +299,7 @@ void main()
                 vec2 uv = vec2(texelPos + .5f) / float(probeSideCount * raySideCount);
                 vec4 radiance = texture(in_rc, vec3(uv.xy, di.z));
 
-                if (radiance.w < EPSILON)
+                if (compare(radiance.w, 1.f))
                     continue;
 
                 mergedRadiance.xyz += radiance.xyz;

@@ -97,7 +97,7 @@ struct DeferredConstants
     uint debugIdxType;
 
     uint startCascade;
-    uint endCascade;
+    uint cascadeCount;
 
     float w, h;
     float camx, camy, camz;

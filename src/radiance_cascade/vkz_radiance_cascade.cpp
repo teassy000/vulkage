@@ -27,7 +27,7 @@ struct RCMergeInit
     uint32_t currCas;
 };
 
-uint32_t calcCascadesCount()
+uint32_t getMaxCascadesCount()
 {
     uint32_t lvCount = 0;
     while (true) {
@@ -195,8 +195,8 @@ void recRCBuild(const RadianceCascadeBuild& _rc, const Dbg_RadianceCascades& _db
 {
     kage::startRec(_rc.pass);
 
-    uint32_t cascadeCount = calcCascadesCount();
-    uint32_t endLv = glm::min(_dbg.endCascade, cascadeCount);
+    uint32_t cascadeCount = glm::min(kage::k_rclv0_cascadeLv, _dbg.cascadeCount);
+    uint32_t endLv = _dbg.startCascade + cascadeCount;
 
     float rayStartLen = 0.f;
     for (uint32_t ii = 0; ii < endLv; ++ii)
@@ -389,8 +389,7 @@ void prepareRCMerge(RadianceCascadeMerge& _rc, const RCMergeInit& _init, bool _r
 void updateRCMerge(RadianceCascadeMerge& _rc, const Dbg_RadianceCascades& _dbg)
 {
     // should update the merged ascade(probe) resolution if currLv changed
-    uint32_t endLv = calcCascadesCount();
-    uint32_t currCas = glm::min(1u, glm::min(endLv, glm::min(_dbg.startCascade, _dbg.endCascade)));
+    uint32_t currCas = _dbg.startCascade;
     if (!_rc.rayPrime && currCas == _rc.currLv)
         return;
 
@@ -411,8 +410,8 @@ void recRCMerge(const RadianceCascadeMerge& _rc, const Dbg_RadianceCascades& _db
     kage::startRec(_rc.pass);
 
     uint32_t startLv = _rc.currLv;
-    uint32_t endLv = _rc.rayPrime ? glm::min(calcCascadesCount(), glm::max(startLv, _dbg.endCascade)) : _rc.currLv + 1;
-    endLv = glm::min(endLv, kage::k_rclv0_cascadeLv);
+    uint32_t cascadeCount = glm::min(kage::k_rclv0_cascadeLv, _dbg.cascadeCount);
+    uint32_t endLv = _rc.rayPrime ? (startLv + cascadeCount) : _rc.currLv + 1;
 
     uint32_t offsets[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
     uint32_t offset = 0u;

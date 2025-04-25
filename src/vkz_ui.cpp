@@ -269,7 +269,7 @@ void updataContentRCBuild(Dbg_RadianceCascades& _rc)
     ImGui::SliderFloat("probeDebugScale", &_rc.probeDebugScale, 0.01f, 1.f);
 
     ImGui::SliderInt("start cas", (int*)&_rc.startCascade, 0, 8);
-    ImGui::SliderInt("end cas", (int*)&_rc.endCascade, 0, 8);
+    ImGui::SliderInt("cas count", (int*)&_rc.cascadeCount, 1, 8);
     ImGui::Checkbox("follow Cam", &_rc.followCam);
     ImGui::Checkbox("pause update", &_rc.pauseUpdate);  
     

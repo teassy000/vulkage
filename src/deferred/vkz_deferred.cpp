@@ -65,7 +65,7 @@ struct alignas(16) DeferredConstants
     uint32_t debugIdxType;
 
     uint32_t startCascade;
-    uint32_t endCascade;
+    uint32_t cascadeCount;
 
     float w, h;
     float camx, camy, camz;
@@ -214,7 +214,7 @@ void recDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uin
     consts.cascade_0_probGridCount = kage::k_rclv0_probeSideCount;
     consts.cascade_0_rayGridCount = kage::k_rclv0_rayGridSideCount;
     consts.startCascade = _rc.startCascade;
-    consts.endCascade = _rc.endCascade;
+    consts.cascadeCount = _rc.cascadeCount;
     consts.debugIdxType = _rc.idx_type;
     consts.w = (float)_w;
     consts.h = (float)_h;

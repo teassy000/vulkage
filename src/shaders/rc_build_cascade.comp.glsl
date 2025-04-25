@@ -123,7 +123,7 @@ bool inScreenSpaceRange(vec3 _uvw, float _depth)
 
 void main()
 {
-    const ivec2 pixIdx = ivec2(gl_GlobalInvocationID.xy);
+    const ivec2 di = ivec2(gl_GlobalInvocationID.xy);
     const uint lvLayer = gl_GlobalInvocationID.z;
 
     // the config for the radiance cascade.
@@ -131,8 +131,8 @@ void main()
     const uint ray_gridSideCount = config.ray_gridSideCount;
     const float rcRadius = config.radius;
 
-    const ivec2 prob_idx = pixIdx / int(ray_gridSideCount);
-    const ivec2 ray_idx = pixIdx % int(ray_gridSideCount);
+    const ivec2 prob_idx = di / int(ray_gridSideCount);
+    const ivec2 ray_idx = di % int(ray_gridSideCount);
 
     // the rc grid seg 
     // origin: the center of the probe in world space
@@ -175,7 +175,7 @@ void main()
 
         // hit pos is in world space, now to uv space
         vec4 hit_ppos = (trans.proj * trans.view * vec4(hit_pos, 1.0)).xyzw;
-        
+
         hit_ppos.xyz /= hit_ppos.w;
         hit_ppos.y = -hit_ppos.y; // flip y
 
@@ -199,7 +199,7 @@ void main()
     switch(config.debug_idx_type)
     {
         case 0:
-            iuv = ivec3(pixIdx.xy, layer_idx); // probe idx first;
+            iuv = ivec3(di.xy, layer_idx); // probe idx first;
             break;
         case 1:
             ivec2 dirOrderIdx = ivec2(ray_idx * int(prob_gridSideCount) + prob_idx);
@@ -230,16 +230,19 @@ void main()
             break;
         case 6:
             var = seg_dir * .5f + .5f;
+            hit = true;
             break;
         case 7:
             var = vec3(seg_origin) / rcRadius;
+            hit = true; 
             break;
         case 8:
             uint pidx = uint(prob_idx.y * prob_gridSideCount + prob_idx.x) + lvLayer * prob_gridSideCount * prob_gridSideCount;
             uint mhash = hash(pidx);
             var = vec3(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255)) / 255.0;
+            hit = true;
             break;
     }
-    float hitvar = (hit || (config.debug_color_type >5)) ? 0.f : 1.f;
+    float hitvar = (hit) ? 0.f : 1.f;
     imageStore(out_octProbAtlas, iuv, vec4(var, hitvar));
 }

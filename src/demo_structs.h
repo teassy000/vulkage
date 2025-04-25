@@ -104,7 +104,7 @@ struct Dbg_RadianceCascades
     float probePosOffset[3] = { 0.f, 0.f, 0.f };
     float probeDebugScale = 0.05f;
     uint32_t startCascade = 0;
-    uint32_t endCascade = kage::k_rclv0_cascadeLv - 1;
+    uint32_t cascadeCount = kage::k_rclv0_cascadeLv;
 
     bool followCam = true;
     bool pauseUpdate = false;
