@@ -27,8 +27,8 @@ layout(binding = 4) uniform sampler2D in_emmision;
 layout(binding = 5) uniform sampler2D in_specular;
 layout(binding = 6) uniform sampler2D in_sky;
 
-layout(binding = 7) uniform sampler2DArray in_radianceCascade;
-layout(binding = 8) uniform sampler2DArray in_rcMerged;
+layout(binding = 7) uniform sampler2DArray in_rcMergedProbe;
+layout(binding = 8) uniform sampler2DArray in_rcMergedInverval;
 layout(binding = 9) uniform writeonly image2D out_color;
 
 
@@ -48,6 +48,47 @@ vec3 brdfSpecular(float _nov, float _nol, float _noh, float _loh, vec3 _f0, floa
     float V = V_SmithGGXCorrelated(_linearRough, _nov, _nol);
     
     return F * D * V;
+}
+
+
+ProbeSample getNearestProbeSample(vec3 _mappedPos, float _probeSideLen)
+{
+    vec3 fIdx = _mappedPos / _probeSideLen;
+    
+    ProbeSample samp;
+    samp.baseIdx = ivec3(floor(fIdx));
+    samp.ratio = fract(fIdx);
+
+    return samp;
+}
+
+vec4 getProbeColor(uint _probeSideCnt, ivec3 _probeIdx)
+{
+    vec2 uv = (vec2(_probeIdx) + 0.5f) / float(_probeSideCnt);
+
+    vec4 rcc = texture(in_rcMergedProbe, vec3(uv, _probeIdx.z));
+
+    return rcc;
+}
+
+vec4 trilinearColor(vec3 _mappedPos, float _probeSideLen, uint _probeSideCnt)
+{
+    ProbeSample samp = getNearestProbeSample(_mappedPos, _probeSideLen);
+
+    float weights[8];
+    trilinearWeights(samp.ratio, weights);
+
+    vec4 outColor = vec4(0.f);
+    for (uint ii = 0; ii < 8; ++ii)
+    {
+        ivec3 offset = getTrilinearProbeOffset(ii);
+        ivec3 probeIdx = samp.baseIdx + offset;
+        vec4 color = getProbeColor(_probeSideCnt, probeIdx);
+
+        outColor += color * weights[ii];
+    }
+
+    return outColor;
 }
 
 void main()
@@ -82,19 +123,25 @@ void main()
     uint layerOffset = rcAccess.layerOffset;
 
     vec3 mappedPos = wPos - camPos + vec3(radius); // map to camera related pos then shift to [0, 2 * radius]
-    ivec3 probeIdx = ivec3(floor(mappedPos / prob_sideLen));
-    vec3 probeCenter = getCenterWorldPos(probeIdx, radius, prob_sideLen) + camPos; // probes follows the camera and in world space
+
+    vec4 rc_pc = trilinearColor(mappedPos, prob_sideLen, prob_sideCount);
+
+    ProbeSample samp = getNearestProbeSample(mappedPos, prob_sideLen);
+    float weights[8];
+    trilinearWeights(samp.ratio, weights);
+
+    vec3 probeCenter = getProbeCenterPos(samp.baseIdx, radius, prob_sideLen) + camPos; // probes follows the camera and in world space
     vec3 rd = normalize(wPos.xyz - probeCenter);
         
     vec2 rayUV = float32x3_to_oct(rd);
     rayUV = rayUV * .5f + .5f; // map octrahedral uv to [0, 1]
 
     ivec2 rayIdx = ivec2(rayUV * float(ray_sideCount));
-    vec2 pixelIdx = getRCTexelPos(consts.debugIdxType, ray_sideCount, prob_sideCount, probeIdx.xy, rayIdx);
+    vec2 pixelIdx = getRCTexelPos(consts.debugIdxType, ray_sideCount, prob_sideCount, samp.baseIdx.xy, rayIdx);
 
     vec2 cascadeUV = (vec2(pixelIdx) + vec2(0.5f)) / float(prob_sideCount * ray_sideCount);
 
-    vec4 rcc = texture(in_rcMerged, vec3(cascadeUV, probeIdx.z));
+    vec4 rcc = texture(in_rcMergedInverval, vec3(cascadeUV, samp.baseIdx.z));
     {
         rayCol = rcc;
         rayDir = rd;
@@ -144,6 +191,7 @@ void main()
 
     color = Tonemap_ACES(color);
     color = OECF_sRGBFast(color);
+    color = rc_pc.rgb;
 
     if (albedo.a < 0.5 || normal.w < 0.02)
         color = sky.xyz;

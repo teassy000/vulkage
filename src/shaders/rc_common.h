@@ -160,6 +160,13 @@ struct RadianceCascadesTransform
     vec3 cameraPos;
 };
 
+struct ProbeSample
+{
+    ivec3 baseIdx;
+    vec3 ratio;
+};
+
+
 // ==============================================================================
 // helper functions =============================================================
 
@@ -239,7 +246,7 @@ ivec3 getWorld3DIdx(uint _idx, uint _sideCnt)
 }
 
 // get 3d world pos based on the index
-vec3 getCenterWorldPos(ivec3 _idx, float _sceneRadius, float _gridSideLen)
+vec3 getProbeCenterPos(ivec3 _idx, float _sceneRadius, float _gridSideLen)
 {
     // the voxel idx is from [0 ,sideCnt - 1]
     // the voxel in world space is [-_sceneRadius, _sceneRadius]
@@ -307,4 +314,48 @@ ivec3 getNextLvProbeIdx(ivec3 _probeIdx, uint _nxtProbeSideCnt, ivec3 _subOffset
 
     nextIdx = clamp(nextIdx, ivec3(0), ivec3(_nxtProbeSideCnt - 1));
     return nextIdx;
+}
+
+ivec3 getTrilinearProbeOffset(uint _idx)
+{
+    _idx = clamp(_idx, 0u, 7u);
+    switch (_idx) {
+    case 0u: return ivec3(0, 0, 0);
+    case 1u: return ivec3(1, 0, 0);
+    case 2u: return ivec3(0, 1, 0);
+    case 3u: return ivec3(1, 1, 0);
+    case 4u: return ivec3(0, 0, 1);
+    case 5u: return ivec3(1, 0, 1);
+    case 6u: return ivec3(0, 1, 1);
+    case 7u: return ivec3(1, 1, 1);
+    }
+}
+
+void trilinearWeights(vec3 _ratio, out float _weights[8])
+{
+    _weights[0] = (1.0 - _ratio.x) * (1.0 - _ratio.y) * (1.0 - _ratio.z);
+    _weights[1] = _ratio.x * (1.0 - _ratio.y) * (1.0 - _ratio.z);
+    _weights[2] = (1.0 - _ratio.x) * _ratio.y * (1.0 - _ratio.z);
+    _weights[3] = _ratio.x * _ratio.y * (1.0 - _ratio.z);
+    _weights[4] = (1.0 - _ratio.x) * (1.0 - _ratio.y) * _ratio.z;
+    _weights[5] = _ratio.x * (1.0 - _ratio.y) * _ratio.z;
+    _weights[6] = (1.0 - _ratio.x) * _ratio.y * _ratio.z;
+    _weights[7] = _ratio.x * _ratio.y * _ratio.z;
+
+    // no need to normalize weights, because the sum of weights is 1.0
+    /*
+    // normalize weights
+    float sum = 0.0;
+    for (uint ii = 0; ii < 8; ++ii)
+    {
+        sum += _weights[ii];
+    }
+
+    sum = sum < EPSILON ? 1.0 : sum; // avoid divide by zero
+
+    for (uint ii = 0; ii < 8; ++ii)
+    {
+        _weights[ii] /= sum;
+    }
+    */
 }

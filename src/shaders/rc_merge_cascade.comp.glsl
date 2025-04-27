@@ -37,20 +37,6 @@ vec4 mergeIntervals(vec4 _near, vec4 _far)
     return vec4(_near.rgb + _near.a * _far.rgb, _near.a * _far.a);
 }
 
-ivec3 getTrilinearProbeOffset(uint _idx)
-{
-    _idx = clamp(_idx, 0u, 7u);
-    switch (_idx) {
-        case 0u: return ivec3(0, 0, 0);
-        case 1u: return ivec3(1, 0, 0);
-        case 2u: return ivec3(0, 1, 0);
-        case 3u: return ivec3(1, 1, 0);
-        case 4u: return ivec3(0, 0, 1);
-        case 5u: return ivec3(1, 0, 1);
-        case 6u: return ivec3(0, 1, 1);
-        case 7u: return ivec3(1, 1, 1);
-    }
-}
 
 ivec2 getBilinearRayOffset(uint _idx)
 {
@@ -64,40 +50,6 @@ ivec2 getBilinearRayOffset(uint _idx)
     }
 } 
 
-struct ProbeSample
-{
-    ivec3 baseIdx;
-    vec3 ratio;
-};
-
-void trilinearWeights(vec3 _ratio, out float _weights[8] )
-{
-    _weights[0] = (1.0 - _ratio.x) * (1.0 - _ratio.y) * (1.0 - _ratio.z);
-    _weights[1] =  _ratio.x * (1.0 - _ratio.y) * (1.0 - _ratio.z);
-    _weights[2] = (1.0 - _ratio.x) * _ratio.y * (1.0 - _ratio.z);
-    _weights[3] = _ratio.x* _ratio.y * (1.0 - _ratio.z);
-    _weights[4] = (1.0 - _ratio.x) * (1.0 - _ratio.y) * _ratio.z;
-    _weights[5] = _ratio.x * (1.0 - _ratio.y) * _ratio.z;
-    _weights[6] = (1.0 - _ratio.x) * _ratio.y * _ratio.z;
-    _weights[7] = _ratio.x * _ratio.y * _ratio.z;
-
-    // no need to normalize weights, because the sum of weights is 1.0
-    /*
-    // normalize weights
-    float sum = 0.0;
-    for (uint ii = 0; ii < 8; ++ii)
-    {
-        sum += _weights[ii];
-    }
-
-    sum = sum < EPSILON ? 1.0 : sum; // avoid divide by zero
-
-    for (uint ii = 0; ii < 8; ++ii)
-    {
-        _weights[ii] /= sum;
-    }
-    */
-}
 
 // find the index of current probe in the 8 * 8 * 8 grid
 ProbeSample getProbeNextLvSamp(ivec3 _probeIdx)
@@ -302,7 +254,7 @@ void main()
                 if (compare(radiance.w, 1.f))
                     continue;
 
-                mergedRadiance.xyz += radiance.xyz;
+                mergedRadiance.rgb += radiance.rgb;
             }
         }
 

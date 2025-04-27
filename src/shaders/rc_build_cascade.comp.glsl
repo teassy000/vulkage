@@ -140,7 +140,7 @@ void main()
     // length: the probe radius
     const vec3 centOffset = vec3(config.cx, config.cy, config.cz);
 
-    const vec3 seg_origin = getCenterWorldPos(ivec3(prob_idx, lvLayer), rcRadius, config.probeSideLen) + centOffset + trans.cameraPos;
+    const vec3 seg_origin = getProbeCenterPos(ivec3(prob_idx, lvLayer), rcRadius, config.probeSideLen) + centOffset + trans.cameraPos;
 
     vec2 uv = (vec2(ray_idx) + .5f) / float(ray_gridSideCount);
     
@@ -183,7 +183,8 @@ void main()
         vec3 hit_uvw = vec3(vec2(hit_ppos.xy * 0.5f + 0.5f), hit_ppos.z); // map to [0, 1]
 
         float depth = texture(in_depth, hit_uvw.xy).x;
-        if (inScreenSpaceRange(hit_uvw, depth)) {
+        //if (inScreenSpaceRange(hit_uvw, depth)) 
+        {
             albedo = texture(in_albedo, hit_uvw.xy).xyz;
             normal = texture(in_normal, hit_uvw.xy).xyz;
             wpos = texture(in_wPos, hit_uvw.xy).xyz;

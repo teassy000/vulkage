@@ -45,7 +45,7 @@ void main()
     float probeSideLen = consts.probeSideLen;
     uint layerOffset = consts.layerOffset;
     float radius = consts.sphereRadius;
-    vec3 ocenter = getCenterWorldPos(id, rc_radius, probeSideLen);
+    vec3 ocenter = getProbeCenterPos(id, rc_radius, probeSideLen);
     ocenter += vec3(consts.posOffsets[0], consts.posOffsets[1], consts.posOffsets[2]);
     ocenter += trans.cameraPos;
     vec4 center = trans.view * vec4(ocenter, 1.f);

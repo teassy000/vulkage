@@ -48,7 +48,7 @@ void main()
     uint var = imageLoad(wpos, int(di)).x;
     vec3 abledo = imageLoad(in_albedo, int(di)).xyz;
     ivec3 wIdx = getWorld3DIdx(var, info.sceneSideCnt);
-    vec4 ocenter = vec4(getCenterWorldPos(wIdx, info.sceneRadius, info.voxSideLen), 1.f);
+    vec4 ocenter = vec4(getProbeCenterPos(wIdx, info.sceneRadius, info.voxSideLen), 1.f);
 
     vec4 center = trans.view * ocenter;
 
