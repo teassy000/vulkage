@@ -5,28 +5,8 @@
 #include "kage.h"
 #include "deferred/vkz_deferred.h"
 #include "demo_structs.h"
+#include "vkz_rc_common.h"
 #include "ffx_intg/brixel_intg_kage.h"
-
-enum class RCDbgIndexType : uint32_t
-{
-    probe_first = 0,
-    ray_first,
-    count
-};
-
-enum class RCDbgColorType : uint32_t
-{
-    albedo = 0,
-    normal,
-    worldPos,
-    emissive,
-    brxDistance,
-    brxNormal,
-    rayDir,
-    probePos,
-    probeHash,
-    count
-};
 
 // each page has a 3d grid of probes, each probe has a 2d grid of rays
 struct alignas(16) RadianceCascadesConfig

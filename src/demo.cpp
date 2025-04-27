@@ -21,6 +21,7 @@
 #include "deferred/vkz_deferred.h"
 #include "radiance_cascade/vkz_rc_debug.h"
 #include "ffx_intg/brixel_intg_kage.h"
+#include "radiance_cascade/vkz_rc2d.h"
 
 namespace
 {
@@ -112,7 +113,8 @@ namespace
             createBindlessArray();
             createPasses();
 
-            kage::setPresentImage(m_ui.colorOutAlias);
+            //kage::setPresentImage(m_ui.colorOutAlias);
+            kage::setPresentImage(m_rc2d.use.rtOutAlias);
         }
 
         bool update() override
@@ -210,11 +212,14 @@ namespace
 
             m_smaa.update(m_width, m_height);
 
+
             updateRadianceCascade(m_radianceCascade, m_demoData.dbg_features.rcBuild, m_demoData.trans);
             if (m_debugProb)
             {
                 updateProbeDebug(m_probDebug, m_demoData.drawCull, m_width, m_height, m_demoData.dbg_features.rcBuild);
             }
+
+            updateRc2D(m_rc2d, m_width, m_height, 4, 5);
 
             {
                 m_demoData.dbg_features.brx.presentImg = m_brixel.debugDestImg;
@@ -652,6 +657,11 @@ namespace
                 prepareRadianceCascade(m_radianceCascade, rcInit);
             }
 
+            // rc2d
+            {
+                initRc2D(m_rc2d, m_width, m_height, 4, 5);
+            }
+
             // deferred
             {
                 RadianceCascadesData rcData{};
@@ -824,6 +834,8 @@ namespace
         BrixelResources m_brixel{};
         RadianceCascade m_radianceCascade{};
         ProbeDebug m_probDebug{};
+
+        Rc2D m_rc2d;
 
         UIRendering m_ui{};
 
