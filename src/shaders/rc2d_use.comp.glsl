@@ -24,6 +24,13 @@ layout(binding = 1, RGBA8) uniform image2D rt; // store the merged data
 void main()
 {
     const ivec3 di = ivec3(gl_GlobalInvocationID.xyz);
-    
-    imageStore(rt, ivec2(di.xy), vec4(1.f));
+
+    vec3 color = vec3(0.f);
+    vec2 uv = di.xy / vec2(data.width, data.height);
+    vec4 sd = sdf(vec2(di.xy), vec2(data.width, data.height));
+    if (sd.w < 0.5)
+        color = sd.rgb;
+
+
+    imageStore(rt, ivec2(di.xy), vec4(color, 1.f));
 }

@@ -219,7 +219,7 @@ namespace
                 updateProbeDebug(m_probDebug, m_demoData.drawCull, m_width, m_height, m_demoData.dbg_features.rcBuild);
             }
 
-            updateRc2D(m_rc2d, m_width, m_height, 4, 5);
+            updateRc2D(m_rc2d, m_width, m_height, 16, 5);
 
             {
                 m_demoData.dbg_features.brx.presentImg = m_brixel.debugDestImg;
@@ -659,7 +659,7 @@ namespace
 
             // rc2d
             {
-                initRc2D(m_rc2d, m_width, m_height, 4, 5);
+                initRc2D(m_rc2d, m_width, m_height, 16, 5);
             }
 
             // deferred
