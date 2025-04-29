@@ -71,44 +71,6 @@ void main()
     // 4 rays per pixel
 
     vec3 mergedColor = vec3(0.f);
-    /*
-    for (int ii = 0; ii < 4; ++ii)
-    {
-        ivec2 offset = getOffsets(ii);
-
-        vec2 pbCenter = (vec2(samp.baseIdx + offset) + vec2(.5f)) * float(c0dRes);
-        vec2 rayDir = pbCenter - vec2(di.xy);
-        if (compare(rayDir, vec2(0.f))) { 
-            mergedColor = vec3(1.f, 0.f, 0.f);
-            break;
-        }
-
-        rayDir = normalize(rayDir);
-
-        // dir to rad
-        float rad = atan(rayDir.y, rayDir.x); //[0, 2*PI]
-
-        float ratio = rad / dStep;
-        uint rIdx = uint(floor(ratio));
-        ratio = fract(ratio);
-
-        // get the texel position in the merged rc
-        ivec2 t0 = getTexelPos(samp.baseIdx + offset, rIdx, c0dRes);
-        vec2 uvn0 = vec2(t0) / vec2(resolution);
-
-        ivec2 t1 = getTexelPos(samp.baseIdx + offset, rIdx + 1, c0dRes);
-        vec2 uvn1 = vec2(t1) / vec2(resolution);
-
-        vec4 col0 = texture(in_merged_rc, vec3(uvn0, 0.f));
-        //col0.rgb *= col0.a;
-        vec4 col1 = texture(in_merged_rc, vec3(uvn1, 0.f));
-        //col1.rgb *= col1.a;
-
-        vec3 mcol = mix(col0.rgb, col1.rgb, ratio);
-
-        mergedColor += mcol * weights[ii];
-    }
-    */
 
     for (int ii = 0; ii < 4; ++ii)
     {
