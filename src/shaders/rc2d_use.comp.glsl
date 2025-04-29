@@ -20,8 +20,10 @@ layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 
 layout(binding = 0) uniform sampler2DArray in_rc;
 layout(binding = 1) uniform sampler2DArray in_merged_rc;
+layout(binding = 2) uniform sampler2DArray in_merged_probe;
 
-layout(binding = 2, RGBA8) uniform image2D rt; // store the merged data
+
+layout(binding = 3, RGBA8) uniform image2D rt; // store the merged data
 
 ivec2 getTexelPos(ivec2 _probeIdx, uint _rayIdx, uint _dRes)
 {
@@ -41,8 +43,6 @@ void main()
 
     if (data.stage == 1)
     {
-
-
         vec3 uv = vec3(vec2(di.xy)/ vec2(resolution), float(lv));
         vec4 c = texture(in_rc, uv);
         imageStore(rt, ivec2(di.xy), vec4(c.rgb, 1.f));
@@ -60,9 +60,9 @@ void main()
 
     vec3 color = vec3(0.f);
     vec2 uv = di.xy / vec2(resolution);
-    vec4 sd = sdf(vec2(di.xy), vec2(resolution));
-    if (sd.w < 0.5)
-        color = sd.rgb;
+    //vec4 sd = sdf(vec2(di.xy), vec2(resolution));
+    //if (sd.w < 0.5)
+    //    color = sd.rgb;
 
     ProbeSamp samp = getProbSamp(di.xy, c0dRes);
     vec4 weights = getWeights(samp.ratio);
@@ -71,6 +71,7 @@ void main()
     // 4 rays per pixel
 
     vec3 mergedColor = vec3(0.f);
+    /*
     for (int ii = 0; ii < 4; ++ii)
     {
         ivec2 offset = getOffsets(ii);
@@ -107,6 +108,13 @@ void main()
 
         mergedColor += mcol * weights[ii];
     }
+    */
+
+    for (int ii = 0; ii < 4; ++ii)
+    {
+        mergedColor += texture(in_merged_probe, vec3(uv, 0.f)).rgb;
+    }
+    mergedColor /= 4.f;
 
     color = mergedColor;
 
@@ -116,7 +124,7 @@ void main()
         vec2 mousePos = vec2(data.rc.mpx, data.rc.mpy);
         vec2 arrowuv = vec2(di.xy - mousePos);
 
-        float arrow = sdf_arrow(arrowuv, 100.f, vec2(0.f, 1.f), 2.0, 4.0);
+        float arrow = sdf_arrow(arrowuv, 100.f, vec2(0.f, -1.f), 4.0, 2.0);
         arrC = mix(vec4(0.f), vec4(1.0), smoothstep(1.5, 0.0, arrow));
     }
 

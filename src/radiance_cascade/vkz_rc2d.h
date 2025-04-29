@@ -26,7 +26,7 @@ struct Rc2DMerge
     kage::SamplerHandle nearedSamp;
     kage::SamplerHandle linearSamp;
 
-    kage::ImageHandle mergedCas;
+    kage::ImageHandle mergedInterval;
     kage::ImageHandle mergedCasOutAlias;
 };
 
@@ -39,7 +39,8 @@ struct Rc2DUse
     kage::ImageHandle rt;
     
     kage::ImageHandle rc;
-    kage::ImageHandle mergedCas;
+    kage::ImageHandle mergedInterval;
+    kage::ImageHandle mergedProbe;
     kage::SamplerHandle nearedSamp;
     kage::SamplerHandle linearSamp;
 
@@ -49,7 +50,8 @@ struct Rc2DUse
 struct Rc2D
 {
     Rc2DBuild build;
-    Rc2DMerge merge;
+    Rc2DMerge mergeInterval;
+    Rc2DMerge mergeProbe;
     Rc2DUse use;
 
     uint32_t width;

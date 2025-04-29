@@ -63,7 +63,7 @@ ProbeSamp getProbSamp(ivec2 _pixIdx, uint _dRes)
 {
     vec2 area = vec2(_pixIdx) / float(_dRes);
 
-    area -= vec2(0.5f);
+    //area -= vec2(0.5f);
 
     ProbeSamp samp;
     samp.baseIdx = ivec2(floor(area));
@@ -109,8 +109,8 @@ vec4 sdf(in vec2 _origin, in vec2 _res)
     vec2 center = _res / 2.f;
 
     vec4 distance;
-    distance = opU(distance, vec4(1.0, 0.4, 0.0, sdBox(_origin - vec2(_res.x * .5f, _res.y * .2f ), vec2(40.f, 60.f))));
-    distance = opU(distance, vec4(0.01, 0.4, 3.0, sdBox(_origin - _res * .5f, vec2(200.f, 10.f))));
+    distance = opU(distance, vec4(0.0, 1.0, 0.0, sdBox(_origin - vec2(_res.x * .5f, _res.y * .2f ), vec2(40.f, 60.f))));
+    distance = opU(distance, vec4(0.01, 0.4, 1.0, sdBox(_origin - _res * .5f, vec2(200.f, 10.f))));
     return distance;
 }
 

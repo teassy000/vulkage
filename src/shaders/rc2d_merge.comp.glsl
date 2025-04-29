@@ -10,6 +10,7 @@
 #include "rc_common2d.h"
 #include "debug_gpu.h"
 
+layout(constant_id = 0) const bool RAY = false;
 
 layout(push_constant) uniform block
 {
@@ -103,48 +104,72 @@ ivec2 getTexelPos3(ivec2 _probeIdx, int _dRes, int _rayIdx)
 void main()
 {
     const ivec2 di = ivec2(gl_GlobalInvocationID.xy);
-
-    const uint currLv = data.lv;
-    const uint factor = 1 << currLv;
-    const uint nextLvFactor = factor * 2;
     const ivec2 screenSize = ivec2(data.rc.width, data.rc.height);
 
-    const uint cn_dRes = data.rc.c0_dRes * factor;
-    const uint cn1_dRes = data.rc.c0_dRes * nextLvFactor;
-
-    ProbeSamp baseSamp = getProbSamp(di.xy, cn_dRes);
-
-    const vec3 n0uv = vec3(vec2(di) / vec2(screenSize), float(currLv));
-    vec4 baseColor = imageLoad(in_rc, ivec3(di, currLv));
-
-    vec4 weights = getWeights(baseSamp.ratio);
-    
-
-    ProbeSamp nxtSamp = getNextLvProbeSamp(baseSamp);
-
-    ivec2 rayPos = di.xy % ivec2(cn_dRes);
-    uint rayIdx = uint(rayPos.x + rayPos.y * cn_dRes);
-
-    vec4 mergedColor = vec4(0.f);
-    for (int ii = 0; ii < 4; ++ii)
+    if (RAY)
     {
-        ivec2 texelPos = getTexelPos3(nxtSamp.baseIdx, int(cn1_dRes), int(rayIdx * 4 + ii));
-        vec4 c = imageLoad(in_baseRc, ivec3(texelPos, currLv + 1));
+        const uint currLv = data.lv;
+        const uint factor = 1 << currLv;
+        const uint nextLvFactor = factor * 2;
 
-        mergedColor += c * weights[ii];
+        const uint cn_dRes = data.rc.c0_dRes * factor;
+        const uint cn1_dRes = data.rc.c0_dRes * nextLvFactor;
+
+        ProbeSamp baseSamp = getProbSamp(di.xy, cn_dRes);
+
+        const vec3 n0uv = vec3(vec2(di) / vec2(screenSize), float(currLv));
+        vec4 baseColor = imageLoad(in_rc, ivec3(di, currLv));
+
+        vec4 weights = getWeights(baseSamp.ratio);
+
+
+        ProbeSamp nxtSamp = getNextLvProbeSamp(baseSamp);
+
+        ivec2 rayPos = di.xy % ivec2(cn_dRes);
+        uint rayIdx = uint(rayPos.x + rayPos.y * cn_dRes);
+
+        vec4 mergedColor = vec4(0.f);
+        for (int ii = 0; ii < 4; ++ii)
+        {
+            ivec2 texelPos = getTexelPos3(nxtSamp.baseIdx, int(cn1_dRes), int(rayIdx * 4 + ii));
+            vec4 c = imageLoad(in_baseRc, ivec3(texelPos, currLv + 1));
+
+            mergedColor += mergeIntervals(baseColor, c) * weights[ii];
+        }
+
+        //mergedColor = mergeIntervals(baseColor, mergedColor);
+
+        vec4 arrC = vec4(0.f);
+        if (data.arrow > 0)
+        {
+            vec2 mousePos = vec2(data.rc.mpx, data.rc.mpy);
+            vec2 arrowuv = vec2(di.xy - mousePos);
+
+            float arrow = sdf_arrow(arrowuv, 100.f, vec2(0.f, -1.f), 4.0, 2.0);
+            arrC = mix(vec4(0.f), vec4(1.0), smoothstep(1.5, 0.0, arrow));
+        }
+
+        imageStore(merged_rc, ivec3(di, currLv), mergedColor);
     }
-
-    mergedColor = mergeIntervals(baseColor, mergedColor);
-
-    vec4 arrC = vec4(0.f);
-    if (data.arrow > 0)
+    else
     {
-        vec2 mousePos = vec2(data.rc.mpx, data.rc.mpy);
-        vec2 arrowuv = vec2(di.xy - mousePos);
+        const uint c0_dRes = data.rc.c0_dRes;
 
-        float arrow = sdf_arrow(arrowuv, 100.f, vec2(0.f, -1.f), 4.0, 2.0);
-        arrC = mix(vec4(0.f), vec4(1.0), smoothstep(1.5, 0.0, arrow));
+        vec4 mergedRadiance = vec4(0.f);
+        uint c0_dCount = c0_dRes * c0_dRes;
+        for (uint ii = 0; ii < c0_dCount; ++ii)
+        {
+            ivec2 texelPos = getTexelPos3(di.xy, int(c0_dRes), int(ii));
+
+            if (texelPos.x > screenSize.x || texelPos.y > screenSize.y)
+                continue;
+            
+            vec4 c = imageLoad(in_rc, ivec3(texelPos, 0));
+            mergedRadiance += c;
+        }
+
+        mergedRadiance /= float(c0_dCount);
+
+        imageStore(merged_rc, ivec3(di, 0), mergedRadiance);
     }
-
-    imageStore(merged_rc, ivec3(di, currLv), mergedColor);
 }
