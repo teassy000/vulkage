@@ -22,7 +22,10 @@ struct Rc2dData
 
     float mpx;
     float mpy;
+
+    float c0_rLen;
 };
+
 
 struct alignas(16) Rc2dMergeData
 {
@@ -354,7 +357,7 @@ void updateRc2D(Rc2D& _rc, const Rc2dData& _data)
 
 void updateRc2D(Rc2D& _rc, const Rc2dInfo& _info, const Dbg_Rc2d& _dbg)
 {
-    Rc2dData data = { _info.width, _info.height, _info.c0_dRes, _info.nCascades, _info.mpx, _info.mpy };
+    Rc2dData data = { _info.width, _info.height, _info.c0_dRes, _info.nCascades, _info.mpx, _info.mpy, _dbg.c0_rLen };
 
     updateRc2D(_rc, data);
 

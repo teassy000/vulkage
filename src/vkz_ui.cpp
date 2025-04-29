@@ -277,6 +277,7 @@ void updateRc2d(Dbg_Rc2d& _rc2d)
     ImGui::Combo("stage", (int*)&_rc2d.stage, debug_stage_types, COUNTOF(debug_stage_types));
     ImGui::SliderInt("lv", (int*)&_rc2d.lv, 0, 8);
     ImGui::Checkbox("arrow", &_rc2d.showArrow);
+    ImGui::SliderFloat("c0 ray len", &_rc2d.c0_rLen, 4.f, 40.f);
 
     ImGui::End();
 }

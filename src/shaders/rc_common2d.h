@@ -9,6 +9,8 @@ struct Rc2dData
 
     float mpx;
     float mpy;
+
+    float c0_rLen;
 };
 
 struct Rc2dMergeData
@@ -108,7 +110,7 @@ vec4 sdf(in vec2 _origin, in vec2 _res)
 {
     vec2 center = _res / 2.f;
 
-    vec4 distance;
+    vec4 distance = vec4(10000.f);
     distance = opU(distance, vec4(0.0, 1.0, 0.0, sdBox(_origin - vec2(_res.x * .5f, _res.y * .2f ), vec2(40.f, 60.f))));
     distance = opU(distance, vec4(0.01, 0.4, 1.0, sdBox(_origin - _res * .5f, vec2(200.f, 10.f))));
     return distance;

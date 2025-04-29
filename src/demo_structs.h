@@ -116,8 +116,9 @@ struct Dbg_RadianceCascades
 
 struct Dbg_Rc2d
 {
-    uint32_t stage;
-    uint32_t lv;
+    uint32_t stage = 0;
+    uint32_t lv = 0;
+    float c0_rLen = 7.f;
     bool showArrow = true;
 };
 

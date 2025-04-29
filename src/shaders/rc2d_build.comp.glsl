@@ -66,7 +66,7 @@ void main()
     ray.origin = vec2(probeCenter);
     ray.dir = vec2(cos(rad), sin(rad));
 
-    float c0Len = length(res) * 4.f / ((1 << 2 * data.nCascades) - 1.f);
+    float c0Len = data.c0_rLen;
     float tmin = di.z == 0 ? 0.f : c0Len * float(1 << 2 * (di.z - 1));
     float tmax = c0Len * float(1 << 2 * di.z);
 
