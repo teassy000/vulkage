@@ -38,6 +38,7 @@ struct Rc2DUse
 
     kage::ImageHandle rt;
     
+    kage::ImageHandle rc;
     kage::ImageHandle mergedCas;
     kage::SamplerHandle nearedSamp;
     kage::SamplerHandle linearSamp;
@@ -55,4 +56,4 @@ struct Rc2D
 
 
 void initRc2D(Rc2D& _rc, uint32_t _w, uint32_t _h, uint32_t _rayRes, uint32_t _casCount);
-void updateRc2D(Rc2D& _rc, uint32_t _w, uint32_t _h, uint32_t _rayRes, uint32_t _casCount);
+void updateRc2D(Rc2D& _rc, uint32_t _w, uint32_t _h, uint32_t _rayRes, uint32_t _casCount, vec2 _mousePos);

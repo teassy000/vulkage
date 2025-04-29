@@ -113,8 +113,7 @@ namespace
             createBindlessArray();
             createPasses();
 
-            //kage::setPresentImage(m_ui.colorOutAlias);
-            kage::setPresentImage(m_rc2d.use.rtOutAlias);
+            kage::setPresentImage(m_ui.colorOutAlias);
         }
 
         bool update() override
@@ -219,7 +218,7 @@ namespace
                 updateProbeDebug(m_probDebug, m_demoData.drawCull, m_width, m_height, m_demoData.dbg_features.rcBuild);
             }
 
-            updateRc2D(m_rc2d, m_width, m_height, 16, 5);
+            updateRc2D(m_rc2d, m_width, m_height, 4, 5, vec2{ (float)m_mouseState.m_mx, (float)m_mouseState.m_my });
 
             {
                 m_demoData.dbg_features.brx.presentImg = m_brixel.debugDestImg;
@@ -659,7 +658,7 @@ namespace
 
             // rc2d
             {
-                initRc2D(m_rc2d, m_width, m_height, 16, 5);
+                initRc2D(m_rc2d, m_width, m_height, 4, 5);
             }
 
             // deferred
@@ -706,7 +705,8 @@ namespace
 
             // ui
             {
-                kage::ImageHandle uiColorIn = m_smaa.m_outAliasImg;
+                //kage::ImageHandle uiColorIn = m_smaa.m_outAliasImg;
+                kage::ImageHandle uiColorIn = m_rc2d.use.rtOutAlias;
                 kage::ImageHandle uiDepthIn = m_supportMeshShading ? m_meshShadingAlpha.depthOutAlias : m_vtxShadingLate.depthOutAlias;
                 m_ui.dummyColor = m_radianceCascade.build.radCascdOutAlias;
                 prepareUI(m_ui, uiColorIn, uiDepthIn, 1.3f);

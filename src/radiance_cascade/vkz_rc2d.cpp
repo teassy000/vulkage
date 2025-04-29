@@ -18,12 +18,15 @@ struct Rc2dData
 
     uint32_t c0_dRes;
     uint32_t nCascades;
+
+    float mpx;
+    float mpy;
 };
 
-struct Rc2DBuildData
+struct Rc2dMergeData
 {
     Rc2dData rc;
-    float tamx[8];
+    uint32_t lv;
 };
 
 
@@ -31,7 +34,7 @@ void initRc2DBuild(Rc2DBuild& _rc, const Rc2dData& _init)
 {
     // build the cascade image
     kage::ShaderHandle cs = kage::registShader("build_rc2d", "shaders/rc2d_build.comp.spv");
-    kage::ProgramHandle program = kage::registProgram("build_rc2d", { cs }, sizeof(Rc2DBuildData));
+    kage::ProgramHandle program = kage::registProgram("build_rc2d", { cs }, sizeof(Rc2dData));
 
     kage::PassDesc passDesc{};
     passDesc.programId = program.id;
@@ -72,7 +75,7 @@ void initRc2DBuild(Rc2DBuild& _rc, const Rc2dData& _init)
 void initRc2DMerge(Rc2DMerge& _rc, const Rc2dData _init, kage::ImageHandle _inRc)
 {
     kage::ShaderHandle cs = kage::registShader("merge_rc2d", "shaders/rc2d_merge.comp.spv");
-    kage::ProgramHandle program = kage::registProgram("merge_rc2d", { cs }, sizeof(Rc2dData));
+    kage::ProgramHandle program = kage::registProgram("merge_rc2d", { cs }, sizeof(Rc2dMergeData));
     
     kage::PassDesc passDesc{};
     passDesc.programId = program.id;
@@ -84,7 +87,7 @@ void initRc2DMerge(Rc2DMerge& _rc, const Rc2dData _init, kage::ImageHandle _inRc
     imgDesc.height = _init.height;
     imgDesc.format = kage::ResourceFormat::r8g8b8a8_unorm;
     imgDesc.depth = 1;
-    imgDesc.numLayers = 1;
+    imgDesc.numLayers = _init.nCascades;
     imgDesc.numMips = 1;
     imgDesc.type = kage::ImageType::type_2d;
     imgDesc.viewType = kage::ImageViewType::type_2d_array;
@@ -128,7 +131,7 @@ void initRc2DMerge(Rc2DMerge& _rc, const Rc2dData _init, kage::ImageHandle _inRc
     _rc.mergedCasOutAlias = outAlias;
 }
 
-void initRc2DUse(Rc2DUse& _rc, const Rc2dData& _init, kage::ImageHandle _inMergedRc)
+void initRc2DUse(Rc2DUse& _rc, const Rc2dData& _init, kage::ImageHandle _inMergedRc, kage::ImageHandle _inRc)
 {
     kage::ShaderHandle cs = kage::registShader("use_rc2d", "shaders/rc2d_use.comp.spv");
     kage::ProgramHandle program = kage::registProgram("use_rc2d", { cs }, sizeof(Rc2dData));
@@ -180,6 +183,7 @@ void initRc2DUse(Rc2DUse& _rc, const Rc2dData& _init, kage::ImageHandle _inMerge
 
     _rc.rt = img;
 
+    _rc.rc = _inRc;
     _rc.mergedCas = _inMergedRc;
     _rc.linearSamp = linearSamp;
     _rc.nearedSamp = nearedSamp;
@@ -193,7 +197,7 @@ void initRc2D(Rc2D& _rc, uint32_t _w, uint32_t _h, uint32_t _rayRes, uint32_t _c
 
     initRc2DBuild(_rc.build, initData);
     initRc2DMerge(_rc.merge, initData, _rc.build.rcImageOutAlias);
-    initRc2DUse(_rc.use, initData, _rc.merge.mergedCasOutAlias);
+    initRc2DUse(_rc.use, initData, _rc.merge.mergedCasOutAlias, _rc.build.rcImageOutAlias);
 }
 
 
@@ -218,18 +222,31 @@ void recRc2DBuild(const Rc2DBuild& _rc, const Rc2dData& _init)
 void recRc2DMerge(const Rc2DMerge& _rc, const Rc2dData& _init)
 {
     kage::startRec(_rc.pass);
-    const kage::Memory* mem = kage::alloc(sizeof(Rc2dData));
-    memcpy(mem->data, &_init, mem->size);
-    kage::setConstants(mem);
 
+    // start from nCascades - 2
+    // because the final lv needs no futher merge so just skip it and start from the n-2
+    for (uint32_t  ii = _init.nCascades - 1; ii > 0 ; --ii)
+    {
+        uint32_t currLv = ii - 1;
 
-    kage::Binding pushBinds[] = {
-        {_rc.in_rc,     _rc.linearSamp, Stage::compute_shader},
-        {_rc.mergedCas, _rc.nearedSamp, Stage::compute_shader},
-        {_rc.mergedCas, 0,              Stage::compute_shader},
-    };
-    kage::pushBindings(pushBinds, COUNTOF(pushBinds));
-    kage::dispatch(_init.width, _init.height, 1);
+        Rc2dMergeData merge;
+        merge.rc = _init;
+        merge.lv = currLv;
+
+        const kage::Memory* mem = kage::alloc(sizeof(Rc2dMergeData));
+        memcpy(mem->data, &merge, mem->size);
+        kage::setConstants(mem);
+
+        kage::ImageHandle baseImg = currLv == (_init.nCascades - 2) ? _rc.in_rc : _rc.mergedCas;
+
+        kage::Binding pushBinds[] = {
+            {_rc.in_rc,     0,      Stage::compute_shader},
+            {baseImg,       0,      Stage::compute_shader},
+            {_rc.mergedCas, 0,      Stage::compute_shader},
+        };
+        kage::pushBindings(pushBinds, COUNTOF(pushBinds));
+        kage::dispatch(_init.width, _init.height, 1);
+    }
     kage::endRec();
 }
 
@@ -240,10 +257,10 @@ void recRc2DUse(const Rc2DUse& _rc, const Rc2dData& _init)
     memcpy(mem->data, &_init, mem->size);
     kage::setConstants(mem);
 
-
     kage::Binding pushBinds[] = {
+        {_rc.rc,        _rc.linearSamp, Stage::compute_shader},
         {_rc.mergedCas, _rc.linearSamp, Stage::compute_shader},
-        {_rc.rt,     0, Stage::compute_shader},
+        {_rc.rt,        0, Stage::compute_shader},
     };
     kage::pushBindings(pushBinds, COUNTOF(pushBinds));
     kage::dispatch(_init.width, _init.height, 1);
@@ -270,9 +287,9 @@ void updateRc2D(Rc2D& _rc, const Rc2dData& _data)
     updateRc2DUse(_rc.use, _data);
 }
 
-void updateRc2D(Rc2D& _rc, uint32_t _w, uint32_t _h, uint32_t _rayRes, uint32_t _casCount)
+void updateRc2D(Rc2D& _rc, uint32_t _w, uint32_t _h, uint32_t _rayRes, uint32_t _casCount, vec2 _mousePos)
 {
-    Rc2dData data = { _w, _h, _rayRes, _casCount };
+    Rc2dData data = { _w, _h, _rayRes, _casCount, _mousePos.x, _mousePos.y };
 
     updateRc2D(_rc, data);
 

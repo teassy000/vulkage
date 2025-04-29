@@ -25,3 +25,11 @@ enum class RCDbgColorType : uint32_t
     probeHash,
     count
 };
+
+enum class rc2dStage : uint32_t
+{
+    build = 0,
+    merge,
+    use,
+    count
+};
