@@ -219,7 +219,7 @@ namespace
             }
 
             {
-                Rc2dInfo info{ m_width, m_height, 4, 5, (float)m_mouseState.m_mx, (float)m_mouseState.m_my };
+                Rc2dInfo info{ m_width, m_height, 4, 2, (float)m_mouseState.m_mx, (float)m_mouseState.m_my };
                 updateRc2D(m_rc2d, info, m_demoData.dbg_features.rc2d);
             }
             
@@ -662,7 +662,7 @@ namespace
 
             // rc2d
             {
-                Rc2dInfo info{ m_width, m_height, 4, 5, 0.f, 0.f };
+                Rc2dInfo info{ m_width, m_height, 4, 2, 0.f, 0.f };
                 initRc2D(m_rc2d, info);
             }
 
@@ -713,7 +713,6 @@ namespace
                 //kage::ImageHandle uiColorIn = m_smaa.m_outAliasImg;
                 kage::ImageHandle uiColorIn = m_rc2d.use.rtOutAlias;
                 kage::ImageHandle uiDepthIn = m_supportMeshShading ? m_meshShadingAlpha.depthOutAlias : m_vtxShadingLate.depthOutAlias;
-                m_ui.dummyColor = m_radianceCascade.build.radCascdOutAlias;
                 prepareUI(m_ui, uiColorIn, uiDepthIn, 1.3f);
             }
         }

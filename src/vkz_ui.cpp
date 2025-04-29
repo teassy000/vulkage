@@ -73,7 +73,6 @@ void recordUI(const UIRendering& _ui)
 
             kage::Binding binds[] = {
                 {img, _ui.sampler, Stage::fragment_shader}, 
-                {_ui.dummyColor, _ui.sampler, Stage::fragment_shader}
             };
 
             kage::pushBindings(binds, COUNTOF(binds));
@@ -198,14 +197,6 @@ void prepareUI(UIRendering& _ui, kage::ImageHandle _color, kage::ImageHandle _de
     kage::bindIndexBuffer(pass, ib); // TODO: bind in the custom func already, this is for frame-graph
     kage::bindVertexBuffer(pass, vb);
     _ui.sampler = kage::sampleImage(pass, fontImage
-        , kage::PipelineStageFlagBits::fragment_shader
-        , kage::SamplerFilter::linear
-        , kage::SamplerMipmapMode::linear
-        , kage::SamplerAddressMode::clamp_to_edge
-        , kage::SamplerReductionMode::weighted_average
-    );
-
-    _ui.dummySampler = kage::sampleImage(pass, _ui.dummyColor
         , kage::PipelineStageFlagBits::fragment_shader
         , kage::SamplerFilter::linear
         , kage::SamplerMipmapMode::linear
