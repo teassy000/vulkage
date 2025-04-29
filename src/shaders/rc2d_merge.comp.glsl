@@ -32,53 +32,7 @@ vec4 mergeIntervals(vec4 _near, vec4 _far)
     return vec4(_near.rgb + _near.a * _far.rgb, _near.a * _far.a);
 }
 
-ivec2 getTexelPos(ivec2 _pixIdx, int _dRes, ivec2 _off, int _rayIdx, ivec2 _baseIdx)
-{
-    ivec2 res = _pixIdx + _off * ivec2(_dRes);
-    res.x += _rayIdx;
-
-    ivec2 newIdx = res / _dRes;
-
-    // shift to the next line
-    if (newIdx.x != _baseIdx.x + _off.x)
-    {
-        res.x -= _dRes;
-        res.y += 1;
-        newIdx = res / _dRes;
-    }
-    // shift back to the start of probe
-    if (newIdx.y != _baseIdx.y + _off.y)
-    { 
-        res.y -= _dRes;
-    }
-
-    return res;
-}
-
-ivec2 getTexelPos2(ivec2 _probeIdx, int _dRes, ivec2 _rayIdx)
-{
-    ivec2 res = _probeIdx * _dRes + _rayIdx;
-
-    ivec2 newIdx = res / _dRes;
-
-    // shift to the next line
-    if (newIdx.x != _probeIdx.x)
-    {
-        res.x -= _dRes;
-        res.y += 1;
-        newIdx = res / _dRes;
-    }
-    // shift back to the start of probe
-    if (newIdx.y != _probeIdx.y)
-    {
-        res.y -= _dRes;
-    }
-
-    return res;
-}
-
-
-ivec2 getTexelPos3(ivec2 _probeIdx, int _dRes, int _rayIdx)
+ivec2 getTexelPos(ivec2 _probeIdx, int _dRes, int _rayIdx)
 {
     ivec2 rayIDx = ivec2(_rayIdx % _dRes, _rayIdx / _dRes);
     ivec2 res = _probeIdx * _dRes + rayIDx;
@@ -131,7 +85,7 @@ void main()
         vec4 mergedColor = vec4(0.f);
         for (int ii = 0; ii < 4; ++ii)
         {
-            ivec2 texelPos = getTexelPos3(nxtSamp.baseIdx, int(cn1_dRes), int(rayIdx * 4 + ii));
+            ivec2 texelPos = getTexelPos(nxtSamp.baseIdx, int(cn1_dRes), int(rayIdx * 4 + ii));
             vec4 c = imageLoad(in_baseRc, ivec3(texelPos, currLv + 1));
 
             mergedColor += mergeIntervals(baseColor, c) * weights[ii];
@@ -159,7 +113,7 @@ void main()
         uint c0_dCount = c0_dRes * c0_dRes;
         for (uint ii = 0; ii < c0_dCount; ++ii)
         {
-            ivec2 texelPos = getTexelPos3(di.xy, int(c0_dRes), int(ii));
+            ivec2 texelPos = getTexelPos(di.xy, int(c0_dRes), int(ii));
 
             if (texelPos.x > screenSize.x || texelPos.y > screenSize.y)
                 continue;
@@ -169,7 +123,6 @@ void main()
         }
 
         mergedRadiance /= float(c0_dCount);
-
         imageStore(merged_rc, ivec3(di, 0), mergedRadiance);
     }
 }

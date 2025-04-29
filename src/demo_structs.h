@@ -118,7 +118,7 @@ struct Dbg_Rc2d
 {
     uint32_t stage = 0;
     uint32_t lv = 0;
-    float c0_rLen = 7.f;
+    float c0_rLen = 15.f;
     bool showArrow = true;
 };
 
