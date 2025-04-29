@@ -76,12 +76,5 @@ void main()
     vec4 color = vec4(0.f);
     color = traceRay(ray, tmin, tmax, vec2(res));
 
-
-    vec2 mousePos = vec2(data.mpx, data.mpy);
-    vec2 arrowuv = vec2(di.xy - mousePos);
-
-    float arrow = sdf_arrow(arrowuv, 100.f, ray.dir, 2.0, 4.0);
-    color.rgb = mix(vec4(0.f), vec4(1.0), smoothstep(1.5, 0.0, arrow)).rgb;
-
     imageStore(out_rc, ivec3(di.xyz), color);
 }

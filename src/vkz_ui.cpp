@@ -276,6 +276,20 @@ void updataContentRCBuild(Dbg_RadianceCascades& _rc)
     ImGui::End();
 }
 
+void updateRc2d(Dbg_Rc2d& _rc2d)
+{
+    KG_ZoneScopedC(kage::Color::blue);
+    ImGui::Begin("rc2d:");
+
+    static const char* const debug_stage_types[(uint32_t)Rc2dStage::count] = { "use", "build", "merge"};
+
+    ImGui::Combo("stage", (int*)&_rc2d.stage, debug_stage_types, COUNTOF(debug_stage_types));
+    ImGui::SliderInt("lv", (int*)&_rc2d.lv, 0, 8);
+    ImGui::Checkbox("arrow", &_rc2d.showArrow);
+
+    ImGui::End();
+}
+
 void updateContentBrx(Dbg_Brixel& _brx)
 {
     KG_ZoneScopedC(kage::Color::blue);
@@ -305,6 +319,12 @@ void updateContentCommon(Dbg_Common& _common, const DebugProfilingData& _pd, con
     ImGui::Begin("info:");
 
     ImGui::Text("fps: [%.2f]", 1000.f / _pd.avgCpuTime);
+
+    ImGui::Checkbox("brx", &_common.dbgBrx);
+    ImGui::Checkbox("rc3d", &_common.dbgRc3d);
+    ImGui::Checkbox("rc2d", &_common.dbgRc2d);
+
+
     ImGui::Text("avg cpu: [%.3f]ms", _pd.avgCpuTime);
     ImGui::Text("avg gpu: [%.3f]ms", _pd.avgGpuTime);
     ImGui::Text("cull early: [%.3f]ms", _pd.cullEarlyTime);
@@ -316,6 +336,7 @@ void updateContentCommon(Dbg_Common& _common, const DebugProfilingData& _pd, con
         ImGui::Text("cull late: [%.3f]ms", _pd.cullLateTime);
         ImGui::Text("draw late: [%.3f]ms", _pd.drawLateTime);
     }
+
 
     ImGui::Text("ui: [%.3f]ms", _pd.uiTime);
     ImGui::Text("deferred: [%.3f]ms", _pd.deferredTime);
@@ -365,7 +386,15 @@ void updateImGuiContent(DebugFeatures& ft, const DebugProfilingData& _pd, const 
     KG_ZoneScopedC(kage::Color::blue);
 
     updateContentCommon(ft.common, _pd, _ld);
-    updateContentBrx(ft.brx);
+
+    if(ft.common.dbgBrx)
+        updateContentBrx(ft.brx);
+
+    if (ft.common.dbgRc3d)
+        updataContentRCBuild(ft.rc3d);
+
+    if (ft.common.dbgRc2d)
+        updateRc2d(ft.rc2d);
 }
 
 void updateImGui(const UIInput& input, DebugFeatures& ft, const DebugProfilingData& pd, const DebugLogicData& ld)
@@ -375,8 +404,6 @@ void updateImGui(const UIInput& input, DebugFeatures& ft, const DebugProfilingDa
     updateImGuiIO(input);
 
     updateImGuiContent(ft, pd, ld);
-
-    updataContentRCBuild(ft.rcBuild);
 
     ImGui::Render();
 }

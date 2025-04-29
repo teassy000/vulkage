@@ -15,6 +15,17 @@ struct Rc2dMergeData
 {
     Rc2dData rc;
     uint lv;
+
+    uint arrow;
+};
+
+struct Rc2dUseData
+{
+    Rc2dData rc;
+    uint lv;
+    uint stage;
+
+    uint arrow;
 };
 
 

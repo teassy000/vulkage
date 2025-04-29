@@ -23,10 +23,23 @@ struct Rc2dData
     float mpy;
 };
 
-struct Rc2dMergeData
+struct alignas(16) Rc2dMergeData
 {
     Rc2dData rc;
+    
     uint32_t lv;
+
+    uint32_t arrow;
+};
+
+struct alignas(16) Rc2dUseData
+{
+    Rc2dData rc;
+    
+    uint32_t lv;
+    uint32_t stage;
+
+    uint32_t arrow;
 };
 
 
@@ -134,7 +147,7 @@ void initRc2DMerge(Rc2DMerge& _rc, const Rc2dData _init, kage::ImageHandle _inRc
 void initRc2DUse(Rc2DUse& _rc, const Rc2dData& _init, kage::ImageHandle _inMergedRc, kage::ImageHandle _inRc)
 {
     kage::ShaderHandle cs = kage::registShader("use_rc2d", "shaders/rc2d_use.comp.spv");
-    kage::ProgramHandle program = kage::registProgram("use_rc2d", { cs }, sizeof(Rc2dData));
+    kage::ProgramHandle program = kage::registProgram("use_rc2d", { cs }, sizeof(Rc2dUseData));
     kage::PassDesc passDesc{};
     passDesc.programId = program.id;
     passDesc.queue = kage::PassExeQueue::compute;
@@ -191,13 +204,13 @@ void initRc2DUse(Rc2DUse& _rc, const Rc2dData& _init, kage::ImageHandle _inMerge
     _rc.rtOutAlias = outAlias;
 }
 
-void initRc2D(Rc2D& _rc, uint32_t _w, uint32_t _h, uint32_t _rayRes, uint32_t _casCount)
+void initRc2D(Rc2D& _rc, const Rc2dInfo& _info)
 {
-    Rc2dData initData = { _w, _h, _rayRes, _casCount };
+    Rc2dData data = { _info.width, _info.height, _info.c0_dRes, _info.nCascades, _info.mpx, _info.mpy };
 
-    initRc2DBuild(_rc.build, initData);
-    initRc2DMerge(_rc.merge, initData, _rc.build.rcImageOutAlias);
-    initRc2DUse(_rc.use, initData, _rc.merge.mergedCasOutAlias, _rc.build.rcImageOutAlias);
+    initRc2DBuild(_rc.build, data);
+    initRc2DMerge(_rc.merge, data, _rc.build.rcImageOutAlias);
+    initRc2DUse(_rc.use, data, _rc.merge.mergedCasOutAlias, _rc.build.rcImageOutAlias);
 }
 
 
@@ -250,20 +263,29 @@ void recRc2DMerge(const Rc2DMerge& _rc, const Rc2dData& _init)
     kage::endRec();
 }
 
-void recRc2DUse(const Rc2DUse& _rc, const Rc2dData& _init)
+void recRc2DUse(const Rc2DUse& _rc, const Rc2dData& _data, const Dbg_Rc2d& _dbg)
 {
     kage::startRec(_rc.pass);
-    const kage::Memory* mem = kage::alloc(sizeof(Rc2dData));
-    memcpy(mem->data, &_init, mem->size);
+
+    Rc2dUseData use;
+    use.rc = _data;
+    use.lv = _dbg.lv;
+    use.stage = _dbg.stage;
+    use.arrow = _dbg.showArrow ? 1 : 0;
+
+    const kage::Memory* mem = kage::alloc(sizeof(Rc2dUseData));
+    memcpy(mem->data, &use, mem->size);
     kage::setConstants(mem);
 
     kage::Binding pushBinds[] = {
-        {_rc.rc,        _rc.linearSamp, Stage::compute_shader},
-        {_rc.mergedCas, _rc.linearSamp, Stage::compute_shader},
+        {_rc.rc,        _rc.nearedSamp, Stage::compute_shader},
+        {_rc.mergedCas, _rc.nearedSamp, Stage::compute_shader},
         {_rc.rt,        0, Stage::compute_shader},
     };
+
     kage::pushBindings(pushBinds, COUNTOF(pushBinds));
-    kage::dispatch(_init.width, _init.height, 1);
+    kage::dispatch(_data.width, _data.height, 1);
+    
     kage::endRec();
 }
 
@@ -287,14 +309,14 @@ void updateRc2D(Rc2D& _rc, const Rc2dData& _data)
     updateRc2DUse(_rc.use, _data);
 }
 
-void updateRc2D(Rc2D& _rc, uint32_t _w, uint32_t _h, uint32_t _rayRes, uint32_t _casCount, vec2 _mousePos)
+void updateRc2D(Rc2D& _rc, const Rc2dInfo& _info, const Dbg_Rc2d& _dbg)
 {
-    Rc2dData data = { _w, _h, _rayRes, _casCount, _mousePos.x, _mousePos.y };
+    Rc2dData data = { _info.width, _info.height, _info.c0_dRes, _info.nCascades, _info.mpx, _info.mpy };
 
     updateRc2D(_rc, data);
 
     recRc2DBuild(_rc.build, data);
     recRc2DMerge(_rc.merge, data);
-    recRc2DUse(_rc.use, data);
+    recRc2DUse(_rc.use, data, _dbg);
 }
 

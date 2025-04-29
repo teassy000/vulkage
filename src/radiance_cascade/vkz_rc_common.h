@@ -26,10 +26,10 @@ enum class RCDbgColorType : uint32_t
     count
 };
 
-enum class rc2dStage : uint32_t
+enum class Rc2dStage : uint32_t
 {
-    build = 0,
+    use = 0,
+    build,
     merge,
-    use,
     count
 };

@@ -53,7 +53,15 @@ struct Rc2D
     Rc2DUse use;
 };
 
+struct Rc2dInfo
+{
+    uint32_t width;
+    uint32_t height;
+    uint32_t c0_dRes;
+    uint32_t nCascades;
+    float mpx;
+    float mpy;
+};
 
-
-void initRc2D(Rc2D& _rc, uint32_t _w, uint32_t _h, uint32_t _rayRes, uint32_t _casCount);
-void updateRc2D(Rc2D& _rc, uint32_t _w, uint32_t _h, uint32_t _rayRes, uint32_t _casCount, vec2 _mousePos);
+void initRc2D(Rc2D& _rc, const Rc2dInfo& _info);
+void updateRc2D(Rc2D& _rc, const Rc2dInfo& _info, const Dbg_Rc2d& _dbg);

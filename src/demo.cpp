@@ -170,7 +170,7 @@ namespace
             updateCulling(m_cullingAlpha, m_demoData.drawCull, m_scene.drawCount);
 
 
-            updateDeferredShading(m_deferred, m_width, m_height, m_demoData.trans.cameraPos, m_demoData.dbg_features.rcBuild.totalRadius, m_demoData.dbg_features.rcBuild.idx_type, m_demoData.dbg_features.rcBuild);
+            updateDeferredShading(m_deferred, m_width, m_height, m_demoData.trans.cameraPos, m_demoData.dbg_features.rc3d.totalRadius, m_demoData.dbg_features.rc3d.idx_type, m_demoData.dbg_features.rc3d);
 
             if (m_supportMeshShading)
             {
@@ -212,13 +212,17 @@ namespace
             m_smaa.update(m_width, m_height);
 
 
-            updateRadianceCascade(m_radianceCascade, m_demoData.dbg_features.rcBuild, m_demoData.trans);
+            updateRadianceCascade(m_radianceCascade, m_demoData.dbg_features.rc3d, m_demoData.trans);
             if (m_debugProb)
             {
-                updateProbeDebug(m_probDebug, m_demoData.drawCull, m_width, m_height, m_demoData.dbg_features.rcBuild);
+                updateProbeDebug(m_probDebug, m_demoData.drawCull, m_width, m_height, m_demoData.dbg_features.rc3d);
             }
 
-            updateRc2D(m_rc2d, m_width, m_height, 4, 5, vec2{ (float)m_mouseState.m_mx, (float)m_mouseState.m_my });
+            {
+                Rc2dInfo info{ m_width, m_height, 4, 5, (float)m_mouseState.m_mx, (float)m_mouseState.m_my };
+                updateRc2D(m_rc2d, info, m_demoData.dbg_features.rc2d);
+            }
+            
 
             {
                 m_demoData.dbg_features.brx.presentImg = m_brixel.debugDestImg;
@@ -649,7 +653,7 @@ namespace
                 rcInit.maxDrawCmdCount = (uint32_t)m_scene.meshDraws.size();
                 rcInit.bindless = m_bindlessArray;
                 rcInit.skybox = m_skybox_cube;
-                rcInit.currCas = m_demoData.dbg_features.rcBuild.startCascade;
+                rcInit.currCas = m_demoData.dbg_features.rc3d.startCascade;
 
                 memcpy(&rcInit.brx, &m_brixel.userReses, sizeof(BRX_UserResources));
 
@@ -658,7 +662,8 @@ namespace
 
             // rc2d
             {
-                initRc2D(m_rc2d, m_width, m_height, 4, 5);
+                Rc2dInfo info{ m_width, m_height, 4, 5, 0.f, 0.f };
+                initRc2D(m_rc2d, info);
             }
 
             // deferred
@@ -760,7 +765,7 @@ namespace
             m_demoData.globals.screenHeight = (float)m_height;
             m_demoData.globals.enableMeshletOcclusion = 1;
             m_demoData.globals.lodErrorThreshold = lodErrThreshold;
-            m_demoData.globals.probeRangeRadius = m_demoData.dbg_features.rcBuild.totalRadius;
+            m_demoData.globals.probeRangeRadius = m_demoData.dbg_features.rc3d.totalRadius;
         }
 
         void createBindlessArray()

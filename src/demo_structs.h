@@ -70,6 +70,10 @@ struct Dbg_Common
     bool showPyramid = false;
     int  debugPyramidLevel = 0;
     float speed = 0.01f;
+
+    bool dbgBrx;
+    bool dbgRc3d;
+    bool dbgRc2d;
 };
 
 struct Dbg_Brixel
@@ -110,12 +114,20 @@ struct Dbg_RadianceCascades
     bool pauseUpdate = false;
 };
 
+struct Dbg_Rc2d
+{
+    uint32_t stage;
+    uint32_t lv;
+    bool showArrow = true;
+};
+
 struct DebugFeatures
 {
     Dbg_Common common;
-    Dbg_Brixel brx;
 
-    Dbg_RadianceCascades rcBuild;
+    Dbg_Brixel brx;
+    Dbg_RadianceCascades rc3d;
+    Dbg_Rc2d rc2d;
 };
 
 struct DemoData
