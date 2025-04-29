@@ -74,9 +74,10 @@ void main()
 
     for (int ii = 0; ii < 4; ++ii)
     {
-        mergedColor += texture(in_merged_probe, vec3(uv, 0.f)).rgb;
+        vec3 col = texture(in_merged_probe, vec3(uv, 0.f)).rgb;
+
+        mergedColor += col * weights[ii];
     }
-    mergedColor /= 4.f;
 
     color = mergedColor;
 
