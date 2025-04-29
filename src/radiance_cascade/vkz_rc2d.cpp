@@ -10,6 +10,7 @@ using Access = kage::BindingAccess;
 using LoadOp = kage::AttachmentLoadOp;
 using StoreOp = kage::AttachmentStoreOp;
 
+constexpr uint32_t c_maxCascads = 8;
 
 struct Rc2dData
 {
@@ -60,7 +61,7 @@ void initRc2DBuild(Rc2DBuild& _rc, const Rc2dData& _init)
     imgDesc.height = _init.height;
     imgDesc.format = kage::ResourceFormat::r8g8b8a8_unorm;
     imgDesc.depth = 1;
-    imgDesc.numLayers = _init.nCascades;
+    imgDesc.numLayers = c_maxCascads;
     imgDesc.numMips = 1;
     imgDesc.type = kage::ImageType::type_2d;
     imgDesc.viewType = kage::ImageViewType::type_2d_array;
@@ -100,7 +101,7 @@ void initRc2DMerge(Rc2DMerge& _rc, const Rc2dData _init, kage::ImageHandle _inRc
     imgDesc.height = _init.height;
     imgDesc.format = kage::ResourceFormat::r8g8b8a8_unorm;
     imgDesc.depth = 1;
-    imgDesc.numLayers = _init.nCascades;
+    imgDesc.numLayers = c_maxCascads;
     imgDesc.numMips = 1;
     imgDesc.type = kage::ImageType::type_2d;
     imgDesc.viewType = kage::ImageViewType::type_2d_array;
@@ -211,6 +212,10 @@ void initRc2D(Rc2D& _rc, const Rc2dInfo& _info)
     initRc2DBuild(_rc.build, data);
     initRc2DMerge(_rc.merge, data, _rc.build.rcImageOutAlias);
     initRc2DUse(_rc.use, data, _rc.merge.mergedCasOutAlias, _rc.build.rcImageOutAlias);
+
+    _rc.width = _info.width;
+    _rc.height = _info.height;
+    _rc.nCascades = _info.nCascades;
 }
 
 
@@ -292,21 +297,30 @@ void recRc2DUse(const Rc2DUse& _rc, const Rc2dData& _data, const Dbg_Rc2d& _dbg)
 
 void updateRc2DBuild(Rc2DBuild& _rc, const Rc2dData& _data)
 {
+    kage::updateImage(_rc.rcImage, _data.width, _data.height, c_maxCascads);
 }
 
 void updateRc2DMerge(Rc2DMerge& _rc, const Rc2dData& _data)
 {
+    kage::updateImage(_rc.mergedCas, _data.width, _data.height, c_maxCascads);
 }
 
 void updateRc2DUse(Rc2DUse& _rc, const Rc2dData& _data)
 {
+    kage::updateImage(_rc.rt, _data.width, _data.height, 1);
 }
 
 void updateRc2D(Rc2D& _rc, const Rc2dData& _data)
 {
-    updateRc2DBuild(_rc.build, _data);
-    updateRc2DMerge(_rc.merge, _data);
-    updateRc2DUse(_rc.use, _data);
+    if (_rc.width != _data.width || _rc.height != _data.height)
+    {
+        updateRc2DBuild(_rc.build, _data);
+        updateRc2DMerge(_rc.merge, _data);
+        updateRc2DUse(_rc.use, _data);
+
+        _rc.width = _data.width;
+        _rc.height = _data.height;
+    }
 }
 
 void updateRc2D(Rc2D& _rc, const Rc2dInfo& _info, const Dbg_Rc2d& _dbg)

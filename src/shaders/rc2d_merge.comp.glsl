@@ -31,8 +31,6 @@ vec4 mergeIntervals(vec4 _near, vec4 _far)
     return vec4(_near.rgb + _near.a * _far.rgb, _near.a * _far.a);
 }
 
-
-
 ivec2 getTexelPos(ivec2 _pixIdx, int _dRes, ivec2 _off, int _rayIdx, ivec2 _baseIdx)
 {
     ivec2 res = _pixIdx + _off * ivec2(_dRes);
@@ -78,6 +76,30 @@ ivec2 getTexelPos2(ivec2 _probeIdx, int _dRes, ivec2 _rayIdx)
     return res;
 }
 
+
+ivec2 getTexelPos3(ivec2 _probeIdx, int _dRes, int _rayIdx)
+{
+    ivec2 rayIDx = ivec2(_rayIdx % _dRes, _rayIdx / _dRes);
+    ivec2 res = _probeIdx * _dRes + rayIDx;
+
+    ivec2 newIdx = res / _dRes;
+
+    // shift to the next line
+    if (newIdx.x != _probeIdx.x)
+    {
+        res.x -= _dRes;
+        res.y += 1;
+        newIdx = res / _dRes;
+    }
+    // shift back to the start of probe
+    if (newIdx.y != _probeIdx.y)
+    {
+        res.y -= _dRes;
+    }
+
+    return res;
+}
+
 void main()
 {
     const ivec2 di = ivec2(gl_GlobalInvocationID.xy);
@@ -87,44 +109,42 @@ void main()
     const uint nextLvFactor = factor * 2;
     const ivec2 screenSize = ivec2(data.rc.width, data.rc.height);
 
-    const uint dRes = data.rc.c0_dRes * factor;
-    ProbeSamp samp = getProbSamp(di.xy, dRes);
+    const uint cn_dRes = data.rc.c0_dRes * factor;
+    const uint cn1_dRes = data.rc.c0_dRes * nextLvFactor;
+
+    ProbeSamp baseSamp = getProbSamp(di.xy, cn_dRes);
 
     const vec3 n0uv = vec3(vec2(di) / vec2(screenSize), float(currLv));
     vec4 baseColor = imageLoad(in_rc, ivec3(di, currLv));
 
+    vec4 weights = getWeights(baseSamp.ratio);
+    
 
-    vec4 weights = getWeights(samp.ratio);
+    ProbeSamp nxtSamp = getNextLvProbeSamp(baseSamp);
 
-    const int nextdRes = int(data.rc.c0_dRes * nextLvFactor);
-    ProbeSamp baseSamp = getProbSamp(di, nextdRes);
-
-    float dStep = (2.f * PI) / float(dRes * dRes);
-    float nextDStep = (2.f * PI) / float(nextdRes * nextdRes);
-
-    ivec2 rayIdx = screenSize % baseSamp.baseIdx;
-    ivec2 nextRayIdx = rayIdx * 2;
+    ivec2 rayPos = di.xy % ivec2(cn_dRes);
+    uint rayIdx = uint(rayPos.x + rayPos.y * cn_dRes);
 
     vec4 mergedColor = vec4(0.f);
-
-    // 4 probes
-    for (int jj = 0; jj < 4; ++jj) 
+    for (int ii = 0; ii < 4; ++ii)
     {
-        ivec2 poff = getOffsets(jj);
-        
-        // 4 rays
-        for (int ii = 0; ii < 4; ++ii)
-        {
-            ivec2 roff = getOffsets(ii);
-            ivec2 texelPos = getTexelPos2(baseSamp.baseIdx + poff, nextdRes, nextRayIdx + roff);
+        ivec2 texelPos = getTexelPos3(nxtSamp.baseIdx, int(cn1_dRes), int(rayIdx * 4 + ii));
+        vec4 c = imageLoad(in_baseRc, ivec3(texelPos, currLv + 1));
 
-            vec3 n1uv = vec3(vec2(texelPos) / vec2(screenSize), float(currLv + 1));
-            vec4 color = imageLoad(in_baseRc, ivec3(texelPos, currLv + 1));
-
-            mergedColor += mergeIntervals(baseColor, color) * weights[ii];
-        }
+        mergedColor += c * weights[ii];
     }
 
+    mergedColor = mergeIntervals(baseColor, mergedColor);
+
+    vec4 arrC = vec4(0.f);
+    if (data.arrow > 0)
+    {
+        vec2 mousePos = vec2(data.rc.mpx, data.rc.mpy);
+        vec2 arrowuv = vec2(di.xy - mousePos);
+
+        float arrow = sdf_arrow(arrowuv, 100.f, vec2(0.f, -1.f), 4.0, 2.0);
+        arrC = mix(vec4(0.f), vec4(1.0), smoothstep(1.5, 0.0, arrow));
+    }
 
     imageStore(merged_rc, ivec3(di, currLv), mergedColor);
 }

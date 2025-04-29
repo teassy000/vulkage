@@ -52,21 +52,18 @@ void main()
     const ivec2 res = ivec2(data.width, data.height);
 
     uint factor = 1 << di.z;
-    uint rayPxlCnt = factor * data.c0_dRes;
-    vec2 probeCnt = vec2(data.width, data.height) / float(rayPxlCnt);
-    vec2 probeIdx = vec2(di.xy) / float(rayPxlCnt);
-    vec2 subUV = fract(probeIdx);
+    uint cn_dRes = factor * data.c0_dRes;
+    vec2 probeCount = vec2(data.width, data.height) / float(cn_dRes);
+
+    ProbeSamp samp = getProbSamp(di.xy, cn_dRes);
 
     // origin should be the center of the probe;
-    vec2 probeTexel = (floor(probeIdx) + vec2(.5f)) * float(rayPxlCnt);
+    vec2 probeCenter = (vec2(samp.baseIdx) + vec2(.5f)) * float(cn_dRes);
 
-    float radStep = 2.f * PI / float(rayPxlCnt * rayPxlCnt);
-    ivec2 subPixId = ivec2(di.x % rayPxlCnt, di.y % rayPxlCnt);
-    uint subPixIdx = subPixId.x + subPixId.y * rayPxlCnt;
-    float rad = float(subPixIdx + .5f) * radStep - PI;
-
+    float rad = pixelToRadius(di.xy, cn_dRes);
+    
     Ray ray;
-    ray.origin = vec2(probeTexel);
+    ray.origin = vec2(probeCenter);
     ray.dir = vec2(cos(rad), sin(rad));
 
     float c0Len = length(res) * 4.f / ((1 << 2 * data.nCascades) - 1.f);

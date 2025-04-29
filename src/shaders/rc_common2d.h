@@ -61,15 +61,36 @@ vec4 getWeights(vec2 _ratio)
 
 ProbeSamp getProbSamp(ivec2 _pixIdx, uint _dRes)
 {
-    vec2 area = _pixIdx / float(_dRes);
+    vec2 area = vec2(_pixIdx) / float(_dRes);
+
+    area -= vec2(0.5f);
 
     ProbeSamp samp;
     samp.baseIdx = ivec2(floor(area));
-    samp.ratio = fract(area - 0.5f);
+    samp.ratio = fract(area);
 
     return samp;
 }
 
+ProbeSamp getNextLvProbeSamp(ProbeSamp _baseSamp)
+{
+    ProbeSamp samp;
+    samp.baseIdx = _baseSamp.baseIdx / 2;
+    samp.ratio = _baseSamp.ratio / 2 + vec2(_baseSamp.baseIdx % 2) * .5f;
+
+    return samp;
+}
+
+float pixelToRadius(ivec2 _pixIdx, uint _dRes)
+{
+    float radStep = 2.f * PI / float(_dRes * _dRes);
+    ivec2 subPixId = ivec2(_pixIdx.x % _dRes, _pixIdx.y % _dRes);
+    uint subPixIdx = subPixId.x + subPixId.y * _dRes;
+    
+    float rad = radStep * float(subPixIdx) + 0.5 * radStep; // add half step to avoid atan 0 in the future
+
+    return rad;
+}
 
 vec4 opU(vec4 d1, vec4 d2)
 {
