@@ -20,7 +20,7 @@ layout(push_constant) uniform block
 layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 
 layout(binding = 0, RGBA8) uniform image2DArray in_rc; // rc data
-layout(binding = 1, RGBA8) uniform image2DArray in_baseRc; // intermediate data, which is merged [current level + 1] + [next level + 1] into the current level
+layout(binding = 1, RGBA8) uniform image2DArray in_baseRc; 
 layout(binding = 2, RGBA8) uniform image2DArray merged_rc; // store the merged data
 
 
@@ -83,15 +83,21 @@ void main()
         uint rayIdx = uint(rayPos.x + rayPos.y * cn_dRes);
 
         vec4 mergedColor = vec4(0.f);
-        for (int ii = 0; ii < 4; ++ii)
-        {
-            ivec2 texelPos = getTexelPos(nxtSamp.baseIdx, int(cn1_dRes), int(rayIdx * 4 + ii));
-            vec4 c = imageLoad(in_baseRc, ivec3(texelPos, currLv + 1));
 
-            mergedColor += mergeIntervals(baseColor, c) * weights[ii];
+
+        // 4 probes
+        //for (int jj = 0; jj < 4; ++jj)
+        {
+            // 4 rays per pixel
+            for (int ii = 0; ii < 4; ++ii)
+            {
+                ivec2 texelPos = getTexelPos(nxtSamp.baseIdx, int(cn1_dRes), int(rayIdx * 4 + ii));
+                vec4 c = imageLoad(in_baseRc, ivec3(texelPos, currLv + 1));
+
+                mergedColor += mergeIntervals(baseColor, c) * weights[ii];
+            }
         }
 
-        //mergedColor = mergeIntervals(baseColor, mergedColor);
 
         vec4 arrC = vec4(0.f);
         if (data.arrow > 0)

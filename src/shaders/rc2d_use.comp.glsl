@@ -32,7 +32,6 @@ ivec2 getTexelPos(ivec2 _probeIdx, uint _rayIdx, uint _dRes)
     return _probeIdx * ivec2(_dRes) + dIdx;
 }
 
-
 void main()
 {
     const ivec3 di = ivec3(gl_GlobalInvocationID.xyz);
@@ -60,9 +59,6 @@ void main()
 
     vec3 color = vec3(0.f);
     vec2 uv = di.xy / vec2(resolution);
-    //vec4 sd = sdf(vec2(di.xy), vec2(resolution));
-    //if (sd.w < 0.5)
-    //    color = sd.rgb;
 
     ProbeSamp samp = getProbSamp(di.xy, c0dRes);
     vec4 weights = getWeights(samp.ratio);

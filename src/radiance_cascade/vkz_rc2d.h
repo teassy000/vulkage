@@ -54,15 +54,15 @@ struct Rc2D
     Rc2DMerge mergeProbe;
     Rc2DUse use;
 
-    uint32_t width;
-    uint32_t height;
+    uint32_t rt_width;
+    uint32_t rt_height;
     uint32_t nCascades;
 };
 
 struct Rc2dInfo
 {
-    uint32_t width;
-    uint32_t height;
+    uint32_t rt_width;
+    uint32_t rt_height;
     uint32_t c0_dRes;
     uint32_t nCascades;
     float mpx;
