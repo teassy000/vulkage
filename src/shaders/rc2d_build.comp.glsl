@@ -28,13 +28,14 @@ struct Ray
     vec2 dir;
 };
 
+
 // trace ray in the pixel space
-vec4 traceRay(Ray _ray, float _tmin, float _tmax, vec2 _res)
+vec4 traceRay(Ray _ray, float _tmin, float _tmax, vec2 _res, vec2 _mPos)
 {
     float t = _tmin;
     for (uint ii = 0; ii < 10; ++ii)
     {
-        vec4 sd = sdf(_ray.origin + _ray.dir * t, _res);
+        vec4 sd = sdf(_ray.origin + _ray.dir * t, _res, _mPos);
         if (sd.w < .5f) 
             return vec4(sd.rgb, 0.f);
         
@@ -48,8 +49,10 @@ vec4 traceRay(Ray _ray, float _tmin, float _tmax, vec2 _res)
 
 void main()
 {
+
     const ivec3 di = ivec3(gl_GlobalInvocationID.xyz);
     const ivec2 res = ivec2(data.width, data.height);
+    const ivec2 mousePos = ivec2(data.mpx, data.mpy);
 
     uint factor = 1 << di.z;
     uint cn_dRes = factor * data.c0_dRes;
@@ -71,7 +74,7 @@ void main()
     float tmax = c0Len * float(1 << 2 * di.z);
 
     vec4 color = vec4(0.f);
-    color = traceRay(ray, tmin, tmax, vec2(res));
+    color = traceRay(ray, tmin, tmax, vec2(res), vec2(mousePos));
 
     //color = vec4(ray.dir * .5f + .5f, 0.f, 1.f);
     imageStore(out_rc, ivec3(di.xyz), color);
