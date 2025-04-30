@@ -120,6 +120,7 @@ struct Dbg_Rc2d
     uint32_t lv = 0;
     float c0_rLen = 15.f;
     bool showArrow = true;
+    bool show_c0_Border = false;
 };
 
 struct DebugFeatures

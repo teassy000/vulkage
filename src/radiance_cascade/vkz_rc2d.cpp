@@ -33,7 +33,7 @@ struct alignas(16) Rc2dMergeData
     
     uint32_t lv;
 
-    uint32_t arrow;
+    uint32_t flags;
 };
 
 struct alignas(16) Rc2dUseData
@@ -43,7 +43,7 @@ struct alignas(16) Rc2dUseData
     uint32_t lv;
     uint32_t stage;
 
-    uint32_t arrow;
+    uint32_t flags;
 };
 
 uvec2 calcRCRes(uint32_t _scW, uint32_t _scH, uint32_t _nCas, uint32_t _c0dRes)
@@ -314,7 +314,16 @@ void recRc2DUse(const Rc2DUse& _rc, const Rc2dData& _data, const uvec2 _res, con
     use.rc = _data;
     use.lv = _dbg.lv;
     use.stage = _dbg.stage;
-    use.arrow = _dbg.showArrow ? 1 : 0;
+
+    uint32_t flags = 0;
+    if (_dbg.showArrow)
+        flags |= 1 << 0;
+
+    if (_dbg.show_c0_Border)
+        flags |= 1 << 1;
+
+
+    use.flags = flags;
 
     const kage::Memory* mem = kage::alloc(sizeof(Rc2dUseData));
     memcpy(mem->data, &use, mem->size);

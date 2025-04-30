@@ -55,6 +55,31 @@ ivec2 getTexelPos(ivec2 _probeIdx, int _dRes, int _rayIdx)
     return res;
 }
 
+vec4 bilinearInterpolate(sampler2DArray tex, vec2 _uv)
+{
+    vec2 texSz = textureSize(tex, 0).xy;
+    vec2 lowResTexCoord = _uv * texSz;
+
+    vec2 texelIdx = floor(lowResTexCoord);
+    vec2 texelFract = fract(lowResTexCoord);
+
+    vec2 offsets = vec2(0.f, 1.f);
+    vec2 baseUV = texelIdx / texSz;
+    vec2 step = 0.8f / texSz;
+
+
+    vec4 color00 = texture(tex, vec3(baseUV + offsets.xx * step, 0.f));
+    vec4 color10 = texture(tex, vec3(baseUV + offsets.yx * step, 0.f));
+    vec4 color01 = texture(tex, vec3(baseUV + offsets.xy * step, 0.f));
+    vec4 color11 = texture(tex, vec3(baseUV + offsets.yy * step, 0.f));
+
+    vec4 color0 = mix(color00, color10, texelFract.x);
+    vec4 color1 = mix(color01, color11, texelFract.x);
+    vec4 color = mix(color0, color1, texelFract.y);
+
+    return color;
+}
+
 void main()
 {
     const ivec2 di = ivec2(gl_GlobalInvocationID.xy);
@@ -98,9 +123,8 @@ void main()
             }
         }
 
-
         vec4 arrC = vec4(0.f);
-        if (data.arrow > 0)
+        if (data.flags > 0)
         {
             vec2 mousePos = vec2(data.rc.mpx, data.rc.mpy);
             vec2 arrowuv = vec2(di.xy - mousePos);

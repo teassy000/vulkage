@@ -30,6 +30,7 @@ enum class Rc2dStage : uint32_t
 {
     use = 0,
     build,
-    merge,
+    merge_ray,
+    merge_probe,
     count
 };

@@ -272,12 +272,13 @@ void updateRc2d(Dbg_Rc2d& _rc2d)
     KG_ZoneScopedC(kage::Color::blue);
     ImGui::Begin("rc2d:");
 
-    static const char* const debug_stage_types[(uint32_t)Rc2dStage::count] = { "use", "build", "merge"};
+    static const char* const debug_stage_types[(uint32_t)Rc2dStage::count] = { "use", "build", "merge_r", "merge_p"};
 
     ImGui::Combo("stage", (int*)&_rc2d.stage, debug_stage_types, COUNTOF(debug_stage_types));
     ImGui::SliderInt("lv", (int*)&_rc2d.lv, 0, 8);
-    ImGui::Checkbox("arrow", &_rc2d.showArrow);
     ImGui::SliderFloat("c0 ray len", &_rc2d.c0_rLen, 4.f, 40.f);
+    ImGui::Checkbox("arrow", &_rc2d.showArrow);
+    ImGui::Checkbox("show c0 border", &_rc2d.show_c0_Border);
 
     ImGui::End();
 }

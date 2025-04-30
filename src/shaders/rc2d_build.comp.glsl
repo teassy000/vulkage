@@ -73,6 +73,6 @@ void main()
     vec4 color = vec4(0.f);
     color = traceRay(ray, tmin, tmax, vec2(res));
 
-    //color = vec4(ray.dir * .5f + .5f, 0.f, 1.f); ;
+    //color = vec4(ray.dir * .5f + .5f, 0.f, 1.f);
     imageStore(out_rc, ivec3(di.xyz), color);
 }

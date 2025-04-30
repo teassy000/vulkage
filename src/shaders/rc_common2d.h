@@ -18,7 +18,7 @@ struct Rc2dMergeData
     Rc2dData rc;
     uint lv;
 
-    uint arrow;
+    uint flags;
 };
 
 struct Rc2dUseData
@@ -27,7 +27,7 @@ struct Rc2dUseData
     uint lv;
     uint stage;
 
-    uint arrow;
+    uint flags;
 };
 
 
