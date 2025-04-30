@@ -219,7 +219,7 @@ namespace
             }
 
             {
-                Rc2dInfo info{ m_width, m_height, 8, 6, (float)m_mouseState.m_mx, (float)m_mouseState.m_my };
+                Rc2dInfo info{ m_width, m_height, 2, 6, (float)m_mouseState.m_mx, (float)m_mouseState.m_my };
                 updateRc2D(m_rc2d, info, m_demoData.dbg_features.rc2d);
             }
             
@@ -662,7 +662,7 @@ namespace
 
             // rc2d
             {
-                Rc2dInfo info{ m_width, m_height, 8, 6, 0.f, 0.f };
+                Rc2dInfo info{ m_width, m_height, 2, 6, 0.f, 0.f };
                 initRc2D(m_rc2d, info);
             }
 
