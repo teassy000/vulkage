@@ -96,9 +96,10 @@ void main()
         vec4 colors[4];
         for (int jj = 0; jj < 4; ++jj)
         {
-            ivec2 nextProbeIdx = cn1_probeIdx + getOffsets(jj);
+            ivec2 nextProbeIdx = cn1_baseProbeIdx + getOffsets(jj);
 
             vec4 mergedColor = vec4(0.f);
+            // 4 rays
             for (int ii = 0; ii < 4; ++ii)
             {
                 ivec2 texelPos = getTexelPos(nextProbeIdx, int(cn1_dRes), int(cn0_rIdx * 4 + ii));

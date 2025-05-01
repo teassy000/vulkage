@@ -31,6 +31,7 @@ ivec2 getTexelPos(ivec2 _probeIdx, uint _rayIdx, uint _dRes)
     return _probeIdx * ivec2(_dRes) + dIdx;
 }
 
+
 vec4 bilinearInterpolate(sampler2DArray tex, vec2 _uv)
 {
     vec2 texSz = textureSize(tex, 0).xy;
@@ -95,12 +96,8 @@ void main()
     vec4 weights = getWeights(samp.ratio);
 
     float dStep = (2.f * PI) / float(c0dRes * c0dRes);
-    // 4 rays per pixel
 
-    vec3 mergedColor = vec3(0.f);
-
-
-    mergedColor = bilinearInterpolate(in_merged_probe, uv).rgb;
+    vec3 mergedColor = bilinearInterpolate(in_merged_probe, uv).rgb;
 
     color = mergedColor;
 
