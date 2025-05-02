@@ -65,41 +65,40 @@ void main()
     uint c0dRes = data.rc.c0_dRes;
     uint lv = min(data.rc.nCascades, data.lv);
 
-    if (data.stage == 1)
+
+    vec3 color = vec3(0.f);
+    if (data.stage == 0)
+    {
+        vec2 uv = di.xy / vec2(resolution);
+
+        ProbeSamp samp = getProbSamp(di.xy, c0dRes);
+        vec4 weights = getWeights(samp.ratio);
+
+        float dStep = (2.f * PI) / float(c0dRes * c0dRes);
+
+        vec3 mergedColor = bilinearInterpolate(in_merged_probe, uv).rgb;
+
+        color = mergedColor;
+    }
+    else if (data.stage == 1)
     {
         vec3 uv = vec3(vec2(di.xy)/ vec2(resolution), float(lv));
         vec4 c = texture(in_rc, uv);
-        imageStore(rt, ivec2(di.xy), vec4(c.rgb, 1.f));
-        return;    
+        color = c.rgb; 
     }
-
-    if (data.stage == 2)
+    else if (data.stage == 2)
     {
         vec3 uv = vec3(vec2(di.xy) / vec2(resolution), float(lv));
         vec4 c = texture(in_merged_rc, uv);
-        imageStore(rt, ivec2(di.xy), vec4(c.rgb, 1.f));
-        return;
+        color = c.rgb;
     }
-
-    if (data.stage == 3)
+    else if (data.stage == 3)
     {
         vec3 uv = vec3(vec2(di.xy) / vec2(resolution), float(lv));
         vec4 c = texture(in_merged_probe, uv);
-        imageStore(rt, ivec2(di.xy), vec4(c.rgb, 1.f));
-        return;
+        color = c.rgb;
     }
 
-    vec3 color = vec3(0.f);
-    vec2 uv = di.xy / vec2(resolution);
-
-    ProbeSamp samp = getProbSamp(di.xy, c0dRes);
-    vec4 weights = getWeights(samp.ratio);
-
-    float dStep = (2.f * PI) / float(c0dRes * c0dRes);
-
-    vec3 mergedColor = bilinearInterpolate(in_merged_probe, uv).rgb;
-
-    color = mergedColor;
 
     bool arrow = (data.flags & (1 << 0) ) > 0;
     bool border =( data.flags & (1 << 1) ) > 0;
@@ -124,8 +123,6 @@ void main()
             || di.y % cn_dRes == 0 || (di.y + 1) % cn_dRes == 0)
             color = vec3(0.f, 0.f, 0.f);
     }
-
-
 
     imageStore(rt, ivec2(di.xy), vec4(color, 1.f));
 }
