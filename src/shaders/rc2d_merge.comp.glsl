@@ -98,12 +98,16 @@ void main()
         ProbeSamp cn0_samp = getProbSamp(di.xy, cn_dRes);
 
         const vec3 n0uv = vec3(vec2(di) / vec2(screenSize), float(currLv));
-
+        // the n+1 lv offset based on the n lv:
+        // only nearby n+1 probes counted
+        // as a observe: it always the opposite direction of the n lv
+        // e.g.: n: (0, 0) n+1: (1, 1), or n: (0, 1), n+1 (1, 0)
+        ivec2 cn_suboff = cn0_samp.baseIdx % 2;
+        ivec2 cn1_suboff = ivec2(1, 1) - cn_suboff;
         ivec2 cn1_probeIdx = cn0_samp.baseIdx / 2;
-        ivec2 cn1_subOffset = cn1_probeIdx % 2;
-        ivec2 cn1_baseProbeIdx = cn1_probeIdx - cn1_subOffset;
+        ivec2 cn1_baseProbeIdx = cn1_probeIdx - cn1_suboff;
 
-        ivec2 cn_rPos = di.xy % ivec2(cn_dRes);
+        ivec2 cn_rPos = di.xy % ivec2(cn_dRes); // this only work when rays in same probe are nearby in the data
         uint cn_rIdx = uint(cn_rPos.x + cn_rPos.y * cn_dRes);
         uint cn1_rIdx = cn_rIdx * 4;
 
@@ -126,8 +130,7 @@ void main()
             colors[jj] = mergedColor;
         }
 
-        ivec2 cn_suboff = cn0_samp.baseIdx % 2;
-        vec2 cn1_ratio = getRatio(cn1_subOffset.x + cn1_subOffset.y * 2, cn_suboff.x + cn_suboff.y * 2);
+        vec2 cn1_ratio = getRatio(cn1_suboff.x + cn1_suboff.y * 2, cn_suboff.x + cn_suboff.y * 2);
         vec4 color0 = mix(colors[0], colors[1], cn1_ratio.x);
         vec4 color1 = mix(colors[2], colors[3], cn1_ratio.x);
         vec4 color = mix(color0, color1, cn1_ratio.y);
