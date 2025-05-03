@@ -42,7 +42,7 @@ vec4 bilinearInterpolate(sampler2DArray tex, vec2 _uv)
 
     vec2 offsets = vec2(0.f, 1.f);
     vec2 baseUV = texelIdx / texSz;
-    vec2 step = 0.8f / texSz;
+    vec2 step = 1.f / texSz;
 
 
     vec4 color00 = texture(tex, vec3(baseUV + offsets.xx * step, 0.f));
@@ -79,20 +79,20 @@ void main()
         vec3 mergedColor = bilinearInterpolate(in_merged_probe, uv).rgb;
 
         color = mergedColor;
-    }
-    else if (data.stage == 1)
+    } // normal useage
+    else if (data.stage == 1) // build
     {
-        vec3 uv = vec3(vec2(di.xy)/ vec2(resolution), float(lv));
+        vec3 uv = vec3(vec2(di.xy) / vec2(resolution), float(lv));
         vec4 c = texture(in_rc, uv);
         color = c.rgb; 
     }
-    else if (data.stage == 2)
+    else if (data.stage == 2) // merge_ray
     {
         vec3 uv = vec3(vec2(di.xy) / vec2(resolution), float(lv));
         vec4 c = texture(in_merged_rc, uv);
         color = c.rgb;
     }
-    else if (data.stage == 3)
+    else if (data.stage == 3) // merge_probe of cascade 0
     {
         vec3 uv = vec3(vec2(di.xy) / vec2(resolution), float(lv));
         vec4 c = texture(in_merged_probe, uv);

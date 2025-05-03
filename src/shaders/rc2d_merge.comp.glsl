@@ -55,6 +55,28 @@ ivec2 getTexelPos(ivec2 _probeIdx, int _dRes, int _rayIdx)
     return res;
 }
 
+vec2 getRatio(uint _cn1_off, uint _cn_off)
+{
+    vec2 ratio = vec2(0.f);
+    switch (_cn1_off)
+    {
+        case 0: ratio = vec2(0.25, 0.25); break;
+        case 1: ratio = vec2(0.75, 0.25); break;
+        case 2: ratio = vec2(0.25, 0.75); break;
+        case 3: ratio = vec2(0.75, 0.75); break;
+    }
+
+    switch (_cn_off)
+    {
+        case 0: ratio += vec2(-0.125, -0.125); break;
+        case 1: ratio += vec2(0.125, -0.125); break;
+        case 2: ratio += vec2(-0.125, 0.125); break;
+        case 3: ratio += vec2(0.125, 0.125); break;
+    }
+
+    return ratio;
+}
+
 void main()
 {
     const ivec2 di = ivec2(gl_GlobalInvocationID.xy);
@@ -64,70 +86,55 @@ void main()
     {
         const uint currLv = data.lv;
         const uint factor = 1 << currLv;
+        const uint cn_dRes = data.rc.c0_dRes * factor;
+
         const uint nextLvFactor = factor * 2;
         const ivec2 res = ivec2(data.rc.width, data.rc.height);
 
-        const uint cn_dRes = data.rc.c0_dRes * factor;
         const uint cn1_dRes = data.rc.c0_dRes * nextLvFactor;
 
         const ivec2 cn1_probeCount = res / ivec2(cn1_dRes);
 
         ProbeSamp cn0_samp = getProbSamp(di.xy, cn_dRes);
-        ProbeSamp cn1_samp = getNextLvProbeSamp(cn0_samp);
-
-        vec4 weights = getWeights(cn0_samp.ratio);
 
         const vec3 n0uv = vec3(vec2(di) / vec2(screenSize), float(currLv));
-        vec4 baseColor = imageLoad(in_rc, ivec3(di, currLv));
 
         ivec2 cn1_probeIdx = cn0_samp.baseIdx / 2;
-        ivec2 cn1_subOffset = cn0_samp.baseIdx % 2;
+        ivec2 cn1_subOffset = cn1_probeIdx % 2;
         ivec2 cn1_baseProbeIdx = cn1_probeIdx - cn1_subOffset;
-        vec2 cn1_fract = fract(vec2(cn0_samp.baseIdx) / vec2(cn1_probeCount));
 
-        ivec2 cn0_rPos = di.xy % ivec2(cn_dRes);
-        uint cn0_rIdx = uint(cn0_rPos.x + cn0_rPos.y * cn_dRes);
-
-
-        float rad = pixelToRadius(cn0_rPos, cn_dRes);
-
+        ivec2 cn_rPos = di.xy % ivec2(cn_dRes);
+        uint cn_rIdx = uint(cn_rPos.x + cn_rPos.y * cn_dRes);
+        uint cn1_rIdx = cn_rIdx * 4;
 
         // 4 probes
         vec4 colors[4];
         for (int jj = 0; jj < 4; ++jj)
         {
             ivec2 nextProbeIdx = cn1_baseProbeIdx + getOffsets(jj);
-
             vec4 mergedColor = vec4(0.f);
+            
             // 4 rays
             for (int ii = 0; ii < 4; ++ii)
             {
-                ivec2 texelPos = getTexelPos(nextProbeIdx, int(cn1_dRes), int(cn0_rIdx * 4 + ii));
+                ivec2 texelPos = getTexelPos(nextProbeIdx, int(cn1_dRes), int(cn1_rIdx + ii));
                 vec4 c = imageLoad(in_baseRc, ivec3(texelPos, currLv + 1));
 
                 mergedColor += c;
             }
             mergedColor /= 4.f;
-
             colors[jj] = mergedColor;
         }
 
+        ivec2 cn_suboff = cn0_samp.baseIdx % 2;
+        vec2 cn1_ratio = getRatio(cn1_subOffset.x + cn1_subOffset.y * 2, cn_suboff.x + cn_suboff.y * 2);
+        vec4 color0 = mix(colors[0], colors[1], cn1_ratio.x);
+        vec4 color1 = mix(colors[2], colors[3], cn1_ratio.x);
+        vec4 color = mix(color0, color1, cn1_ratio.y);
 
-        vec4 color0 = mix(colors[0], colors[1], cn1_fract.x);
-        vec4 color1 = mix(colors[2], colors[3], cn1_fract.x);
-        vec4 color = mix(color0, color1, cn1_fract.y);
-
+        ivec2 cn0_texelPos = getTexelPos(cn0_samp.baseIdx, int(cn_dRes), int(cn_rIdx));
+        vec4 baseColor = imageLoad(in_rc, ivec3(cn0_texelPos, currLv));
         vec4 c = mergeIntervals(baseColor, color);
-
-        vec4 arrC = vec4(0.f);
-        if (data.flags > 0)
-        {
-            vec2 mousePos = vec2(data.rc.mpx, data.rc.mpy);
-            vec2 arrowuv = vec2(di.xy - mousePos);
-
-            float arrow = sdf_arrow(arrowuv, 100.f, vec2(0.f, -1.f), 4.0, 2.0);
-            arrC = mix(vec4(0.f), vec4(1.0), smoothstep(1.5, 0.0, arrow));
-        }
 
         imageStore(merged_rc, ivec3(di, currLv), c);
     }
