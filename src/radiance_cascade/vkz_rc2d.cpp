@@ -108,7 +108,7 @@ void initRc2DMerge(Rc2DMerge& _rc, const uvec2 _init, uint32_t _c0dRes, kage::Im
     kage::ShaderHandle cs = kage::registShader(name, "shaders/rc2d_merge.comp.spv");
     kage::ProgramHandle program = kage::registProgram(name, { cs }, sizeof(Rc2dMergeData));
     
-    int pipelineSpecs[] = { _ray };
+    int pipelineSpecs[] = { _ray, true };
     const kage::Memory* pConst = kage::alloc(sizeof(int) * COUNTOF(pipelineSpecs));
     memcpy_s(pConst->data, pConst->size, pipelineSpecs, sizeof(int) * COUNTOF(pipelineSpecs));
 

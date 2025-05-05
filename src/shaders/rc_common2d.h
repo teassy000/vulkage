@@ -30,6 +30,11 @@ struct Rc2dUseData
     uint flags;
 };
 
+struct Ray
+{
+    vec2 origin;
+    vec2 dir;
+};
 
 struct ProbeSamp
 {
@@ -114,7 +119,10 @@ vec4 sdf(in vec2 _origin, in vec2 _res, in vec2 _mpos)
     vec4 distance = vec4(10000.f);
     distance = opU(distance, vec4(0.0, 1.0, 0.0, sdBox(_origin - vec2(_res.x * .2f, _res.y * .5f ), vec2(10.f, 200.f))));
     distance = opU(distance, vec4(0.01, 0.0, 0.0, sdBox(_origin - vec2(_res.x * .3f, _res.y * .9f), vec2(20.f, 600.f))));
-    distance = opU(distance, vec4(1.0f, 0.4, 0.0, sdCircle(_origin - _mpos, 80.f)));
+    distance = opU(distance, vec4(1.0, 0.0, 0.0, sdBox(_origin - vec2(_res.x * .8f, _res.y * .5f), vec2(100.f, 100.f))));
+    distance = opU(distance, vec4(0.0, 1.0, 1.0, sdCircle(_origin - vec2(_res.x * .5f, _res.y * .2f), 60.f)));
+
+    distance = opU(distance, vec4(0.0f, 0.4, 1.0, sdCircle(_origin - _mpos, 80.f)));
     return distance;
 }
 
@@ -152,4 +160,22 @@ float sdf_arrow(vec2 uv, float norm, vec2 dir, float head_height, float stem_wid
     float stem = length(uv);
 
     return min(head, stem);  // Join head and stem!
+}
+
+// trace ray in the pixel space
+vec4 traceRay(Ray _ray, float _tmin, float _tmax, vec2 _res, vec2 _mPos)
+{
+    float t = _tmin;
+    for (uint ii = 0; ii < 10; ++ii)
+    {
+        vec4 sd = sdf(_ray.origin + _ray.dir * t, _res, _mPos);
+        if (sd.w < .5f)
+            return vec4(sd.rgb, 0.f);
+
+        t += sd.w;
+        if (t > _tmax)
+            break;
+    }
+
+    return vec4(0.f, 0.f, 0.f, 1.f);
 }

@@ -11,6 +11,7 @@
 #include "debug_gpu.h"
 
 layout(constant_id = 0) const bool RAY = false;
+layout(constant_id = 1) const bool BILINER_RING_FIX = true;
 
 layout(push_constant) uniform block
 {
@@ -20,7 +21,7 @@ layout(push_constant) uniform block
 layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 
 layout(binding = 0, RGBA8) uniform image2DArray in_rc; // rc data
-layout(binding = 1, RGBA8) uniform image2DArray in_baseRc; 
+layout(binding = 1, RGBA8) uniform image2DArray in_merged_rc; 
 layout(binding = 2, RGBA8) uniform image2DArray merged_rc; // store the merged data
 
 
@@ -87,6 +88,7 @@ void main()
         const uint currLv = data.lv;
         const uint factor = 1 << currLv;
         const uint cn_dRes = data.rc.c0_dRes * factor;
+        const ivec2 mousePos = ivec2(data.rc.mpx, data.rc.mpy);
 
         const uint nextLvFactor = factor * 2;
         const ivec2 res = ivec2(data.rc.width, data.rc.height);
@@ -107,39 +109,90 @@ void main()
         ivec2 cn1_probeIdx = cn0_samp.baseIdx / 2;
         ivec2 cn1_baseProbeIdx = cn1_probeIdx - cn1_suboff;
 
+        vec2 cn1_ratio = getRatio(cn1_suboff.x + cn1_suboff.y * 2, cn_suboff.x + cn_suboff.y * 2);
+
         ivec2 cn_rPos = di.xy % ivec2(cn_dRes); // this only work when rays in same probe are nearby in the data
         uint cn_rIdx = uint(cn_rPos.x + cn_rPos.y * cn_dRes);
         uint cn1_rIdx = cn_rIdx * 4;
 
-        // 4 probes
-        vec4 colors[4];
-        for (int jj = 0; jj < 4; ++jj)
-        {
-            ivec2 nextProbeIdx = cn1_baseProbeIdx + getOffsets(jj);
-            vec4 mergedColor = vec4(0.f);
-            
-            // 4 rays
-            for (int ii = 0; ii < 4; ++ii)
-            {
-                ivec2 texelPos = getTexelPos(nextProbeIdx, int(cn1_dRes), int(cn1_rIdx + ii));
-                vec4 c = imageLoad(in_baseRc, ivec3(texelPos, currLv + 1));
+        vec4 outColor = vec4(0.f);
 
-                mergedColor += c;
+        if (BILINER_RING_FIX)
+        {
+            vec2 cn_probeCenter = (vec2(cn0_samp.baseIdx) + vec2(.5f)) * float(cn_dRes);
+
+            // 4 rays
+            vec4 mergedColor = vec4(0.f);
+            for (int jj = 0; jj < 4; ++jj)
+            {
+                uint rayIdx = cn1_rIdx + jj;
+                ivec2 rayIdxPos = ivec2(rayIdx % cn1_dRes, rayIdx / cn1_dRes);
+                float rad = pixelToRadius(rayIdxPos, cn1_dRes);
+
+                // 4 probes
+                vec4 colors[4];
+                vec4 mergedColors[4];
+                for (int ii = 0; ii < 4; ++ii)
+                {
+                    ivec2 nextProbeIdx = cn1_baseProbeIdx + getOffsets(ii);
+                    ivec2 texelPos = getTexelPos(nextProbeIdx, int(cn1_dRes), int(cn1_rIdx + jj));
+                    // N+1 traced color
+                    vec4 c = imageLoad(in_merged_rc, ivec3(texelPos, currLv + 1));
+
+                    // trace the ray from the N with ends
+                    float c0Len = data.rc.c0_rLen;
+                    float tmin = currLv + 1 == 0 ? 0.f : c0Len * float(1 << 2 * (currLv));
+                    float tmax = c0Len * float(1 << 2 * (currLv + 1));
+                    
+                    vec2 cn1_probeCenter = (vec2(nextProbeIdx) + vec2(.5f)) * float(cn1_dRes);
+                    vec2 endPos = cn1_probeCenter + vec2(cos(rad), sin(rad)) * float(tmax);
+                    vec2 rayDir = normalize(endPos - cn_probeCenter);
+
+                    Ray ray;
+                    ray.origin = vec2(cn_probeCenter);
+                    ray.dir = rayDir;
+
+                    colors[ii] = traceRay(ray, tmin, tmax, vec2(res), vec2(mousePos));
+                    mergedColors[ii] = mergeIntervals(colors[ii], c);
+                }
+
+                vec4 color0 = mix(mergedColors[0], mergedColors[1], cn1_ratio.x);
+                vec4 color1 = mix(mergedColors[2], mergedColors[3], cn1_ratio.x);
+                vec4 color = mix(color0, color1, cn1_ratio.y);
+                mergedColor += color;
             }
-            mergedColor /= 4.f;
-            colors[jj] = mergedColor;
+            outColor = mergedColor / 4.f;
+        }
+        else
+        { // NO BILINER_RING_FIX
+            ivec2 cn0_texelPos = getTexelPos(cn0_samp.baseIdx, int(cn_dRes), int(cn_rIdx));
+            vec4 baseColor = imageLoad(in_rc, ivec3(cn0_texelPos, currLv));
+            // 4 rays
+            vec4 mergedColor = vec4(0.f);
+            for (int jj = 0; jj < 4; ++jj)
+            {
+                // 4 probes
+                vec4 colors[4];
+                for (int ii = 0; ii < 4; ++ii)
+                {
+                    ivec2 nextProbeIdx = cn1_baseProbeIdx + getOffsets(ii);
+                    ivec2 texelPos = getTexelPos(nextProbeIdx, int(cn1_dRes), int(cn1_rIdx + jj));
+                    vec4 c = imageLoad(in_merged_rc, ivec3(texelPos, currLv + 1));
+
+                    colors[ii] = c;
+                }
+                vec4 color0 = mix(colors[0], colors[1], cn1_ratio.x);
+                vec4 color1 = mix(colors[2], colors[3], cn1_ratio.x);
+                vec4 color = mix(color0, color1, cn1_ratio.y);
+
+                outColor = mergeIntervals(baseColor, color);
+
+                mergedColor += outColor;
+            }
+            outColor = mergedColor / 4.f;
         }
 
-        vec2 cn1_ratio = getRatio(cn1_suboff.x + cn1_suboff.y * 2, cn_suboff.x + cn_suboff.y * 2);
-        vec4 color0 = mix(colors[0], colors[1], cn1_ratio.x);
-        vec4 color1 = mix(colors[2], colors[3], cn1_ratio.x);
-        vec4 color = mix(color0, color1, cn1_ratio.y);
-
-        ivec2 cn0_texelPos = getTexelPos(cn0_samp.baseIdx, int(cn_dRes), int(cn_rIdx));
-        vec4 baseColor = imageLoad(in_rc, ivec3(cn0_texelPos, currLv));
-        vec4 c = mergeIntervals(baseColor, color);
-
-        imageStore(merged_rc, ivec3(di, currLv), c);
+        imageStore(merged_rc, ivec3(di, currLv), outColor);
     }
     else
     {
