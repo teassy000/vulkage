@@ -129,6 +129,7 @@ Working dir: `./`
 - [Organizing GPU Work with Directed Acyclic Graphs](https://levelup.gitconnected.com/organizing-gpu-work-with-directed-acyclic-graphs-f3fd5f2c2af3) - Pavlo Muratov
 - [Radiance Cascades](https://drive.google.com/file/d/1L6v1_7HY2X-LV3Ofb6oyTIxgEaP4LOI6/view) - Alexander Sannikov
 - [RC bilinear ring fix](https://arxiv.org/pdf/2408.14425) - C. M. J. Osborne, A. Sannikov
+- [RC fundamental](m4xc.dev/articles/fundamental-rc/) - MΛX
 - And Vulkan documents :)
 
 ---------
