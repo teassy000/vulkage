@@ -19,7 +19,11 @@ It is a playground to understand modern graphics programming better.
 - bimg
 - bgfx_common
 - glm
+- METIS
 - premake5
+- FidelityFX
+  - brixelizer
+
 
 ----------
 
@@ -59,7 +63,8 @@ Supports:
 - bindless texture
 - SMAA
 - geometry shader based voxelization（with oct-tree optimized）
-- radiance cascade(WIP)
+- radiance cascade 2D
+- FidelityFX Brixelizer intergrate
 
 ------------
 
