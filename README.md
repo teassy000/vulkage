@@ -8,7 +8,7 @@ It is a playground to understand modern graphics programming better.
 
 ----------
 
-#### Depends
+#### depends
 
 - volk
 - meshoptimizer
@@ -29,7 +29,7 @@ It is a playground to understand modern graphics programming better.
 
 #### niagara part(The streaming by Arseny Kapoukine):
 
-Supports:
+supports:
 
 - mesh-shading
 - task-submission
@@ -68,41 +68,58 @@ Supports:
 
 ------------
 
-#### Build and Run:
+#### prepare:
 
 1. download [premake5](https://premake.github.io/download/) and install it first.
 
-2. clone the repo via:
-
-   `git clone https://github.com/teassy000/vulkage.git`
-   
-3. enter the root directory by: 
-
-   `cd vulkage`
-   
-4. update sub-modules via : 
-
-   `git submodule update --init --recursive`
-   
 5. generate project with command: 
 
    `premake5 vs2022 x64`
 
    you can find the solution file in `./build/vulkage.sln`
 
-Note: METIS lib should be compiled manually.
+#### build:
+
+1. build METIS manually
+
+   1. open the `./externs/metis/include/metis.h`, then un-comment following macros(or set by your needs):
+
+      ```
+      // ...
+      #define IDXTYPEWIDTH 32
+      // ...
+      #define REALTYPEWIDTH 32f
+      ```
+
+   2. generate the solution via ./externs/metis/vsgen.bat
+
+   3. build the metis solution
+
+2. build the vukage solution
+
+3. set the project `vulkage` as startup
+
+#### run: 
 
 Working dir: `./`
 
 `project_root$> vulkage.exe [model_dir] [-p]`
 
-`[-p]` : Force parse the model. The project will parse the model file once and dump the medium data to reduce loading time. 
+`[-p]` : Force parse the gltf model. The project will parse the model file once and dump the medium data to reduce loading time. 
 
-Note2: The project tested with vs2022 and worked on Nvidia 3070+ serials card. And it used the vulkan extension: `VK_EXT_mesh_shader`, default vertex pipeline might not work due to no testing for it.
+#### notes: 
+
+> a) METIS lib should be compiled manually.
+>
+> b) You should prepare models by yourself
+>
+> c) Start from `demo.cpp` if you like to read the code.
+>
+> d) The project tested with vs2022 and tested on **Nvidia 3070** serials, and should work on newer Nvidia cards(not sure if AMD supports mesh shaders on retail drivers yet). The project used the vulkan extension: `VK_EXT_mesh_shader`, default vertex pipeline might not work because I didn't setup the test project yet, it might broken due to some modification.
 
 ----------
 
-#### reference
+#### references:
 
 - [Niagara streaming](https://www.youtube.com/playlist?list=PL0JVLUVCkk-l7CWCn3-cdftR0oajugYvd)  - Arseny Kapoukine
 - [FrameGraph: Extensible Rendering Architecture in Frostbite](https://www.gdcvault.com/play/1024612/FrameGraph-Extensible-Rendering-Architecture-in)  - Yuriy O'Donnell
@@ -110,6 +127,8 @@ Note2: The project tested with vs2022 and worked on Nvidia 3070+ serials card. A
 - [Render graphs](https://apoorvaj.io/render-graphs-1/) - Apoorva Joshi 
 - [Vulkan Barriers Explained](https://gpuopen.com/learn/vulkan-barriers-explained/) - Matthäus Chajdas
 - [Organizing GPU Work with Directed Acyclic Graphs](https://levelup.gitconnected.com/organizing-gpu-work-with-directed-acyclic-graphs-f3fd5f2c2af3) - Pavlo Muratov
+- [Radiance Cascades](https://drive.google.com/file/d/1L6v1_7HY2X-LV3Ofb6oyTIxgEaP4LOI6/view) - Alexander Sannikov
+- [RC bilinear ring fix](https://arxiv.org/pdf/2408.14425) - C. M. J. Osborne, A. Sannikov
 - And Vulkan documents :)
 
 ---------
@@ -124,11 +143,7 @@ Note2: The project tested with vs2022 and worked on Nvidia 3070+ serials card. A
 
 ![ml_bistro](./screenshot/ml_bistro.png)
 
-
-
-
-
-
+![rc2d](./screenshot/rc2d.png)
 
 
 
