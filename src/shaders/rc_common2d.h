@@ -119,10 +119,11 @@ vec4 sdf(in vec2 _origin, in vec2 _res, in vec2 _mpos)
     vec4 distance = vec4(10000.f);
     distance = opU(distance, vec4(0.0, 1.0, 0.0, sdBox(_origin - vec2(_res.x * .2f, _res.y * .5f ), vec2(10.f, 200.f))));
     distance = opU(distance, vec4(0.01, 0.0, 0.0, sdBox(_origin - vec2(_res.x * .3f, _res.y * .9f), vec2(20.f, 600.f))));
+    distance = opU(distance, vec4(0.01, 0.0, 0.0, sdBox(_origin - vec2(_res.x * .7f, _res.y * .4f), vec2(20.f, 200.f))));
     distance = opU(distance, vec4(1.0, 0.0, 0.0, sdBox(_origin - vec2(_res.x * .8f, _res.y * .5f), vec2(100.f, 100.f))));
-    distance = opU(distance, vec4(0.0, 1.0, 1.0, sdCircle(_origin - vec2(_res.x * .5f, _res.y * .2f), 60.f)));
+    distance = opU(distance, vec4(0.f, 1.f, 1.f, sdCircle(_origin - vec2(_res.x * .5f, _res.y * .2f), 60.f)));
 
-    distance = opU(distance, vec4(0.0f, 0.4, 1.0, sdCircle(_origin - _mpos, 80.f)));
+    distance = opU(distance, vec4(0.0f, 0.f, 1.f, sdCircle(_origin - _mpos, 80.f)));
     return distance;
 }
 
