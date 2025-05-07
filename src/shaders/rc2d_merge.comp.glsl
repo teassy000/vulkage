@@ -130,14 +130,13 @@ void main()
                 float rad = pixelToRadius(rayIdxPos, cn1_dRes);
 
                 // 4 probes
-                vec4 colors[4];
                 vec4 mergedColors[4];
                 for (int ii = 0; ii < 4; ++ii)
                 {
                     ivec2 nextProbeIdx = cn1_baseProbeIdx + getOffsets(ii);
                     ivec2 texelPos = getTexelPos(nextProbeIdx, int(cn1_dRes), int(cn1_rIdx + jj));
                     // N+1 traced color
-                    vec4 c = imageLoad(in_merged_rc, ivec3(texelPos, currLv + 1));
+                    vec4 col_n1 = imageLoad(in_merged_rc, ivec3(texelPos, currLv + 1));
 
                     // trace the ray from the N with ends
                     float c0Len = data.rc.c0_rLen;
@@ -152,8 +151,8 @@ void main()
                     ray.origin = vec2(cn_probeCenter);
                     ray.dir = rayDir;
 
-                    colors[ii] = traceRay(ray, tmin, tmax, vec2(res), vec2(mousePos));
-                    mergedColors[ii] = mergeIntervals(colors[ii], c);
+                    vec4 c_n0 = traceRay(ray, tmin, tmax, vec2(res), vec2(mousePos));
+                    mergedColors[ii] = mergeIntervals(c_n0, col_n1);
                 }
 
                 vec4 color0 = mix(mergedColors[0], mergedColors[1], cn1_ratio.x);
