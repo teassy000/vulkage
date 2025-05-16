@@ -359,6 +359,8 @@ namespace kage { namespace vk
         void kick(bool _finishAll = false);
         void shutdown();
 
+        void fetchQueryResults();
+
         bool checkSupports(VulkanSupportExtension _ext) override;
 
         void updateResolution(const Resolution& _resolution) override;

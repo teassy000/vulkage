@@ -1609,10 +1609,12 @@ namespace kage { namespace vk
 
     bool RHIContext_vk::run()
     {
+        KG_ZoneScopedC(Color::indian_red);
         m_frameRecCmds.finish();
 
         // brixelizer update
-        brx::update(m_brx);
+        // temporarily disable the brixelizer
+        // brx::update(m_brx);
 
         bool result = render();
 
@@ -1680,59 +1682,17 @@ namespace kage { namespace vk
             drawToSwapchain(m_swapchain.m_swapchainImageIndex);
         }
 
-        m_cmd.addWaitSemaphore(m_swapchain.m_waitSemaphore, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
-        m_cmd.addSignalSemaphore(m_swapchain.m_signalSemaphore);
+        m_cmd.addWaitSemaphore(m_swapchain.m_prevAcquiredSemaphore, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+        m_cmd.addSignalSemaphore(m_swapchain.m_prevRenderedSemaphore);
+
+        m_swapchain.m_prevAcquiredSemaphore = VK_NULL_HANDLE;
 
         m_cmd.kick(); // end and dispatch the command buffer
-        m_cmd.alloc(&m_cmdBuffer); // alloc a new command buffer
 
+        m_cmd.alloc(&m_cmdBuffer); // alloc a new command buffer, and wait for fence of previous frame
         m_swapchain.present();
+
         m_cmd.finish();
-
-        // wait
-        {
-            KG_ZoneScopedNC("wait", Color::blue);
-            VK_CHECK(vkDeviceWaitIdle(m_device)); // TODO: a fence here?
-        }
-
-        // set the statistic data
-
-        stl::vector<uint64_t> statistics(m_passContainer.size());
-        VK_CHECK(vkGetQueryPoolResults(
-            m_device
-            , m_queryPoolStatistics
-            , 0
-            , (uint32_t)statistics.size()
-            , sizeof(uint64_t) * statistics.size()
-            , statistics.data()
-            , sizeof(uint64_t)
-            , VK_QUERY_RESULT_64_BIT
-        ));
-        m_passStatistics.clear();
-        for (uint32_t ii = 0; ii < m_passContainer.size(); ++ii)
-        {
-            uint16_t passId = m_passContainer.getIdAt(ii);
-            uint64_t clippedCount = statistics[ii];
-
-            m_passStatistics.insert({ passId, clippedCount });
-        }
-
-
-        // set the time stamp data
-        stl::vector<uint64_t> timeStamps(m_passContainer.size() + 1);
-        VK_CHECK(vkGetQueryPoolResults(m_device, m_queryPoolTimeStamp, 0, (uint32_t)timeStamps.size(), sizeof(uint64_t) * timeStamps.size(), timeStamps.data(), sizeof(uint64_t), VK_QUERY_RESULT_64_BIT));
-        m_passTime.clear();
-        for (uint32_t ii = 0; ii < timeStamps.size() - 1; ++ii)
-        {
-            uint16_t passId = m_passContainer.getIdAt(ii);
-            double timeStart = double(timeStamps[ii]) * m_phyDeviceProps.limits.timestampPeriod * 1e-6;
-            double timeEnd = double(timeStamps[ii+1]) * m_phyDeviceProps.limits.timestampPeriod * 1e-6;
-
-            m_passTime.insert({ passId, timeEnd - timeStart });
-        }
-        double gpuTimeStart = double(timeStamps[0]) * m_phyDeviceProps.limits.timestampPeriod * 1e-6;
-        double gpuTimeEnd = double(timeStamps.back()) * m_phyDeviceProps.limits.timestampPeriod * 1e-6;
-        m_gpuTime = gpuTimeEnd - gpuTimeStart;
 
         return true;
     }
@@ -1921,6 +1881,61 @@ namespace kage { namespace vk
 
         m_aliasToBaseBuffers.clear();
         m_aliasToBaseImages.clear();
+    }
+
+    void RHIContext_vk::fetchQueryResults()
+    {
+        KG_ZoneScopedNC("wait query", Color::blue);
+        // set the statistic data
+        stl::vector<uint64_t> statistics(m_passContainer.size());
+
+        // !!!TODO: figure out how to remove VK_QUERY_RESULT_WAIT_BIT
+        // this makes the rendering frames in flight stalled.
+        VK_CHECK(vkGetQueryPoolResults(
+            m_device
+            , m_queryPoolStatistics
+            , 0
+            , (uint32_t)statistics.size()
+            , sizeof(uint64_t) * statistics.size()
+            , statistics.data()
+            , sizeof(uint64_t)
+            , VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT
+        ));
+        
+        m_passStatistics.clear();
+        for (uint32_t ii = 0; ii < m_passContainer.size(); ++ii)
+        {
+            uint16_t passId = m_passContainer.getIdAt(ii);
+            uint64_t clippedCount = statistics[ii];
+
+            m_passStatistics.insert({ passId, clippedCount });
+        }
+
+        // set the time stamp data
+        stl::vector<uint64_t> timeStamps(m_passContainer.size() + 1);
+        VK_CHECK(vkGetQueryPoolResults(
+            m_device
+            , m_queryPoolTimeStamp
+            , 0
+            , (uint32_t)timeStamps.size()
+            , sizeof(uint64_t) * timeStamps.size()
+            , timeStamps.data()
+            , sizeof(uint64_t)
+            , VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT
+        ));
+        m_passTime.clear();
+
+        for (uint32_t ii = 0; ii < timeStamps.size() - 1; ++ii)
+        {
+            uint16_t passId = m_passContainer.getIdAt(ii);
+            double timeStart = double(timeStamps[ii]) * m_phyDeviceProps.limits.timestampPeriod * 1e-6;
+            double timeEnd = double(timeStamps[ii + 1]) * m_phyDeviceProps.limits.timestampPeriod * 1e-6;
+
+            m_passTime.insert({ passId, timeEnd - timeStart });
+        }
+        double gpuTimeStart = double(timeStamps[0]) * m_phyDeviceProps.limits.timestampPeriod * 1e-6;
+        double gpuTimeEnd = double(timeStamps.back()) * m_phyDeviceProps.limits.timestampPeriod * 1e-6;
+        m_gpuTime = gpuTimeEnd - gpuTimeStart;
     }
 
     bool RHIContext_vk::checkSupports(VulkanSupportExtension _ext)
@@ -5337,6 +5352,7 @@ namespace kage { namespace vk
 
     void CommandQueue_vk::init(uint32_t _familyIdx, VkQueue _queue, uint32_t _numFramesInFlight)
     {
+        KG_ZoneScopedC(Color::indian_red);
         m_queueFamilyIdx = _familyIdx;
         m_queue = _queue;
         m_numFramesInFlight = bx::clamp<uint32_t>(_numFramesInFlight, 1, kMaxNumFrameLatency);
@@ -5347,6 +5363,7 @@ namespace kage { namespace vk
 
     void CommandQueue_vk::reset()
     {
+        KG_ZoneScopedC(Color::indian_red);
         shutdown();
 
         m_currentFrameInFlight = 0;
@@ -5416,6 +5433,7 @@ namespace kage { namespace vk
 
     void CommandQueue_vk::alloc(VkCommandBuffer* _cmdBuf)
     {
+        KG_ZoneScopedC(Color::green);
         if (m_activeCommandBuffer == VK_NULL_HANDLE)
         {
             const VkDevice device = s_renderVK->m_device;

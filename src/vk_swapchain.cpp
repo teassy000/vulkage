@@ -48,6 +48,9 @@ namespace kage { namespace vk
 
     void Swapchain_vk::update(void* _nwh, const Resolution& _resolution)
     {
+        m_prevAcquiredSemaphore = VK_NULL_HANDLE;
+        m_prevRenderedSemaphore = VK_NULL_HANDLE;
+
         const bool recreateSurface = false
             || m_nwh != _nwh
             ;
@@ -167,15 +170,20 @@ namespace kage { namespace vk
 
         VK_CHECK(vkGetSwapchainImagesKHR(device, m_swapchain, &m_swapchainImageCount, &m_swapchainImages[0]));
 
+        m_prevAcquiredSemaphore = VK_NULL_HANDLE;
+        m_prevRenderedSemaphore = VK_NULL_HANDLE;
+
+        VkSemaphoreCreateInfo sci = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+        sci.flags = 0;
+        sci.pNext = NULL;
+        for(uint32_t ii = 0; ii < m_swapchainImageCount; ++ii)
         {
-            VkSemaphoreCreateInfo ci = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-            VK_CHECK(vkCreateSemaphore(device, &ci, 0, &m_waitSemaphore));
+            VK_CHECK(vkCreateSemaphore(device, &sci, 0, &m_renderDoneSemaphore[ii]));
+            VK_CHECK(vkCreateSemaphore(device, &sci, 0, &m_presentDoneSemaphore[ii]));
         }
 
-        {
-            VkSemaphoreCreateInfo ci = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-            VK_CHECK(vkCreateSemaphore(device, &ci, 0, &m_signalSemaphore));
-        }
+        m_currentSemaphore = 0;
+
         m_shouldPresent = false;
         m_shouldRecreateSwapchain = false;
     }
@@ -211,11 +219,15 @@ namespace kage { namespace vk
         {
             const VkDevice device = s_renderVK->m_device;
 
+            m_prevAcquiredSemaphore = m_presentDoneSemaphore[m_currentSemaphore];
+            m_prevRenderedSemaphore = m_renderDoneSemaphore[m_currentSemaphore];
+            m_currentSemaphore = (m_currentSemaphore + 1) % m_swapchainImageCount;
+
             VK_CHECK(vkAcquireNextImageKHR(
                 device
                 , m_swapchain
                 , ~0ull
-                , m_waitSemaphore
+                , m_prevAcquiredSemaphore
                 , VK_NULL_HANDLE
                 , &m_swapchainImageIndex
             ));
@@ -244,7 +256,7 @@ namespace kage { namespace vk
         presentInfo.swapchainCount = 1;
         presentInfo.pSwapchains = &m_swapchain;
         presentInfo.pImageIndices = &m_swapchainImageIndex;
-        presentInfo.pWaitSemaphores = &m_signalSemaphore;
+        presentInfo.pWaitSemaphores = &m_prevRenderedSemaphore;
         presentInfo.waitSemaphoreCount = 1;
 
         VkResult result = vkQueuePresentKHR(queue, &presentInfo);
@@ -260,7 +272,7 @@ namespace kage { namespace vk
         }
 
         m_shouldPresent = false;
-        //m_signalSemaphore = VK_NULL_HANDLE;
+        m_prevRenderedSemaphore = VK_NULL_HANDLE;
     }
 
     VkFormat Swapchain_vk::getSwapchainFormat()
@@ -288,6 +300,12 @@ namespace kage { namespace vk
 
     void Swapchain_vk::releaseSwapchain()
     {
+        for (uint32_t ii = 0; ii < COUNTOF(m_presentDoneSemaphore); ++ii)
+        {
+            release(m_presentDoneSemaphore[ii]);
+            release(m_renderDoneSemaphore[ii]);
+        }
+
         release(m_swapchain);
     }
 

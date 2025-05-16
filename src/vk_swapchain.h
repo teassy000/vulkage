@@ -20,6 +20,9 @@ namespace kage { namespace vk
             , m_swapchainImageCount{ 0 }
             , m_shouldRecreateSwapchain{true}
             , m_shouldPresent{false}
+            , m_prevAcquiredSemaphore{ VK_NULL_HANDLE }
+            , m_prevRenderedSemaphore{ VK_NULL_HANDLE }
+            , m_currentSemaphore{ 0 }
         {
         }
 
@@ -50,8 +53,12 @@ namespace kage { namespace vk
 
         Resolution m_resolution;
 
-        VkSemaphore m_waitSemaphore;
-        VkSemaphore m_signalSemaphore;
+        VkSemaphore m_presentDoneSemaphore[kMaxNumOfBackBuffers];
+        VkSemaphore m_renderDoneSemaphore[kMaxNumOfBackBuffers];
+        uint32_t    m_currentSemaphore;
+
+        VkSemaphore m_prevAcquiredSemaphore;
+        VkSemaphore m_prevRenderedSemaphore;
 
         bool m_shouldRecreateSwapchain;
         bool m_shouldPresent;
