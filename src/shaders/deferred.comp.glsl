@@ -191,7 +191,7 @@ void main()
 
     color = Tonemap_ACES(color);
     color = OECF_sRGBFast(color);
-    color = rc_pc.rgb;
+    //color = rc_pc.rgb;
 
     if (albedo.a < 0.5 || normal.w < 0.02)
         color = sky.xyz;
