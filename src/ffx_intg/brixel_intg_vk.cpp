@@ -534,6 +534,7 @@ void updateContextInfo(FFXBrixelizer_vk& _brx)
 
 void update(FFXBrixelizer_vk& _brx)
 {
+    KG_ZoneScopedC(Color::red);
     static bool s_init = false;
     if (!s_init)
     {
