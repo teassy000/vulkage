@@ -246,9 +246,13 @@ namespace kage { namespace vk
         void reset();
         void shutdown();
 
+        void createQueryPools(uint32_t _passCount);
+
         void alloc(VkCommandBuffer* _cmdBuf);
         void addWaitSemaphore(VkSemaphore _semaphore, VkPipelineStageFlags _stage);
         void addSignalSemaphore(VkSemaphore _semaphore);
+
+        void fetchQueryResults();
 
         void kick(bool _wait = false);
         void finish(bool _finishAll = false);
@@ -276,6 +280,9 @@ namespace kage { namespace vk
             VkCommandPool m_commandPool = VK_NULL_HANDLE;
             VkCommandBuffer m_commandBuffer = VK_NULL_HANDLE;
             VkFence m_fence = VK_NULL_HANDLE;
+            
+            VkQueryPool m_statisticsQueryPool = VK_NULL_HANDLE;
+            VkQueryPool m_timestampQueryPool = VK_NULL_HANDLE;
         };
 
         CommandList m_commandList[kMaxNumFrameLatency];
@@ -285,6 +292,15 @@ namespace kage { namespace vk
         VkPipelineStageFlags m_waitSemaphoreStages[kMaxNumFrameBuffers];
         uint32_t             m_numSignalSemaphores;
         VkSemaphore          m_signalSemaphores[kMaxNumFrameBuffers];
+
+        uint32_t m_passCount;
+        uint32_t m_statisticsQueryCount{ 0 };
+        uint32_t m_timestampQueryPoolCount{ 0 };
+        stl::vector<uint64_t> m_timestamps;
+        stl::vector<uint64_t> m_statistics;
+
+        VkQueryPool m_currStatisticsQueryPool;
+        VkQueryPool m_currTimestampQueryPool;
 
         struct Resource
         {
@@ -359,7 +375,7 @@ namespace kage { namespace vk
         void kick(bool _finishAll = false);
         void shutdown();
 
-        void fetchQueryResults();
+        void fillQueryResults(const stl::vector<uint64_t>& _statistics, const stl::vector<uint64_t>& _timestamps);
 
         bool checkSupports(VulkanSupportExtension _ext) override;
 
@@ -704,13 +720,8 @@ namespace kage { namespace vk
         BarrierDispatcher m_barrierDispatcher;
 
         // naive profiling
-        VkQueryPool m_queryPoolTimeStamp;
-        uint32_t m_queryTimeStampCount{ 0 };
-        stl::unordered_map<uint16_t, double> m_passTime;
         double m_gpuTime{ 0.0 };
-
-        VkQueryPool m_queryPoolStatistics;
-        uint32_t m_queryStatisticsCount{ 0 };
+        stl::unordered_map<uint16_t, double> m_passTime;
         stl::unordered_map<uint16_t, uint64_t> m_passStatistics;
 
         FrameRecCmds m_frameRecCmds;

@@ -1598,13 +1598,7 @@ namespace kage { namespace vk
 
         RHIContext::bake();
 
-        m_queryTimeStampCount = (uint32_t)(2 * m_passContainer.size());
-        m_queryPoolTimeStamp = createQueryPool(m_device, m_queryTimeStampCount, VK_QUERY_TYPE_TIMESTAMP);
-        assert(m_queryPoolTimeStamp);
-
-        m_queryStatisticsCount = (uint32_t)(2 * m_passContainer.size());
-        m_queryPoolStatistics = createQueryPool(m_device, m_queryStatisticsCount, VK_QUERY_TYPE_PIPELINE_STATISTICS);
-        assert(m_queryPoolStatistics);
+        m_cmd.createQueryPools((uint32_t)m_passContainer.size());
     }
 
     bool RHIContext_vk::run()
@@ -1648,10 +1642,10 @@ namespace kage { namespace vk
         {
             KG_VkZoneC(m_tracyVkCtx, m_cmdBuffer, "main command buffer", Color::blue);
 
-            vkCmdResetQueryPool(m_cmdBuffer, m_queryPoolStatistics, 0, m_queryStatisticsCount);
+            vkCmdResetQueryPool(m_cmdBuffer, m_cmd.m_currStatisticsQueryPool, 0, m_cmd.m_statisticsQueryCount);
+            vkCmdResetQueryPool(m_cmdBuffer, m_cmd.m_currTimestampQueryPool, 0, m_cmd.m_timestampQueryPoolCount);
 
-            vkCmdResetQueryPool(m_cmdBuffer, m_queryPoolTimeStamp, 0, m_queryTimeStampCount);
-            vkCmdWriteTimestamp(m_cmdBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, m_queryPoolTimeStamp, 0);
+            vkCmdWriteTimestamp(m_cmdBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, m_cmd.m_currTimestampQueryPool, 0);
             
             // render passes
             for (size_t ii = 0; ii < m_passContainer.size(); ++ii)
@@ -1662,7 +1656,7 @@ namespace kage { namespace vk
                 KG_VkZoneTransient(m_tracyVkCtx, var, m_cmdBuffer, pn);
                 message(info, "==== start pass : %s", pn);
 
-                vkCmdBeginQuery(m_cmdBuffer, m_queryPoolStatistics, (uint32_t)ii, 0);
+                vkCmdBeginQuery(m_cmdBuffer, m_cmd.m_currStatisticsQueryPool, (uint32_t)ii, 0);
 
                 createBarriers(passId);
 
@@ -1671,10 +1665,10 @@ namespace kage { namespace vk
                 // will dispatch barriers internally
                 flushWriteBarriers(passId);
 
-                vkCmdEndQuery(m_cmdBuffer, m_queryPoolStatistics, (uint32_t)ii);
+                vkCmdEndQuery(m_cmdBuffer, m_cmd.m_currStatisticsQueryPool, (uint32_t)ii);
 
                 // write time stamp
-                vkCmdWriteTimestamp(m_cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, m_queryPoolTimeStamp, (uint32_t)(ii + 1));
+                vkCmdWriteTimestamp(m_cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, m_cmd.m_currTimestampQueryPool, (uint32_t)(ii + 1));
                 message(info, "==== end pass : %s", pn);
             }
 
@@ -1688,8 +1682,8 @@ namespace kage { namespace vk
         m_swapchain.m_prevAcquiredSemaphore = VK_NULL_HANDLE;
 
         m_cmd.kick(); // end and dispatch the command buffer
-
         m_cmd.alloc(&m_cmdBuffer); // alloc a new command buffer, and wait for fence of previous frame
+        fillQueryResults(m_cmd.m_statistics, m_cmd.m_timestamps);
         m_swapchain.present();
 
         m_cmd.finish();
@@ -1717,18 +1711,6 @@ namespace kage { namespace vk
 
         // shut brixelizer
         brx::shutdown(m_brx);
-
-        if (m_queryPoolTimeStamp)
-        {
-            vkDestroyQueryPool(m_device, m_queryPoolTimeStamp, 0);
-            m_queryPoolTimeStamp = VK_NULL_HANDLE;
-        }
-
-        if (m_queryPoolStatistics)
-        {
-            vkDestroyQueryPool(m_device, m_queryPoolStatistics, 0);
-            m_queryPoolStatistics = VK_NULL_HANDLE;
-        }
 
         destroyTracy();
 
@@ -1883,58 +1865,28 @@ namespace kage { namespace vk
         m_aliasToBaseImages.clear();
     }
 
-    void RHIContext_vk::fetchQueryResults()
+    void RHIContext_vk::fillQueryResults(const stl::vector<uint64_t>& _statistics, const stl::vector<uint64_t>& _timestamps)
     {
-        KG_ZoneScopedNC("wait query", Color::blue);
-        // set the statistic data
-        stl::vector<uint64_t> statistics(m_passContainer.size());
-
-        // !!!TODO: figure out how to remove VK_QUERY_RESULT_WAIT_BIT
-        // this makes the rendering frames in flight stalled.
-        VK_CHECK(vkGetQueryPoolResults(
-            m_device
-            , m_queryPoolStatistics
-            , 0
-            , (uint32_t)statistics.size()
-            , sizeof(uint64_t) * statistics.size()
-            , statistics.data()
-            , sizeof(uint64_t)
-            , VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT
-        ));
-        
         m_passStatistics.clear();
         for (uint32_t ii = 0; ii < m_passContainer.size(); ++ii)
         {
             uint16_t passId = m_passContainer.getIdAt(ii);
-            uint64_t clippedCount = statistics[ii];
+            uint64_t clippedCount = _statistics[ii];
 
             m_passStatistics.insert({ passId, clippedCount });
         }
 
-        // set the time stamp data
-        stl::vector<uint64_t> timeStamps(m_passContainer.size() + 1);
-        VK_CHECK(vkGetQueryPoolResults(
-            m_device
-            , m_queryPoolTimeStamp
-            , 0
-            , (uint32_t)timeStamps.size()
-            , sizeof(uint64_t) * timeStamps.size()
-            , timeStamps.data()
-            , sizeof(uint64_t)
-            , VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT
-        ));
         m_passTime.clear();
-
-        for (uint32_t ii = 0; ii < timeStamps.size() - 1; ++ii)
+        for (uint32_t ii = 0; ii < _timestamps.size() - 1; ++ii)
         {
             uint16_t passId = m_passContainer.getIdAt(ii);
-            double timeStart = double(timeStamps[ii]) * m_phyDeviceProps.limits.timestampPeriod * 1e-6;
-            double timeEnd = double(timeStamps[ii + 1]) * m_phyDeviceProps.limits.timestampPeriod * 1e-6;
+            double timeStart = double(_timestamps[ii]) * m_phyDeviceProps.limits.timestampPeriod * 1e-6;
+            double timeEnd = double(_timestamps[ii + 1]) * m_phyDeviceProps.limits.timestampPeriod * 1e-6;
 
             m_passTime.insert({ passId, timeEnd - timeStart });
         }
-        double gpuTimeStart = double(timeStamps[0]) * m_phyDeviceProps.limits.timestampPeriod * 1e-6;
-        double gpuTimeEnd = double(timeStamps.back()) * m_phyDeviceProps.limits.timestampPeriod * 1e-6;
+        double gpuTimeStart = double(_timestamps[0]) * m_phyDeviceProps.limits.timestampPeriod * 1e-6;
+        double gpuTimeEnd = double(_timestamps.back()) * m_phyDeviceProps.limits.timestampPeriod * 1e-6;
         m_gpuTime = gpuTimeEnd - gpuTimeStart;
     }
 
@@ -5431,6 +5383,34 @@ namespace kage { namespace vk
         }
     }
 
+    void kage::vk::CommandQueue_vk::createQueryPools(uint32_t _passCount)
+    {
+        KG_ZoneScopedC(Color::indian_red);
+
+        const VkDevice device = s_renderVK->m_device;
+        
+        m_statisticsQueryCount = _passCount * 2;
+        m_timestampQueryPoolCount = _passCount * 2;
+        m_passCount = _passCount;
+
+        if (m_statisticsQueryCount > 0) {
+            for (uint32_t ii = 0; ii < m_numFramesInFlight; ++ii) {
+                m_commandList[ii].m_statisticsQueryPool =
+                    createQueryPool(device, m_statisticsQueryCount, VK_QUERY_TYPE_PIPELINE_STATISTICS);
+            }
+        }
+
+        if (m_timestampQueryPoolCount > 0) {
+            for (uint32_t ii = 0; ii < m_numFramesInFlight; ++ii) {
+                m_commandList[ii].m_timestampQueryPool =
+                    createQueryPool(device, m_timestampQueryPoolCount, VK_QUERY_TYPE_TIMESTAMP);
+            }
+        }
+
+        m_currStatisticsQueryPool = m_commandList[0].m_statisticsQueryPool;
+        m_currTimestampQueryPool = m_commandList[0].m_timestampQueryPool;
+    }
+
     void CommandQueue_vk::alloc(VkCommandBuffer* _cmdBuf)
     {
         KG_ZoneScopedC(Color::green);
@@ -5440,6 +5420,8 @@ namespace kage { namespace vk
             CommandList& commandList = m_commandList[m_currentFrameInFlight];
 
             VK_CHECK(vkWaitForFences(device, 1, &commandList.m_fence, VK_TRUE, UINT64_MAX));
+
+            fetchQueryResults();
 
             VK_CHECK(vkResetCommandPool(device, commandList.m_commandPool, 0));
 
@@ -5453,6 +5435,8 @@ namespace kage { namespace vk
 
             m_activeCommandBuffer = commandList.m_commandBuffer;
             m_currentFence = commandList.m_fence;
+            m_currStatisticsQueryPool = commandList.m_statisticsQueryPool;
+            m_currTimestampQueryPool = commandList.m_timestampQueryPool;
         }
 
         if (NULL != _cmdBuf)
@@ -5476,6 +5460,48 @@ namespace kage { namespace vk
 
         m_signalSemaphores[m_numSignalSemaphores] = _semaphore;
         m_numSignalSemaphores++;
+    }
+
+    void CommandQueue_vk::fetchQueryResults()
+    {
+        // !!!TODO: figure out how to remove VK_QUERY_RESULT_WAIT_BIT
+        // this makes the rendering frames in flight stalled.
+        const VkDevice device = s_renderVK->m_device;
+        
+        if(m_statisticsQueryCount > 0)
+        {
+            m_statistics.clear();
+            m_statistics.resize(m_passCount);
+
+            VK_CHECK(vkGetQueryPoolResults(
+                device
+                , m_currStatisticsQueryPool
+                , 0
+                , (uint32_t)m_statistics.size()
+                , sizeof(uint64_t) * m_statistics.size()
+                , m_statistics.data()
+                , sizeof(uint64_t)
+                , VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT
+            ));
+        }
+
+        if (m_timestampQueryPoolCount > 0)
+        {
+            m_timestamps.clear();
+            m_timestamps.resize(m_passCount + 1);
+
+
+            VK_CHECK(vkGetQueryPoolResults(
+                device
+                , m_currTimestampQueryPool
+                , 0
+                , (uint32_t)m_timestamps.size()
+                , sizeof(uint64_t) * m_timestamps.size()
+                , m_timestamps.data()
+                , sizeof(uint64_t)
+                , VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT
+            ));
+        }
     }
 
     void CommandQueue_vk::kick(bool _wait)
@@ -5573,6 +5599,7 @@ namespace kage { namespace vk
             case VK_OBJECT_TYPE_SURFACE_KHR:           destroy<VkSurfaceKHR         >(resource.m_handle); break;
             case VK_OBJECT_TYPE_SWAPCHAIN_KHR:         destroy<VkSwapchainKHR       >(resource.m_handle); break;
             case VK_OBJECT_TYPE_DEVICE_MEMORY:         destroy<VkDeviceMemory       >(resource.m_handle); break;
+            case VK_OBJECT_TYPE_QUERY_POOL:            destroy<VkQueryPool          >(resource.m_handle); break;
             default:
                 BX_ASSERT(false, "Invalid resource type: %d", resource.m_type);
                 break;
