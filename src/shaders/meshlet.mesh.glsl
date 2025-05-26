@@ -13,7 +13,6 @@
 layout(constant_id = 1) const bool ALPHA_PASS = false;
 layout(constant_id = 2) const bool SEAMLESS_LOD = false;
 
-#define LIGHT 0
 #define CULL 1
 
 layout(local_size_x = MESHGP_SIZE, local_size_y = 1, local_size_z = 1) in;
@@ -23,6 +22,7 @@ layout(push_constant) uniform block
 {
     Globals globals;
 };
+
 // readonly
 layout(binding = 2) readonly buffer MeshDraws
 {

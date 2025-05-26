@@ -317,6 +317,7 @@ void updateContentCommon(Dbg_Common& _common, const DebugProfilingData& _pd, con
     ImGui::Checkbox("rc3d", &_common.dbgRc3d);
     ImGui::Checkbox("rc2d", &_common.dbgRc2d);
 
+    ImGui::Checkbox("pause cull transform", &_common.dbgPauseCullTransform);
 
     ImGui::Text("avg cpu: [%.3f]ms", _pd.avgCpuTime);
     ImGui::Text("avg gpu: [%.3f]ms", _pd.avgGpuTime);
@@ -368,26 +369,23 @@ void updateContentCommon(Dbg_Common& _common, const DebugProfilingData& _pd, con
         ImGui::TreePop();
     }
 
-    ImGui::Text("pos: %.2f, %.2f, %.2f", _ld.posX, _ld.posY, _ld.posZ);
-    ImGui::Text("dir: %.2f, %.2f, %.2f", _ld.frontX, _ld.frontY, _ld.frontZ);
-
     ImGui::End();
 }
 
-void updateImGuiContent(DebugFeatures& ft, const DebugProfilingData& _pd, const DebugLogicData& _ld)
+void updateImGuiContent(DebugFeatures& _ft, const DebugProfilingData& _pd, const DebugLogicData& _ld)
 {
     KG_ZoneScopedC(kage::Color::blue);
 
-    updateContentCommon(ft.common, _pd, _ld);
+    updateContentCommon(_ft.common, _pd, _ld);
 
-    if(ft.common.dbgBrx)
-        updateContentBrx(ft.brx);
+    if(_ft.common.dbgBrx)
+        updateContentBrx(_ft.brx);
 
-    if (ft.common.dbgRc3d)
-        updataContentRCBuild(ft.rc3d);
+    if (_ft.common.dbgRc3d)
+        updataContentRCBuild(_ft.rc3d);
 
-    if (ft.common.dbgRc2d)
-        updateRc2d(ft.rc2d);
+    if (_ft.common.dbgRc2d)
+        updateRc2d(_ft.rc2d);
 }
 
 void updateImGui(const UIInput& input, DebugFeatures& ft, const DebugProfilingData& pd, const DebugLogicData& ld)

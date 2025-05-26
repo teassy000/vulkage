@@ -36,11 +36,6 @@ layout(binding = 2) readonly buffer MeshDraws
     MeshDraw meshDraws [];
 };
 
-layout(binding = 3) readonly uniform Transform 
-{
-    TransformData trans;
-};
-
 
 void main()
 {

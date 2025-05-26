@@ -139,15 +139,15 @@ void main()
         s_bounds.center = rotateQuat(s_bounds.center, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
 
 
-        float p_dist = max(length(p_bounds.center - trans.cameraPos) - p_bounds.radius, 0);
+        float p_dist = max(length(p_bounds.center - trans.cull_cameraPos) - p_bounds.radius, 0);
         float p_threshold = p_dist * globals.lodErrorThreshold / maxScaleAxis;
-        float s_dist = max(length(s_bounds.center - trans.cameraPos) - s_bounds.radius, 0);
+        float s_dist = max(length(s_bounds.center - trans.cull_cameraPos) - s_bounds.radius, 0);
         float s_threshold = s_dist * globals.lodErrorThreshold / maxScaleAxis;
 
         bool cond = s_bounds.error <= s_threshold && p_bounds.error > p_threshold;
 
         radius = s_bounds.radius * maxScaleAxis;
-        center = (trans.view * vec4(s_bounds.center, 1.0)).xyz;
+        center = (trans.cull_view * vec4(s_bounds.center, 1.0)).xyz;
         visible = visible && cond;
     }
     else // normal lod pipeline
@@ -158,13 +158,13 @@ void main()
         float cone_cutoff = int(meshlets[mi].cone_cutoff) / 127.0;
 
         radius = meshlets[mi].radius * maxScaleAxis;
-        center = (trans.view * vec4(ori_center, 1.0)).xyz;
+        center = (trans.cull_view * vec4(ori_center, 1.0)).xyz;
 
         vec3 ori_cone_axis = rotateQuat(axis, meshDraw.orit);
-        vec3 cone_axis = mat3(trans.view) * ori_cone_axis;
+        vec3 cone_axis = mat3(trans.cull_view) * ori_cone_axis;
 
         // meshlet level back face culling, here we culling in the world space
-        bool culled = coneCull(ori_center, radius, ori_cone_axis, cone_cutoff, trans.cameraPos);
+        bool culled = coneCull(ori_center, radius, ori_cone_axis, cone_cutoff, trans.cull_cameraPos);
         visible = visible && ( (!culled) || (meshDraw.withAlpha > 0));
     }
 
@@ -180,8 +180,8 @@ void main()
     if(LATE && globals.enableMeshletOcclusion == 1 && visible)
     {
         vec4 aabb;
-        float P00 = trans.proj[0][0];
-        float P11 = trans.proj[1][1];
+        float P00 = trans.cull_proj[0][0];
+        float P11 = trans.cull_proj[1][1];
         if(projectSphere(center.xyz, radius, globals.znear, P00, P11, aabb))
         {
             // the size in the render targetpyramidLevelHeight

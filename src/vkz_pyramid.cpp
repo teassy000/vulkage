@@ -4,11 +4,17 @@
 
 #include "bx/readerwriter.h"
 
-void recPyr(const Pyramid& _pyramid)
+void recPyr(const Pyramid& _pyramid, bool _pauseUpdate)
 {
     KG_ZoneScopedC(kage::Color::blue);
 
     kage::startRec(_pyramid.pass);
+
+    if (_pauseUpdate)
+    {
+        kage::endRec();
+        return;
+    }
 
     for (uint16_t ii = 0; ii < _pyramid.levels; ++ii)
     {
@@ -108,7 +114,7 @@ void setPyramidPassDependency(Pyramid& _pyramid, const kage::ImageHandle _inDept
     );
 }
 
-void updatePyramid(Pyramid& _pyramid, uint32_t _width, uint32_t _height)
+void updatePyramid(Pyramid& _pyramid, uint32_t _width, uint32_t _height, bool _pauseUpdate /* = false*/)
 {
     const uint32_t level_width = previousPow2(_width);
     const uint32_t level_height = previousPow2(_height);
@@ -122,6 +128,6 @@ void updatePyramid(Pyramid& _pyramid, uint32_t _width, uint32_t _height)
         kage::updateImage(_pyramid.image, level_width, level_height, 1, nullptr);
     }
 
-    recPyr(_pyramid);
+    recPyr(_pyramid, _pauseUpdate);
 }
 

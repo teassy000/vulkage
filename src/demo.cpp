@@ -159,7 +159,7 @@ namespace
                 brxUpdate(m_brixel, brxData);
             }
 
-            updatePyramid(m_pyramid, m_width, m_height);
+            updatePyramid(m_pyramid, m_width, m_height, m_demoData.dbg_features.common.dbgPauseCullTransform);
 
             refreshData();
 
@@ -191,6 +191,8 @@ namespace
             const kage::Memory* memTransform = kage::alloc(sizeof(TransformData));
             memcpy_s(memTransform->data, memTransform->size, &m_demoData.trans, sizeof(TransformData));
             kage::updateBuffer(m_transformBuf, memTransform);
+
+
 
             m_demoData.input.width = (float)m_width;
             m_demoData.input.height = (float)m_height;
@@ -477,7 +479,6 @@ namespace
 
             // skybox pass
             {
-
                 kage::ImageHandle sbColorIn = m_color;
                 initSkyboxPass(m_skybox, m_transformBuf, sbColorIn, m_skybox_cube);
             }
@@ -718,31 +719,49 @@ namespace
         void refreshData()
         {
             float znear = .1f;
-            mat4 projection = freeCameraGetPerpProjMatrix((float)m_width / (float)m_height, znear);
-            mat4 projectionT = glm::transpose(projection);
-            vec4 frustumX = normalizePlane(projectionT[3] - projectionT[0]);
-            vec4 frustumY = normalizePlane(projectionT[3] - projectionT[1]);
-            float lodErrThreshold = (2 / projection[1][1]) * (1.f / float(m_height)); // 1px
+            mat4 proj = freeCameraGetPerpProjMatrix((float)m_width / (float)m_height, znear);
+            mat4 projT = glm::transpose(proj);
+            vec4 frustumX = normalizePlane(projT[3] - projT[0]);
+            vec4 frustumY = normalizePlane(projT[3] - projT[1]);
 
-            // freeCameraGetViewMatrix(m_demoData.trans.view);
-            m_demoData.trans.view = freeCameraGetViewMatrix();
-            m_demoData.trans.proj = projection;
-
+            mat4 view = freeCameraGetViewMatrix();
             vec3 cameraPos = freeCameraGetPos();
-            m_demoData.trans.cameraPos.x = cameraPos.x;
-            m_demoData.trans.cameraPos.y = cameraPos.y;
-            m_demoData.trans.cameraPos.z = cameraPos.z;
+            static vec3 s_campos = cameraPos;
+            static vec4 s_fx = frustumX;
+            static vec4 s_fy = frustumY;
+            static mat4 s_proj = proj;
+            static mat4 s_view = view;
 
-            m_demoData.drawCull.P00 = projection[0][0];
-            m_demoData.drawCull.P11 = projection[1][1];
+            // update camera position only if culling is not paused
+            if (!m_demoData.dbg_features.common.dbgPauseCullTransform) {
+                s_fx = frustumX;
+                s_fy = frustumY;
+                s_proj = proj;
+                s_view = view;
+                s_campos = cameraPos;
+            }
+
+            float lodErrThreshold = (2 / s_proj[1][1]) * (1.f / float(m_height)); // 1px
+
+            m_demoData.trans.cull_view = s_view;
+            m_demoData.trans.cull_proj = s_proj;
+            m_demoData.trans.cull_cameraPos = vec4(s_campos, 1.f);
+
+            m_demoData.trans.view = view;
+            m_demoData.trans.proj = proj;
+            m_demoData.trans.cameraPos = vec4(cameraPos, 1.f);
+
+
+            m_demoData.drawCull.P00 = s_proj[0][0];
+            m_demoData.drawCull.P11 = s_proj[1][1];
             m_demoData.drawCull.zfar = m_scene.drawDistance;
             m_demoData.drawCull.znear = znear;
             m_demoData.drawCull.pyramidWidth = (float)m_pyramid.width;
             m_demoData.drawCull.pyramidHeight = (float)m_pyramid.height;
-            m_demoData.drawCull.frustum[0] = frustumX.x;
-            m_demoData.drawCull.frustum[1] = frustumX.z;
-            m_demoData.drawCull.frustum[2] = frustumY.y;
-            m_demoData.drawCull.frustum[3] = frustumY.z;
+            m_demoData.drawCull.frustum[0] = s_fx.x;
+            m_demoData.drawCull.frustum[1] = s_fx.z;
+            m_demoData.drawCull.frustum[2] = s_fy.y;
+            m_demoData.drawCull.frustum[3] = s_fy.z;
             m_demoData.drawCull.enableCull = 1;
             m_demoData.drawCull.enableLod = kage::kRegularLod;
             m_demoData.drawCull.enableSeamlessLod = kage::kSeamlessLod;
@@ -752,10 +771,10 @@ namespace
 
             m_demoData.globals.zfar = m_scene.drawDistance;
             m_demoData.globals.znear = znear;
-            m_demoData.globals.frustum[0] = frustumX.x;
-            m_demoData.globals.frustum[1] = frustumX.z;
-            m_demoData.globals.frustum[2] = frustumY.y;
-            m_demoData.globals.frustum[3] = frustumY.z;
+            m_demoData.globals.frustum[0] = s_fx.x;
+            m_demoData.globals.frustum[1] = s_fx.z;
+            m_demoData.globals.frustum[2] = s_fy.y;
+            m_demoData.globals.frustum[3] = s_fy.z;
             m_demoData.globals.pyramidWidth = (float)m_pyramid.width;
             m_demoData.globals.pyramidHeight = (float)m_pyramid.height;
             m_demoData.globals.screenWidth = (float)m_width;

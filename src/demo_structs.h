@@ -8,7 +8,12 @@ struct alignas(16) TransformData
 {
     mat4 view;
     mat4 proj;
-    vec3 cameraPos;
+
+    mat4 cull_view;
+    mat4 cull_proj;
+
+    vec4 cameraPos;
+    vec4 cull_cameraPos;
 };
 
 struct alignas(16) DrawCull
@@ -74,6 +79,7 @@ struct Dbg_Common
     bool dbgBrx;
     bool dbgRc3d;
     bool dbgRc2d;
+    bool dbgPauseCullTransform;
 };
 
 struct Dbg_Brixel
@@ -144,6 +150,7 @@ struct DemoData
     DrawCull drawCull;
 
     // uniform
+    TransformData cullTrans;
     TransformData trans;
 };
 

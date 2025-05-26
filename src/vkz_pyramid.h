@@ -27,4 +27,4 @@ void preparePyramid(
 
 void setPyramidPassDependency(Pyramid& _pyramid, const kage::ImageHandle _inDepth);
 
-void updatePyramid(Pyramid& _pyramid, uint32_t _rtWidth, uint32_t _rtHeight);
+void updatePyramid(Pyramid& _pyramid, uint32_t _rtWidth, uint32_t _rtHeight, bool _pauseUpdate = false);

@@ -131,8 +131,12 @@ void main()
     wPos = (wPos * 2.f - 1.f) * radius; // [0.f, 1.f] to [-radius, +radius]
 
 #if DEBUG_MESHLET
-    emmision.xyz *= 0.7f;
-    imageStore(out_color, ivec2(pos), emmision);
+    
+    vec3 color = emmision.xyz;
+    if (emmision.a < 0.5f)
+        color = sky.xyz;
+
+    imageStore(out_color, ivec2(pos), vec4(color, 1.f));
 #else
 
     vec3 lightCol = vec3(0.98, 0.92, 0.89);

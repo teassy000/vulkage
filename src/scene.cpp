@@ -103,24 +103,23 @@ void CreateRandomScene(Scene& scene, bool _seamlessLod)
 void CreateMatrixScene(Scene& scene, bool _seamlessLod)
 {
     uint32_t drawCount = 250'000; // 500*500
+    const float step = 1.5f;
     std::vector<MeshDraw> meshDraws(drawCount);
 
-    float randomDist = 200;
-    float drawDist = 200;
+    float drawDist = 400;
     srand(42);
     uint32_t meshletVisibilityCount = 0;
-    float basePos = -250.f;
+    float basePos = -250.f * step;
     for (uint32_t i = 0; i < drawCount; ++i)
     {
         uint32_t meshIdx = rand() % scene.geometry.meshes.size();
         Mesh& mesh = scene.geometry.meshes[meshIdx];
 
-
         //-- NOTE: simplification for occlusion test
-        meshDraws[i].pos[0] = float(i % 500) + basePos + 2.f;
+        meshDraws[i].pos[0] = float(i % 500) * step + basePos + 2.f;
 
         meshDraws[i].pos[1] = -2.f;
-        meshDraws[i].pos[2] = float(i / 500) + basePos + 2.f;
+        meshDraws[i].pos[2] = float(i / 500) * step + basePos + 2.f;
 
         meshDraws[i].scale = vec3(1.f);
 
@@ -298,7 +297,7 @@ bool loadObjScene(Scene& _scene, const std::vector<std::string>& _pathes, bool _
         return false;
     }
 
-    static Scene_Enum se = Scene_Enum::InRowMeshScene;
+    static Scene_Enum se = Scene_Enum::TenMatrixScene;
     switch (se)
     {
     case Scene_Enum::MatrixScene:

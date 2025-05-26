@@ -32,7 +32,7 @@ layout(binding = 1) readonly buffer MeshDraws
 
 layout(binding = 2) readonly uniform Transform
 {
-    TransformData transform;
+    TransformData trans;
 };
 
 // writeonly
@@ -73,7 +73,7 @@ void main()
 
     Mesh mesh = meshes[draw.meshIdx];
 
-    vec4 center = transform.view * vec4(rotateQuat(mesh.center, draw.orit) * draw.scale + draw.pos, 1.0);
+    vec4 center = trans.cull_view * vec4(rotateQuat(mesh.center, draw.orit) * draw.scale + draw.pos, 1.0);
     float radius = mesh.radius * maxElem(draw.scale);
 
     bool visible = true;

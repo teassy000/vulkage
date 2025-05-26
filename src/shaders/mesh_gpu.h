@@ -60,7 +60,12 @@ struct TransformData
 {
     mat4 view;
     mat4 proj;
-    vec3 cameraPos;
+
+    mat4 cull_view;
+    mat4 cull_proj;
+    
+    vec4 cameraPos;
+    vec4 cull_cameraPos;
 };
 
 
