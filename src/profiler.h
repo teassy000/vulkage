@@ -57,5 +57,6 @@
 #define KG_ZoneScoped
 #define KG_ZoneScopedC(x)
 #define KG_ZoneScopedNC(x, y)
+#define KG_ZoneName(x, y)
 
 #endif // TRACY_ENABLE
