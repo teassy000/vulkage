@@ -1,4 +1,5 @@
 // ==============================================================================
+#define ENABLE_RADIANCE_CASCADES 0
 #define MAX_RADIANCE_CASCADES 8
 
 

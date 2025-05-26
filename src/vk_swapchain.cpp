@@ -242,6 +242,8 @@ namespace kage { namespace vk
 
     void Swapchain_vk::present()
     {
+        KG_ZoneScopedC(Color::light_yellow);
+
         if (VK_NULL_HANDLE ==  m_swapchain
             && m_shouldPresent
             )
@@ -251,7 +253,7 @@ namespace kage { namespace vk
 
         const VkQueue queue = s_renderVK->m_queue;
 
-        KG_ZoneScopedNC("present", Color::light_yellow);
+
         VkPresentInfoKHR presentInfo = { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
         presentInfo.swapchainCount = 1;
         presentInfo.pSwapchains = &m_swapchain;

@@ -27,9 +27,24 @@ layout(binding = 4) uniform sampler2D in_emmision;
 layout(binding = 5) uniform sampler2D in_specular;
 layout(binding = 6) uniform sampler2D in_sky;
 
+#if ENABLE_RADIANCE_CASCADES
+
 layout(binding = 7) uniform sampler2DArray in_rcMergedProbe;
 layout(binding = 8) uniform sampler2DArray in_rcMergedInverval;
 layout(binding = 9) uniform writeonly image2D out_color;
+
+#else
+
+layout(binding = 7) uniform writeonly image2D out_color;
+
+#endif // ENABLE_RADIANCE_CASCADES
+
+
+struct Light
+{
+    vec3 dir;
+    vec3 col;
+};
 
 
 ivec3 getNearestProbeIdx(vec3 _wPos, float _radius, float _probeSideLen)
@@ -62,6 +77,8 @@ ProbeSample getNearestProbeSample(vec3 _mappedPos, float _probeSideLen)
     return samp;
 }
 
+#if ENABLE_RADIANCE_CASCADES
+
 vec4 getProbeColor(uint _probeSideCnt, ivec3 _probeIdx)
 {
     vec2 uv = (vec2(_probeIdx) + 0.5f) / float(_probeSideCnt);
@@ -71,8 +88,10 @@ vec4 getProbeColor(uint _probeSideCnt, ivec3 _probeIdx)
     return rcc;
 }
 
+
 vec4 trilinearColor(vec3 _mappedPos, float _probeSideLen, uint _probeSideCnt)
 {
+
     ProbeSample samp = getNearestProbeSample(_mappedPos, _probeSideLen);
 
     float weights[8];
@@ -90,6 +109,9 @@ vec4 trilinearColor(vec3 _mappedPos, float _probeSideLen, uint _probeSideCnt)
 
     return outColor;
 }
+
+#endif
+
 
 void main()
 {
@@ -111,8 +133,8 @@ void main()
     imageStore(out_color, ivec2(pos), emmision);
 #else
 
-    vec4 rayCol = vec4(0.f);
-    vec3 rayDir = vec3(0.f);
+    vec3 lightCol = vec3(0.98, 0.92, 0.89);
+    vec3 lightDir = normalize(vec3(0.7, 1.0, 0.7)); // in world space, from surface to light source
 
     // locate the cascade based on the wpos
     const uint currLv = consts.startCascade;
@@ -124,30 +146,7 @@ void main()
 
     vec3 mappedPos = wPos - camPos + vec3(radius); // map to camera related pos then shift to [0, 2 * radius]
 
-    vec4 rc_pc = trilinearColor(mappedPos, prob_sideLen, prob_sideCount);
-
-    ProbeSample samp = getNearestProbeSample(mappedPos, prob_sideLen);
-    float weights[8];
-    trilinearWeights(samp.ratio, weights);
-
-    vec3 probeCenter = getProbeCenterPos(samp.baseIdx, radius, prob_sideLen) + camPos; // probes follows the camera and in world space
-    vec3 rd = normalize(wPos.xyz - probeCenter);
-        
-    vec2 rayUV = float32x3_to_oct(rd);
-    rayUV = rayUV * .5f + .5f; // map octrahedral uv to [0, 1]
-
-    ivec2 rayIdx = ivec2(rayUV * float(ray_sideCount));
-    vec2 pixelIdx = getRCTexelPos(consts.debugIdxType, ray_sideCount, prob_sideCount, samp.baseIdx.xy, rayIdx);
-
-    vec2 cascadeUV = (vec2(pixelIdx) + vec2(0.5f)) / float(prob_sideCount * ray_sideCount);
-
-    vec4 rcc = texture(in_rcMergedInverval, vec3(cascadeUV, samp.baseIdx.z));
-    {
-        rayCol = rcc;
-        rayDir = rd;
-    }
-
-    float lightIntensity = 4.0;
+    float lightIntensity = 1.0;
     float indirectIntensity = 0.32;
 
     float occlusion = specular.r;
@@ -156,18 +155,15 @@ void main()
     //vec3 baseColor = vec3(specular.r); // for env-test
     vec3 baseColor = albedo.rgb; // for bistor
 
-    vec3 lightColor = rayCol.rgb;//vec3(0.98, 0.92, 0.89);
-
-    vec3 l = rayDir;//normalize(vec3(0.7, 1.0, 0.7)); // in world space, from surface to light source
     vec3 v = normalize(vec3(camPos - wPos)); // from surface to observer
 
     // BRDF
     vec3 n = normal.xyz;
-    vec3 h = normalize(v + l);
+    vec3 h = normalize(v + lightDir);
     float NoV = abs(dot(n, v)) + 1e-5;
-    float NoL = saturate(dot(n, l));
+    float NoL = saturate(dot(n, lightDir));
     float NoH = saturate(dot(n, h));
-    float LoH = saturate(dot(l, h));
+    float LoH = saturate(dot(lightDir, h));
 
     vec3 f0 = 0.04 * (1.0 - matalness) + baseColor.rgb * matalness;
     vec3 diffuseColor = (1.0 - matalness) * baseColor.rgb;
@@ -181,8 +177,7 @@ void main()
     vec3 Fd = diffuseColor * Fd_Burley(linearRoughness, NoV, NoL, LoH);
     
     vec3 color = Fd + Fr;
-    color *= lightIntensity * lightColor * NoL;
-    //color *= occlusion;
+    color *= lightIntensity * lightCol * NoL;
 
     // diffuse indirect
     vec3 indirectDiffuse = Irradiance_SphericalHarmonics(n) * Fd_Lambert();

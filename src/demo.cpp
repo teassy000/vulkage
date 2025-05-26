@@ -58,7 +58,7 @@ namespace
             kage::init(config);
             
             m_supportMeshShading = kage::checkSupports(kage::VulkanSupportExtension::ext_mesh_shader);
-            m_debugProb = true;
+            m_debugProb = false;
 
             bool forceParse = false;
             bool seamlessLod = false;
@@ -222,7 +222,6 @@ namespace
                 Rc2dInfo info{ m_width, m_height, 2, 6, (float)m_mouseState.m_mx, (float)m_mouseState.m_my };
                 updateRc2D(m_rc2d, info, m_demoData.dbg_features.rc2d);
             }
-            
 
             {
                 m_demoData.dbg_features.brx.presentImg = m_brixel.debugDestImg;
@@ -707,11 +706,10 @@ namespace
                 m_smaa.prepare(m_width, m_height, aaColorIn, aaDepthIn);
             }
 
-
             // ui
             {
-                //kage::ImageHandle uiColorIn = m_smaa.m_outAliasImg;
-                kage::ImageHandle uiColorIn = m_rc2d.use.rtOutAlias;
+                kage::ImageHandle uiColorIn = m_smaa.m_outAliasImg;
+                //kage::ImageHandle uiColorIn = m_rc2d.use.rtOutAlias;
                 kage::ImageHandle uiDepthIn = m_supportMeshShading ? m_meshShadingAlpha.depthOutAlias : m_vtxShadingLate.depthOutAlias;
                 prepareUI(m_ui, uiColorIn, uiDepthIn, 1.3f);
             }

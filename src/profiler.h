@@ -32,6 +32,7 @@
 #define KG_ZoneScoped ZoneScoped
 #define KG_ZoneScopedC(_color) ZoneScopedC(_color)
 #define KG_ZoneScopedNC(_name, _color) ZoneScopedNC(_name, _color)
+#define KG_ZoneName(_name, _sz) ZoneName(_name, _sz)
 
 
 #else // ! TRACY_ENABLE

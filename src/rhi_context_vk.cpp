@@ -1962,6 +1962,8 @@ namespace kage { namespace vk
     )
     {
         KG_ZoneScopedC(Color::indian_red);
+        const char* bufName = getName(_hBuf);
+        KG_ZoneName(bufName, strlen(bufName));
 
         if (!m_bufferContainer.exist(_hBuf))
         {

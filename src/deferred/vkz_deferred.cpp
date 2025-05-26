@@ -152,23 +152,6 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
         , kage::SamplerReductionMode::min
     );
 
-    kage::SamplerHandle rcSamp = kage::sampleImage(pass, _rcData.cascades
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::SamplerFilter::linear
-        , kage::SamplerMipmapMode::linear
-        , kage::SamplerAddressMode::mirrored_repeat
-        , kage::SamplerReductionMode::weighted_average
-    );
-
-
-    kage::SamplerHandle rcMergedSamp = kage::sampleImage(pass, _rcData.mergedCascade
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::SamplerFilter::nearest
-        , kage::SamplerMipmapMode::nearest
-        , kage::SamplerAddressMode::mirrored_repeat
-        , kage::SamplerReductionMode::weighted_average
-    );
-
     _ds.outColorAlias = kage::alias(outColor);
     kage::bindImage(pass, outColor
         , kage::PipelineStageFlagBits::compute_shader
@@ -182,6 +165,29 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
         , kage::AccessFlagBits::shader_read
     );
 
+    if (kage::kUseRadianceCascade) {
+        kage::SamplerHandle rcSamp = kage::sampleImage(pass, _rcData.cascades
+            , kage::PipelineStageFlagBits::compute_shader
+            , kage::SamplerFilter::linear
+            , kage::SamplerMipmapMode::linear
+            , kage::SamplerAddressMode::mirrored_repeat
+            , kage::SamplerReductionMode::weighted_average
+        );
+
+
+        kage::SamplerHandle rcMergedSamp = kage::sampleImage(pass, _rcData.mergedCascade
+            , kage::PipelineStageFlagBits::compute_shader
+            , kage::SamplerFilter::nearest
+            , kage::SamplerMipmapMode::nearest
+            , kage::SamplerAddressMode::mirrored_repeat
+            , kage::SamplerReductionMode::weighted_average
+        );
+
+        _ds.rcSampler = rcSamp;
+        _ds.rcMergedData = _rcData.mergedCascade;
+        _ds.rcMergedSampler = rcMergedSamp;
+    }
+
     _ds.pass = pass;
     _ds.prog = prog;
     _ds.cs = cs;
@@ -190,10 +196,6 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
 
     _ds.rcAccessData = rcAccessConfigBuf;
     _ds.radianceCascades = _rcData.cascades;
-    _ds.rcSampler = rcSamp;
-
-    _ds.rcMergedData = _rcData.mergedCascade;
-    _ds.rcMergedSampler = rcMergedSamp;
 
     _ds.gBufSamplers.albedo = albedoSamp;
     _ds.gBufSamplers.normal = normSamp;
@@ -239,21 +241,41 @@ void recDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uin
 
     using Stage = kage::PipelineStageFlagBits::Enum;
     using Access = kage::BindingAccess;
-    kage::Binding binds[] =
-    {
-        {_ds.rcAccessData,      Access::read,               Stage::compute_shader},
-        {_ds.gBuffer.albedo,    _ds.gBufSamplers.albedo,    Stage::compute_shader},
-        {_ds.gBuffer.normal,    _ds.gBufSamplers.normal,    Stage::compute_shader},
-        {_ds.gBuffer.worldPos,  _ds.gBufSamplers.worldPos,  Stage::compute_shader},
-        {_ds.gBuffer.emissive,  _ds.gBufSamplers.emissive,  Stage::compute_shader},
-        {_ds.gBuffer.specular,  _ds.gBufSamplers.specular,  Stage::compute_shader},
-        {_ds.inSky,             _ds.skySampler,             Stage::compute_shader},
-        {_ds.radianceCascades,  _ds.rcSampler,              Stage::compute_shader},
-        {_ds.rcMergedData,      _ds.rcMergedSampler,        Stage::compute_shader},
-        {_ds.outColor,          0,                          Stage::compute_shader},
-    };
 
-    kage::pushBindings(binds, COUNTOF(binds));
+
+    if (kage::kUseRadianceCascade) {
+        kage::Binding binds[] =
+        {
+            {_ds.rcAccessData,      Access::read,               Stage::compute_shader},
+            {_ds.gBuffer.albedo,    _ds.gBufSamplers.albedo,    Stage::compute_shader},
+            {_ds.gBuffer.normal,    _ds.gBufSamplers.normal,    Stage::compute_shader},
+            {_ds.gBuffer.worldPos,  _ds.gBufSamplers.worldPos,  Stage::compute_shader},
+            {_ds.gBuffer.emissive,  _ds.gBufSamplers.emissive,  Stage::compute_shader},
+            {_ds.gBuffer.specular,  _ds.gBufSamplers.specular,  Stage::compute_shader},
+            {_ds.inSky,             _ds.skySampler,             Stage::compute_shader},
+            {_ds.radianceCascades,  _ds.rcSampler,              Stage::compute_shader},
+            {_ds.rcMergedData,      _ds.rcMergedSampler,        Stage::compute_shader},
+            {_ds.outColor,          0,                          Stage::compute_shader},
+        };
+
+        kage::pushBindings(binds, COUNTOF(binds));
+    }
+    else
+    {
+        kage::Binding binds[] =
+        {
+            {_ds.rcAccessData,      Access::read,               Stage::compute_shader},
+            {_ds.gBuffer.albedo,    _ds.gBufSamplers.albedo,    Stage::compute_shader},
+            {_ds.gBuffer.normal,    _ds.gBufSamplers.normal,    Stage::compute_shader},
+            {_ds.gBuffer.worldPos,  _ds.gBufSamplers.worldPos,  Stage::compute_shader},
+            {_ds.gBuffer.emissive,  _ds.gBufSamplers.emissive,  Stage::compute_shader},
+            {_ds.gBuffer.specular,  _ds.gBufSamplers.specular,  Stage::compute_shader},
+            {_ds.inSky,             _ds.skySampler,             Stage::compute_shader},
+            {_ds.outColor,          0,                          Stage::compute_shader},
+        };
+
+        kage::pushBindings(binds, COUNTOF(binds));
+    }
 
     kage::dispatch(_w, _h, 1);
 
