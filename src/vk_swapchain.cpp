@@ -245,8 +245,7 @@ namespace kage { namespace vk
         KG_ZoneScopedC(Color::light_yellow);
 
         if (VK_NULL_HANDLE ==  m_swapchain
-            && m_shouldPresent
-            )
+            && m_shouldPresent) 
         {
             return;
         }

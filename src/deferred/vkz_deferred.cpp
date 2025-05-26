@@ -160,12 +160,14 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
         , _ds.outColorAlias
     );
 
-    kage::bindBuffer(pass, rcAccessConfigBuf
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read
-    );
+
 
     if (kage::kUseRadianceCascade) {
+        kage::bindBuffer(pass, rcAccessConfigBuf
+            , kage::PipelineStageFlagBits::compute_shader
+            , kage::AccessFlagBits::shader_read
+        );
+
         kage::SamplerHandle rcSamp = kage::sampleImage(pass, _rcData.cascades
             , kage::PipelineStageFlagBits::compute_shader
             , kage::SamplerFilter::linear
@@ -186,6 +188,9 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
         _ds.rcSampler = rcSamp;
         _ds.rcMergedData = _rcData.mergedCascade;
         _ds.rcMergedSampler = rcMergedSamp;
+
+        _ds.rcAccessData = rcAccessConfigBuf;
+        _ds.radianceCascades = _rcData.cascades;
     }
 
     _ds.pass = pass;
@@ -193,9 +198,6 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
     _ds.cs = cs;
     _ds.outColor = outColor;
     _ds.gBuffer = _gb;
-
-    _ds.rcAccessData = rcAccessConfigBuf;
-    _ds.radianceCascades = _rcData.cascades;
 
     _ds.gBufSamplers.albedo = albedoSamp;
     _ds.gBufSamplers.normal = normSamp;
@@ -246,13 +248,13 @@ void recDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uin
     if (kage::kUseRadianceCascade) {
         kage::Binding binds[] =
         {
-            {_ds.rcAccessData,      Access::read,               Stage::compute_shader},
             {_ds.gBuffer.albedo,    _ds.gBufSamplers.albedo,    Stage::compute_shader},
             {_ds.gBuffer.normal,    _ds.gBufSamplers.normal,    Stage::compute_shader},
             {_ds.gBuffer.worldPos,  _ds.gBufSamplers.worldPos,  Stage::compute_shader},
             {_ds.gBuffer.emissive,  _ds.gBufSamplers.emissive,  Stage::compute_shader},
             {_ds.gBuffer.specular,  _ds.gBufSamplers.specular,  Stage::compute_shader},
             {_ds.inSky,             _ds.skySampler,             Stage::compute_shader},
+            {_ds.rcAccessData,      Access::read,               Stage::compute_shader},
             {_ds.radianceCascades,  _ds.rcSampler,              Stage::compute_shader},
             {_ds.rcMergedData,      _ds.rcMergedSampler,        Stage::compute_shader},
             {_ds.outColor,          0,                          Stage::compute_shader},
@@ -264,7 +266,6 @@ void recDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uin
     {
         kage::Binding binds[] =
         {
-            {_ds.rcAccessData,      Access::read,               Stage::compute_shader},
             {_ds.gBuffer.albedo,    _ds.gBufSamplers.albedo,    Stage::compute_shader},
             {_ds.gBuffer.normal,    _ds.gBufSamplers.normal,    Stage::compute_shader},
             {_ds.gBuffer.worldPos,  _ds.gBufSamplers.worldPos,  Stage::compute_shader},
@@ -284,27 +285,30 @@ void recDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uin
 
 void updateBuffers(const DeferredShading& _ds, const float _tatalRadius)
 {
-    std::vector<RCAccessData> consts(kage::k_rclv0_cascadeLv);
-    uint32_t offset = 0;
-    for (size_t ii = 0; ii < kage::k_rclv0_cascadeLv; ii++)
-    {
-        uint32_t level_factor = uint32_t(1u << ii);
-        uint32_t probeSideCount = kage::k_rclv0_probeSideCount / level_factor;
-        uint32_t raySideCount = kage::k_rclv0_rayGridSideCount * level_factor;
+    if (kage::kUseRadianceCascade) {
+        std::vector<RCAccessData> consts(kage::k_rclv0_cascadeLv);
+        uint32_t offset = 0;
+        for (size_t ii = 0; ii < kage::k_rclv0_cascadeLv; ii++)
+        {
+            uint32_t level_factor = uint32_t(1u << ii);
+            uint32_t probeSideCount = kage::k_rclv0_probeSideCount / level_factor;
+            uint32_t raySideCount = kage::k_rclv0_rayGridSideCount * level_factor;
 
-        consts[ii].lv = (uint32_t)ii;
-        consts[ii].raySideCount = raySideCount;
-        consts[ii].probeSideCount = probeSideCount;
-        consts[ii].layerOffset = offset;
-        consts[ii].rayLen = glm::length(vec3(_tatalRadius)) / float(probeSideCount);
-        consts[ii].probeSideLen = _tatalRadius * 2.f / float(probeSideCount);
+            consts[ii].lv = (uint32_t)ii;
+            consts[ii].raySideCount = raySideCount;
+            consts[ii].probeSideCount = probeSideCount;
+            consts[ii].layerOffset = offset;
+            consts[ii].rayLen = glm::length(vec3(_tatalRadius)) / float(probeSideCount);
+            consts[ii].probeSideLen = _tatalRadius * 2.f / float(probeSideCount);
 
-        offset += probeSideCount;
+            offset += probeSideCount;
+        }
+
+        const kage::Memory* mem = kage::alloc(uint32_t(consts.size() * sizeof(RCAccessData)));
+        memcpy(mem->data, consts.data(), mem->size);
+        kage::updateBuffer(_ds.rcAccessData, mem);
     }
 
-    const kage::Memory* mem = kage::alloc(uint32_t(consts.size() * sizeof(RCAccessData)));
-    memcpy(mem->data, consts.data(), mem->size);
-    kage::updateBuffer(_ds.rcAccessData, mem);
 }
 
 void updateDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uint32_t _h, const vec3 _camPos, const float _tatalRadius, const uint32_t _idxType, const Dbg_RadianceCascades& _rc)

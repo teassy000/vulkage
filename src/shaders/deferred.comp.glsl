@@ -15,19 +15,21 @@ layout(push_constant) uniform blocks
     DeferredConstants consts;
 };
 
-layout(binding = 0) readonly buffer RadianceConstants
+
+layout(binding = 0) uniform sampler2D in_albedo;
+layout(binding = 1) uniform sampler2D in_normal;
+layout(binding = 2) uniform sampler2D in_wPos;
+layout(binding = 3) uniform sampler2D in_emmision;
+layout(binding = 4) uniform sampler2D in_specular;
+layout(binding = 5) uniform sampler2D in_sky;
+
+#if ENABLE_RADIANCE_CASCADES
+
+
+layout(binding = 6) readonly buffer RadianceConstants
 {
     RCAccessData rcAccesses [];
 };
-
-layout(binding = 1) uniform sampler2D in_albedo;
-layout(binding = 2) uniform sampler2D in_normal;
-layout(binding = 3) uniform sampler2D in_wPos;
-layout(binding = 4) uniform sampler2D in_emmision;
-layout(binding = 5) uniform sampler2D in_specular;
-layout(binding = 6) uniform sampler2D in_sky;
-
-#if ENABLE_RADIANCE_CASCADES
 
 layout(binding = 7) uniform sampler2DArray in_rcMergedProbe;
 layout(binding = 8) uniform sampler2DArray in_rcMergedInverval;
@@ -35,7 +37,7 @@ layout(binding = 9) uniform writeonly image2D out_color;
 
 #else
 
-layout(binding = 7) uniform writeonly image2D out_color;
+layout(binding = 6) uniform writeonly image2D out_color;
 
 #endif // ENABLE_RADIANCE_CASCADES
 
@@ -136,6 +138,8 @@ void main()
     vec3 lightCol = vec3(0.98, 0.92, 0.89);
     vec3 lightDir = normalize(vec3(0.7, 1.0, 0.7)); // in world space, from surface to light source
 
+
+#if ENABLE_RADIANCE_CASCADES
     // locate the cascade based on the wpos
     const uint currLv = consts.startCascade;
     const RCAccessData rcAccess = rcAccesses[currLv];
@@ -143,6 +147,7 @@ void main()
     uint ray_sideCount = rcAccess.raySideCount;
     float prob_sideLen = rcAccess.probeSideLen;
     uint layerOffset = rcAccess.layerOffset;
+#endif
 
     vec3 mappedPos = wPos - camPos + vec3(radius); // map to camera related pos then shift to [0, 2 * radius]
 
