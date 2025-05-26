@@ -117,13 +117,16 @@ void CreateMatrixScene(Scene& scene, bool _seamlessLod)
 
         //-- NOTE: simplification for occlusion test
         meshDraws[i].pos[0] = float(i % 500) * step + basePos + 2.f;
-
         meshDraws[i].pos[1] = -2.f;
         meshDraws[i].pos[2] = float(i / 500) * step + basePos + 2.f;
 
-        meshDraws[i].scale = vec3(1.f);
+        meshDraws[i].scale = vec3(float(rand()) / RAND_MAX) + 2.f; // 1.f ~ 2.f;
 
-        meshDraws[i].orit = quat(1, 0, 0, 0);
+        meshDraws[i].orit = glm::rotate(
+            quat(1, 0, 0, 0)
+            , glm::radians((float(rand()) / RAND_MAX) * 360.f)
+            , vec3(0, 1, 0));
+
         meshDraws[i].meshIdx = meshIdx;
         meshDraws[i].vertexOffset = mesh.vertexOffset;
         meshDraws[i].meshletVisibilityOffset = meshletVisibilityCount;
@@ -297,7 +300,7 @@ bool loadObjScene(Scene& _scene, const std::vector<std::string>& _pathes, bool _
         return false;
     }
 
-    static Scene_Enum se = Scene_Enum::TenMatrixScene;
+    static Scene_Enum se = Scene_Enum::MatrixScene;
     switch (se)
     {
     case Scene_Enum::MatrixScene:
