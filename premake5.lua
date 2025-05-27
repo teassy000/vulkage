@@ -178,7 +178,7 @@ project "vulkage"
 		path.join(FAST_OBJ_DIR,	""),
 		path.join(GLM_DIR,		""),
 		path.join(METIS_DIR,	"include"),
-		path.join(FFX_SDK_DIR,		"include"),
+		path.join(FFX_SDK_DIR,	"include"),
 
 		path.join(VK_SDK_DIR,	"Include"),
 		path.join(KTX_SDK_DIR,	"include"),
@@ -212,9 +212,12 @@ project "vulkage"
 			path.join(SRC_DIR, 	"shaders/ffx/*.h"),
 		},
 
+		["shaders/inc"] = {
+			path.join(SRC_DIR, 	"shaders/*.h"),
+		},
+
 		["shaders"] = {
 			path.join(SRC_DIR,	"shaders/*.glsl"),
-			path.join(SRC_DIR, 	"shaders/*.h"),
 		}
 
 		
