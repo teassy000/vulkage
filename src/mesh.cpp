@@ -828,7 +828,6 @@ bool loadMeshSeamless(Geometry& _outGeo, const char* _path)
                 );
             }
 
-
             size_t tgt_size = ((groups[ii].size() + 1) / 2) * kClusterSize * 3;
             //size_t tgt_size = ((groups[ii].size() + 1) / 2);
             float err = 0.f;
@@ -878,6 +877,19 @@ bool loadMeshSeamless(Geometry& _outGeo, const char* _path)
 
             for (SeamlessCluster& scRef: split) {
                 scRef.self = mergedBounds;
+                // recompute cone axis
+                meshopt_Bounds bounds = meshopt_computeClusterBounds(
+                    scRef.indices.data()
+                    , scRef.indices.size()
+                    , &vertices[0].px
+                    , vertices.size()
+                    , sizeof(SeamlessVertex)
+                );
+                scRef.cone_axis[0] = bounds.cone_axis_s8[0];
+                scRef.cone_axis[1] = bounds.cone_axis_s8[1];
+                scRef.cone_axis[2] = bounds.cone_axis_s8[2];
+                scRef.cone_cutoff = bounds.cone_cutoff_s8;
+
 
                 clusters.push_back(scRef);
                 pending.push_back(int32_t(clusters.size() - 1));
