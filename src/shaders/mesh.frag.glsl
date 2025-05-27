@@ -28,7 +28,7 @@ void main()
         vec3( p, -p*0.5f, -p),
     };
     vec3 norm = normalize(inNormal);
-    vec3 v = normalize(trans.cameraPos - inWorldPos);
+    vec3 v = normalize(trans.cameraPos.xyz - inWorldPos);
 
     float roughness = 0.3;
     float matalness = 0.6;
