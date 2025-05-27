@@ -758,8 +758,25 @@ bool loadMeshSeamless(Geometry& _outGeo, const char* _path)
 
 
     std::vector<SeamlessCluster> clusters = clusterize(vertices, indices);
+    // calculate bounds for each cluster
     for (SeamlessCluster& c : clusters) {
-        c.self = calcBounds(vertices, c.indices, 0.f, 0);
+        meshopt_Bounds bounds = meshopt_computeClusterBounds(
+            c.indices.data()
+            , c.indices.size()
+            , &vertices[0].px
+            , vertices.size()
+            , sizeof(SeamlessVertex)
+        );
+
+        c.self.center = vec3(bounds.center[0], bounds.center[1], bounds.center[2]);
+        c.self.radius = bounds.radius;
+        c.self.error = 0.f; // no error for the first LOD
+        c.self.lod = 0;
+
+        c.cone_axis[0] = bounds.cone_axis_s8[0];
+        c.cone_axis[1] = bounds.cone_axis_s8[1];
+        c.cone_axis[2] = bounds.cone_axis_s8[2];
+        c.cone_cutoff = bounds.cone_cutoff_s8;
     }
 
     std::vector<int32_t> pending(clusters.size());
@@ -903,12 +920,14 @@ bool loadMeshSeamless(Geometry& _outGeo, const char* _path)
             c.dataOffset = (uint32_t)_outGeo.meshletdata.size();
             c.vertexCount = cluster.vertexCount;
             c.triangleCount = cluster.triangleCount;
+            c.cone_axis[0] = cluster.cone_axis[0];
+            c.cone_axis[1] = cluster.cone_axis[1];
+            c.cone_axis[2] = cluster.cone_axis[2];
+            c.cone_cutoff = cluster.cone_cutoff;
 
             assert(cluster.triangleCount * 3 == cluster.indices.size());
 
             _outGeo.meshletdata.insert(_outGeo.meshletdata.end(), cluster.data.begin(), cluster.data.end());
-
-
 
             _outGeo.clusters.push_back(c);
         }

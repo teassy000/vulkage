@@ -109,6 +109,9 @@ struct Cluster
     LodBounds self;
     LodBounds parent;
 
+    int8_t cone_axis[3];
+    int8_t cone_cutoff;
+
     uint dataOffset;
     uint8_t triangleCount;
     uint8_t vertexCount;

@@ -63,6 +63,9 @@ struct alignas(16) Cluster
     LodBounds self;
     LodBounds parent;
 
+    int8_t cone_axis[3];
+    int8_t cone_cutoff;
+
     uint32_t dataOffset;
     uint8_t triangleCount;
     uint8_t vertexCount;
@@ -93,6 +96,10 @@ struct alignas(16) SeamlessCluster
 
     LodBounds self;
     LodBounds parent;
+
+    int8_t cone_axis[3];
+    int8_t cone_cutoff;
+
     uint32_t dataOffset;
     uint32_t vertexCount;
     uint32_t triangleCount;

@@ -127,6 +127,9 @@ void main()
 
     float radius = 0.0;
     vec3 center = vec3(0.0, 0.0, 0.0);
+    vec3 cone_axis = vec3(0.0, 0.0, 0.0);
+    float cone_cutoff = 0.f;
+    vec3 ori_center = vec3(0.0, 0.0, 0.0);
 
     float maxScaleAxis = maxElem(meshDraw.scale);
 
@@ -143,28 +146,37 @@ void main()
         float s_dist = max(length(s_bounds.center - trans.cull_cameraPos.xyz) - s_bounds.radius, 0);
         float s_threshold = s_dist * globals.lodErrorThreshold / maxScaleAxis;
 
-        bool cond = s_bounds.error <= s_threshold && p_bounds.error > p_threshold;
+        cone_axis = vec3(int(clusters[mi].cone_axis[0]) / 127.0, int(clusters[mi].cone_axis[1]) / 127.0, int(clusters[mi].cone_axis[2]) / 127.0);
+
+        cone_cutoff = int(clusters[mi].cone_cutoff) / 127.0;
 
         radius = s_bounds.radius * maxScaleAxis;
-        center = (trans.cull_view * vec4(s_bounds.center, 1.0)).xyz;
+        ori_center = s_bounds.center;
+
+        // culling based on parent bounds, shoule be visible if:
+        // 1. self bounds has low error than threshold 
+        // 2. parent bounds has high error than threshold
+        bool cond = s_bounds.error <= s_threshold && p_bounds.error > p_threshold;
         visible = visible && cond;
     }
     else // normal lod pipeline
     {
-        vec3 axis = vec3(int(meshlets[mi].cone_axis[0]) / 127.0, int(meshlets[mi].cone_axis[1]) / 127.0, int(meshlets[mi].cone_axis[2]) / 127.0);
-        vec3 ori_center = rotateQuat(meshlets[mi].center, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
+        cone_axis = vec3(int(meshlets[mi].cone_axis[0]) / 127.0, int(meshlets[mi].cone_axis[1]) / 127.0, int(meshlets[mi].cone_axis[2]) / 127.0);
+        cone_cutoff = int(meshlets[mi].cone_cutoff) / 127.0;
 
-        float cone_cutoff = int(meshlets[mi].cone_cutoff) / 127.0;
-
+        ori_center = rotateQuat(meshlets[mi].center, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
         radius = meshlets[mi].radius * maxScaleAxis;
-        center = (trans.cull_view * vec4(ori_center, 1.0)).xyz;
+    }
 
-        vec3 ori_cone_axis = rotateQuat(axis, meshDraw.orit);
+    center = (trans.cull_view * vec4(ori_center, 1.0)).xyz;
+    // back face culling
+    {
+        vec3 ori_cone_axis = rotateQuat(cone_axis, meshDraw.orit);
         vec3 cone_axis = mat3(trans.cull_view) * ori_cone_axis;
 
         // meshlet level back face culling, here we culling in the world space
         bool culled = coneCull(ori_center, radius, ori_cone_axis, cone_cutoff, trans.cull_cameraPos.xyz);
-        visible = visible && ( (!culled) || (meshDraw.withAlpha > 0));
+        visible = visible && ((!culled) || (meshDraw.withAlpha > 0));
     }
 
     // frustum culling: left/right/top/bottom
