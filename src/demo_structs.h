@@ -74,7 +74,7 @@ struct Dbg_Common
     bool taskSubmitEnabled = true;
     bool showPyramid = false;
     int  debugPyramidLevel = 0;
-    float speed = 0.01f;
+    float speed = 3.f;
 
     bool dbgBrx;
     bool dbgRc3d;

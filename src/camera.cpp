@@ -9,7 +9,6 @@
 #include "kage_math.h"
 #include "glm/gtc/quaternion.hpp"
 #include "glm/gtx/rotate_vector.hpp"
-#include "glm/gtx/rotate_vector.hpp"
 
 void freeCameraSetKeyState(uint16_t _key, bool _down);
 
@@ -210,7 +209,7 @@ struct FreeCamera
 
     }
 
-    void processMouse(float _xpos, float _ypos, bool _constrainPitch = true)
+    void processMouse(const float _delta, const float _xpos, const float _ypos)
     {
         float xdelta = _xpos - cursorPos.x;
         float ydelta = _ypos - cursorPos.y;
@@ -218,8 +217,8 @@ struct FreeCamera
         cursorPos.x = _xpos;
         cursorPos.y = _ypos;
 
-        xdelta *= m_mouseSpeed;
-        ydelta *= m_mouseSpeed;
+        xdelta *= (m_mouseSpeed * _delta);
+        ydelta *= (m_mouseSpeed * _delta);
 
         quat qu = glm::angleAxis(glm::radians(xdelta), vec3(0, 1, 0)); // yaw
         quat qr = glm::angleAxis(glm::radians(ydelta), vec3(1, 0, 0)); // pitch
@@ -231,10 +230,17 @@ struct FreeCamera
 
     bool update(float _delta, const entry::MouseState& _mouseState) 
     {
+        _delta *= 0.001f; // convert to seconds
+
         processKey(_delta);
 
-        if (m_lock)
-            processMouse(float(_mouseState.m_mx), float(_mouseState.m_my), true);
+        if (m_lock) {
+            processMouse(_delta, float(_mouseState.m_mx), float(_mouseState.m_my));
+        } else {
+            cursorPos.x = float(_mouseState.m_mx);
+            cursorPos.y = float(_mouseState.m_my);
+        }
+
 
         return m_lock;
     }
@@ -274,9 +280,9 @@ struct FreeCamera
         m_up = { 0.0f, 1.0f, 0.0f }; // y up
         m_front = { 0.0f, 0.0f, 1.0f }; // z forward
 
-        m_mouseSpeed = 0.03f;
-        m_gamepadSpeed = 0.01f;
-        m_moveSpeed = 0.01f;
+        m_mouseSpeed = 30.f; // degrees per second
+        m_gamepadSpeed = 10.f; // meters per second
+        m_moveSpeed = 10.f; // meters per second
         m_keys = 0;
 
         m_pos = m_pos0;
