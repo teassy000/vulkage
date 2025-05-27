@@ -363,7 +363,7 @@ void updateContentCommon(Dbg_Common& _common, const DebugProfilingData& _pd, con
 
     if (ImGui::TreeNode("camera:"))
     {
-        ImGui::SliderFloat("speed", &_common.speed, 0.01f, 3.f);
+        ImGui::SliderFloat("speed", &_common.speed, 1.f, 50.f);
         ImGui::Text("pos: %.2f, %.2f, %.2f", _ld.posX, _ld.posY, _ld.posZ);
         ImGui::Text("dir: %.2f, %.2f, %.2f", _ld.frontX, _ld.frontY, _ld.frontZ);
         ImGui::TreePop();
