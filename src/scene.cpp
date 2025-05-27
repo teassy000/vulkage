@@ -102,23 +102,25 @@ void CreateRandomScene(Scene& scene, bool _seamlessLod)
 
 void CreateMatrixScene(Scene& scene, bool _seamlessLod)
 {
-    uint32_t drawCount = 250'000; // 500*500
-    const float step = 1.5f;
+    const int32_t side = 500; // 500
+    uint32_t drawCount = uint32_t(side * side); // 500*500
+    const float step = 3.f;
+
     std::vector<MeshDraw> meshDraws(drawCount);
 
     float drawDist = 400;
     srand(42);
     uint32_t meshletVisibilityCount = 0;
-    float basePos = -250.f * step;
+    float basePos = -float(side) * step * 0.5f;
     for (uint32_t i = 0; i < drawCount; ++i)
     {
         uint32_t meshIdx = rand() % scene.geometry.meshes.size();
         Mesh& mesh = scene.geometry.meshes[meshIdx];
 
         //-- NOTE: simplification for occlusion test
-        meshDraws[i].pos[0] = float(i % 500) * step + basePos + 2.f;
-        meshDraws[i].pos[1] = -2.f;
-        meshDraws[i].pos[2] = float(i / 500) * step + basePos + 2.f;
+        meshDraws[i].pos[0] = float(i % side) * step + basePos + 2.f;
+        meshDraws[i].pos[1] = 0.f;
+        meshDraws[i].pos[2] = float(i / side) * step + basePos + 2.f;
 
         meshDraws[i].scale = vec3(float(rand()) / RAND_MAX) + 2.f; // 1.f ~ 2.f;
 
