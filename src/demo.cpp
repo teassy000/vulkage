@@ -60,6 +60,10 @@ namespace
             m_supportMeshShading = kage::checkSupports(kage::VulkanSupportExtension::ext_mesh_shader);
             m_debugProb = false;
 
+            m_useRc2d = false;
+            m_useRc3d = false;
+            m_useBrixelizer = false;
+
             bool forceParse = false;
             bool seamlessLod = false;
 
@@ -140,7 +144,8 @@ namespace
                 entry::setMouseLock(entry::kDefaultWindowHandle, lockToggle);
             }
 
-            // update brixelizer 
+            // update brixelizer
+            if(m_useBrixelizer)
             {
                 BrixelData brxData;
                 brxData.camPos = m_demoData.trans.cameraPos;
@@ -214,19 +219,24 @@ namespace
             m_smaa.update(m_width, m_height);
 
 
-            updateRadianceCascade(m_radianceCascade, m_demoData.dbg_features.rc3d, m_demoData.trans);
+            if (m_useRc3d) 
+            {
+                updateRadianceCascade(m_radianceCascade, m_demoData.dbg_features.rc3d, m_demoData.trans);
+            }
+            
             if (m_debugProb)
             {
                 updateProbeDebug(m_probDebug, m_demoData.drawCull, m_width, m_height, m_demoData.dbg_features.rc3d);
             }
 
+            if(m_useRc2d)
             {
                 Rc2dInfo info{ m_width, m_height, 2, 6, (float)m_mouseState.m_mx, (float)m_mouseState.m_my };
                 updateRc2D(m_rc2d, info, m_demoData.dbg_features.rc2d);
             }
 
             {
-                m_demoData.dbg_features.brx.presentImg = m_brixel.debugDestImg;
+                m_demoData.dbg_features.brx.presentImg = m_useBrixelizer ? m_brixel.debugDestImg : kage::ImageHandle{};
                 updateUI(m_ui, m_demoData.input, m_demoData.dbg_features, m_demoData.profiling, m_demoData.logic);
             }
 
@@ -248,11 +258,14 @@ namespace
             m_demoData.profiling.uiTime = (float)kage::getPassTime(m_ui.pass);
             m_demoData.profiling.deferredTime = (float)kage::getPassTime(m_deferred.pass);
 
-            m_demoData.profiling.buildCascadeTime = (float)kage::getPassTime(m_radianceCascade.build.pass);
-            m_demoData.profiling.mergeCascadeRayTime = (float)kage::getPassTime(m_radianceCascade.mergeRay.pass);
-            m_demoData.profiling.mergeCascadeProbeTime = (float)kage::getPassTime(m_radianceCascade.mergeProbe.pass);
-            m_demoData.profiling.debugProbeGenTime = (float)kage::getPassTime(m_probDebug.cmdGen.pass);
-            m_demoData.profiling.debugProbeDrawTime = (float)kage::getPassTime(m_probDebug.draw.pass);
+            if (m_useRc3d) {
+                m_demoData.profiling.buildCascadeTime = (float)kage::getPassTime(m_radianceCascade.build.pass);
+                m_demoData.profiling.mergeCascadeRayTime = (float)kage::getPassTime(m_radianceCascade.mergeRay.pass);
+                m_demoData.profiling.mergeCascadeProbeTime = (float)kage::getPassTime(m_radianceCascade.mergeProbe.pass);
+
+                m_demoData.profiling.debugProbeGenTime = (float)kage::getPassTime(m_probDebug.cmdGen.pass);
+                m_demoData.profiling.debugProbeDrawTime = (float)kage::getPassTime(m_probDebug.draw.pass);
+            }
 
             m_demoData.profiling.triangleEarlyCount = (float)(kage::getPassClipping(m_meshShading.pass));
             m_demoData.profiling.triangleLateCount = (float)(kage::getPassClipping(m_meshShadingLate.pass));
@@ -335,6 +348,7 @@ namespace
             }
 
             // index buffer
+            if(!m_scene.geometry.indices.empty())
             {
                 const kage::Memory* memIdxBuf = kage::alloc((uint32_t)(m_scene.geometry.indices.size() * sizeof(uint32_t)));
                 memcpy(memIdxBuf->data, m_scene.geometry.indices.data(), memIdxBuf->size);
@@ -624,6 +638,7 @@ namespace
             }
 
             // brixelizer 
+            if (m_useBrixelizer)
             {
                 BrixelInitDesc bxlInitDesc{};
                 bxlInitDesc.vtxBuf = m_vtxBuf;
@@ -638,6 +653,7 @@ namespace
             }
 
             // radiance cascade
+            if(m_useRc3d && m_useBrixelizer)
             {
                 kage::ImageHandle cascadeDepthIn = m_supportMeshShading ? m_meshShadingAlpha.depthOutAlias : m_vtxShadingLate.depthOutAlias;
                 kage::ImageHandle cascadeColorIn = m_deferred.outColorAlias;
@@ -669,14 +685,16 @@ namespace
             // deferred
             {
                 RadianceCascadesData rcData{};
-                rcData.cascades = m_radianceCascade.build.radCascdOutAlias;
-                rcData.mergedCascade = m_radianceCascade.mergeProbe.mergedCascadesAlias;
+                if (m_useRc3d) {
+                    rcData.cascades = m_radianceCascade.build.radCascdOutAlias;
+                    rcData.mergedCascade = m_radianceCascade.mergeProbe.mergedCascadesAlias;
+                }
 
                 initDeferredShading(m_deferred, m_meshShadingAlpha.g_bufferOutAlias, m_skybox.colorOutAlias, rcData);
             }
 
             // probe debug
-            if (m_debugProb)
+            if (m_useRc3d && m_debugProb)
             {
                 RCDebugInit vdinit;
                 vdinit.pyramid = m_pyramid.imgOutAlias;
@@ -804,6 +822,10 @@ namespace
         DemoData m_demoData{};
         bool m_supportMeshShading;
         bool m_debugProb;
+
+        bool m_useRc3d;
+        bool m_useBrixelizer;
+        bool m_useRc2d;
 
         std::vector<kage::ImageHandle> m_sceneImages;
 
