@@ -280,7 +280,7 @@ struct FreeCamera
         m_up = { 0.0f, 1.0f, 0.0f }; // y up
         m_front = { 0.0f, 0.0f, 1.0f }; // z forward
 
-        m_mouseSpeed = 30.f; // degrees per second
+        m_mouseSpeed = 20.f; // degrees per second
         m_gamepadSpeed = 10.f; // meters per second
         m_moveSpeed = 10.f; // meters per second
         m_keys = 0;
