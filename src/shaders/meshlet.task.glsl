@@ -138,10 +138,9 @@ void main()
         LodBounds s_bounds = clusters[mi].self;
         s_bounds.center = rotateQuat(s_bounds.center, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
 
-
-        float p_dist = max(length(p_bounds.center - trans.cull_cameraPos) - p_bounds.radius, 0);
+        float p_dist = max(length(p_bounds.center - trans.cull_cameraPos.xyz) - p_bounds.radius, 0);
         float p_threshold = p_dist * globals.lodErrorThreshold / maxScaleAxis;
-        float s_dist = max(length(s_bounds.center - trans.cull_cameraPos) - s_bounds.radius, 0);
+        float s_dist = max(length(s_bounds.center - trans.cull_cameraPos.xyz) - s_bounds.radius, 0);
         float s_threshold = s_dist * globals.lodErrorThreshold / maxScaleAxis;
 
         bool cond = s_bounds.error <= s_threshold && p_bounds.error > p_threshold;
@@ -164,7 +163,7 @@ void main()
         vec3 cone_axis = mat3(trans.cull_view) * ori_cone_axis;
 
         // meshlet level back face culling, here we culling in the world space
-        bool culled = coneCull(ori_center, radius, ori_cone_axis, cone_cutoff, trans.cull_cameraPos);
+        bool culled = coneCull(ori_center, radius, ori_cone_axis, cone_cutoff, trans.cull_cameraPos.xyz);
         visible = visible && ( (!culled) || (meshDraw.withAlpha > 0));
     }
 
