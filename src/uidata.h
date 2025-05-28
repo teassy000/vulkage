@@ -6,8 +6,10 @@ struct DebugProfilingData
     float avgGpuTime;
     float cullEarlyTime;
     float cullLateTime;
+    float cullAlphaTime;
     float drawEarlyTime;
     float drawLateTime;
+    float drawAlphaTime;
     float pyramidTime;
     float uiTime;
     float deferredTime;

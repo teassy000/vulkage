@@ -254,6 +254,8 @@ namespace
             m_demoData.profiling.drawEarlyTime = (float)kage::getPassTime(m_meshShading.pass);
             m_demoData.profiling.cullLateTime = (float)kage::getPassTime(m_cullingLate.pass);
             m_demoData.profiling.drawLateTime = (float)kage::getPassTime(m_meshShadingLate.pass);
+            m_demoData.profiling.cullAlphaTime = (float)kage::getPassTime(m_cullingAlpha.pass);
+            m_demoData.profiling.drawAlphaTime = (float)kage::getPassTime(m_meshShadingAlpha.pass);
             m_demoData.profiling.pyramidTime = (float)kage::getPassTime(m_pyramid.pass);
             m_demoData.profiling.uiTime = (float)kage::getPassTime(m_ui.pass);
             m_demoData.profiling.deferredTime = (float)kage::getPassTime(m_deferred.pass);
@@ -271,7 +273,9 @@ namespace
             m_demoData.profiling.triangleLateCount = (float)(kage::getPassClipping(m_meshShadingLate.pass));
             m_demoData.profiling.triangleCount = m_demoData.profiling.triangleEarlyCount + m_demoData.profiling.triangleLateCount;
 
-            m_demoData.profiling.meshletCount = (uint32_t)m_scene.geometry.meshlets.size();
+            m_demoData.profiling.meshletCount = kage::kSeamlessLod ?
+                                                    (uint32_t)m_scene.geometry.clusters.size() :
+                                                    (uint32_t)m_scene.geometry.meshlets.size();
             m_demoData.profiling.primitiveCount = (uint32_t)(m_scene.geometry.indices.size()) / 3; // include all lods
 
             KG_FrameMark;

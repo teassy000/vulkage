@@ -313,10 +313,6 @@ void updateContentCommon(Dbg_Common& _common, const DebugProfilingData& _pd, con
 
     ImGui::Text("fps: [%.2f]", 1000.f / _pd.avgCpuTime);
 
-    ImGui::Checkbox("brx", &_common.dbgBrx);
-    ImGui::Checkbox("rc3d", &_common.dbgRc3d);
-    ImGui::Checkbox("rc2d", &_common.dbgRc2d);
-
     ImGui::Checkbox("pause cull transform", &_common.dbgPauseCullTransform);
 
     ImGui::Text("avg cpu: [%.3f]ms", _pd.avgCpuTime);
@@ -329,35 +325,22 @@ void updateContentCommon(Dbg_Common& _common, const DebugProfilingData& _pd, con
         ImGui::Text("pyramid: [%.3f]ms", _pd.pyramidTime);
         ImGui::Text("cull late: [%.3f]ms", _pd.cullLateTime);
         ImGui::Text("draw late: [%.3f]ms", _pd.drawLateTime);
+        ImGui::Text("cull alpha: [%.3f]ms", _pd.cullAlphaTime);
+        ImGui::Text("draw alpha: [%.3f]ms", _pd.drawAlphaTime);
     }
 
 
     ImGui::Text("ui: [%.3f]ms", _pd.uiTime);
     ImGui::Text("deferred: [%.3f]ms", _pd.deferredTime);
-    ImGui::Text("build cascade: [%.3f]ms", _pd.buildCascadeTime);
-    ImGui::Text("merge cascade ray: [%.3f]ms", _pd.mergeCascadeRayTime);
-    ImGui::Text("build cascade probe: [%.3f]ms", _pd.mergeCascadeProbeTime);
-    ImGui::Text("debug probe gen: [%.3f]ms", _pd.debugProbeGenTime);
-    ImGui::Text("debug probe draw: [%.3f]ms", _pd.debugProbeDrawTime);
 
     if (ImGui::TreeNode("Static Data:"))
     {
         ImGui::Text("primitives : [%d]", _pd.primitiveCount);
-        ImGui::Text("meshlets: [%d]", _pd.meshletCount);
+        ImGui::Text("meshlets/clusters: [%d]", _pd.meshletCount);
         ImGui::Text("tri E: [%.3f]M", _pd.triangleEarlyCount * 1e-6);
         ImGui::Text("tri L: [%.3f]M", _pd.triangleLateCount * 1e-6);
         ImGui::Text("triangles: [%.3f]M", _pd.triangleCount * 1e-6);
         ImGui::Text("tri/sec: [%.2f]B", (1000.f / _pd.avgCpuTime) * _pd.triangleCount * 1e-9);
-        ImGui::TreePop();
-    }
-
-    if (ImGui::TreeNode("Options"))
-    {
-        ImGui::Checkbox("Mesh Shading", &_common.meshShadingEnabled);
-        ImGui::Checkbox("Cull", &_common.objCullEnabled);
-        ImGui::Checkbox("Lod", &_common.lodEnabled);
-        ImGui::Checkbox("Occlusion", &_common.ocEnabled);
-        ImGui::Checkbox("Task Submit", &_common.taskSubmitEnabled);
         ImGui::TreePop();
     }
 
