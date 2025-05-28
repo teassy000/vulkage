@@ -67,6 +67,9 @@ void main()
     if (draw.withAlpha > 0 && !ALPHA_PASS)
         return;
 
+    if (ALPHA_PASS && draw.withAlpha == 0)
+        return;
+
     // the early cull only handle objects that visiable depends on last frame 
     if (!LATE && drawVisibility[di] == 0 && cull.enableOcclusion == 1)
         return;
