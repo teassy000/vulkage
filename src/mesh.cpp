@@ -829,7 +829,6 @@ bool loadMeshSeamless(Geometry& _outGeo, const char* _path)
             }
 
             size_t tgt_size = ((groups[ii].size() + 1) / 2) * kClusterSize * 3;
-            //size_t tgt_size = ((groups[ii].size() + 1) / 2);
             float err = 0.f;
             std::vector<uint32_t> simplified = simplify(vertices, merged, nullptr, tgt_size, &err);
 
@@ -927,8 +926,13 @@ bool loadMeshSeamless(Geometry& _outGeo, const char* _path)
         {
             const SeamlessCluster& cluster = clusters[ii];
             Cluster c;
-            c.self = cluster.self;
-            c.parent = cluster.parent;
+            c.s_c = cluster.self.center;
+            c.s_r = cluster.self.radius;
+            c.s_err = cluster.self.error;
+            c.p_c = cluster.parent.center;
+            c.p_r = cluster.parent.radius;
+            c.p_err = cluster.parent.error;
+
             c.dataOffset = (uint32_t)_outGeo.meshletdata.size();
             c.vertexCount = cluster.vertexCount;
             c.triangleCount = cluster.triangleCount;

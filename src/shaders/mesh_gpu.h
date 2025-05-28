@@ -68,7 +68,6 @@ struct TransformData
     vec4 cull_cameraPos;
 };
 
-
 struct MeshLod
 {
     uint meshletOffset;
@@ -96,18 +95,16 @@ struct Mesh
     uint lodCount;
 };
 
-struct LodBounds
-{
-    vec3 center;
-    float radius;
-    float error;
-    uint lod;
-};
-
 struct Cluster
 {
-    LodBounds self;
-    LodBounds parent;
+    vec3 s_c;
+    float s_r;
+
+    vec3 p_c;
+    float p_r;
+
+    float s_err;
+    float p_err;
 
     int8_t cone_axis[3];
     int8_t cone_cutoff;

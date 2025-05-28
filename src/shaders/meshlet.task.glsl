@@ -135,28 +135,26 @@ void main()
 
     if (SEAMLESS_LOD)
     {
-        LodBounds p_bounds = clusters[mi].parent;
-        p_bounds.center = rotateQuat(p_bounds.center, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
+        vec3 p_center = rotateQuat(clusters[mi].p_c, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
 
-        LodBounds s_bounds = clusters[mi].self;
-        s_bounds.center = rotateQuat(s_bounds.center, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
+        vec3 s_center = rotateQuat(clusters[mi].s_c, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
 
-        float p_dist = max(length(p_bounds.center - trans.cull_cameraPos.xyz) - p_bounds.radius, 0);
+        float p_dist = max(length(p_center - trans.cull_cameraPos.xyz) - clusters[mi].p_r, 0);
         float p_threshold = p_dist * globals.lodErrorThreshold / maxScaleAxis;
-        float s_dist = max(length(s_bounds.center - trans.cull_cameraPos.xyz) - s_bounds.radius, 0);
+        float s_dist = max(length(s_center - trans.cull_cameraPos.xyz) - clusters[mi].s_r, 0);
         float s_threshold = s_dist * globals.lodErrorThreshold / maxScaleAxis;
 
         cone_axis = vec3(int(clusters[mi].cone_axis[0]) / 127.0, int(clusters[mi].cone_axis[1]) / 127.0, int(clusters[mi].cone_axis[2]) / 127.0);
 
         cone_cutoff = int(clusters[mi].cone_cutoff) / 127.0;
 
-        radius = s_bounds.radius * maxScaleAxis;
-        ori_center = s_bounds.center;
+        radius = clusters[mi].s_r * maxScaleAxis;
+        ori_center = s_center;
 
         // culling based on parent bounds, shoule be visible if:
         // 1. self bounds has low error than threshold 
         // 2. parent bounds has high error than threshold
-        bool cond = s_bounds.error <= s_threshold && p_bounds.error > p_threshold;
+        bool cond = clusters[mi].s_err <= s_threshold && clusters[mi].p_err > p_threshold;
         visible = visible && cond;
     }
     else // normal lod pipeline
