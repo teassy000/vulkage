@@ -46,7 +46,7 @@ namespace kage
     constexpr size_t kGroupSize = 8;
     constexpr bool kUseNormals = true;
 
-    constexpr bool kUseMetisPartition = true;
+    constexpr bool kUseMetisPartition = false; // switch between meshoptimizer and metis partition
 
     // radiance cascade config, it's a 3d grid of probes, each probe has a 2d grid of rays
     // ray grid is a 2d grid of rays encoded by octahedron mapping
