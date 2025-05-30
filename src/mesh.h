@@ -111,14 +111,6 @@ struct alignas(16) SeamlessCluster
     uint32_t triangleCount;
 };
 
-struct SeamlessGeometry
-{
-    std::vector<SeamlessVertex>   vertices;
-    std::vector<uint32_t>       indices;
-
-    std::vector<std::pair<uint32_t, uint32_t>> dag;
-};
-
 size_t appendMeshlets(Geometry& result, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices);
 bool appendMesh(Geometry& _result, std::vector<Vertex>& _vtxes, std::vector<uint32_t>& _idxes, bool _buildMeshlets);
 bool loadObj(Geometry& result, const char* path, bool buildMeshlets, bool seamlessLod);
