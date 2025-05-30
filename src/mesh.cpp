@@ -192,7 +192,7 @@ bool appendMesh(Geometry& _result, std::vector<Vertex>& _vtxes, std::vector<uint
     return true;
 }
 
-bool loadObj(Geometry& _result, const char* _path, bool _buildMeshlets)
+bool parseObj(const char* _path, std::vector<Vertex>& _vertices, std::vector<uint32_t>& _indices)
 {
     fastObjMesh* obj = fast_obj_read(_path);
     if (!obj)
@@ -244,9 +244,21 @@ bool loadObj(Geometry& _result, const char* _path, bool _buildMeshlets)
     for (size_t i = 0; i < indices.size(); ++i)
         indices[i] = uint32_t(i);
 
-    appendMesh(_result, triangle_vertices, indices, _buildMeshlets);
+    _vertices.insert(_vertices.end(), triangle_vertices.begin(), triangle_vertices.end());
+    _indices.insert(_indices.end(), indices.begin(), indices.end());
+}
+
+bool loadObj(Geometry& _result, const char* _path, bool _buildMeshlets)
+{
+    std::vector<Vertex> vertices;
+    std::vector<uint32_t> indices;
+    parseObj(_path, vertices, indices);
+
+    appendMesh(_result, vertices, indices, _buildMeshlets);
     return true;
 }
+
+
 
 // nanite-like seamless cluster rendering
 bool parseObj(const char* _path, std::vector<SeamlessVertex>& _vertices, std::vector<uint32_t>& _indices, std::vector<uint32_t>& _remap)
@@ -747,24 +759,22 @@ void dumpObj(const char* section, const std::vector<unsigned int>& indices)
     }
 }
 
-bool loadMeshSeamless(Geometry& _outGeo, const char* _path)
+void processSeamlessMesh(
+    Geometry& _outGeo
+    , std::vector<SeamlessVertex>& _vertices
+    , std::vector<uint32_t>& _indices
+    , std::vector<uint32_t>& _remap
+)
 {
-    std::vector<SeamlessVertex> vertices;
-    std::vector<uint32_t> indices;
-    std::vector<uint32_t> remap;
-    parseObj(_path, vertices, indices, remap);
-
     int32_t depth = 0;
-
-
-    std::vector<SeamlessCluster> clusters = clusterize(vertices, indices);
+    std::vector<SeamlessCluster> clusters = clusterize(_vertices, _indices);
     // calculate bounds for each cluster
     for (SeamlessCluster& c : clusters) {
         meshopt_Bounds bounds = meshopt_computeClusterBounds(
             c.indices.data()
             , c.indices.size()
-            , &vertices[0].px
-            , vertices.size()
+            , &_vertices[0].px
+            , _vertices.size()
             , sizeof(SeamlessVertex)
         );
 
@@ -784,13 +794,13 @@ bool loadMeshSeamless(Geometry& _outGeo, const char* _path)
         pending[ii] = int32_t(ii);
     }
 
-    std::vector<uint8_t> locks(vertices.size());
-    kage::message(kage::essential, "lod 0: %d clusters, %d triangles", int(clusters.size()), int(indices.size() / 3));
+    std::vector<uint8_t> locks(_vertices.size());
+    kage::message(kage::essential, "lod 0: %d clusters, %d triangles", int(clusters.size()), int(_indices.size() / 3));
 
     std::vector<std::pair<int32_t, int32_t> > dag_debug;
     while (pending.size() > 1)
     {
-        std::vector<std::vector<int32_t>> groups = partition(clusters, pending, remap);
+        std::vector<std::vector<int32_t>> groups = partition(clusters, pending, _remap);
         pending.clear();
 
         std::vector<int32_t> retry;
@@ -800,7 +810,7 @@ bool loadMeshSeamless(Geometry& _outGeo, const char* _path)
         int single_clusters = 0;
         int stuck_clusters = 0;
         int full_clusters = 0;
-         
+
         for (size_t ii = 0; ii < groups.size(); ++ii)
         {
             if (groups[ii].empty()) {
@@ -830,12 +840,12 @@ bool loadMeshSeamless(Geometry& _outGeo, const char* _path)
 
             size_t tgt_size = ((groups[ii].size() + 1) / 2) * kClusterSize * 3;
             float err = 0.f;
-            std::vector<uint32_t> simplified = simplify(vertices, merged, nullptr, tgt_size, &err);
+            std::vector<uint32_t> simplified = simplify(_vertices, merged, nullptr, tgt_size, &err);
 
             // if simplification failed, retry later
             // not below 85% of the original size, or not even under the original size
-            if ( simplified.size() > merged.size() * .85f 
-                || simplified.size() / (kClusterSize*3) >= merged.size() / (kClusterSize*3)
+            if (simplified.size() > merged.size() * .85f
+                || simplified.size() / (kClusterSize * 3) >= merged.size() / (kClusterSize * 3)
                 ) {
 
 
@@ -845,7 +855,7 @@ bool loadMeshSeamless(Geometry& _outGeo, const char* _path)
                     , int(tgt_size)
                     , int(simplified.size())
                 );
-                for (size_t jj = 0; jj < groups[ii].size(); ++ jj) {
+                for (size_t jj = 0; jj < groups[ii].size(); ++jj) {
                     retry.push_back(groups[ii][jj]);
                 }
                 stuck_clusters++;
@@ -859,7 +869,7 @@ bool loadMeshSeamless(Geometry& _outGeo, const char* _path)
             mergedBounds.error += err;
             mergedBounds.lod = depth + 1;
 
-            std::vector<SeamlessCluster> split = clusterize(vertices, simplified);
+            std::vector<SeamlessCluster> split = clusterize(_vertices, simplified);
 
             // update dag
             for (size_t jj = 0; jj < groups[ii].size(); ++jj)
@@ -874,14 +884,14 @@ bool loadMeshSeamless(Geometry& _outGeo, const char* _path)
                 }
             }
 
-            for (SeamlessCluster& scRef: split) {
+            for (SeamlessCluster& scRef : split) {
                 scRef.self = mergedBounds;
                 // recompute cone axis
                 meshopt_Bounds bounds = meshopt_computeClusterBounds(
                     scRef.indices.data()
                     , scRef.indices.size()
-                    , &vertices[0].px
-                    , vertices.size()
+                    , &_vertices[0].px
+                    , _vertices.size()
                     , sizeof(SeamlessVertex)
                 );
                 scRef.cone_axis[0] = bounds.cone_axis_s8[0];
@@ -952,37 +962,37 @@ bool loadMeshSeamless(Geometry& _outGeo, const char* _path)
 
         mesh.vertexOffset = uint32_t(_outGeo.vertices.size());
 
-        for (size_t ii = 0; ii < vertices.size(); ++ii)
+        for (size_t ii = 0; ii < _vertices.size(); ++ii)
         {
             _outGeo.vertices.push_back(Vertex{
-                vertices[ii].px
-                , vertices[ii].py
-                , vertices[ii].pz
-                , uint8_t(vertices[ii].nx * 127.f + 127.5f)
-                , uint8_t(vertices[ii].ny * 127.f + 127.5f)
-                , uint8_t(vertices[ii].nz * 127.f + 127.5f)
+                _vertices[ii].px
+                , _vertices[ii].py
+                , _vertices[ii].pz
+                , uint8_t(_vertices[ii].nx * 127.f + 127.5f)
+                , uint8_t(_vertices[ii].ny * 127.f + 127.5f)
+                , uint8_t(_vertices[ii].nz * 127.f + 127.5f)
                 , 0
                 , 0
                 , 0
                 , 0
                 , 0
-                , meshopt_quantizeHalf(vertices[ii].tu)
-                , meshopt_quantizeHalf(vertices[ii].tv)
+                , meshopt_quantizeHalf(_vertices[ii].tu)
+                , meshopt_quantizeHalf(_vertices[ii].tv)
                 });
         }
 
         vec3 meshCenter = vec3(0.f);
         vec3 aabbMax = vec3(FLT_MIN);
         vec3 aabbMin = vec3(FLT_MAX);
-        for (SeamlessVertex& v : vertices) {
+        for (SeamlessVertex& v : _vertices) {
             meshCenter += vec3(v.px, v.py, v.pz);
             aabbMax = glm::max(aabbMax, vec3(v.px, v.py, v.pz));
             aabbMin = glm::min(aabbMin, vec3(v.px, v.py, v.pz));
         }
-        meshCenter /= float(vertices.size());
+        meshCenter /= float(_vertices.size());
 
         float radius = 0.0;
-        for (SeamlessVertex& v : vertices) {
+        for (SeamlessVertex& v : _vertices) {
             radius = glm::max(radius, glm::distance(meshCenter, vec3(v.px, v.py, v.pz)));
         }
 
@@ -1008,7 +1018,7 @@ bool loadMeshSeamless(Geometry& _outGeo, const char* _path)
         }
     }
     // dump
-    if(0)
+    if (0)
     {
         std::vector<unsigned int> cut;
         for (size_t ii = 0; ii < clusters.size(); ++ii)
@@ -1018,7 +1028,7 @@ bool loadMeshSeamless(Geometry& _outGeo, const char* _path)
             }
         }
 
-        dumpObj(vertices, cut);
+        dumpObj(_vertices, cut);
         for (size_t i = 0; i < clusters.size(); ++i)
             dumpObj("cluster", clusters[i].indices);
 
@@ -1026,6 +1036,17 @@ bool loadMeshSeamless(Geometry& _outGeo, const char* _path)
 
         fclose(outputFile);
     }
+}
+
+
+bool loadMeshSeamless(Geometry& _outGeo, const char* _path)
+{
+    std::vector<SeamlessVertex> vertices;
+    std::vector<uint32_t> indices;
+    std::vector<uint32_t> remap;
+    parseObj(_path, vertices, indices, remap);
+
+    processSeamlessMesh(_outGeo, vertices, indices, remap);
 
     return true;
 }

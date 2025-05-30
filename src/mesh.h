@@ -88,6 +88,9 @@ struct Geometry
     std::vector<Mesh>       meshes;
 };
 
+// seamless lod data
+// this, essentially: nx, ny, nz in float
+// are required by meshopt_simplifyWithAttributes
 struct alignas(16) SeamlessVertex
 {
     float px, py, pz;
