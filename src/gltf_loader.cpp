@@ -114,10 +114,11 @@ void decomposeTransform(float _trans[3], float _rot[4], float _scale[3], const f
     decRotationGlm(_rot, m, _scale);
 }
 
-bool processMesh(Geometry& _geo, std::vector<std::pair<uint32_t, uint32_t>>& _prims, const cgltf_mesh* _gltfMesh, bool _buildMeshlet)
+bool processMesh(Geometry& _geo, std::vector<std::pair<uint32_t, uint32_t>>& _prims, const cgltf_mesh* _gltfMesh, bool _buildMeshlet, bool _seamlessLod)
 {
     assert(_gltfMesh);
 
+    bool result = false;
     uint32_t meshOffset = (uint32_t)_geo.meshes.size();
 
     for (size_t ii = 0; ii < _gltfMesh->primitives_count; ++ii)
@@ -125,8 +126,10 @@ bool processMesh(Geometry& _geo, std::vector<std::pair<uint32_t, uint32_t>>& _pr
         const cgltf_primitive& prim = _gltfMesh->primitives[ii];
 
         size_t vtxCount = prim.attributes[0].data->count;
+        size_t index_count = prim.indices->count;
         std::vector<float> scratch(vtxCount * 4);
-        std::vector<Vertex> vertices(vtxCount);
+        std::vector<Vertex> tri_vertices(vtxCount);
+        std::vector<SeamlessVertex> seamless_vertices(vtxCount);
 
         // -- position
         const cgltf_accessor* pos = cgltf_find_accessor(&prim, cgltf_attribute_type_position, 0);
@@ -140,9 +143,16 @@ bool processMesh(Geometry& _geo, std::vector<std::pair<uint32_t, uint32_t>>& _pr
             assert(sz == vtxCount * 3);
             for (size_t jj = 0; jj < vtxCount; ++jj)
             {
-                vertices[jj].vx = scratch[jj * 3 + 0];
-                vertices[jj].vy = scratch[jj * 3 + 1];
-                vertices[jj].vz = scratch[jj * 3 + 2] * handednessFactor;
+                tri_vertices[jj].vx = scratch[jj * 3 + 0];
+                tri_vertices[jj].vy = scratch[jj * 3 + 1];
+                tri_vertices[jj].vz = scratch[jj * 3 + 2] * handednessFactor;
+            }
+
+            for (size_t jj = 0; jj < vtxCount; ++jj)
+            {
+                seamless_vertices[jj].px = scratch[jj * 3 + 0];
+                seamless_vertices[jj].py = scratch[jj * 3 + 1];
+                seamless_vertices[jj].pz = scratch[jj * 3 + 2] * handednessFactor;
             }
         }
 
@@ -156,10 +166,17 @@ bool processMesh(Geometry& _geo, std::vector<std::pair<uint32_t, uint32_t>>& _pr
             assert(sz == vtxCount * 3);
             for (size_t jj = 0; jj < vtxCount; ++jj)
             {
-                vertices[jj].nx = uint8_t(scratch[jj * 3 + 0] * windingOrderFactor * 127.f + 127.5f);
-                vertices[jj].ny = uint8_t(scratch[jj * 3 + 1] * windingOrderFactor * 127.f + 127.5f);
-                vertices[jj].nz = uint8_t(scratch[jj * 3 + 2] * windingOrderFactor * handednessFactor * 127.f + 127.5f);
-                vertices[jj].nw = uint8_t(0);
+                tri_vertices[jj].nx = uint8_t(scratch[jj * 3 + 0] * windingOrderFactor * 127.f + 127.5f);
+                tri_vertices[jj].ny = uint8_t(scratch[jj * 3 + 1] * windingOrderFactor * 127.f + 127.5f);
+                tri_vertices[jj].nz = uint8_t(scratch[jj * 3 + 2] * windingOrderFactor * handednessFactor * 127.f + 127.5f);
+                tri_vertices[jj].nw = uint8_t(0);
+            }
+
+            for (size_t jj = 0; jj < vtxCount; ++jj)
+            {
+                seamless_vertices[jj].nx = scratch[jj * 3 + 0] * windingOrderFactor;
+                seamless_vertices[jj].ny = scratch[jj * 3 + 1] * windingOrderFactor;
+                seamless_vertices[jj].nz = scratch[jj * 3 + 2] * windingOrderFactor * handednessFactor;
             }
         }
 
@@ -173,11 +190,20 @@ bool processMesh(Geometry& _geo, std::vector<std::pair<uint32_t, uint32_t>>& _pr
             assert(sz == vtxCount * 4);
             for (size_t jj = 0; jj < vtxCount; ++jj)
             {
-                vertices[jj].tx = uint8_t(scratch[jj * 4 + 0] * 127.f + 127.5f);
-                vertices[jj].ty = uint8_t(scratch[jj * 4 + 1] * 127.f + 127.5f);
-                vertices[jj].tz = uint8_t(scratch[jj * 4 + 2] * handednessFactor * 127.f + 127.5f);
-                vertices[jj].tw = uint8_t(scratch[jj * 4 + 3] * handednessFactor * 127.f + 127.5f);
+                tri_vertices[jj].tx = uint8_t(scratch[jj * 4 + 0] * 127.f + 127.5f);
+                tri_vertices[jj].ty = uint8_t(scratch[jj * 4 + 1] * 127.f + 127.5f);
+                tri_vertices[jj].tz = uint8_t(scratch[jj * 4 + 2] * handednessFactor * 127.f + 127.5f);
+                tri_vertices[jj].tw = uint8_t(scratch[jj * 4 + 3] * handednessFactor * 127.f + 127.5f);
             }
+
+            for (size_t jj = 0; jj < vtxCount; ++jj)
+            {
+                seamless_vertices[jj].tx = scratch[jj * 4 + 0] * 127.f + 127.f;
+                seamless_vertices[jj].ty = scratch[jj * 4 + 1] * 127.f + 127.f;
+                seamless_vertices[jj].tz = scratch[jj * 4 + 2] * handednessFactor * 127.f + 127.f;
+                seamless_vertices[jj].tw = scratch[jj * 4 + 3] * handednessFactor * 127.f + 127.f;
+            }
+
         }
 
         // -- uv
@@ -190,15 +216,20 @@ bool processMesh(Geometry& _geo, std::vector<std::pair<uint32_t, uint32_t>>& _pr
             assert(sz == vtxCount * 2);
             for (size_t jj = 0; jj < vtxCount; ++jj)
             {
-                vertices[jj].tu = meshopt_quantizeHalf(scratch[jj * 2 + 0]);
-                vertices[jj].tv = meshopt_quantizeHalf(scratch[jj * 2 + 1]);
+                tri_vertices[jj].tu = meshopt_quantizeHalf(scratch[jj * 2 + 0]);
+                tri_vertices[jj].tv = meshopt_quantizeHalf(scratch[jj * 2 + 1]);
+            }
+
+            for (size_t jj = 0; jj < vtxCount; ++jj)
+            {
+                seamless_vertices[jj].tu = scratch[jj * 2 + 0] * 127.f + 127.f;
+                seamless_vertices[jj].tv = scratch[jj * 2 + 1] * 127.f + 127.f;
             }
         }
 
         // -- indices
-        std::vector<uint32_t> indices(prim.indices->count);
+        std::vector<uint32_t> indices(index_count);
         cgltf_accessor_unpack_indices(prim.indices, indices.data(), sizeof(uint32_t), indices.size());
-
         // swap the winding order if needed
         if (windingOrderFactor < 0.f)
         {
@@ -208,12 +239,27 @@ bool processMesh(Geometry& _geo, std::vector<std::pair<uint32_t, uint32_t>>& _pr
             }
         }
 
-        appendMesh(_geo, vertices, indices, _buildMeshlet);
+        if (_seamlessLod) {
+            std::vector<SeamlessVertex> unwrapped_vertices(index_count);
+            for (size_t jj = 0; jj < index_count; ++jj)
+            {
+                unwrapped_vertices[jj] = seamless_vertices[indices[jj]];
+            }
+            result = processSeamlessMesh(_geo, unwrapped_vertices, index_count);
+        }
+        else {
+            result = appendMesh(_geo, tri_vertices, indices, _buildMeshlet);
+        }
+
+        if (!result) 
+            break;
     }
 
-    _prims.emplace_back(std::make_pair(meshOffset, (uint32_t)_geo.meshes.size() - meshOffset));
+    if (result) {
+        _prims.emplace_back(std::make_pair(meshOffset, (uint32_t)_geo.meshes.size() - meshOffset));
+    }
 
-    return true;
+    return result;
 }
 
 bool processNode(Scene& _scene, std::vector<std::pair<uint32_t, uint32_t>>& _prims, const cgltf_data* _data, const cgltf_node* _node, bool _seamlessLod)
@@ -223,7 +269,6 @@ bool processNode(Scene& _scene, std::vector<std::pair<uint32_t, uint32_t>>& _pri
 
     if (_node->mesh)
     {
-
         size_t meshIdx = cgltf_mesh_index(_data, _node->mesh);
         std::pair<uint32_t, uint32_t> prim = _prims[meshIdx];
 
@@ -408,7 +453,7 @@ bool loadGltfScene(Scene& _scene, const char* _path, bool _buildMeshlet, bool _s
     {
         cgltf_mesh* gltfMesh = &data->meshes[ii];
 
-        processMesh(_scene.geometry, primitives, gltfMesh, _buildMeshlet);
+        processMesh(_scene.geometry, primitives, gltfMesh, _buildMeshlet, _seamlessLod);
     }
 
     // -- nodes
@@ -502,7 +547,7 @@ bool loadGltfMesh(Geometry& _geo, const char* _path, bool _buildMeshlet, bool _s
     {
         cgltf_mesh* gltfMesh = &data->meshes[ii];
 
-        processMesh(_geo, primitives, gltfMesh, _buildMeshlet);
+        processMesh(_geo, primitives, gltfMesh, _buildMeshlet, _seamlessLod);
     }
 
     cgltf_free(data);

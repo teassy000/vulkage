@@ -117,5 +117,5 @@ struct alignas(16) SeamlessCluster
 
 size_t appendMeshlets(Geometry& result, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices);
 bool appendMesh(Geometry& _result, std::vector<Vertex>& _vtxes, std::vector<uint32_t>& _idxes, bool _buildMeshlets);
-void processSeamlessMesh(Geometry& _outGeo, std::vector<SeamlessVertex>& _vertices, std::vector<uint32_t>& _indices);
+bool processSeamlessMesh(Geometry& _outGeo, std::vector<SeamlessVertex>& _vertices, const size_t _idxCount);
 bool loadObj(Geometry& result, const char* path, bool buildMeshlets, bool seamlessLod);

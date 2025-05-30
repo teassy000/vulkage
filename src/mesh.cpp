@@ -259,7 +259,7 @@ bool loadObj(Geometry& _result, const char* _path, bool _buildMeshlets)
 }
 
 // nanite-like seamless cluster rendering
-bool parseObj(const char* _path, std::vector<SeamlessVertex>& _vertices, std::vector<uint32_t>& _indices)
+bool parseObj(const char* _path, std::vector<SeamlessVertex>& _vertices, size_t& _outIndexSize)
 {
     fastObjMesh* obj = fast_obj_read(_path);
     if (!obj)
@@ -305,12 +305,8 @@ bool parseObj(const char* _path, std::vector<SeamlessVertex>& _vertices, std::ve
 
     fast_obj_destroy(obj);
 
-    std::vector<uint32_t> indices(triangle_vertices.size());
-    for (size_t i = 0; i < indices.size(); ++i)
-        indices[i] = uint32_t(i);
-
     _vertices.insert(_vertices.end(), triangle_vertices.begin(), triangle_vertices.end());
-    _indices.insert(_indices.end(), indices.begin(), indices.end());
+    _outIndexSize = index_count;
 
     return true;
 }
@@ -742,27 +738,32 @@ void dumpObj(const char* section, const std::vector<unsigned int>& indices)
     }
 }
 
-void processSeamlessMesh(Geometry& _outGeo, std::vector<SeamlessVertex>& _vertices, std::vector<uint32_t>& _indices)
+bool processSeamlessMesh(Geometry& _outGeo, std::vector<SeamlessVertex>& _vertices, const size_t _idxCount)
 {
-    std::vector<uint32_t> remap(_indices.size());
+    if (_vertices.size() != _idxCount) {
+        kage::message(kage::error, "processSeamlessMesh: vertex count (%d) does not match index count (%d)", int(_vertices.size()), int(_idxCount));
+        return false;
+    }
+
+    std::vector<uint32_t> remap(_idxCount);
     meshopt_Stream pos = { &_vertices[0].px, sizeof(float) * 3, sizeof(SeamlessVertex) };
     size_t vertex_count = meshopt_generateVertexRemapMulti(
         remap.data()
-        , _indices.data()
-        , _indices.size()
+        , 0
+        , _idxCount
         , _vertices.size()
         , &pos
         , 1
     );
 
     std::vector<SeamlessVertex> vertices(vertex_count);
-    std::vector<uint32_t> indices(_indices.size());
+    std::vector<uint32_t> indices(_idxCount);
 
     meshopt_remapVertexBuffer(vertices.data(), _vertices.data(), _vertices.size(), sizeof(SeamlessVertex), remap.data());
-    meshopt_remapIndexBuffer(indices.data(), 0, _indices.size(), remap.data());
+    meshopt_remapIndexBuffer(indices.data(), 0, _idxCount, remap.data());
 
-    meshopt_optimizeVertexCache(indices.data(), indices.data(), _indices.size(), vertex_count);
-    meshopt_optimizeVertexFetch(vertices.data(), indices.data(), _indices.size(), vertices.data(), vertex_count, sizeof(SeamlessVertex));
+    meshopt_optimizeVertexCache(indices.data(), indices.data(), _idxCount, vertex_count);
+    meshopt_optimizeVertexFetch(vertices.data(), indices.data(), _idxCount, vertices.data(), vertex_count, sizeof(SeamlessVertex));
 
 
     int32_t depth = 0;
@@ -1035,18 +1036,18 @@ void processSeamlessMesh(Geometry& _outGeo, std::vector<SeamlessVertex>& _vertic
 
         fclose(outputFile);
     }
+
+    return true;
 }
 
 
 bool loadMeshSeamless(Geometry& _outGeo, const char* _path)
 {
     std::vector<SeamlessVertex> vertices;
-    std::vector<uint32_t> indices;
-    parseObj(_path, vertices, indices);
+    size_t indicesSize = 0;
+    parseObj(_path, vertices, indicesSize);
 
-    processSeamlessMesh(_outGeo, vertices, indices);
-
-    return true;
+    return processSeamlessMesh(_outGeo, vertices, indicesSize);
 }
 
 bool loadObj(Geometry& result, const char* path, bool buildMeshlets, bool seamlessLod)
