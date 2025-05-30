@@ -929,8 +929,8 @@ bool processSeamlessMesh(Geometry& _outGeo, std::vector<SeamlessVertex>& _vertic
 
     // fill the Geometry with the final clusters
     {
-        uint32_t lodIdxOffset = (uint32_t)_outGeo.indices.size();
-        uint32_t lodMeshletOffset = (uint32_t)_outGeo.meshlets.size();
+        uint32_t meshletDataOffset = (uint32_t)_outGeo.meshletdata.size();
+        uint32_t clustersOffset = (uint32_t)_outGeo.clusters.size();
 
         for (size_t ii = 0; ii < clusters.size(); ++ii)
         {
@@ -1004,9 +1004,9 @@ bool processSeamlessMesh(Geometry& _outGeo, std::vector<SeamlessVertex>& _vertic
         MeshLod lod;
 
         lod.indexCount = uint32_t(_outGeo.meshletdata.size());
-        lod.indexOffset = lodIdxOffset;
+        lod.indexOffset = meshletDataOffset;
         lod.meshletCount = uint32_t(clusters.size());
-        lod.meshletOffset = lodMeshletOffset;
+        lod.meshletOffset = clustersOffset;
 
         mesh.seamlessLod = lod;
 
@@ -1017,6 +1017,7 @@ bool processSeamlessMesh(Geometry& _outGeo, std::vector<SeamlessVertex>& _vertic
             _outGeo.clusters.push_back(Cluster());
         }
     }
+
     // dump
     if (0)
     {
