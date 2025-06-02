@@ -16,7 +16,7 @@ layout(constant_id = 2) const bool SEAMLESS_LOD = false;
 #define CULL 1
 
 layout(local_size_x = MESHGP_SIZE, local_size_y = 1, local_size_z = 1) in;
-layout(triangles, max_vertices= 64, max_primitives = 64) out;
+layout(triangles, max_vertices=MESH_MAX_VTX, max_primitives = MESH_MAX_TRI) out;
 
 layout(push_constant) uniform block 
 {
@@ -68,7 +68,7 @@ layout(location = 4) out vec2 out_uv[];
 taskPayloadSharedEXT TaskPayload payload;
 
 #if CULL
-shared vec3 vertexClip[64];
+shared vec3 vertexClip[MESH_MAX_VTX];
 #endif
 
 void main()
@@ -102,9 +102,8 @@ void main()
     uint vertexOffset = dataOffset;
     uint indexOffset = dataOffset + vertexCount;
 
-    if(ti < vertexCount)
+    for (uint i = ti;  i < vertexCount; i += MESHGP_SIZE)
     {
-        uint i = ti;
         uint vi = meshletData[vertexOffset + i] + meshDraw.vertexOffset;
     
         vec3 pos = vec3(vertices[vi].vx, vertices[vi].vy, vertices[vi].vz);
@@ -135,7 +134,7 @@ void main()
     }
 
 #if CULL
-	barrier();
+    barrier();
 #endif
 
     vec2 screen = vec2(globals.screenWidth, globals.screenHeight);

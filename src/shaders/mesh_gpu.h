@@ -1,5 +1,7 @@
 #define TASKGP_SIZE 128
 #define MESHGP_SIZE 64
+#define MESH_MAX_VTX 96
+#define MESH_MAX_TRI 128
 
 
 struct Vertex
