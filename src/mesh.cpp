@@ -570,6 +570,9 @@ static std::vector<std::vector<int32_t>> partitionMetis(
     return result;
 }
 
+
+// partition clusters into groups of approximately kGroupSize clusters 
+// with maximum size of kClusterSize * kGroupSize * 3 indices
 static std::vector<std::vector<int32_t>> partition(
     const std::vector<SeamlessCluster>& _clusters
     , const std::vector<int32_t>& _pending
@@ -590,12 +593,14 @@ static std::vector<std::vector<int32_t>> partition(
     // rough merge; while clusters are approximately spatially ordered, this should use a proper partitioning algorithm
     for (size_t ii = 0; ii < _pending.size(); ++ii)
     {
+        // current cluster is too big, start a new group
         if (result.empty() || last_indices + _clusters[_pending[ii]].indices.size() > kClusterSize * kGroupSize * 3)
         {
             result.emplace_back(std::vector<int32_t>());
             last_indices = 0;
         }
 
+        // append cluster to the current group
         result.back().push_back(_pending[ii]);
         last_indices += _clusters[_pending[ii]].indices.size();
     }
@@ -816,7 +821,7 @@ bool processSeamlessMesh(Geometry& _outGeo, std::vector<SeamlessVertex>& _vertic
             if (groups[ii].empty()) {
                 continue;
             }
-            // skip only group with one cluster
+            // skip group with only one cluster
             if (groups[ii].size() == 1)
             {
                 retry.push_back(groups[ii][0]);
@@ -828,6 +833,7 @@ bool processSeamlessMesh(Geometry& _outGeo, std::vector<SeamlessVertex>& _vertic
                 continue;
             }
 
+            // merge clusters in the group
             std::vector<uint32_t> merged;
             for (size_t jj = 0; jj < groups[ii].size(); ++jj)
             {
@@ -847,8 +853,6 @@ bool processSeamlessMesh(Geometry& _outGeo, std::vector<SeamlessVertex>& _vertic
             if (simplified.size() > merged.size() * .85f
                 || simplified.size() / (kClusterSize * 3) >= merged.size() / (kClusterSize * 3)
                 ) {
-
-
                 kage::message(kage::essential
                     , "simplification failed!!! mg: %d, tgt: %d, simp: %d"
                     , int(merged.size())
@@ -869,6 +873,7 @@ bool processSeamlessMesh(Geometry& _outGeo, std::vector<SeamlessVertex>& _vertic
             mergedBounds.error += err;
             mergedBounds.lod = depth + 1;
 
+            // re-clusterize the simplified mesh
             std::vector<SeamlessCluster> split = clusterize(vertices, simplified);
 
             // update dag
@@ -883,6 +888,8 @@ bool processSeamlessMesh(Geometry& _outGeo, std::vector<SeamlessVertex>& _vertic
                     dag_debug.emplace_back(groups[ii][jj], int32_t(clusters.size() + kk));
                 }
             }
+
+            // fill the split clusters with the merged bounds and recompute cone axis
 
             for (SeamlessCluster& scRef : split) {
                 scRef.self = mergedBounds;
@@ -899,7 +906,7 @@ bool processSeamlessMesh(Geometry& _outGeo, std::vector<SeamlessVertex>& _vertic
                 scRef.cone_axis[2] = bounds.cone_axis_s8[2];
                 scRef.cone_cutoff = bounds.cone_cutoff_s8;
 
-
+                // push them to the clusters vector for future processing
                 clusters.push_back(scRef);
                 pending.push_back(int32_t(clusters.size() - 1));
 
