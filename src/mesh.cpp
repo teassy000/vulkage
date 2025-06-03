@@ -546,17 +546,17 @@ static std::vector<std::vector<int32_t>> partitionMetis(
         int32_t err = METIS_PartGraphKway(
             &nvtxs
             , &ncon
-            , &xadj[0]
-            , &adjncy[0]
+            , xadj.data()
+            , adjncy.data()
             , NULL
             , NULL
-            , &adjwgt[0]
+            , adjwgt.data()
             , &nparts
             , NULL
             , NULL
             , options
             , &edgecut
-            , &part[0]
+            , part.data()
         );
 
         assert(err == METIS_OK);
@@ -906,7 +906,7 @@ bool processSeamlessMesh(Geometry& _outGeo, std::vector<SeamlessVertex>& _vertic
                 scRef.cone_axis[2] = bounds.cone_axis_s8[2];
                 scRef.cone_cutoff = bounds.cone_cutoff_s8;
 
-                // push them to the clusters vector for future processing
+                // push to the clusters vector for future processing
                 clusters.push_back(scRef);
                 pending.push_back(int32_t(clusters.size() - 1));
 
