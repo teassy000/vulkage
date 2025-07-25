@@ -302,7 +302,7 @@ bool loadObjScene(Scene& _scene, const std::vector<std::string>& _pathes, bool _
         return false;
     }
 
-    static Scene_Enum se = Scene_Enum::RamdomScene;
+    static Scene_Enum se = Scene_Enum::MatrixScene;
     switch (se)
     {
     case Scene_Enum::MatrixScene:
