@@ -9,6 +9,7 @@
 #include "math.h"
 #include "rc_common2d.h"
 #include "debug_gpu.h"
+#include "pbr.h"
 
 layout(constant_id = 0) const bool RAY = false;
 layout(constant_id = 1) const bool BILINER_RING_FIX = true;
@@ -211,6 +212,9 @@ void main()
         }
 
         mergedRadiance /= float(c0_dCount);
+
+        mergedRadiance.rgb = OECF_sRGBFast(mergedRadiance.rgb);
+
         imageStore(merged_rc, ivec3(di, 0), mergedRadiance);
     }
 }
