@@ -1,7 +1,7 @@
 #pragma once
 
-#include "kage.h"
-#include "scene.h" // for Scene
+#include "core/kage.h"
+#include "scene/scene.h" // for Scene
 #include "FidelityFX/host/ffx_brixelizer.h" // for FFX_BRIXELIZER_MAX_CASCADES
 #include "brixel_structs.h"
 

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "kage.h"
-#include "config.h"
+#include "core/kage.h"
+#include "core/config.h"
 
 
 struct Pyramid {

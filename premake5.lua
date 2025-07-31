@@ -124,11 +124,26 @@ project "vulkage"
 	files {
 		path.join(SRC_DIR, "*.h"),
 		path.join(SRC_DIR, "*.cpp"),
-		path.join(SRC_DIR, "*.inl"),
 
 		-- shaders
 		path.join(SRC_DIR, "shader/*.glsl"),
 		path.join(SRC_DIR, "shader/*.h"),
+
+		-- core
+		path.join(SRC_DIR, "core/**.h"),
+		path.join(SRC_DIR, "core/**.cpp"),
+
+		-- assets
+		path.join(SRC_DIR, "assets/**.h"),
+		path.join(SRC_DIR, "assets/**.cpp"),
+
+		-- gfx
+		path.join(SRC_DIR, "gfx/**.h"),
+		path.join(SRC_DIR, "gfx/**.cpp"),
+
+		-- scene
+		path.join(SRC_DIR, "scene/**.h"),
+		path.join(SRC_DIR, "scene/**.cpp"),
 
 		-- pass
 		path.join(SRC_DIR, "pass/**.h"),
@@ -136,6 +151,7 @@ project "vulkage"
 
 		-- demo
 		path.join(SRC_DIR, "demo/*.h"),
+
 
 		-- ffx
 		path.join(FFX_SDK_DIR, "include/FidelityFX/host/**.h"),
@@ -200,9 +216,34 @@ project "vulkage"
 		},
 
 		["src/pass/*"] = {
-        	path.join(SRC_DIR, "pass/*/*.h"),
-        	path.join(SRC_DIR, "pass/*/*.cpp")
+        	path.join(SRC_DIR, "pass/*/**.h"),
+        	path.join(SRC_DIR, "pass/*/**.cpp")
     	},
+
+		["src/core"] = {
+			path.join(SRC_DIR, "core/*.h"),
+			path.join(SRC_DIR, "core/*.cpp"),
+		},
+
+		["src/assets"] = {
+			path.join(SRC_DIR, "assets/*.h"),
+			path.join(SRC_DIR, "assets/*.cpp"),
+		},
+
+		["src/gfx"] = {
+			path.join(SRC_DIR, "gfx/*.h"),
+			path.join(SRC_DIR, "gfx/*.cpp"),
+		},
+
+		["src/gfx/*"] = {
+			path.join(SRC_DIR, "gfx/*/**.h"),
+			path.join(SRC_DIR, "gfx/*/**.cpp"),
+		},
+
+		["src/scene"] = {
+			path.join(SRC_DIR, "scene/*.h"),
+			path.join(SRC_DIR, "scene/*.cpp"),
+		},
 		
 		["shader/inc"] = {
 			path.join(SRC_DIR, 	"shader/*.h"),

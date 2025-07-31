@@ -1,7 +1,7 @@
 #pragma once
 
-#include "kage.h"
-#include "mesh.h"
+#include "core/kage.h"
+#include "assets/mesh.h"
 
 struct Skybox
 {

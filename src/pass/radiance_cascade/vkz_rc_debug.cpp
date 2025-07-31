@@ -1,9 +1,9 @@
 #include "radiance_cascade/vkz_rc_debug.h"
 
 #include "demo_structs.h"
-#include "mesh.h"
-#include "kage_math.h"
-#include "gltf_loader.h"
+#include "core/kage_math.h"
+#include "assets/mesh.h"
+#include "assets/gltf_loader.h"
 
 
 using Binding = kage::Binding;
@@ -73,7 +73,7 @@ struct ProbeDebugDrawInit
 
 void prepareProbeDbgCmdGen(ProbeDbgCmdGen& _gen, const ProbeDebugGenInit& _init)
 {
-    kage::ShaderHandle cs = kage::registShader("rc_probe_debug_cmd", "shaders/rc_probe_debug_cmd.comp.spv");
+    kage::ShaderHandle cs = kage::registShader("rc_probe_debug_cmd", "shader/rc_probe_debug_cmd.comp.spv");
     kage::ProgramHandle prog = kage::registProgram("rc_probe_debug_cmd", { cs }, sizeof(ProbeDebugCmdConsts));
 
     kage::PassDesc passDesc;
@@ -196,8 +196,8 @@ void recProbeDbgCmdGen(const ProbeDbgCmdGen& _gen, const DrawCull& _camCull, con
 
 void prepareProbeDbgDraw(ProbeDbgDraw& _pd, const ProbeDebugDrawInit& _init)
 {
-    kage::ShaderHandle vs = kage::registShader("rc_probe_debug", "shaders/rc_probe_debug.vert.spv");
-    kage::ShaderHandle fs = kage::registShader("rc_probe_debug", "shaders/rc_probe_debug.frag.spv");
+    kage::ShaderHandle vs = kage::registShader("rc_probe_debug", "shader/rc_probe_debug.vert.spv");
+    kage::ShaderHandle fs = kage::registShader("rc_probe_debug", "shader/rc_probe_debug.frag.spv");
     kage::ProgramHandle prog = kage::registProgram("rc_probe_debug", { vs, fs }, sizeof(ProbeDebugDrawConsts));
     kage::PassDesc passDesc;
     passDesc.programId = prog.id;

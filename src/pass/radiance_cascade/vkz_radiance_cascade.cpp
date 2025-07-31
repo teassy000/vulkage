@@ -1,6 +1,6 @@
 #include "vkz_radiance_cascade.h"
-#include "config.h"
-#include "mesh.h"
+#include "core/config.h"
+#include "assets/mesh.h"
 
 
 
@@ -42,7 +42,7 @@ uint32_t getMaxCascadesCount()
 void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
 {
     // build the cascade image
-    kage::ShaderHandle cs = kage::registShader("build_cascade", "shaders/rc_build_cascade.comp.spv");
+    kage::ShaderHandle cs = kage::registShader("build_cascade", "shader/rc_build_cascade.comp.spv");
     kage::ProgramHandle program = kage::registProgram("build_cascade", { cs }, sizeof(RadianceCascadesConfig));
 
     kage::PassDesc passDesc{};
@@ -297,7 +297,7 @@ void prepareRCMerge(RadianceCascadeMerge& _rc, const RCMergeInit& _init, bool _r
     const char* name = _rayPrime ? "merge_radiance_cascade_ray" : "merge_radiance_cascade";
 
     // merge cascade image
-    kage::ShaderHandle cs = kage::registShader(name, "shaders/rc_merge_cascade.comp.spv");
+    kage::ShaderHandle cs = kage::registShader(name, "shader/rc_merge_cascade.comp.spv");
     kage::ProgramHandle program = kage::registProgram(name, { cs }, sizeof(RCMergeData));
 
 

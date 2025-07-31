@@ -16,7 +16,7 @@
 #include "entry_p.h"
 #include "cmd.h"
 #include "input.h"
-#include "../../../src/kage.h"
+#include "../../../src/core/kage.h"
 
 
 namespace entry

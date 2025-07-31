@@ -57,8 +57,8 @@ void vtxShadingRec(VtxShading& _v)
 void prepareVtxShading(VtxShading& _vtxShading, const Scene& _scene, const VtxShadingInitData& _initData, bool _late /*= false*/)
 {
     // render shader
-    kage::ShaderHandle vs = kage::registShader("mesh_vert_shader", "shaders/mesh.vert.spv");
-    kage::ShaderHandle fs = kage::registShader("mesh_frag_shader", "shaders/bindless.frag.spv");
+    kage::ShaderHandle vs = kage::registShader("mesh_vert_shader", "shader/mesh.vert.spv");
+    kage::ShaderHandle fs = kage::registShader("mesh_frag_shader", "shader/bindless.frag.spv");
     kage::ProgramHandle prog = kage::registProgram("mesh_prog", { vs, fs }, sizeof(Globals), _initData.bindless);
     // pass
     kage::PassDesc desc;

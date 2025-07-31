@@ -1,8 +1,8 @@
 
 #include "vkz_ms_pip.h"
 #include "demo_structs.h"
-#include "scene.h"
-#include "kage_math.h"
+#include "scene/scene.h"
+#include "core/kage_math.h"
 
 #include "bx/readerwriter.h"
 
@@ -83,9 +83,9 @@ void meshShadingRec(const MeshShading& _ms)
 
 void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t _width, uint32_t _height, const MeshShadingInitData _initData, bool _late /*= false*/, bool _alphaPass /*= false*/)
 {
-    kage::ShaderHandle ms= kage::registShader("mesh_shader", "shaders/meshlet.mesh.spv");
-    kage::ShaderHandle ts = kage::registShader("task_shader", "shaders/meshlet.task.spv");
-    kage::ShaderHandle fs = kage::registShader("mesh_frag_shader", "shaders/bindless.frag.spv");
+    kage::ShaderHandle ms= kage::registShader("mesh_shader", "shader/meshlet.mesh.spv");
+    kage::ShaderHandle ts = kage::registShader("task_shader", "shader/meshlet.task.spv");
+    kage::ShaderHandle fs = kage::registShader("mesh_frag_shader", "shader/bindless.frag.spv");
 
     kage::ProgramHandle prog = kage::registProgram("mesh_prog", { ts, ms, fs }, sizeof(Globals), _initData.bindless);
 
@@ -204,7 +204,7 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
 
 void prepareTaskSubmit(TaskSubmit& _taskSubmit, kage::BufferHandle _drawCmdBuf, kage::BufferHandle _drawCmdCntBuf, bool _late /*= false*/, bool _alphaPass /*= false*/)
 {
-    kage::ShaderHandle cs = kage::registShader("task_modify_late", "shaders/taskModify.comp.spv");
+    kage::ShaderHandle cs = kage::registShader("task_modify_late", "shader/taskModify.comp.spv");
 
     kage::ProgramHandle prog = kage::registProgram("task_modify_late", { cs });
     

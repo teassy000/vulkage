@@ -1,5 +1,5 @@
 #include "deferred/vkz_deferred.h"
-#include "kage_math.h"
+#include "core/kage_math.h"
 #include <vector >
 
 const GBuffer createGBuffer()
@@ -84,7 +84,7 @@ struct RCAccessData
 
 void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::ImageHandle _sky, const RadianceCascadesData& _rcData)
 {
-    kage::ShaderHandle cs = kage::registShader("deferred", "shaders/deferred.comp.spv");
+    kage::ShaderHandle cs = kage::registShader("deferred", "shader/deferred.comp.spv");
     kage::ProgramHandle prog = kage::registProgram("deferred", { cs }, sizeof(DeferredConstants));
 
     kage::PassDesc desc;

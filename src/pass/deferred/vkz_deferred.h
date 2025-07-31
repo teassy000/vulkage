@@ -1,7 +1,7 @@
 #pragma once
 
-#include "kage.h"
-#include "kage_math.h"
+#include "core/kage.h"
+#include "core/kage_math.h"
 #include "demo_structs.h"
 
 struct GBuffer

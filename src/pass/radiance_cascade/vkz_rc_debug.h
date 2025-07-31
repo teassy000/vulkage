@@ -1,8 +1,8 @@
 #pragma once
-#include "kage_math.h"
-#include "common.h"
-#include "kage.h"
-#include "kage_structs.h"
+#include "core/kage_math.h"
+#include "core/common.h"
+#include "core/kage.h"
+#include "core/kage_structs.h"
 #include "demo_structs.h"
 
 struct RCDebugInit

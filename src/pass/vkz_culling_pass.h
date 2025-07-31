@@ -1,5 +1,5 @@
 #pragma once
-#include "kage.h"
+#include "core/kage.h"
 #include "demo_structs.h"
 
 struct CullingCompInitData

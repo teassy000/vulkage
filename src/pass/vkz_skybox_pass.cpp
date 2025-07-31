@@ -1,13 +1,13 @@
 
 #include "vkz_skybox_pass.h"
-#include "scene.h"
-#include "profiler.h"
+#include "scene/scene.h"
+#include "core/profiler.h"
 
 void initSkyboxPass(Skybox& _skybox, const kage::BufferHandle _trans, const kage::ImageHandle _color, const kage::ImageHandle _skycube)
 {
     // shader
-    kage::ShaderHandle vs = kage::registShader("skybox_vert_shader", "shaders/skybox.vert.spv");
-    kage::ShaderHandle fs = kage::registShader("skybox_frag_shader", "shaders/skybox.frag.spv");
+    kage::ShaderHandle vs = kage::registShader("skybox_vert_shader", "shader/skybox.vert.spv");
+    kage::ShaderHandle fs = kage::registShader("skybox_frag_shader", "shader/skybox.frag.spv");
     kage::ProgramHandle prog = kage::registProgram("mesh_prog", { vs, fs });
 
     // pass

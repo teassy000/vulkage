@@ -33,7 +33,7 @@ void cullingRec(const Culling& _cull, uint32_t _drawCount)
 
 void prepareCullingComp(Culling& _cullingComp, const CullingCompInitData& _initData, bool _late /*= false*/, bool _task /*= false*/, bool _alphaPass /*= false*/)
 {
-    kage::ShaderHandle cs = kage::registShader("mesh_draw_cmd", "shaders/drawcmd.comp.spv");
+    kage::ShaderHandle cs = kage::registShader("mesh_draw_cmd", "shader/drawcmd.comp.spv");
     kage::ProgramHandle prog = kage::registProgram("mesh_draw_cmd", { cs }, sizeof(DrawCull));
 
     int pipelineSpecs[] = { _late, _task, _alphaPass };

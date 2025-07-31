@@ -1,11 +1,11 @@
-#include "kage.h"
-#include "mesh.h"
-#include "scene.h"
+#include "core/kage.h"
+#include "assets/mesh.h"
+#include "scene/scene.h"
 
-#include "camera.h"
-#include "debug.h"
+#include "gfx/camera.h"
+#include "core/debug.h"
 #include "demo_structs.h"
-#include "file_helper.h"
+#include "core/file_helper.h"
 
 #include "pass/vkz_ui.h"
 #include "pass/vkz_pyramid.h"

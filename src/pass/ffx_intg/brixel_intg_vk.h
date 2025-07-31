@@ -1,8 +1,8 @@
 #pragma once
 
-#include "kage.h"
-#include "kage_inner.h"
-#include "common.h" // for stl
+#include "core/kage.h"
+#include "core/kage_inner.h"
+#include "core/common.h" // for stl
 #include "FidelityFX/host/ffx_brixelizer.h"
 #include "brixel_structs.h"
 

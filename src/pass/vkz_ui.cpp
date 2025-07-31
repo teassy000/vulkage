@@ -1,4 +1,4 @@
-#include "common.h"
+#include "core/common.h"
 #include "imgui.h"
 
 #include "glm/glm.hpp"
@@ -107,8 +107,8 @@ void prepareUI(UIRendering& _ui, kage::ImageHandle _color, kage::ImageHandle _de
     ImGuiIO& io = ImGui::GetIO();
     io.FontGlobalScale = _scale;
 
-    kage::ShaderHandle vs = kage::registShader("ui.vs", "shaders/ui.vert.spv");
-    kage::ShaderHandle fs = kage::registShader("ui.fs", "shaders/ui.frag.spv");
+    kage::ShaderHandle vs = kage::registShader("ui.vs", "shader/ui.vert.spv");
+    kage::ShaderHandle fs = kage::registShader("ui.fs", "shader/ui.frag.spv");
 
     kage::ProgramHandle program = kage::registProgram("ui.program", { vs, fs }, sizeof(PushConstBlock));
 

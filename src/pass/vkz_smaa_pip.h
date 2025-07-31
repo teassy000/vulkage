@@ -1,5 +1,5 @@
-#include "common.h"
-#include "kage.h"
+#include "core/common.h"
+#include "core/kage.h"
 
 struct SMAAEdgeDepth
 {

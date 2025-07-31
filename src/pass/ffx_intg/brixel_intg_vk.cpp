@@ -1,13 +1,14 @@
 #include "brixel_intg_vk.h"
-#include "debug.h"
-#include "kage_math.h"
+#include "core/debug.h"
+#include "core/kage_math.h"
+#include "core/common.h" // for stl
 #include "brixel_structs.h"
 
-#include "common.h" // for stl
+
 
 #include "FidelityFX/host/backends/vk/ffx_vk.h" // for init_ffx
 
-#include "rhi_context_vk.h" // for s_renderVK
+#include "gfx/rhi/vk/rhi_context_vk.h" // for s_renderVK
 
 namespace kage { namespace vk {
 

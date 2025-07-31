@@ -1,8 +1,8 @@
 #pragma once
 
 #include "demo_structs.h"
-#include "scene.h"
-#include "kage.h"
+#include "scene/scene.h"
+#include "core/kage.h"
 #include "deferred/vkz_deferred.h"
 
 struct MeshShadingInitData

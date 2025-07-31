@@ -1,6 +1,6 @@
 #include "vkz_pyramid.h"
-#include "kage_math.h"
-#include "profiler.h"
+#include "core/kage_math.h"
+#include "core/profiler.h"
 
 #include "bx/readerwriter.h"
 
@@ -71,7 +71,7 @@ void preparePyramid(Pyramid& _pyramid, uint32_t _width, uint32_t _height)
     kage::ImageHandle outAlias = kage::alias(img);
 
     // create shader
-    kage::ShaderHandle cs = kage::registShader("pyramid_shader", "shaders/depthpyramid.comp.spv");
+    kage::ShaderHandle cs = kage::registShader("pyramid_shader", "shader/depthpyramid.comp.spv");
     kage::ProgramHandle program = kage::registProgram("pyramid_prog", { cs }, sizeof(glm::vec2));
 
     // create pass

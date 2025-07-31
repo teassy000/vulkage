@@ -1,6 +1,6 @@
 #pragma once
 
-#include "kage.h"
+#include "core/kage.h"
 #include "uidata.h"
 #include "demo_structs.h"
 

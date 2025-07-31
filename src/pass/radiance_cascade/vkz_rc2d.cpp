@@ -1,8 +1,9 @@
 #pragma once
 
-#include "kage_math.h"
+#include "core/kage_math.h"
+#include "core/config.h"
 #include "vkz_rc2d.h"
-#include "config.h"
+
 
 using Binding = kage::Binding;
 using Stage = kage::PipelineStageFlagBits::Enum;
@@ -62,7 +63,7 @@ uvec2 calcRCRes(uint32_t _scW, uint32_t _scH, uint32_t _nCas, uint32_t _c0dRes)
 void initRc2DBuild(Rc2DBuild& _rc, const uvec2 _res)
 {
     // build the cascade image
-    kage::ShaderHandle cs = kage::registShader("build_rc2d", "shaders/rc2d_build.comp.spv");
+    kage::ShaderHandle cs = kage::registShader("build_rc2d", "shader/rc2d_build.comp.spv");
     kage::ProgramHandle program = kage::registProgram("build_rc2d", { cs }, sizeof(Rc2dData));
 
     kage::PassDesc passDesc{};
@@ -105,7 +106,7 @@ void initRc2DMerge(Rc2DMerge& _rc, const uvec2 _init, uint32_t _c0dRes, kage::Im
 {
     const char* name = _ray ? "rc2d_merge_ray" : "rc2d_merge_probe";
 
-    kage::ShaderHandle cs = kage::registShader(name, "shaders/rc2d_merge.comp.spv");
+    kage::ShaderHandle cs = kage::registShader(name, "shader/rc2d_merge.comp.spv");
     kage::ProgramHandle program = kage::registProgram(name, { cs }, sizeof(Rc2dMergeData));
     
     int pipelineSpecs[] = { _ray, true };
@@ -171,7 +172,7 @@ void initRc2DMerge(Rc2DMerge& _rc, const uvec2 _init, uint32_t _c0dRes, kage::Im
 
 void initRc2DUse(Rc2DUse& _rc, uvec2 _res, kage::ImageHandle _inMergedRc, kage::ImageHandle _inRc, kage::ImageHandle _inMergedProbe)
 {
-    kage::ShaderHandle cs = kage::registShader("use_rc2d", "shaders/rc2d_use.comp.spv");
+    kage::ShaderHandle cs = kage::registShader("use_rc2d", "shader/rc2d_use.comp.spv");
     kage::ProgramHandle program = kage::registProgram("use_rc2d", { cs }, sizeof(Rc2dUseData));
     kage::PassDesc passDesc{};
     passDesc.programId = program.id;

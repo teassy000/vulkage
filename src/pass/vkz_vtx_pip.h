@@ -1,7 +1,7 @@
 #pragma once
 
-#include "kage.h"
-#include "scene.h"
+#include "core/kage.h"
+#include "scene/scene.h"
 #include "demo_structs.h"
 
 struct VtxShadingInitData
