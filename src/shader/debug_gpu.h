@@ -1,4 +1,4 @@
-#define DEBUG_MESHLET 0
+#define DEBUG_MESHLET 1
 
 uint hash(uint a)
 {

@@ -67,11 +67,11 @@ function using_vulkan()
 end
 
 function custom_build_glsl()
-	local abs_filepath = path.join(SRC_DIR, "shaders", "%(Filename).glsl")
-	local abs_outputpath = path.join(_WORKING_DIR, "shaders", "%(Filename).spv")
+	local abs_filepath = path.join(SRC_DIR, "shader", "%(Filename).glsl")
+	local abs_outputpath = path.join(_WORKING_DIR, "shader", "%(Filename).spv")
     -- Store include paths in an array
     local include_paths = {
-        path.join(SRC_DIR, "shaders"),
+        path.join(SRC_DIR, "shader"),
         path.join(FFX_SDK_DIR, "include/FidelityFX/gpu"),
         path.join(FFX_SDK_DIR, "include/FidelityFX/gpu/brixelizer")
     }
@@ -126,26 +126,21 @@ project "vulkage"
 		path.join(SRC_DIR, "*.cpp"),
 		path.join(SRC_DIR, "*.inl"),
 
-		-- radiance cascade 
-		path.join(SRC_DIR, "radiance_cascade/*.h"),
-		path.join(SRC_DIR, "radiance_cascade/*.cpp"),
-
-		-- deffered
-		path.join(SRC_DIR, "deferred/*.h"),
-		path.join(SRC_DIR, "deferred/*.cpp"),
-
-		-- ffx_intg
-		path.join(SRC_DIR, "ffx_intg/*.h"),
-		path.join(SRC_DIR, "ffx_intg/*.cpp"),
-
 		-- shaders
-		path.join(SRC_DIR, "shaders/*.glsl"),
-		path.join(SRC_DIR, "shaders/*.h"),
+		path.join(SRC_DIR, "shader/*.glsl"),
+		path.join(SRC_DIR, "shader/*.h"),
+
+		-- pass
+		path.join(SRC_DIR, "pass/**.h"),
+		path.join(SRC_DIR, "pass/**.cpp"),
+
+		-- demo
+		path.join(SRC_DIR, "demo/*.h"),
 
 		-- ffx
 		path.join(FFX_SDK_DIR, "include/FidelityFX/host/**.h"),
 		path.join(FFX_SDK_DIR, "include/FidelityFX/gpu/**.h"),
-		
+
 		-- volk
 		path.join(VOLK_DIR, "volk.c"),
 		path.join(VOLK_DIR, "volk.h"),
@@ -165,6 +160,8 @@ project "vulkage"
 
 	includedirs {
 		path.join(SRC_DIR),
+		path.join(SRC_DIR, "pass"),
+		path.join(SRC_DIR, "demo"),
 
 		path.join(BX_DIR,	 	"include"),
 		path.join(BIMG_DIR,	 	"include"),
@@ -193,36 +190,27 @@ project "vulkage"
 			path.join(SRC_DIR, "*.cpp"),
 		},
 
-		["src/radiance_cascade"] = {
-			path.join(SRC_DIR, "radiance_cascade/*.h"),
-			path.join(SRC_DIR, "radiance_cascade/*.cpp"),
+		["src/demo"] = {
+			path.join(SRC_DIR, "demo/*.h"),
 		},
 
-		["src/deferred"] = {
-			path.join(SRC_DIR, "deferred/*.h"),
-			path.join(SRC_DIR, "deferred/*.cpp"),
+		["src/pass"] = {
+			path.join(SRC_DIR, "pass/*.h"),
+			path.join(SRC_DIR, "pass/*.cpp"),
 		},
 
-		["src/ffx_intg"] = {
-			path.join(SRC_DIR, "ffx_intg/*.h"),
-			path.join(SRC_DIR, "ffx_intg/*.cpp"),
-		},
+		["src/pass/*"] = {
+        	path.join(SRC_DIR, "pass/*/*.h"),
+        	path.join(SRC_DIR, "pass/*/*.cpp")
+    	},
 		
-		["shaders/ffx"] = {
-			path.join(SRC_DIR, 	"shaders/ffx/*.h"),
+		["shader/inc"] = {
+			path.join(SRC_DIR, 	"shader/*.h"),
 		},
 
-		["shaders/inc"] = {
-			path.join(SRC_DIR, 	"shaders/*.h"),
-		},
-
-		["shaders"] = {
-			path.join(SRC_DIR,	"shaders/*.glsl"),
+		["shader"] = {
+			path.join(SRC_DIR,	"shader/*.glsl"),
 		}
-
-		
-
-
 
 	}
 
