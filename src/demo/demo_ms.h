@@ -175,9 +175,9 @@ namespace
 
             updateSkybox(m_skybox, m_width, m_height);
 
-            updateCulling(m_culling, m_demoData.drawCull, m_scene.drawCount);
-            updateCulling(m_cullingLate, m_demoData.drawCull, m_scene.drawCount);
-            updateCulling(m_cullingAlpha, m_demoData.drawCull, m_scene.drawCount);
+            updateMeshCulling(m_culling, m_demoData.drawCull, m_scene.drawCount);
+            updateMeshCulling(m_cullingLate, m_demoData.drawCull, m_scene.drawCount);
+            updateMeshCulling(m_cullingAlpha, m_demoData.drawCull, m_scene.drawCount);
 
 
             updateDeferredShading(m_deferred, m_width, m_height, m_demoData.trans.cameraPos, m_demoData.dbg_features.rc3d.totalRadius, m_demoData.dbg_features.rc3d.idx_type, m_demoData.dbg_features.rc3d);
@@ -488,7 +488,7 @@ namespace
 
             // culling pass
             {
-                CullingCompInitData cullingInit{};
+                MeshCullingInitData cullingInit{};
                 cullingInit.meshBuf = m_meshBuf;
                 cullingInit.meshDrawBuf = m_meshDrawBuf;
                 cullingInit.transBuf = m_transformBuf;
@@ -497,7 +497,7 @@ namespace
                 cullingInit.meshDrawCmdCountBuf = m_meshDrawCmdCountBuf;
                 cullingInit.meshDrawVisBuf = m_meshDrawVisBuf;
 
-                prepareCullingComp(m_culling, cullingInit, false, m_supportMeshShading);
+                prepareMeshCulling(m_culling, cullingInit, false, m_supportMeshShading);
             }
 
             // skybox pass
@@ -552,7 +552,7 @@ namespace
 
             // culling late pass
             {
-                CullingCompInitData cullingInit{};
+                MeshCullingInitData cullingInit{};
                 cullingInit.meshBuf = m_meshBuf;
                 cullingInit.meshDrawBuf = m_meshDrawBuf;
                 cullingInit.transBuf = m_transformBuf;
@@ -561,7 +561,7 @@ namespace
                 cullingInit.meshDrawCmdCountBuf = m_culling.meshDrawCmdCountBufOutAlias;
                 cullingInit.meshDrawVisBuf = m_culling.meshDrawVisBufOutAlias;
 
-                prepareCullingComp(m_cullingLate, cullingInit, true, m_supportMeshShading);
+                prepareMeshCulling(m_cullingLate, cullingInit, true, m_supportMeshShading);
             }
 
             // draw late
@@ -607,7 +607,7 @@ namespace
 
             // cull alpha
             {
-                CullingCompInitData cullingInit{};
+                MeshCullingInitData cullingInit{};
                 cullingInit.meshBuf = m_meshBuf;
                 cullingInit.meshDrawBuf = m_meshDrawBuf;
                 cullingInit.transBuf = m_transformBuf;
@@ -615,7 +615,7 @@ namespace
                 cullingInit.meshDrawCmdBuf = m_supportMeshShading ? m_taskSubmitLate.drawCmdBufferOutAlias : m_cullingLate.meshDrawCmdBufOutAlias;
                 cullingInit.meshDrawCmdCountBuf = m_cullingLate.meshDrawCmdCountBufOutAlias;
                 cullingInit.meshDrawVisBuf = m_cullingLate.meshDrawVisBufOutAlias;
-                prepareCullingComp(m_cullingAlpha, cullingInit, true, m_supportMeshShading, true);
+                prepareMeshCulling(m_cullingAlpha, cullingInit, true, m_supportMeshShading, true);
             }
 
             // alpha 
@@ -873,9 +873,9 @@ namespace
         TaskSubmit m_taskSubmit{};
         TaskSubmit m_taskSubmitLate{};
         TaskSubmit m_taskSubmitAlpha{};
-        Culling m_culling{};
-        Culling m_cullingLate{};
-        Culling m_cullingAlpha{};
+        MeshCulling m_culling{};
+        MeshCulling m_cullingLate{};
+        MeshCulling m_cullingAlpha{};
         MeshShading m_meshShading{};
         MeshShading m_meshShadingLate{};
         MeshShading m_meshShadingAlpha{};

@@ -1,6 +1,6 @@
 #include "vkz_culling_pass.h"
 
-void cullingRec(const Culling& _cull, uint32_t _drawCount)
+void cullingRec(const MeshCulling& _cull, uint32_t _drawCount)
 {
     KG_ZoneScopedC(kage::Color::blue);
 
@@ -31,7 +31,7 @@ void cullingRec(const Culling& _cull, uint32_t _drawCount)
     kage::endRec();
 }
 
-void prepareCullingComp(Culling& _cullingComp, const CullingCompInitData& _initData, bool _late /*= false*/, bool _task /*= false*/, bool _alphaPass /*= false*/)
+void prepareMeshCulling(MeshCulling& _cullingComp, const MeshCullingInitData& _initData, bool _late /*= false*/, bool _task /*= false*/, bool _alphaPass /*= false*/)
 {
     kage::ShaderHandle cs = kage::registShader("mesh_draw_cmd", "shader/drawcmd.comp.spv");
     kage::ProgramHandle prog = kage::registProgram("mesh_draw_cmd", { cs }, sizeof(DrawCull));
@@ -114,7 +114,7 @@ void prepareCullingComp(Culling& _cullingComp, const CullingCompInitData& _initD
     _cullingComp.drawCull = {};
 }
 
-void updateCulling(Culling& _cullingComp, const DrawCull& _drawCull, uint32_t _drawCount)
+void updateMeshCulling(MeshCulling& _cullingComp, const DrawCull& _drawCull, uint32_t _drawCount)
 {
     _cullingComp.drawCull = _drawCull;
 

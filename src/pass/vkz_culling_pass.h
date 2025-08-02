@@ -2,7 +2,7 @@
 #include "core/kage.h"
 #include "demo_structs.h"
 
-struct CullingCompInitData
+struct MeshCullingInitData
 {
     kage::BufferHandle meshBuf;
     kage::BufferHandle meshDrawBuf;
@@ -15,7 +15,7 @@ struct CullingCompInitData
     kage::BufferHandle meshDrawVisBuf;
 };
 
-struct Culling
+struct MeshCulling
 {
     kage::ShaderHandle cs;
     kage::ProgramHandle prog;
@@ -41,7 +41,8 @@ struct Culling
     DrawCull drawCull;
 };
 
-void prepareCullingComp(Culling& _cullingComp, const CullingCompInitData& _initData, bool _late = false, bool _task = false, bool _alphaPass = false);
 
-void updateCulling(Culling& _cullingComp, const DrawCull& _drawCull, uint32_t _drawCount);
+void prepareMeshCulling(MeshCulling& _cullingComp, const MeshCullingInitData& _initData, bool _late = false, bool _task = false, bool _alphaPass = false);
+
+void updateMeshCulling(MeshCulling& _cullingComp, const DrawCull& _drawCull, uint32_t _drawCount);
 
