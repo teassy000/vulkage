@@ -1,6 +1,6 @@
 #include "vkz_culling_pass.h"
 
-void cullingRec(const MeshCulling& _cull, uint32_t _drawCount)
+void meshCullingRec(const MeshCulling& _cull, uint32_t _drawCount)
 {
     KG_ZoneScopedC(kage::Color::blue);
 
@@ -132,6 +132,6 @@ void updateMeshCulling(MeshCulling& _cullingComp, const DrawCull& _drawCull, uin
 {
     _cullingComp.drawCull = _drawCull;
 
-    cullingRec(_cullingComp, _drawCount);
+    meshCullingRec(_cullingComp, _drawCount);
 }
 
