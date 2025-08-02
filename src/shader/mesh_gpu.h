@@ -2,8 +2,8 @@
 #define MESHGP_SIZE 64
 #define MESH_MAX_VTX 96
 #define MESH_MAX_TRI 128
-#define MR_MESHLETGP_SZ 64
-#define MR_TRIANGLEGP_SZ 64
+#define MR_MESHLETGP_SZ 128
+#define MR_TRIANGLEGP_SZ 128
 
 
 struct Vertex

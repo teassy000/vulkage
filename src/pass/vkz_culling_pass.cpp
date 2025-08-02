@@ -31,12 +31,30 @@ void cullingRec(const MeshCulling& _cull, uint32_t _drawCount)
     kage::endRec();
 }
 
-void prepareMeshCulling(MeshCulling& _cullingComp, const MeshCullingInitData& _initData, bool _late /*= false*/, bool _task /*= false*/, bool _alphaPass /*= false*/)
+// get pass name based on culling stage and pass type
+void getPassName(std::string& _out, const char* _baseName, CullingStage _stage, CullingPass _pass)
+{
+    _out = _baseName;
+
+    const char* stageStr[static_cast<uint8_t>(CullingStage::count)] = { "_early", "_late", "_alpha" };
+    const char* passStr[static_cast<uint8_t>(CullingPass::count)] = { "_normal", "_task", "_compute" };
+   
+    
+    _out += stageStr[static_cast<uint8_t>(_stage)];
+    _out += passStr[static_cast<uint8_t>(_pass)];
+}
+
+void prepareMeshCulling(MeshCulling& _cullingComp, const MeshCullingInitData& _initData, CullingStage _stage, CullingPass _pass)
 {
     kage::ShaderHandle cs = kage::registShader("mesh_draw_cmd", "shader/drawcmd.comp.spv");
     kage::ProgramHandle prog = kage::registProgram("mesh_draw_cmd", { cs }, sizeof(DrawCull));
 
-    int pipelineSpecs[] = { _late, _task, _alphaPass };
+    int pipelineSpecs[] = { 
+        _stage == CullingStage::early
+        , _pass == CullingPass::task
+        , _stage == CullingStage::alpha
+        , _pass == CullingPass::compute
+    };
 
     const kage::Memory* pConst = kage::alloc(sizeof(int) * COUNTOF(pipelineSpecs));
     memcpy_s(pConst->data, pConst->size, pipelineSpecs, sizeof(int) * COUNTOF(pipelineSpecs));
@@ -47,13 +65,9 @@ void prepareMeshCulling(MeshCulling& _cullingComp, const MeshCullingInitData& _i
     passDesc.pipelineSpecNum = COUNTOF(pipelineSpecs);
     passDesc.pipelineSpecData = (void*)pConst->data;
 
-    const char* passName = 
-        _alphaPass 
-        ? "cull_pass_alpha"
-        : _late 
-            ? "cull_pass_late" 
-            : "cull_pass_early";
-    kage::PassHandle pass = kage::registPass(passName, passDesc);
+    std::string passName;
+    getPassName(passName, "culling", _stage, _pass);
+    kage::PassHandle pass = kage::registPass(passName.c_str(), passDesc);
 
     kage::BufferHandle drawCmdOutAlias = kage::alias(_initData.meshDrawCmdBuf);
     kage::BufferHandle drawCmdCountOutAlias = kage::alias(_initData.meshDrawCmdCountBuf);

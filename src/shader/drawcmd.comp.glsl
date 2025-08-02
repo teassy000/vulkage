@@ -13,6 +13,7 @@ layout(local_size_x = TASKGP_SIZE, local_size_y = 1, local_size_z = 1) in;
 layout(constant_id = 0) const bool LATE = false;
 layout(constant_id = 1) const bool TASK = false;
 layout(constant_id = 2) const bool ALPHA_PASS = false;
+layout(constant_id = 3) const bool USE_MIXED_RASTER = false;
 
 layout(push_constant) uniform block 
 {
@@ -44,6 +45,11 @@ layout(binding = 3) writeonly buffer DrawCommands
 layout(binding = 3) writeonly buffer TaskCommands
 {
     MeshTaskCommand taskCmds[];
+};
+
+layout(binding = 3) writeonly buffer MeshletInfo
+{
+    MeshTaskCommand meshletCmds[] ;
 };
 
 // read/write 
@@ -138,6 +144,24 @@ void main()
                 taskCmds[dci + i].meshletVisibilityOffset = meshletVisibilityOffset + i * TASKGP_SIZE;
             }
         }
+        else if (USE_MIXED_RASTER) // samiliar as the task group, but use meshlet group size
+        {
+            uint groupCount = (lod.meshletCount + MR_MESHLETGP_SZ - 1) / MR_MESHLETGP_SZ; // each group handles MR_MESHLETGP_SZ meshlets
+            uint dci = atomicAdd(drawCmdCount, groupCount);
+
+            uint meshletVisibilityOffset = draw.meshletVisibilityOffset;
+            uint lateDrawVisibility = drawVisibility[di];
+
+            // the command for each command idx is the same
+            for (uint i = 0; i < groupCount; ++i)
+            {
+                meshletCmds[dci + i].drawId = di;
+                meshletCmds[dci + i].taskOffset = lod.meshletOffset + i * MR_MESHLETGP_SZ;
+                meshletCmds[dci + i].taskCount = min(MR_MESHLETGP_SZ, lod.meshletCount - i * MR_MESHLETGP_SZ); // fill when the last group lesser than MR_MESHLETGP_SZ
+                meshletCmds[dci + i].lateDrawVisibility = lateDrawVisibility;
+                meshletCmds[dci + i].meshletVisibilityOffset = meshletVisibilityOffset + i * MR_MESHLETGP_SZ;
+            }
+        }
         else
         {
             uint dci = atomicAdd(drawCmdCount, 1);
@@ -150,7 +174,7 @@ void main()
             drawCmds[dci].firstIndex = lod.indexOffset;
             drawCmds[dci].vertexOffset = mesh.vertexOffset;
             drawCmds[dci].firstInstance = 0;
-            drawCmds[dci].local_x = (lod.meshletCount + TASKGP_SIZE - 1)/ TASKGP_SIZE; 
+            drawCmds[dci].local_x = (lod.meshletCount + TASKGP_SIZE - 1) / TASKGP_SIZE;
             drawCmds[dci].local_y = 1;
             drawCmds[dci].local_z = 1;
         }
