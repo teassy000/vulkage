@@ -1,3 +1,5 @@
+#pragma once 
+
 #include "core/kage.h"
 #include "assets/mesh.h"
 #include "scene/scene.h"
