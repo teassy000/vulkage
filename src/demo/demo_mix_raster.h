@@ -1,0 +1,525 @@
+#pragma once
+
+#include "core/kage.h"
+#include "assets/mesh.h"
+#include "scene/scene.h"
+
+#include "gfx/camera.h"
+#include "core/debug.h"
+#include "demo_structs.h"
+#include "core/file_helper.h"
+
+#include "pass/vkz_ui.h"
+#include "pass/vkz_pyramid.h"
+#include "pass/vkz_ms_pip.h"
+#include "pass/vkz_vtx_pip.h"
+#include "pass/vkz_culling_pass.h"
+#include "pass/vkz_skybox_pass.h"
+#include "pass/vkz_smaa_pip.h"
+#include "pass/mix_rasterzation/vkz_soft_rasterization.h"
+
+#include "entry/entry.h"
+#include "bx/timer.h"
+
+#include "radiance_cascade/vkz_radiance_cascade.h"
+#include "deferred/vkz_deferred.h"
+#include "radiance_cascade/vkz_rc_debug.h"
+#include "ffx_intg/brixel_intg_kage.h"
+#include "radiance_cascade/vkz_rc2d.h"
+
+
+// windows sdk
+#include <time.h>
+#include <cstddef>
+
+namespace
+{
+    class Demo_MixRaster : public entry::AppI
+    {
+    public:
+        Demo_MixRaster(
+            const char* _name
+            , const char* _description
+            , const char* _url = "https://bkaradzic.github.io/bgfx/index.html"
+        )
+            : entry::AppI(_name, _description, _url)
+        {
+
+        }
+        ~Demo_MixRaster()
+        {
+
+        }
+
+        void init(int32_t _argc, const char* const* _argv, uint32_t _width, uint32_t _height) override
+        {
+            kage::Init config = {};
+            config.resolution.width = _width;
+            config.resolution.height = _height;
+            config.name = "vulkage demo";
+            config.windowHandle = entry::getNativeWindowHandle(entry::kDefaultWindowHandle);
+
+            m_width = _width;
+            m_height = _height;
+
+            entry::setMouseLock(entry::kDefaultWindowHandle, false);
+
+            kage::init(config);
+
+            m_supportMeshShading = kage::checkSupports(kage::VulkanSupportExtension::ext_mesh_shader);
+            m_debugProb = false;
+
+
+            bool forceParse = false;
+            bool seamlessLod = false;
+
+            size_t pathCount = 0;
+            std::vector<std::string> pathes(_argc);
+            // check if argv contains -p
+            for (int32_t ii = 0; ii < _argc; ++ii)
+            {
+                const char* arg = _argv[ii];
+                if (strcmp(arg, "-p") == 0)
+                {
+                    forceParse = true;
+                    continue;
+                }
+
+                if (strcmp(arg, "-l") == 0)
+                {
+                    seamlessLod = true;
+                    continue;
+                }
+
+                if (ii > 0)
+                {
+                    pathes[pathCount] = arg;
+                    pathCount++;
+                }
+            }
+            pathes.resize(pathCount);
+
+            initScene(pathes, forceParse, kage::kSeamlessLod);
+
+            // ui data
+            m_demoData.input.width = (float)_width;
+            m_demoData.input.height = (float)_height;
+
+            // basic data
+            Camera camera{
+                { 0.0f, 0.0f, 0.0f },
+                { 0.0f, 0.0f, 0.0f, 1.0f },
+                60.f
+            };
+            if (!m_scene.cameras.empty())
+            {
+                camera = m_scene.cameras[0];
+            }
+
+            freeCameraInit(camera.pos, camera.orit, camera.fov);
+
+            createBuffers();
+            createImages();
+            createPasses();
+
+            kage::setPresentImage(m_ui.colorOutAlias);
+        }
+
+        bool update() override
+        {
+            if (entry::processEvents(m_width, m_height, m_debug, m_reset, &m_mouseState))
+            {
+                return false;
+            }
+
+            int64_t now = bx::getHPCounter();
+            static int64_t last = now;
+            const int64_t frameTime = now - last;
+            last = now;
+
+            const double freq = double(bx::getHPFrequency());
+            const float deltaTimeMS = float(frameTime / freq) * 1000.f;
+
+            freeCameraSetSpeed(m_demoData.dbg_features.common.speed);
+            bool camRet = freeCameraUpdate(deltaTimeMS, m_mouseState);
+            static bool lockToggle = camRet;
+            if (camRet != lockToggle)
+            {
+                lockToggle = camRet;
+                entry::setMouseLock(entry::kDefaultWindowHandle, lockToggle);
+            }
+
+            m_demoData.input.width = (float)m_width;
+            m_demoData.input.height = (float)m_height;
+            m_demoData.input.mouseButtons.left = m_mouseState.m_buttons[entry::MouseButton::Left];
+            m_demoData.input.mouseButtons.right = m_mouseState.m_buttons[entry::MouseButton::Right];
+            m_demoData.input.mousePosx = (float)m_mouseState.m_mx;
+            m_demoData.input.mousePosy = (float)m_mouseState.m_my;
+
+            vec3 front = freeCameraGetFront();
+            vec3 pos = freeCameraGetPos();
+
+            m_demoData.logic.posX = pos.x;
+            m_demoData.logic.posY = pos.y;
+            m_demoData.logic.posZ = pos.z;
+            m_demoData.logic.frontX = front.x;
+            m_demoData.logic.frontY = front.y;
+            m_demoData.logic.frontZ = front.z;
+
+            updateSoftRasterization(m_softRaster);
+
+            m_smaa.update(m_width, m_height);
+            {
+                m_demoData.dbg_features.brx.presentImg = kage::ImageHandle{};
+                updateUI(m_ui, m_demoData.input, m_demoData.dbg_features, m_demoData.profiling, m_demoData.logic);
+            }
+
+
+
+            // render
+            kage::render();
+
+            static float avgCpuTime = 0.0f;
+            avgCpuTime = avgCpuTime * 0.95f + (deltaTimeMS) * 0.05f;
+
+            static float avgGpuTime = 0.0f;
+            avgGpuTime = avgGpuTime * 0.95f + (float)kage::getGpuTime() * 0.05f;
+            m_demoData.profiling.avgCpuTime = avgCpuTime;
+            m_demoData.profiling.avgGpuTime = avgGpuTime;
+
+            m_demoData.profiling.uiTime = (float)kage::getPassTime(m_ui.pass);
+            m_demoData.profiling.triangleCount = m_demoData.profiling.triangleEarlyCount + m_demoData.profiling.triangleLateCount;
+
+            m_demoData.profiling.meshletCount = kage::kSeamlessLod ?
+                (uint32_t)m_scene.geometry.clusters.size() :
+                (uint32_t)m_scene.geometry.meshlets.size();
+            m_demoData.profiling.primitiveCount = (uint32_t)(m_scene.geometry.indices.size()) / 3; // include all lods
+
+            KG_FrameMark;
+
+            return true;
+        }
+
+        int shutdown() override
+        {
+            freeCameraDestroy();
+
+            kage::shutdown();
+            return 0;
+        }
+
+        bool initScene(const std::vector<std::string>& _pathes, bool _forceParse, bool _seamlessLod)
+        {
+            bool lmr = loadScene(m_scene, _pathes, m_supportMeshShading, _seamlessLod, _forceParse);
+            return lmr;
+        }
+
+
+        void createBuffers()
+        {
+            // mesh data
+            {
+                const kage::Memory* memMeshBuf = kage::alloc((uint32_t)(sizeof(Mesh) * m_scene.geometry.meshes.size()));
+                memcpy(memMeshBuf->data, m_scene.geometry.meshes.data(), memMeshBuf->size);
+
+                kage::BufferDesc meshBufDesc;
+                meshBufDesc.size = memMeshBuf->size;
+                meshBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+                meshBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+                m_meshBuf = kage::registBuffer("mesh", meshBufDesc, memMeshBuf);
+            }
+
+            // mesh draw instance buffer
+            {
+                const kage::Memory* memMeshDrawBuf = kage::alloc((uint32_t)(m_scene.meshDraws.size() * sizeof(MeshDraw)));
+                memcpy(memMeshDrawBuf->data, m_scene.meshDraws.data(), memMeshDrawBuf->size);
+
+                kage::BufferDesc meshDrawBufDesc;
+                meshDrawBufDesc.size = memMeshDrawBuf->size;
+                meshDrawBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+                meshDrawBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+                m_meshDrawBuf = kage::registBuffer("meshDraw", meshDrawBufDesc, memMeshDrawBuf);
+            }
+
+            // mesh draw instance buffer
+            {
+                kage::BufferDesc meshDrawCmdBufDesc;
+                meshDrawCmdBufDesc.size = 128 * 1024 * 1024; // 128M
+                meshDrawCmdBufDesc.usage = kage::BufferUsageFlagBits::indirect | kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+                meshDrawCmdBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+                m_meshDrawCmdBuf = kage::registBuffer("meshDrawCmd", meshDrawCmdBufDesc);
+            }
+
+            // mesh draw instance count buffer
+            {
+                kage::BufferDesc meshDrawCmdCountBufDesc;
+                meshDrawCmdCountBufDesc.size = 16;
+                meshDrawCmdCountBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::indirect | kage::BufferUsageFlagBits::transfer_dst;
+                meshDrawCmdCountBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+                m_meshDrawCmdCountBuf = kage::registBuffer("meshDrawCmdCount", meshDrawCmdCountBufDesc);
+            }
+
+            // mesh draw instance visibility buffer
+            {
+                kage::BufferDesc meshDrawVisBufDesc;
+                meshDrawVisBufDesc.size = uint32_t(m_scene.drawCount * sizeof(uint32_t));
+                meshDrawVisBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::indirect | kage::BufferUsageFlagBits::transfer_dst;
+                meshDrawVisBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+                m_meshDrawVisBuf = kage::registBuffer("meshDrawVis", meshDrawVisBufDesc);
+            }
+
+            // index buffer
+            if (!m_scene.geometry.indices.empty())
+            {
+                const kage::Memory* memIdxBuf = kage::alloc((uint32_t)(m_scene.geometry.indices.size() * sizeof(uint32_t)));
+                memcpy(memIdxBuf->data, m_scene.geometry.indices.data(), memIdxBuf->size);
+
+                kage::BufferDesc idxBufDesc;
+                idxBufDesc.size = memIdxBuf->size;
+                idxBufDesc.usage = kage::BufferUsageFlagBits::index | kage::BufferUsageFlagBits::transfer_dst | kage::BufferUsageFlagBits::storage;
+                idxBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+                m_idxBuf = kage::registBuffer("idx", idxBufDesc, memIdxBuf);
+            }
+
+            // vertex buffer
+            {
+                const kage::Memory* memVtxBuf = kage::alloc((uint32_t)(m_scene.geometry.vertices.size() * sizeof(Vertex)));
+                memcpy(memVtxBuf->data, m_scene.geometry.vertices.data(), memVtxBuf->size);
+
+                kage::BufferDesc vtxBufDesc;
+                vtxBufDesc.size = memVtxBuf->size;
+                vtxBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+                vtxBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+                m_vtxBuf = kage::registBuffer("vtx", vtxBufDesc, memVtxBuf);
+            }
+
+            // transform
+            {
+                kage::BufferDesc transformBufDesc;
+                transformBufDesc.size = (uint32_t)(sizeof(TransformData));
+                transformBufDesc.usage = kage::BufferUsageFlagBits::uniform | kage::BufferUsageFlagBits::transfer_dst;
+                transformBufDesc.memFlags = kage::MemoryPropFlagBits::device_local | kage::MemoryPropFlagBits::host_visible;
+                m_transformBuf = kage::registBuffer("transform", transformBufDesc);
+            }
+
+            if (m_supportMeshShading)
+            {
+                // meshlet visibility buffer
+                {
+                    kage::BufferDesc meshletVisBufDesc;
+                    meshletVisBufDesc.size = (m_scene.meshletVisibilityCount + 31) / 32 * sizeof(uint32_t);
+                    meshletVisBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::indirect | kage::BufferUsageFlagBits::transfer_dst;
+                    meshletVisBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+                    m_meshletVisBuf = kage::registBuffer("meshletVis", meshletVisBufDesc);
+                }
+
+                // meshlet buffer
+                {
+                    size_t sz = (kage::kSeamlessLod == 1)
+                        ? m_scene.geometry.clusters.size() * sizeof(Cluster)
+                        : m_scene.geometry.meshlets.size() * sizeof(Meshlet);
+
+                    const kage::Memory* memMeshletBuf = kage::alloc((uint32_t)sz);
+                    void* srcData = (kage::kSeamlessLod == 1)
+                        ? (void*)m_scene.geometry.clusters.data()
+                        : (void*)m_scene.geometry.meshlets.data();
+                    memcpy(memMeshletBuf->data, srcData, memMeshletBuf->size);
+
+                    kage::BufferDesc meshletBufferDesc;
+                    meshletBufferDesc.size = memMeshletBuf->size;
+                    meshletBufferDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+                    meshletBufferDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+                    m_meshletBuffer = kage::registBuffer("meshlet(cluster)_buffer", meshletBufferDesc, memMeshletBuf);
+                }
+
+                // meshlet data buffer
+                {
+                    const kage::Memory* memMeshletDataBuf = kage::alloc((uint32_t)(m_scene.geometry.meshletdata.size() * sizeof(uint32_t)));
+                    memcpy(memMeshletDataBuf->data, m_scene.geometry.meshletdata.data(), memMeshletDataBuf->size);
+
+                    kage::BufferDesc meshletDataBufferDesc;
+                    meshletDataBufferDesc.size = memMeshletDataBuf->size;
+                    meshletDataBufferDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+                    meshletDataBufferDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+                    m_meshletDataBuffer = kage::registBuffer("meshlet_data_buffer", meshletDataBufferDesc, memMeshletDataBuf);
+                }
+            }
+        }
+
+        void createImages()
+        {
+            // create scene images
+            for (const ImageInfo& img : m_scene.images)
+            {
+                const kage::Memory* mem = kage::copy(m_scene.imageDatas.data() + img.dataOffset, img.dataSize);
+                kage::ImageDesc imgDesc;
+                imgDesc.width = img.w;
+                imgDesc.height = img.h;
+                imgDesc.depth = 1;
+                imgDesc.numLayers = img.layerCount;
+                imgDesc.numMips = img.mipCount;
+                imgDesc.format = img.format;
+                imgDesc.type = (img.layerCount > 1) ? kage::ImageType::type_3d : kage::ImageType::type_2d;
+                imgDesc.viewType = img.isCubeMap ? kage::ImageViewType::type_cube : kage::ImageViewType::type_2d;
+                imgDesc.usage = kage::ImageUsageFlagBits::sampled | kage::ImageUsageFlagBits::transfer_dst;
+
+                kage::ImageHandle imgHandle = kage::registTexture(img.name, imgDesc, mem);
+                m_sceneImages.emplace_back(imgHandle);
+            }
+
+            {
+                kage::ImageDesc rtDesc;
+                rtDesc.depth = 1;
+                rtDesc.numLayers = 1;
+                rtDesc.numMips = 1;
+                rtDesc.usage = kage::ImageUsageFlagBits::transfer_src | kage::ImageUsageFlagBits::sampled | kage::BufferUsageFlagBits::storage;
+                m_color = kage::registRenderTarget("color", rtDesc, kage::ResourceLifetime::non_transition);
+            }
+
+            {
+                kage::ImageDesc dpDesc;
+                dpDesc.depth = 1;
+                dpDesc.numLayers = 1;
+                dpDesc.numMips = 1;
+                dpDesc.usage = kage::ImageUsageFlagBits::transfer_src | kage::ImageUsageFlagBits::sampled | kage::BufferUsageFlagBits::storage;
+                m_depth = kage::registDepthStencil("depth", dpDesc, kage::ResourceLifetime::non_transition);
+            }
+        }
+
+        void createPasses()
+        {
+            preparePyramid(m_pyramid, m_width, m_height);
+
+            // soft rasterization
+            {
+                SoftRasterizationDataInit initData{};
+                initData.width = m_width;
+                initData.height = m_height;
+
+                initData.color = m_color;
+                initData.depth = m_depth;
+                
+                initSoftRasterization(m_softRaster, initData);
+            }
+
+            // smaa
+            {
+                kage::ImageHandle aaDepthIn = m_softRaster.depthOutAlias;
+
+                kage::ImageHandle aaColorIn = m_softRaster.colorOutAlias;
+
+                m_smaa.prepare(m_width, m_height, aaColorIn, aaDepthIn);
+            }
+
+            // ui
+            {
+                kage::ImageHandle uiColorIn = m_smaa.m_outAliasImg;
+                kage::ImageHandle uiDepthIn = m_softRaster.depthOutAlias;
+                prepareUI(m_ui, uiColorIn, uiDepthIn, 1.3f);
+            }
+        }
+
+        void refreshData()
+        {
+            float znear = .1f;
+            mat4 proj = freeCameraGetPerpProjMatrix((float)m_width / (float)m_height, znear);
+            mat4 projT = glm::transpose(proj);
+            vec4 frustumX = normalizePlane(projT[3] - projT[0]);
+            vec4 frustumY = normalizePlane(projT[3] - projT[1]);
+
+            mat4 view = freeCameraGetViewMatrix();
+            vec3 cameraPos = freeCameraGetPos();
+            static vec3 s_campos = cameraPos;
+            static vec4 s_fx = frustumX;
+            static vec4 s_fy = frustumY;
+            static mat4 s_proj = proj;
+            static mat4 s_view = view;
+
+            // update camera position only if culling is not paused
+            if (!m_demoData.dbg_features.common.dbgPauseCullTransform) {
+                s_fx = frustumX;
+                s_fy = frustumY;
+                s_proj = proj;
+                s_view = view;
+                s_campos = cameraPos;
+            }
+
+            float lodErrThreshold = (2 / s_proj[1][1]) * (1.f / float(m_height)); // 1px
+
+            m_demoData.trans.cull_view = s_view;
+            m_demoData.trans.cull_proj = s_proj;
+            m_demoData.trans.cull_cameraPos = vec4(s_campos, 1.f);
+
+            m_demoData.trans.view = view;
+            m_demoData.trans.proj = proj;
+            m_demoData.trans.cameraPos = vec4(cameraPos, 1.f);
+
+
+            m_demoData.drawCull.P00 = s_proj[0][0];
+            m_demoData.drawCull.P11 = s_proj[1][1];
+            m_demoData.drawCull.zfar = m_scene.drawDistance;
+            m_demoData.drawCull.znear = znear;
+            m_demoData.drawCull.pyramidWidth = (float)m_pyramid.width;
+            m_demoData.drawCull.pyramidHeight = (float)m_pyramid.height;
+            m_demoData.drawCull.frustum[0] = s_fx.x;
+            m_demoData.drawCull.frustum[1] = s_fx.z;
+            m_demoData.drawCull.frustum[2] = s_fy.y;
+            m_demoData.drawCull.frustum[3] = s_fy.z;
+            m_demoData.drawCull.enableCull = 1;
+            m_demoData.drawCull.enableLod = kage::kRegularLod;
+            m_demoData.drawCull.enableSeamlessLod = kage::kSeamlessLod;
+            m_demoData.drawCull.enableOcclusion = 1;
+            m_demoData.drawCull.enableMeshletOcclusion = 1;
+            m_demoData.drawCull.lodErrorThreshold = lodErrThreshold;
+
+            m_demoData.globals.zfar = m_scene.drawDistance;
+            m_demoData.globals.znear = znear;
+            m_demoData.globals.frustum[0] = s_fx.x;
+            m_demoData.globals.frustum[1] = s_fx.z;
+            m_demoData.globals.frustum[2] = s_fy.y;
+            m_demoData.globals.frustum[3] = s_fy.z;
+            m_demoData.globals.pyramidWidth = (float)m_pyramid.width;
+            m_demoData.globals.pyramidHeight = (float)m_pyramid.height;
+            m_demoData.globals.screenWidth = (float)m_width;
+            m_demoData.globals.screenHeight = (float)m_height;
+            m_demoData.globals.enableMeshletOcclusion = 1;
+            m_demoData.globals.lodErrorThreshold = lodErrThreshold;
+            m_demoData.globals.probeRangeRadius = m_demoData.dbg_features.rc3d.totalRadius;
+        }
+
+
+        Scene m_scene{};
+        DemoData m_demoData{};
+        bool m_supportMeshShading;
+        bool m_debugProb;
+
+        uint32_t m_width;
+        uint32_t m_height;
+        uint32_t m_debug;
+        uint32_t m_reset;
+        entry::MouseState m_mouseState;
+
+        kage::BufferHandle m_meshBuf;
+        kage::BufferHandle m_meshDrawBuf;
+        kage::BufferHandle m_meshDrawCmdBuf;
+        kage::BufferHandle m_meshDrawCmdCountBuf;
+        kage::BufferHandle m_meshDrawVisBuf;
+        kage::BufferHandle m_meshletVisBuf;
+        kage::BufferHandle m_idxBuf;
+        kage::BufferHandle m_vtxBuf;
+        kage::BufferHandle m_meshletBuffer;
+        kage::BufferHandle m_meshletDataBuffer;
+        kage::BufferHandle m_transformBuf;
+
+        // images
+        kage::ImageHandle m_color;
+        kage::ImageHandle m_depth;
+        std::vector<kage::ImageHandle> m_sceneImages;
+
+        // passes
+        Pyramid m_pyramid{};
+        UIRendering m_ui{};
+        SoftRasterization m_softRaster{};
+        SMAA m_smaa{};
+    };
+}
