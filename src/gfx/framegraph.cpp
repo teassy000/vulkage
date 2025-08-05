@@ -1954,7 +1954,6 @@ namespace kage
             const PassMetaData& passMeta = m_sparse_pass_meta[pass.id];
             assert(pass.id == passMeta.passId);
 
-            stl::pair<ImageHandle, ResInteractDesc>& writeDS = writeDSPair[ii];
             ContinuousMap< ImageHandle, ResInteractDesc>& writeColor = writeImageVec[ii];
             ContinuousMap< ImageHandle, ResInteractDesc>& readImg = readImageVec[ii];
 
@@ -1963,7 +1962,6 @@ namespace kage
 
             ContinuousMap<UnifiedResHandle, UnifiedResHandle>& writeOpAliasMap = writeOpAliasMapVec[ii];
             {
-                writeDS.first = { kInvalidHandle };
                 writeColor.clear();
                 readImg.clear();
                 readBuf.clear();
@@ -1980,15 +1978,7 @@ namespace kage
 
                     if (writeRes.isImage())
                     {
-                        if (isDepthStencil(writeRes))
-                        {
-                            assert(writeDS.first.id == kInvalidHandle);
-                            writeDS.first = { writeRes.img };
-                            writeDS.second = writeInteractPair->second;
-                        }
-
                         writeColor.addOrUpdate({ writeRes.img }, writeInteractPair->second);
-
                     }
                     else if (writeRes.isBuffer())
                     {
@@ -2029,7 +2019,6 @@ namespace kage
             }
 
             // create pass info
-            assert(writeDS.first.id == passMeta.writeDepthId);
             assert((uint16_t)writeColor.size() == passMeta.writeImageNum);
             assert((uint16_t)readImg.size() == passMeta.readImageNum);
             assert((uint16_t)readBuf.size() == passMeta.readBufferNum);

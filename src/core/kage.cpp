@@ -1849,9 +1849,6 @@ namespace kage
         if (isDepthStencil(_hImg))
         {
             assert((imgMeta.aspectFlags & ImageAspectFlagBits::depth) != 0);
-            assert(kInvalidHandle == passMeta.writeDepthId);
-
-            passMeta.writeDepthId = _hImg.id;
             interact.layout = ImageLayout::depth_stencil_attachment_optimal;
             interact.access = AccessFlagBits::depth_stencil_attachment_write;
             interact.stage = PipelineStageFlagBits::late_fragment_tests;

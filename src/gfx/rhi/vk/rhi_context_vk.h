@@ -98,8 +98,6 @@ namespace kage { namespace vk
         uint16_t indirectBufferId{ kInvalidHandle };
         uint16_t indirectCountBufferId{ kInvalidHandle };
 
-        uint16_t writeDepthId{ kInvalidHandle };
-
         uint32_t indirectBufOffset{ 0 };
         uint32_t indirectCountBufOffset{ 0 };
         uint32_t indirectMaxDrawCount{ 0 };
@@ -109,9 +107,7 @@ namespace kage { namespace vk
         uint32_t vertexCount{ 0 };
 
         // barrier status expect in current pass
-        std::pair<uint16_t, BarrierState_vk> writeDepth{ {kInvalidHandle}, {} };
-
-        ContinuousMap< uint16_t, BarrierState_vk> writeColors;
+        ContinuousMap< uint16_t, BarrierState_vk> writeImages;
         ContinuousMap< uint16_t, BarrierState_vk> readImages;
         ContinuousMap< uint16_t, BarrierState_vk> readBuffers;
         ContinuousMap< uint16_t, BarrierState_vk> writeBuffers;

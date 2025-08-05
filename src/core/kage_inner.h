@@ -282,8 +282,6 @@ namespace kage
         uint16_t    indirectBufferId{ kInvalidHandle };
         uint16_t    indirectCountBufferId{ kInvalidHandle };
 
-        uint16_t    writeDepthId{ kInvalidHandle };
-
         uint16_t    readImageNum{ 0 };
         uint16_t    readBufferNum{ 0 };
 

@@ -2234,7 +2234,6 @@ namespace kage { namespace vk
         passInfo.vertexCount = passMeta.vertexCount;
         passInfo.indexBufferId = passMeta.indexBufferId;
         passInfo.indexCount = passMeta.indexCount;
-        passInfo.writeDepthId = passMeta.writeDepthId;
 
         // desc part
         passInfo.programId = passMeta.programId;
@@ -2271,15 +2270,7 @@ namespace kage { namespace vk
                 offset += _ids.size();
             };
 
-        const size_t depthIdx = getElemIndex(writeImageIds, passInfo.writeDepthId);
-        if (depthIdx != kInvalidIndex)
-        {
-            passInfo.writeDepth = std::make_pair(passInfo.writeDepthId, getBarrierState(interacts[depthIdx]));
-            writeImageIds.erase(writeImageIds.begin() + depthIdx);
-            interacts.erase(interacts.begin() + depthIdx);
-        }
-
-        preparePassBarriers(writeImageIds, passInfo.writeColors, ResourceType::image);
+        preparePassBarriers(writeImageIds, passInfo.writeImages, ResourceType::image);
         preparePassBarriers(readImageIds, passInfo.readImages, ResourceType::image);
         preparePassBarriers(readBufferIds, passInfo.readBuffers, ResourceType::buffer);
         preparePassBarriers(writeBufferIds, passInfo.writeBuffers, ResourceType::buffer);
@@ -2304,15 +2295,13 @@ namespace kage { namespace vk
             const Program_vk& program = m_programContainer.getIdToData(passInfo.programId);
             const stl::vector<uint16_t>& shaderIds = m_programShaderIds[progIdx];
 
-            uint32_t depthNum = (passMeta.writeDepthId == kInvalidHandle) ? 0 : 1;
-
             stl::vector<VkFormat> colorFormats{};
-            for (size_t ii = 0; ii < passInfo.writeColors.size(); ++ii)
+            for (size_t ii = 0; ii < passInfo.writeImages.size(); ++ii)
             {
-                uint16_t id = passInfo.writeColors.getIdAt(ii);
+                uint16_t id = passInfo.writeImages.getIdAt(ii);
 
                 const Image_vk& img = m_imageContainer.getIdToData({id});
-                const BarrierState_vk& ba = passInfo.writeColors.getDataAt(ii);
+                const BarrierState_vk& ba = passInfo.writeImages.getDataAt(ii);
                 if ((ba.accessMask & VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT) == 0)
                     continue;
 
@@ -3543,28 +3532,8 @@ namespace kage { namespace vk
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 
         // flush in out resources
-        // write depth
-        if (kInvalidHandle != passInfo.writeDepthId)
-        {
-            ImageHandle hDepth = { passInfo.writeDepth.first };
-            const Image_vk& depthImg = getImage(hDepth);
-            const Image_vk& baseImg = getImage(hDepth, true);
-
-
-            BarrierState_vk state = m_barrierDispatcher.getBarrierState(depthImg.image);
-            BarrierState_vk baseState = m_barrierDispatcher.getBaseBarrierState(baseImg.image);
-
-            if (baseState != state)
-            {
-                message(warning, "expect state mismatched for image %s, base %s"
-                    , getName(ImageHandle{hDepth})
-                    , getName(ImageHandle{ baseImg.himg }));
-                m_barrierDispatcher.barrier(depthImg.image, baseImg.aspectMask, baseState);
-            }
-        }
-
-        // write colors
-        for (uint32_t ii = 0; ii < passInfo.writeColors.size(); ++ii)
+        // write images
+        for (uint32_t ii = 0; ii < passInfo.writeImages.size(); ++ii)
         {
             uint16_t id = passInfo.readImages.getIdAt(ii);
             ImageHandle hBaseImg = m_aliasToBaseImages.getIdToData({ id });
@@ -3658,22 +3627,12 @@ namespace kage { namespace vk
 
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_passId);
 
-        // write depth
-        if (kInvalidHandle != passInfo.writeDepthId)
+        // write images
+        for (uint32_t ii = 0; ii < passInfo.writeImages.size(); ++ii)
         {
-            uint16_t depth = passInfo.writeDepth.first;
+            uint16_t id = passInfo.writeImages.getIdAt(ii);
 
-            BarrierState_vk dst = passInfo.writeDepth.second;
-            const Image_vk& img = getImage({ depth });
-            m_barrierDispatcher.barrier(img.image, img.aspectMask, dst);
-        }
-
-        // write colors
-        for (uint32_t ii = 0; ii < passInfo.writeColors.size(); ++ii)
-        {
-            uint16_t id = passInfo.writeColors.getIdAt(ii);
-
-            BarrierState_vk dst = passInfo.writeColors.getIdToData(id);
+            BarrierState_vk dst = passInfo.writeImages.getIdToData(id);
             const Image_vk& img = getImage({ id });
             m_barrierDispatcher.barrier(img.image, img.aspectMask, dst);
         }
@@ -3728,19 +3687,9 @@ namespace kage { namespace vk
 
                 m_barrierDispatcher.barrier(getBuffer(inId.buf).buffer, dst);
             }
-            else if (outId.isImage() && inId.img == passInfo.writeDepthId)
+            else if (outId.isImage())
             {
-                uint16_t depth = passInfo.writeDepth.first;
-                assert(depth == inId.img);
-                
-                BarrierState_vk dst = passInfo.writeDepth.second;
-                
-                const Image_vk& outImg = getImage(outId.img);
-                m_barrierDispatcher.barrier(outImg.image, outImg.aspectMask, dst);
-            }
-            else if (outId.isImage() && inId.img != passInfo.writeDepthId)
-            {
-                BarrierState_vk dst = passInfo.writeColors.getIdToData(inId.img.id);
+                BarrierState_vk dst = passInfo.writeImages.getIdToData(inId.img.id);
 
                 const Image_vk& outImg = getImage(outId.img);
                 m_barrierDispatcher.barrier(outImg.image, outImg.aspectMask, dst);
