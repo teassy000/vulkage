@@ -511,6 +511,11 @@ namespace kage { namespace vk
             , uint32_t _value
         );
 
+        void clearAttachments(
+            PassHandle _hPass
+            , const Memory* _mem
+        );
+
         void dispatch(
             PassHandle _hPass
             , uint32_t _x

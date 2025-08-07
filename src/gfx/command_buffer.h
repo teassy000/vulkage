@@ -186,6 +186,7 @@ namespace kage
             record_blit,
             record_copy,
             record_fill_buffer,
+            record_clear_attachment,
 
             record_dispatch,
             record_dispatch_indirect,
@@ -414,6 +415,12 @@ namespace kage
         ENTRY_IMPLEMENT_COMMAND(RecordFillBufferCmd, Command::record_fill_buffer);
         BufferHandle m_buf;
         uint32_t m_val;
+    };
+
+    struct RecordClearAttachmentsCmd : public Command
+    {
+        ENTRY_IMPLEMENT_COMMAND(RecordClearAttachmentsCmd, Command::record_clear_attachment);
+        const Memory* m_attachments;
     };
 
     struct RecordDispatchCmd : public Command
@@ -811,6 +818,13 @@ namespace kage
             cmd.m_buf = _handle;
             cmd.m_val = _v;
 
+            push(cmd);
+        }
+
+        void cmdRecordClearAttachments(const Memory* _handles)
+        {
+            RecordClearAttachmentsCmd cmd;
+            cmd.m_attachments = _handles;
             push(cmd);
         }
 

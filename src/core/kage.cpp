@@ -376,6 +376,11 @@ namespace kage
             , const ImageHandle _outAlias
         );
 
+        void clearAttachments(
+            const ClearAttachment* _attachments
+            , size_t _count
+        );
+
         void dispatch(
             const uint32_t _groupCountX
             , const uint32_t _groupCountY
@@ -2283,6 +2288,15 @@ namespace kage
         m_cmdQueue.cmdRecordSetBindless(_hBindless);
     }
 
+    void Context::clearAttachments(const ClearAttachment* _attachments, size_t _count )
+    {
+        const uint32_t sz = sizeof(ClearAttachment) * (uint32_t)_count;
+        const Memory* mem = alloc(sz);
+        bx::memCopy(mem->data, _attachments, mem->size);
+
+        m_cmdQueue.cmdRecordClearAttachments(mem);
+    }
+
     void Context::setBuffer(const BufferHandle _hBuf, const uint32_t _binding, const PipelineStageFlags _stage, const AccessFlags _access, const BufferHandle _outAlias)
     {
         BX_ASSERT(0, "NOT IMPLEMENTED YET!!!");
@@ -2570,6 +2584,14 @@ namespace kage
     void setBindless(BindlessHandle _hBindless)
     {
         s_ctx->setBindless(_hBindless);
+    }
+
+    void clearAttachments(
+        const ClearAttachment* _attchs
+        , size_t _colorCount
+    )
+    {
+        s_ctx->clearAttachments(_attchs, _colorCount);
     }
 
     void dispatch(

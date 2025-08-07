@@ -2951,6 +2951,89 @@ namespace kage { namespace vk
         dispatchBarriers();
     }
 
+    void RHIContext_vk::clearAttachments(PassHandle _hPass, const Memory* _mem)
+    {
+        KG_ZoneScopedC(Color::indian_red);
+        if (!m_passContainer.exist(_hPass.id))
+        {
+            message(
+                warning
+                , "clearAttachments will not perform for pass %d! It might be useless after render pass sorted"
+                , _hPass.id
+            );
+            return;
+        }
+
+        if (_mem->size % sizeof(ClearAttachment) != 0)
+        {
+            message(error, "clearAttachments memory size is not multiple of ClearAttachment size!");
+            return;
+        }
+
+        uint32_t count = _mem->size / sizeof(ClearAttachment);
+        const ClearAttachment* atts = (const ClearAttachment*)_mem->data;
+
+        stl::vector<VkClearAttachment> vkAtts(count);
+
+        for(size_t ii = 0; ii < count; ++ii)
+        {
+            const ClearAttachment& attch = atts[ii];
+
+            const VkImage vkImg = getImage(attch.hImg).image;
+            const VkImageAspectFlags aspect = getImageAspectFlags(attch.aspectFlags);
+            VkClearAttachment vk;
+            vk.aspectMask = aspect;
+            vk.colorAttachment = vkImg;
+
+            if (ImageAspectFlagBits::color | attch.aspectFlags)
+            {
+                memcpy(vk.clearValue.color.float32, attch.clearValue.color.f32, sizeof(VkClearColorValue));
+
+
+                m_barrierDispatcher.barrier(vkImg, aspect,
+                    { VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT }
+                );
+            }
+            else if ((ImageAspectFlagBits::depth | attch.aspectFlags) 
+                || (ImageAspectFlagBits::stencil | attch.aspectFlags))
+            {
+                vk.clearValue.depthStencil.depth = attch.clearValue.depthStencil.depth;
+                vk.clearValue.depthStencil.stencil = attch.clearValue.depthStencil.stencil;
+
+                m_barrierDispatcher.barrier(vkImg, aspect,
+                    { VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT }
+                );
+            }
+            else
+            {
+                message(error, "unknown aspect flags %d", attch.aspectFlags);
+                continue;
+            }
+
+            vkAtts.emplace_back(vk);
+        }
+
+        if (vkAtts.empty())
+        {
+            message(error, "no valid attachments to clear!");
+            return;
+        }
+
+
+        // clear attachments
+        vkCmdClearAttachments(
+            m_cmdBuffer
+            , (uint32_t)vkAtts.size()
+            , vkAtts.data()
+            , 0 // rect count
+            , nullptr // rects
+        );
+
+        // create barriers for to write
+        m_barrierDispatcher.dispatch(m_cmdBuffer);
+
+    }
+
     void RHIContext_vk::dispatch(PassHandle _hPass, uint32_t _x, uint32_t _y, uint32_t _z)
     {
         KG_ZoneScopedC(Color::indian_red);
@@ -4453,6 +4536,11 @@ namespace kage { namespace vk
                         fillBuffer(_hPass, rc->m_buf, rc->m_val);
                     }
                     break;
+                case Command::record_clear_attachment:
+                    {
+                        const RecordClearAttachmentsCmd* rc = reinterpret_cast<const RecordClearAttachmentsCmd*>(cmd);
+                        clearAttachments(_hPass, rc->m_attachments);
+                    }
                 case Command::record_dispatch:
                     {
                         const RecordDispatchCmd* rc = reinterpret_cast<const RecordDispatchCmd*>(cmd);

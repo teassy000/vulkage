@@ -723,6 +723,32 @@ namespace kage
         }
     };
 
+    union ClearColor
+    {
+        float f32[4]; // RGBA
+        uint32_t u32[4]; // RGBA
+        int32_t i32[4]; // RGBA
+    };
+
+    struct ClearDepthStencil
+    {
+        float depth{ 1.0f };
+        uint32_t stencil{ 0 };
+    };
+
+    union ClearValue
+    {
+        ClearColor color;
+        ClearDepthStencil depthStencil;
+    };
+
+    struct ClearAttachment
+    {
+        ImageHandle hImg{ kInvalidHandle };
+        ImageAspectFlags aspectFlags{ ImageAspectFlagBits::none };
+        ClearValue  clearValue{};
+    };
+
     struct UnifiedResHandle
     {
         union
