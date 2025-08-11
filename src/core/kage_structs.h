@@ -740,13 +740,16 @@ namespace kage
     {
         ClearColor color;
         ClearDepthStencil depthStencil;
+
+        ClearValue(const ClearColor& _c) : color(_c) {}
+        ClearValue(const ClearDepthStencil& _ds) : depthStencil(_ds) {}
     };
 
     struct ClearAttachment
     {
         ImageHandle hImg{ kInvalidHandle };
         ImageAspectFlags aspectFlags{ ImageAspectFlagBits::none };
-        ClearValue  clearValue{};
+        ClearValue  clearValue;
     };
 
     struct UnifiedResHandle

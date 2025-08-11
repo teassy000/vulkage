@@ -6,11 +6,20 @@ using Stage = kage::PipelineStageFlagBits::Enum;
 using Access = kage::BindingAccess;
 using LoadOp = kage::AttachmentLoadOp;
 using StoreOp = kage::AttachmentStoreOp;
+using Aspect = kage::ImageAspectFlagBits::Enum;
 
 
 void recSoftRasterization(const SoftRasterization& _raster)
 {
     kage::startRec(_raster.pass);
+
+    kage::ClearAttachment atts[] =
+    {
+        { _raster.inColor,  Aspect::color, {kage::ClearColor { 0.f, 0.f, 0.f, 1.f }}},
+        { _raster.inDepth,  Aspect::depth, {kage::ClearDepthStencil{0.f, 0}}},
+    };
+
+    kage::clearAttachments(atts, COUNTOF(atts));
     
     vec2 res = vec2(float(_raster.width), float(_raster.height));
 
@@ -23,12 +32,11 @@ void recSoftRasterization(const SoftRasterization& _raster)
     
     kage::Binding binds[] =
     {
-        { _raster.colorOutAlias,         0,                  Stage::compute_shader },
-        { _raster.depthOutAlias,         0,                  Stage::compute_shader },
+        { _raster.inColor,         0,                  Stage::compute_shader },
+        { _raster.inDepth,         0,                  Stage::compute_shader },
     };
 
     kage::pushBindings(binds, COUNTOF(binds));
-    
 
     // dispatch compute shader
     kage::dispatch(_raster.width, _raster.height, 1);

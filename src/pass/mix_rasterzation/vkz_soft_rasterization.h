@@ -40,5 +40,4 @@ struct SoftRasterization
 };
 
 void initSoftRasterization(SoftRasterization& _softRaster, const SoftRasterizationDataInit& _initData);
-
 void updateSoftRasterization(SoftRasterization& _softRaster);

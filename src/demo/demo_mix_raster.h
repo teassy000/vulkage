@@ -372,7 +372,7 @@ namespace
                 rtDesc.depth = 1;
                 rtDesc.numLayers = 1;
                 rtDesc.numMips = 1;
-                rtDesc.usage = kage::ImageUsageFlagBits::transfer_src | kage::ImageUsageFlagBits::sampled | kage::BufferUsageFlagBits::storage;
+                rtDesc.usage = kage::ImageUsageFlagBits::transfer_src | kage::ImageUsageFlagBits::transfer_dst | kage::ImageUsageFlagBits::sampled | kage::BufferUsageFlagBits::storage ;
                 m_color = kage::registRenderTarget("color", rtDesc, kage::ResourceLifetime::non_transition);
             }
 
@@ -381,7 +381,7 @@ namespace
                 dpDesc.depth = 1;
                 dpDesc.numLayers = 1;
                 dpDesc.numMips = 1;
-                dpDesc.usage = kage::ImageUsageFlagBits::transfer_src | kage::ImageUsageFlagBits::sampled | kage::BufferUsageFlagBits::storage;
+                dpDesc.usage = kage::ImageUsageFlagBits::transfer_src | kage::ImageUsageFlagBits::transfer_dst | kage::ImageUsageFlagBits::sampled | kage::BufferUsageFlagBits::storage;
                 m_depth = kage::registDepthStencil("depth", dpDesc, kage::ResourceLifetime::non_transition);
             }
         }

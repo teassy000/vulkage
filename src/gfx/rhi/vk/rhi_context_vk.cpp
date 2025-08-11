@@ -2973,65 +2973,53 @@ namespace kage { namespace vk
         uint32_t count = _mem->size / sizeof(ClearAttachment);
         const ClearAttachment* atts = (const ClearAttachment*)_mem->data;
 
-        stl::vector<VkClearAttachment> vkAtts(count);
-
         for(size_t ii = 0; ii < count; ++ii)
         {
             const ClearAttachment& attch = atts[ii];
 
-            const VkImage vkImg = getImage(attch.hImg).image;
+            const Image_vk vkImg = getImage(attch.hImg);
             const VkImageAspectFlags aspect = getImageAspectFlags(attch.aspectFlags);
-            VkClearAttachment vk;
-            vk.aspectMask = aspect;
-            vk.colorAttachment = vkImg;
 
-            if (ImageAspectFlagBits::color | attch.aspectFlags)
+            VkImageSubresourceRange subRange{};
+            subRange.aspectMask = aspect;
+            subRange.baseMipLevel = 0;
+            subRange.levelCount = 1;
+            subRange.baseArrayLayer = 0;
+            subRange.layerCount = 1;
+
+            if (ImageAspectFlagBits::color & attch.aspectFlags)
             {
-                memcpy(vk.clearValue.color.float32, attch.clearValue.color.f32, sizeof(VkClearColorValue));
+                VkClearColorValue clearValue;
+                memcpy(clearValue.float32, attch.clearValue.color.f32, sizeof(VkClearColorValue));
 
-
-                m_barrierDispatcher.barrier(vkImg, aspect,
-                    { VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT }
+                m_barrierDispatcher.barrier(vkImg.image, aspect,
+                    { VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT }
                 );
+
+                dispatchBarriers();
+
+                vkCmdClearColorImage(m_cmdBuffer, vkImg.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearValue, 1, &subRange);
             }
-            else if ((ImageAspectFlagBits::depth | attch.aspectFlags) 
-                || (ImageAspectFlagBits::stencil | attch.aspectFlags))
+            else if ((ImageAspectFlagBits::depth & attch.aspectFlags) 
+                || (ImageAspectFlagBits::stencil & attch.aspectFlags))
             {
-                vk.clearValue.depthStencil.depth = attch.clearValue.depthStencil.depth;
-                vk.clearValue.depthStencil.stencil = attch.clearValue.depthStencil.stencil;
+                VkClearDepthStencilValue clearValue;
+                clearValue.depth = attch.clearValue.depthStencil.depth;
 
-                m_barrierDispatcher.barrier(vkImg, aspect,
-                    { VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT }
+                m_barrierDispatcher.barrier(vkImg.image, aspect,
+                    { VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT }
                 );
+
+                dispatchBarriers();
+
+                vkCmdClearDepthStencilImage(m_cmdBuffer, vkImg.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearValue, 1, &subRange);
             }
             else
             {
                 message(error, "unknown aspect flags %d", attch.aspectFlags);
                 continue;
             }
-
-            vkAtts.emplace_back(vk);
         }
-
-        if (vkAtts.empty())
-        {
-            message(error, "no valid attachments to clear!");
-            return;
-        }
-
-
-        // clear attachments
-        vkCmdClearAttachments(
-            m_cmdBuffer
-            , (uint32_t)vkAtts.size()
-            , vkAtts.data()
-            , 0 // rect count
-            , nullptr // rects
-        );
-
-        // create barriers for to write
-        m_barrierDispatcher.dispatch(m_cmdBuffer);
-
     }
 
     void RHIContext_vk::dispatch(PassHandle _hPass, uint32_t _x, uint32_t _y, uint32_t _z)
@@ -4126,7 +4114,7 @@ namespace kage { namespace vk
         VkClearColorValue clearColor = { 0.f, 0.f, 0.f, 0.f};
         VkClearDepthStencilValue clearDepth = { 0.f, 0 };
 
-        VkExtent2D extent = { 0, 0 };
+        VkExtent2D extent = { m_resolution.width, m_resolution.height };
 
         stl::vector<VkRenderingAttachmentInfo> colorAttachments(m_colorAttachPerPass.size());
         for (int ii = 0; ii < m_colorAttachPerPass.size(); ++ii)
@@ -4134,10 +4122,8 @@ namespace kage { namespace vk
             const Attachment& att = m_colorAttachPerPass[ii];
             const Image_vk& colorTarget = getImage(att.hImg);
 
-            extent.width = extent.width == 0 ? colorTarget.width : extent.width;
-            extent.height = extent.height == 0 ? colorTarget.height : extent.height;
-
-            assert(extent.width == colorTarget.width && extent.height == colorTarget.height);
+            extent.width = colorTarget.width;
+            extent.height = colorTarget.height;
 
             colorAttachments[ii].sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
             colorAttachments[ii].clearValue.color = clearColor;
@@ -4153,10 +4139,8 @@ namespace kage { namespace vk
         {
             const Image_vk& depthTarget = getImage(m_depthAttachPerPass.hImg);
 
-            extent.width = extent.width == 0 ? depthTarget.width : extent.width;
-            extent.height = extent.height == 0 ? depthTarget.height : extent.height;
-
-            assert(extent.width == depthTarget.width && extent.height == depthTarget.height);
+            extent.width = depthTarget.width;
+            extent.height = depthTarget.height;
 
             depthAttachment.clearValue.depthStencil = clearDepth;
             depthAttachment.loadOp = getAttachmentLoadOp(m_depthAttachPerPass.load_op);
@@ -4541,6 +4525,7 @@ namespace kage { namespace vk
                         const RecordClearAttachmentsCmd* rc = reinterpret_cast<const RecordClearAttachmentsCmd*>(cmd);
                         clearAttachments(_hPass, rc->m_attachments);
                     }
+                    break;
                 case Command::record_dispatch:
                     {
                         const RecordDispatchCmd* rc = reinterpret_cast<const RecordDispatchCmd*>(cmd);
