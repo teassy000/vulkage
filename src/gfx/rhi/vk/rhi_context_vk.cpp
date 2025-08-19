@@ -2951,31 +2951,31 @@ namespace kage { namespace vk
         dispatchBarriers();
     }
 
-    void RHIContext_vk::clearAttachments(PassHandle _hPass, const Memory* _mem)
+    void RHIContext_vk::clearImages(PassHandle _hPass, const Memory* _mem)
     {
         KG_ZoneScopedC(Color::indian_red);
         if (!m_passContainer.exist(_hPass.id))
         {
             message(
                 warning
-                , "clearAttachments will not perform for pass %d! It might be useless after render pass sorted"
+                , "clearImages will not perform for pass %d! It might be useless after render pass sorted"
                 , _hPass.id
             );
             return;
         }
 
-        if (_mem->size % sizeof(ClearAttachment) != 0)
+        if (_mem->size % sizeof(ClearImage) != 0)
         {
-            message(error, "clearAttachments memory size is not multiple of ClearAttachment size!");
+            message(error, "ClearImages memory size is not multiple of ClearImages size!");
             return;
         }
 
-        uint32_t count = _mem->size / sizeof(ClearAttachment);
-        const ClearAttachment* atts = (const ClearAttachment*)_mem->data;
+        uint32_t count = _mem->size / sizeof(ClearImage);
+        const ClearImage* atts = (const ClearImage*)_mem->data;
 
         for(size_t ii = 0; ii < count; ++ii)
         {
-            const ClearAttachment& attch = atts[ii];
+            const ClearImage& attch = atts[ii];
 
             const Image_vk vkImg = getImage(attch.hImg);
             const VkImageAspectFlags aspect = getImageAspectFlags(attch.aspectFlags);
@@ -4520,10 +4520,10 @@ namespace kage { namespace vk
                         fillBuffer(_hPass, rc->m_buf, rc->m_val);
                     }
                     break;
-                case Command::record_clear_attachment:
+                case Command::record_clear_image:
                     {
-                        const RecordClearAttachmentsCmd* rc = reinterpret_cast<const RecordClearAttachmentsCmd*>(cmd);
-                        clearAttachments(_hPass, rc->m_attachments);
+                        const RecordClearImagesCmd* rc = reinterpret_cast<const RecordClearImagesCmd*>(cmd);
+                        clearImages(_hPass, rc->m_images);
                     }
                     break;
                 case Command::record_dispatch:

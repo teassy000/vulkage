@@ -511,7 +511,7 @@ namespace kage { namespace vk
             , uint32_t _value
         );
 
-        void clearAttachments(
+        void clearImages(
             PassHandle _hPass
             , const Memory* _mem
         );

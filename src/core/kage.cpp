@@ -376,8 +376,8 @@ namespace kage
             , const ImageHandle _outAlias
         );
 
-        void clearAttachments(
-            const ClearAttachment* _attachments
+        void clearImages(
+            const ClearImage* _imgs
             , size_t _count
         );
 
@@ -2288,11 +2288,11 @@ namespace kage
         m_cmdQueue.cmdRecordSetBindless(_hBindless);
     }
 
-    void Context::clearAttachments(const ClearAttachment* _attachments, size_t _count )
+    void Context::clearImages(const ClearImage* _imgs, size_t _count )
     {
-        const uint32_t sz = sizeof(ClearAttachment) * (uint32_t)_count;
+        const uint32_t sz = sizeof(ClearImage) * (uint32_t)_count;
         const Memory* mem = alloc(sz);
-        bx::memCopy(mem->data, _attachments, mem->size);
+        bx::memCopy(mem->data, _imgs, mem->size);
 
         m_cmdQueue.cmdRecordClearAttachments(mem);
     }
@@ -2586,12 +2586,12 @@ namespace kage
         s_ctx->setBindless(_hBindless);
     }
 
-    void clearAttachments(
-        const ClearAttachment* _attchs
+    void clearImages(
+        const ClearImage* _attchs
         , size_t _colorCount
     )
     {
-        s_ctx->clearAttachments(_attchs, _colorCount);
+        s_ctx->clearImages(_attchs, _colorCount);
     }
 
     void dispatch(

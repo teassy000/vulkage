@@ -98,8 +98,8 @@ namespace kage
 
     void setBindless(BindlessHandle _bindless);
 
-    void clearAttachments(
-        const ClearAttachment* _attchs
+    void clearImages(
+        const ClearImage* _img
         , size_t _colorCount
     );
 

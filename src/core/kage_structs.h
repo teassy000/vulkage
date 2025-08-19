@@ -728,6 +728,18 @@ namespace kage
         float f32[4]; // RGBA
         uint32_t u32[4]; // RGBA
         int32_t i32[4]; // RGBA
+
+        // Default to float clear color
+        constexpr ClearColor() : f32{ 0.f, 0.f, 0.f, 0.f } {}
+
+        // Construct as float color
+        constexpr explicit ClearColor(float r, float g, float b, float a) : f32{ r, g, b, a } {}
+
+        // Construct as unsigned int color
+        constexpr explicit ClearColor(uint32_t r, uint32_t g, uint32_t b, uint32_t a) : u32{ r, g, b, a } {}
+
+        // Construct as signed int color
+        constexpr explicit ClearColor(int32_t r, int32_t g, int32_t b, int32_t a) : i32{ r, g, b, a } {}
     };
 
     struct ClearDepthStencil
@@ -745,7 +757,7 @@ namespace kage
         ClearValue(const ClearDepthStencil& _ds) : depthStencil(_ds) {}
     };
 
-    struct ClearAttachment
+    struct ClearImage
     {
         ImageHandle hImg{ kInvalidHandle };
         ImageAspectFlags aspectFlags{ ImageAspectFlagBits::none };
