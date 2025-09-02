@@ -2605,10 +2605,10 @@ namespace kage
 
     void dispatchIndirect(
         const BufferHandle _hIndirectBuf
-        , const uint32_t _offse
+        , const uint32_t _offset
     )
     {
-        s_ctx->dispatchIndirect(_hIndirectBuf, _offse);
+        s_ctx->dispatchIndirect(_hIndirectBuf, _offset);
     }
 
     void fillBuffer(
