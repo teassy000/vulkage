@@ -76,7 +76,7 @@ void main()
     uint ti = gl_LocalInvocationID.x;
     uint ci = payload.meshletIndices[gl_WorkGroupID.x];
 
-    uint mi = payload.offset+ (ci >> 24);
+    uint mi = payload.offset + (ci >> 24);
     uint drawId = payload.drawId;
 
     MeshDraw meshDraw = meshDraws[drawId];

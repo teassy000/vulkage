@@ -71,10 +71,6 @@ taskPayloadSharedEXT TaskPayload payload;
 shared int sharedCount;
 #endif
 
-bool coneCullApex(vec3 cone_apex, vec3 cone_axis, float cone_cutoff, vec3 camera_position)
-{
-    return dot(normalize(cone_apex - camera_position), cone_axis) >= cone_cutoff;
-}
 
 void main()
 {
