@@ -60,14 +60,14 @@ struct MeshCulling
 
 struct MeshletCullingInitData
 {
+    kage::BufferHandle meshletCmdBuf;
+    kage::BufferHandle meshletCmdCntBuf;
     kage::BufferHandle meshBuf;
-    kage::BufferHandle meshletBuf;
-    kage::BufferHandle meshletDataBuf;
-    kage::BufferHandle meshDrawCmdBuf;
-    kage::BufferHandle meshletDrawCmdCntBuf;
-    kage::BufferHandle meshletVisBuf;
     kage::BufferHandle meshDrawBuf;
     kage::BufferHandle transformBuf;
+    kage::BufferHandle meshletBuf;
+    kage::BufferHandle meshletVisBuf;
+
     kage::ImageHandle pyramid;
 };
 
@@ -76,25 +76,37 @@ struct MeshletCulling
     kage::PassHandle pass;
     kage::ShaderHandle cs;
     kage::ProgramHandle prog;
+    
     // read-only
+    kage::BufferHandle meshletCmdBuf;
+    kage::BufferHandle meshletCmdCntBuf; // for indirect dispatch
     kage::BufferHandle meshBuf;
-    kage::BufferHandle meshletBuf;
-    kage::BufferHandle meshletDataBuf;
-    kage::BufferHandle meshDrawCmdBuf;
-    kage::BufferHandle meshletDrawCmdCntBuf;
-    kage::BufferHandle meshletVisBuf;
     kage::BufferHandle meshDrawBuf;
     kage::BufferHandle transformBuf;
+    kage::BufferHandle meshletBuf;
+    kage::BufferHandle meshletVisBuf;
     kage::ImageHandle pyramid;
     kage::SamplerHandle pyrSampler;
-    // output
-    kage::BufferHandle meshletDrawCmdCntBufOutAlias;
-    kage::BufferHandle meshletVisBufOutAlias;
+    
+    // write
+    kage::BufferHandle meshletPayloadBuf;
+    kage::BufferHandle meshletPayloadCntBuf;
+
+    // out alias
+    kage::BufferHandle meshletPayloadBufOutAlias;
+    kage::BufferHandle meshletPayloadCntOutAlias;
 };
 
 struct TriangleCullingInitData
 {
-    kage::BufferHandle inBuf;
+    kage::BufferHandle meshletPayloadBuf;
+    kage::BufferHandle meshletPayloadCntBuf;
+
+    kage::BufferHandle meshDrawBuf;
+    kage::BufferHandle transformBuf;
+    kage::BufferHandle vtxBuf;
+    kage::BufferHandle meshletBuf;
+    kage::BufferHandle meshletDataBuf;
 };
 
 struct TriangleCulling
@@ -102,18 +114,33 @@ struct TriangleCulling
     kage::PassHandle pass;
     kage::ShaderHandle cs;
     kage::ProgramHandle prog;
+    
     // read-only
-    kage::BufferHandle inBuf;
+    kage::BufferHandle meshletPayloadBuf;
+    kage::BufferHandle meshletPayloadCntBuf;
+    kage::BufferHandle meshDrawBuf;
+    kage::BufferHandle transformBuf;
+    kage::BufferHandle vtxBuf;
+    kage::BufferHandle meshletBuf;
+    kage::BufferHandle meshletDataBuf;
+
+    // write
+    kage::BufferHandle trianglePayloadBuf;
+    kage::BufferHandle trianglePayloadCntBuf;
+
+    // out alias
+    kage::BufferHandle trianglePayloadBufOutAlias;
+    kage::BufferHandle trianglePayloadCntOutAlias;
 };
 
-void prepareMeshCulling(MeshCulling& _cullingComp, const MeshCullingInitData& _initData, CullingStage _stage, CullingPass _pass);
+void initMeshCulling(MeshCulling& _mc, const MeshCullingInitData& _initData, CullingStage _stage, CullingPass _pass);
 
-void updateMeshCulling(MeshCulling& _cullingComp, const DrawCull& _drawCull, uint32_t _drawCount);
+void updateMeshCulling(MeshCulling& _mc, const DrawCull& _drawCull, uint32_t _drawCount);
 
 
-void initMeshletCulling(MeshletCulling& _cullingComp, const MeshletCullingInitData& _initData);
-void updateMeshletCulling(MeshletCulling& _cullingComp, const DrawCull& _drawCull, uint32_t _drawCount);
+void initMeshletCulling(MeshletCulling& _mltc, const MeshletCullingInitData& _initData, CullingStage _stage, bool _seamless = false);
+void updateMeshletCulling(MeshletCulling& _mltc, const DrawCull& _drawCull);
 
-void initTriangleCulling(TriangleCulling& _cullingComp, const TriangleCullingInitData& _initData);
-void updateTriangleCulling(TriangleCulling& _cullingComp, const DrawCull& _drawCull, uint32_t _drawCount);
+void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& _initData, CullingStage _stage, bool _seamless = false);
+void updateTriangleCulling(TriangleCulling& _tric, const DrawCull& _drawCull);
 

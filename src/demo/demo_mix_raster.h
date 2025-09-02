@@ -166,6 +166,8 @@ namespace
             m_demoData.logic.frontY = front.y;
             m_demoData.logic.frontZ = front.z;
 
+            updateMeshCulling(m_culling, m_demoData.drawCull, m_scene.drawCount);
+
             updateSoftRasterization(m_softRaster);
 
             m_smaa.update(m_width, m_height);
@@ -174,11 +176,10 @@ namespace
                 updateUI(m_ui, m_demoData.input, m_demoData.dbg_features, m_demoData.profiling, m_demoData.logic);
             }
 
-
-
             // render
             kage::render();
 
+            // update stastic data
             static float avgCpuTime = 0.0f;
             avgCpuTime = avgCpuTime * 0.95f + (deltaTimeMS) * 0.05f;
 
@@ -186,6 +187,8 @@ namespace
             avgGpuTime = avgGpuTime * 0.95f + (float)kage::getGpuTime() * 0.05f;
             m_demoData.profiling.avgCpuTime = avgCpuTime;
             m_demoData.profiling.avgGpuTime = avgGpuTime;
+
+            m_demoData.profiling.cullEarlyTime = (float)kage::getPassTime(m_culling.pass);
 
             m_demoData.profiling.uiTime = (float)kage::getPassTime(m_ui.pass);
             m_demoData.profiling.triangleCount = m_demoData.profiling.triangleEarlyCount + m_demoData.profiling.triangleLateCount;
@@ -252,11 +255,11 @@ namespace
 
             // mesh draw instance count buffer
             {
-                kage::BufferDesc meshDrawCmdCountBufDesc;
-                meshDrawCmdCountBufDesc.size = 16;
-                meshDrawCmdCountBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::indirect | kage::BufferUsageFlagBits::transfer_dst;
-                meshDrawCmdCountBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
-                m_meshDrawCmdCountBuf = kage::registBuffer("meshDrawCmdCount", meshDrawCmdCountBufDesc);
+                kage::BufferDesc indirectCountBufDesc;
+                indirectCountBufDesc.size = 16;
+                indirectCountBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::indirect | kage::BufferUsageFlagBits::transfer_dst;
+                indirectCountBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+                m_indirectCountBuf = kage::registBuffer("indirectCount", indirectCountBufDesc);
             }
 
             // mesh draw instance visibility buffer
@@ -390,6 +393,21 @@ namespace
         {
             preparePyramid(m_pyramid, m_width, m_height);
 
+
+            // culling pass
+            {
+                MeshCullingInitData cullingInit{};
+                cullingInit.meshBuf = m_meshBuf;
+                cullingInit.meshDrawBuf = m_meshDrawBuf;
+                cullingInit.transBuf = m_transformBuf;
+                cullingInit.pyramid = m_pyramid.image;
+                cullingInit.meshDrawCmdBuf = m_meshDrawCmdBuf;
+                cullingInit.meshDrawCmdCountBuf = m_indirectCountBuf;
+                cullingInit.meshDrawVisBuf = m_meshDrawVisBuf;
+
+                initMeshCulling(m_culling, cullingInit, CullingStage::early, CullingPass::compute);
+            }
+
             // soft rasterization
             {
                 SoftRasterizationDataInit initData{};
@@ -502,7 +520,7 @@ namespace
         kage::BufferHandle m_meshBuf;
         kage::BufferHandle m_meshDrawBuf;
         kage::BufferHandle m_meshDrawCmdBuf;
-        kage::BufferHandle m_meshDrawCmdCountBuf;
+        kage::BufferHandle m_indirectCountBuf;
         kage::BufferHandle m_meshDrawVisBuf;
         kage::BufferHandle m_meshletVisBuf;
         kage::BufferHandle m_idxBuf;
@@ -517,6 +535,8 @@ namespace
         std::vector<kage::ImageHandle> m_sceneImages;
 
         // passes
+        MeshCulling m_culling{};
+
         Pyramid m_pyramid{};
         UIRendering m_ui{};
         SoftRasterization m_softRaster{};

@@ -2,8 +2,8 @@
 #define MESHGP_SIZE 64
 #define MESH_MAX_VTX 96
 #define MESH_MAX_TRI 128
-#define MR_MESHLETGP_SZ 128
-#define MR_TRIANGLEGP_SZ 128
+#define MR_MESHLETGP_SIZE 128
+#define MR_TRIANGLEGP_SIZE 128
 
 
 struct Vertex
@@ -166,13 +166,18 @@ struct MeshDrawCommand
     uint    local_z;
 };
 
+struct MeshletPayload
+{
+    uint meshletIdx;
+    uint drawId;
+};
+
 // terrain
 struct TerrainVertex
 {
     float   vx, vy, vz;
     float   tu, tv;
 };
-
 
 struct TerrainConstants
 {
