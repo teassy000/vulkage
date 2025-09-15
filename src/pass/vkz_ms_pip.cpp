@@ -158,7 +158,7 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
         , kage::SamplerReductionMode::min
     );
 
-    kage::setIndirectBuffer(pass, _initData.meshDrawCmdCountBuffer, 4, 1, 0);
+    kage::setIndirectBuffer(pass, _initData.meshDrawCmdCountBuffer);
 
 
     kage::setAttachmentOutput(pass, _initData.depth, depthOutAlias);

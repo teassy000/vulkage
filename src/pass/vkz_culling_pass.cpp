@@ -180,7 +180,7 @@ void initMeshletCulling(MeshletCulling& _cullingComp, const MeshletCullingInitDa
         , kage::AccessFlagBits::shader_read
     );
 
-    kage::setIndirectBuffer(pass, _initData.meshletCmdCntBuf, 0, 16, 1);
+    kage::setIndirectBuffer(pass, _initData.meshletCmdCntBuf);
 
     kage::bindBuffer(pass
         , _initData.meshBuf
@@ -343,7 +343,7 @@ void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& 
         , kage::AccessFlagBits::shader_read
     );
 
-    kage::setIndirectBuffer(pass, _initData.meshletPayloadCntBuf, 0, 16, 1);
+    kage::setIndirectBuffer(pass, _initData.meshletPayloadCntBuf);
 
     kage::bindBuffer(pass
         , _initData.meshDrawBuf

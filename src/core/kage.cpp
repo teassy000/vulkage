@@ -286,8 +286,7 @@ namespace kage
         void bindVertexBuffer(const PassHandle _hPass, const BufferHandle _hBuf, const uint32_t _vtxCount);
         void bindIndexBuffer(const PassHandle _hPass, const BufferHandle _hBuf, const uint32_t _idxCount);
 
-        void setIndirectBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset, uint32_t _stride, uint32_t _defaultMaxCount);
-        void setIndirectCountBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset);
+        void setIndirectBuffer(PassHandle _hPass, BufferHandle _hBuf);
 
         void bindBuffer(PassHandle _hPass, BufferHandle _buf, PipelineStageFlags _stage, AccessFlags _access, const BufferHandle _outAlias);
         SamplerHandle sampleImage(PassHandle _hPass, ImageHandle _hImg, PipelineStageFlags _stage, SamplerFilter _filter, SamplerMipmapMode _mipMode, SamplerAddressMode _addrMode, SamplerReductionMode _reductionMode);
@@ -1640,38 +1639,13 @@ namespace kage
         setRenderGraphDataDirty();
     }
 
-    void Context::setIndirectBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset, uint32_t _stride, uint32_t _defaultMaxCount)
+    void Context::setIndirectBuffer(PassHandle _hPass, BufferHandle _hBuf)
     {
         if (!(isValid(_hPass) && isValid(_hBuf))) {
-            message(DebugMsgType::error, "invalid input when trying to setIndirectBuffer ! pass: 0x%x, buf: 0x%x", _hPass.id, _hBuf.id);
-        }
-
-        assert(isGraphics(_hPass));
-
-        PassMetaData& passMeta = m_passMetas[_hPass.id];
-        passMeta.indirectBufferId = _hBuf.id;
-        passMeta.indirectBufOffset = _offset;
-        passMeta.indirectBufStride = _stride;
-        passMeta.indirectMaxDrawCount = _defaultMaxCount;
-
-        ResInteractDesc interact{};
-        interact.stage = PipelineStageFlagBits::indirect;
-        interact.access = AccessFlagBits::indirect_command_read;
-
-        passMeta.readBufferNum = insertResInteract(m_readBuffers, _hPass, _hBuf.id, interact);
-
-        setRenderGraphDataDirty();
-    }
-
-    void Context::setIndirectCountBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset)
-    {
-        if (!(isValid(_hPass) && isValid(_hBuf))) {
-            message(DebugMsgType::error, "invalid input when trying to setIndirectCountBuffer ! pass: 0x%x, buf: 0x%x", _hPass.id, _hBuf.id);
+            message(DebugMsgType::error, "invalid input when trying to setIndirectBuffer! pass: 0x%x, buf: 0x%x", _hPass.id, _hBuf.id);
         }
 
         PassMetaData& passMeta = m_passMetas[_hPass.id];
-        passMeta.indirectCountBufferId = _hBuf.id;
-        passMeta.indirectCountBufOffset = _offset;
 
         ResInteractDesc interact{};
         interact.stage = PipelineStageFlagBits::indirect;
@@ -2483,14 +2457,9 @@ namespace kage
         s_ctx->bindIndexBuffer(_hPass, _hBuf, _idxCount);
     }
 
-    void setIndirectBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset, uint32_t _stride, uint32_t _maxCount)
+    void setIndirectBuffer(PassHandle _hPass, BufferHandle _hBuf)
     {
-        s_ctx->setIndirectBuffer(_hPass, _hBuf, _offset, _stride, _maxCount);
-    }
-
-    void setIndirectCountBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset)
-    {
-        s_ctx->setIndirectCountBuffer(_hPass, _hBuf, _offset);
+        s_ctx->setIndirectBuffer(_hPass, _hBuf);
     }
 
     void bindBuffer(PassHandle _hPass, BufferHandle _hBuf, PipelineStageFlags _stage, AccessFlags _access, const BufferHandle _outAlias /*= {kInvalidHandle}*/)

@@ -279,9 +279,6 @@ namespace kage
         uint16_t    vertexBufferId{ kInvalidHandle };
         uint16_t    indexBufferId{ kInvalidHandle };
 
-        uint16_t    indirectBufferId{ kInvalidHandle };
-        uint16_t    indirectCountBufferId{ kInvalidHandle };
-
         uint16_t    readImageNum{ 0 };
         uint16_t    readBufferNum{ 0 };
 
@@ -296,11 +293,6 @@ namespace kage
         uint32_t    indexCount{ 0 };
         uint32_t    vertexCount{ 0 };
         uint32_t    instanceCount{ 0 };
-
-        uint32_t    indirectBufOffset{ 0 };
-        uint32_t    indirectCountBufOffset{ 0 };
-        uint32_t    indirectMaxDrawCount{ 0 };
-        uint32_t    indirectBufStride{ 0 };
     };
 
     struct RHIBrief

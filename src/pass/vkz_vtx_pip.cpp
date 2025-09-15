@@ -96,8 +96,8 @@ void prepareVtxShading(VtxShading& _vtxShading, const Scene& _scene, const VtxSh
         , kage::AccessFlagBits::shader_read);
 
 
-    kage::setIndirectBuffer(pass, _initData.meshDrawCmdBuf, offsetof(MeshDrawCommand, indexCount), sizeof(MeshDrawCommand), (uint32_t)_scene.meshDraws.size());
-    kage::setIndirectCountBuffer(pass, _initData.meshDrawCmdCountBuf, 0);
+    kage::setIndirectBuffer(pass, _initData.meshDrawCmdBuf);
+    kage::setIndirectBuffer(pass, _initData.meshDrawCmdCountBuf);
 
     kage::setAttachmentOutput(pass, _initData.color, colorOutAlias);
     kage::setAttachmentOutput(pass, _initData.depth, depthOutAlias);

@@ -242,7 +242,7 @@ void prepareProbeDbgDraw(ProbeDbgDraw& _pd, const ProbeDebugDrawInit& _init)
     kage::bindVertexBuffer(pass, vtxBuf);
     kage::bindIndexBuffer(pass, idxBuf, (uint32_t)_init.idxCount);
 
-    kage::setIndirectBuffer(pass, _init.cmd, offsetof(MeshDrawCommand, indexCount), sizeof(MeshDrawCommand), 1u);
+    kage::setIndirectBuffer(pass, _init.cmd);
 
     kage::ImageHandle colorAlias = kage::alias(_init.color);
     kage::setAttachmentOutput(pass, _init.color, colorAlias);

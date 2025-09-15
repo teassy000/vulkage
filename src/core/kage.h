@@ -29,8 +29,7 @@ namespace kage
     void bindVertexBuffer(PassHandle _hPass, BufferHandle _hBuf, const uint32_t _vtxCount = 0);
     void bindIndexBuffer(PassHandle _hPass, BufferHandle _hBuf, const uint32_t _idxCount = 0);
 
-    void setIndirectBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset, uint32_t _stride, uint32_t _maxCount);
-    void setIndirectCountBuffer(PassHandle _hPass, BufferHandle _hBuf, uint32_t _offset);
+    void setIndirectBuffer(PassHandle _hPass, BufferHandle _hBuf);
 
     void bindBuffer(
         PassHandle _hPass
@@ -111,7 +110,7 @@ namespace kage
 
     void dispatchIndirect(
         const BufferHandle _hIndirectBuf
-        , const uint32_t _offse
+        , const uint32_t _offset
     );
 
     void fillBuffer(
