@@ -125,12 +125,14 @@ struct TriangleCulling
     kage::BufferHandle meshletDataBuf;
 
     // write
+    kage::BufferHandle vtxPayloadBuf;
     kage::BufferHandle trianglePayloadBuf;
-    kage::BufferHandle trianglePayloadCntBuf;
+    kage::BufferHandle payloadCntBuf;
 
     // out alias
+    kage::BufferHandle vtxPayloadBufOutAlias;
     kage::BufferHandle trianglePayloadBufOutAlias;
-    kage::BufferHandle trianglePayloadCntOutAlias;
+    kage::BufferHandle payloadCntOutAlias;
 };
 
 void initMeshCulling(MeshCulling& _mc, const MeshCullingInitData& _initData, CullingStage _stage, CullingPass _pass);

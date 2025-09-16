@@ -9,6 +9,70 @@ using StoreOp = kage::AttachmentStoreOp;
 using Aspect = kage::ImageAspectFlagBits::Enum;
 
 
+
+void recProcessSoftRasterCmd(const ModifySoftRasterCmd& _cmd)
+{
+    kage::startRec(_cmd.pass);
+
+    vec2 res = vec2(float(_cmd.width), float(_cmd.height));
+    const kage::Memory* mem = kage::alloc(sizeof(res));
+    bx::memCopy(mem->data, &res, mem->size);
+    
+    // set constants
+    kage::setConstants(mem);
+
+    // bind resources
+    kage::Binding binds[] =
+    {
+        { _cmd.inPayloadCntBuf, Access::write, Stage::compute_shader },
+    };
+
+    kage::pushBindings(binds, COUNTOF(binds));
+
+    kage::dispatch(1, 1, 1);
+
+    kage::endRec();
+}
+
+void initModifySoftRasterCmd(ModifySoftRasterCmd& _cmd, const kage::BufferHandle& _triangleCountBuf, uint32_t _width, uint32_t _height)
+{
+    kage::ShaderHandle cs = kage::registShader("modify_soft_rast_cmd", "shader/modify_soft_rast_cmd.comp.spv");
+
+    kage::ProgramHandle prog = kage::registProgram("modify_soft_rast_cmd", { cs }, sizeof(vec2));
+
+    kage::PassDesc passDesc;
+    passDesc.programId = prog.id;
+    passDesc.queue = kage::PassExeQueue::compute;
+
+    kage::PassHandle pass = kage::registPass("modify_soft_rast_cmd", passDesc);
+
+    kage::BufferHandle triCntBufAlias = kage::alias(_triangleCountBuf);
+
+    kage::bindBuffer(pass
+        , _triangleCountBuf
+        , Stage::compute_shader
+        , kage::AccessFlagBits::shader_write
+        , triCntBufAlias
+    );
+    
+    _cmd.pass = pass;
+    _cmd.cs = cs;
+    _cmd.prog = prog;
+    _cmd.width = _width;
+    _cmd.height = _height;
+
+    _cmd.inPayloadCntBuf = _triangleCountBuf;
+    _cmd.payloadCntBufOutAlias = triCntBufAlias;
+}
+
+void updateModifySoftRasterCmd(ModifySoftRasterCmd& _cmd, uint32_t _width, uint32_t _height)
+{
+    _cmd.width = _width;
+    _cmd.height = _height;
+
+    recProcessSoftRasterCmd(_cmd);
+}
+
 void recSoftRasterization(const SoftRasterization& _raster)
 {
     kage::startRec(_raster.pass);
@@ -32,6 +96,8 @@ void recSoftRasterization(const SoftRasterization& _raster)
     // bind resources
     kage::Binding binds[] =
     {
+        { _raster.inTriangleBuf, Access::read,  Stage::compute_shader },
+        { _raster.inVtxBuf,      Access::read,  Stage::compute_shader },
         { _raster.inColor,  0,  Stage::compute_shader },
         { _raster.u32depth, 0,  Stage::compute_shader },
         { _raster.inDepth,  0,  Stage::compute_shader },
@@ -39,8 +105,7 @@ void recSoftRasterization(const SoftRasterization& _raster)
 
     kage::pushBindings(binds, COUNTOF(binds));
 
-    // dispatch compute shader
-    kage::dispatch(_raster.width, _raster.height, 2);
+    kage::dispatchIndirect(_raster.inPayloadCountBuf, 0);
     kage::endRec();
 }
 
@@ -56,8 +121,6 @@ void initSoftRasterization(SoftRasterization& _softRaster, const SoftRasterizati
 
     kage::PassHandle pass = kage::registPass("soft_rasterization", passDesc);
 
-
-
     kage::ImageDesc u32depthDesc;
     u32depthDesc.width = _initData.width;
     u32depthDesc.height = _initData.height;
@@ -72,6 +135,22 @@ void initSoftRasterization(SoftRasterization& _softRaster, const SoftRasterizati
     kage::ImageHandle outColor = kage::alias(_initData.color);
     kage::ImageHandle outDepth = kage::alias(_initData.depth);
     kage::ImageHandle outU32Depth = kage::alias(u32depth);
+
+    kage::bindBuffer(pass
+        , _initData.vtxBuf
+        , Stage::compute_shader
+        , kage::AccessFlagBits::shader_read
+    );
+
+    kage::bindBuffer(pass
+        , _initData.triangleBuf
+        , Stage::compute_shader
+        , kage::AccessFlagBits::shader_read
+    );
+
+    kage::setIndirectBuffer(pass
+        , _initData.payloadCountBuf
+        );
 
     kage::bindImage(pass
         , _initData.color
@@ -103,6 +182,10 @@ void initSoftRasterization(SoftRasterization& _softRaster, const SoftRasterizati
 
     _softRaster.width = _initData.width;
     _softRaster.height = _initData.height;
+
+    _softRaster.inVtxBuf = _initData.vtxBuf;
+    _softRaster.inTriangleBuf = _initData.triangleBuf;
+    _softRaster.inPayloadCountBuf = _initData.payloadCountBuf;
 
     _softRaster.inColor = _initData.color;
     _softRaster.inDepth = _initData.depth;

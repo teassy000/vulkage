@@ -5,10 +5,13 @@
 
 struct SoftRasterizationDataInit
 {
-    kage::BufferHandle transformBuf; // for transform data
-    kage::BufferHandle meshletVisBuf; // meshlet visibility buffer
-    kage::BufferHandle meshletBuffer; // meshlet buffer
-    kage::BufferHandle meshletDataBuffer; // meshlet data buffer
+    // from triangle culling pass
+    kage::BufferHandle triangleBuf; 
+    kage::BufferHandle vtxBuf; 
+    kage::BufferHandle payloadCountBuf;
+
+    kage::ImageHandle inPyramid; // input depth image for soft rasterization
+    kage::SamplerHandle pyramidSamp; // sampler for the input image
     
     uint32_t width; // width of the output image
     uint32_t height; // height of the output image
@@ -24,7 +27,9 @@ struct SoftRasterization
     kage::PassHandle pass;
 
     // read-only resources
-    kage::BufferHandle transformBuf;
+    kage::BufferHandle inTriangleBuf;
+    kage::BufferHandle inVtxBuf;
+    kage::BufferHandle inPayloadCountBuf;
 
     kage::ImageHandle inPyramid; // input depth image for soft rasterization
     kage::SamplerHandle pyramidSamp; // sampler for the input image
@@ -43,5 +48,23 @@ struct SoftRasterization
     uint32_t height; // height of the output image
 };
 
+
+struct ModifySoftRasterCmd
+{
+    kage::PassHandle pass;
+    kage::ShaderHandle cs;
+    kage::ProgramHandle prog;
+
+    uint32_t width;
+    uint32_t height;
+
+    kage::BufferHandle inPayloadCntBuf;
+    kage::BufferHandle payloadCntBufOutAlias;
+};
+
+
 void initSoftRasterization(SoftRasterization& _softRaster, const SoftRasterizationDataInit& _initData);
 void updateSoftRasterization(SoftRasterization& _softRaster);
+
+void initModifySoftRasterCmd(ModifySoftRasterCmd& _cmd, const kage::BufferHandle& _triangleCountBuf, uint32_t _width, uint32_t _height);
+void updateModifySoftRasterCmd(ModifySoftRasterCmd& _cmd, uint32_t _width, uint32_t _height);

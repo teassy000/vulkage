@@ -166,7 +166,11 @@ namespace
             m_demoData.logic.frontY = front.y;
             m_demoData.logic.frontZ = front.z;
 
-            updateMeshCulling(m_culling, m_demoData.drawCull, m_scene.drawCount);
+            updateMeshCulling(m_meshCulling, m_demoData.drawCull, m_scene.drawCount);
+
+            updateTriangleCulling(m_triangleCulling, m_demoData.drawCull);
+
+            updateModifySoftRasterCmd(m_modifySoftRasterCmd, m_width, m_height);
 
             updateSoftRasterization(m_softRaster);
 
@@ -188,7 +192,7 @@ namespace
             m_demoData.profiling.avgCpuTime = avgCpuTime;
             m_demoData.profiling.avgGpuTime = avgGpuTime;
 
-            m_demoData.profiling.cullEarlyTime = (float)kage::getPassTime(m_culling.pass);
+            m_demoData.profiling.cullEarlyTime = (float)kage::getPassTime(m_meshCulling.pass);
 
             m_demoData.profiling.uiTime = (float)kage::getPassTime(m_ui.pass);
             m_demoData.profiling.triangleCount = m_demoData.profiling.triangleEarlyCount + m_demoData.profiling.triangleLateCount;
@@ -394,7 +398,7 @@ namespace
             preparePyramid(m_pyramid, m_width, m_height);
 
 
-            // culling pass
+            // mesh culling pass
             {
                 MeshCullingInitData cullingInit{};
                 cullingInit.meshBuf = m_meshBuf;
@@ -405,12 +409,56 @@ namespace
                 cullingInit.meshDrawCmdCountBuf = m_indirectCountBuf;
                 cullingInit.meshDrawVisBuf = m_meshDrawVisBuf;
 
-                initMeshCulling(m_culling, cullingInit, CullingStage::early, CullingPass::compute);
+                initMeshCulling(m_meshCulling, cullingInit, CullingStage::early, CullingPass::compute);
+            }
+
+            // meshlet culling pass
+            if (m_supportMeshShading)
+            {
+                MeshletCullingInitData meshletCullingInit{};
+                meshletCullingInit.meshletCmdBuf = m_meshDrawCmdBuf;
+                meshletCullingInit.meshletCmdCntBuf = m_indirectCountBuf;
+                meshletCullingInit.meshBuf = m_meshBuf;
+                meshletCullingInit.meshDrawBuf = m_meshDrawBuf;
+                meshletCullingInit.transformBuf = m_transformBuf;
+                meshletCullingInit.meshletBuf = m_meshletBuffer;
+                meshletCullingInit.meshletVisBuf = m_meshletVisBuf;
+                meshletCullingInit.pyramid = m_pyramid.image;
+                initMeshletCulling(m_meshletCulling, meshletCullingInit, CullingStage::early, kage::kSeamlessLod);
+            }
+
+            // triangle culling pass
+            if (m_supportMeshShading)
+            {
+                TriangleCullingInitData triangleCullingInit{};
+                triangleCullingInit.meshletPayloadBuf = m_meshletCulling.meshletPayloadBuf;
+                triangleCullingInit.meshletPayloadCntBuf = m_meshletCulling.meshletPayloadCntBuf;
+                triangleCullingInit.meshDrawBuf = m_meshDrawBuf;
+                triangleCullingInit.transformBuf = m_transformBuf;
+                triangleCullingInit.vtxBuf = m_vtxBuf;
+                triangleCullingInit.meshletBuf = m_meshletBuffer;
+                triangleCullingInit.meshletDataBuf = m_meshletDataBuffer;
+                initTriangleCulling(m_triangleCulling, triangleCullingInit, CullingStage::early, kage::kSeamlessLod);
+            }
+
+            // triangle command modify
+            {
+                initModifySoftRasterCmd(
+                    m_modifySoftRasterCmd
+                    , m_triangleCulling.payloadCntOutAlias
+                    , m_width
+                    , m_height
+                );
             }
 
             // soft rasterization
             {
                 SoftRasterizationDataInit initData{};
+
+                initData.vtxBuf = m_vtxBuf;
+                initData.triangleBuf = m_triangleCulling.trianglePayloadBufOutAlias;
+                initData.payloadCountBuf = m_modifySoftRasterCmd.payloadCntBufOutAlias;
+
                 initData.width = m_width;
                 initData.height = m_height;
 
@@ -535,7 +583,10 @@ namespace
         std::vector<kage::ImageHandle> m_sceneImages;
 
         // passes
-        MeshCulling m_culling{};
+        MeshCulling m_meshCulling{};
+        MeshletCulling m_meshletCulling{};
+        TriangleCulling m_triangleCulling{};
+        ModifySoftRasterCmd m_modifySoftRasterCmd{};
 
         Pyramid m_pyramid{};
         UIRendering m_ui{};

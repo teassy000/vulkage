@@ -23,9 +23,19 @@ layout(push_constant) uniform block
     vec2 viewportSize; // viewport size
 };
 
-layout(binding = 0) uniform writeonly image2D out_color;
-layout(binding = 1, r32ui) uniform uimage2D out_uDepth;
-layout(binding = 2, r32f) uniform writeonly image2D out_depth;
+layout(binding = 0) readonly buffer VertexData
+{
+    vec3 vertex_data[];
+};
+
+layout(binding = 1) readonly buffer TriangleData
+{
+    uvec3 tri_data[];
+};
+
+layout(binding = 2) uniform writeonly image2D out_color;
+layout(binding = 3, r32ui) uniform uimage2D out_uDepth;
+layout(binding = 4, r32f) uniform writeonly image2D out_depth;
 
 // =========================================
 // depth conversion functions===============
@@ -66,45 +76,46 @@ float calcDepth(vec2 _pos, vec3 _v0, vec3 _v1, vec3 _v2) {
         return -1.f; // Not covered
 }
 
-
-
 void main()
 {
-    ivec2 uid = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 pid = ivec2(gl_GlobalInvocationID.xy); // the pixel pos
 
-    if (uid.x >= int(viewportSize.x) || uid.y >= int(viewportSize.y)) {
+    if (pid.x >= int(viewportSize.x) || pid.y >= int(viewportSize.y)) {
         return; // out of bounds
     }
 
     uint zid = uint(gl_GlobalInvocationID.z);
-    vec3 pos = vec3(uid.x / viewportSize.x, uid.y / viewportSize.y, 0.f); // simple gradient pos based on x position
+    vec3 pos = vec3(pid.x / viewportSize.x, pid.y / viewportSize.y, 0.f); // simple gradient pos based on x position
 
-    uint baseUid = zid * 3;
-    float newDepth = calcDepth(pos.xy, vtx_data[baseUid + 0], vtx_data[baseUid + 1], vtx_data[baseUid + 2]);
+    uint vid0 = tri_data[zid].x;
+    uint vid1 = tri_data[zid].y;
+    uint vid2 = tri_data[zid].z;
+
+    float newDepth = calcDepth(pos.xy, vtx_data[vid0], vtx_data[vid1], vtx_data[vid2]);
 
     if (newDepth < 0.f) {
         return; // not covered by triangle
     }
 
     uint newUdepth = depthToComparableUint(newDepth);
-    uint oldUdepth = imageLoad(out_uDepth, uid).r; // Load the current depth value
+    uint oldUdepth = imageLoad(out_uDepth, pid).r; // Load the current depth value
 
     if (newUdepth <= oldUdepth) {
         return; // no need to update if new depth is not greater
     }
 
     // try to update the depth
-    uint perv = imageAtomicMax(out_uDepth, uid, newUdepth);
+    uint perv = imageAtomicMax(out_uDepth, pid, newUdepth);
 
     if (perv < newUdepth)
     {
-        uint curr = imageLoad(out_uDepth, uid).r; // Load the current depth value again
+        uint curr = imageLoad(out_uDepth, pid).r; // Load the current depth value again
         if (curr == newUdepth)
         {
             vec3 col = zid == 0 ? vec3(pos.xy, 1.0) : vec3(pos.xy, 0.0); // color based on z id
             float currDepth = uintToDepth(curr);
-            imageStore(out_color, uid, vec4(col, 1.0)); // write pos
-            imageStore(out_depth, uid, vec4(currDepth, 0.0, 0.0, 1.0)); // write depth
+            imageStore(out_color, pid, vec4(col, 1.0)); // write pos
+            imageStore(out_depth, pid, vec4(currDepth, 0.0, 0.0, 1.0)); // write depth
         }
     }
 }
