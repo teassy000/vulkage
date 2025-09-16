@@ -72,7 +72,6 @@ namespace
             m_useBrixelizer = false;
 
             bool forceParse = false;
-            bool seamlessLod = false;
 
             size_t pathCount = 0;
             std::vector<std::string> pathes(_argc);
@@ -83,12 +82,6 @@ namespace
                 if (strcmp(arg, "-p") == 0)
                 {
                     forceParse = true;
-                    continue;
-                }
-
-                if (strcmp(arg, "-l") == 0)
-                {
-                    seamlessLod = true;
                     continue;
                 }
 
