@@ -50,10 +50,10 @@ void initMeshCulling(MeshCulling& _cullingComp, const MeshCullingInitData& _init
     kage::ProgramHandle prog = kage::registProgram("mesh_draw_cmd", { cs }, sizeof(DrawCull));
 
     int pipelineSpecs[] = { 
-        _stage == CullingStage::early
-        , _pass == CullingPass::task
-        , _stage == CullingStage::alpha
-        , _pass == CullingPass::compute
+        _stage == CullingStage::late // LATE
+        , _pass == CullingPass::task // TASK
+        , _stage == CullingStage::alpha // ALPHA_PASS
+        , _pass == CullingPass::compute // USE_MIXED_RASTER
     };
 
     const kage::Memory* pConst = kage::alloc(sizeof(int) * COUNTOF(pipelineSpecs));

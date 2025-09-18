@@ -558,7 +558,7 @@ namespace
                 cullingInit.meshDrawCmdCountBuf = m_culling.meshDrawCmdCountBufOutAlias;
                 cullingInit.meshDrawVisBuf = m_culling.meshDrawVisBufOutAlias;
 
-                initMeshCulling(m_cullingLate, cullingInit, CullingStage::early, cullingPass);
+                initMeshCulling(m_cullingLate, cullingInit, CullingStage::late, cullingPass);
             }
 
             // draw late
