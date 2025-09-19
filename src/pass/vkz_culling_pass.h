@@ -84,15 +84,19 @@ struct MeshletCulling
     kage::BufferHandle meshDrawBuf;
     kage::BufferHandle transformBuf;
     kage::BufferHandle meshletBuf;
-    kage::BufferHandle meshletVisBuf;
+
     kage::ImageHandle pyramid;
     kage::SamplerHandle pyrSampler;
     
+    // read / write
+    kage::BufferHandle meshletVisBuf;
+
     // write
     kage::BufferHandle meshletPayloadBuf;
     kage::BufferHandle meshletPayloadCntBuf;
 
     // out alias
+    kage::BufferHandle meshletVisBufOutAlias;
     kage::BufferHandle meshletPayloadBufOutAlias;
     kage::BufferHandle meshletPayloadCntOutAlias;
 };

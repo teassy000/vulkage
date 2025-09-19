@@ -166,13 +166,25 @@ namespace
             m_demoData.logic.frontY = front.y;
             m_demoData.logic.frontZ = front.z;
 
-            updateMeshCulling(m_meshCulling, m_demoData.drawCull, m_scene.drawCount);
+            updateMeshCulling(m_meshCullingEarly, m_demoData.drawCull, m_scene.drawCount);
+            updateMeshCulling(m_meshCullingLate, m_demoData.drawCull, m_scene.drawCount);
 
-            updateTriangleCulling(m_triangleCulling, m_demoData.drawCull);
+            updateMeshletCulling(m_meshletCullingEarly, m_demoData.drawCull);
+            updateMeshletCulling(m_meshletCullingLate, m_demoData.drawCull);
 
-            updateModifySoftRasterCmd(m_modifySoftRasterCmd, m_width, m_height);
 
-            updateSoftRasterization(m_softRaster);
+            updateTriangleCulling(m_triangleCullingEarly, m_demoData.drawCull);
+            updateTriangleCulling(m_triangleCullingLate, m_demoData.drawCull);
+
+
+            updateModifySoftRasterCmd(m_modifySoftRasterCmdEarly, m_width, m_height);
+            updateModifySoftRasterCmd(m_modifySoftRasterCmdLate, m_width, m_height);
+
+            updateSoftRasterization(m_softRasterEarly);
+            updateSoftRasterization(m_softRasterLate);
+
+
+            updatePyramid(m_pyramid, m_width, m_height, m_demoData.dbg_features.common.dbgPauseCullTransform);
 
             m_smaa.update(m_width, m_height);
             {
@@ -192,7 +204,7 @@ namespace
             m_demoData.profiling.avgCpuTime = avgCpuTime;
             m_demoData.profiling.avgGpuTime = avgGpuTime;
 
-            m_demoData.profiling.cullEarlyTime = (float)kage::getPassTime(m_meshCulling.pass);
+            m_demoData.profiling.cullEarlyTime = (float)kage::getPassTime(m_meshCullingEarly.pass);
 
             m_demoData.profiling.uiTime = (float)kage::getPassTime(m_ui.pass);
             m_demoData.profiling.triangleCount = m_demoData.profiling.triangleEarlyCount + m_demoData.profiling.triangleLateCount;
@@ -397,7 +409,9 @@ namespace
         {
             preparePyramid(m_pyramid, m_width, m_height);
 
-
+            // == EARLY passes ==
+            // 
+            
             // mesh culling pass
             {
                 MeshCullingInitData cullingInit{};
@@ -409,43 +423,41 @@ namespace
                 cullingInit.meshDrawCmdCountBuf = m_indirectCountBuf;
                 cullingInit.meshDrawVisBuf = m_meshDrawVisBuf;
 
-                initMeshCulling(m_meshCulling, cullingInit, CullingStage::early, CullingPass::compute);
+                initMeshCulling(m_meshCullingEarly, cullingInit, CullingStage::early, CullingPass::compute);
             }
 
-            // meshlet culling pass
+
             if (m_supportMeshShading)
             {
+                // meshlet culling pass
                 MeshletCullingInitData meshletCullingInit{};
-                meshletCullingInit.meshletCmdBuf = m_meshDrawCmdBuf;
-                meshletCullingInit.meshletCmdCntBuf = m_indirectCountBuf;
+                meshletCullingInit.meshletCmdBuf = m_meshCullingEarly.meshDrawCmdBufOutAlias;
+                meshletCullingInit.meshletCmdCntBuf = m_meshCullingEarly.meshDrawCmdCountBufOutAlias;
                 meshletCullingInit.meshBuf = m_meshBuf;
                 meshletCullingInit.meshDrawBuf = m_meshDrawBuf;
                 meshletCullingInit.transformBuf = m_transformBuf;
                 meshletCullingInit.meshletBuf = m_meshletBuffer;
                 meshletCullingInit.meshletVisBuf = m_meshletVisBuf;
                 meshletCullingInit.pyramid = m_pyramid.image;
-                initMeshletCulling(m_meshletCulling, meshletCullingInit, CullingStage::early, kage::kSeamlessLod);
-            }
+                initMeshletCulling(m_meshletCullingEarly, meshletCullingInit, CullingStage::early, kage::kSeamlessLod);
 
-            // triangle culling pass
-            if (m_supportMeshShading)
-            {
+                // triangle culling pass
                 TriangleCullingInitData triangleCullingInit{};
-                triangleCullingInit.meshletPayloadBuf = m_meshletCulling.meshletPayloadBuf;
-                triangleCullingInit.meshletPayloadCntBuf = m_meshletCulling.meshletPayloadCntBuf;
+                triangleCullingInit.meshletPayloadBuf = m_meshletCullingEarly.meshletPayloadBufOutAlias;
+                triangleCullingInit.meshletPayloadCntBuf = m_meshletCullingEarly.meshletPayloadCntOutAlias;
                 triangleCullingInit.meshDrawBuf = m_meshDrawBuf;
                 triangleCullingInit.transformBuf = m_transformBuf;
                 triangleCullingInit.vtxBuf = m_vtxBuf;
                 triangleCullingInit.meshletBuf = m_meshletBuffer;
                 triangleCullingInit.meshletDataBuf = m_meshletDataBuffer;
-                initTriangleCulling(m_triangleCulling, triangleCullingInit, CullingStage::early, kage::kSeamlessLod);
+                initTriangleCulling(m_triangleCullingEarly, triangleCullingInit, CullingStage::early, kage::kSeamlessLod);
             }
 
             // triangle command modify
             {
                 initModifySoftRasterCmd(
-                    m_modifySoftRasterCmd
-                    , m_triangleCulling.payloadCntOutAlias
+                    m_modifySoftRasterCmdEarly
+                    , m_triangleCullingEarly.payloadCntOutAlias
                     , m_width
                     , m_height
                 );
@@ -456,8 +468,8 @@ namespace
                 SoftRasterizationDataInit initData{};
 
                 initData.vtxBuf = m_vtxBuf;
-                initData.triangleBuf = m_triangleCulling.trianglePayloadBufOutAlias;
-                initData.payloadCountBuf = m_modifySoftRasterCmd.payloadCntBufOutAlias;
+                initData.triangleBuf = m_triangleCullingEarly.trianglePayloadBufOutAlias;
+                initData.payloadCountBuf = m_modifySoftRasterCmdEarly.payloadCntBufOutAlias;
 
                 initData.width = m_width;
                 initData.height = m_height;
@@ -465,14 +477,89 @@ namespace
                 initData.color = m_color;
                 initData.depth = m_depth;
                 
-                initSoftRasterization(m_softRaster, initData);
+                initSoftRasterization(m_softRasterEarly, initData);
+            }
+
+            // pyramid pass
+            setPyramidPassDependency(m_pyramid, m_softRasterEarly.depthOutAlias);
+
+            // == LATE passes ==
+            // 
+
+            // mesh culling pass
+            {
+                MeshCullingInitData cullingInit{};
+                cullingInit.meshBuf = m_meshBuf;
+                cullingInit.meshDrawBuf = m_meshDrawBuf;
+                cullingInit.transBuf = m_transformBuf;
+                cullingInit.pyramid = m_pyramid.imgOutAlias;
+                cullingInit.meshDrawCmdBuf = m_meshCullingEarly.meshDrawCmdBufOutAlias;
+                cullingInit.meshDrawCmdCountBuf = m_meshCullingEarly.meshDrawCmdCountBufOutAlias;
+                cullingInit.meshDrawVisBuf = m_meshCullingEarly.meshDrawVisBufOutAlias;
+
+                initMeshCulling(m_meshCullingLate, cullingInit, CullingStage::late, CullingPass::compute);
+            }
+
+            if (m_supportMeshShading)
+            {
+                // meshlet culling pass
+                MeshletCullingInitData meshletCullingInit{};
+                meshletCullingInit.meshletVisBuf = m_meshletCullingEarly.meshletVisBufOutAlias;
+                meshletCullingInit.meshletCmdBuf = m_meshCullingLate.meshDrawCmdBufOutAlias;
+                meshletCullingInit.meshletCmdCntBuf = m_meshCullingLate.meshDrawCmdCountBufOutAlias;
+                
+                meshletCullingInit.meshBuf = m_meshBuf;
+                meshletCullingInit.meshDrawBuf = m_meshDrawBuf;
+                meshletCullingInit.transformBuf = m_transformBuf;
+                meshletCullingInit.meshletBuf = m_meshletBuffer;
+                meshletCullingInit.pyramid = m_pyramid.imgOutAlias;
+                
+                initMeshletCulling(m_meshletCullingLate, meshletCullingInit, CullingStage::late, kage::kSeamlessLod);
+
+                // triangle culling pass
+                TriangleCullingInitData triangleCullingInit{};
+                triangleCullingInit.meshletPayloadBuf = m_meshletCullingLate.meshletPayloadBufOutAlias;
+                triangleCullingInit.meshletPayloadCntBuf = m_meshletCullingLate.meshletPayloadCntOutAlias;
+
+                triangleCullingInit.meshDrawBuf = m_meshDrawBuf;
+                triangleCullingInit.transformBuf = m_transformBuf;
+                triangleCullingInit.vtxBuf = m_vtxBuf;
+                triangleCullingInit.meshletBuf = m_meshletBuffer;
+                triangleCullingInit.meshletDataBuf = m_meshletDataBuffer;
+                initTriangleCulling(m_triangleCullingLate, triangleCullingInit, CullingStage::late, kage::kSeamlessLod);
+            }
+
+            // triangle command modify
+            {
+                initModifySoftRasterCmd(
+                    m_modifySoftRasterCmdLate
+                    , m_triangleCullingLate.payloadCntOutAlias
+                    , m_width
+                    , m_height
+                );
+            }
+
+            // soft rasterization
+            {
+                SoftRasterizationDataInit initData{};
+
+                initData.vtxBuf = m_vtxBuf;
+                initData.triangleBuf = m_triangleCullingLate.trianglePayloadBufOutAlias;
+                initData.payloadCountBuf = m_modifySoftRasterCmdLate.payloadCntBufOutAlias;
+
+                initData.width = m_width;
+                initData.height = m_height;
+
+                initData.color = m_softRasterEarly.colorOutAlias;
+                initData.depth = m_softRasterEarly.depthOutAlias;
+
+                initSoftRasterization(m_softRasterLate, initData);
             }
 
             // smaa
             {
-                kage::ImageHandle aaDepthIn = m_softRaster.depthOutAlias;
-
-                kage::ImageHandle aaColorIn = m_softRaster.colorOutAlias;
+                kage::ImageHandle aaDepthIn = m_softRasterLate.depthOutAlias;
+                kage::ImageHandle aaColorIn = m_softRasterLate.colorOutAlias;
 
                 m_smaa.prepare(m_width, m_height, aaColorIn, aaDepthIn);
             }
@@ -480,7 +567,7 @@ namespace
             // ui
             {
                 kage::ImageHandle uiColorIn = m_smaa.m_outAliasImg;
-                kage::ImageHandle uiDepthIn = m_softRaster.depthOutAlias;
+                kage::ImageHandle uiDepthIn = m_softRasterLate.depthOutAlias;
                 prepareUI(m_ui, uiColorIn, uiDepthIn, 1.3f);
             }
         }
@@ -583,14 +670,22 @@ namespace
         std::vector<kage::ImageHandle> m_sceneImages;
 
         // passes
-        MeshCulling m_meshCulling{};
-        MeshletCulling m_meshletCulling{};
-        TriangleCulling m_triangleCulling{};
-        ModifySoftRasterCmd m_modifySoftRasterCmd{};
+        // early
+        MeshCulling m_meshCullingEarly{};
+        MeshCulling m_meshCullingLate{};
+        MeshletCulling m_meshletCullingEarly{};
+        MeshletCulling m_meshletCullingLate{};
+        TriangleCulling m_triangleCullingEarly{};
+        TriangleCulling m_triangleCullingLate{};
+        ModifySoftRasterCmd m_modifySoftRasterCmdEarly{};
+        ModifySoftRasterCmd m_modifySoftRasterCmdLate{};
 
+
+        SoftRasterization m_softRasterEarly{};
+        SoftRasterization m_softRasterLate{};
+
+        SMAA m_smaa{};
         Pyramid m_pyramid{};
         UIRendering m_ui{};
-        SoftRasterization m_softRaster{};
-        SMAA m_smaa{};
     };
 }
