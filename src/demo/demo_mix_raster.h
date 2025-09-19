@@ -467,10 +467,11 @@ namespace
             {
                 SoftRasterizationDataInit initData{};
 
-                initData.vtxBuf = m_vtxBuf;
                 initData.triangleBuf = m_triangleCullingEarly.trianglePayloadBufOutAlias;
                 initData.payloadCountBuf = m_modifySoftRasterCmdEarly.payloadCntBufOutAlias;
+                initData.pyramid = m_pyramid.image;
 
+                initData.vtxBuf = m_vtxBuf;
                 initData.width = m_width;
                 initData.height = m_height;
 
@@ -543,10 +544,11 @@ namespace
             {
                 SoftRasterizationDataInit initData{};
 
-                initData.vtxBuf = m_vtxBuf;
+                initData.pyramid = m_pyramid.imgOutAlias;
                 initData.triangleBuf = m_triangleCullingLate.trianglePayloadBufOutAlias;
                 initData.payloadCountBuf = m_modifySoftRasterCmdLate.payloadCntBufOutAlias;
 
+                initData.vtxBuf = m_vtxBuf;
                 initData.width = m_width;
                 initData.height = m_height;
 

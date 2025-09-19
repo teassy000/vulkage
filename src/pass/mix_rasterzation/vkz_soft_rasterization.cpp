@@ -77,14 +77,17 @@ void recSoftRasterization(const SoftRasterization& _raster)
 {
     kage::startRec(_raster.pass);
 
-    kage::ClearImage clearImgs[] =
-    {
-        { _raster.inColor,  Aspect::color, {kage::ClearColor { 0.f, 0.f, 0.f, 1.f }}},
-        { _raster.inDepth,  Aspect::depth, {kage::ClearDepthStencil{0.f, 0}}},
-        { _raster.u32depth, Aspect::color, {kage::ClearColor { 0u, 0u, 0u, 0u }}}
-    };
+    // only clear images in the early render stage
+    if(_raster.renderStage == RenderStage::early) {
+        kage::ClearImage clearImgs[] =
+        {
+            { _raster.inColor,  Aspect::color, {kage::ClearColor { 0.f, 0.f, 0.f, 1.f }}},
+            { _raster.inDepth,  Aspect::depth, {kage::ClearDepthStencil{0.f, 0}}},
+            { _raster.u32depth, Aspect::color, {kage::ClearColor { 0u, 0u, 0u, 0u }}}
+        };
 
-    kage::clearImages(clearImgs, COUNTOF(clearImgs));
+        kage::clearImages(clearImgs, COUNTOF(clearImgs));
+    }
     
     vec2 res = vec2(float(_raster.width), float(_raster.height));
 
@@ -96,11 +99,12 @@ void recSoftRasterization(const SoftRasterization& _raster)
     // bind resources
     kage::Binding binds[] =
     {
-        { _raster.inTriangleBuf, Access::read,  Stage::compute_shader },
-        { _raster.inVtxBuf,      Access::read,  Stage::compute_shader },
-        { _raster.inColor,  0,  Stage::compute_shader },
-        { _raster.u32depth, 0,  Stage::compute_shader },
-        { _raster.inDepth,  0,  Stage::compute_shader },
+        { _raster.inTriangleBuf,    Access::read,   Stage::compute_shader },
+        { _raster.inVtxBuf,         Access::read,   Stage::compute_shader },
+        { _raster.pyramid,          _raster.pyramidSamp, Stage::compute_shader },
+        { _raster.inColor,          0,              Stage::compute_shader },
+        { _raster.u32depth,         0,              Stage::compute_shader },
+        { _raster.inDepth,          0,              Stage::compute_shader },
     };
 
     kage::pushBindings(binds, COUNTOF(binds));
@@ -119,7 +123,7 @@ void initSoftRasterization(SoftRasterization& _softRaster, const SoftRasterizati
     passDesc.programId = prog.id;
     passDesc.queue = kage::PassExeQueue::compute;
 
-    kage::PassHandle pass = kage::registPass("soft_rasterization", passDesc);
+    kage::PassHandle pass = kage::registPass("soft_raster", passDesc);
 
     kage::ImageDesc u32depthDesc;
     u32depthDesc.width = _initData.width;
@@ -151,6 +155,14 @@ void initSoftRasterization(SoftRasterization& _softRaster, const SoftRasterizati
     kage::setIndirectBuffer(pass
         , _initData.payloadCountBuf
         );
+
+    kage::SamplerHandle samp = kage::sampleImage(pass, _initData.pyramid
+        , kage::PipelineStageFlagBits::compute_shader
+        , kage::SamplerFilter::linear
+        , kage::SamplerMipmapMode::nearest
+        , kage::SamplerAddressMode::clamp_to_edge
+        , kage::SamplerReductionMode::min
+    );
 
     kage::bindImage(pass
         , _initData.color
@@ -193,6 +205,9 @@ void initSoftRasterization(SoftRasterization& _softRaster, const SoftRasterizati
     _softRaster.u32depthOutAlias = outU32Depth;
     _softRaster.colorOutAlias = outColor;
     _softRaster.depthOutAlias = outDepth;
+
+    _softRaster.pyramid = _initData.pyramid;
+    _softRaster.pyramidSamp = samp;
 }
 
 void updateSoftRasterization(SoftRasterization& _softRaster)

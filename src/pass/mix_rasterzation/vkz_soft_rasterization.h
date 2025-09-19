@@ -2,6 +2,7 @@
 
 #include "core/kage.h"
 #include "core/kage_math.h"
+#include "demo_structs.h"
 
 struct SoftRasterizationDataInit
 {
@@ -10,14 +11,15 @@ struct SoftRasterizationDataInit
     kage::BufferHandle vtxBuf; 
     kage::BufferHandle payloadCountBuf;
 
-    kage::ImageHandle inPyramid; // input depth image for soft rasterization
-    kage::SamplerHandle pyramidSamp; // sampler for the input image
+    kage::ImageHandle pyramid; // input depth image for soft rasterization
     
     uint32_t width; // width of the output image
     uint32_t height; // height of the output image
 
     kage::ImageHandle color; // output image for soft rasterization results
     kage::ImageHandle depth; // output depth image for soft rasterization results
+
+    RenderStage renderStage;
 };
 
 struct SoftRasterization
@@ -31,7 +33,7 @@ struct SoftRasterization
     kage::BufferHandle inVtxBuf;
     kage::BufferHandle inPayloadCountBuf;
 
-    kage::ImageHandle inPyramid; // input depth image for soft rasterization
+    kage::ImageHandle pyramid; // input depth image for soft rasterization
     kage::SamplerHandle pyramidSamp; // sampler for the input image
 
     kage::ImageHandle inColor;
@@ -46,6 +48,8 @@ struct SoftRasterization
 
     uint32_t width; // width of the output image
     uint32_t height; // height of the output image
+
+    RenderStage renderStage;
 };
 
 
