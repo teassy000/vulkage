@@ -3,22 +3,6 @@
 #include "demo_structs.h"
 
 
-enum class CullingStage : uint8_t
-{
-    early = 0,      // early culling pass
-    late = 1,       // late culling pass
-    alpha = 2,      // alpha culling pass
-    count = 3,      // count of culling stages
-};
-
-enum class CullingPass : uint8_t
-{
-    normal = 0,     // for normal pipeline, i.e. traditional rasterization
-    task = 1,       // for mesh shading task
-    compute = 2,    // for mix rasterization
-    count = 3, // count of culling passes
-};
-
 struct MeshCullingInitData
 {
     kage::BufferHandle meshBuf;
@@ -139,14 +123,14 @@ struct TriangleCulling
     kage::BufferHandle payloadCntOutAlias;
 };
 
-void initMeshCulling(MeshCulling& _mc, const MeshCullingInitData& _initData, CullingStage _stage, CullingPass _pass);
+void initMeshCulling(MeshCulling& _mc, const MeshCullingInitData& _initData, RenderStage _stage, RenderPipeline _pass);
 
 void updateMeshCulling(MeshCulling& _mc, const DrawCull& _drawCull, uint32_t _drawCount);
 
 
-void initMeshletCulling(MeshletCulling& _mltc, const MeshletCullingInitData& _initData, CullingStage _stage, bool _seamless = false);
+void initMeshletCulling(MeshletCulling& _mltc, const MeshletCullingInitData& _initData, RenderStage _stage, bool _seamless = false);
 void updateMeshletCulling(MeshletCulling& _mltc, const DrawCull& _drawCull);
 
-void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& _initData, CullingStage _stage, bool _seamless = false);
+void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& _initData, RenderStage _stage, bool _seamless = false);
 void updateTriangleCulling(TriangleCulling& _tric, const DrawCull& _drawCull);
 

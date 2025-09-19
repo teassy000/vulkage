@@ -154,6 +154,22 @@ struct DemoData
     TransformData trans;
 };
 
+enum class RenderStage : uint8_t
+{
+    early = 0,      // early culling pass
+    late = 1,       // late culling pass
+    alpha = 2,      // alpha culling pass
+    count = 3,      // count of culling stages
+};
+
+enum class RenderPipeline : uint8_t
+{
+    normal = 0,     // for normal pipeline, i.e. traditional rasterization
+    task = 1,       // for mesh shading task
+    compute = 2,    // for mix rasterization
+    count = 3,      // count of culling passes
+};
+
 inline vec4 normalizePlane(vec4 p)
 {
     return p / glm::length(p);

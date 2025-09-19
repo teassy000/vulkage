@@ -423,7 +423,7 @@ namespace
                 cullingInit.meshDrawCmdCountBuf = m_indirectCountBuf;
                 cullingInit.meshDrawVisBuf = m_meshDrawVisBuf;
 
-                initMeshCulling(m_meshCullingEarly, cullingInit, CullingStage::early, CullingPass::compute);
+                initMeshCulling(m_meshCullingEarly, cullingInit, RenderStage::early, RenderPipeline::compute);
             }
 
 
@@ -439,7 +439,7 @@ namespace
                 meshletCullingInit.meshletBuf = m_meshletBuffer;
                 meshletCullingInit.meshletVisBuf = m_meshletVisBuf;
                 meshletCullingInit.pyramid = m_pyramid.image;
-                initMeshletCulling(m_meshletCullingEarly, meshletCullingInit, CullingStage::early, kage::kSeamlessLod);
+                initMeshletCulling(m_meshletCullingEarly, meshletCullingInit, RenderStage::early, kage::kSeamlessLod);
 
                 // triangle culling pass
                 TriangleCullingInitData triangleCullingInit{};
@@ -450,7 +450,7 @@ namespace
                 triangleCullingInit.vtxBuf = m_vtxBuf;
                 triangleCullingInit.meshletBuf = m_meshletBuffer;
                 triangleCullingInit.meshletDataBuf = m_meshletDataBuffer;
-                initTriangleCulling(m_triangleCullingEarly, triangleCullingInit, CullingStage::early, kage::kSeamlessLod);
+                initTriangleCulling(m_triangleCullingEarly, triangleCullingInit, RenderStage::early, kage::kSeamlessLod);
             }
 
             // triangle command modify
@@ -497,7 +497,7 @@ namespace
                 cullingInit.meshDrawCmdCountBuf = m_meshCullingEarly.meshDrawCmdCountBufOutAlias;
                 cullingInit.meshDrawVisBuf = m_meshCullingEarly.meshDrawVisBufOutAlias;
 
-                initMeshCulling(m_meshCullingLate, cullingInit, CullingStage::late, CullingPass::compute);
+                initMeshCulling(m_meshCullingLate, cullingInit, RenderStage::late, RenderPipeline::compute);
             }
 
             if (m_supportMeshShading)
@@ -514,7 +514,7 @@ namespace
                 meshletCullingInit.meshletBuf = m_meshletBuffer;
                 meshletCullingInit.pyramid = m_pyramid.imgOutAlias;
                 
-                initMeshletCulling(m_meshletCullingLate, meshletCullingInit, CullingStage::late, kage::kSeamlessLod);
+                initMeshletCulling(m_meshletCullingLate, meshletCullingInit, RenderStage::late, kage::kSeamlessLod);
 
                 // triangle culling pass
                 TriangleCullingInitData triangleCullingInit{};
@@ -526,7 +526,7 @@ namespace
                 triangleCullingInit.vtxBuf = m_vtxBuf;
                 triangleCullingInit.meshletBuf = m_meshletBuffer;
                 triangleCullingInit.meshletDataBuf = m_meshletDataBuffer;
-                initTriangleCulling(m_triangleCullingLate, triangleCullingInit, CullingStage::late, kage::kSeamlessLod);
+                initTriangleCulling(m_triangleCullingLate, triangleCullingInit, RenderStage::late, kage::kSeamlessLod);
             }
 
             // triangle command modify

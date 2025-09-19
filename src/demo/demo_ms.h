@@ -481,7 +481,7 @@ namespace
         {
             preparePyramid(m_pyramid, m_width, m_height);
 
-            const CullingPass cullingPass = m_supportMeshShading ? CullingPass::task : CullingPass::normal;
+            const RenderPipeline cullingPass = m_supportMeshShading ? RenderPipeline::task : RenderPipeline::normal;
 
             // culling pass
             {
@@ -494,7 +494,7 @@ namespace
                 cullingInit.meshDrawCmdCountBuf = m_meshDrawCmdCountBuf;
                 cullingInit.meshDrawVisBuf = m_meshDrawVisBuf;
 
-                initMeshCulling(m_culling, cullingInit, CullingStage::early, cullingPass);
+                initMeshCulling(m_culling, cullingInit, RenderStage::early, cullingPass);
             }
 
             // skybox pass
@@ -558,7 +558,7 @@ namespace
                 cullingInit.meshDrawCmdCountBuf = m_culling.meshDrawCmdCountBufOutAlias;
                 cullingInit.meshDrawVisBuf = m_culling.meshDrawVisBufOutAlias;
 
-                initMeshCulling(m_cullingLate, cullingInit, CullingStage::late, cullingPass);
+                initMeshCulling(m_cullingLate, cullingInit, RenderStage::late, cullingPass);
             }
 
             // draw late
@@ -612,7 +612,7 @@ namespace
                 cullingInit.meshDrawCmdBuf = m_supportMeshShading ? m_taskSubmitLate.drawCmdBufferOutAlias : m_cullingLate.meshDrawCmdBufOutAlias;
                 cullingInit.meshDrawCmdCountBuf = m_cullingLate.meshDrawCmdCountBufOutAlias;
                 cullingInit.meshDrawVisBuf = m_cullingLate.meshDrawVisBufOutAlias;
-                initMeshCulling(m_cullingAlpha, cullingInit, CullingStage::alpha, cullingPass);
+                initMeshCulling(m_cullingAlpha, cullingInit, RenderStage::alpha, cullingPass);
             }
 
             // alpha 
