@@ -1,6 +1,6 @@
 #include "vkz_culling_pass.h"
 
-void meshCullingRec(const MeshCulling& _cull, uint32_t _drawCount)
+void recMeshCulling(const MeshCulling& _cull, uint32_t _drawCount)
 {
     KG_ZoneScopedC(kage::Color::blue);
 
@@ -121,8 +121,8 @@ void initMeshCulling(MeshCulling& _cullingComp, const MeshCullingInitData& _init
     _cullingComp.pyramid = _initData.pyramid;
     _cullingComp.pyrSampler = samp;
 
-    _cullingComp.meshDrawCmdBufOutAlias = drawCmdOutAlias;
-    _cullingComp.meshDrawCmdCountBufOutAlias = drawCmdCountOutAlias;
+    _cullingComp.cmdBufOutAlias = drawCmdOutAlias;
+    _cullingComp.cmdCountBufOutAlias = drawCmdCountOutAlias;
     _cullingComp.meshDrawVisBufOutAlias = drawVisOutAlias;
 
     _cullingComp.drawCull = {};
@@ -132,7 +132,7 @@ void updateMeshCulling(MeshCulling& _cullingComp, const DrawCull& _drawCull, uin
 {
     _cullingComp.drawCull = _drawCull;
 
-    meshCullingRec(_cullingComp, _drawCount);
+    recMeshCulling(_cullingComp, _drawCount);
 }
 
 void initMeshletCulling(MeshletCulling& _cullingComp, const MeshletCullingInitData& _initData, RenderStage _stage, bool _seamless /*= false*/)
@@ -261,8 +261,8 @@ void initMeshletCulling(MeshletCulling& _cullingComp, const MeshletCullingInitDa
 
     // out-alias
     _cullingComp.meshletVisBufOutAlias = meshletVisBufOutAlias;
-    _cullingComp.meshletPayloadBufOutAlias = meshletPayloadBufOutAlias;
-    _cullingComp.meshletPayloadCntOutAlias = meshletPayloadCntOutAlias;
+    _cullingComp.cmdBufOutAlias = meshletPayloadBufOutAlias;
+    _cullingComp.cmdCountBufOutAlias = meshletPayloadCntOutAlias;
 }
 
 void recMeshletCulling(const MeshletCulling& _mltc, const DrawCull& _drawCull)
@@ -430,8 +430,8 @@ void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& 
     _tric.payloadCntBuf = trianglePayloadCntBuf;
     // out-alias
     _tric.vtxPayloadBufOutAlias = vtxPayloadBufOutAlias;
-    _tric.trianglePayloadBufOutAlias = meshletPayloadBufOutAlias;
-    _tric.payloadCntOutAlias = meshletPayloadCntOutAlias;
+    _tric.cmdBufOutAlias = meshletPayloadBufOutAlias;
+    _tric.CmdCountBufOutAlias = meshletPayloadCntOutAlias;
 
 }
 

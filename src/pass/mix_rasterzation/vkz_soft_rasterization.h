@@ -69,6 +69,3 @@ struct ModifySoftRasterCmd
 
 void initSoftRasterization(SoftRasterization& _softRaster, const SoftRasterizationDataInit& _initData);
 void updateSoftRasterization(SoftRasterization& _softRaster);
-
-void initModifySoftRasterCmd(ModifySoftRasterCmd& _cmd, const kage::BufferHandle& _triangleCountBuf, uint32_t _width, uint32_t _height);
-void updateModifySoftRasterCmd(ModifySoftRasterCmd& _cmd, uint32_t _width, uint32_t _height);

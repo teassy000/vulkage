@@ -5,6 +5,8 @@
 # extension GL_GOOGLE_include_directive: require
 # extension GL_ARB_shader_image_load_store: require
 
+#include "mesh_gpu.h"
+
 // vtx data
 vec3 vtx_data[] = vec3[6](
     vec3(0.0, 0.0, 0.5),
@@ -16,7 +18,7 @@ vec3 vtx_data[] = vec3[6](
 );
 
 
-layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+layout(local_size_x = MR_SOFT_RASTGP_SIZE, local_size_y = MR_SOFT_RAST_TILE_SIZE, local_size_z = MR_SOFT_RAST_TILE_SIZE) in;
 
 layout(push_constant) uniform block
 {
@@ -33,9 +35,11 @@ layout(binding = 1) readonly buffer TriangleData
     uvec3 tri_data[];
 };
 
-layout(binding = 2) uniform writeonly image2D out_color;
-layout(binding = 3, r32ui) uniform uimage2D out_uDepth;
-layout(binding = 4, r32f) uniform writeonly image2D out_depth;
+layout(binding = 2) uniform sampler2D pyramid;
+
+layout(binding = 3) uniform writeonly image2D out_color;
+layout(binding = 4, r32ui) uniform uimage2D out_uDepth;
+layout(binding = 5, r32f) uniform writeonly image2D out_depth;
 
 // =========================================
 // depth conversion functions===============

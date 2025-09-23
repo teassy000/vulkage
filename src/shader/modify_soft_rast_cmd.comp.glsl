@@ -8,8 +8,6 @@
 #extension GL_EXT_null_initializer: require
 
 
-#include "mesh_gpu.h"
-
 layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
 layout(push_constant) uniform block 

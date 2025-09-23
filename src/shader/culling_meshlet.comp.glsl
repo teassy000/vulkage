@@ -8,7 +8,6 @@
 #include "mesh_gpu.h"
 #include "math.h"
 
-
 layout(local_size_x = MR_MESHLETGP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
 layout(constant_id = 0) const bool LATE = false;

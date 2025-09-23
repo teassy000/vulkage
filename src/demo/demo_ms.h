@@ -511,9 +511,9 @@ namespace
                 vsInit.idxBuf = m_idxBuf;
                 vsInit.vtxBuf = m_vtxBuf;
                 vsInit.meshDrawBuf = m_meshDrawBuf;
-                vsInit.meshDrawCmdBuf = m_culling.meshDrawCmdBufOutAlias;
+                vsInit.meshDrawCmdBuf = m_culling.cmdBufOutAlias;
                 vsInit.transformBuf = m_transformBuf;
-                vsInit.meshDrawCmdCountBuf = m_culling.meshDrawCmdCountBufOutAlias;
+                vsInit.meshDrawCmdCountBuf = m_culling.cmdCountBufOutAlias;
                 vsInit.color = m_skybox.colorOutAlias;
                 vsInit.depth = m_depth;
                 vsInit.bindless = m_bindlessArray;
@@ -522,7 +522,7 @@ namespace
             }
             else
             {
-                prepareTaskSubmit(m_taskSubmit, m_culling.meshDrawCmdBufOutAlias, m_culling.meshDrawCmdCountBufOutAlias);
+                prepareTaskSubmit(m_taskSubmit, m_culling.cmdBufOutAlias, m_culling.cmdCountBufOutAlias);
 
                 MeshShadingInitData msInit{};
                 msInit.vtxBuffer = m_vtxBuf;
@@ -531,7 +531,7 @@ namespace
                 msInit.meshletDataBuffer = m_meshletDataBuffer;
                 msInit.meshDrawBuffer = m_meshDrawBuf;
                 msInit.meshDrawCmdBuffer = m_taskSubmit.drawCmdBufferOutAlias;
-                msInit.meshDrawCmdCountBuffer = m_culling.meshDrawCmdCountBufOutAlias;
+                msInit.meshDrawCmdCountBuffer = m_culling.cmdCountBufOutAlias;
                 msInit.meshletVisBuffer = m_meshletVisBuf;
                 msInit.transformBuffer = m_transformBuf;
 
@@ -554,8 +554,8 @@ namespace
                 cullingInit.meshDrawBuf = m_meshDrawBuf;
                 cullingInit.transBuf = m_transformBuf;
                 cullingInit.pyramid = m_pyramid.imgOutAlias;
-                cullingInit.meshDrawCmdBuf = m_supportMeshShading ? m_taskSubmit.drawCmdBufferOutAlias : m_culling.meshDrawCmdBufOutAlias;
-                cullingInit.meshDrawCmdCountBuf = m_culling.meshDrawCmdCountBufOutAlias;
+                cullingInit.meshDrawCmdBuf = m_supportMeshShading ? m_taskSubmit.drawCmdBufferOutAlias : m_culling.cmdBufOutAlias;
+                cullingInit.meshDrawCmdCountBuf = m_culling.cmdCountBufOutAlias;
                 cullingInit.meshDrawVisBuf = m_culling.meshDrawVisBufOutAlias;
 
                 initMeshCulling(m_cullingLate, cullingInit, RenderStage::late, cullingPass);
@@ -569,9 +569,9 @@ namespace
                 vsInit.idxBuf = m_idxBuf;
                 vsInit.vtxBuf = m_vtxBuf;
                 vsInit.meshDrawBuf = m_meshDrawBuf;
-                vsInit.meshDrawCmdBuf = m_cullingLate.meshDrawCmdBufOutAlias;
+                vsInit.meshDrawCmdBuf = m_cullingLate.cmdBufOutAlias;
                 vsInit.transformBuf = m_transformBuf;
-                vsInit.meshDrawCmdCountBuf = m_cullingLate.meshDrawCmdCountBufOutAlias;
+                vsInit.meshDrawCmdCountBuf = m_cullingLate.cmdCountBufOutAlias;
                 vsInit.color = m_vtxShading.colorOutAlias;
                 vsInit.depth = m_vtxShading.depthOutAlias;
                 vsInit.bindless = m_bindlessArray;
@@ -580,7 +580,7 @@ namespace
             }
             else
             {
-                prepareTaskSubmit(m_taskSubmitLate, m_cullingLate.meshDrawCmdBufOutAlias, m_cullingLate.meshDrawCmdCountBufOutAlias, true);
+                prepareTaskSubmit(m_taskSubmitLate, m_cullingLate.cmdBufOutAlias, m_cullingLate.cmdCountBufOutAlias, true);
 
                 MeshShadingInitData msInit{};
                 msInit.vtxBuffer = m_vtxBuf;
@@ -589,7 +589,7 @@ namespace
                 msInit.meshletDataBuffer = m_meshletDataBuffer;
                 msInit.meshDrawBuffer = m_meshDrawBuf;
                 msInit.meshDrawCmdBuffer = m_taskSubmitLate.drawCmdBufferOutAlias;
-                msInit.meshDrawCmdCountBuffer = m_cullingLate.meshDrawCmdCountBufOutAlias;
+                msInit.meshDrawCmdCountBuffer = m_cullingLate.cmdCountBufOutAlias;
                 msInit.meshletVisBuffer = m_meshShading.meshletVisBufferOutAlias;
                 msInit.transformBuffer = m_transformBuf;
 
@@ -609,8 +609,8 @@ namespace
                 cullingInit.meshDrawBuf = m_meshDrawBuf;
                 cullingInit.transBuf = m_transformBuf;
                 cullingInit.pyramid = m_pyramid.imgOutAlias;
-                cullingInit.meshDrawCmdBuf = m_supportMeshShading ? m_taskSubmitLate.drawCmdBufferOutAlias : m_cullingLate.meshDrawCmdBufOutAlias;
-                cullingInit.meshDrawCmdCountBuf = m_cullingLate.meshDrawCmdCountBufOutAlias;
+                cullingInit.meshDrawCmdBuf = m_supportMeshShading ? m_taskSubmitLate.drawCmdBufferOutAlias : m_cullingLate.cmdBufOutAlias;
+                cullingInit.meshDrawCmdCountBuf = m_cullingLate.cmdCountBufOutAlias;
                 cullingInit.meshDrawVisBuf = m_cullingLate.meshDrawVisBufOutAlias;
                 initMeshCulling(m_cullingAlpha, cullingInit, RenderStage::alpha, cullingPass);
             }
@@ -622,7 +622,7 @@ namespace
             }
             else
             {
-                prepareTaskSubmit(m_taskSubmitAlpha, m_cullingAlpha.meshDrawCmdBufOutAlias, m_cullingAlpha.meshDrawCmdCountBufOutAlias, true, true);
+                prepareTaskSubmit(m_taskSubmitAlpha, m_cullingAlpha.cmdBufOutAlias, m_cullingAlpha.cmdCountBufOutAlias, true, true);
 
                 MeshShadingInitData msInit{};
                 msInit.vtxBuffer = m_vtxBuf;
@@ -631,7 +631,7 @@ namespace
                 msInit.meshletDataBuffer = m_meshletDataBuffer;
                 msInit.meshDrawBuffer = m_meshDrawBuf;
                 msInit.meshDrawCmdBuffer = m_taskSubmitAlpha.drawCmdBufferOutAlias;
-                msInit.meshDrawCmdCountBuffer = m_cullingAlpha.meshDrawCmdCountBufOutAlias;
+                msInit.meshDrawCmdCountBuffer = m_cullingAlpha.cmdCountBufOutAlias;
                 msInit.meshletVisBuffer = m_meshShadingLate.meshletVisBufferOutAlias;
                 msInit.transformBuffer = m_transformBuf;
                 

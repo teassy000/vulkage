@@ -146,7 +146,7 @@ void main()
         }
         else if (USE_MIXED_RASTER) // samiliar as the task group, but use meshlet group size
         {
-            uint groupCount = (lod.meshletCount + MR_MESHLETGP_SZ - 1) / MR_MESHLETGP_SZ; // each group handles MR_MESHLETGP_SZ meshlets
+            uint groupCount = (lod.meshletCount + MR_MESHLETGP_SIZE - 1) / MR_MESHLETGP_SIZE; // each group handles MR_MESHLETGP_SIZE meshlets
             uint dci = atomicAdd(drawCmdCount, groupCount);
 
             uint meshletVisibilityOffset = draw.meshletVisibilityOffset;
@@ -156,10 +156,10 @@ void main()
             for (uint i = 0; i < groupCount; ++i)
             {
                 meshletCmds[dci + i].drawId = di;
-                meshletCmds[dci + i].taskOffset = lod.meshletOffset + i * MR_MESHLETGP_SZ;
-                meshletCmds[dci + i].taskCount = min(MR_MESHLETGP_SZ, lod.meshletCount - i * MR_MESHLETGP_SZ); // fill when the last group lesser than MR_MESHLETGP_SZ
+                meshletCmds[dci + i].taskOffset = lod.meshletOffset + i * MR_MESHLETGP_SIZE;
+                meshletCmds[dci + i].taskCount = min(MR_MESHLETGP_SIZE, lod.meshletCount - i * MR_MESHLETGP_SIZE); // fill when the last group lesser than MR_MESHLETGP_SIZE
                 meshletCmds[dci + i].lateDrawVisibility = lateDrawVisibility;
-                meshletCmds[dci + i].meshletVisibilityOffset = meshletVisibilityOffset + i * MR_MESHLETGP_SZ;
+                meshletCmds[dci + i].meshletVisibilityOffset = meshletVisibilityOffset + i * MR_MESHLETGP_SIZE;
             }
         }
         else

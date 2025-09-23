@@ -35,8 +35,8 @@ struct MeshCulling
     kage::BufferHandle meshDrawCmdCountBuf;
     kage::BufferHandle meshDrawVisBuf;
 
-    kage::BufferHandle meshDrawCmdBufOutAlias;
-    kage::BufferHandle meshDrawCmdCountBufOutAlias;
+    kage::BufferHandle cmdBufOutAlias;
+    kage::BufferHandle cmdCountBufOutAlias;
     kage::BufferHandle meshDrawVisBufOutAlias;
 
     DrawCull drawCull;
@@ -81,8 +81,8 @@ struct MeshletCulling
 
     // out alias
     kage::BufferHandle meshletVisBufOutAlias;
-    kage::BufferHandle meshletPayloadBufOutAlias;
-    kage::BufferHandle meshletPayloadCntOutAlias;
+    kage::BufferHandle cmdBufOutAlias;
+    kage::BufferHandle cmdCountBufOutAlias;
 };
 
 struct TriangleCullingInitData
@@ -119,8 +119,8 @@ struct TriangleCulling
 
     // out alias
     kage::BufferHandle vtxPayloadBufOutAlias;
-    kage::BufferHandle trianglePayloadBufOutAlias;
-    kage::BufferHandle payloadCntOutAlias;
+    kage::BufferHandle cmdBufOutAlias;
+    kage::BufferHandle CmdCountBufOutAlias;
 };
 
 void initMeshCulling(MeshCulling& _mc, const MeshCullingInitData& _initData, RenderStage _stage, RenderPipeline _pass);

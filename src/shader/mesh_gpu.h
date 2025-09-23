@@ -4,7 +4,8 @@
 #define MESH_MAX_TRI 128
 #define MR_MESHLETGP_SIZE 128
 #define MR_TRIANGLEGP_SIZE 128
-
+#define MR_SOFT_RASTGP_SIZE 8
+#define MR_SOFT_RAST_TILE_SIZE 8
 
 struct Vertex
 {
@@ -161,6 +162,13 @@ struct MeshDrawCommand
     uint    firstInstance;
     
     // struct VkDrawMeshTasksIndirectCommandEXT
+    uint    local_x;
+    uint    local_y;
+    uint    local_z;
+};
+
+struct IndirectDispatchCommand
+{
     uint    local_x;
     uint    local_y;
     uint    local_z;
