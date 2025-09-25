@@ -173,10 +173,8 @@ namespace
             updateMeshletCulling(m_meshletCullingEarly, m_demoData.drawCull);
             updateMeshletCulling(m_meshletCullingLate, m_demoData.drawCull);
 
-
-            updateTriangleCulling(m_triangleCullingEarly, m_demoData.drawCull);
-            updateTriangleCulling(m_triangleCullingLate, m_demoData.drawCull);
-
+            updateTriangleCulling(m_triangleCullingEarly, (float)m_width, (float)m_height);
+            updateTriangleCulling(m_triangleCullingLate, (float)m_width, (float)m_height);
 
             updateModifyIndirectCmds(m_modifyCmd4MeshletCullingEarly);
             updateModifyIndirectCmds(m_modifyCmd4MeshletCullingLate);

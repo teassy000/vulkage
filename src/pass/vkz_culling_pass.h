@@ -87,6 +87,9 @@ struct MeshletCulling
 
 struct TriangleCullingInitData
 {
+    float screenWidth;
+    float screenHeight;
+
     kage::BufferHandle meshletPayloadBuf;
     kage::BufferHandle meshletPayloadCntBuf;
 
@@ -103,6 +106,8 @@ struct TriangleCulling
     kage::ShaderHandle cs;
     kage::ProgramHandle prog;
     
+    float screenWidth, screenHeight;
+
     // read-only
     kage::BufferHandle meshletPayloadBuf;
     kage::BufferHandle meshletPayloadCntBuf;
@@ -132,5 +137,5 @@ void initMeshletCulling(MeshletCulling& _mltc, const MeshletCullingInitData& _in
 void updateMeshletCulling(MeshletCulling& _mltc, const DrawCull& _drawCull);
 
 void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& _initData, RenderStage _stage, bool _seamless = false);
-void updateTriangleCulling(TriangleCulling& _tric, const DrawCull& _drawCull);
+void updateTriangleCulling(TriangleCulling& _tric, float _width, float _height);
 

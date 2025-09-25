@@ -306,7 +306,7 @@ void updateMeshletCulling(MeshletCulling& _mltc, const DrawCull& _drawCull)
 void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& _initData, RenderStage _stage, bool _seamless /*= false*/)
 {
     kage::ShaderHandle cs = kage::registShader("triangle_culling", "shader/culling_triangle.comp.spv");
-    kage::ProgramHandle prog = kage::registProgram("triangle_culling", { cs }, sizeof(DrawCull));
+    kage::ProgramHandle prog = kage::registProgram("triangle_culling", { cs }, sizeof(vec2));
 
     int pipelineSpecs[] = {
         _stage == RenderStage::alpha
@@ -435,17 +435,20 @@ void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& 
 
 }
 
-void recTriangleCulling(const TriangleCulling& _tric, const DrawCull& _drawCull)
+void recTriangleCulling(const TriangleCulling& _tric)
 {
     KG_ZoneScopedC(kage::Color::blue);
     using Stage = kage::PipelineStageFlagBits::Enum;
     using Access = kage::BindingAccess;
-    const kage::Memory* mem = kage::alloc(sizeof(DrawCull));
-    bx::memCopy(mem->data, &_drawCull, mem->size);
+    const kage::Memory* mem = kage::alloc(sizeof(vec2));
+    vec2 screenSize = { _tric.screenWidth, _tric.screenHeight };
+    bx::memCopy(mem->data, &screenSize, mem->size);
     
     kage::startRec(_tric.pass);
     kage::setConstants(mem);
-    
+
+    kage::fillBuffer(_tric.payloadCntBuf, 0);
+
     kage::Binding binds[] =
     {
         { _tric.meshletPayloadBuf,      Access::read,       Stage::compute_shader },
@@ -464,8 +467,10 @@ void recTriangleCulling(const TriangleCulling& _tric, const DrawCull& _drawCull)
     kage::endRec();
 }
 
-void updateTriangleCulling(TriangleCulling& _tric, const DrawCull& _drawCull)
+void updateTriangleCulling(TriangleCulling& _tric, float _width, float _height)
 {
-    recTriangleCulling(_tric, _drawCull);
+    _tric.screenWidth = _width;
+    _tric.screenHeight = _height;
+    recTriangleCulling(_tric);
 }
 

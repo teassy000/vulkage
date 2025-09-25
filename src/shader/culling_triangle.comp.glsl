@@ -3,6 +3,10 @@
 #extension GL_EXT_shader_16bit_storage: require
 #extension GL_EXT_shader_8bit_storage: require
 
+// for using uint8_t in general code
+#extension GL_EXT_shader_explicit_arithmetic_types: require
+#extension GL_EXT_shader_explicit_arithmetic_types_int8: require
+
 #extension GL_GOOGLE_include_directive: require
 
 #include "mesh_gpu.h"
@@ -15,7 +19,7 @@ layout(constant_id = 2) const bool SEAMLESS_LOD = false;
 
 layout(push_constant) uniform block 
 {
-    Globals globals;
+    vec2 rt_sz;
 };
 
 // readonly
@@ -37,11 +41,6 @@ layout(binding = 2) readonly uniform Transform
 layout(binding = 3) readonly buffer Vertices
 {
     Vertex vertices [];
-};
-
-layout(binding = 4) readonly buffer Clusters
-{
-    Cluster clusters [];
 };
 
 layout(binding = 4) readonly buffer Meshlets
@@ -86,28 +85,32 @@ void main()
     uint drawId = payloads[gid].drawId;
 
     MeshDraw meshDraw = meshDraws[drawId];
+
     uint vertexCount = 0;
     uint triangleCount = 0;
     uint dataOffset = 0;
 
+    /*
     if (SEAMLESS_LOD)
     {
-        vertexCount = uint(clusters[mi].vertexCount);
-        triangleCount = uint(clusters[mi].triangleCount);
-        dataOffset = clusters[mi].dataOffset;
+        // use cluster info
+        Cluster clt = clusters[mi];
+        vertexCount = uint(clt.vertexCount);
+        triangleCount = uint(clt.triangleCount);
+        dataOffset = clt.dataOffset;
     }
     else // normal lod
+    */
     {
-        vertexCount = uint(meshlets[mi].vertexCount);
-        triangleCount = uint(meshlets[mi].triangleCount);
-        dataOffset = meshlets[mi].dataOffset;
+        // use meshlet info
+        Meshlet mlt = meshlets[mi];
+        vertexCount = uint(mlt.vertexCount);
+        triangleCount = uint(mlt.triangleCount);
+        dataOffset = mlt.dataOffset;
     }
 
     uint vertexOffset = dataOffset;
     uint indexOffset = dataOffset + vertexCount;
-
-    uint vertexBase = atomicAdd(out_counts[0], vertexCount);
-    uint triVisBase = atomicAdd(out_counts[1], 1);
 
     // transform vertices
     for (uint i = ti; i < vertexCount; i += MR_TRIANGLEGP_SIZE)
@@ -126,14 +129,10 @@ void main()
         norm = rotateQuat(norm, meshDraw.orit);
 
         vertexClip[i] = vec3(result.xy/result.w, result.w);
-
-        out_vtx[vertexBase + i] = result;
     }
 
     // make sure all vertex are transformed
     barrier();
-
-    vec2 screen = vec2(globals.screenWidth, globals.screenHeight);
 
     // cull triangles
     for (uint i = ti; i < triangleCount; i += MR_TRIANGLEGP_SIZE)
@@ -155,8 +154,8 @@ void main()
 
         culled = culled || (eb.x * ec.y >= eb.y * ec.x);
 
-        vec2 bmin = (min(pa, min(pb, pc)) * 0.5 + vec2(0.5)) * screen;
-        vec2 bmax = (max(pa, max(pb, pc)) * 0.5 + vec2(0.5)) * screen;
+        vec2 bmin = (min(pa, min(pb, pc)) * 0.5 + vec2(0.5)) * rt_sz;
+        vec2 bmax = (max(pa, max(pb, pc)) * 0.5 + vec2(0.5)) * rt_sz;
         float sbprec = 1.0/ 256.0;
 
         culled = culled || (round(bmin.x - sbprec) == round(bmax.x - sbprec) || round(bmin.y - sbprec) == round(bmax.y - sbprec));
@@ -167,7 +166,7 @@ void main()
 
         if(!culled)
         {
-            uint triBase = atomicAdd(out_counts[1], 1);
+            uint triBase = atomicAdd(out_counts[0], 1);
             out_tri[triBase] = uvec3(idx0, idx1, idx2);
         }
     }
