@@ -80,12 +80,12 @@ void initModifyIndirectCmds(ModifyIndirectCmds& _cmds, const kage::BufferHandle 
     _cmds.cmdBufOutAlias = cmdBufOutAlias;
 }
 
-void recProcessSoftRasterCmds(const ModifyIndirectCmds& _cmds)
+void recModifyIndirectCmds(const ModifyIndirectCmds& _cmds)
 {
     kage::startRec(_cmds.pass);
 
     // only set constants when in soft raster mode
-    vec2 res = vec2(float(_cmds.width), float(_cmds.height));
+    uvec2 res = vec2(_cmds.width, _cmds.height);
     const kage::Memory* mem = kage::alloc(sizeof(res));
     bx::memCopy(mem->data, &res, mem->size);
 
@@ -110,5 +110,5 @@ void updateModifyIndirectCmds(ModifyIndirectCmds& _cmd, uint32_t _width /* = 0*/
 {
     _cmd.width = _width;
     _cmd.height = _height;
-    recProcessSoftRasterCmds(_cmd);
+    recModifyIndirectCmds(_cmd);
 }
