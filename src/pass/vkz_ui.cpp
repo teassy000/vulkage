@@ -1,10 +1,10 @@
+#include "vkz_ui.h"
 #include "core/common.h"
 #include "imgui.h"
+#include "vkz_pass.h"
+#include "uidata.h"
 
 #include "glm/glm.hpp"
-
-#include "uidata.h"
-#include "vkz_ui.h"
 
 #include "bx/readerwriter.h"
 #include "ffx_intg/brixel_structs.h"
@@ -13,8 +13,6 @@
 
 constexpr uint32_t kInitialVertexBufferSize = 1024 * 1024; // 1MB
 constexpr uint32_t kInitialIndexBufferSize = 1024 * 1024; // 1MB
-
-using Stage = kage::PipelineStageFlagBits::Enum;
 
 struct PushConstBlock {
     glm::vec2 scale;
@@ -197,7 +195,7 @@ void prepareUI(UIRendering& _ui, kage::ImageHandle _color, kage::ImageHandle _de
     kage::bindIndexBuffer(pass, ib); // TODO: bind in the custom func already, this is for frame-graph
     kage::bindVertexBuffer(pass, vb);
     _ui.sampler = kage::sampleImage(pass, fontImage
-        , kage::PipelineStageFlagBits::fragment_shader
+        , Stage::fragment_shader
         , kage::SamplerFilter::linear
         , kage::SamplerMipmapMode::linear
         , kage::SamplerAddressMode::clamp_to_edge

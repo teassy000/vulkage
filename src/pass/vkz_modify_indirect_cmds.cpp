@@ -1,15 +1,9 @@
 #include "vkz_modify_indirect_cmds.h"
+#include "vkz_pass.h"
 #include "demo_structs.h"
 #include "core/kage_math.h"
 
 #include <string>
-
-using Stage = kage::PipelineStageFlagBits::Enum;
-using Access = kage::BindingAccess;
-using LoadOp = kage::AttachmentLoadOp;
-using StoreOp = kage::AttachmentStoreOp;
-using Aspect = kage::ImageAspectFlagBits::Enum;
-
 
 // get pass name based on culling stage and pass type
 void getPassName(std::string& _out, const char* _baseName, ModifyCommandMode _mode)
@@ -56,14 +50,14 @@ void initModifyIndirectCmds(ModifyIndirectCmds& _cmds, const kage::BufferHandle 
     kage::bindBuffer(pass
         , _indirectCmdBuf
         , Stage::compute_shader
-        , kage::AccessFlagBits::shader_write
+        , Access::shader_write
         , indirectCmdBufOutAlias
     );
 
     kage::bindBuffer(pass
         , _cmdBuf
         , Stage::compute_shader
-        , kage::AccessFlagBits::shader_write
+        , Access::shader_write
         , cmdBufOutAlias
     );
 
@@ -95,8 +89,8 @@ void recModifyIndirectCmds(const ModifyIndirectCmds& _cmds)
     // bind resources
     kage::Binding binds[] =
     {
-        { _cmds.inIndirectCmdBuf,   Access::read_write, Stage::compute_shader },
-        { _cmds.inCmdBuf,           Access::write,      Stage::compute_shader },
+        { _cmds.inIndirectCmdBuf,   BindingAccess::read_write, Stage::compute_shader },
+        { _cmds.inCmdBuf,           BindingAccess::write,      Stage::compute_shader },
     };
 
     kage::pushBindings(binds, COUNTOF(binds));

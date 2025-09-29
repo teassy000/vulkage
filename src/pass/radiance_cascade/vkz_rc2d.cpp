@@ -1,15 +1,9 @@
-#pragma once
+#include "vkz_rc2d.h"
+#include "vkz_pass.h"
 
 #include "core/kage_math.h"
 #include "core/config.h"
-#include "vkz_rc2d.h"
 
-
-using Binding = kage::Binding;
-using Stage = kage::PipelineStageFlagBits::Enum;
-using Access = kage::BindingAccess;
-using LoadOp = kage::AttachmentLoadOp;
-using StoreOp = kage::AttachmentStoreOp;
 
 constexpr uint32_t c_maxCascads = 8;
 
@@ -81,15 +75,15 @@ void initRc2DBuild(Rc2DBuild& _rc, const uvec2 _res)
     imgDesc.numMips = 1;
     imgDesc.type = kage::ImageType::type_2d;
     imgDesc.viewType = kage::ImageViewType::type_2d_array;
-    imgDesc.usage = kage::ImageUsageFlagBits::transfer_dst | kage::ImageUsageFlagBits::storage | kage::ImageUsageFlagBits::sampled;
+    imgDesc.usage = ImgUsage::transfer_dst | ImgUsage::storage | ImgUsage::sampled;
     imgDesc.layout = kage::ImageLayout::general;
 
     kage::ImageHandle img = kage::registTexture("rc2d", imgDesc, nullptr, kage::ResourceLifetime::non_transition);
     kage::ImageHandle outAlias = kage::alias(img);
 
     kage::bindImage(pass, img
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_write
+        , Stage::compute_shader
+        , Access::shader_write
         , kage::ImageLayout::general
         , outAlias
     );
@@ -130,13 +124,13 @@ void initRc2DMerge(Rc2DMerge& _rc, const uvec2 _init, uint32_t _c0dRes, kage::Im
     imgDesc.numMips = 1;
     imgDesc.type = kage::ImageType::type_2d;
     imgDesc.viewType = kage::ImageViewType::type_2d_array;
-    imgDesc.usage = kage::ImageUsageFlagBits::transfer_dst | kage::ImageUsageFlagBits::storage | kage::ImageUsageFlagBits::sampled;
+    imgDesc.usage = ImgUsage::transfer_dst | ImgUsage::storage | ImgUsage::sampled;
     imgDesc.layout = kage::ImageLayout::general;
     
     kage::ImageHandle img = kage::registTexture(name, imgDesc, nullptr, kage::ResourceLifetime::non_transition);
 
     kage::SamplerHandle linearSamp = kage::sampleImage(pass, _inRc
-        , kage::PipelineStageFlagBits::compute_shader
+        , Stage::compute_shader
         , kage::SamplerFilter::linear
         , kage::SamplerMipmapMode::nearest
         , kage::SamplerAddressMode::mirrored_repeat
@@ -144,7 +138,7 @@ void initRc2DMerge(Rc2DMerge& _rc, const uvec2 _init, uint32_t _c0dRes, kage::Im
     );
 
     kage::SamplerHandle nearedSamp = kage::sampleImage(pass, img
-        , kage::PipelineStageFlagBits::compute_shader
+        , Stage::compute_shader
         , kage::SamplerFilter::nearest
         , kage::SamplerMipmapMode::nearest
         , kage::SamplerAddressMode::mirrored_repeat
@@ -153,8 +147,8 @@ void initRc2DMerge(Rc2DMerge& _rc, const uvec2 _init, uint32_t _c0dRes, kage::Im
 
     kage::ImageHandle outAlias = kage::alias(img);
     kage::bindImage(pass, img
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_write
+        , Stage::compute_shader
+        , Access::shader_write
         , kage::ImageLayout::general
         , outAlias
     );
@@ -188,12 +182,12 @@ void initRc2DUse(Rc2DUse& _rc, uvec2 _res, kage::ImageHandle _inMergedRc, kage::
     imgDesc.numMips = 1;
     imgDesc.type = kage::ImageType::type_2d;
     imgDesc.viewType = kage::ImageViewType::type_2d;
-    imgDesc.usage = kage::ImageUsageFlagBits::transfer_dst | kage::ImageUsageFlagBits::storage | kage::ImageUsageFlagBits::sampled | kage::ImageUsageFlagBits::color_attachment | kage::ImageUsageFlagBits::transfer_src;
+    imgDesc.usage = ImgUsage::transfer_dst | ImgUsage::storage | ImgUsage::sampled | ImgUsage::color_attachment | ImgUsage::transfer_src;
     imgDesc.layout = kage::ImageLayout::general;
     kage::ImageHandle img = kage::registTexture("rc2d_use", imgDesc, nullptr, kage::ResourceLifetime::non_transition);
 
     kage::SamplerHandle linearSamp = kage::sampleImage(pass, _inMergedRc
-        , kage::PipelineStageFlagBits::compute_shader
+        , Stage::compute_shader
         , kage::SamplerFilter::linear
         , kage::SamplerMipmapMode::nearest
         , kage::SamplerAddressMode::mirrored_repeat
@@ -201,7 +195,7 @@ void initRc2DUse(Rc2DUse& _rc, uvec2 _res, kage::ImageHandle _inMergedRc, kage::
     );
 
     kage::SamplerHandle nearedSamp = kage::sampleImage(pass, img
-        , kage::PipelineStageFlagBits::compute_shader
+        , Stage::compute_shader
         , kage::SamplerFilter::nearest
         , kage::SamplerMipmapMode::nearest
         , kage::SamplerAddressMode::mirrored_repeat
@@ -209,7 +203,7 @@ void initRc2DUse(Rc2DUse& _rc, uvec2 _res, kage::ImageHandle _inMergedRc, kage::
     );
 
     kage::sampleImage(pass, _inMergedProbe
-        , kage::PipelineStageFlagBits::compute_shader
+        , Stage::compute_shader
         , kage::SamplerFilter::nearest
         , kage::SamplerMipmapMode::nearest
         , kage::SamplerAddressMode::mirrored_repeat
@@ -218,8 +212,8 @@ void initRc2DUse(Rc2DUse& _rc, uvec2 _res, kage::ImageHandle _inMergedRc, kage::
 
     kage::ImageHandle outAlias = kage::alias(img);
     kage::bindImage(pass, img
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_write
+        , Stage::compute_shader
+        , Access::shader_write
         , kage::ImageLayout::general
         , outAlias
     );

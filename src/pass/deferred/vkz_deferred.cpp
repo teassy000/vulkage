@@ -1,4 +1,5 @@
 #include "deferred/vkz_deferred.h"
+#include "vkz_pass.h"
 #include "core/kage_math.h"
 #include <vector >
 
@@ -105,7 +106,7 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
     kage::BufferHandle rcAccessConfigBuf = kage::registBuffer("defer_rc_configs", bufDesc);
 
     kage::SamplerHandle albedoSamp = kage::sampleImage(pass, _gb.albedo
-        , kage::PipelineStageFlagBits::compute_shader
+        , Stage::compute_shader
         , kage::SamplerFilter::nearest
         , kage::SamplerMipmapMode::nearest
         , kage::SamplerAddressMode::clamp_to_edge
@@ -113,7 +114,7 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
     );
 
     kage::SamplerHandle normSamp = kage::sampleImage(pass, _gb.normal
-        , kage::PipelineStageFlagBits::compute_shader
+        , Stage::compute_shader
         , kage::SamplerFilter::nearest
         , kage::SamplerMipmapMode::nearest
         , kage::SamplerAddressMode::clamp_to_edge
@@ -121,7 +122,7 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
     );
 
     kage::SamplerHandle wpSamp = kage::sampleImage(pass, _gb.worldPos
-        , kage::PipelineStageFlagBits::compute_shader
+        , Stage::compute_shader
         , kage::SamplerFilter::nearest
         , kage::SamplerMipmapMode::nearest
         , kage::SamplerAddressMode::clamp_to_edge
@@ -129,7 +130,7 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
     );
 
     kage::SamplerHandle emmiSamp = kage::sampleImage(pass, _gb.emissive
-        , kage::PipelineStageFlagBits::compute_shader
+        , Stage::compute_shader
         , kage::SamplerFilter::nearest
         , kage::SamplerMipmapMode::nearest
         , kage::SamplerAddressMode::clamp_to_edge
@@ -137,7 +138,7 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
     );
 
     kage::SamplerHandle specSamp = kage::sampleImage(pass, _gb.specular
-        , kage::PipelineStageFlagBits::compute_shader
+        , Stage::compute_shader
         , kage::SamplerFilter::nearest
         , kage::SamplerMipmapMode::nearest
         , kage::SamplerAddressMode::clamp_to_edge
@@ -145,7 +146,7 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
     );
 
     kage::SamplerHandle skySamp = kage::sampleImage(pass, _sky
-        , kage::PipelineStageFlagBits::compute_shader
+        , Stage::compute_shader
         , kage::SamplerFilter::nearest
         , kage::SamplerMipmapMode::nearest
         , kage::SamplerAddressMode::clamp_to_edge
@@ -154,8 +155,8 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
 
     _ds.outColorAlias = kage::alias(outColor);
     kage::bindImage(pass, outColor
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_write
+        , Stage::compute_shader
+        , Access::shader_write
         , kage::ImageLayout::general
         , _ds.outColorAlias
     );
@@ -164,12 +165,12 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
 
     if (kage::kUseRadianceCascade) {
         kage::bindBuffer(pass, rcAccessConfigBuf
-            , kage::PipelineStageFlagBits::compute_shader
-            , kage::AccessFlagBits::shader_read
+            , Stage::compute_shader
+            , Access::shader_read
         );
 
         kage::SamplerHandle rcSamp = kage::sampleImage(pass, _rcData.cascades
-            , kage::PipelineStageFlagBits::compute_shader
+            , Stage::compute_shader
             , kage::SamplerFilter::linear
             , kage::SamplerMipmapMode::linear
             , kage::SamplerAddressMode::mirrored_repeat
@@ -178,7 +179,7 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
 
 
         kage::SamplerHandle rcMergedSamp = kage::sampleImage(pass, _rcData.mergedCascade
-            , kage::PipelineStageFlagBits::compute_shader
+            , Stage::compute_shader
             , kage::SamplerFilter::nearest
             , kage::SamplerMipmapMode::nearest
             , kage::SamplerAddressMode::mirrored_repeat
@@ -241,8 +242,6 @@ void recDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uin
     memcpy(mem->data, &consts, sizeof(consts));
     kage::setConstants(mem);
 
-    using Stage = kage::PipelineStageFlagBits::Enum;
-    using Access = kage::BindingAccess;
 
 
     if (kage::kUseRadianceCascade) {
@@ -254,7 +253,7 @@ void recDeferredShading(const DeferredShading& _ds, const uint32_t _w, const uin
             {_ds.gBuffer.emissive,  _ds.gBufSamplers.emissive,  Stage::compute_shader},
             {_ds.gBuffer.specular,  _ds.gBufSamplers.specular,  Stage::compute_shader},
             {_ds.inSky,             _ds.skySampler,             Stage::compute_shader},
-            {_ds.rcAccessData,      Access::read,               Stage::compute_shader},
+            {_ds.rcAccessData,      BindingAccess::read,        Stage::compute_shader},
             {_ds.radianceCascades,  _ds.rcSampler,              Stage::compute_shader},
             {_ds.rcMergedData,      _ds.rcMergedSampler,        Stage::compute_shader},
             {_ds.outColor,          0,                          Stage::compute_shader},

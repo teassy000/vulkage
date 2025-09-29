@@ -1,16 +1,11 @@
 #include "radiance_cascade/vkz_rc_debug.h"
 
+#include "vkz_pass.h"
 #include "demo_structs.h"
 #include "core/kage_math.h"
 #include "assets/mesh.h"
 #include "assets/gltf_loader.h"
 
-
-using Binding = kage::Binding;
-using Stage = kage::PipelineStageFlagBits::Enum;
-using Access = kage::BindingAccess;
-using LoadOp = kage::AttachmentLoadOp;
-using StoreOp = kage::AttachmentStoreOp;
 
 struct alignas(16) ProbeDebugCmdConsts
 {
@@ -85,14 +80,14 @@ void prepareProbeDbgCmdGen(ProbeDbgCmdGen& _gen, const ProbeDebugGenInit& _init)
     {
         kage::BufferDesc cmdBufDesc{};
         cmdBufDesc.size = sizeof(MeshDrawCommand);
-        cmdBufDesc.usage = kage::BufferUsageFlagBits::indirect | kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+        cmdBufDesc.usage = BufUsage::indirect | BufUsage::storage | BufUsage::transfer_dst;
 
         cmdBuf = kage::registBuffer("rc_probe_debug_cmd", cmdBufDesc);
     }
 
     kage::BufferDesc probeDrawBufDesc{};
     probeDrawBufDesc.size = kage::k_rclv0_probeSideCount * kage::k_rclv0_probeSideCount* kage::k_rclv0_probeSideCount* sizeof(ProbeDraw);
-    probeDrawBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+    probeDrawBufDesc.usage = BufUsage::storage | BufUsage::transfer_dst;
     kage::BufferHandle probeDrawBuf = kage::registBuffer("rc_probe_debug_draw", probeDrawBufDesc);
 
     kage::BufferHandle cmdBufAlias = kage::alias(cmdBuf);
@@ -100,24 +95,24 @@ void prepareProbeDbgCmdGen(ProbeDbgCmdGen& _gen, const ProbeDebugGenInit& _init)
 
 
     kage::bindBuffer(pass, _init.trans
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read
+        , Stage::compute_shader
+        , Access::shader_read
     );
 
     kage::bindBuffer(pass, cmdBuf
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
+        , Stage::compute_shader
+        , Access::shader_read | Access::shader_write
         , cmdBufAlias
     );
 
     kage::bindBuffer(pass, probeDrawBuf
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
+        , Stage::compute_shader
+        , Access::shader_read | Access::shader_write
         , probeDrawBufAlias
     );
 
     kage::SamplerHandle samp = kage::sampleImage(pass, _init.pyramid
-        , kage::PipelineStageFlagBits::compute_shader
+        , Stage::compute_shader
         , kage::SamplerFilter::linear
         , kage::SamplerMipmapMode::nearest
         , kage::SamplerAddressMode::clamp_to_edge
@@ -181,10 +176,10 @@ void recProbeDbgCmdGen(const ProbeDbgCmdGen& _gen, const DrawCull& _camCull, con
 
     kage::Binding binds[] =
     {
-        { _gen.trans,       Access::read,       Stage::compute_shader },
-        { _gen.cmdBuf,      Access::read_write, Stage::compute_shader },
-        { _gen.drawDataBuf, Access::read_write, Stage::compute_shader },
-        { _gen.pyramid,     _gen.sampler,       Stage::compute_shader },
+        { _gen.trans,       BindingAccess::read,        Stage::compute_shader },
+        { _gen.cmdBuf,      BindingAccess::read_write,  Stage::compute_shader },
+        { _gen.drawDataBuf, BindingAccess::read_write,  Stage::compute_shader },
+        { _gen.pyramid,     _gen.sampler,               Stage::compute_shader },
     };
 
     kage::pushBindings(binds, COUNTOF(binds));
@@ -207,32 +202,32 @@ void prepareProbeDbgDraw(ProbeDbgDraw& _pd, const ProbeDebugDrawInit& _init)
 
     kage::BufferDesc vtxDesc;
     vtxDesc.size = _init.vtxMem->size;
-    vtxDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+    vtxDesc.usage = BufUsage::storage | BufUsage::transfer_dst;
     kage::BufferHandle vtxBuf = kage::registBuffer("sphere_vtx", vtxDesc, _init.vtxMem, kage::ResourceLifetime::non_transition);
 
     kage::BufferDesc idxDesc;
     idxDesc.size = _init.idxMem->size;
-    idxDesc.usage = kage::BufferUsageFlagBits::index | kage::BufferUsageFlagBits::transfer_dst;
+    idxDesc.usage = BufUsage::index | BufUsage::transfer_dst;
     kage::BufferHandle idxBuf = kage::registBuffer("sphere_idx", idxDesc, _init.idxMem, kage::ResourceLifetime::non_transition);
 
     kage::bindBuffer(pass, _init.trans
-        , kage::PipelineStageFlagBits::vertex_shader | kage::PipelineStageFlagBits::fragment_shader
-        , kage::AccessFlagBits::shader_read
+        , Stage::vertex_shader | Stage::fragment_shader
+        , Access::shader_read
     );
 
     kage::bindBuffer(pass, vtxBuf
-        , kage::PipelineStageFlagBits::vertex_shader
-        , kage::AccessFlagBits::shader_read
+        , Stage::vertex_shader
+        , Access::shader_read
     );
 
     kage::bindBuffer(pass, _init.drawData
-        , kage::PipelineStageFlagBits::vertex_shader
-        , kage::AccessFlagBits::shader_read
+        , Stage::vertex_shader
+        , Access::shader_read
     );
 
     kage::SamplerHandle samp = kage::sampleImage(
         pass, _init.cascade
-        , kage::PipelineStageFlagBits::fragment_shader
+        , Stage::fragment_shader
         , kage::SamplerFilter::linear
         , kage::SamplerMipmapMode::linear
         , kage::SamplerAddressMode::mirrored_repeat
@@ -295,10 +290,10 @@ void recProbeDbgDraw(const ProbeDbgDraw& _pd, const DrawCull& _camCull, const ui
     kage::setConstants(mem);
 
     kage::Binding binds[] = {
-        { _pd.trans,            Access::read,   Stage::vertex_shader},
-        { _pd.vtxBuf,           Access::read,   Stage::vertex_shader},
-        { _pd.drawDataBuf,      Access::read,   Stage::vertex_shader},
-        { _pd.radianceCascade,  _pd.rcSamp,  Stage::fragment_shader},
+        { _pd.trans,            BindingAccess::read,    Stage::vertex_shader},
+        { _pd.vtxBuf,           BindingAccess::read,    Stage::vertex_shader},
+        { _pd.drawDataBuf,      BindingAccess::read,    Stage::vertex_shader},
+        { _pd.radianceCascade,  _pd.rcSamp,             Stage::fragment_shader},
     };
     kage::pushBindings(binds, COUNTOF(binds));
 

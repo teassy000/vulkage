@@ -1,4 +1,5 @@
 #include "vkz_pyramid.h"
+#include "vkz_pass.h"
 #include "core/kage_math.h"
 #include "core/profiler.h"
 
@@ -33,8 +34,6 @@ void recPyr(const Pyramid& _pyramid, bool _pauseUpdate)
             ii == 0
             ? kage::kAllMips
             : (ii - 1);
-
-        using Stage = kage::PipelineStageFlagBits::Enum;
 
         kage::Binding binds[] =
         {
@@ -99,7 +98,7 @@ void setPyramidPassDependency(Pyramid& _pyramid, const kage::ImageHandle _inDept
     _pyramid.inDepth = _inDepth;
 
     _pyramid.sampler = kage::sampleImage(_pyramid.pass, _inDepth
-        , kage::PipelineStageFlagBits::compute_shader
+        , Stage::compute_shader
         , kage::SamplerFilter::linear
         , kage::SamplerMipmapMode::nearest
         , kage::SamplerAddressMode::clamp_to_edge
@@ -107,8 +106,8 @@ void setPyramidPassDependency(Pyramid& _pyramid, const kage::ImageHandle _inDept
     );
 
     kage::bindImage(_pyramid.pass, _pyramid.image
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_write
+        , Stage::compute_shader
+        , Access::shader_write
         , kage::ImageLayout::general
         , _pyramid.imgOutAlias
     );

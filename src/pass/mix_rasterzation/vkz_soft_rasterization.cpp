@@ -1,13 +1,7 @@
 #include "vkz_soft_rasterization.h"
+#include "vkz_pass.h"
 #include "demo_structs.h"
 #include "core/kage_math.h"
-
-using Stage = kage::PipelineStageFlagBits::Enum;
-using Access = kage::BindingAccess;
-using LoadOp = kage::AttachmentLoadOp;
-using StoreOp = kage::AttachmentStoreOp;
-using Aspect = kage::ImageAspectFlagBits::Enum;
-
 
 void recSoftRasterization(const SoftRasterization& _raster)
 {
@@ -35,8 +29,8 @@ void recSoftRasterization(const SoftRasterization& _raster)
     // bind resources
     kage::Binding binds[] =
     {
-        { _raster.inTriangleBuf,    Access::read,           Stage::compute_shader },
-        { _raster.inVtxBuf,         Access::read,           Stage::compute_shader },
+        { _raster.inTriangleBuf,    BindingAccess::read,    Stage::compute_shader },
+        { _raster.inVtxBuf,         BindingAccess::read,    Stage::compute_shader },
         { _raster.pyramid,          _raster.pyramidSamp,    Stage::compute_shader },
         { _raster.inColor,          0,                      Stage::compute_shader },
         { _raster.u32depth,         0,                      Stage::compute_shader },
@@ -79,13 +73,13 @@ void initSoftRasterization(SoftRasterization& _softRaster, const SoftRasterizati
     kage::bindBuffer(pass
         , _initData.vtxBuf
         , Stage::compute_shader
-        , kage::AccessFlagBits::shader_read
+        , Access::shader_read
     );
 
     kage::bindBuffer(pass
         , _initData.triangleBuf
         , Stage::compute_shader
-        , kage::AccessFlagBits::shader_read
+        , Access::shader_read
     );
 
     kage::setIndirectBuffer(pass
@@ -93,7 +87,7 @@ void initSoftRasterization(SoftRasterization& _softRaster, const SoftRasterizati
         );
 
     kage::SamplerHandle samp = kage::sampleImage(pass, _initData.pyramid
-        , kage::PipelineStageFlagBits::compute_shader
+        , Stage::compute_shader
         , kage::SamplerFilter::linear
         , kage::SamplerMipmapMode::nearest
         , kage::SamplerAddressMode::clamp_to_edge
@@ -103,7 +97,7 @@ void initSoftRasterization(SoftRasterization& _softRaster, const SoftRasterizati
     kage::bindImage(pass
         , _initData.color
         , Stage::compute_shader
-        , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
+        , Access::shader_read | kage::AccessFlagBits::shader_write
         , kage::ImageLayout::general
         , outColor
     );
@@ -111,7 +105,7 @@ void initSoftRasterization(SoftRasterization& _softRaster, const SoftRasterizati
     kage::bindImage(pass
         , u32depth
         , Stage::compute_shader
-        , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
+        , Access::shader_read | kage::AccessFlagBits::shader_write
         , kage::ImageLayout::general
         , outU32Depth
     );
@@ -119,7 +113,7 @@ void initSoftRasterization(SoftRasterization& _softRaster, const SoftRasterizati
     kage::bindImage(pass
         , _initData.depth
         , Stage::compute_shader
-        , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
+        , Access::shader_read | kage::AccessFlagBits::shader_write
         , kage::ImageLayout::general
         , outDepth
     );

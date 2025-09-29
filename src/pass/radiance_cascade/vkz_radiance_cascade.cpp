@@ -1,14 +1,7 @@
 #include "vkz_radiance_cascade.h"
+#include "vkz_pass.h"
 #include "core/config.h"
 #include "assets/mesh.h"
-
-
-
-using Binding = kage::Binding;
-using Stage = kage::PipelineStageFlagBits::Enum;
-using Access = kage::BindingAccess;
-using LoadOp = kage::AttachmentLoadOp;
-using StoreOp = kage::AttachmentStoreOp;
 
 struct RCBuildInit
 {
@@ -63,7 +56,7 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
     imgDesc.numMips = 1;
     imgDesc.type = kage::ImageType::type_2d;
     imgDesc.viewType = kage::ImageViewType::type_2d_array;
-    imgDesc.usage = kage::ImageUsageFlagBits::transfer_dst | kage::ImageUsageFlagBits::storage | kage::ImageUsageFlagBits::sampled;
+    imgDesc.usage = ImgUsage::transfer_dst | ImgUsage::storage | ImgUsage::sampled;
     imgDesc.layout = kage::ImageLayout::general;
 
     kage::ImageHandle img = kage::registTexture("cascade", imgDesc, nullptr, kage::ResourceLifetime::non_transition);
@@ -72,16 +65,16 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
     // transform buffer
     kage::BufferDesc transDesc{};
     transDesc.size = sizeof(RadianceCascadesTransform);
-    transDesc.usage = kage::BufferUsageFlagBits::uniform | kage::BufferUsageFlagBits::transfer_dst;
+    transDesc.usage = BufUsage::uniform | BufUsage::transfer_dst;
     kage::BufferHandle trans = kage::registBuffer("rc_trans", transDesc);
 
     kage::bindBuffer(pass, trans
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read
+        , Stage::compute_shader
+        , Access::shader_read
     );
 
     kage::SamplerHandle albedoSamp = kage::sampleImage(pass, _init.g_buffer.albedo
-        , kage::PipelineStageFlagBits::compute_shader
+        , Stage::compute_shader
         , kage::SamplerFilter::nearest
         , kage::SamplerMipmapMode::nearest
         , kage::SamplerAddressMode::clamp_to_edge
@@ -89,7 +82,7 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
     );
 
     kage::SamplerHandle normSamp = kage::sampleImage(pass, _init.g_buffer.normal
-        , kage::PipelineStageFlagBits::compute_shader
+        , Stage::compute_shader
         , kage::SamplerFilter::nearest
         , kage::SamplerMipmapMode::nearest
         , kage::SamplerAddressMode::clamp_to_edge
@@ -97,7 +90,7 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
     );
 
     kage::SamplerHandle wpSamp = kage::sampleImage(pass, _init.g_buffer.worldPos
-        , kage::PipelineStageFlagBits::compute_shader
+        , Stage::compute_shader
         , kage::SamplerFilter::nearest
         , kage::SamplerMipmapMode::nearest
         , kage::SamplerAddressMode::clamp_to_edge
@@ -105,7 +98,7 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
     );
 
     kage::SamplerHandle emmiSamp = kage::sampleImage(pass, _init.g_buffer.emissive
-        , kage::PipelineStageFlagBits::compute_shader
+        , Stage::compute_shader
         , kage::SamplerFilter::nearest
         , kage::SamplerMipmapMode::nearest
         , kage::SamplerAddressMode::clamp_to_edge
@@ -113,7 +106,7 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
     );
 
     kage::SamplerHandle depthSamp = kage::sampleImage(pass, _init.depth
-        , kage::PipelineStageFlagBits::compute_shader
+        , Stage::compute_shader
         , kage::SamplerFilter::nearest
         , kage::SamplerMipmapMode::nearest
         , kage::SamplerAddressMode::clamp_to_edge
@@ -121,7 +114,7 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
     );
 
     kage::SamplerHandle skySamp = kage::sampleImage(pass, _init.skybox
-        , kage::PipelineStageFlagBits::compute_shader
+        , Stage::compute_shader
         , kage::SamplerFilter::linear
         , kage::SamplerMipmapMode::nearest
         , kage::SamplerAddressMode::clamp_to_edge
@@ -129,14 +122,14 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
     );
 
     kage::bindImage(pass, img
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_write
+        , Stage::compute_shader
+        , Access::shader_write
         , kage::ImageLayout::general
         , outAlias
     );
 
     kage::SamplerHandle brxAtlasSamp = kage::sampleImage(pass, _init.brx.sdfAtlas
-        , kage::PipelineStageFlagBits::compute_shader
+        , Stage::compute_shader
         , kage::SamplerFilter::nearest
         , kage::SamplerMipmapMode::nearest
         , kage::SamplerAddressMode::clamp_to_edge
@@ -244,7 +237,7 @@ void recRCBuild(const RadianceCascadeBuild& _rc, const Dbg_RadianceCascades& _db
 
         kage::Binding pushBinds[] =
         {
-            {_rc.trans,                 Access::read,                   Stage::compute_shader},
+            {_rc.trans,                 BindingAccess::read,            Stage::compute_shader},
             {_rc.g_buffer.albedo,       _rc.g_bufferSamplers.albedo,    Stage::compute_shader},
             {_rc.g_buffer.normal,       _rc.g_bufferSamplers.normal,    Stage::compute_shader},
             {_rc.g_buffer.worldPos,     _rc.g_bufferSamplers.worldPos,  Stage::compute_shader},
@@ -257,13 +250,13 @@ void recRCBuild(const RadianceCascadeBuild& _rc, const Dbg_RadianceCascades& _db
 
         std::vector<kage::Binding> setBinds;
         setBinds.emplace_back(kage::Binding{ _rc.brx.sdfAtlas, 0, _rc.brxAtlasSamp, Stage::compute_shader }); // 0
-        setBinds.emplace_back(kage::Binding{ _rc.brx.cascadeInfos, Access::read, Stage::compute_shader }); // 1
-        setBinds.emplace_back(kage::Binding{ _rc.brx.brickAABB, Access::read, Stage::compute_shader }); // 2
+        setBinds.emplace_back(kage::Binding{ _rc.brx.cascadeInfos, BindingAccess::read, Stage::compute_shader }); // 1
+        setBinds.emplace_back(kage::Binding{ _rc.brx.brickAABB, BindingAccess::read, Stage::compute_shader }); // 2
 
         for (uint32_t jj = 0; jj < FFX_BRIXELIZER_MAX_CASCADES; jj++) // 3
-            setBinds.emplace_back(kage::Binding{ _rc.brx.cascadeAABBTrees[jj], Access::read, Stage::compute_shader });
+            setBinds.emplace_back(kage::Binding{ _rc.brx.cascadeAABBTrees[jj], BindingAccess::read, Stage::compute_shader });
         for (uint32_t jj = 0; jj < FFX_BRIXELIZER_MAX_CASCADES; jj++) // 4
-            setBinds.emplace_back(kage::Binding{ _rc.brx.cascadeBrickMaps[jj], Access::read, Stage::compute_shader });
+            setBinds.emplace_back(kage::Binding{ _rc.brx.cascadeBrickMaps[jj], BindingAccess::read, Stage::compute_shader });
 
         uint32_t arrayCounts[] = { 1, 1, 1, FFX_BRIXELIZER_MAX_CASCADES, FFX_BRIXELIZER_MAX_CASCADES};
 
@@ -330,7 +323,7 @@ void prepareRCMerge(RadianceCascadeMerge& _rc, const RCMergeInit& _init, bool _r
     mergedImgDesc.numMips = 1;
     mergedImgDesc.type = kage::ImageType::type_2d;
     mergedImgDesc.viewType = kage::ImageViewType::type_2d_array;
-    mergedImgDesc.usage = kage::ImageUsageFlagBits::transfer_dst | kage::ImageUsageFlagBits::storage | kage::ImageUsageFlagBits::sampled;
+    mergedImgDesc.usage = ImgUsage::transfer_dst | ImgUsage::storage | ImgUsage::sampled;
     mergedImgDesc.layout = kage::ImageLayout::general;
     kage::ImageHandle mergedCas = kage::registTexture(imgName, mergedImgDesc, nullptr, kage::ResourceLifetime::non_transition);
 
@@ -338,14 +331,14 @@ void prepareRCMerge(RadianceCascadeMerge& _rc, const RCMergeInit& _init, bool _r
 
 
     kage::bindImage(pass, mergedCas
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_write | kage::AccessFlagBits::shader_read
+        , Stage::compute_shader
+        , Access::shader_write | Access::shader_read
         , kage::ImageLayout::general
         , mergedCasAlias
     );
     
     kage::SamplerHandle skySamp = kage::sampleImage(pass, _init.skybox
-        , kage::PipelineStageFlagBits::compute_shader
+        , Stage::compute_shader
         , kage::SamplerFilter::linear
         , kage::SamplerMipmapMode::nearest
         , kage::SamplerAddressMode::clamp_to_edge
@@ -353,7 +346,7 @@ void prepareRCMerge(RadianceCascadeMerge& _rc, const RCMergeInit& _init, bool _r
     );
 
     kage::SamplerHandle rcSamp = kage::sampleImage(pass, _init.radianceCascade
-        , kage::PipelineStageFlagBits::compute_shader
+        , Stage::compute_shader
         , kage::SamplerFilter::linear
         , kage::SamplerMipmapMode::nearest
         , kage::SamplerAddressMode::mirrored_repeat
@@ -361,7 +354,7 @@ void prepareRCMerge(RadianceCascadeMerge& _rc, const RCMergeInit& _init, bool _r
     );
 
     kage::SamplerHandle linearSamp = kage::sampleImage(pass, mergedCas
-        , kage::PipelineStageFlagBits::compute_shader
+        , Stage::compute_shader
         , kage::SamplerFilter::linear
         , kage::SamplerMipmapMode::nearest
         , kage::SamplerAddressMode::mirrored_repeat
@@ -369,7 +362,7 @@ void prepareRCMerge(RadianceCascadeMerge& _rc, const RCMergeInit& _init, bool _r
     );
 
     kage::SamplerHandle nearedSamp = kage::sampleImage(pass, mergedCas
-        , kage::PipelineStageFlagBits::compute_shader
+        , Stage::compute_shader
         , kage::SamplerFilter::linear
         , kage::SamplerMipmapMode::nearest
         , kage::SamplerAddressMode::mirrored_repeat

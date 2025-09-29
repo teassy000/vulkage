@@ -1,11 +1,10 @@
 #include "vkz_culling_pass.h"
+#include "vkz_pass.h"
 
 void recMeshCulling(const MeshCulling& _cull, uint32_t _drawCount)
 {
     KG_ZoneScopedC(kage::Color::blue);
 
-    using Stage = kage::PipelineStageFlagBits::Enum;
-    using Access = kage::BindingAccess;
     const kage::Memory* mem = kage::alloc(sizeof(DrawCull));
     bx::memCopy(mem->data, &_cull.drawCull, mem->size);
 
@@ -17,13 +16,13 @@ void recMeshCulling(const MeshCulling& _cull, uint32_t _drawCount)
 
     kage::Binding binds[] =
     {
-        { _cull.meshBuf,             Access::read,          Stage::compute_shader },
-        { _cull.meshDrawBuf,         Access::read,          Stage::compute_shader },
-        { _cull.transBuf,            Access::read,          Stage::compute_shader },
-        { _cull.meshDrawCmdBuf,      Access::write,         Stage::compute_shader },
-        { _cull.meshDrawCmdCountBuf, Access::read_write,    Stage::compute_shader },
-        { _cull.meshDrawVisBuf,      Access::read_write,    Stage::compute_shader },
-        { _cull.pyramid,             _cull.pyrSampler,      Stage::compute_shader },
+        { _cull.meshBuf,             BindingAccess::read,       Stage::compute_shader },
+        { _cull.meshDrawBuf,         BindingAccess::read,       Stage::compute_shader },
+        { _cull.transBuf,            BindingAccess::read,       Stage::compute_shader },
+        { _cull.meshDrawCmdBuf,      BindingAccess::write,      Stage::compute_shader },
+        { _cull.meshDrawCmdCountBuf, BindingAccess::read_write, Stage::compute_shader },
+        { _cull.meshDrawVisBuf,      BindingAccess::read_write, Stage::compute_shader },
+        { _cull.pyramid,             _cull.pyrSampler,          Stage::compute_shader },
     };
     kage::pushBindings(binds, COUNTOF(binds));
     kage::dispatch(_drawCount, 1, 1);
@@ -74,34 +73,34 @@ void initMeshCulling(MeshCulling& _cullingComp, const MeshCullingInitData& _init
     kage::BufferHandle drawVisOutAlias = kage::alias(_initData.meshDrawVisBuf);
 
     kage::bindBuffer(pass, _initData.meshBuf
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read);
+        , Stage::compute_shader
+        , Access::shader_read);
 
     kage::bindBuffer(pass, _initData.meshDrawBuf
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read);
+        , Stage::compute_shader
+        , Access::shader_read);
 
     kage::bindBuffer(pass, _initData.transBuf
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read);
+        , Stage::compute_shader
+        , Access::shader_read);
 
     kage::bindBuffer(pass, _initData.meshDrawCmdBuf
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
+        , Stage::compute_shader
+        , Access::shader_read | kage::AccessFlagBits::shader_write
         , drawCmdOutAlias);
 
     kage::bindBuffer(pass, _initData.meshDrawCmdCountBuf
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
+        , Stage::compute_shader
+        , Access::shader_read | kage::AccessFlagBits::shader_write
         , drawCmdCountOutAlias);
 
     kage::bindBuffer(pass, _initData.meshDrawVisBuf
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
+        , Stage::compute_shader
+        , Access::shader_read | kage::AccessFlagBits::shader_write
         , drawVisOutAlias);
 
      kage::SamplerHandle samp = kage::sampleImage(pass, _initData.pyramid
-        , kage::PipelineStageFlagBits::compute_shader
+        , Stage::compute_shader
         , kage::SamplerFilter::linear
         , kage::SamplerMipmapMode::nearest
         , kage::SamplerAddressMode::clamp_to_edge
@@ -177,63 +176,63 @@ void initMeshletCulling(MeshletCulling& _cullingComp, const MeshletCullingInitDa
 
     kage::bindBuffer(pass
         , _initData.meshletCmdBuf
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read
+        , Stage::compute_shader
+        , Access::shader_read
     );
 
     kage::setIndirectBuffer(pass, _initData.meshletCmdCntBuf);
 
     kage::bindBuffer(pass
         , _initData.meshBuf
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read
+        , Stage::compute_shader
+        , Access::shader_read
     );
 
     kage::bindBuffer(pass
         , _initData.meshDrawBuf
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read
+        , Stage::compute_shader
+        , Access::shader_read
     );
 
     kage::bindBuffer(pass
         , _initData.transformBuf
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read
+        , Stage::compute_shader
+        , Access::shader_read
     );
 
     kage::bindBuffer(pass
         , _initData.meshletBuf
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read
+        , Stage::compute_shader
+        , Access::shader_read
     );
 
     // read/write buffers
     kage::bindBuffer(pass
         , _initData.meshletVisBuf
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read| kage::AccessFlagBits::shader_write
+        , Stage::compute_shader
+        , Access::shader_read| kage::AccessFlagBits::shader_write
         , meshletVisBufOutAlias
     );
 
     // write buffers
     kage::bindBuffer(pass
         , meshletPayloadBuf
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
+        , Stage::compute_shader
+        , Access::shader_read | kage::AccessFlagBits::shader_write
         , meshletPayloadBufOutAlias
     );
 
     kage::bindBuffer(pass
         , meshletPayloadCntBuf
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
+        , Stage::compute_shader
+        , Access::shader_read | kage::AccessFlagBits::shader_write
         , meshletPayloadCntOutAlias
     );
 
     // samplers
     kage::SamplerHandle pyrSamp = kage::sampleImage( pass
         , _initData.pyramid
-        , kage::PipelineStageFlagBits::compute_shader
+        , Stage::compute_shader
         , kage::SamplerFilter::linear
         , kage::SamplerMipmapMode::nearest
         , kage::SamplerAddressMode::clamp_to_edge
@@ -269,8 +268,6 @@ void recMeshletCulling(const MeshletCulling& _mltc, const DrawCull& _drawCull)
 {
     KG_ZoneScopedC(kage::Color::blue);
 
-    using Stage = kage::PipelineStageFlagBits::Enum;
-    using Access = kage::BindingAccess;
     const kage::Memory* mem = kage::alloc(sizeof(DrawCull));
     bx::memCopy(mem->data, &_drawCull, mem->size);
 
@@ -282,15 +279,15 @@ void recMeshletCulling(const MeshletCulling& _mltc, const DrawCull& _drawCull)
 
     kage::Binding binds[] =
     {
-        { _mltc.meshletCmdBuf,      Access::read,           Stage::compute_shader },
-        { _mltc.meshBuf,            Access::read,           Stage::compute_shader },
-        { _mltc.meshDrawBuf,        Access::read,           Stage::compute_shader },
-        { _mltc.transformBuf,       Access::read,           Stage::compute_shader },
-        { _mltc.meshletBuf,         Access::write,          Stage::compute_shader },
-        { _mltc.meshletVisBuf,      Access::read_write,     Stage::compute_shader },
-        { _mltc.meshletPayloadBuf,  Access::read_write,     Stage::compute_shader },
-        { _mltc.meshletPayloadCntBuf,   Access::read_write, Stage::compute_shader },
-        { _mltc.pyramid,            _mltc.pyrSampler,      Stage::compute_shader },
+        { _mltc.meshletCmdBuf,          BindingAccess::read,        Stage::compute_shader },
+        { _mltc.meshBuf,                BindingAccess::read,        Stage::compute_shader },
+        { _mltc.meshDrawBuf,            BindingAccess::read,        Stage::compute_shader },
+        { _mltc.transformBuf,           BindingAccess::read,        Stage::compute_shader },
+        { _mltc.meshletBuf,             BindingAccess::write,       Stage::compute_shader },
+        { _mltc.meshletVisBuf,          BindingAccess::read_write,  Stage::compute_shader },
+        { _mltc.meshletPayloadBuf,      BindingAccess::read_write,  Stage::compute_shader },
+        { _mltc.meshletPayloadCntBuf,   BindingAccess::read_write,  Stage::compute_shader },
+        { _mltc.pyramid,                _mltc.pyrSampler,           Stage::compute_shader },
     };
     kage::pushBindings(binds, COUNTOF(binds));
 
@@ -352,61 +349,61 @@ void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& 
 
     kage::bindBuffer(pass
         , _initData.meshletPayloadBuf
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read
+        , Stage::compute_shader
+        , Access::shader_read
     );
 
     kage::setIndirectBuffer(pass, _initData.meshletPayloadCntBuf);
 
     kage::bindBuffer(pass
         , _initData.meshDrawBuf
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read
+        , Stage::compute_shader
+        , Access::shader_read
     );
 
     kage::bindBuffer(pass
         , _initData.transformBuf
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read
+        , Stage::compute_shader
+        , Access::shader_read
     );
 
     kage::bindBuffer(pass
         , _initData.vtxBuf
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read
+        , Stage::compute_shader
+        , Access::shader_read
     );
 
     kage::bindBuffer(pass
         , _initData.meshletBuf
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read
+        , Stage::compute_shader
+        , Access::shader_read
     );
 
     kage::bindBuffer(pass
         , _initData.meshletDataBuf
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read
+        , Stage::compute_shader
+        , Access::shader_read
     );
 
     // write buffers
     kage::bindBuffer(pass
         , vtxPayload
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
+        , Stage::compute_shader
+        , Access::shader_read | kage::AccessFlagBits::shader_write
         , vtxPayloadBufOutAlias
     );
 
     kage::bindBuffer(pass
         , trianglePayload
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
+        , Stage::compute_shader
+        , Access::shader_read | kage::AccessFlagBits::shader_write
         , meshletPayloadBufOutAlias
     );
 
     kage::bindBuffer(pass
         , trianglePayloadCntBuf
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
+        , Stage::compute_shader
+        , Access::shader_read | kage::AccessFlagBits::shader_write
         , meshletPayloadCntOutAlias
     );
 
@@ -438,8 +435,7 @@ void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& 
 void recTriangleCulling(const TriangleCulling& _tric)
 {
     KG_ZoneScopedC(kage::Color::blue);
-    using Stage = kage::PipelineStageFlagBits::Enum;
-    using Access = kage::BindingAccess;
+
     const kage::Memory* mem = kage::alloc(sizeof(vec2));
     vec2 screenSize = { _tric.screenWidth, _tric.screenHeight };
     bx::memCopy(mem->data, &screenSize, mem->size);
@@ -451,15 +447,15 @@ void recTriangleCulling(const TriangleCulling& _tric)
 
     kage::Binding binds[] =
     {
-        { _tric.meshletPayloadBuf,      Access::read,       Stage::compute_shader },
-        { _tric.meshDrawBuf,            Access::read,       Stage::compute_shader },
-        { _tric.transformBuf,           Access::read,       Stage::compute_shader },
-        { _tric.vtxBuf,                 Access::read,       Stage::compute_shader },
-        { _tric.meshletBuf,             Access::read,       Stage::compute_shader },
-        { _tric.meshletDataBuf,         Access::read,       Stage::compute_shader },
-        { _tric.vtxPayloadBuf,          Access::read_write, Stage::compute_shader },
-        { _tric.trianglePayloadBuf,     Access::read_write, Stage::compute_shader },
-        { _tric.payloadCntBuf,          Access::read_write, Stage::compute_shader },
+        { _tric.meshletPayloadBuf,      BindingAccess::read,       Stage::compute_shader },
+        { _tric.meshDrawBuf,            BindingAccess::read,       Stage::compute_shader },
+        { _tric.transformBuf,           BindingAccess::read,       Stage::compute_shader },
+        { _tric.vtxBuf,                 BindingAccess::read,       Stage::compute_shader },
+        { _tric.meshletBuf,             BindingAccess::read,       Stage::compute_shader },
+        { _tric.meshletDataBuf,         BindingAccess::read,       Stage::compute_shader },
+        { _tric.vtxPayloadBuf,          BindingAccess::read_write, Stage::compute_shader },
+        { _tric.trianglePayloadBuf,     BindingAccess::read_write, Stage::compute_shader },
+        { _tric.payloadCntBuf,          BindingAccess::read_write, Stage::compute_shader },
     };
     kage::pushBindings(binds, COUNTOF(binds));
     

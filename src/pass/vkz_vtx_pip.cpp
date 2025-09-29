@@ -1,9 +1,5 @@
 #include "vkz_vtx_pip.h"
-
-using Stage = kage::PipelineStageFlagBits::Enum;
-using Access = kage::BindingAccess;
-using LoadOp = kage::AttachmentLoadOp;
-using StoreOp = kage::AttachmentStoreOp;
+#include "vkz_pass.h"
 
 void vtxShadingRec(VtxShading& _v)
 {
@@ -14,10 +10,10 @@ void vtxShadingRec(VtxShading& _v)
 
     kage::Binding binds[] =
     {
-        {_v.meshDrawCmdBuf, Access::read,       Stage::vertex_shader},
-        {_v.vtxBuf,         Access::read,       Stage::vertex_shader},
-        {_v.meshDrawBuf,    Access::read,       Stage::vertex_shader},
-        {_v.transformBuf,   Access::read,       Stage::vertex_shader | Stage::fragment_shader},
+        {_v.meshDrawCmdBuf, BindingAccess::read,       Stage::vertex_shader},
+        {_v.vtxBuf,         BindingAccess::read,       Stage::vertex_shader},
+        {_v.meshDrawBuf,    BindingAccess::read,       Stage::vertex_shader},
+        {_v.transformBuf,   BindingAccess::read,       Stage::vertex_shader | Stage::fragment_shader},
     };
 
     kage::startRec(_v.pass);
@@ -80,20 +76,20 @@ void prepareVtxShading(VtxShading& _vtxShading, const Scene& _scene, const VtxSh
 
     // bindings
     kage::bindBuffer(pass, _initData.meshDrawCmdBuf
-        , kage::PipelineStageFlagBits::vertex_shader
-        , kage::AccessFlagBits::shader_read);
+        , Stage::vertex_shader
+        , Access::shader_read);
 
     kage::bindBuffer(pass, _initData.vtxBuf
-        , kage::PipelineStageFlagBits::vertex_shader
-        , kage::AccessFlagBits::shader_read);
+        , Stage::vertex_shader
+        , Access::shader_read);
 
     kage::bindBuffer(pass, _initData.meshDrawBuf
-        , kage::PipelineStageFlagBits::vertex_shader
-        , kage::AccessFlagBits::shader_read);
+        , Stage::vertex_shader
+        , Access::shader_read);
 
     kage::bindBuffer(pass, _initData.transformBuf
-        , kage::PipelineStageFlagBits::vertex_shader | kage::PipelineStageFlagBits::fragment_shader
-        , kage::AccessFlagBits::shader_read);
+        , Stage::vertex_shader | Stage::fragment_shader
+        , Access::shader_read);
 
 
     kage::setIndirectBuffer(pass, _initData.meshDrawCmdBuf);

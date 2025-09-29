@@ -1,5 +1,6 @@
 
 #include "vkz_skybox_pass.h"
+#include "vkz_pass.h"
 #include "scene/scene.h"
 #include "core/profiler.h"
 
@@ -74,12 +75,12 @@ void initSkyboxPass(Skybox& _skybox, const kage::BufferHandle _trans, const kage
     kage::bindIndexBuffer(pass, idxBuf, (uint32_t)geom.indices.size());
 
     kage::bindBuffer(pass, _trans
-        , kage::PipelineStageFlagBits::vertex_shader
-        , kage::AccessFlagBits::shader_read
+        , Stage::vertex_shader
+        , Access::shader_read
     );
 
     _skybox.cubemapSampler = kage::sampleImage(pass, _skycube
-        , kage::PipelineStageFlagBits::fragment_shader
+        , Stage::fragment_shader
         , kage::SamplerFilter::linear
         , kage::SamplerMipmapMode::linear
         , kage::SamplerAddressMode::clamp_to_edge
@@ -107,11 +108,9 @@ void skyboxRec(const Skybox& _skybox, uint32_t _w, uint32_t _h)
 {
     KG_ZoneScopedC(kage::Color::blue);
 
-    using Stage = kage::PipelineStageFlagBits::Enum;
-    using Access = kage::BindingAccess;
     kage::Binding binds[] =
     {
-        {_skybox.trans,     Access::read,           Stage::vertex_shader},
+        {_skybox.trans,     BindingAccess::read,    Stage::vertex_shader},
         {_skybox.cubemap,   _skybox.cubemapSampler, Stage::fragment_shader},
     };
 
@@ -125,10 +124,8 @@ void skyboxRec(const Skybox& _skybox, uint32_t _w, uint32_t _h)
 
     kage::pushBindings(binds, COUNTOF(binds));
 
-
-
     kage::Attachment attachments[] = {
-        {_skybox.color, kage::AttachmentLoadOp::clear, kage::AttachmentStoreOp::store},
+        {_skybox.color, LoadOp::clear, StoreOp::store},
     };
     kage::setColorAttachments(attachments, COUNTOF(attachments));
 

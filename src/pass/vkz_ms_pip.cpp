@@ -1,15 +1,12 @@
 
 #include "vkz_ms_pip.h"
+#include "vkz_pass.h"
+
 #include "demo_structs.h"
 #include "scene/scene.h"
 #include "core/kage_math.h"
 
 #include "bx/readerwriter.h"
-
-using Stage = kage::PipelineStageFlagBits::Enum;
-using Access = kage::BindingAccess;
-using LoadOp = kage::AttachmentLoadOp;
-using StoreOp = kage::AttachmentStoreOp;
 
 void taskSubmitRec(const TaskSubmit& _ts)
 {
@@ -17,8 +14,8 @@ void taskSubmitRec(const TaskSubmit& _ts)
 
     kage::Binding binds[] =
     {
-        {_ts.drawCmdCountBuffer,    Access::read,   Stage::compute_shader},
-        {_ts.drawCmdBuffer,         Access::write,  Stage::compute_shader}
+        {_ts.drawCmdCountBuffer,    BindingAccess::read,   Stage::compute_shader},
+        {_ts.drawCmdBuffer,         BindingAccess::write,  Stage::compute_shader}
     };
 
     kage::startRec(_ts.pass);
@@ -39,14 +36,14 @@ void meshShadingRec(const MeshShading& _ms)
 
     kage::Binding binds[] =
     {
-        {_ms.meshDrawCmdBuffer, Access::read,       Stage::task_shader | Stage::mesh_shader},
-        {_ms.meshBuffer,        Access::read,       Stage::task_shader | Stage::mesh_shader},
-        {_ms.meshDrawBuffer,    Access::read,       Stage::task_shader | Stage::mesh_shader},
-        {_ms.transformBuffer,   Access::read,       Stage::task_shader | Stage::mesh_shader | Stage::fragment_shader},
-        {_ms.vtxBuffer,         Access::read,       Stage::task_shader | Stage::mesh_shader},
-        {_ms.meshletBuffer,     Access::read,       Stage::task_shader | Stage::mesh_shader},
-        {_ms.meshletDataBuffer, Access::read,       Stage::task_shader | Stage::mesh_shader},
-        {_ms.meshletVisBuffer,  Access::read_write, Stage::task_shader | Stage::mesh_shader},
+        {_ms.meshDrawCmdBuffer, BindingAccess::read,       Stage::task_shader | Stage::mesh_shader},
+        {_ms.meshBuffer,        BindingAccess::read,       Stage::task_shader | Stage::mesh_shader},
+        {_ms.meshDrawBuffer,    BindingAccess::read,       Stage::task_shader | Stage::mesh_shader},
+        {_ms.transformBuffer,   BindingAccess::read,       Stage::task_shader | Stage::mesh_shader | Stage::fragment_shader},
+        {_ms.vtxBuffer,         BindingAccess::read,       Stage::task_shader | Stage::mesh_shader},
+        {_ms.meshletBuffer,     BindingAccess::read,       Stage::task_shader | Stage::mesh_shader},
+        {_ms.meshletDataBuffer, BindingAccess::read,       Stage::task_shader | Stage::mesh_shader},
+        {_ms.meshletVisBuffer,  BindingAccess::read_write, Stage::task_shader | Stage::mesh_shader},
         {_ms.pyramid,       _ms.pyramidSampler,     Stage::task_shader | Stage::mesh_shader}
     };
 
@@ -118,40 +115,40 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
     GBuffer gb_outAlias = aliasGBuffer(_initData.g_buffer);
 
     kage::bindBuffer(pass, _initData.meshDrawCmdBuffer
-        , kage::PipelineStageFlagBits::task_shader
-        , kage::AccessFlagBits::shader_read);
+        , Stage::task_shader
+        , Access::shader_read);
     
     kage::bindBuffer(pass, _initData.meshBuffer
-        , kage::PipelineStageFlagBits::task_shader
-        , kage::AccessFlagBits::shader_read);
+        , Stage::task_shader
+        , Access::shader_read);
 
     kage::bindBuffer(pass, _initData.meshDrawBuffer
-        , kage::PipelineStageFlagBits::task_shader
-        , kage::AccessFlagBits::shader_read);
+        , Stage::task_shader
+        , Access::shader_read);
 
     kage::bindBuffer(pass, _initData.transformBuffer
-        , kage::PipelineStageFlagBits::task_shader
-        , kage::AccessFlagBits::shader_read);
+        , Stage::task_shader
+        , Access::shader_read);
 
     kage::bindBuffer(pass, _initData.vtxBuffer
-        , kage::PipelineStageFlagBits::task_shader
-        , kage::AccessFlagBits::shader_read);
+        , Stage::task_shader
+        , Access::shader_read);
 
     kage::bindBuffer(pass, _initData.meshletBuffer
-        , kage::PipelineStageFlagBits::task_shader
-        , kage::AccessFlagBits::shader_read);
+        , Stage::task_shader
+        , Access::shader_read);
 
     kage::bindBuffer(pass, _initData.meshletDataBuffer
-        , kage::PipelineStageFlagBits::task_shader
-        , kage::AccessFlagBits::shader_read);
+        , Stage::task_shader
+        , Access::shader_read);
 
     kage::bindBuffer(pass, _initData.meshletVisBuffer
-        , kage::PipelineStageFlagBits::task_shader
-        , kage::AccessFlagBits::shader_read | kage::AccessFlagBits::shader_write
+        , Stage::task_shader
+        , Access::shader_read | Access::shader_write
         , mltVisBufOutAlias);
 
     kage::SamplerHandle pyrSampler = kage::sampleImage(pass, _initData.pyramid
-        , kage::PipelineStageFlagBits::fragment_shader
+        , Stage::fragment_shader
         , kage::SamplerFilter::linear
         , kage::SamplerMipmapMode::nearest
         , kage::SamplerAddressMode::clamp_to_edge
@@ -223,12 +220,12 @@ void prepareTaskSubmit(TaskSubmit& _taskSubmit, kage::BufferHandle _drawCmdBuf, 
     kage::BufferHandle drawCmdBufferOutAlias = kage::alias(_drawCmdBuf);
 
     kage::bindBuffer(pass, _drawCmdCntBuf
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_read);
+        , Stage::compute_shader
+        , Access::shader_read);
     
     kage::bindBuffer(pass, _drawCmdBuf
-        , kage::PipelineStageFlagBits::compute_shader
-        , kage::AccessFlagBits::shader_write
+        , Stage::compute_shader
+        , Access::shader_write
         , drawCmdBufferOutAlias);
 
     _taskSubmit.cs = cs;
