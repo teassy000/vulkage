@@ -72,7 +72,7 @@ void prepareProbeDbgCmdGen(ProbeDbgCmdGen& _gen, const ProbeDebugGenInit& _init)
     kage::ProgramHandle prog = kage::registProgram("rc_probe_debug_cmd", { cs }, sizeof(ProbeDebugCmdConsts));
 
     kage::PassDesc passDesc;
-    passDesc.programId = prog.id;
+    passDesc.prog = prog;
     passDesc.queue = kage::PassExeQueue::compute;
     kage::PassHandle pass = kage::registPass("rc_probe_debug_cmd", passDesc);
 
@@ -195,7 +195,7 @@ void prepareProbeDbgDraw(ProbeDbgDraw& _pd, const ProbeDebugDrawInit& _init)
     kage::ShaderHandle fs = kage::registShader("rc_probe_debug", "shader/rc_probe_debug.frag.spv");
     kage::ProgramHandle prog = kage::registProgram("rc_probe_debug", { vs, fs }, sizeof(ProbeDebugDrawConsts));
     kage::PassDesc passDesc;
-    passDesc.programId = prog.id;
+    passDesc.prog = prog;
     passDesc.queue = kage::PassExeQueue::graphics;
     passDesc.pipelineConfig = { true, true, kage::CompareOp::greater, kage::CullModeFlagBits::back, kage::PolygonMode::fill };
     kage::PassHandle pass = kage::registPass("rc_probe_debug", passDesc);

@@ -92,7 +92,7 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
     memcpy_s(pConst->data, pConst->size, pipelineSpecs, sizeof(int) * COUNTOF(pipelineSpecs));
 
     kage::PassDesc desc{};
-    desc.programId = prog.id;
+    desc.prog = prog;
     desc.queue = kage::PassExeQueue::graphics;
     desc.pipelineConfig.depthCompOp = kage::CompareOp::greater;
     desc.pipelineConfig.enableDepthTest = true;
@@ -206,7 +206,7 @@ void prepareTaskSubmit(TaskSubmit& _taskSubmit, kage::BufferHandle _drawCmdBuf, 
     kage::ProgramHandle prog = kage::registProgram("task_modify_late", { cs });
     
     kage::PassDesc desc{};
-    desc.programId = prog.id;
+    desc.prog = prog;
     desc.queue = kage::PassExeQueue::compute;
 
     const char* passName = 

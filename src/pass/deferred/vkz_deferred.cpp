@@ -89,7 +89,7 @@ void initDeferredShading(DeferredShading& _ds, const GBuffer& _gb, const kage::I
     kage::ProgramHandle prog = kage::registProgram("deferred", { cs }, sizeof(DeferredConstants));
 
     kage::PassDesc desc;
-    desc.programId = prog.id;
+    desc.prog = prog;
     desc.queue = kage::PassExeQueue::compute;
     kage::PassHandle pass = kage::registPass("deferred", desc);
 

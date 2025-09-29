@@ -59,7 +59,7 @@ void initMeshCulling(MeshCulling& _cullingComp, const MeshCullingInitData& _init
     memcpy_s(pConst->data, pConst->size, pipelineSpecs, sizeof(int) * COUNTOF(pipelineSpecs));
 
     kage::PassDesc passDesc;
-    passDesc.programId = prog.id;
+    passDesc.prog = prog;
     passDesc.queue = kage::PassExeQueue::compute;
     passDesc.pipelineSpecNum = COUNTOF(pipelineSpecs);
     passDesc.pipelineSpecData = (void*)pConst->data;
@@ -149,7 +149,7 @@ void initMeshletCulling(MeshletCulling& _cullingComp, const MeshletCullingInitDa
     memcpy_s(pConst->data, pConst->size, pipelineSpecs, sizeof(int) * COUNTOF(pipelineSpecs));
 
     kage::PassDesc passDesc;
-    passDesc.programId = prog.id;
+    passDesc.prog = prog;
     passDesc.queue = kage::PassExeQueue::compute;
     passDesc.pipelineSpecNum = COUNTOF(pipelineSpecs);
     passDesc.pipelineSpecData = (void*)pConst->data;
@@ -314,7 +314,7 @@ void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& 
     memcpy_s(pConst->data, pConst->size, pipelineSpecs, sizeof(int) * COUNTOF(pipelineSpecs));
 
     kage::PassDesc passDesc;
-    passDesc.programId = prog.id;
+    passDesc.prog = prog;
     passDesc.queue = kage::PassExeQueue::compute;
     passDesc.pipelineSpecNum = COUNTOF(pipelineSpecs);
     passDesc.pipelineSpecData = (void*)pConst->data;

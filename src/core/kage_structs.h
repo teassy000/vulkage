@@ -643,7 +643,7 @@ namespace kage
 
     struct PassDesc
     {
-        uint16_t        programId{kInvalidHandle};
+        ProgramHandle   prog{kInvalidHandle};
         PassExeQueue    queue{ PassExeQueue::graphics};
 
         uint16_t        vertexBindingNum{0};

@@ -36,7 +36,7 @@ void initModifyIndirectCmds(ModifyIndirectCmds& _cmds, const kage::BufferHandle 
     memcpy_s(pConst->data, pConst->size, pipelineSpecs, sizeof(int) * COUNTOF(pipelineSpecs));
 
     kage::PassDesc passDesc;
-    passDesc.programId = prog.id;
+    passDesc.prog = prog;
     passDesc.queue = kage::PassExeQueue::compute;
     passDesc.pipelineSpecNum = COUNTOF(pipelineSpecs);
     passDesc.pipelineSpecData = (void*)pConst->data;

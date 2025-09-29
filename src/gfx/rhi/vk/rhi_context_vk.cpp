@@ -2236,7 +2236,7 @@ namespace kage { namespace vk
         passInfo.indexCount = passMeta.indexCount;
 
         // desc part
-        passInfo.programId = passMeta.programId;
+        passInfo.prog = passMeta.prog;
         passInfo.queue = passMeta.queue;
         passInfo.vertexBindingNum = passMeta.vertexBindingNum;
         passInfo.vertexAttributeNum = passMeta.vertexAttributeNum;
@@ -2291,8 +2291,8 @@ namespace kage { namespace vk
         if (passMeta.queue == PassExeQueue::graphics)
         {
             // create pipeline
-            const uint16_t progIdx = (uint16_t)m_programContainer.getIdIndex(passInfo.programId);
-            const Program_vk& program = m_programContainer.getIdToData(passInfo.programId);
+            const uint16_t progIdx = (uint16_t)m_programContainer.getIdIndex(passInfo.prog);
+            const Program_vk& program = m_programContainer.getIdToData(passInfo.prog);
             const stl::vector<uint16_t>& shaderIds = m_programShaderIds[progIdx];
 
             stl::vector<VkFormat> colorFormats{};
@@ -2338,8 +2338,8 @@ namespace kage { namespace vk
         else if (passMeta.queue == PassExeQueue::compute)
         {
             // create pipeline
-            const uint16_t progIdx = (uint16_t)m_programContainer.getIdIndex(passMeta.programId);
-            const Program_vk& program = m_programContainer.getIdToData(passMeta.programId);
+            const uint16_t progIdx = (uint16_t)m_programContainer.getIdIndex(passMeta.prog);
+            const Program_vk& program = m_programContainer.getIdToData(passMeta.prog);
             const stl::vector<uint16_t>& shaderIds = m_programShaderIds[progIdx];
 
             stl::vector< Shader_vk> shaders;
@@ -2724,7 +2724,7 @@ namespace kage { namespace vk
         }
 
         const PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
-        const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
+        const Program_vk& prog = m_programContainer.getIdToData(passInfo.prog);
 
         vkCmdPushConstants(
             m_cmdBuffer
@@ -2831,7 +2831,7 @@ namespace kage { namespace vk
 
         // get program layout
         const PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
-        const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
+        const Program_vk& prog = m_programContainer.getIdToData(passInfo.prog);
         
         // get bind point
         const Bindless_vk& bindless = m_bindlessContainer.getIdToData(_hBindless.id);
@@ -3041,7 +3041,7 @@ namespace kage { namespace vk
 
         // get the dispatch size
         PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
-        const uint16_t progIdx = (uint16_t)m_programContainer.getIdIndex(passInfo.programId);
+        const uint16_t progIdx = (uint16_t)m_programContainer.getIdIndex(passInfo.prog);
         const stl::vector<uint16_t>& shaderIds = m_programShaderIds[progIdx];
         assert(shaderIds.size() == 1);
         const Shader_vk& shader = m_shaderContainer.getIdToData(shaderIds[0]);
@@ -3109,7 +3109,7 @@ namespace kage { namespace vk
         beginRendering(m_cmdBuffer, _hPass.id);
 
         PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
-        const uint16_t progIdx = (uint16_t)m_programContainer.getIdIndex(passInfo.programId);
+        const uint16_t progIdx = (uint16_t)m_programContainer.getIdIndex(passInfo.prog);
 
         vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, passInfo.pipeline);
 
@@ -3153,7 +3153,7 @@ namespace kage { namespace vk
         beginRendering(m_cmdBuffer, _hPass.id);
 
         PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
-        const uint16_t progIdx = (uint16_t)m_programContainer.getIdIndex(passInfo.programId);
+        const uint16_t progIdx = (uint16_t)m_programContainer.getIdIndex(passInfo.prog);
 
         vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, passInfo.pipeline);
         vkCmdDrawIndexed(
@@ -3195,7 +3195,7 @@ namespace kage { namespace vk
         beginRendering(m_cmdBuffer, _hPass.id);
 
         PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
-        const uint16_t progIdx = (uint16_t)m_programContainer.getIdIndex(passInfo.programId);
+        const uint16_t progIdx = (uint16_t)m_programContainer.getIdIndex(passInfo.prog);
 
         vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, passInfo.pipeline);
 
@@ -3234,7 +3234,7 @@ namespace kage { namespace vk
         beginRendering(m_cmdBuffer, _hPass.id);
 
         PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
-        const uint16_t progIdx = (uint16_t)m_programContainer.getIdIndex(passInfo.programId);
+        const uint16_t progIdx = (uint16_t)m_programContainer.getIdIndex(passInfo.prog);
 
         vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, passInfo.pipeline);
 
@@ -3276,7 +3276,7 @@ namespace kage { namespace vk
         beginRendering(m_cmdBuffer, _hPass.id);
 
         PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
-        const uint16_t progIdx = (uint16_t)m_programContainer.getIdIndex(passInfo.programId);
+        const uint16_t progIdx = (uint16_t)m_programContainer.getIdIndex(passInfo.prog);
         vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, passInfo.pipeline);
 
         const Buffer_vk& buf = getBuffer(_hBuf);
@@ -3916,7 +3916,7 @@ namespace kage { namespace vk
         }
 
         PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
-        const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
+        const Program_vk& prog = m_programContainer.getIdToData(passInfo.prog);
         vkCmdPushDescriptorSetWithTemplateKHR(m_cmdBuffer, prog.updateTemplate, prog.layout, 0, descInfos.data());
     }
 
@@ -3952,7 +3952,7 @@ namespace kage { namespace vk
 
 
         PassInfo_vk& passInfo = m_passContainer.getDataRef(_hPass.id);
-        const Program_vk& prog = m_programContainer.getIdToData(passInfo.programId);
+        const Program_vk& prog = m_programContainer.getIdToData(passInfo.prog);
 
         const uint32_t bindCount = (uint32_t)bindings.size();
         const uint32_t arrayCount = (uint32_t)arrayCounts.size();
@@ -4101,8 +4101,8 @@ namespace kage { namespace vk
         assert(m_passContainer.exist(_hPass.id));
         const PassInfo_vk& passInfo = m_passContainer.getIdToData(_hPass.id);
 
-        assert(m_programContainer.exist(passInfo.programId));
-        return  m_programContainer.getIdToData(passInfo.programId);
+        assert(m_programContainer.exist(passInfo.prog));
+        return  m_programContainer.getIdToData(passInfo.prog);
     }
 
     void RHIContext_vk::beginRendering(const VkCommandBuffer& _cmdBuf, const uint16_t _passId) const

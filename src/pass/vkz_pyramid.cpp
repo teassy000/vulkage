@@ -75,7 +75,7 @@ void preparePyramid(Pyramid& _pyramid, uint32_t _width, uint32_t _height)
 
     // create pass
     kage::PassDesc passDesc{};
-    passDesc.programId = program.id;
+    passDesc.prog = program;
     passDesc.queue = kage::PassExeQueue::compute;
 
     kage::PassHandle pass = kage::registPass("pyramid_pass", passDesc);

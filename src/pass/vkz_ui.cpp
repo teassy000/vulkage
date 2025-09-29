@@ -129,7 +129,7 @@ void prepareUI(UIRendering& _ui, kage::ImageHandle _color, kage::ImageHandle _de
     memcpy(vtxAttributeMem->data, attributes, sizeof(kage::VertexAttributeDesc) * COUNTOF(attributes));
 
     kage::PassDesc passDesc;
-    passDesc.programId = program.id;
+    passDesc.prog = program;
     passDesc.queue = kage::PassExeQueue::graphics;
     passDesc.vertexBindingNum = (uint32_t)COUNTOF(bindings);
     passDesc.vertexBindings = vtxBindingMem->data;

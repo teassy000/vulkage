@@ -31,7 +31,7 @@ void initSkyboxPass(Skybox& _skybox, const kage::BufferHandle _trans, const kage
         memcpy(vtxAttributeMem->data, attributes, sizeof(kage::VertexAttributeDesc) * COUNTOF(attributes));
 
         kage::PassDesc passDesc;
-        passDesc.programId = prog.id;
+        passDesc.prog = prog;
         passDesc.queue = kage::PassExeQueue::graphics;
         passDesc.vertexBindingNum = (uint32_t)COUNTOF(bindings);
         passDesc.vertexBindings = vtxBindingMem->data;

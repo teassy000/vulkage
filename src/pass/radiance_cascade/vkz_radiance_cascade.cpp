@@ -39,7 +39,7 @@ void prepareRCbuild(RadianceCascadeBuild& _rc, const RCBuildInit& _init)
     kage::ProgramHandle program = kage::registProgram("build_cascade", { cs }, sizeof(RadianceCascadesConfig));
 
     kage::PassDesc passDesc{};
-    passDesc.programId = program.id;
+    passDesc.prog = program;
     passDesc.queue = kage::PassExeQueue::compute;
 
     kage::PassHandle pass = kage::registPass("build_cascade", passDesc);
@@ -299,7 +299,7 @@ void prepareRCMerge(RadianceCascadeMerge& _rc, const RCMergeInit& _init, bool _r
     memcpy_s(pConst->data, pConst->size, pipelineSpecs, sizeof(int) * COUNTOF(pipelineSpecs));
 
     kage::PassDesc passDesc{};
-    passDesc.programId = program.id;
+    passDesc.prog = program;
     passDesc.queue = kage::PassExeQueue::compute;
     passDesc.pipelineSpecData = (void*)pConst->data;
     passDesc.pipelineSpecNum = COUNTOF(pipelineSpecs);

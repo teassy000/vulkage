@@ -61,7 +61,7 @@ void initRc2DBuild(Rc2DBuild& _rc, const uvec2 _res)
     kage::ProgramHandle program = kage::registProgram("build_rc2d", { cs }, sizeof(Rc2dData));
 
     kage::PassDesc passDesc{};
-    passDesc.programId = program.id;
+    passDesc.prog = program;
     passDesc.queue = kage::PassExeQueue::compute;
 
     kage::PassHandle pass = kage::registPass("build_rc2d", passDesc);
@@ -108,7 +108,7 @@ void initRc2DMerge(Rc2DMerge& _rc, const uvec2 _init, uint32_t _c0dRes, kage::Im
     memcpy_s(pConst->data, pConst->size, pipelineSpecs, sizeof(int) * COUNTOF(pipelineSpecs));
 
     kage::PassDesc passDesc{};
-    passDesc.programId = program.id;
+    passDesc.prog = program;
     passDesc.queue = kage::PassExeQueue::compute;
     passDesc.pipelineSpecData = (void*)pConst->data;
     passDesc.pipelineSpecNum = COUNTOF(pipelineSpecs);
@@ -169,7 +169,7 @@ void initRc2DUse(Rc2DUse& _rc, uvec2 _res, kage::ImageHandle _inMergedRc, kage::
     kage::ShaderHandle cs = kage::registShader("use_rc2d", "shader/rc2d_use.comp.spv");
     kage::ProgramHandle program = kage::registProgram("use_rc2d", { cs }, sizeof(Rc2dUseData));
     kage::PassDesc passDesc{};
-    passDesc.programId = program.id;
+    passDesc.prog = program;
     passDesc.queue = kage::PassExeQueue::compute;
     kage::PassHandle pass = kage::registPass("use_rc2d", passDesc);
     kage::ImageDesc imgDesc{};

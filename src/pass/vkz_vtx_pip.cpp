@@ -58,7 +58,7 @@ void prepareVtxShading(VtxShading& _vtxShading, const Scene& _scene, const VtxSh
     kage::ProgramHandle prog = kage::registProgram("mesh_prog", { vs, fs }, sizeof(Globals), _initData.bindless);
     // pass
     kage::PassDesc desc;
-    desc.programId = prog.id;
+    desc.prog = prog;
     desc.queue = kage::PassExeQueue::graphics;
     desc.pipelineConfig.depthCompOp = kage::CompareOp::greater;
     desc.pipelineConfig.enableDepthTest = true;

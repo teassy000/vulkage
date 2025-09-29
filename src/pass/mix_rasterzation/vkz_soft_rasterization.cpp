@@ -50,7 +50,7 @@ void initSoftRasterization(SoftRasterization& _softRaster, const SoftRasterizati
     kage::ProgramHandle prog = kage::registProgram("soft_rasterization", { cs }, sizeof(vec2));
 
     kage::PassDesc passDesc;
-    passDesc.programId = prog.id;
+    passDesc.prog = prog;
     passDesc.queue = kage::PassExeQueue::compute;
 
     kage::PassHandle pass = kage::registPass("soft_raster", passDesc);

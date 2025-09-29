@@ -11,7 +11,7 @@ void prepare(SMAAEdgeDepth& _edge, uint32_t _width, uint32_t _height, kage::Imag
     kage::ShaderHandle cs = kage::registShader("smaa_edge_depth", "shader/smaa_edge_depth.comp.spv");
     kage::ProgramHandle prog = kage::registProgram("smaa_edge_depth", { cs }, sizeof(glm::vec2));
     kage::PassDesc passDesc{};
-    passDesc.programId = prog.id;
+    passDesc.prog = prog;
     passDesc.queue = kage::PassExeQueue::compute;
     kage::PassHandle pass = kage::registPass("smaa_edge_depth", passDesc);
 
@@ -57,7 +57,7 @@ void prepare(SMAAEdgeColor& _edge, uint32_t _width, uint32_t _height, kage::Imag
     kage::ShaderHandle cs = kage::registShader("smaa_edge_color", "shader/smaa_edge_color.comp.spv");
     kage::ProgramHandle prog = kage::registProgram("smaa_edge_color", { cs }, sizeof(glm::vec2));
     kage::PassDesc passDesc{};
-    passDesc.programId = prog.id;
+    passDesc.prog = prog;
     passDesc.queue = kage::PassExeQueue::compute;
     kage::PassHandle pass = kage::registPass("smaa_edge_color", passDesc);
 
@@ -103,7 +103,7 @@ void prepare(SMAAEdgeLuma& _edge, uint32_t _width, uint32_t _height, kage::Image
     kage::ShaderHandle cs = kage::registShader("smaa_edge_luma", "shader/smaa_edge_luma.comp.spv");
     kage::ProgramHandle prog = kage::registProgram("smaa_edge_luma", { cs }, sizeof(glm::vec2));
     kage::PassDesc passDesc{};
-    passDesc.programId = prog.id;
+    passDesc.prog = prog;
     passDesc.queue = kage::PassExeQueue::compute;
     kage::PassHandle pass = kage::registPass("smaa_edge_luma", passDesc);
     
@@ -149,7 +149,7 @@ void prepare(SMAAWeight& _weight, uint32_t _width, uint32_t _height, kage::Image
     kage::ShaderHandle cs = kage::registShader("smaa_weight", "shader/smaa_weight.comp.spv");
     kage::ProgramHandle prog = kage::registProgram("smaa_weight_prog", { cs }, sizeof(SMAAWeightConstants));
     kage::PassDesc passDesc{};
-    passDesc.programId = prog.id;
+    passDesc.prog = prog;
     passDesc.queue = kage::PassExeQueue::compute;
     kage::PassHandle pass = kage::registPass("smaa_weight_pass", passDesc);
 
@@ -230,7 +230,7 @@ void prepare(SMAABlend& _blend, uint32_t _width, uint32_t _height, kage::ImageHa
     kage::ShaderHandle cs = kage::registShader("smaa_blend", "shader/smaa_blend.comp.spv");
     kage::ProgramHandle prog = kage::registProgram("smaa_blend_prog", { cs }, sizeof(glm::vec2));
     kage::PassDesc passDesc{};
-    passDesc.programId = prog.id;
+    passDesc.prog = prog;
     passDesc.queue = kage::PassExeQueue::compute;
     kage::PassHandle pass = kage::registPass("smaa_blend_pass", passDesc);
 
