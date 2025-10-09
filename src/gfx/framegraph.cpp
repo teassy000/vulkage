@@ -298,7 +298,7 @@ namespace kage
 
         // set bindless res
         if(passMeta.queue != PassExeQueue::extern_abstract) {
-            const ProgramInfo& progInfo = m_sparse_program_info[passMeta.programId];
+            const ProgramInfo& progInfo = m_sparse_program_info[passMeta.prog];
 
             if (progInfo.createInfo.bindlessId != kInvalidHandle)
             {
@@ -926,6 +926,13 @@ namespace kage
                     break;
                 }
             }
+        }
+
+        // debug print
+        for (uint16_t idx : m_sortedPassIdx)
+        {
+            static uint32_t ii = 0;
+            message(essential, "final sorted pass Idx: %d/%d, Id: %d, %s", ii++, m_sortedPassIdx.size(), m_hPass[idx].id, getName(m_hPass[idx]));
         }
     }
 
@@ -1821,8 +1828,8 @@ namespace kage
             if (passMeta.queue == PassExeQueue::extern_abstract)
                 continue;
 
-            const ProgramInfo& progInfo = m_sparse_program_info[passMeta.programId];
-            usedProgram.push_back({ passMeta.programId });
+            const ProgramInfo& progInfo = m_sparse_program_info[passMeta.prog];
+            usedProgram.push_back({ passMeta.prog });
 
             for (uint16_t ii = 0; ii < progInfo.createInfo.shaderNum; ++ii)
             {
