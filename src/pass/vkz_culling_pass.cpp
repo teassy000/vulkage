@@ -206,6 +206,12 @@ void initMeshletCulling(MeshletCulling& _cullingComp, const MeshletCullingInitDa
         , Access::shader_read
     );
 
+    kage::bindBuffer(pass
+        , _initData.meshletCmdCntBuf
+        , Stage::compute_shader
+        , Access::shader_read
+    );
+
     // read/write buffers
     kage::bindBuffer(pass
         , _initData.meshletVisBuf
@@ -283,15 +289,16 @@ void recMeshletCulling(const MeshletCulling& _mltc, const DrawCull& _drawCull)
         { _mltc.meshBuf,                BindingAccess::read,        Stage::compute_shader },
         { _mltc.meshDrawBuf,            BindingAccess::read,        Stage::compute_shader },
         { _mltc.transformBuf,           BindingAccess::read,        Stage::compute_shader },
-        { _mltc.meshletBuf,             BindingAccess::write,       Stage::compute_shader },
+        { _mltc.meshletBuf,             BindingAccess::read,        Stage::compute_shader },
+        { _mltc.meshletCmdCntBuf,       BindingAccess::read,        Stage::compute_shader },
         { _mltc.meshletVisBuf,          BindingAccess::read_write,  Stage::compute_shader },
-        { _mltc.meshletPayloadBuf,      BindingAccess::read_write,  Stage::compute_shader },
-        { _mltc.meshletPayloadCntBuf,   BindingAccess::read_write,  Stage::compute_shader },
+        { _mltc.meshletPayloadBuf,      BindingAccess::write,       Stage::compute_shader },
+        { _mltc.meshletPayloadCntBuf,   BindingAccess::write,       Stage::compute_shader },
         { _mltc.pyramid,                _mltc.pyrSampler,           Stage::compute_shader },
     };
     kage::pushBindings(binds, COUNTOF(binds));
 
-    kage::dispatchIndirect(_mltc.meshletCmdCntBuf, 0);
+    kage::dispatchIndirect(_mltc.meshletCmdCntBuf, offsetof(IndirectDispatchCommand, x));
     kage::endRec();
 }
 
@@ -323,13 +330,6 @@ void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& 
     getPassName(passName, "triangle_culling", _stage, RenderPipeline::compute);
     kage::PassHandle pass = kage::registPass(passName.c_str(), passDesc);
 
-    kage::BufferDesc vtxPayloadBufDesc;
-    vtxPayloadBufDesc.size = 128 * 1024 * 1024; // 128M
-    vtxPayloadBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
-    vtxPayloadBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
-    kage::BufferHandle vtxPayload = kage::registBuffer("vtx_payload", vtxPayloadBufDesc);
-
-
     kage::BufferDesc trianglePayloadBufDesc;
     trianglePayloadBufDesc.size = 128 * 1024 * 1024; // 128M
     trianglePayloadBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
@@ -343,9 +343,8 @@ void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& 
     trianglePayloadCntDesc.memFlags = kage::MemoryPropFlagBits::device_local;
     kage::BufferHandle trianglePayloadCntBuf = kage::registBuffer("triangle_payload_cnt", trianglePayloadCntDesc);
 
-    kage::BufferHandle vtxPayloadBufOutAlias = kage::alias(vtxPayload);
-    kage::BufferHandle meshletPayloadBufOutAlias = kage::alias(trianglePayload);
-    kage::BufferHandle meshletPayloadCntOutAlias = kage::alias(trianglePayloadCntBuf);
+    kage::BufferHandle trianglePayloadBufOutAlias = kage::alias(trianglePayload);
+    kage::BufferHandle trianglePayloadCntOutAlias = kage::alias(trianglePayloadCntBuf);
 
     kage::bindBuffer(pass
         , _initData.meshletPayloadBuf
@@ -385,26 +384,25 @@ void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& 
         , Access::shader_read
     );
 
-    // write buffers
     kage::bindBuffer(pass
-        , vtxPayload
+        , _initData.meshletPayloadCntBuf
         , Stage::compute_shader
-        , Access::shader_read | kage::AccessFlagBits::shader_write
-        , vtxPayloadBufOutAlias
+        , Access::shader_read
     );
 
+    // write buffers
     kage::bindBuffer(pass
         , trianglePayload
         , Stage::compute_shader
-        , Access::shader_read | kage::AccessFlagBits::shader_write
-        , meshletPayloadBufOutAlias
+        , Access::shader_write
+        , trianglePayloadBufOutAlias
     );
 
     kage::bindBuffer(pass
         , trianglePayloadCntBuf
         , Stage::compute_shader
-        , Access::shader_read | kage::AccessFlagBits::shader_write
-        , meshletPayloadCntOutAlias
+        , Access::shader_write
+        , trianglePayloadCntOutAlias
     );
 
     _tric.cs = cs;
@@ -422,13 +420,12 @@ void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& 
 
     
     // read-write
-    _tric.vtxPayloadBuf = vtxPayload;
     _tric.trianglePayloadBuf = trianglePayload;
     _tric.payloadCntBuf = trianglePayloadCntBuf;
+    
     // out-alias
-    _tric.vtxPayloadBufOutAlias = vtxPayloadBufOutAlias;
-    _tric.cmdBufOutAlias = meshletPayloadBufOutAlias;
-    _tric.CmdCountBufOutAlias = meshletPayloadCntOutAlias;
+    _tric.cmdBufOutAlias = trianglePayloadBufOutAlias;
+    _tric.CmdCountBufOutAlias = trianglePayloadCntOutAlias;
 
 }
 
@@ -453,13 +450,13 @@ void recTriangleCulling(const TriangleCulling& _tric)
         { _tric.vtxBuf,                 BindingAccess::read,       Stage::compute_shader },
         { _tric.meshletBuf,             BindingAccess::read,       Stage::compute_shader },
         { _tric.meshletDataBuf,         BindingAccess::read,       Stage::compute_shader },
-        { _tric.vtxPayloadBuf,          BindingAccess::read_write, Stage::compute_shader },
+        { _tric.meshletPayloadCntBuf,   BindingAccess::read_write, Stage::compute_shader },
         { _tric.trianglePayloadBuf,     BindingAccess::read_write, Stage::compute_shader },
         { _tric.payloadCntBuf,          BindingAccess::read_write, Stage::compute_shader },
     };
     kage::pushBindings(binds, COUNTOF(binds));
     
-    kage::dispatchIndirect(_tric.meshletPayloadCntBuf, 0);
+    kage::dispatchIndirect(_tric.meshletPayloadCntBuf, offsetof(IndirectDispatchCommand, x));
     kage::endRec();
 }
 

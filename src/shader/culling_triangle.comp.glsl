@@ -58,15 +58,15 @@ layout(binding = 5) readonly buffer MeshletData8
     uint8_t meshletData8[];
 };
 
-// transformed vertex output
-layout(binding = 6) buffer OutVertex
+layout(binding = 6) readonly buffer MeshletCount
 {
-    vec4 out_vtx [];
+    IndirectDispatchCommand indirectCmdCount;
 };
 
+// writeonly
 layout(binding = 7) buffer OutTriangles
 {
-    uvec3 out_tri [];
+    TrianglePayload out_tri [];
 };
 
 layout(binding = 8) buffer OutCounts
@@ -78,8 +78,15 @@ shared vec3 vertexClip[MESH_MAX_VTX];
 
 void main()
 {
-    uint ti = gl_LocalInvocationID.x;
-    uint gid = gl_GlobalInvocationID.x;
+    // each workgroup.y process one triangle/vertex
+    uint ti = gl_WorkGroupID.y;
+
+    // each workgroup process MR_TRIANGLEGP_SIZE meshlets
+    uint gid = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
+
+    uint count = indirectCmdCount.count;
+    if (gid >= count)
+        return;
 
     uint mi = payloads[gid].meshletIdx;
     uint drawId = payloads[gid].drawId;
@@ -167,7 +174,11 @@ void main()
         if(!culled)
         {
             uint triBase = atomicAdd(out_counts[0], 1);
-            out_tri[triBase] = uvec3(idx0, idx1, idx2);
+            out_tri[triBase].drawId = drawId;
+            out_tri[triBase].meshletIdx = mi;
+            out_tri[triBase].v0 = meshletData8[offset + 0];
+            out_tri[triBase].v1 = meshletData8[offset + 1];
+            out_tri[triBase].v2 = meshletData8[offset + 2];
         }
     }
 }

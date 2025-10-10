@@ -20,7 +20,7 @@ layout(push_constant) uniform block
 };
 
 // read
-layout(binding = 0) readonly buffer MeshletInfo
+layout(binding = 0) readonly buffer MeshletCmds
 {
     MeshTaskCommand meshletCmds [];
 };
@@ -50,25 +50,30 @@ layout(binding = 4) readonly buffer Meshlets
     Meshlet meshlets [];
 };
 
+layout(binding = 5) readonly buffer MeshletCount
+{
+    IndirectDispatchCommand indirectCmdCnt;
+};
+
 // read/write
-layout(binding = 5) buffer MeshletVisibility
+layout(binding = 6) buffer MeshletVisibility
 {
     uint meshletVisibility [];
 };
 
 // write
-layout(binding = 6) buffer MeshletPayloads
+layout(binding = 7) buffer MeshletPayloads
 {
     MeshletPayload payloads[];
 };
 
-layout(binding = 7) buffer VisibleMeshletCount
+layout(binding = 8) buffer VisibleMeshletCount
 {
     uint meshletCount;
 };
 
 // read
-layout(binding = 8) uniform sampler2D pyramid;
+layout(binding = 9) uniform sampler2D pyramid;
 
 
 void main()

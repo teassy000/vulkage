@@ -84,7 +84,6 @@ void main()
     uint triangleCount = 0;
     uint dataOffset = 0;
 
-
     if (SEAMLESS_LOD) 
     {
         vertexCount = uint(clusters[mi].vertexCount);

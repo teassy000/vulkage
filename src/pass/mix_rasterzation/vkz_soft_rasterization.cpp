@@ -39,7 +39,7 @@ void recSoftRasterization(const SoftRasterization& _raster)
 
     kage::pushBindings(binds, COUNTOF(binds));
 
-    kage::dispatchIndirect(_raster.inPayloadCountBuf, 0);
+    kage::dispatchIndirect(_raster.inPayloadCountBuf, offsetof(IndirectDispatchCommand, x));
     kage::endRec();
 }
 

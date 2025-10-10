@@ -118,12 +118,10 @@ struct TriangleCulling
     kage::BufferHandle meshletDataBuf;
 
     // write
-    kage::BufferHandle vtxPayloadBuf;
     kage::BufferHandle trianglePayloadBuf;
     kage::BufferHandle payloadCntBuf;
 
     // out alias
-    kage::BufferHandle vtxPayloadBufOutAlias;
     kage::BufferHandle cmdBufOutAlias;
     kage::BufferHandle CmdCountBufOutAlias;
 };
