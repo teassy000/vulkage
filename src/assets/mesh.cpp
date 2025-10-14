@@ -34,7 +34,6 @@ size_t appendMeshlets(Geometry& _result, std::vector<Vertex>& _vtxes, std::vecto
         Meshlet m = {};
         size_t dataOffset = _result.meshletdata.size();
 
-        
         for (uint32_t i = 0; i < meshlet.vertex_count; ++i)
         {
             _result.meshletdata.push_back(meshlet_vertices[meshlet.vertex_offset + i]);
@@ -183,6 +182,7 @@ bool appendMesh(Geometry& _result, std::vector<Vertex>& _vtxes, std::vector<uint
         }
     }
 
+    // pad meshlets to 64-aligned for better culling performance
     while (_result.meshlets.size() % 64) {
         _result.meshlets.emplace_back();
     }

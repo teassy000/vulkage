@@ -71,6 +71,9 @@ void main()
 
     if (id == 0)
     {
+        // x dimension is number of groups to dispatch
+        cmd.local_x = min((count + gp_size - 1) / gp_size, 65535);
+
         if (DISPATCH_MODE == _CLEAR)
         {
             cmd.local_x = 0;
@@ -89,11 +92,9 @@ void main()
         }
         else if (DISPATCH_MODE == _SOFT_RASTERIZATION)
         {
-            cmd.local_y = res.x;
-            cmd.local_z = res.y;
+            cmd.local_y = (res.x + MR_SOFT_RAST_TILE_SIZE  - 1 )/ MR_SOFT_RAST_TILE_SIZE;
+            cmd.local_z = (res.y + MR_SOFT_RAST_TILE_SIZE  - 1 )/ MR_SOFT_RAST_TILE_SIZE;
         }
-
-        cmd.local_x = min((count + gp_size - 1) / gp_size, 65535);
     }
 
     // fill the rest dispatch commands as dummy

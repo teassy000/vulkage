@@ -176,9 +176,7 @@ void main()
             uint triBase = atomicAdd(out_counts[0], 1);
             out_tri[triBase].drawId = drawId;
             out_tri[triBase].meshletIdx = mi;
-            out_tri[triBase].v0 = meshletData8[offset + 0];
-            out_tri[triBase].v1 = meshletData8[offset + 1];
-            out_tri[triBase].v2 = meshletData8[offset + 2];
+            out_tri[triBase].triIdx = i;
         }
     }
 }

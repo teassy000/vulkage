@@ -29,8 +29,13 @@ void recSoftRasterization(const SoftRasterization& _raster)
     // bind resources
     kage::Binding binds[] =
     {
-        { _raster.inTriangleBuf,    BindingAccess::read,    Stage::compute_shader },
-        { _raster.inVtxBuf,         BindingAccess::read,    Stage::compute_shader },
+        { _raster.meshDrawBuf,      BindingAccess::read,    Stage::compute_shader },
+        { _raster.transformBuf,     BindingAccess::read,    Stage::compute_shader },
+        { _raster.vtxBuf,           BindingAccess::read,    Stage::compute_shader },
+        { _raster.meshletBuf,       BindingAccess::read,    Stage::compute_shader },
+        { _raster.meshletDataBuf,   BindingAccess::read,    Stage::compute_shader },
+        { _raster.payloadBuf,       BindingAccess::read,    Stage::compute_shader },
+        { _raster.payloadCntBuf,    BindingAccess::read,    Stage::compute_shader },
         { _raster.pyramid,          _raster.pyramidSamp,    Stage::compute_shader },
         { _raster.inColor,          0,                      Stage::compute_shader },
         { _raster.u32depth,         0,                      Stage::compute_shader },
@@ -39,7 +44,7 @@ void recSoftRasterization(const SoftRasterization& _raster)
 
     kage::pushBindings(binds, COUNTOF(binds));
 
-    kage::dispatchIndirect(_raster.inPayloadCountBuf, offsetof(IndirectDispatchCommand, x));
+    kage::dispatchIndirect(_raster.payloadCntBuf, offsetof(IndirectDispatchCommand, x));
     kage::endRec();
 }
 
@@ -70,21 +75,51 @@ void initSoftRasterization(SoftRasterization& _softRaster, const SoftRasterizati
     kage::ImageHandle outDepth = kage::alias(_initData.depth);
     kage::ImageHandle outU32Depth = kage::alias(u32depth);
 
+    kage::setIndirectBuffer(pass, _initData.payloadCntBuf);
+
+    kage::bindBuffer(pass
+        , _initData.meshDrawBuf
+        , Stage::compute_shader
+        , Access::shader_read
+    );
+
+    kage::bindBuffer(pass
+        , _initData.transformBuf
+        , Stage::compute_shader
+        , Access::shader_read
+    );
+
     kage::bindBuffer(pass
         , _initData.vtxBuf
         , Stage::compute_shader
         , Access::shader_read
     );
-
+    
     kage::bindBuffer(pass
-        , _initData.triangleBuf
+        , _initData.meshletBuf
         , Stage::compute_shader
         , Access::shader_read
     );
 
-    kage::setIndirectBuffer(pass
-        , _initData.payloadCountBuf
-        );
+    kage::bindBuffer(pass
+        ,_initData.meshletDataBuf
+        , Stage::compute_shader
+        , Access::shader_read
+    );
+
+
+    kage::bindBuffer(pass
+        , _initData.payloadBuf
+        , Stage::compute_shader
+        , Access::shader_read
+    );
+
+
+    kage::bindBuffer(pass
+        , _initData.payloadCntBuf
+        , Stage::compute_shader
+        , Access::shader_read
+    );
 
     kage::SamplerHandle samp = kage::sampleImage(pass, _initData.pyramid
         , Stage::compute_shader
@@ -122,12 +157,14 @@ void initSoftRasterization(SoftRasterization& _softRaster, const SoftRasterizati
     _softRaster.cs = cs;
     _softRaster.prog = prog;
 
-    _softRaster.width = _initData.width;
-    _softRaster.height = _initData.height;
+    _softRaster.payloadBuf = _initData.payloadBuf;
+    _softRaster.payloadCntBuf = _initData.payloadCntBuf;
 
-    _softRaster.inVtxBuf = _initData.vtxBuf;
-    _softRaster.inTriangleBuf = _initData.triangleBuf;
-    _softRaster.inPayloadCountBuf = _initData.payloadCountBuf;
+    _softRaster.meshDrawBuf = _initData.meshDrawBuf;
+    _softRaster.transformBuf = _initData.transformBuf;
+    _softRaster.vtxBuf = _initData.vtxBuf;
+    _softRaster.meshletBuf = _initData.meshletBuf;
+    _softRaster.meshletDataBuf = _initData.meshletDataBuf;
 
     _softRaster.inColor = _initData.color;
     _softRaster.inDepth = _initData.depth;
@@ -138,6 +175,11 @@ void initSoftRasterization(SoftRasterization& _softRaster, const SoftRasterizati
 
     _softRaster.pyramid = _initData.pyramid;
     _softRaster.pyramidSamp = samp;
+
+    _softRaster.width = _initData.width;
+    _softRaster.height = _initData.height;
+
+    _softRaster.renderStage = _initData.renderStage;
 }
 
 void updateSoftRasterization(SoftRasterization& _softRaster)

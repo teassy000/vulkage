@@ -6,12 +6,17 @@
 
 struct SoftRasterizationDataInit
 {
-    // from triangle culling pass
-    kage::BufferHandle triangleBuf; 
-    kage::BufferHandle vtxBuf; 
-    kage::BufferHandle payloadCountBuf;
+    // readonly
+    kage::BufferHandle payloadBuf;
+    kage::BufferHandle payloadCntBuf;
 
-    kage::ImageHandle pyramid; // input depth image for soft rasterization
+    kage::BufferHandle meshDrawBuf;
+    kage::BufferHandle transformBuf;
+    kage::BufferHandle vtxBuf;
+    kage::BufferHandle meshletBuf;
+    kage::BufferHandle meshletDataBuf;
+
+    kage::ImageHandle pyramid;
     
     uint32_t width; // width of the output image
     uint32_t height; // height of the output image
@@ -29,9 +34,14 @@ struct SoftRasterization
     kage::PassHandle pass;
 
     // read-only resources
-    kage::BufferHandle inTriangleBuf;
-    kage::BufferHandle inVtxBuf;
-    kage::BufferHandle inPayloadCountBuf;
+    kage::BufferHandle payloadBuf;
+    kage::BufferHandle payloadCntBuf;
+
+    kage::BufferHandle meshDrawBuf;
+    kage::BufferHandle transformBuf;
+    kage::BufferHandle vtxBuf;
+    kage::BufferHandle meshletBuf;
+    kage::BufferHandle meshletDataBuf;
 
     kage::ImageHandle pyramid; // input depth image for soft rasterization
     kage::SamplerHandle pyramidSamp; // sampler for the input image
@@ -46,6 +56,7 @@ struct SoftRasterization
     kage::ImageHandle colorOutAlias; // output image for soft rasterization results
     kage::ImageHandle depthOutAlias; // output depth image for soft rasterization results
 
+    // other essential data
     uint32_t width; // width of the output image
     uint32_t height; // height of the output image
 

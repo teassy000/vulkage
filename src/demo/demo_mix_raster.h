@@ -419,7 +419,6 @@ namespace
         void createPasses()
         {
             preparePyramid(m_pyramid, m_width, m_height);
-
             // == EARLY passes ==
             // 
             
@@ -500,11 +499,16 @@ namespace
             {
                 SoftRasterizationDataInit initData{};
 
-                initData.triangleBuf = m_modifyCmd4SoftRasterEarly.cmdBufOutAlias;
-                initData.payloadCountBuf = m_modifyCmd4SoftRasterEarly.indirectCmdBufOutAlias;
+                initData.payloadBuf = m_modifyCmd4SoftRasterEarly.cmdBufOutAlias;
+                initData.payloadCntBuf = m_modifyCmd4SoftRasterEarly.indirectCmdBufOutAlias;
                 initData.pyramid = m_pyramid.image;
 
+                initData.meshDrawBuf = m_meshDrawBuf;
+                initData.transformBuf = m_transformBuf;
                 initData.vtxBuf = m_vtxBuf;
+                initData.meshletBuf = m_meshletBuffer;
+                initData.meshletDataBuf = m_meshletDataBuffer;
+                
                 initData.width = m_width;
                 initData.height = m_height;
 
@@ -601,8 +605,14 @@ namespace
                 SoftRasterizationDataInit initData{};
 
                 initData.pyramid = m_pyramid.imgOutAlias;
-                initData.triangleBuf = m_modifyCmd4SoftRasterLate.cmdBufOutAlias;
-                initData.payloadCountBuf = m_modifyCmd4SoftRasterLate.indirectCmdBufOutAlias;
+                initData.payloadBuf = m_modifyCmd4SoftRasterLate.cmdBufOutAlias;
+                initData.payloadCntBuf = m_modifyCmd4SoftRasterLate.indirectCmdBufOutAlias;
+
+                initData.meshDrawBuf = m_meshDrawBuf;
+                initData.transformBuf = m_transformBuf;
+                initData.vtxBuf = m_vtxBuf;
+                initData.meshletBuf = m_meshletBuffer;
+                initData.meshletDataBuf = m_meshletDataBuffer;
 
                 initData.vtxBuf = m_vtxBuf;
                 initData.width = m_width;

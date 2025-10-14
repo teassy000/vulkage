@@ -185,7 +185,7 @@ struct TrianglePayload
 {
     uint drawId;
     uint meshletIdx;
-    uint8_t v0, v1, v2, padding;
+    uint triIdx;
 };
 
 // terrain
