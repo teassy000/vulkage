@@ -16,6 +16,7 @@ layout(location = 1) in vec3 in_wPos;
 layout(location = 2) in vec3 in_norm;
 layout(location = 3) in vec4 in_tan;
 layout(location = 4) in vec2 in_uv;
+layout(location = 5) in flat uint in_triId;
 
 layout(location = 0) out vec4 out_albedo;
 layout(location = 1) out vec4 out_normal;

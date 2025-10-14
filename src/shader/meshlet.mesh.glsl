@@ -64,6 +64,7 @@ layout(location = 1) out vec3 out_wPos[];
 layout(location = 2) out vec3 out_norm[];
 layout(location = 3) out vec4 out_tan[];
 layout(location = 4) out vec2 out_uv[];
+layout(location = 5) out flat uint out_triId[] ;
 
 taskPayloadSharedEXT TaskPayload payload;
 
@@ -122,6 +123,8 @@ void main()
         out_wPos[i] = wPos;
         out_tan[i] = tan;
         out_uv[i] = uv;
+        out_triId[i] = i; // for debug
+
 
 #if DEBUG_MESHLET
          out_drawId[i] = mi;
