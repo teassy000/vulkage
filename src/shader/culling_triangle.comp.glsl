@@ -71,7 +71,7 @@ layout(binding = 7) buffer OutTriangles
 
 layout(binding = 8) buffer OutCounts
 {
-    uint out_counts [2];
+    IndirectDispatchCommand outTriCnt;
 };
 
 shared vec3 vertexClip[MESH_MAX_VTX];
@@ -173,7 +173,7 @@ void main()
 
         if(!culled)
         {
-            uint triBase = atomicAdd(out_counts[0], 1);
+            uint triBase = atomicAdd(outTriCnt.count, 1);
             out_tri[triBase].drawId = drawId;
             out_tri[triBase].meshletIdx = mi;
             out_tri[triBase].triIdx = i;

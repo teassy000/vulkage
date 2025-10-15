@@ -69,7 +69,7 @@ layout(binding = 7) buffer MeshletPayloads
 
 layout(binding = 8) buffer VisibleMeshletCount
 {
-    uint meshletCount;
+    IndirectDispatchCommand meshletCount;
 };
 
 // read
@@ -78,9 +78,12 @@ layout(binding = 9) uniform sampler2D pyramid;
 
 void main()
 {
-    uint id = MR_MESHLETGP_SIZE * gl_WorkGroupID.x + gl_WorkGroupID.y;
+    uint mid = gl_GlobalInvocationID.x;
 
-    MeshTaskCommand cmd = meshletCmds[id];
+    if( mid >= indirectCmdCnt.count )
+        return;
+
+    MeshTaskCommand cmd = meshletCmds[mid];
 
     uint lateDrawVisibility = cmd.lateDrawVisibility;
 
@@ -216,11 +219,11 @@ void main()
 
     if( visible && !skip)
     {
-        uint payloadOffset = atomicAdd(meshletCount, 1u);
+        uint payloadOffset = atomicAdd(meshletCount.count, 1u);
         
         payloads[payloadOffset] = MeshletPayload(
             mi // meshlet index
-            , drawId // draw id
+            , drawId // draw mid
         );
     }
 }

@@ -442,7 +442,7 @@ namespace
                     m_modifyCmd4MeshletCullingEarly
                     , m_meshCullingEarly.cmdCountBufOutAlias
                     , m_meshCullingEarly.cmdBufOutAlias
-                    , ModifyCommandMode::meshlet_culling
+                    , ModifyCommandMode::to_meshlet_cull
                 );
             }
 
@@ -466,7 +466,7 @@ namespace
                     m_modifyCmd4TriangleCullingEarly
                     , m_meshletCullingEarly.cmdCountBufOutAlias
                     , m_meshletCullingEarly.cmdBufOutAlias
-                    , ModifyCommandMode::triangle_culling
+                    , ModifyCommandMode::to_triangle_cull
                 );
             }
 
@@ -489,7 +489,7 @@ namespace
                     m_modifyCmd4SoftRasterEarly
                     , m_triangleCullingEarly.CmdCountBufOutAlias
                     , m_triangleCullingEarly.cmdBufOutAlias
-                    , ModifyCommandMode::soft_rasterization
+                    , ModifyCommandMode::to_soft_rasterize
                     , m_width
                 , m_height
                 );
@@ -514,6 +514,8 @@ namespace
 
                 initData.color = m_color;
                 initData.depth = m_depth;
+
+                initData.renderStage = RenderStage::early;
                 
                 initSoftRasterization(m_softRasterEarly, initData);
             }
@@ -544,7 +546,7 @@ namespace
                     m_modifyCmd4MeshletCullingLate
                     , m_meshCullingLate.cmdCountBufOutAlias
                     , m_meshCullingLate.cmdBufOutAlias
-                    , ModifyCommandMode::meshlet_culling
+                    , ModifyCommandMode::to_meshlet_cull
                 );
             }
 
@@ -570,7 +572,7 @@ namespace
                     m_modifyCmd4TriangleCullingLate
                     , m_meshletCullingLate.cmdCountBufOutAlias
                     , m_meshletCullingLate.cmdBufOutAlias
-                    , ModifyCommandMode::triangle_culling
+                    , ModifyCommandMode::to_triangle_cull
                 );
             }
 
@@ -594,7 +596,7 @@ namespace
                     m_modifyCmd4SoftRasterLate
                     , m_triangleCullingLate.CmdCountBufOutAlias
                     , m_triangleCullingLate.cmdBufOutAlias
-                    , ModifyCommandMode::soft_rasterization
+                    , ModifyCommandMode::to_soft_rasterize
                     , m_width
                     , m_height
                 );
@@ -620,6 +622,8 @@ namespace
 
                 initData.color = m_softRasterEarly.colorOutAlias;
                 initData.depth = m_softRasterEarly.depthOutAlias;
+
+                initData.renderStage = RenderStage::late;
 
                 initSoftRasterization(m_softRasterLate, initData);
             }

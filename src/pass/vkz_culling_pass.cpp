@@ -444,15 +444,15 @@ void recTriangleCulling(const TriangleCulling& _tric)
 
     kage::Binding binds[] =
     {
-        { _tric.meshletPayloadBuf,      BindingAccess::read,       Stage::compute_shader },
-        { _tric.meshDrawBuf,            BindingAccess::read,       Stage::compute_shader },
-        { _tric.transformBuf,           BindingAccess::read,       Stage::compute_shader },
-        { _tric.vtxBuf,                 BindingAccess::read,       Stage::compute_shader },
-        { _tric.meshletBuf,             BindingAccess::read,       Stage::compute_shader },
-        { _tric.meshletDataBuf,         BindingAccess::read,       Stage::compute_shader },
-        { _tric.meshletPayloadCntBuf,   BindingAccess::read_write, Stage::compute_shader },
-        { _tric.trianglePayloadBuf,     BindingAccess::read_write, Stage::compute_shader },
-        { _tric.payloadCntBuf,          BindingAccess::read_write, Stage::compute_shader },
+        { _tric.meshletPayloadBuf,      BindingAccess::read,        Stage::compute_shader },
+        { _tric.meshDrawBuf,            BindingAccess::read,        Stage::compute_shader },
+        { _tric.transformBuf,           BindingAccess::read,        Stage::compute_shader },
+        { _tric.vtxBuf,                 BindingAccess::read,        Stage::compute_shader },
+        { _tric.meshletBuf,             BindingAccess::read,        Stage::compute_shader },
+        { _tric.meshletDataBuf,         BindingAccess::read,        Stage::compute_shader },
+        { _tric.meshletPayloadCntBuf,   BindingAccess::read,        Stage::compute_shader },
+        { _tric.trianglePayloadBuf,     BindingAccess::write,       Stage::compute_shader },
+        { _tric.payloadCntBuf,          BindingAccess::write,       Stage::compute_shader },
     };
     kage::pushBindings(binds, COUNTOF(binds));
     
