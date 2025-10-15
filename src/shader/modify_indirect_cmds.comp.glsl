@@ -82,7 +82,7 @@ void main()
         }
         else if (DISPATCH_MODE == _MESHLET_CULLING)
         {
-            cmd.local_y = gp_size;
+            cmd.local_y = 1;
             cmd.local_z = 1;
         }
         else if (DISPATCH_MODE == _TRIANGLE_CULLING)
