@@ -7,9 +7,9 @@
 enum ModifyCommandMode : uint32_t
 {
     clear = 0,
-    meshlet_culling = 1,
-    triangle_culling = 2,
-    soft_rasterization = 3,
+    to_meshlet_cull = 1,
+    to_triangle_cull = 2,
+    to_soft_rasterize = 3,
     MAX_COUNT = 4
 };
 

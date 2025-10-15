@@ -12,9 +12,9 @@ void getPassName(std::string& _out, const char* _baseName, ModifyCommandMode _mo
 
     const char* stageStr[static_cast<uint32_t>(ModifyCommandMode::MAX_COUNT)] = {
         "_clear"
-        , "_mesh_culled"
-        , "_meshlet_culled" 
-        , "_triangle_culled"
+        , "_to_meshlet_cull"
+        , "_to_triangle_cull" 
+        , "_to_soft_rasterize"
     };
 
     _out += stageStr[static_cast<uint32_t>(_mode)];
