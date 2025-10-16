@@ -226,7 +226,7 @@ namespace
             
             if (m_debugProb)
             {
-                updateProbeDebug(m_probDebug, m_demoData.drawCull, m_width, m_height, m_demoData.dbg_features.rc3d);
+                updateProbeDebug(m_probDebug, m_demoData.constants, m_width, m_height, m_demoData.dbg_features.rc3d);
             }
 
             if(m_useRc2d)
@@ -806,6 +806,26 @@ namespace
             m_demoData.globals.enableMeshletOcclusion = 1;
             m_demoData.globals.lodErrorThreshold = lodErrThreshold;
             m_demoData.globals.probeRangeRadius = m_demoData.dbg_features.rc3d.totalRadius;
+
+            m_demoData.constants.P00 = s_proj[0][0];
+            m_demoData.constants.P11 = s_proj[1][1];
+            m_demoData.constants.znear = znear;
+            m_demoData.constants.zfar = m_scene.drawDistance;
+            m_demoData.constants.frustum[0] = s_fx.x;
+            m_demoData.constants.frustum[1] = s_fx.z;
+            m_demoData.constants.frustum[2] = s_fy.y;
+            m_demoData.constants.frustum[3] = s_fy.z;
+            m_demoData.constants.screenWidth = (float)m_width;
+            m_demoData.constants.screenHeight = (float)m_height;
+            m_demoData.constants.pyramidWidth = (float)m_pyramid.width;
+            m_demoData.constants.pyramidHeight = (float)m_pyramid.height;
+            m_demoData.constants.lodErrorThreshold = lodErrThreshold;
+            m_demoData.constants.probeRangeRadius = m_demoData.dbg_features.rc3d.totalRadius;
+            m_demoData.constants.enableCull = 1;
+            m_demoData.constants.enableLod = kage::kRegularLod;
+            m_demoData.constants.enableSeamlessLod = kage::kSeamlessLod;
+            m_demoData.constants.enableOcclusion = 1;
+            m_demoData.constants.enableMeshletOcclusion = 1;
         }
 
         void createBindlessArray()
