@@ -123,7 +123,7 @@ struct TriangleCulling
 
     // out alias
     kage::BufferHandle cmdBufOutAlias;
-    kage::BufferHandle CmdCountBufOutAlias;
+    kage::BufferHandle cmdCountBufOutAlias;
 };
 
 void initMeshCulling(MeshCulling& _mc, const MeshCullingInitData& _initData, RenderStage _stage, RenderPipeline _pass);

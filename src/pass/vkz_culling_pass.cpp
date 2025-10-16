@@ -425,7 +425,7 @@ void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& 
     
     // out-alias
     _tric.cmdBufOutAlias = trianglePayloadBufOutAlias;
-    _tric.CmdCountBufOutAlias = trianglePayloadCntOutAlias;
+    _tric.cmdCountBufOutAlias = trianglePayloadCntOutAlias;
 
 }
 
