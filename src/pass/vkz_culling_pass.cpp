@@ -5,8 +5,8 @@ void recMeshCulling(const MeshCulling& _cull, uint32_t _drawCount)
 {
     KG_ZoneScopedC(kage::Color::blue);
 
-    const kage::Memory* mem = kage::alloc(sizeof(DrawCull));
-    bx::memCopy(mem->data, &_cull.drawCull, mem->size);
+    const kage::Memory* mem = kage::alloc(sizeof(Constants));
+    bx::memCopy(mem->data, &_cull.constants, mem->size);
 
     kage::startRec(_cull.pass);
 
@@ -46,7 +46,7 @@ void getPassName(std::string& _out, const char* _baseName, RenderStage _stage, R
 void initMeshCulling(MeshCulling& _cullingComp, const MeshCullingInitData& _initData, RenderStage _stage, RenderPipeline _pass)
 {
     kage::ShaderHandle cs = kage::registShader("mesh_draw_cmd", "shader/drawcmd.comp.spv");
-    kage::ProgramHandle prog = kage::registProgram("mesh_draw_cmd", { cs }, sizeof(DrawCull));
+    kage::ProgramHandle prog = kage::registProgram("mesh_draw_cmd", { cs }, sizeof(Constants));
 
     int pipelineSpecs[] = { 
         _stage == RenderStage::late // LATE
@@ -124,12 +124,12 @@ void initMeshCulling(MeshCulling& _cullingComp, const MeshCullingInitData& _init
     _cullingComp.cmdCountBufOutAlias = drawCmdCountOutAlias;
     _cullingComp.meshDrawVisBufOutAlias = drawVisOutAlias;
 
-    _cullingComp.drawCull = {};
+    _cullingComp.constants = {};
 }
 
-void updateMeshCulling(MeshCulling& _cullingComp, const DrawCull& _drawCull, uint32_t _drawCount)
+void updateMeshCulling(MeshCulling& _cullingComp, const Constants& _consts, uint32_t _drawCount)
 {
-    _cullingComp.drawCull = _drawCull;
+    _cullingComp.constants = _consts;
 
     recMeshCulling(_cullingComp, _drawCount);
 }
@@ -137,7 +137,7 @@ void updateMeshCulling(MeshCulling& _cullingComp, const DrawCull& _drawCull, uin
 void initMeshletCulling(MeshletCulling& _cullingComp, const MeshletCullingInitData& _initData, RenderStage _stage, bool _seamless /*= false*/)
 {
     kage::ShaderHandle cs = kage::registShader("meshlet_culling", "shader/culling_meshlet.comp.spv");
-    kage::ProgramHandle prog = kage::registProgram("meshlet_culling", { cs }, sizeof(DrawCull));
+    kage::ProgramHandle prog = kage::registProgram("meshlet_culling", { cs }, sizeof(Constants));
 
     int pipelineSpecs[] = {
         _stage == RenderStage::late
@@ -270,12 +270,12 @@ void initMeshletCulling(MeshletCulling& _cullingComp, const MeshletCullingInitDa
     _cullingComp.cmdCountBufOutAlias = meshletPayloadCntOutAlias;
 }
 
-void recMeshletCulling(const MeshletCulling& _mltc, const DrawCull& _drawCull)
+void recMeshletCulling(const MeshletCulling& _mltc, const Constants& _consts)
 {
     KG_ZoneScopedC(kage::Color::blue);
 
-    const kage::Memory* mem = kage::alloc(sizeof(DrawCull));
-    bx::memCopy(mem->data, &_drawCull, mem->size);
+    const kage::Memory* mem = kage::alloc(sizeof(Constants));
+    bx::memCopy(mem->data, &_consts, mem->size);
 
     kage::startRec(_mltc.pass);
 
@@ -302,9 +302,9 @@ void recMeshletCulling(const MeshletCulling& _mltc, const DrawCull& _drawCull)
     kage::endRec();
 }
 
-void updateMeshletCulling(MeshletCulling& _mltc, const DrawCull& _drawCull)
+void updateMeshletCulling(MeshletCulling& _mltc, const Constants& _consts)
 {
-    recMeshletCulling(_mltc, _drawCull);
+    recMeshletCulling(_mltc, _consts);
 }
 
 void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& _initData, RenderStage _stage, bool _seamless /*= false*/)

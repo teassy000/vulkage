@@ -167,14 +167,18 @@ namespace
             m_demoData.logic.frontY = front.y;
             m_demoData.logic.frontZ = front.z;
 
-            updateMeshCulling(m_meshCullingEarly, m_demoData.drawCull, m_scene.drawCount);
-            updateMeshCulling(m_meshCullingLate, m_demoData.drawCull, m_scene.drawCount);
+            updatePyramid(m_pyramid, m_width, m_height, m_demoData.dbg_features.common.dbgPauseCullTransform);
 
-            updateMeshletCulling(m_meshletCullingEarly, m_demoData.drawCull);
-            updateMeshletCulling(m_meshletCullingLate, m_demoData.drawCull);
+            refreshData();
 
-            updateTriangleCulling(m_triangleCullingEarly, (float)m_width, (float)m_height);
-            updateTriangleCulling(m_triangleCullingLate, (float)m_width, (float)m_height);
+            updateMeshCulling(m_meshCullingEarly, m_demoData.constants, m_scene.drawCount);
+            updateMeshCulling(m_meshCullingLate, m_demoData.constants, m_scene.drawCount);
+
+            updateMeshletCulling(m_meshletCullingEarly, m_demoData.constants);
+            updateMeshletCulling(m_meshletCullingLate, m_demoData.constants);
+
+            updateTriangleCulling(m_triangleCullingEarly, m_demoData.constants);
+            updateTriangleCulling(m_triangleCullingLate, m_demoData.constants);
 
             updateModifyIndirectCmds(m_modifyCmd4MeshletCullingEarly);
             updateModifyIndirectCmds(m_modifyCmd4MeshletCullingLate);
@@ -187,11 +191,6 @@ namespace
 
             updateSoftRasterization(m_softRasterEarly);
             updateSoftRasterization(m_softRasterLate);
-
-
-            updatePyramid(m_pyramid, m_width, m_height, m_demoData.dbg_features.common.dbgPauseCullTransform);
-
-            refreshData();
 
             const kage::Memory* memTransform = kage::alloc(sizeof(TransformData));
             memcpy_s(memTransform->data, memTransform->size, &m_demoData.trans, sizeof(TransformData));
@@ -480,6 +479,7 @@ namespace
                 triangleCullingInit.vtxBuf = m_vtxBuf;
                 triangleCullingInit.meshletBuf = m_meshletBuffer;
                 triangleCullingInit.meshletDataBuf = m_meshletDataBuffer;
+                triangleCullingInit.pyramid = m_pyramid.image;
                 initTriangleCulling(m_triangleCullingEarly, triangleCullingInit, RenderStage::early, kage::kSeamlessLod);
             }
 
@@ -487,7 +487,7 @@ namespace
             {
                 initModifyIndirectCmds(
                     m_modifyCmd4SoftRasterEarly
-                    , m_triangleCullingEarly.CmdCountBufOutAlias
+                    , m_triangleCullingEarly.cmdCountBufOutAlias
                     , m_triangleCullingEarly.cmdBufOutAlias
                     , ModifyCommandMode::to_soft_rasterize
                     , m_width
@@ -587,6 +587,7 @@ namespace
                 triangleCullingInit.vtxBuf = m_vtxBuf;
                 triangleCullingInit.meshletBuf = m_meshletBuffer;
                 triangleCullingInit.meshletDataBuf = m_meshletDataBuffer;
+                triangleCullingInit.pyramid = m_pyramid.imgOutAlias;
                 initTriangleCulling(m_triangleCullingLate, triangleCullingInit, RenderStage::late, kage::kSeamlessLod);
             }
 
@@ -594,7 +595,7 @@ namespace
             {
                 initModifyIndirectCmds(
                     m_modifyCmd4SoftRasterLate
-                    , m_triangleCullingLate.CmdCountBufOutAlias
+                    , m_triangleCullingLate.cmdCountBufOutAlias
                     , m_triangleCullingLate.cmdBufOutAlias
                     , ModifyCommandMode::to_soft_rasterize
                     , m_width
@@ -679,7 +680,6 @@ namespace
             m_demoData.trans.proj = proj;
             m_demoData.trans.cameraPos = vec4(cameraPos, 1.f);
 
-
             m_demoData.drawCull.P00 = s_proj[0][0];
             m_demoData.drawCull.P11 = s_proj[1][1];
             m_demoData.drawCull.zfar = m_scene.drawDistance;
@@ -710,6 +710,26 @@ namespace
             m_demoData.globals.enableMeshletOcclusion = 1;
             m_demoData.globals.lodErrorThreshold = lodErrThreshold;
             m_demoData.globals.probeRangeRadius = m_demoData.dbg_features.rc3d.totalRadius;
+
+            m_demoData.constants.P00 = s_proj[0][0];
+            m_demoData.constants.P11 = s_proj[1][1];
+            m_demoData.constants.znear = znear;
+            m_demoData.constants.zfar = m_scene.drawDistance;
+            m_demoData.constants.frustum[0] = s_fx.x;
+            m_demoData.constants.frustum[1] = s_fx.z;
+            m_demoData.constants.frustum[2] = s_fy.y;
+            m_demoData.constants.frustum[3] = s_fy.z;
+            m_demoData.constants.screenWidth = (float)m_width;
+            m_demoData.constants.screenHeight = (float)m_height;
+            m_demoData.constants.pyramidWidth = (float)m_pyramid.width;
+            m_demoData.constants.pyramidHeight = (float)m_pyramid.height;
+            m_demoData.constants.lodErrorThreshold = lodErrThreshold;
+            m_demoData.constants.probeRangeRadius = m_demoData.dbg_features.rc3d.totalRadius;
+            m_demoData.constants.enableCull = 1;
+            m_demoData.constants.enableLod = kage::kRegularLod;
+            m_demoData.constants.enableSeamlessLod = kage::kSeamlessLod;
+            m_demoData.constants.enableOcclusion = 1;
+            m_demoData.constants.enableMeshletOcclusion = 1;
         }
 
 

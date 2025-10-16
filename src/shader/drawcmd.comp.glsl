@@ -17,7 +17,7 @@ layout(constant_id = 3) const bool USE_MIXED_RASTER = false;
 
 layout(push_constant) uniform block 
 {
-    DrawCull cull;
+    Constants consts;
 };
 
 // readonly
@@ -76,8 +76,8 @@ void main()
     if (ALPHA_PASS && draw.withAlpha == 0)
         return;
 
-    // the early cull only handle objects that visiable depends on last frame 
-    if (!LATE && drawVisibility[di] == 0 && cull.enableOcclusion == 1)
+    // the early consts only handle objects that visiable depends on last frame 
+    if (!LATE && drawVisibility[di] == 0 && consts.enableOcclusion == 1)
         return;
 
     Mesh mesh = meshes[draw.meshIdx];
@@ -86,37 +86,37 @@ void main()
     float radius = mesh.radius * maxElem(draw.scale);
 
     bool visible = true;
-    visible = visible && (center.z * cull.frustum[1] + abs(center.x) * cull.frustum[0] > -radius);
-	visible = visible && (center.z * cull.frustum[3] + abs(center.y) * cull.frustum[2] > -radius);
+    visible = visible && (center.z * consts.frustum[1] + abs(center.x) * consts.frustum[0] > -radius);
+	visible = visible && (center.z * consts.frustum[3] + abs(center.y) * consts.frustum[2] > -radius);
 	
-    visible = visible && (center.z + radius > cull.znear);
+    visible = visible && (center.z + radius > consts.znear);
 
-    visible = visible || (cull.enableCull == 0);
+    visible = visible || (consts.enableCull == 0);
     
     
     // do occlusion culling in late pass
-    if(LATE && visible && cull.enableOcclusion == 1)
+    if(LATE && visible && consts.enableOcclusion == 1)
     {
         vec4 aabb;
-        if(projectSphere(center.xyz, radius, cull.znear, cull.P00, cull.P11, aabb))
+        if(projectSphere(center.xyz, radius, consts.znear, consts.P00, consts.P11, aabb))
         {
             // the size in the render target
-            float width = (aabb.z - aabb.x) * cull.pyramidWidth; 
-            float height = (aabb.w - aabb.y) * cull.pyramidHeight;
+            float width = (aabb.z - aabb.x) * consts.pyramidWidth; 
+            float height = (aabb.w - aabb.y) * consts.pyramidHeight;
     
             float level = floor(log2(max(width, height))); // smaller object would use lower level
     
             float depth = textureLod(depthPyramid, (aabb.xy + aabb.zw) * 0.5, level).x; // scene depth
-            float depthSphere = cull.znear / (center.z - radius); 
+            float depthSphere = consts.znear / (center.z - radius); 
             visible = visible && (depthSphere > depth); // nearest depth on sphere should less than the depth buffer
         }
     }
 
     // early pass, or force meshlet oc, or not draw will setup the draw commands if visiable
-    if(visible && (!LATE || cull.enableMeshletOcclusion == 1 || drawVisibility[di] == 0))
+    if(visible && (!LATE || consts.enableMeshletOcclusion == 1 || drawVisibility[di] == 0))
     {
         float dist = max(length(center.xyz) - radius, 0);
-        float threshold = dist * cull.lodErrorThreshold / maxElem(draw.scale);
+        float threshold = dist * consts.lodErrorThreshold / maxElem(draw.scale);
         uint lodIdx = 0;
         for (uint ii = 0; ii < mesh.lodCount; ++ii){
             if (mesh.lods[ii].error < threshold){
@@ -124,7 +124,7 @@ void main()
             }
         }
 
-        MeshLod lod = cull.enableSeamlessLod == 1 ? mesh.seamlessLod : mesh.lods[lodIdx];
+        MeshLod lod = consts.enableSeamlessLod == 1 ? mesh.seamlessLod : mesh.lods[lodIdx];
 
         if(TASK)
         {

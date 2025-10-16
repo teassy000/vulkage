@@ -74,7 +74,7 @@ struct MeshShading
 
     GBuffer g_bufferOutAlias;
 
-    Globals globals;
+    Constants constants;
 };
 
 struct TaskSubmit
@@ -95,4 +95,4 @@ void prepareTaskSubmit(TaskSubmit& _taskSubmit, kage::BufferHandle _drawCmdBuf, 
 
 
 void updateTaskSubmit(const TaskSubmit& _taskSubmit);
-void updateMeshShading(MeshShading& _meshShading, const Globals& _globals);
+void updateMeshShading(MeshShading& _meshShading, const Constants& _consts);

@@ -170,9 +170,9 @@ namespace
 
             updateSkybox(m_skybox, m_width, m_height);
 
-            updateMeshCulling(m_culling, m_demoData.drawCull, m_scene.drawCount);
-            updateMeshCulling(m_cullingLate, m_demoData.drawCull, m_scene.drawCount);
-            updateMeshCulling(m_cullingAlpha, m_demoData.drawCull, m_scene.drawCount);
+            updateMeshCulling(m_culling, m_demoData.constants, m_scene.drawCount);
+            updateMeshCulling(m_cullingLate, m_demoData.constants, m_scene.drawCount);
+            updateMeshCulling(m_cullingAlpha, m_demoData.constants, m_scene.drawCount);
 
 
             updateDeferredShading(m_deferred, m_width, m_height, m_demoData.trans.cameraPos, m_demoData.dbg_features.rc3d.totalRadius, m_demoData.dbg_features.rc3d.idx_type, m_demoData.dbg_features.rc3d);
@@ -183,14 +183,14 @@ namespace
                 updateTaskSubmit(m_taskSubmitLate);
                 updateTaskSubmit(m_taskSubmitAlpha);
 
-                updateMeshShading(m_meshShading, m_demoData.globals);
-                updateMeshShading(m_meshShadingLate, m_demoData.globals);
-                updateMeshShading(m_meshShadingAlpha, m_demoData.globals);
+                updateMeshShading(m_meshShading, m_demoData.constants);
+                updateMeshShading(m_meshShadingLate, m_demoData.constants);
+                updateMeshShading(m_meshShadingAlpha, m_demoData.constants);
             }
             else
             {
-                updateVtxShadingConstants(m_vtxShading, m_demoData.globals);
-                updateVtxShadingConstants(m_vtxShadingLate, m_demoData.globals);
+                updateVtxShadingConstants(m_vtxShading, m_demoData.constants);
+                updateVtxShadingConstants(m_vtxShadingLate, m_demoData.constants);
             }
 
             const kage::Memory* memTransform = kage::alloc(sizeof(TransformData));

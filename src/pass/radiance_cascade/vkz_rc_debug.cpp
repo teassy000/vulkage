@@ -136,7 +136,7 @@ void prepareProbeDbgCmdGen(ProbeDbgCmdGen& _gen, const ProbeDebugGenInit& _init)
     _gen.outDrawDataBufAlias = probeDrawBufAlias;
 }
 
-void recProbeDbgCmdGen(const ProbeDbgCmdGen& _gen, const DrawCull& _camCull, const Dbg_RadianceCascades _rcDbg)
+void recProbeDbgCmdGen(const ProbeDbgCmdGen& _gen, const Constants& _consts, const Dbg_RadianceCascades _rcDbg)
 {
     uint32_t probeSideCount = kage::k_rclv0_probeSideCount / (1 << glm::min(_rcDbg.startCascade, kage::k_rclv0_cascadeLv));
     const float probeSideLen = _rcDbg.totalRadius * 2.f / (float)probeSideCount;
@@ -151,16 +151,16 @@ void recProbeDbgCmdGen(const ProbeDbgCmdGen& _gen, const DrawCull& _camCull, con
     consts.layerOffset = (kage::k_rclv0_probeSideCount - probeSideCount) * 2;
     consts.idxCnt = _gen.idxCnt;
 
-    consts.P00 = _camCull.P00;
-    consts.P11 = _camCull.P11;
-    consts.znear = _camCull.znear;
-    consts.zfar = _camCull.zfar;
-    consts.frustum[0] = _camCull.frustum[0];
-    consts.frustum[1] = _camCull.frustum[1];
-    consts.frustum[2] = _camCull.frustum[2];
-    consts.frustum[3] = _camCull.frustum[3];
-    consts.pyramidWidth = _camCull.pyramidWidth;
-    consts.pyramidHeight = _camCull.pyramidHeight;
+    consts.P00 = _consts.P00;
+    consts.P11 = _consts.P11;
+    consts.znear = _consts.znear;
+    consts.zfar = _consts.zfar;
+    consts.frustum[0] = _consts.frustum[0];
+    consts.frustum[1] = _consts.frustum[1];
+    consts.frustum[2] = _consts.frustum[2];
+    consts.frustum[3] = _consts.frustum[3];
+    consts.pyramidWidth = _consts.pyramidWidth;
+    consts.pyramidHeight = _consts.pyramidHeight;
 
     consts.posOffsets[0] = _rcDbg.probePosOffset[0];
     consts.posOffsets[1] = _rcDbg.probePosOffset[1];
@@ -266,7 +266,7 @@ void prepareProbeDbgDraw(ProbeDbgDraw& _pd, const ProbeDebugDrawInit& _init)
     _pd.depthOutAlias = depthAlias;
 }
 
-void recProbeDbgDraw(const ProbeDbgDraw& _pd, const DrawCull& _camCull, const uint32_t _width, const uint32_t _height, const Dbg_RadianceCascades _rcDbg)
+void recProbeDbgDraw(const ProbeDbgDraw& _pd, const Constants& _consts, const uint32_t _width, const uint32_t _height, const Dbg_RadianceCascades _rcDbg)
 {
     kage::startRec(_pd.pass);
 
@@ -352,8 +352,8 @@ void prepareProbeDebug(ProbeDebug& _pd, const RCDebugInit& _init)
     prepareProbeDbgDraw(_pd.draw, drawInit);
 }
 
-void updateProbeDebug(const ProbeDebug& _pd, const DrawCull& _camCull, const uint32_t _width, const uint32_t _height, const Dbg_RadianceCascades _rcDbg)
+void updateProbeDebug(const ProbeDebug& _pd, const Constants& _consts, const uint32_t _width, const uint32_t _height, const Dbg_RadianceCascades _rcDbg)
 {
-    recProbeDbgCmdGen(_pd.cmdGen, _camCull, _rcDbg);
-    recProbeDbgDraw(_pd.draw, _camCull, _width, _height, _rcDbg);
+    recProbeDbgCmdGen(_pd.cmdGen, _consts, _rcDbg);
+    recProbeDbgDraw(_pd.draw, _consts, _width, _height, _rcDbg);
 }

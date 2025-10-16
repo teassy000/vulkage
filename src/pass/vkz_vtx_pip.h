@@ -55,10 +55,10 @@ struct VtxShading
     // bindless
     kage::BindlessHandle bindless;
 
-    Globals globals;
+    Constants constants;
 };
 
 
 void prepareVtxShading(VtxShading& _vtxShading, const Scene& _scene, const VtxShadingInitData& _initData, bool _late = false);
 
-void updateVtxShadingConstants(VtxShading& _vtxShading, const Globals& _globals);
+void updateVtxShadingConstants(VtxShading& _vtxShading, const Constants& _consts);

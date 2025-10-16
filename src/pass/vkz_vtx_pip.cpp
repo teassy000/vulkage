@@ -5,8 +5,8 @@ void vtxShadingRec(VtxShading& _v)
 {
     KG_ZoneScopedC(kage::Color::blue);
 
-    const kage::Memory* mem = kage::alloc(sizeof(Globals));
-    memcpy(mem->data, &_v.globals, mem->size);
+    const kage::Memory* mem = kage::alloc(sizeof(Constants));
+    memcpy(mem->data, &_v.constants, mem->size);
 
     kage::Binding binds[] =
     {
@@ -22,8 +22,8 @@ void vtxShadingRec(VtxShading& _v)
     kage::pushBindings(binds, COUNTOF(binds));
     kage::setBindless(_v.bindless);
 
-    kage::setViewport(0, 0, (uint32_t)_v.globals.screenWidth, (uint32_t)_v.globals.screenHeight);
-    kage::setScissor(0, 0, (uint32_t)_v.globals.screenWidth, (uint32_t)_v.globals.screenHeight);
+    kage::setViewport(0, 0, (uint32_t)_v.constants.screenWidth, (uint32_t)_v.constants.screenHeight);
+    kage::setScissor(0, 0, (uint32_t)_v.constants.screenWidth, (uint32_t)_v.constants.screenHeight);
 
     kage::Attachment attachments[] = {
         {_v.color, _v.late ? LoadOp::dont_care : LoadOp::clear, StoreOp::store},
@@ -55,7 +55,7 @@ void prepareVtxShading(VtxShading& _vtxShading, const Scene& _scene, const VtxSh
     // render shader
     kage::ShaderHandle vs = kage::registShader("mesh_vert_shader", "shader/mesh.vert.spv");
     kage::ShaderHandle fs = kage::registShader("mesh_frag_shader", "shader/bindless.frag.spv");
-    kage::ProgramHandle prog = kage::registProgram("mesh_prog", { vs, fs }, sizeof(Globals), _initData.bindless);
+    kage::ProgramHandle prog = kage::registProgram("mesh_prog", { vs, fs }, sizeof(Constants), _initData.bindless);
     // pass
     kage::PassDesc desc;
     desc.prog = prog;
@@ -124,9 +124,9 @@ void prepareVtxShading(VtxShading& _vtxShading, const Scene& _scene, const VtxSh
     _vtxShading.maxMeshDrawCmdCount = (uint32_t)_scene.meshDraws.size();
 }
 
-void updateVtxShadingConstants(VtxShading& _vtxShading, const Globals& _globals)
+void updateVtxShadingConstants(VtxShading& _vtxShading, const Constants& _consts)
 {
-    _vtxShading.globals = _globals;
+    _vtxShading.constants = _consts;
 
     vtxShadingRec(_vtxShading);
 }

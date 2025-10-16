@@ -16,7 +16,7 @@ layout(constant_id = 2) const bool SEAMLESS_LOD = false;
 
 layout(push_constant) uniform block 
 {
-    DrawCull cull;
+    Constants consts;
 };
 
 // read
@@ -103,7 +103,7 @@ void main()
     bool valid = (mLocalId < taskCount);
     bool visible = valid;
 
-    if (!ALPHA_PASS && cull.enableMeshletOcclusion == 1 )
+    if (!ALPHA_PASS && consts.enableMeshletOcclusion == 1 )
     {
         // the meshlet visibility is using bit mask
         // mvIdx in range [0, meshletCount]
@@ -140,9 +140,9 @@ void main()
         vec3 s_center = rotateQuat(clusters[mi].s_c, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
 
         float p_dist = max(length(p_center - trans.cull_cameraPos.xyz) - clusters[mi].p_r, 0);
-        float p_threshold = p_dist * cull.lodErrorThreshold / maxScaleAxis;
+        float p_threshold = p_dist * consts.lodErrorThreshold / maxScaleAxis;
         float s_dist = max(length(s_center - trans.cull_cameraPos.xyz) - clusters[mi].s_r, 0);
-        float s_threshold = s_dist * cull.lodErrorThreshold / maxScaleAxis;
+        float s_threshold = s_dist * consts.lodErrorThreshold / maxScaleAxis;
 
         cone_axis = vec3(int(clusters[mi].cone_axis[0]) / 127.0, int(clusters[mi].cone_axis[1]) / 127.0, int(clusters[mi].cone_axis[2]) / 127.0);
 
@@ -178,34 +178,34 @@ void main()
     }
 
     // frustum culling: left/right/top/bottom
-    visible = visible && (center.z * cull.frustum[1] + abs(center.x) * cull.frustum[0] > -radius);
-    visible = visible && (center.z * cull.frustum[3] + abs(center.y) * cull.frustum[2] > -radius);
+    visible = visible && (center.z * consts.frustum[1] + abs(center.x) * consts.frustum[0] > -radius);
+    visible = visible && (center.z * consts.frustum[3] + abs(center.y) * consts.frustum[2] > -radius);
     
     // near culling
     // note: not perform far culling to keep the same result with the old pipeline
-    visible = visible && (center.z + radius > cull.znear);
+    visible = visible && (center.z + radius > consts.znear);
     
     // occlussion culling
-    if(LATE && cull.enableMeshletOcclusion == 1 && visible)
+    if(LATE && consts.enableMeshletOcclusion == 1 && visible)
     {
         vec4 aabb;
         float P00 = trans.cull_proj[0][0];
         float P11 = trans.cull_proj[1][1];
-        if(projectSphere(center.xyz, radius, cull.znear, P00, P11, aabb))
+        if(projectSphere(center.xyz, radius, consts.znear, P00, P11, aabb))
         {
             // the size in the render targetpyramidLevelHeight
-            float width = (aabb.z - aabb.x) * cull.pyramidWidth; 
-            float height = (aabb.w - aabb.y) * cull.pyramidHeight;
+            float width = (aabb.z - aabb.x) * consts.pyramidWidth; 
+            float height = (aabb.w - aabb.y) * consts.pyramidHeight;
 
             float level = floor(log2(max(width, height))); // smaller object would use lower level
 
             float depth = textureLod(pyramid, (aabb.xy + aabb.zw) * 0.5, level).x; // scene depth
-            float depthSphere = cull.znear / (center.z - radius); 
+            float depthSphere = consts.znear / (center.z - radius); 
             visible = visible && (depthSphere > depth); // nearest depth on sphere should less than the depth buffer
         }
     }
 
-    if(LATE && cull.enableMeshletOcclusion == 1 && valid) 
+    if(LATE && consts.enableMeshletOcclusion == 1 && valid) 
     {
         if(visible)
         {

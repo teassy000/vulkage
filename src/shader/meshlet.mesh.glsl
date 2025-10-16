@@ -20,7 +20,7 @@ layout(triangles, max_vertices=MESH_MAX_VTX, max_primitives = MESH_MAX_TRI) out;
 
 layout(push_constant) uniform block 
 {
-    Globals globals;
+    Constants consts;
 };
 
 // readonly
@@ -139,7 +139,7 @@ void main()
     barrier();
 #endif
 
-    vec2 screen = vec2(globals.screenWidth, globals.screenHeight);
+    vec2 screen = vec2(consts.screenWidth, consts.screenHeight);
 
     for(uint i = ti; i < triangleCount; i += MESHGP_SIZE )
     {

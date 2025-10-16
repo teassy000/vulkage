@@ -61,6 +61,25 @@ struct DrawCull
     int enableMeshletOcclusion;
 };
 
+struct Constants
+{
+    float P00, P11;
+    float znear, zfar;
+    float frustum[4];
+
+    float pyramidWidth, pyramidHeight;
+    float screenWidth, screenHeight;
+
+    float lodErrorThreshold;
+    float probeRangeRadius;
+
+    int enableCull;
+    int enableLod;
+    int enableSeamlessLod;
+    int enableOcclusion;
+    int enableMeshletOcclusion;
+};
+
 struct TransformData
 {
     mat4 view;

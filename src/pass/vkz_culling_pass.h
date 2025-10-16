@@ -39,7 +39,7 @@ struct MeshCulling
     kage::BufferHandle cmdCountBufOutAlias;
     kage::BufferHandle meshDrawVisBufOutAlias;
 
-    DrawCull drawCull;
+    Constants constants;
 };
 
 struct MeshletCullingInitData
@@ -128,12 +128,12 @@ struct TriangleCulling
 
 void initMeshCulling(MeshCulling& _mc, const MeshCullingInitData& _initData, RenderStage _stage, RenderPipeline _pass);
 
-void updateMeshCulling(MeshCulling& _mc, const DrawCull& _drawCull, uint32_t _drawCount);
+void updateMeshCulling(MeshCulling& _mc, const Constants& _consts, uint32_t _drawCount);
 
 
 void initMeshletCulling(MeshletCulling& _mltc, const MeshletCullingInitData& _initData, RenderStage _stage, bool _seamless = false);
-void updateMeshletCulling(MeshletCulling& _mltc, const DrawCull& _drawCull);
+void updateMeshletCulling(MeshletCulling& _mltc, const Constants& _consts);
 
 void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& _initData, RenderStage _stage, bool _seamless = false);
-void updateTriangleCulling(TriangleCulling& _tric, float _width, float _height);
+void updateTriangleCulling(TriangleCulling& _tric, const Constants& _consts);
 

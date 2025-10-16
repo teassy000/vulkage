@@ -28,7 +28,7 @@ layout(binding = 0, set = 1) uniform sampler2D textures[];
 
 layout(push_constant) uniform block
 {
-    Globals globals;
+    Constants consts;
 };
 
 // readonly
@@ -46,7 +46,7 @@ void main()
 #else
     MeshDraw mDraw = meshDraws[in_drawId];
     
-    vec3 wPos = (in_wPos / globals.probeRangeRadius) * 0.5f + .5f; // normalize to [0, 1]
+    vec3 wPos = (in_wPos / consts.probeRangeRadius) * 0.5f + .5f; // normalize to [0, 1]
 
     vec4 albedo = vec4(0.5, 0.5, 0.5, 1.0);
     if (mDraw.albedoTex > 0) { 

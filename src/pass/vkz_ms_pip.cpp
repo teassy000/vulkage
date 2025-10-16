@@ -31,8 +31,8 @@ void meshShadingRec(const MeshShading& _ms)
 {
     KG_ZoneScopedC(kage::Color::blue);
 
-    const kage::Memory* mem = kage::alloc(sizeof(Globals));
-    memcpy(mem->data, &_ms.globals, mem->size);
+    const kage::Memory* mem = kage::alloc(sizeof(Constants));
+    memcpy(mem->data, &_ms.constants, mem->size);
 
     kage::Binding binds[] =
     {
@@ -54,8 +54,8 @@ void meshShadingRec(const MeshShading& _ms)
 
     kage::setBindless(_ms.bindless);
 
-    kage::setViewport(0, 0, (uint32_t)_ms.globals.screenWidth, (uint32_t)_ms.globals.screenHeight);
-    kage::setScissor(0, 0, (uint32_t)_ms.globals.screenWidth, (uint32_t)_ms.globals.screenHeight);
+    kage::setViewport(0, 0, (uint32_t)_ms.constants.screenWidth, (uint32_t)_ms.constants.screenHeight);
+    kage::setScissor(0, 0, (uint32_t)_ms.constants.screenWidth, (uint32_t)_ms.constants.screenHeight);
 
     kage::Attachment attachments[] = {
         {_ms.g_buffer.albedo,   _ms.late ? LoadOp::dont_care : LoadOp::clear, StoreOp::store},
@@ -84,7 +84,7 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
     kage::ShaderHandle ts = kage::registShader("task_shader", "shader/meshlet.task.spv");
     kage::ShaderHandle fs = kage::registShader("mesh_frag_shader", "shader/bindless.frag.spv");
 
-    kage::ProgramHandle prog = kage::registProgram("mesh_prog", { ts, ms, fs }, sizeof(Globals), _initData.bindless);
+    kage::ProgramHandle prog = kage::registProgram("mesh_prog", { ts, ms, fs }, sizeof(Constants), _initData.bindless);
 
     int pipelineSpecs[] = { _late, _alphaPass, {kage::kSeamlessLod == 1} };
 
@@ -242,9 +242,9 @@ void updateTaskSubmit(const TaskSubmit& _taskSubmit)
     taskSubmitRec(_taskSubmit);
 }
 
-void updateMeshShading(MeshShading& _meshShading, const Globals& _globals)
+void updateMeshShading(MeshShading& _meshShading, const Constants& _consts)
 {
-    _meshShading.globals = _globals;
+    _meshShading.constants = _consts;
 
     meshShadingRec(_meshShading);
 }

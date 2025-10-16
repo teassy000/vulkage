@@ -43,6 +43,24 @@ struct alignas(16) Globals
     float probeRangeRadius;
 };
 
+struct alignas(16) Constants
+{
+    float P00, P11;
+    float znear, zfar;
+    float frustum[4];
+    float pyramidWidth, pyramidHeight;
+    float screenWidth, screenHeight;
+    
+    float lodErrorThreshold;
+    float probeRangeRadius;
+    
+    int32_t enableCull;
+    int32_t enableLod;
+    int32_t enableSeamlessLod;
+    int32_t enableOcclusion;
+    int32_t enableMeshletOcclusion;
+};
+
 struct MeshDrawCommand
 {
     uint32_t    drawId;
@@ -155,6 +173,7 @@ struct DemoData
     // constants
     Globals globals;
     DrawCull drawCull;
+    Constants constants;
 
     // uniform
     TransformData cullTrans;

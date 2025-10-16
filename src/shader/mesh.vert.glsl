@@ -11,7 +11,7 @@
 
 layout(push_constant) uniform block 
 {
-    Globals globals;
+    Constants consts;
 };
 
 layout(binding = 0) readonly buffer DrawCommands 
