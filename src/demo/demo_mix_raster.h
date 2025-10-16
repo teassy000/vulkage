@@ -680,37 +680,6 @@ namespace
             m_demoData.trans.proj = proj;
             m_demoData.trans.cameraPos = vec4(cameraPos, 1.f);
 
-            m_demoData.drawCull.P00 = s_proj[0][0];
-            m_demoData.drawCull.P11 = s_proj[1][1];
-            m_demoData.drawCull.zfar = m_scene.drawDistance;
-            m_demoData.drawCull.znear = znear;
-            m_demoData.drawCull.pyramidWidth = (float)m_pyramid.width;
-            m_demoData.drawCull.pyramidHeight = (float)m_pyramid.height;
-            m_demoData.drawCull.frustum[0] = s_fx.x;
-            m_demoData.drawCull.frustum[1] = s_fx.z;
-            m_demoData.drawCull.frustum[2] = s_fy.y;
-            m_demoData.drawCull.frustum[3] = s_fy.z;
-            m_demoData.drawCull.enableCull = 1;
-            m_demoData.drawCull.enableLod = kage::kRegularLod;
-            m_demoData.drawCull.enableSeamlessLod = kage::kSeamlessLod;
-            m_demoData.drawCull.enableOcclusion = 1;
-            m_demoData.drawCull.enableMeshletOcclusion = 1;
-            m_demoData.drawCull.lodErrorThreshold = lodErrThreshold;
-
-            m_demoData.globals.zfar = m_scene.drawDistance;
-            m_demoData.globals.znear = znear;
-            m_demoData.globals.frustum[0] = s_fx.x;
-            m_demoData.globals.frustum[1] = s_fx.z;
-            m_demoData.globals.frustum[2] = s_fy.y;
-            m_demoData.globals.frustum[3] = s_fy.z;
-            m_demoData.globals.pyramidWidth = (float)m_pyramid.width;
-            m_demoData.globals.pyramidHeight = (float)m_pyramid.height;
-            m_demoData.globals.screenWidth = (float)m_width;
-            m_demoData.globals.screenHeight = (float)m_height;
-            m_demoData.globals.enableMeshletOcclusion = 1;
-            m_demoData.globals.lodErrorThreshold = lodErrThreshold;
-            m_demoData.globals.probeRangeRadius = m_demoData.dbg_features.rc3d.totalRadius;
-
             m_demoData.constants.P00 = s_proj[0][0];
             m_demoData.constants.P11 = s_proj[1][1];
             m_demoData.constants.znear = znear;

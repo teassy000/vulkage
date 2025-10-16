@@ -171,8 +171,6 @@ struct DemoData
     DebugLogicData logic;
 
     // constants
-    Globals globals;
-    DrawCull drawCull;
     Constants constants;
 
     // uniform
