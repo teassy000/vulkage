@@ -109,7 +109,7 @@ static const InputBinding s_camBindings[] =
 
 // left handed
 // infinity far
-// z in [0, 1], 0 is near, 1 is far
+// inversed-z in [0.0, 1.f], 1.0 is near, 0.0 is far
 inline mat4 perspectiveProjection(float fovY, float aspectWbyH, float zNear)
 {
     float f = 1.0f / tanf(fovY / 2.0f);
