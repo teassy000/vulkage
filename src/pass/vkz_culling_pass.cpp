@@ -310,7 +310,7 @@ void updateMeshletCulling(MeshletCulling& _mltc, const Constants& _consts)
 void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& _initData, RenderStage _stage, bool _seamless /*= false*/)
 {
     kage::ShaderHandle cs = kage::registShader("triangle_culling", "shader/culling_triangle.comp.spv");
-    kage::ProgramHandle prog = kage::registProgram("triangle_culling", { cs }, sizeof(vec2));
+    kage::ProgramHandle prog = kage::registProgram("triangle_culling", { cs }, sizeof(Constants));
 
     int pipelineSpecs[] = {
         _stage == RenderStage::alpha
@@ -405,6 +405,15 @@ void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& 
         , trianglePayloadCntOutAlias
     );
 
+    kage::SamplerHandle pyrSamp = kage::sampleImage( pass
+            , _initData.pyramid
+            , Stage::compute_shader
+            , kage::SamplerFilter::linear
+            , kage::SamplerMipmapMode::nearest
+            , kage::SamplerAddressMode::clamp_to_edge
+            , kage::SamplerReductionMode::min
+    );
+
     _tric.cs = cs;
     _tric.prog = prog;
     _tric.pass = pass;
@@ -418,6 +427,8 @@ void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& 
     _tric.meshletBuf = _initData.meshletBuf;
     _tric.meshletDataBuf = _initData.meshletDataBuf;
 
+    _tric.pyramid = _initData.pyramid;
+    _tric.pyrSampler = pyrSamp;
     
     // read-write
     _tric.trianglePayloadBuf = trianglePayload;
@@ -429,14 +440,14 @@ void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& 
 
 }
 
-void recTriangleCulling(const TriangleCulling& _tric)
+void recTriangleCulling(const TriangleCulling& _tric, const Constants& _consts)
 {
     KG_ZoneScopedC(kage::Color::blue);
 
-    const kage::Memory* mem = kage::alloc(sizeof(vec2));
-    vec2 screenSize = { _tric.screenWidth, _tric.screenHeight };
-    bx::memCopy(mem->data, &screenSize, mem->size);
-    
+    const kage::Memory* mem = kage::alloc(sizeof(Constants));
+
+    bx::memCopy(mem->data, &_consts, mem->size);
+
     kage::startRec(_tric.pass);
     kage::setConstants(mem);
 
@@ -453,6 +464,7 @@ void recTriangleCulling(const TriangleCulling& _tric)
         { _tric.meshletPayloadCntBuf,   BindingAccess::read,        Stage::compute_shader },
         { _tric.trianglePayloadBuf,     BindingAccess::write,       Stage::compute_shader },
         { _tric.payloadCntBuf,          BindingAccess::write,       Stage::compute_shader },
+        {_tric.pyramid,                 _tric.pyrSampler,           Stage::compute_shader }
     };
     kage::pushBindings(binds, COUNTOF(binds));
     
@@ -460,10 +472,8 @@ void recTriangleCulling(const TriangleCulling& _tric)
     kage::endRec();
 }
 
-void updateTriangleCulling(TriangleCulling& _tric, float _width, float _height)
+void updateTriangleCulling(TriangleCulling& _tric, const Constants& _consts)
 {
-    _tric.screenWidth = _width;
-    _tric.screenHeight = _height;
-    recTriangleCulling(_tric);
+    recTriangleCulling(_tric, _consts);
 }
 

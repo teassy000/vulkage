@@ -98,6 +98,8 @@ struct TriangleCullingInitData
     kage::BufferHandle vtxBuf;
     kage::BufferHandle meshletBuf;
     kage::BufferHandle meshletDataBuf;
+
+    kage::ImageHandle pyramid;
 };
 
 struct TriangleCulling
@@ -105,8 +107,6 @@ struct TriangleCulling
     kage::PassHandle pass;
     kage::ShaderHandle cs;
     kage::ProgramHandle prog;
-    
-    float screenWidth, screenHeight;
 
     // read-only
     kage::BufferHandle meshletPayloadBuf;
@@ -116,6 +116,9 @@ struct TriangleCulling
     kage::BufferHandle vtxBuf;
     kage::BufferHandle meshletBuf;
     kage::BufferHandle meshletDataBuf;
+
+    kage::ImageHandle pyramid;
+    kage::SamplerHandle pyrSampler;
 
     // write
     kage::BufferHandle trianglePayloadBuf;

@@ -9,6 +9,8 @@
 
 #extension GL_GOOGLE_include_directive: require
 
+#define DEBUG 0
+
 #include "mesh_gpu.h"
 #include "math.h"
 
@@ -19,7 +21,7 @@ layout(constant_id = 2) const bool SEAMLESS_LOD = false;
 
 layout(push_constant) uniform block 
 {
-    vec2 rt_sz;
+    Constants consts;
 };
 
 // readonly
@@ -74,15 +76,18 @@ layout(binding = 8) buffer OutCounts
     IndirectDispatchCommand outTriCnt;
 };
 
+// pyramid
+layout(binding = 9) uniform sampler2D pyramid;
+
 shared vec3 vertexClip[MESH_MAX_VTX];
 
 void main()
 {
     // each workgroup.y process one triangle/vertex
-    uint ti = gl_WorkGroupID.y;
+    uint ti = gl_LocalInvocationID.x;
 
     // each workgroup process MR_TRIANGLEGP_SIZE meshlets
-    uint gid = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
+    uint gid = gl_WorkGroupID.x;
 
     uint count = indirectCmdCount.count;
     if (gid >= count)
@@ -119,30 +124,34 @@ void main()
     uint vertexOffset = dataOffset;
     uint indexOffset = dataOffset + vertexCount;
 
+#if DEBUG
+    for (uint i = 0; i < vertexCount; i ++)
+#else
     // transform vertices
     for (uint i = ti; i < vertexCount; i += MR_TRIANGLEGP_SIZE)
+#endif
     {
         uint vi = meshletData[vertexOffset + i] + meshDraw.vertexOffset;
 
         vec3 pos = vec3(vertices[vi].vx, vertices[vi].vy, vertices[vi].vz);
-        vec3 norm = vec3(int(vertices[vi].nx), int(vertices[vi].ny), int(vertices[vi].nz)) / 127.0 - 1.0;
-        vec4 tan = vec4(int(vertices[vi].tx), int(vertices[vi].ty), int(vertices[vi].tz), int(vertices[vi].tw)) / 127.0 - 1.0;
-        vec2 uv = vec2(vertices[vi].tu, vertices[vi].tv);
-
         vec3 wPos = rotateQuat(pos, meshDraw.orit) * meshDraw.scale + meshDraw.pos;
-
-        vec4 result = trans.proj * trans.view * vec4(wPos, 1.0);
-
-        norm = rotateQuat(norm, meshDraw.orit);
-
-        vertexClip[i] = vec3(result.xy/result.w, result.w);
+        vec4 result = trans.cull_proj * trans.cull_view * vec4(wPos, 1.0);
+        vertexClip[i].xyz = result.xyz / result.w;
     }
 
+#if DEBUG
+#else
     // make sure all vertex are transformed
     barrier();
+#endif
 
-    // cull triangles
+// cull triangles
+
+#if DEBUG
+    for (uint i = 0; i < triangleCount; i ++)
+#else
     for (uint i = ti; i < triangleCount; i += MR_TRIANGLEGP_SIZE)
+#endif
     {
         uint offset = indexOffset * 4 + i * 3; // x4 for uint8_t
 
@@ -152,26 +161,46 @@ void main()
 
         bool culled = false;
 
-        vec2 pa = vertexClip[idx0].xy;
-        vec2 pb = vertexClip[idx1].xy;
-        vec2 pc = vertexClip[idx2].xy;
+        vec3 pa = vertexClip[idx0].xyz;
+        vec3 pb = vertexClip[idx1].xyz;
+        vec3 pc = vertexClip[idx2].xyz;
 
-        vec2 eb = pb - pa;
-        vec2 ec = pc - pa;
+        vec2 eb = pb.xy - pa.xy;
+        vec2 ec = pc.xy - pa.xy;
 
+        // back face culling in screen space
         culled = culled || (eb.x * ec.y >= eb.y * ec.x);
 
-        vec2 bmin = (min(pa, min(pb, pc)) * 0.5 + vec2(0.5)) * rt_sz;
-        vec2 bmax = (max(pa, max(pb, pc)) * 0.5 + vec2(0.5)) * rt_sz;
+        // calculate the aabb of the triangle in NDC space
+        vec4 aabb = vec4(
+            min(pa.xy, min(pb.xy, pc.xy)) * 0.5 + vec2(0.5)
+            , max(pa.xy, max(pb.xy, pc.xy)) * 0.5 + vec2(0.5));
+
+        // cull if the triangle is too small (1 pixel or less)
+        vec2 rt_sz = vec2(consts.screenWidth, consts.screenHeight);
+        vec2 bmin = aabb.xy * rt_sz;
+        vec2 bmax = aabb.zw * rt_sz;
         float sbprec = 1.0/ 256.0;
 
         culled = culled || (round(bmin.x - sbprec) == round(bmax.x - sbprec) || round(bmin.y - sbprec) == round(bmax.y - sbprec));
-        
-        culled = culled && (vertexClip[idx0].z > 0.0 && vertexClip[idx1].z > 0.0 && vertexClip[idx2].z > 0.0);
 
+        // calculate the aabb of the triangle in screen space
+        float pyw = (aabb.z - aabb.x) * consts.pyramidWidth;
+        float pyh = (aabb.w - aabb.y) * consts.pyramidHeight;
+        float lv = floor(log2(max(pyw, pyh)));
+
+        float zmax = max(pa.z, max(pb.z, pc.z));
+        float depth = textureLod(pyramid, pa.xy * 0.5 + 0.5, lv).x;
+        // occlusion culling
+        culled = culled || (zmax + 0.0001f < depth);
+
+        // the culling only happen if all vertices are beyond the near plane
+        culled = culled && (pa.z < 1.f && pb.z < 1.f && pc.z < 1.f);
+
+        // don't cull triangles with alpha
         culled = culled && !(meshDraw.withAlpha > 0);
 
-        if(!culled)
+        if (!culled)
         {
             uint triBase = atomicAdd(outTriCnt.count, 1);
             out_tri[triBase].drawId = drawId;

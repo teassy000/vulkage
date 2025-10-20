@@ -72,26 +72,27 @@ void main()
     if (id == 0)
     {
         // x dimension is number of groups to dispatch
-        cmd.local_x = min((count + gp_size - 1) / gp_size, 65535);
-
         if (DISPATCH_MODE == _CLEAR)
         {
-            cmd.local_x = 0;
+            cmd.local_x = 1;
             cmd.local_y = 1;
             cmd.local_z = 1;
         }
         else if (DISPATCH_MODE == _MESHLET_CULLING)
         {
+            cmd.local_x = min((count + gp_size - 1) / gp_size, 65535);
             cmd.local_y = 1;
             cmd.local_z = 1;
         }
         else if (DISPATCH_MODE == _TRIANGLE_CULLING)
         {
-            cmd.local_y = gp_size;
+            cmd.local_x = gp_size;
+            cmd.local_y = 1;
             cmd.local_z = 1;
         }
         else if (DISPATCH_MODE == _SOFT_RASTERIZATION)
         {
+            cmd.local_x = min((count + gp_size - 1) / gp_size, 65535);
             cmd.local_y = (res.x + MR_SOFT_RAST_TILE_SIZE  - 1 )/ MR_SOFT_RAST_TILE_SIZE;
             cmd.local_z = (res.y + MR_SOFT_RAST_TILE_SIZE  - 1 )/ MR_SOFT_RAST_TILE_SIZE;
         }

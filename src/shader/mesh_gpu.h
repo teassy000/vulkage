@@ -4,8 +4,8 @@
 #define MESH_MAX_TRI 128
 #define MR_MESHLETGP_SIZE 128
 #define MR_TRIANGLEGP_SIZE 64
-#define MR_SOFT_RASTGP_SIZE 8
-#define MR_SOFT_RAST_TILE_SIZE 8
+#define MR_SOFT_RASTGP_SIZE 1
+#define MR_SOFT_RAST_TILE_SIZE 16
 
 struct Vertex
 {
