@@ -78,7 +78,7 @@ layout(binding = 9) uniform sampler2D pyramid;
 
 void main()
 {
-    uint mid = gl_GlobalInvocationID.x;
+    uint mid = gl_WorkGroupID.x;
 
     if( mid >= indirectCmdCnt.count )
         return;

@@ -80,13 +80,13 @@ void main()
         }
         else if (DISPATCH_MODE == _MESHLET_CULLING)
         {
-            cmd.local_x = min((count + gp_size - 1) / gp_size, 65535);
+            cmd.local_x = count;
             cmd.local_y = 1;
             cmd.local_z = 1;
         }
         else if (DISPATCH_MODE == _TRIANGLE_CULLING)
         {
-            cmd.local_x = gp_size;
+            cmd.local_x = count;
             cmd.local_y = 1;
             cmd.local_z = 1;
         }
