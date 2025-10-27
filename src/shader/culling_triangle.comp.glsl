@@ -194,6 +194,8 @@ void main()
         float depth = textureLod(pyramid, (aabb.xy + aabb.zw) * 0.5f, lv).r;
 
         // occlusion culling
+        // TODO: this when wrong with error, need to be fixed later
+        // some triangles are culled even they are clearly visible
         culled = culled || (zmax + sbprec < depth);
 
         // the culling only happen if all vertices are beyond the near plane
