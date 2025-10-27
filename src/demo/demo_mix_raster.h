@@ -487,11 +487,11 @@ namespace
             {
                 initModifyIndirectCmds(
                     m_modifyCmd4SoftRasterEarly
-                    , m_triangleCullingEarly.cmdCountBufOutAlias
-                    , m_triangleCullingEarly.cmdBufOutAlias
+                    , m_triangleCullingEarly.triCountBufOutAlias
+                    , m_triangleCullingEarly.hwTriBufOutAlias
                     , ModifyCommandMode::to_soft_rasterize
                     , m_width
-                , m_height
+                    , m_height
                 );
             }
 
@@ -595,8 +595,8 @@ namespace
             {
                 initModifyIndirectCmds(
                     m_modifyCmd4SoftRasterLate
-                    , m_triangleCullingLate.cmdCountBufOutAlias
-                    , m_triangleCullingLate.cmdBufOutAlias
+                    , m_triangleCullingLate.triCountBufOutAlias
+                    , m_triangleCullingLate.hwTriBufOutAlias
                     , ModifyCommandMode::to_soft_rasterize
                     , m_width
                     , m_height

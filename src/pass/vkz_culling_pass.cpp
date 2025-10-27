@@ -313,7 +313,8 @@ void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& 
     kage::ProgramHandle prog = kage::registProgram("triangle_culling", { cs }, sizeof(Constants));
 
     int pipelineSpecs[] = {
-        _stage == RenderStage::alpha
+        _stage == RenderStage::late
+        , _stage == RenderStage::alpha
         , _seamless
     };
 
@@ -330,20 +331,27 @@ void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& 
     getPassName(passName, "triangle_culling", _stage, RenderPipeline::compute);
     kage::PassHandle pass = kage::registPass(passName.c_str(), passDesc);
 
-    kage::BufferDesc trianglePayloadBufDesc;
-    trianglePayloadBufDesc.size = 128 * 1024 * 1024; // 128M
-    trianglePayloadBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
-    trianglePayloadBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
-    kage::BufferHandle trianglePayload = kage::registBuffer("triangle_payload", trianglePayloadBufDesc);
+    kage::BufferDesc hwTriPayloadBuf;
+    hwTriPayloadBuf.size = 128 * 1024 * 1024; // 128M
+    hwTriPayloadBuf.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+    hwTriPayloadBuf.memFlags = kage::MemoryPropFlagBits::device_local;
+    kage::BufferHandle hwTriPayload = kage::registBuffer("hw_tri_payload", hwTriPayloadBuf);
 
-    // 2 dispatch indirect commands, 1st: for vertex count, 2nd: for triangle count
+    kage::BufferDesc swTriPayloadBufDesc;
+    swTriPayloadBufDesc.size = 128 * 1024 * 1024; // 128M
+    swTriPayloadBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+    swTriPayloadBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
+    kage::BufferHandle swTriPayload = kage::registBuffer("sw_tri_payload", swTriPayloadBufDesc);
+
+    // 2 dispatch indirect commands, 1st: for hardware rasterization, 2nd: for software rasterization
     kage::BufferDesc  trianglePayloadCntDesc;
-    trianglePayloadCntDesc.size = 32; // the x field is the draw count, then cmd resolution
+    trianglePayloadCntDesc.size = sizeof(IndirectDispatchCommand) * 2;
     trianglePayloadCntDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::indirect | kage::BufferUsageFlagBits::transfer_dst;
     trianglePayloadCntDesc.memFlags = kage::MemoryPropFlagBits::device_local;
     kage::BufferHandle trianglePayloadCntBuf = kage::registBuffer("triangle_payload_cnt", trianglePayloadCntDesc);
 
-    kage::BufferHandle trianglePayloadBufOutAlias = kage::alias(trianglePayload);
+    kage::BufferHandle hwTriPayloadBufOutAlias = kage::alias(hwTriPayload);
+    kage::BufferHandle swTriPayloadBufOutAlias = kage::alias(swTriPayload);
     kage::BufferHandle trianglePayloadCntOutAlias = kage::alias(trianglePayloadCntBuf);
 
     kage::bindBuffer(pass
@@ -392,10 +400,17 @@ void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& 
 
     // write buffers
     kage::bindBuffer(pass
-        , trianglePayload
+        , hwTriPayload
         , Stage::compute_shader
         , Access::shader_write
-        , trianglePayloadBufOutAlias
+        , hwTriPayloadBufOutAlias
+    );
+
+    kage::bindBuffer(pass
+        , swTriPayload
+        , Stage::compute_shader
+        , Access::shader_write
+        , swTriPayloadBufOutAlias
     );
 
     kage::bindBuffer(pass
@@ -431,12 +446,14 @@ void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& 
     _tric.pyrSampler = pyrSamp;
     
     // read-write
-    _tric.trianglePayloadBuf = trianglePayload;
-    _tric.payloadCntBuf = trianglePayloadCntBuf;
+    _tric.hwTriPayloadBuf = hwTriPayload;
+    _tric.swTriPayloadBuf = swTriPayload;
+    _tric.triCountBuf = trianglePayloadCntBuf;
     
     // out-alias
-    _tric.cmdBufOutAlias = trianglePayloadBufOutAlias;
-    _tric.cmdCountBufOutAlias = trianglePayloadCntOutAlias;
+    _tric.hwTriBufOutAlias = hwTriPayloadBufOutAlias;
+    _tric.swTriBufOutAlias = swTriPayloadBufOutAlias;
+    _tric.triCountBufOutAlias = trianglePayloadCntOutAlias;
 
 }
 
@@ -451,7 +468,7 @@ void recTriangleCulling(const TriangleCulling& _tric, const Constants& _consts)
     kage::startRec(_tric.pass);
     kage::setConstants(mem);
 
-    kage::fillBuffer(_tric.payloadCntBuf, 0);
+    kage::fillBuffer(_tric.triCountBuf, 0);
 
     kage::Binding binds[] =
     {
@@ -462,8 +479,9 @@ void recTriangleCulling(const TriangleCulling& _tric, const Constants& _consts)
         { _tric.meshletBuf,             BindingAccess::read,        Stage::compute_shader },
         { _tric.meshletDataBuf,         BindingAccess::read,        Stage::compute_shader },
         { _tric.meshletPayloadCntBuf,   BindingAccess::read,        Stage::compute_shader },
-        { _tric.trianglePayloadBuf,     BindingAccess::write,       Stage::compute_shader },
-        { _tric.payloadCntBuf,          BindingAccess::write,       Stage::compute_shader },
+        { _tric.hwTriPayloadBuf,        BindingAccess::write,       Stage::compute_shader },
+        { _tric.swTriPayloadBuf,        BindingAccess::write,       Stage::compute_shader },
+        { _tric.triCountBuf,            BindingAccess::write,       Stage::compute_shader },
         {_tric.pyramid,                 _tric.pyrSampler,           Stage::compute_shader }
     };
     kage::pushBindings(binds, COUNTOF(binds));

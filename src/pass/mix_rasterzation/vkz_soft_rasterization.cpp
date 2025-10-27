@@ -13,6 +13,7 @@ void recSoftRasterization(const SoftRasterization& _raster)
         {
             { _raster.inColor,  Aspect::color, {kage::ClearColor { 0.f, 0.f, 0.f, 1.f }}},
             { _raster.inDepth,  Aspect::depth, {kage::ClearDepthStencil{0.f, 0}}},
+            { _raster.u32depth, Aspect::color, {kage::ClearColor { 0u, 0u, 0u, 0u }}},
             { _raster.u32depth, Aspect::color, {kage::ClearColor { 0u, 0u, 0u, 0u }}}
         };
 
@@ -40,6 +41,7 @@ void recSoftRasterization(const SoftRasterization& _raster)
         { _raster.inColor,          0,                      Stage::compute_shader },
         { _raster.u32depth,         0,                      Stage::compute_shader },
         { _raster.inDepth,          0,                      Stage::compute_shader },
+        { _raster.u32debugImg,      0,                      Stage::compute_shader },
     };
 
     kage::pushBindings(binds, COUNTOF(binds));
@@ -70,10 +72,22 @@ void initSoftRasterization(SoftRasterization& _softRaster, const SoftRasterizati
     u32depthDesc.usage = kage::ImageUsageFlagBits::transfer_src | kage::ImageUsageFlagBits::transfer_dst | kage::ImageUsageFlagBits::sampled | kage::BufferUsageFlagBits::storage;
     kage::ImageHandle u32depth = kage::registTexture("depth_u32", u32depthDesc, nullptr, kage::ResourceLifetime::non_transition);
 
+    kage::ImageDesc u32debugDesc;
+    u32debugDesc.width = _initData.width;
+    u32debugDesc.height = _initData.height;
+    u32debugDesc.depth = 1;
+    u32debugDesc.numLayers = 1;
+    u32debugDesc.numMips = 1;
+    u32debugDesc.format = kage::ResourceFormat::r32_uint;
+    u32debugDesc.usage = kage::ImageUsageFlagBits::transfer_src | kage::ImageUsageFlagBits::transfer_dst | kage::ImageUsageFlagBits::sampled | kage::BufferUsageFlagBits::storage;
+    kage::ImageHandle u32debug = kage::registTexture("debug_u32", u32debugDesc, nullptr, kage::ResourceLifetime::non_transition);
+
+
     // output images
     kage::ImageHandle outColor = kage::alias(_initData.color);
     kage::ImageHandle outDepth = kage::alias(_initData.depth);
     kage::ImageHandle outU32Depth = kage::alias(u32depth);
+    kage::ImageHandle outU32Debug = kage::alias(u32debug);
 
     kage::setIndirectBuffer(pass, _initData.payloadCntBuf);
 
@@ -132,7 +146,7 @@ void initSoftRasterization(SoftRasterization& _softRaster, const SoftRasterizati
     kage::bindImage(pass
         , _initData.color
         , Stage::compute_shader
-        , Access::shader_read | kage::AccessFlagBits::shader_write
+        , Access::shader_read | Access::shader_write
         , kage::ImageLayout::general
         , outColor
     );
@@ -140,7 +154,7 @@ void initSoftRasterization(SoftRasterization& _softRaster, const SoftRasterizati
     kage::bindImage(pass
         , u32depth
         , Stage::compute_shader
-        , Access::shader_read | kage::AccessFlagBits::shader_write
+        , Access::shader_read | Access::shader_write
         , kage::ImageLayout::general
         , outU32Depth
     );
@@ -148,9 +162,17 @@ void initSoftRasterization(SoftRasterization& _softRaster, const SoftRasterizati
     kage::bindImage(pass
         , _initData.depth
         , Stage::compute_shader
-        , Access::shader_read | kage::AccessFlagBits::shader_write
+        , Access::shader_read | Access::shader_write
         , kage::ImageLayout::general
         , outDepth
+    );
+
+    kage::bindImage(pass
+        , u32debug
+        , Stage::compute_shader
+        , Access::shader_write
+        , kage::ImageLayout::general
+        , outU32Debug
     );
 
     _softRaster.pass = pass;
@@ -180,6 +202,10 @@ void initSoftRasterization(SoftRasterization& _softRaster, const SoftRasterizati
     _softRaster.height = _initData.height;
 
     _softRaster.renderStage = _initData.renderStage;
+
+    // debug image
+    _softRaster.u32debugImg = u32debug;
+    _softRaster.u32debugImgOutAlias = u32debug;
 }
 
 void updateSoftRasterization(SoftRasterization& _softRaster)

@@ -12,24 +12,11 @@
 
 # extension GL_GOOGLE_include_directive: require
 
-
-#define DEBUG 0
-
 #include "mesh_gpu.h"
 #include "math.h"
 #include "debug_gpu.h"
 
 layout(local_size_x = MR_SOFT_RASTGP_SIZE, local_size_y = MR_SOFT_RAST_TILE_SIZE, local_size_z = MR_SOFT_RAST_TILE_SIZE) in;
-
-// vtx data
-vec3 vtx_data[] = vec3[6](
-    vec3(0.0, 0.0, 0.5),
-    vec3(1.0, 0.0, 0.5),
-    vec3(0.0, 1.0, 0.5),
-    vec3(0.5, 0.0, 0.4),
-    vec3(0.0, 1.0, 0.4),
-    vec3(1.0, 1.0, 0.4)
-);
 
 layout(push_constant) uniform block
 {
@@ -83,6 +70,7 @@ layout(binding = 7) uniform sampler2D pyramid;
 layout(binding = 8) uniform writeonly image2D out_color;
 layout(binding = 9, r32ui) uniform uimage2D out_uDepth;
 layout(binding = 10, r32f) uniform writeonly image2D out_depth;
+layout(binding = 11, r32ui) uniform uimage2D debug_image;
 
 // =========================================
 // depth conversion functions===============
@@ -111,7 +99,7 @@ float calcDepth(vec2 _pos, vec3 _v0, vec3 _v1, vec3 _v2) {
     float d20 = dot(v0p, v0v1);
     float d21 = dot(v0p, v0v2);
     float denom = d00 * d11 - d01 * d01;
-    if (denom == 0.0) return -1.f; // Degenerate triangle
+    if (denom == 0.f) return -1.f; // Degenerate triangle
     float u = (d11 * d20 - d01 * d21) / denom;
     float v = (d00 * d21 - d01 * d20) / denom;
     float w = 1.f - u - v;
@@ -136,19 +124,8 @@ void main()
         return; // out of bounds
     }
 
-    /*
-    if (zid >= 2)
-        return; // only process 2 triangles for debug
-    */
     vec2 uv = vec2(pid.x / viewportSize.x, pid.y / viewportSize.y); // simple gradient uv based on x position
 
-#if DEBUG
-
-    uint tid = zid;
-    // debug: use the interpolated depth of the triangle
-    uint baseId = zid * 3;
-    float newDepth = calcDepth(uv, vtx_data[baseId + 0], vtx_data[baseId + 1], vtx_data[baseId + 2]);
-#else
     TrianglePayload tri = tri_data[zid];
 
     MeshDraw md = meshDraws[tri.drawId];
@@ -163,7 +140,7 @@ void main()
         uint(meshletData8[baseIdxOffset8 + 2])
     );
 
-    // get vertex ids
+    // get global vertex ids
     uint vid0 = meshletData[mlt.dataOffset + idxes.x] + md.vertexOffset;
     uint vid1 = meshletData[mlt.dataOffset + idxes.y] + md.vertexOffset;
     uint vid2 = meshletData[mlt.dataOffset + idxes.z] + md.vertexOffset;
@@ -173,7 +150,7 @@ void main()
     Vertex v1 = vertices[vid1];
     Vertex v2 = vertices[vid2];
 
-    // uv
+    // positions
     vec3 p0 = vec3(v0.vx, v0.vy, v0.vz);
     vec3 p1 = vec3(v1.vx, v1.vy, v1.vz);
     vec3 p2 = vec3(v2.vx, v2.vy, v2.vz);
@@ -205,7 +182,6 @@ void main()
     // depth
     float newDepth = calcDepth(uv, sp0, sp1, sp2);
 
-#endif
     if (newDepth < 0.f) {
         return; // not covered
     }
@@ -228,13 +204,14 @@ void main()
         uint uDepth = imageLoad(out_uDepth, pid).r; // Load the current depth value again
         if (uDepth == newUdepth)
         {
-            //vec3 col = hashCol.rgb; // simple color based on triangle id
+            vec3 col = hashCol.rgb; // simple color based on triangle id
 
-            vec3 col = vec3(float(tid) / 100.f);
+            //vec3 col = vec3(float(zid) / 1000.f);
             float currDepth = uintToDepth(uDepth);
             float newDepth = uintToDepth(newUdepth);
             imageStore(out_color, pid, vec4(col, 1.0)); // write uv
             imageStore(out_depth, pid, vec4(currDepth, 0.0, 0.0, 1.0)); // write depth
+            imageStore(debug_image, pid, uvec4(tid, 0, 0, 0)); // write debug info
         }
     }
 }

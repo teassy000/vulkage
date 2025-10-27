@@ -9,13 +9,14 @@
 
 #extension GL_GOOGLE_include_directive: require
 
-#define DEBUG 0
+#define DEBUG 1
 
 #include "mesh_gpu.h"
 #include "math.h"
 
 layout(local_size_x = MR_TRIANGLEGP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
+layout(constant_id = 0) const bool LATE = false;
 layout(constant_id = 1) const bool ALPHA_PASS = false;
 layout(constant_id = 2) const bool SEAMLESS_LOD = false;
 
@@ -66,18 +67,23 @@ layout(binding = 6) readonly buffer MeshletCount
 };
 
 // writeonly
-layout(binding = 7) buffer OutTriangles
+layout(binding = 7) buffer OutMSTriangles
 {
-    TrianglePayload out_tri [];
+    TrianglePayload out_hw_tri [];
 };
 
-layout(binding = 8) buffer OutCounts
+layout(binding = 8) buffer OutSubTexelTriangles
 {
-    IndirectDispatchCommand outTriCnt;
+    TrianglePayload out_sw_tri [];
+};
+
+layout(binding = 9) buffer OutCounts
+{
+    IndirectDispatchCommand outTriCnts[];
 };
 
 // pyramid
-layout(binding = 9) uniform sampler2D pyramid;
+layout(binding = 10) uniform sampler2D pyramid;
 
 shared vec3 vertexClip[MESH_MAX_VTX];
 
@@ -139,19 +145,14 @@ void main()
         vertexClip[i].xyz = result.xyz / result.w;
     }
 
-#if DEBUG
-#else
+#if !DEBUG
     // make sure all vertex are transformed
     barrier();
 #endif
 
 // cull triangles
 
-#if DEBUG
-    for (uint i = 0; i < triangleCount; i ++)
-#else
     for (uint i = ti; i < triangleCount; i += MR_TRIANGLEGP_SIZE)
-#endif
     {
         uint offset = indexOffset * 4 + i * 3; // x4 for uint8_t
 
@@ -176,23 +177,24 @@ void main()
             min(pa.xy, min(pb.xy, pc.xy)) * 0.5 + vec2(0.5)
             , max(pa.xy, max(pb.xy, pc.xy)) * 0.5 + vec2(0.5));
 
-        // cull if the triangle is too small (1 pixel or less)
+        // cull if the triangle is too small (0.5 pixel or less)
         vec2 rt_sz = vec2(consts.screenWidth, consts.screenHeight);
         vec2 bmin = aabb.xy * rt_sz;
         vec2 bmax = aabb.zw * rt_sz;
         float sbprec = 1.0/ 256.0;
 
+        // check if any demension is less than 0.5 pixel
         culled = culled || (round(bmin.x - sbprec) == round(bmax.x - sbprec) || round(bmin.y - sbprec) == round(bmax.y - sbprec));
 
         // calculate the aabb of the triangle in screen space
         float pyw = (aabb.z - aabb.x) * consts.pyramidWidth;
         float pyh = (aabb.w - aabb.y) * consts.pyramidHeight;
         float lv = floor(log2(max(pyw, pyh)));
-
         float zmax = max(pa.z, max(pb.z, pc.z));
-        float depth = textureLod(pyramid, pa.xy * 0.5 + 0.5, lv).x;
+        float depth = textureLod(pyramid, (aabb.xy + aabb.zw) * 0.5f, lv).r;
+
         // occlusion culling
-        culled = culled || (zmax + 0.0001f < depth);
+        culled = culled || (zmax + sbprec < depth);
 
         // the culling only happen if all vertices are beyond the near plane
         culled = culled && (pa.z < 1.f && pb.z < 1.f && pc.z < 1.f);
@@ -200,12 +202,23 @@ void main()
         // don't cull triangles with alpha
         culled = culled && !(meshDraw.withAlpha > 0);
 
-        if (!culled)
-        {
-            uint triBase = atomicAdd(outTriCnt.count, 1);
-            out_tri[triBase].drawId = drawId;
-            out_tri[triBase].meshletIdx = mi;
-            out_tri[triBase].triIdx = i;
+        // if a triangle's aabb is just fall into 1 pixel
+        bool is_tinny = 
+                (round(bmin.x - sbprec) + 1 == round(bmax.x - sbprec)) 
+            &&  (round(bmin.y - sbprec) + 1 == round(bmax.y - sbprec));
+
+        if (!culled) {
+            if (is_tinny) {
+                uint triBase = atomicAdd(outTriCnts[1].count, 1);
+                out_sw_tri[triBase].drawId = drawId;
+                out_sw_tri[triBase].meshletIdx = mi;
+                out_sw_tri[triBase].triIdx = i;
+            } else {
+                uint triBase = atomicAdd(outTriCnts[0].count, 1);
+                out_hw_tri[triBase].drawId = drawId;
+                out_hw_tri[triBase].meshletIdx = mi;
+                out_hw_tri[triBase].triIdx = i;
+            }
         }
     }
 }

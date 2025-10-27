@@ -121,12 +121,14 @@ struct TriangleCulling
     kage::SamplerHandle pyrSampler;
 
     // write
-    kage::BufferHandle trianglePayloadBuf;
-    kage::BufferHandle payloadCntBuf;
+    kage::BufferHandle hwTriPayloadBuf;
+    kage::BufferHandle swTriPayloadBuf;
+    kage::BufferHandle triCountBuf;
 
     // out alias
-    kage::BufferHandle cmdBufOutAlias;
-    kage::BufferHandle cmdCountBufOutAlias;
+    kage::BufferHandle hwTriBufOutAlias;
+    kage::BufferHandle swTriBufOutAlias;
+    kage::BufferHandle triCountBufOutAlias;
 };
 
 void initMeshCulling(MeshCulling& _mc, const MeshCullingInitData& _initData, RenderStage _stage, RenderPipeline _pass);

@@ -50,7 +50,10 @@ struct SoftRasterization
     kage::ImageHandle inDepth;
     
     kage::ImageHandle u32depth; // depth image in uint32_t format for soft rasterization
-    kage::ImageHandle u32depthOutAlias; // 
+    kage::ImageHandle u32depthOutAlias;
+
+    kage::ImageHandle u32debugImg; // debug image in uint32_t format for soft rasterization
+    kage::ImageHandle u32debugImgOutAlias;
     
     // output alias
     kage::ImageHandle colorOutAlias; // output image for soft rasterization results
