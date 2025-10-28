@@ -169,34 +169,47 @@ void main()
         vec2 eb = pb.xy - pa.xy;
         vec2 ec = pc.xy - pa.xy;
 
-        // back face culling in screen space
-        culled = culled || (eb.x * ec.y >= eb.y * ec.x);
+        vec2 rt_sz = vec2(consts.screenWidth, consts.screenHeight);
 
-        // calculate the aabb of the triangle in NDC space
-        vec4 aabb = vec4(
-            min(pa.xy, min(pb.xy, pc.xy)) * 0.5 + vec2(0.5)
-            , max(pa.xy, max(pb.xy, pc.xy)) * 0.5 + vec2(0.5));
+        // convert to ndc space [0.f, 1.f]
+        vec2 p0 = (pa.xy * 0.5 + vec2(0.5));
+        vec2 p1 = (pb.xy * 0.5 + vec2(0.5));
+        vec2 p2 = (pc.xy * 0.5 + vec2(0.5));
+
+        // to screen space in pixel
+        vec2 p0_rt = p0 * rt_sz;
+        vec2 p1_rt = p1 * rt_sz;
+        vec2 p2_rt = p2 * rt_sz;
+
+        // coverage area in screen space with **Shoelace formula**
+        float area = ((p0_rt.x - p2_rt.x) * (p1_rt.y - p0_rt.y) - (p0_rt.x - p1_rt.x) * (p2_rt.y - p0_rt.y)) * 0.5f;
+        float area_abs = abs(area);
+
+        // back face culling in screen space
+        // note: here we consider clockwise triangle as front face
+        culled = culled || (area >= 0.f);
 
         // cull if the triangle is too small (0.5 pixel or less)
-        vec2 rt_sz = vec2(consts.screenWidth, consts.screenHeight);
-        vec2 bmin = aabb.xy * rt_sz;
-        vec2 bmax = aabb.zw * rt_sz;
-        float sbprec = 1.0/ 256.0;
-
-        // check if any demension is less than 0.5 pixel
-        culled = culled || (round(bmin.x - sbprec) == round(bmax.x - sbprec) || round(bmin.y - sbprec) == round(bmax.y - sbprec));
-
-        // calculate the aabb of the triangle in screen space
-        float pyw = (aabb.z - aabb.x) * consts.pyramidWidth;
-        float pyh = (aabb.w - aabb.y) * consts.pyramidHeight;
-        float lv = floor(log2(max(pyw, pyh)));
-        float zmax = max(pa.z, max(pb.z, pc.z));
-        float depth = textureLod(pyramid, (aabb.xy + aabb.zw) * 0.5f, lv).r;
+        culled = culled || (area_abs < 0.5f); // 0.5 pixel area
 
         // occlusion culling
         // TODO: this when wrong with error, need to be fixed later
-        // some triangles are culled even they are clearly visible
-        culled = culled || (zmax + sbprec < depth);
+        // some triangles are culled even they are clearly visible¡¢
+
+        // calculate the aabb of the triangle in screen space
+        vec4 aabb = vec4(min(p0.xy, min(p1.xy, p2.xy)), max(p0.xy, max(p1.xy, p2.xy)));
+        aabb = clamp(aabb, vec4(0.f), vec4(1.f));
+        float pyw = (aabb.z - aabb.x) * consts.pyramidWidth;
+        float pyh = (aabb.w - aabb.y) * consts.pyramidHeight;
+        float lv = floor(log2(max(1.f, max(pyw, pyh))));
+        lv = max(lv, 0.f);
+        float zmax = max(pa.z, max(pb.z, pc.z));
+        float depth = textureLod(pyramid, (aabb.xy + aabb.zw) * 0.5f, lv).r;
+
+        float sbprec = 1.f / 256.f;
+        culled = culled || ((zmax + sbprec) < depth);
+        
+
 
         // the culling only happen if all vertices are beyond the near plane
         culled = culled && (pa.z < 1.f && pb.z < 1.f && pc.z < 1.f);
@@ -204,13 +217,9 @@ void main()
         // don't cull triangles with alpha
         culled = culled && !(meshDraw.withAlpha > 0);
 
-        // if a triangle's aabb is just fall into 1 pixel
-        bool is_tinny = 
-                (round(bmin.x - sbprec) + 1 == round(bmax.x - sbprec)) 
-            &&  (round(bmin.y - sbprec) + 1 == round(bmax.y - sbprec));
-
         if (!culled) {
-            if (is_tinny) {
+            // if the area is less than or equal to 1 pixel, consider it as sub-texel triangle
+            if (area_abs <= 1.f) {
                 uint triBase = atomicAdd(outTriCnts[1].count, 1);
                 out_sw_tri[triBase].drawId = drawId;
                 out_sw_tri[triBase].meshletIdx = mi;
