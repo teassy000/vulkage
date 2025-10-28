@@ -19,6 +19,21 @@ struct DebugProfilingData
     float debugProbeGenTime;
     float debugProbeDrawTime;
 
+    float mltCullEarlyTime;
+    float mltCullLateTime;
+    float modify2MltCullEarly;
+    float modify2MltCullLate;
+
+    float triCullEarlyTime;
+    float triCullLateTime;
+    float modify2TriCullEarly;
+    float modify2TriCullLate;
+
+    float softRasterEarlyTime;
+    float softRasterLateTime;
+    float modify2SoftRasterEarly;
+    float modify2SoftRasterLate;
+
     uint32_t primitiveCount;
     uint32_t meshletCount;
 

@@ -327,6 +327,25 @@ void updateContentCommon(Dbg_Common& _common, const DebugProfilingData& _pd, con
         ImGui::Text("draw alpha: [%.3f]ms", _pd.drawAlphaTime);
     }
 
+    if (ImGui::TreeNode("Mix Raster:"))
+    {
+        ImGui::Text("mlt cull early: [%.3f]ms", _pd.mltCullEarlyTime);
+        ImGui::Text("mlt cull late: [%.3f]ms", _pd.mltCullLateTime);
+        ImGui::Text("modify2mlt cull early: [%.3f]ms", _pd.modify2MltCullEarly);
+        ImGui::Text("modify2mlt cull late: [%.3f]ms", _pd.modify2MltCullLate);
+
+        ImGui::Text("tri cull early: [%.3f]ms", _pd.triCullEarlyTime);
+        ImGui::Text("tri cull late: [%.3f]ms", _pd.triCullLateTime);
+        ImGui::Text("modify2tri cull early: [%.3f]ms", _pd.modify2TriCullEarly);
+        ImGui::Text("modify2tri cull late: [%.3f]ms", _pd.modify2TriCullLate);
+
+        ImGui::Text("soft raster early: [%.3f]ms", _pd.softRasterEarlyTime);
+        ImGui::Text("soft raster late: [%.3f]ms", _pd.softRasterLateTime);
+        ImGui::Text("modify2soft raster early: [%.3f]ms", _pd.modify2SoftRasterEarly);
+        ImGui::Text("modify2soft raster late: [%.3f]ms", _pd.modify2SoftRasterLate);
+
+        ImGui::TreePop();
+    }
 
     ImGui::Text("ui: [%.3f]ms", _pd.uiTime);
     ImGui::Text("deferred: [%.3f]ms", _pd.deferredTime);

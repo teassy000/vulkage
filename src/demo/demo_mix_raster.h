@@ -215,6 +215,21 @@ namespace
             m_demoData.profiling.avgGpuTime = avgGpuTime;
 
             m_demoData.profiling.cullEarlyTime = (float)kage::getPassTime(m_meshCullingEarly.pass);
+            m_demoData.profiling.cullLateTime = (float)kage::getPassTime(m_meshCullingLate.pass);
+
+            m_demoData.profiling.mltCullEarlyTime = (float)kage::getPassTime(m_meshletCullingEarly.pass);
+            m_demoData.profiling.mltCullLateTime = (float)kage::getPassTime(m_meshletCullingLate.pass);
+            m_demoData.profiling.triCullEarlyTime = (float)kage::getPassTime(m_triangleCullingEarly.pass);
+            m_demoData.profiling.triCullLateTime = (float)kage::getPassTime(m_triangleCullingLate.pass);
+            m_demoData.profiling.softRasterEarlyTime = (float)kage::getPassTime(m_softRasterEarly.pass);
+            m_demoData.profiling.softRasterLateTime = (float)kage::getPassTime(m_softRasterLate.pass);
+
+            m_demoData.profiling.modify2MltCullEarly = (float)kage::getPassTime(m_modifyCmd4MeshletCullingEarly.pass);
+            m_demoData.profiling.modify2MltCullLate = (float)kage::getPassTime(m_modifyCmd4MeshletCullingLate.pass);
+            m_demoData.profiling.modify2TriCullEarly = (float)kage::getPassTime(m_modifyCmd4TriangleCullingEarly.pass);
+            m_demoData.profiling.modify2TriCullLate = (float)kage::getPassTime(m_modifyCmd4TriangleCullingLate.pass);
+            m_demoData.profiling.modify2SoftRasterEarly = (float)kage::getPassTime(m_modifyCmd4SoftRasterEarly.pass);
+            m_demoData.profiling.modify2SoftRasterLate = (float)kage::getPassTime(m_modifyCmd4SoftRasterLate.pass);
 
             m_demoData.profiling.uiTime = (float)kage::getPassTime(m_ui.pass);
             m_demoData.profiling.triangleCount = m_demoData.profiling.triangleEarlyCount + m_demoData.profiling.triangleLateCount;
