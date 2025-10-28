@@ -172,14 +172,14 @@ void main()
         vec2 rt_sz = vec2(consts.screenWidth, consts.screenHeight);
 
         // convert to ndc space [0.f, 1.f]
-        vec2 p0 = (pa.xy * 0.5 + vec2(0.5));
-        vec2 p1 = (pb.xy * 0.5 + vec2(0.5));
-        vec2 p2 = (pc.xy * 0.5 + vec2(0.5));
+        vec2 p0_ndc = (pa.xy * 0.5 + vec2(0.5));
+        vec2 p1_ndc = (pb.xy * 0.5 + vec2(0.5));
+        vec2 p2_ndc = (pc.xy * 0.5 + vec2(0.5));
 
         // to screen space in pixel
-        vec2 p0_rt = p0 * rt_sz;
-        vec2 p1_rt = p1 * rt_sz;
-        vec2 p2_rt = p2 * rt_sz;
+        vec2 p0_rt = p0_ndc * rt_sz;
+        vec2 p1_rt = p1_ndc * rt_sz;
+        vec2 p2_rt = p2_ndc * rt_sz;
 
         // coverage area in screen space with **Shoelace formula**
         float area = ((p0_rt.x - p2_rt.x) * (p1_rt.y - p0_rt.y) - (p0_rt.x - p1_rt.x) * (p2_rt.y - p0_rt.y)) * 0.5f;
@@ -195,9 +195,8 @@ void main()
         // occlusion culling
         // TODO: this when wrong with error, need to be fixed later
         // some triangles are culled even they are clearly visible¡¢
-
         // calculate the aabb of the triangle in screen space
-        vec4 aabb = vec4(min(p0.xy, min(p1.xy, p2.xy)), max(p0.xy, max(p1.xy, p2.xy)));
+        vec4 aabb = vec4(min(p0_ndc.xy, min(p1_ndc.xy, p2_ndc.xy)), max(p0_ndc.xy, max(p1_ndc.xy,p2_ndc.xy)));
         aabb = clamp(aabb, vec4(0.f), vec4(1.f));
         float pyw = (aabb.z - aabb.x) * consts.pyramidWidth;
         float pyh = (aabb.w - aabb.y) * consts.pyramidHeight;
@@ -208,8 +207,6 @@ void main()
 
         float sbprec = 1.f / 256.f;
         culled = culled || ((zmax + sbprec) < depth);
-        
-
 
         // the culling only happen if all vertices are beyond the near plane
         culled = culled && (pa.z < 1.f && pb.z < 1.f && pc.z < 1.f);
