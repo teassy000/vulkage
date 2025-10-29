@@ -189,8 +189,8 @@ namespace
             updateModifyIndirectCmds(m_modifyCmd4SoftRasterEarly, m_width, m_height);
             updateModifyIndirectCmds(m_modifyCmd4SoftRasterLate, m_width, m_height);
 
-            updateSoftRasterization(m_softRasterEarly);
-            updateSoftRasterization(m_softRasterLate);
+            updateSoftRaster(m_softRasterEarly);
+            updateSoftRaster(m_softRasterLate);
 
             const kage::Memory* memTransform = kage::alloc(sizeof(TransformData));
             memcpy_s(memTransform->data, memTransform->size, &m_demoData.trans, sizeof(TransformData));
@@ -512,7 +512,7 @@ namespace
 
             // soft rasterization
             {
-                SoftRasterizationDataInit initData{};
+                SoftRasterDataInit initData{};
 
                 initData.payloadBuf = m_modifyCmd4SoftRasterEarly.cmdBufOutAlias;
                 initData.payloadCntBuf = m_modifyCmd4SoftRasterEarly.indirectCmdBufOutAlias;
@@ -532,7 +532,7 @@ namespace
 
                 initData.renderStage = RenderStage::early;
                 
-                initSoftRasterization(m_softRasterEarly, initData);
+                initSoftRaster(m_softRasterEarly, initData);
             }
 
             // pyramid pass
@@ -620,7 +620,7 @@ namespace
 
             // soft rasterization
             {
-                SoftRasterizationDataInit initData{};
+                SoftRasterDataInit initData{};
 
                 initData.pyramid = m_pyramid.imgOutAlias;
                 initData.payloadBuf = m_modifyCmd4SoftRasterLate.cmdBufOutAlias;
@@ -641,7 +641,7 @@ namespace
 
                 initData.renderStage = RenderStage::late;
 
-                initSoftRasterization(m_softRasterLate, initData);
+                initSoftRaster(m_softRasterLate, initData);
             }
 
             // smaa
@@ -762,8 +762,8 @@ namespace
         ModifyIndirectCmds m_modifyCmd4SoftRasterEarly{};
         ModifyIndirectCmds m_modifyCmd4SoftRasterLate{};
 
-        SoftRasterization m_softRasterEarly{};
-        SoftRasterization m_softRasterLate{};
+        SoftRaster m_softRasterEarly{};
+        SoftRaster m_softRasterLate{};
 
         SMAA m_smaa{};
         Pyramid m_pyramid{};

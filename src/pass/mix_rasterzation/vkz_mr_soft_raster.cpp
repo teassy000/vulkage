@@ -3,7 +3,7 @@
 #include "demo_structs.h"
 #include "core/kage_math.h"
 
-void recSoftRasterization(const SoftRasterization& _raster)
+void recSoftRaster(const SoftRaster& _raster)
 {
     kage::startRec(_raster.pass);
 
@@ -50,11 +50,11 @@ void recSoftRasterization(const SoftRasterization& _raster)
     kage::endRec();
 }
 
-void initSoftRasterization(SoftRasterization& _softRaster, const SoftRasterizationDataInit& _initData)
+void initSoftRaster(SoftRaster& _softRaster, const SoftRasterDataInit& _initData)
 {
-    kage::ShaderHandle cs = kage::registShader("soft_rasterization", "shader/soft_rasterization.comp.spv");
+    kage::ShaderHandle cs = kage::registShader("soft_raster", "shader/soft_raster.comp.spv");
 
-    kage::ProgramHandle prog = kage::registProgram("soft_rasterization", { cs }, sizeof(vec2));
+    kage::ProgramHandle prog = kage::registProgram("soft_raster", { cs }, sizeof(vec2));
 
     kage::PassDesc passDesc;
     passDesc.prog = prog;
@@ -208,8 +208,8 @@ void initSoftRasterization(SoftRasterization& _softRaster, const SoftRasterizati
     _softRaster.u32debugImgOutAlias = u32debug;
 }
 
-void updateSoftRasterization(SoftRasterization& _softRaster)
+void updateSoftRaster(SoftRaster& _softRaster)
 {
-    recSoftRasterization(_softRaster);
+    recSoftRaster(_softRaster);
 }
 

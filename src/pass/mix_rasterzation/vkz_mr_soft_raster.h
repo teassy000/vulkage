@@ -4,7 +4,7 @@
 #include "core/kage_math.h"
 #include "demo_structs.h"
 
-struct SoftRasterizationDataInit
+struct SoftRasterDataInit
 {
     // readonly
     kage::BufferHandle payloadBuf;
@@ -27,7 +27,7 @@ struct SoftRasterizationDataInit
     RenderStage renderStage;
 };
 
-struct SoftRasterization
+struct SoftRaster
 {
     kage::ShaderHandle cs;
     kage::ProgramHandle prog;
@@ -81,5 +81,5 @@ struct ModifySoftRasterCmd
 };
 
 
-void initSoftRasterization(SoftRasterization& _softRaster, const SoftRasterizationDataInit& _initData);
-void updateSoftRasterization(SoftRasterization& _softRaster);
+void initSoftRaster(SoftRaster& _softRaster, const SoftRasterDataInit& _initData);
+void updateSoftRaster(SoftRaster& _softRaster);
