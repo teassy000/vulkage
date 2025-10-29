@@ -760,9 +760,8 @@ namespace kage
                 {
                     assert(0);
                 }
-                bx::StringView passName = getName(pass);
 
-                message(info, "res : 0x%8x:%s in pass %d:%s", writeOpIn, resName.getPtr(), pass.id, passName.getPtr());
+                message(info, "res : 0x%8x:%s in pass %d:%s", writeOpIn, resName.getPtr(), pass.id, getName(pass));
 
                 writeResPassIdxMap.insert({ writeOpIn, order });
             }
@@ -786,7 +785,25 @@ namespace kage
                 uint16_t writeOrder = writeResPassIdxMap[plainRes];
                 if (writeOrder < order)
                 {
-                    message(warning, "resource 0x%8x in pass %d/%d is written before read @ pass %d/%d!", plainRes, pass.id, order, _sortedPassIdxes[writeOrder], writeOrder);
+                    PassHandle wpass = m_hPass[_sortedPassIdxes[writeOrder]];
+                    bx::StringView resName;
+                    if (plainRes.isImage())
+                    {
+                        resName = getName(plainRes.img);
+                    }
+                    else if (plainRes.isBuffer())
+                    {
+                        resName = getName(plainRes.buf);
+                    }
+                    else
+                    {
+                        assert(0);
+                    }
+
+                    message(warning
+                        , "resource 0x%8x [\"%s\"] in pass %d/%d [\"%s\"] is written before read @ pass %d/%d [\"%s\"]!"
+                        , plainRes, 
+                        resName.getPtr(), pass.id, order, getName(pass), wpass.id, writeOrder, getName(wpass));
                     commonNodeIdx = findCommonParent(passIdx, _sortedPassIdxes[writeOrder], _sortedParentMap, root);
                 }
             }
