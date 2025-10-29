@@ -16,7 +16,7 @@
 #include "pass/vkz_culling_pass.h"
 #include "pass/vkz_skybox_pass.h"
 #include "pass/vkz_smaa_pip.h"
-#include "pass/mix_rasterzation/vkz_soft_rasterization.h"
+#include "pass/mix_rasterzation/vkz_mr_soft_raster.h"
 #include "pass/vkz_modify_indirect_cmds.h"
 
 #include "entry/entry.h"

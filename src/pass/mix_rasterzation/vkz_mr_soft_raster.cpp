@@ -1,4 +1,4 @@
-#include "vkz_soft_rasterization.h"
+#include "vkz_mr_soft_raster.h"
 #include "vkz_pass.h"
 #include "demo_structs.h"
 #include "core/kage_math.h"
