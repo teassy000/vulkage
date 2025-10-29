@@ -30,19 +30,6 @@ void recMeshCulling(const MeshCulling& _cull, uint32_t _drawCount)
     kage::endRec();
 }
 
-// get pass name based on culling stage and pass type
-void getPassName(std::string& _out, const char* _baseName, RenderStage _stage, RenderPipeline _pass)
-{
-    _out = _baseName;
-
-    const char* stageStr[static_cast<uint8_t>(RenderStage::count)] = { "_early", "_late", "_alpha" };
-    const char* passStr[static_cast<uint8_t>(RenderPipeline::count)] = { "_normal", "_task", "_compute" };
-   
-    
-    _out += stageStr[static_cast<uint8_t>(_stage)];
-    _out += passStr[static_cast<uint8_t>(_pass)];
-}
-
 void initMeshCulling(MeshCulling& _cullingComp, const MeshCullingInitData& _initData, RenderStage _stage, RenderPipeline _pass)
 {
     kage::ShaderHandle cs = kage::registShader("mesh_draw_cmd", "shader/drawcmd.comp.spv");

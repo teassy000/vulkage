@@ -10,7 +10,8 @@ enum ModifyCommandMode : uint32_t
     to_meshlet_cull = 1,
     to_triangle_cull = 2,
     to_soft_rasterize = 3,
-    MAX_COUNT = 4
+    to_task = 4,
+    MAX_COUNT = 5
 };
 
 struct ModifyIndirectCmds
@@ -26,6 +27,8 @@ struct ModifyIndirectCmds
 
     kage::BufferHandle inCmdBuf;
     kage::BufferHandle inIndirectCmdBuf;
+    
+    // out alias
     kage::BufferHandle cmdBufOutAlias;
     kage::BufferHandle indirectCmdBufOutAlias;
 };

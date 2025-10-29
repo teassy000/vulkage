@@ -17,6 +17,9 @@ struct MeshShadingInitData
     kage::BufferHandle meshDrawCmdCountBuffer;
     kage::BufferHandle meshletVisBuffer;
 
+    kage::BufferHandle trianglePayloadBuffer;
+    kage::BufferHandle trianglePayloadCountBuffer;
+
     kage::BufferHandle transformBuffer;
 
     kage::ImageHandle pyramid;
@@ -30,8 +33,8 @@ struct MeshShadingInitData
 
 struct MeshShading
 {
-    bool late{ false };
-    bool alphaPass{ false };
+    RenderStage stage{ RenderStage::early };
+    RenderPipeline pipeline{ RenderPipeline::task };
 
     kage::PassHandle pass;
 
@@ -50,6 +53,9 @@ struct MeshShading
     kage::BufferHandle meshDrawCmdCountBuffer;
     kage::BufferHandle meshDrawBuffer;
     kage::BufferHandle transformBuffer;
+
+    kage::BufferHandle trianglePayloadBuffer;
+    kage::BufferHandle trianglePayloadCountBuffer;
 
     kage::BindlessHandle bindless;
     
@@ -77,22 +83,7 @@ struct MeshShading
     Constants constants;
 };
 
-struct TaskSubmit
-{
-    kage::PassHandle pass;
 
-    kage::ShaderHandle cs;
-    kage::ProgramHandle prog;
+void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t _width, uint32_t _height, const MeshShadingInitData _initData, RenderStage _stage = RenderStage::early, RenderPipeline _pip = RenderPipeline::task);
 
-    kage::BufferHandle drawCmdBuffer;
-    kage::BufferHandle drawCmdCountBuffer;
-    kage::BufferHandle drawCmdBufferOutAlias;
-};
-
-void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t _width, uint32_t _height, const MeshShadingInitData _initData, bool _late = false, bool _alphaPass = false);
-
-void prepareTaskSubmit(TaskSubmit& _taskSubmit, kage::BufferHandle _drawCmdBuf, kage::BufferHandle _drawCmdCntBuf, bool _late = false, bool _alphaPass = false);
-
-
-void updateTaskSubmit(const TaskSubmit& _taskSubmit);
 void updateMeshShading(MeshShading& _meshShading, const Constants& _consts);

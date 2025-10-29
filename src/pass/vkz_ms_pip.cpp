@@ -8,25 +8,6 @@
 
 #include "bx/readerwriter.h"
 
-void taskSubmitRec(const TaskSubmit& _ts)
-{
-    KG_ZoneScopedC(kage::Color::blue);
-
-    kage::Binding binds[] =
-    {
-        {_ts.drawCmdCountBuffer,    BindingAccess::read,   Stage::compute_shader},
-        {_ts.drawCmdBuffer,         BindingAccess::write,  Stage::compute_shader}
-    };
-
-    kage::startRec(_ts.pass);
-
-    kage::pushBindings(binds, COUNTOF(binds));
-
-    kage::dispatch(1, 1, 1);
-
-    kage::endRec();
-}
-
 void meshShadingRec(const MeshShading& _ms)
 {
     KG_ZoneScopedC(kage::Color::blue);
@@ -57,18 +38,20 @@ void meshShadingRec(const MeshShading& _ms)
     kage::setViewport(0, 0, (uint32_t)_ms.constants.screenWidth, (uint32_t)_ms.constants.screenHeight);
     kage::setScissor(0, 0, (uint32_t)_ms.constants.screenWidth, (uint32_t)_ms.constants.screenHeight);
 
+    bool is_early = (RenderStage::early == _ms.stage);
+
     kage::Attachment attachments[] = {
-        {_ms.g_buffer.albedo,   _ms.late ? LoadOp::dont_care : LoadOp::clear, StoreOp::store},
-        {_ms.g_buffer.normal,   _ms.late ? LoadOp::dont_care : LoadOp::clear, StoreOp::store},
-        {_ms.g_buffer.worldPos, _ms.late ? LoadOp::dont_care : LoadOp::clear, StoreOp::store},
-        {_ms.g_buffer.emissive, _ms.late ? LoadOp::dont_care : LoadOp::clear, StoreOp::store},
-        {_ms.g_buffer.specular, _ms.late ? LoadOp::dont_care : LoadOp::clear, StoreOp::store},
+        {_ms.g_buffer.albedo,   is_early ? LoadOp::clear : LoadOp::dont_care, StoreOp::store},
+        {_ms.g_buffer.normal,   is_early ? LoadOp::clear : LoadOp::dont_care, StoreOp::store},
+        {_ms.g_buffer.worldPos, is_early ? LoadOp::clear : LoadOp::dont_care, StoreOp::store},
+        {_ms.g_buffer.emissive, is_early ? LoadOp::clear : LoadOp::dont_care, StoreOp::store},
+        {_ms.g_buffer.specular, is_early ? LoadOp::clear : LoadOp::dont_care, StoreOp::store},
     };
     kage::setColorAttachments(attachments, COUNTOF(attachments));
 
     kage::Attachment depthAttachment = { 
         _ms.depth
-        , _ms.late ? LoadOp::dont_care : LoadOp::clear
+        , is_early ? LoadOp::clear : LoadOp::dont_care
         , StoreOp::store 
     };
     kage::setDepthAttachment(depthAttachment);
@@ -78,7 +61,7 @@ void meshShadingRec(const MeshShading& _ms)
     kage::endRec();
 }
 
-void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t _width, uint32_t _height, const MeshShadingInitData _initData, bool _late /*= false*/, bool _alphaPass /*= false*/)
+void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t _width, uint32_t _height, const MeshShadingInitData _initData, RenderStage _stage /*= RenderStage::early*/, RenderPipeline _pip /* = RenderPipeline::task*/)
 {
     kage::ShaderHandle ms= kage::registShader("mesh_shader", "shader/meshlet.mesh.spv");
     kage::ShaderHandle ts = kage::registShader("task_shader", "shader/meshlet.task.spv");
@@ -86,7 +69,14 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
 
     kage::ProgramHandle prog = kage::registProgram("mesh_prog", { ts, ms, fs }, sizeof(Constants), _initData.bindless);
 
-    int pipelineSpecs[] = { _late, _alphaPass, {kage::kSeamlessLod == 1} };
+    bool isLate = (RenderStage::late == _stage);
+    bool isAlpha = (RenderStage::alpha == _stage);
+
+    int pipelineSpecs[] = { 
+        isLate
+        , isAlpha
+        , RenderPipeline::compute == _pip
+        , {kage::kSeamlessLod == 1} };
 
     const kage::Memory* pConst = kage::alloc(sizeof(int) * COUNTOF(pipelineSpecs));
     memcpy_s(pConst->data, pConst->size, pipelineSpecs, sizeof(int) * COUNTOF(pipelineSpecs));
@@ -97,18 +87,14 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
     desc.pipelineConfig.depthCompOp = kage::CompareOp::greater;
     desc.pipelineConfig.enableDepthTest = true;
     desc.pipelineConfig.enableDepthWrite = true;
-    desc.pipelineConfig.cullMode = _alphaPass ? kage::CullModeFlagBits::none : kage::CullModeFlagBits::back;
+    desc.pipelineConfig.cullMode = isAlpha ? kage::CullModeFlagBits::none : kage::CullModeFlagBits::back;
 
     desc.pipelineSpecNum = COUNTOF(pipelineSpecs);
     desc.pipelineSpecData = (void*)pConst->data;
 
-    const char* passName = 
-        _alphaPass 
-        ? "mesh_pass_alpha"
-        : _late 
-            ? "mesh_pass_late" 
-            : "mesh_pass_early";
-    kage::PassHandle pass = kage::registPass(passName, desc);
+    std::string passNameStr;
+    getPassName(passNameStr, "mesh_shading", _stage, _pip);
+    kage::PassHandle pass = kage::registPass(passNameStr.c_str(), desc);
 
     kage::BufferHandle mltVisBufOutAlias = kage::alias(_initData.meshletVisBuffer);
     kage::ImageHandle depthOutAlias = kage::alias(_initData.depth);
@@ -168,7 +154,8 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
     kage::setAttachmentOutput(pass, _initData.g_buffer.specular, gb_outAlias.specular);
 
     // set the data
-    _meshShading.late = _late;
+    _meshShading.stage = _stage;
+    _meshShading.pipeline = _pip;
 
     _meshShading.taskShader = ts;
     _meshShading.meshShader = ms;
@@ -197,49 +184,6 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
     _meshShading.meshletVisBufferOutAlias = mltVisBufOutAlias;
     _meshShading.depthOutAlias = depthOutAlias;
     _meshShading.g_bufferOutAlias = gb_outAlias;
-}
-
-void prepareTaskSubmit(TaskSubmit& _taskSubmit, kage::BufferHandle _drawCmdBuf, kage::BufferHandle _drawCmdCntBuf, bool _late /*= false*/, bool _alphaPass /*= false*/)
-{
-    kage::ShaderHandle cs = kage::registShader("task_modify_late", "shader/taskModify.comp.spv");
-
-    kage::ProgramHandle prog = kage::registProgram("task_modify_late", { cs });
-    
-    kage::PassDesc desc{};
-    desc.prog = prog;
-    desc.queue = kage::PassExeQueue::compute;
-
-    const char* passName = 
-        _alphaPass 
-        ? "task_modify_alpha"
-        : _late 
-            ? "task_modify_late" 
-            : "task_modify_early";
-    kage::PassHandle pass = kage::registPass(passName, desc);
-
-    kage::BufferHandle drawCmdBufferOutAlias = kage::alias(_drawCmdBuf);
-
-    kage::bindBuffer(pass, _drawCmdCntBuf
-        , Stage::compute_shader
-        , Access::shader_read);
-    
-    kage::bindBuffer(pass, _drawCmdBuf
-        , Stage::compute_shader
-        , Access::shader_write
-        , drawCmdBufferOutAlias);
-
-    _taskSubmit.cs = cs;
-    _taskSubmit.prog = prog;
-    _taskSubmit.pass = pass;
-
-    _taskSubmit.drawCmdBuffer = _drawCmdBuf;
-    _taskSubmit.drawCmdCountBuffer = _drawCmdCntBuf;
-    _taskSubmit.drawCmdBufferOutAlias = drawCmdBufferOutAlias;
-}
-
-void updateTaskSubmit(const TaskSubmit& _taskSubmit)
-{
-    taskSubmitRec(_taskSubmit);
 }
 
 void updateMeshShading(MeshShading& _meshShading, const Constants& _consts)

@@ -15,6 +15,7 @@ void getPassName(std::string& _out, const char* _baseName, ModifyCommandMode _mo
         , "_to_meshlet_cull"
         , "_to_triangle_cull" 
         , "_to_soft_rasterize"
+        , "_to_task"
     };
 
     _out += stageStr[static_cast<uint32_t>(_mode)];

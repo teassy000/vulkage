@@ -18,9 +18,10 @@
 layout(constant_id = 0) const int DISPATCH_MODE = 0; 
 
 const uint _CLEAR               = 0; // clear as 0, 1, 1
-const uint _MESHLET_CULLING     = 1; // modify as (count / MR_MESHLETGP_SIZE, 1, 1)
-const uint _TRIANGLE_CULLING    = 2; // modify as (count / MR_TRIANGLEGP_SIZE, 1, 1)
-const uint _SOFT_RASTERIZATION  = 3; // modify as (count, rt_width, rt_height)
+const uint _MESHLET_CULLING     = 1; // modify as (count, 1, 1)
+const uint _TRIANGLE_CULLING    = 2; // modify as (count, 1, 1)
+const uint _SOFT_RASTERIZATION  = 3; // modify as (count / MR_SOFT_RASTGP_SIZE, rt_width, rt_height)
+const uint _TASK_MODIFY         = 4; // modify as (count / MESHGP_SIZE, MESHGP_SIZE, 1)
 
 // local_size_x must be greater than:
 // group size like MR_MESHLETGP_SIZE, MR_TRIANGLEGP_SIZE, MR_SOFT_RASTGP_SIZE
@@ -32,7 +33,8 @@ const uint c_group_size[] = {
     1,                  // _CLEAR
     MR_MESHLETGP_SIZE, // _MESHLET_CULLING
     MR_TRIANGLEGP_SIZE,// _TRIANGLE_CULLING
-    MR_SOFT_RASTGP_SIZE// _SOFT_RASTERIZATION
+    MR_SOFT_RASTGP_SIZE,// _SOFT_RASTERIZATION
+    MESHGP_SIZE    // _TASK_MODIFY
 };
 
 layout(push_constant) uniform block
@@ -59,6 +61,11 @@ layout(binding = 1) buffer MeshletCommands
 layout(binding = 1) buffer TriangleCommands
 {
     TrianglePayload triCmds [];
+};
+
+layout(binding = 1) buffer TaskCommands
+{
+    MeshTaskCommand taskCmds [];
 };
 
 void main()
@@ -96,6 +103,12 @@ void main()
             cmd.local_y = (res.x + MR_SOFT_RAST_TILE_SIZE  - 1 )/ MR_SOFT_RAST_TILE_SIZE;
             cmd.local_z = (res.y + MR_SOFT_RAST_TILE_SIZE  - 1 )/ MR_SOFT_RAST_TILE_SIZE;
         }
+        else if (DISPATCH_MODE == _TASK_MODIFY)
+        {
+            cmd.local_x = min((count + gp_size - 1) / gp_size, 65535);
+            cmd.local_y = gp_size;
+            cmd.local_z = 1;
+        }
     }
 
     // fill the rest dispatch commands as dummy
@@ -131,6 +144,11 @@ void main()
                 dummy.meshletIdx = 5000 + id;
 
                 triCmds[count + id] = dummy;
+            }
+            else if (DISPATCH_MODE == _TASK_MODIFY)
+            {
+                MeshTaskCommand dummy = {};
+                taskCmds[count + id] = dummy;
             }
         }
     }
