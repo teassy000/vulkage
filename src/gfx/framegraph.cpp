@@ -725,7 +725,8 @@ namespace kage
 
         for (uint16_t idx : _sortedPassIdxes)
         {
-            message(info, "sorted pass Idx: %d/%d, Id: %d", idx, _sortedPassIdxes.size(), m_hPass[idx].id);
+            PassHandle hPass = m_hPass[idx];
+            message(info, "sorted pass Idx: %d/%d, Id: %d, name: \"%s\"", idx, _sortedPassIdxes.size(), hPass.id, getName(hPass));
         }
 
         for (const auto& p : _sortedParentMap)
@@ -801,9 +802,10 @@ namespace kage
                     }
 
                     message(warning
-                        , "resource 0x%8x [\"%s\"] in pass %d/%d [\"%s\"] is written before read @ pass %d/%d [\"%s\"]!"
+                        , "resource read 0x%8x [\"%s\"] in pass[\"%s\"] id:%d; sorted_idx:%d  is written @ pass[\"%s\"] id: %d; sorted Idx: %d !"
                         , plainRes, 
-                        resName.getPtr(), pass.id, order, getName(pass), wpass.id, writeOrder, getName(wpass));
+                        resName.getPtr(), getName(pass), pass.id, order, getName(wpass), wpass.id, writeOrder
+                    );
                     commonNodeIdx = findCommonParent(passIdx, _sortedPassIdxes[writeOrder], _sortedParentMap, root);
                 }
             }
