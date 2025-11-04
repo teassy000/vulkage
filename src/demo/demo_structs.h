@@ -178,7 +178,7 @@ struct DemoData
     TransformData trans;
 };
 
-enum class RenderStage : uint8_t
+enum class PassStage : uint8_t
 {
     early = 0,      // early culling pass
     late = 1,       // late culling pass
@@ -188,9 +188,9 @@ enum class RenderStage : uint8_t
 
 enum class RenderPipeline : uint8_t
 {
-    normal = 0,     // for normal pipeline, i.e. traditional rasterization
-    task = 1,       // for mesh shading task
-    compute = 2,    // for mix rasterization
+    traditional = 0,    // [vertex] -> [fragment] pipeline
+    mesh_shading = 1,   // [task] -> [mesh shader] -> [fragment] pipeline
+    mixed = 2,          // mixed [soft raster] + [mesh shading], sub-pixel triangles use soft rasterization
     count = 3,      // count of culling passes
 };
 

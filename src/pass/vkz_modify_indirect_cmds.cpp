@@ -6,7 +6,7 @@
 #include <string>
 
 // get pass name based on culling stage and pass type
-void getPassName(std::string& _out, const char* _baseName, ModifyCommandMode _mode)
+void getBaseName(std::string& _out, const char* _baseName, ModifyCommandMode _mode)
 {
     _out = _baseName;
 
@@ -14,18 +14,20 @@ void getPassName(std::string& _out, const char* _baseName, ModifyCommandMode _mo
         "_clear"
         , "_to_meshlet_cull"
         , "_to_triangle_cull" 
-        , "_to_soft_rasterize"
+        , "_to_soft_raster"
+        , "_to_hard_raster"
         , "_to_task"
     };
 
     _out += stageStr[static_cast<uint32_t>(_mode)];
 }
 
-void initModifyIndirectCmds(ModifyIndirectCmds& _cmds, const kage::BufferHandle _indirectCmdBuf, const kage::BufferHandle _cmdBuf, ModifyCommandMode _mode, uint32_t _width /*= 0*/, uint32_t _height /*= 0*/)
+void initModifyIndirectCmds(ModifyIndirectCmds& _cmds, const kage::BufferHandle _indirectCmdBuf, const kage::BufferHandle _cmdBuf, ModifyCommandMode _mode, PassStage _stage)
 {
-
     std::string passName;
-    getPassName(passName, "modify_cmd", _mode);
+    getBaseName(passName, "modify_cmd", _mode);
+
+    passName = getPassName(passName.c_str(), _stage);
 
     kage::ShaderHandle cs = kage::registShader(passName.c_str(), "shader/modify_indirect_cmds.comp.spv");
 
@@ -66,8 +68,8 @@ void initModifyIndirectCmds(ModifyIndirectCmds& _cmds, const kage::BufferHandle 
     _cmds.cs = cs;
     _cmds.prog = prog;
     _cmds.mode = _mode;
-    _cmds.width = _width;
-    _cmds.height = _height;
+    _cmds.width = 0;
+    _cmds.height = 0;
 
     _cmds.inIndirectCmdBuf = _indirectCmdBuf;
     _cmds.inCmdBuf = _cmdBuf;
@@ -101,7 +103,7 @@ void recModifyIndirectCmds(const ModifyIndirectCmds& _cmds)
     kage::endRec();
 }
 
-void updateModifyIndirectCmds(ModifyIndirectCmds& _cmd, uint32_t _width /* = 0*/, uint32_t _height /* = 0*/)
+void updateModifyIndirectCmds(ModifyIndirectCmds& _cmd, uint32_t _width, uint32_t _height)
 {
     _cmd.width = _width;
     _cmd.height = _height;

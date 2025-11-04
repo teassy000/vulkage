@@ -77,6 +77,8 @@ layout(binding = 8) buffer OutSubTexelTriangles
     TrianglePayload out_sw_tri [];
 };
 
+// idx 0: sub-texel triangle(soft-ware) count
+// idx 1: hw triangle count
 layout(binding = 9) buffer OutCounts
 {
     IndirectDispatchCommand outTriCnts[];
@@ -217,12 +219,12 @@ void main()
         if (!culled) {
             // if the area is less than or equal to 1 pixel, consider it as sub-texel triangle
             if (area_abs <= 1.f) {
-                uint triBase = atomicAdd(outTriCnts[1].count, 1);
+                uint triBase = atomicAdd(outTriCnts[0].count, 1);
                 out_sw_tri[triBase].drawId = drawId;
                 out_sw_tri[triBase].meshletIdx = mi;
                 out_sw_tri[triBase].triIdx = i;
             } else {
-                uint triBase = atomicAdd(outTriCnts[0].count, 1);
+                uint triBase = atomicAdd(outTriCnts[1].count, 1);
                 out_hw_tri[triBase].drawId = drawId;
                 out_hw_tri[triBase].meshletIdx = mi;
                 out_hw_tri[triBase].triIdx = i;

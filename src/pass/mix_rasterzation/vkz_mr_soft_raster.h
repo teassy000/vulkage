@@ -23,8 +23,6 @@ struct SoftRasterDataInit
 
     kage::ImageHandle color; // output image for soft rasterization results
     kage::ImageHandle depth; // output depth image for soft rasterization results
-
-    RenderStage renderStage;
 };
 
 struct SoftRaster
@@ -63,23 +61,8 @@ struct SoftRaster
     uint32_t width; // width of the output image
     uint32_t height; // height of the output image
 
-    RenderStage renderStage;
+    PassStage renderStage;
 };
 
-
-struct ModifySoftRasterCmd
-{
-    kage::PassHandle pass;
-    kage::ShaderHandle cs;
-    kage::ProgramHandle prog;
-
-    uint32_t width;
-    uint32_t height;
-
-    kage::BufferHandle inPayloadCntBuf;
-    kage::BufferHandle payloadCntBufOutAlias;
-};
-
-
-void initSoftRaster(SoftRaster& _softRaster, const SoftRasterDataInit& _initData);
+void initSoftRaster(SoftRaster& _softRaster, const SoftRasterDataInit& _initData, const PassStage _stage);
 void updateSoftRaster(SoftRaster& _softRaster);

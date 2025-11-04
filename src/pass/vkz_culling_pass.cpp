@@ -30,16 +30,16 @@ void recMeshCulling(const MeshCulling& _cull, uint32_t _drawCount)
     kage::endRec();
 }
 
-void initMeshCulling(MeshCulling& _cullingComp, const MeshCullingInitData& _initData, RenderStage _stage, RenderPipeline _pass)
+void initMeshCulling(MeshCulling& _cullingComp, const MeshCullingInitData& _initData, PassStage _stage, RenderPipeline _pipeline)
 {
     kage::ShaderHandle cs = kage::registShader("mesh_draw_cmd", "shader/drawcmd.comp.spv");
     kage::ProgramHandle prog = kage::registProgram("mesh_draw_cmd", { cs }, sizeof(Constants));
 
     int pipelineSpecs[] = { 
-        _stage == RenderStage::late // LATE
-        , _pass == RenderPipeline::task // TASK
-        , _stage == RenderStage::alpha // ALPHA_PASS
-        , _pass == RenderPipeline::compute // USE_MIXED_RASTER
+        _stage == PassStage::late // LATE
+        , _pipeline == RenderPipeline::mesh_shading // TASK
+        , _stage == PassStage::alpha // ALPHA_PASS
+        , _pipeline == RenderPipeline::mixed // USE_MIXED_RASTER
     };
 
     const kage::Memory* pConst = kage::alloc(sizeof(int) * COUNTOF(pipelineSpecs));
@@ -51,8 +51,7 @@ void initMeshCulling(MeshCulling& _cullingComp, const MeshCullingInitData& _init
     passDesc.pipelineSpecNum = COUNTOF(pipelineSpecs);
     passDesc.pipelineSpecData = (void*)pConst->data;
 
-    std::string passName;
-    getPassName(passName, "mesh_culling", _stage, _pass);
+    std::string passName = getPassName( "mesh_culling", _stage, _pipeline);
     kage::PassHandle pass = kage::registPass(passName.c_str(), passDesc);
 
     kage::BufferHandle drawCmdOutAlias = kage::alias(_initData.meshDrawCmdBuf);
@@ -121,14 +120,14 @@ void updateMeshCulling(MeshCulling& _cullingComp, const Constants& _consts, uint
     recMeshCulling(_cullingComp, _drawCount);
 }
 
-void initMeshletCulling(MeshletCulling& _cullingComp, const MeshletCullingInitData& _initData, RenderStage _stage, bool _seamless /*= false*/)
+void initMeshletCulling(MeshletCulling& _cullingComp, const MeshletCullingInitData& _initData, PassStage _stage, bool _seamless /*= false*/)
 {
     kage::ShaderHandle cs = kage::registShader("meshlet_culling", "shader/culling_meshlet.comp.spv");
     kage::ProgramHandle prog = kage::registProgram("meshlet_culling", { cs }, sizeof(Constants));
 
     int pipelineSpecs[] = {
-        _stage == RenderStage::late
-        , _stage == RenderStage::alpha
+        _stage == PassStage::late
+        , _stage == PassStage::alpha
         , _seamless
     };
 
@@ -141,8 +140,7 @@ void initMeshletCulling(MeshletCulling& _cullingComp, const MeshletCullingInitDa
     passDesc.pipelineSpecNum = COUNTOF(pipelineSpecs);
     passDesc.pipelineSpecData = (void*)pConst->data;
 
-    std::string passName;
-    getPassName(passName, "meshlet_culling", _stage, RenderPipeline::compute);
+    std::string passName = getPassName("meshlet_culling", _stage);
     kage::PassHandle pass = kage::registPass(passName.c_str(), passDesc);
 
     kage::BufferDesc meshletPayloadBufDesc;
@@ -294,14 +292,14 @@ void updateMeshletCulling(MeshletCulling& _mltc, const Constants& _consts)
     recMeshletCulling(_mltc, _consts);
 }
 
-void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& _initData, RenderStage _stage, bool _seamless /*= false*/)
+void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& _initData, PassStage _stage, bool _seamless /*= false*/)
 {
     kage::ShaderHandle cs = kage::registShader("triangle_culling", "shader/culling_triangle.comp.spv");
     kage::ProgramHandle prog = kage::registProgram("triangle_culling", { cs }, sizeof(Constants));
 
     int pipelineSpecs[] = {
-        _stage == RenderStage::late
-        , _stage == RenderStage::alpha
+        _stage == PassStage::late
+        , _stage == PassStage::alpha
         , _seamless
     };
 
@@ -314,8 +312,7 @@ void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& 
     passDesc.pipelineSpecNum = COUNTOF(pipelineSpecs);
     passDesc.pipelineSpecData = (void*)pConst->data;
 
-    std::string passName;
-    getPassName(passName, "triangle_culling", _stage, RenderPipeline::compute);
+    std::string passName = getPassName("triangle_culling", _stage, RenderPipeline::mixed);
     kage::PassHandle pass = kage::registPass(passName.c_str(), passDesc);
 
     kage::BufferDesc hwTriPayloadBuf;

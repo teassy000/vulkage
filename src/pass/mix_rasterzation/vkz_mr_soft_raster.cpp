@@ -8,7 +8,7 @@ void recSoftRaster(const SoftRaster& _raster)
     kage::startRec(_raster.pass);
 
     // only clear images in the early render stage
-    if(_raster.renderStage == RenderStage::early) {
+    if(_raster.renderStage == PassStage::early) {
         kage::ClearImage clearImgs[] =
         {
             { _raster.inColor,  Aspect::color, {kage::ClearColor { 0.f, 0.f, 0.f, 1.f }}},
@@ -50,7 +50,7 @@ void recSoftRaster(const SoftRaster& _raster)
     kage::endRec();
 }
 
-void initSoftRaster(SoftRaster& _softRaster, const SoftRasterDataInit& _initData)
+void initSoftRaster(SoftRaster& _softRaster, const SoftRasterDataInit& _initData, const PassStage _stage)
 {
     kage::ShaderHandle cs = kage::registShader("soft_raster", "shader/soft_raster.comp.spv");
 
@@ -201,7 +201,7 @@ void initSoftRaster(SoftRaster& _softRaster, const SoftRasterDataInit& _initData
     _softRaster.width = _initData.width;
     _softRaster.height = _initData.height;
 
-    _softRaster.renderStage = _initData.renderStage;
+    _softRaster.renderStage = _stage;
 
     // debug image
     _softRaster.u32debugImg = u32debug;

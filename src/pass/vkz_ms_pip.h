@@ -17,9 +17,6 @@ struct MeshShadingInitData
     kage::BufferHandle meshDrawCmdCountBuffer;
     kage::BufferHandle meshletVisBuffer;
 
-    kage::BufferHandle trianglePayloadBuffer;
-    kage::BufferHandle trianglePayloadCountBuffer;
-
     kage::BufferHandle transformBuffer;
 
     kage::ImageHandle pyramid;
@@ -33,8 +30,7 @@ struct MeshShadingInitData
 
 struct MeshShading
 {
-    RenderStage stage{ RenderStage::early };
-    RenderPipeline pipeline{ RenderPipeline::task };
+    PassStage stage{ PassStage::early };
 
     kage::PassHandle pass;
 
@@ -53,9 +49,6 @@ struct MeshShading
     kage::BufferHandle meshDrawCmdCountBuffer;
     kage::BufferHandle meshDrawBuffer;
     kage::BufferHandle transformBuffer;
-
-    kage::BufferHandle trianglePayloadBuffer;
-    kage::BufferHandle trianglePayloadCountBuffer;
 
     kage::BindlessHandle bindless;
     
@@ -84,6 +77,6 @@ struct MeshShading
 };
 
 
-void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t _width, uint32_t _height, const MeshShadingInitData _initData, RenderStage _stage = RenderStage::early, RenderPipeline _pip = RenderPipeline::task);
+void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t _width, uint32_t _height, const MeshShadingInitData _initData, const PassStage _stage);
 
 void updateMeshShading(MeshShading& _meshShading, const Constants& _consts);

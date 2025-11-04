@@ -38,7 +38,7 @@ void meshShadingRec(const MeshShading& _ms)
     kage::setViewport(0, 0, (uint32_t)_ms.constants.screenWidth, (uint32_t)_ms.constants.screenHeight);
     kage::setScissor(0, 0, (uint32_t)_ms.constants.screenWidth, (uint32_t)_ms.constants.screenHeight);
 
-    bool is_early = (RenderStage::early == _ms.stage);
+    bool is_early = (PassStage::early == _ms.stage);
 
     kage::Attachment attachments[] = {
         {_ms.g_buffer.albedo,   is_early ? LoadOp::clear : LoadOp::dont_care, StoreOp::store},
@@ -61,21 +61,20 @@ void meshShadingRec(const MeshShading& _ms)
     kage::endRec();
 }
 
-void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t _width, uint32_t _height, const MeshShadingInitData _initData, RenderStage _stage /*= RenderStage::early*/, RenderPipeline _pip /* = RenderPipeline::task*/)
+void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t _width, uint32_t _height, const MeshShadingInitData _initData, const PassStage _stage)
 {
+    bool isLate = (PassStage::late == _stage);
+    bool isAlpha = (PassStage::alpha == _stage);
+
     kage::ShaderHandle ms= kage::registShader("mesh_shader", "shader/meshlet.mesh.spv");
     kage::ShaderHandle ts = kage::registShader("task_shader", "shader/meshlet.task.spv");
     kage::ShaderHandle fs = kage::registShader("mesh_frag_shader", "shader/bindless.frag.spv");
 
     kage::ProgramHandle prog = kage::registProgram("mesh_prog", { ts, ms, fs }, sizeof(Constants), _initData.bindless);
 
-    bool isLate = (RenderStage::late == _stage);
-    bool isAlpha = (RenderStage::alpha == _stage);
-
     int pipelineSpecs[] = { 
         isLate
         , isAlpha
-        , RenderPipeline::compute == _pip
         , {kage::kSeamlessLod == 1} };
 
     const kage::Memory* pConst = kage::alloc(sizeof(int) * COUNTOF(pipelineSpecs));
@@ -92,8 +91,7 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
     desc.pipelineSpecNum = COUNTOF(pipelineSpecs);
     desc.pipelineSpecData = (void*)pConst->data;
 
-    std::string passNameStr;
-    getPassName(passNameStr, "mesh_shading", _stage, _pip);
+    std::string passNameStr = getPassName("mesh_shading", _stage);
     kage::PassHandle pass = kage::registPass(passNameStr.c_str(), desc);
 
     kage::BufferHandle mltVisBufOutAlias = kage::alias(_initData.meshletVisBuffer);
@@ -155,7 +153,6 @@ void prepareMeshShading(MeshShading& _meshShading, const Scene& _scene, uint32_t
 
     // set the data
     _meshShading.stage = _stage;
-    _meshShading.pipeline = _pip;
 
     _meshShading.taskShader = ts;
     _meshShading.meshShader = ms;

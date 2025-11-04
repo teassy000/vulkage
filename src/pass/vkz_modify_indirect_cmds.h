@@ -9,9 +9,10 @@ enum ModifyCommandMode : uint32_t
     clear = 0,
     to_meshlet_cull = 1,
     to_triangle_cull = 2,
-    to_soft_rasterize = 3,
-    to_task = 4,
-    MAX_COUNT = 5
+    to_soft_raster = 3,
+    to_hard_raster = 4,
+    to_task = 5,
+    MAX_COUNT = 6
 };
 
 struct ModifyIndirectCmds
@@ -33,5 +34,5 @@ struct ModifyIndirectCmds
     kage::BufferHandle indirectCmdBufOutAlias;
 };
 
-void initModifyIndirectCmds(ModifyIndirectCmds& _cmds, const kage::BufferHandle _indirectCmdBuf, const kage::BufferHandle _cmdBuf, ModifyCommandMode _mode, uint32_t _width = 0, uint32_t _height = 0);
-void updateModifyIndirectCmds(ModifyIndirectCmds& _cmds, uint32_t _width = 0, uint32_t _height = 0);
+void initModifyIndirectCmds(ModifyIndirectCmds& _cmds, const kage::BufferHandle _indirectCmdBuf, const kage::BufferHandle _cmdBuf, ModifyCommandMode _mode, PassStage _stage);
+void updateModifyIndirectCmds(ModifyIndirectCmds& _cmds, uint32_t _width, uint32_t _height);
