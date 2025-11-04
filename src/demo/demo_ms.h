@@ -500,8 +500,7 @@ namespace
 
             // skybox pass
             {
-                kage::ImageHandle sbColorIn = m_color;
-                initSkyboxPass(m_skybox, m_transformBuf, sbColorIn, m_skybox_cube);
+                initSkyboxPass(m_skybox, m_transformBuf, m_color, m_skybox_cube);
             }
 
             // draw early pass

@@ -100,6 +100,7 @@ void main()
     );
 
     vec3 v[3];
+    SetMeshOutputsEXT(3, 1);
 
     for (int i = 0; i < 3; i++) {
         // get global vertex ids
@@ -114,6 +115,10 @@ void main()
 
         vec4 tp = (trans.proj * trans.view * vec4(wp, 1.0));
         v[i] = tp.xyz / tp.w;
+
+        gl_MeshVerticesEXT[i].gl_Position = vec4(v[i], 1.0);
     }
+
+    gl_PrimitiveTriangleIndicesEXT[ti] = uvec3(0, 1, 2);
 
 }

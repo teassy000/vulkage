@@ -83,6 +83,10 @@ void initHardRaster(HardRaster& _hr, const HardRasterInitData& _init, const Pass
     _hr.fs = fs;
     _hr.program = prog;
 
+    // configure
+    _hr.pipeline = RenderPipeline::mixed;
+    _hr.stage = _stage;
+
     // read-only buffers
     _hr.vtxBuffer = _init.vtxBuffer;
     _hr.meshBuffer = _init.meshBuffer;

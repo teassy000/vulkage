@@ -169,9 +169,12 @@ namespace
             m_demoData.logic.frontY = front.y;
             m_demoData.logic.frontZ = front.z;
 
-            updatePyramid(m_pyramid, m_width, m_height, m_demoData.dbg_features.common.dbgPauseCullTransform);
 
             refreshData();
+
+            updatePyramid(m_pyramid, m_width, m_height, m_demoData.dbg_features.common.dbgPauseCullTransform);
+
+            updateSkybox(m_skybox, m_width, m_height);
 
             updateMeshCulling(m_meshCullingEarly, m_demoData.constants, m_scene.drawCount);
             updateMeshCulling(m_meshCullingLate, m_demoData.constants, m_scene.drawCount);
@@ -198,6 +201,8 @@ namespace
 
             updateHardRaster(m_hardRasterEarly, m_demoData.constants);
             updateHardRaster(m_hardRasterLate, m_demoData.constants);
+
+            updateDeferredShading(m_deferred, m_width, m_height, m_demoData.trans.cameraPos, m_demoData.dbg_features.rc3d.totalRadius, m_demoData.dbg_features.rc3d.idx_type, m_demoData.dbg_features.rc3d);
 
             const kage::Memory* memTransform = kage::alloc(sizeof(TransformData));
             memcpy_s(memTransform->data, memTransform->size, &m_demoData.trans, sizeof(TransformData));
@@ -438,6 +443,10 @@ namespace
             }
 
             {
+                m_skybox_cube = loadImageFromFile("skybox_cubemap", "./data/textures/cubemap_vulkan.ktx");
+            }
+
+            {
                 m_gBuffer = createGBuffer();
             }
         }
@@ -445,6 +454,11 @@ namespace
         void createPasses()
         {
             preparePyramid(m_pyramid, m_width, m_height);
+
+            // skybox pass
+            {
+                initSkyboxPass(m_skybox, m_transformBuf, m_color, m_skybox_cube);
+            }
 
             // == EARLY passes ==
             // 
@@ -683,7 +697,7 @@ namespace
                 initData.width = m_width;
                 initData.height = m_height;
 
-                initData.color = m_supportMeshShading ? m_hardRasterEarly.g_bufferOutAlias.emissive : m_softRasterEarly.colorOutAlias;
+                initData.color = m_supportMeshShading ? m_hardRasterEarly.g_bufferOutAlias.albedo : m_softRasterEarly.colorOutAlias;
                 initData.depth = m_supportMeshShading ? m_hardRasterEarly.depthOutAlias : m_softRasterEarly.depthOutAlias;
 
                 initSoftRaster(m_softRasterLate, initData, PassStage::late);
@@ -707,7 +721,7 @@ namespace
                 hrInit.pyramid = m_pyramid.imgOutAlias;
                 hrInit.depth = m_softRasterLate.depthOutAlias;
                 hrInit.g_buffer = m_hardRasterEarly.g_bufferOutAlias;
-                hrInit.g_buffer.emissive = m_softRasterLate.colorOutAlias;
+                hrInit.g_buffer.albedo = m_softRasterLate.colorOutAlias;
 
                 hrInit.vtxBuffer = m_vtxBuf;
                 hrInit.meshBuffer = m_meshBuf;
@@ -720,10 +734,15 @@ namespace
                 initHardRaster(m_hardRasterLate, hrInit, PassStage::late);
             }
 
+            // deferred
+            {
+                initDeferredShading(m_deferred, m_hardRasterLate.g_bufferOutAlias, m_skybox.colorOutAlias, RadianceCascadesData{});
+            }
+
             // smaa
             {
                 kage::ImageHandle aaDepthIn = m_hardRasterLate.depthOutAlias;
-                kage::ImageHandle aaColorIn = m_hardRasterLate.g_bufferOutAlias.emissive;
+                kage::ImageHandle aaColorIn = m_deferred.outColorAlias;
 
                 m_smaa.prepare(m_width, m_height, aaColorIn, aaDepthIn);
             }
@@ -835,10 +854,13 @@ namespace
         kage::ImageHandle m_color;
         kage::ImageHandle m_depth;
         std::vector<kage::ImageHandle> m_sceneImages;
+        kage::ImageHandle m_skybox_cube;
         kage::BindlessHandle m_bindlessArray;
         GBuffer m_gBuffer{};
 
         // passes
+        Skybox m_skybox{};
+
         MeshCulling m_meshCullingEarly{};
         MeshCulling m_meshCullingLate{};
         MeshletCulling m_meshletCullingEarly{};
@@ -863,6 +885,8 @@ namespace
 
         SoftRaster m_softRasterEarly{};
         SoftRaster m_softRasterLate{};
+
+        DeferredShading m_deferred{};
 
         SMAA m_smaa{};
         Pyramid m_pyramid{};
