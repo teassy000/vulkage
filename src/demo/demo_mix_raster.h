@@ -211,47 +211,62 @@ namespace
             m_smaa.update(m_width, m_height);
             {
                 m_demoData.dbg_features.brx.presentImg = kage::ImageHandle{};
-                updateUI(m_ui, m_demoData.input, m_demoData.dbg_features, m_demoData.profiling, m_demoData.logic);
+                updateUI(m_ui, m_demoData.input, m_demoData.dbg_features, m_demoData.logic);
             }
 
             // render
             kage::render();
 
-            // update stastic data
-            static float avgCpuTime = 0.0f;
-            avgCpuTime = avgCpuTime * 0.95f + (deltaTimeMS) * 0.05f;
+            // update profiling info
+            {
+                static float avgCpuTime = 0.0f;
+                avgCpuTime = avgCpuTime * 0.95f + (deltaTimeMS) * 0.05f;
+                setUIProfile("fps", 1000.f / avgCpuTime, "");
+                setUIProfile("cpu(avg)", avgCpuTime, "ms");
 
-            static float avgGpuTime = 0.0f;
-            avgGpuTime = avgGpuTime * 0.95f + (float)kage::getGpuTime() * 0.05f;
-            m_demoData.profiling.avgCpuTime = avgCpuTime;
-            m_demoData.profiling.avgGpuTime = avgGpuTime;
+                static float avgGpuTime = 0.0f;
+                avgGpuTime = avgGpuTime * 0.95f + (float)kage::getGpuTime() * 0.05f;
+                setUIProfile("gpu(avg)", avgGpuTime, "ms");
 
-            m_demoData.profiling.cullEarlyTime = (float)kage::getPassTime(m_meshCullingEarly.pass);
-            m_demoData.profiling.cullLateTime = (float)kage::getPassTime(m_meshCullingLate.pass);
+                setUIProfile("mesh cull (E)", (float)kage::getPassTime(m_meshCullingEarly.pass), "ms");
+                setUIProfile("mesh cull (L)", (float)kage::getPassTime(m_meshCullingLate.pass), "ms");
 
-            m_demoData.profiling.mltCullEarlyTime = (float)kage::getPassTime(m_meshletCullingEarly.pass);
-            m_demoData.profiling.mltCullLateTime = (float)kage::getPassTime(m_meshletCullingLate.pass);
-            m_demoData.profiling.triCullEarlyTime = (float)kage::getPassTime(m_triangleCullingEarly.pass);
-            m_demoData.profiling.triCullLateTime = (float)kage::getPassTime(m_triangleCullingLate.pass);
-            m_demoData.profiling.softRasterEarlyTime = (float)kage::getPassTime(m_softRasterEarly.pass);
-            m_demoData.profiling.softRasterLateTime = (float)kage::getPassTime(m_softRasterLate.pass);
+                setUIProfile("mlt cull (E)", (float)kage::getPassTime(m_meshletCullingEarly.pass), "ms");
+                setUIProfile("mlt cull (L)", (float)kage::getPassTime(m_meshletCullingLate.pass), "ms");
 
-            m_demoData.profiling.modify2MltCullEarly = (float)kage::getPassTime(m_modify2MeshletCullingEarly.pass);
-            m_demoData.profiling.modify2MltCullLate = (float)kage::getPassTime(m_modify2MeshletCullingLate.pass);
-            m_demoData.profiling.modify2TriCullEarly = (float)kage::getPassTime(m_modify2TriangleCullingEarly.pass);
-            m_demoData.profiling.modify2TriCullLate = (float)kage::getPassTime(m_modify2TriangleCullingLate.pass);
-            m_demoData.profiling.modify2SoftRasterEarly = (float)kage::getPassTime(m_modify2SoftRasterEarly.pass);
-            m_demoData.profiling.modify2SoftRasterLate = (float)kage::getPassTime(m_modify2SoftRasterLate.pass);
+                setUIProfile("tri cull (E)", (float)kage::getPassTime(m_triangleCullingEarly.pass), "ms");
+                setUIProfile("tri cull (L)", (float)kage::getPassTime(m_triangleCullingLate.pass), "ms");
 
+                setUIProfile("soft-raster (E)", (float)kage::getPassTime(m_softRasterEarly.pass), "ms");
+                setUIProfile("soft-raster (L)", (float)kage::getPassTime(m_softRasterLate.pass), "ms");
 
-            m_demoData.profiling.uiTime = (float)kage::getPassTime(m_ui.pass);
-            m_demoData.profiling.triangleCount = m_demoData.profiling.triangleEarlyCount + m_demoData.profiling.triangleLateCount;
+                setUIProfile("hard-raster (E)", (float)kage::getPassTime(m_hardRasterEarly.pass), "ms");
+                setUIProfile("hard-raster (L)", (float)kage::getPassTime(m_hardRasterLate.pass), "ms");
 
-            m_demoData.profiling.meshletCount = kage::kSeamlessLod ?
-                (uint32_t)m_scene.geometry.clusters.size() :
-                (uint32_t)m_scene.geometry.meshlets.size();
-            m_demoData.profiling.primitiveCount = (uint32_t)(m_scene.geometry.indices.size()) / 3; // include all lods
+                setUIProfile("-> modify2_mlt (E)", (float)kage::getPassTime(m_modify2MeshletCullingEarly.pass), "ms");
+                setUIProfile("-> modify2_mlt (L)", (float)kage::getPassTime(m_modify2MeshletCullingLate.pass), "ms");
 
+                setUIProfile("-> modify2_tri (E)", (float)kage::getPassTime(m_modify2TriangleCullingEarly.pass), "ms");
+                setUIProfile("-> modify2_tri (L)", (float)kage::getPassTime(m_modify2TriangleCullingLate.pass), "ms");
+
+                setUIProfile("-> modify2_soft (E)", (float)kage::getPassTime(m_modify2SoftRasterEarly.pass), "ms");
+                setUIProfile("-> modify2_soft (L)", (float)kage::getPassTime(m_modify2SoftRasterLate.pass), "ms");
+
+                setUIProfile("-> modify2_hard (E)", (float)kage::getPassTime(m_modify2HardRasterEarly.pass), "ms");
+                setUIProfile("-> modify2_hard (L)", (float)kage::getPassTime(m_modify2HardRasterLate.pass), "ms");
+
+                setUIProfile("smaa_edgecolor", (float)kage::getPassTime(m_smaa.m_edgeColor.pass), "ms");
+                setUIProfile("smaa_weight", (float)kage::getPassTime(m_smaa.m_weight.pass), "ms");
+                setUIProfile("smaa_blur", (float)kage::getPassTime(m_smaa.m_blend.pass), "ms");
+
+                setUIProfile("ui", (float)kage::getPassTime(m_ui.pass), "ms");
+
+                setUIProfile("skybox", (float)kage::getPassTime(m_skybox.pass), "ms");
+
+                float triCnt = (float)(kage::getPassClipping(m_hardRasterLate.pass)) + (float)(kage::getPassClipping(m_hardRasterEarly.pass));
+                setUIProfile("tri count", triCnt, "");
+                setUIProfile("prim count", (float)(m_scene.geometry.indices.size()) / 3.f * 1e-6f, "M");
+            }
             KG_FrameMark;
 
             return true;
@@ -751,7 +766,7 @@ namespace
             {
                 kage::ImageHandle uiColorIn = m_smaa.m_outAliasImg;
                 kage::ImageHandle uiDepthIn = m_hardRasterLate.depthOutAlias;
-                prepareUI(m_ui, uiColorIn, uiDepthIn, 1.3f);
+                initUI(m_ui, uiColorIn, uiDepthIn, 1.3f);
             }
         }
 

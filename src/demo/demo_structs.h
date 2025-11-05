@@ -167,7 +167,7 @@ struct DemoData
 {
     UIInput input;
     DebugFeatures dbg_features;
-    DebugProfilingData profiling;
+
     DebugLogicData logic;
 
     // constants

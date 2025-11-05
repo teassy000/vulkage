@@ -10,6 +10,118 @@
 #include "ffx_intg/brixel_structs.h"
 #include "radiance_cascade/vkz_radiance_cascade.h"
 
+#include <cstring>
+#include <vector>
+#include <unordered_map>
+
+using HashId = uint64_t;
+
+// compile-time FNV-1a hash
+constexpr HashId hash_fnv1a(const char* str, HashId hash = 0xcbf29ce484222325) {
+    return (*str == 0) ? hash : hash_fnv1a(str + 1, (hash ^ *str) * 0x100000001b3);
+}
+
+struct ProfileTarget
+{
+    char name[64];
+    char unitStr[8];
+    HashId id;
+    bool enabled;
+
+    union Value
+    {
+        float f32var;
+        uint32_t u32var;
+    } val;
+
+    ProfileTarget() : id(0), enabled(false) {
+        name[0] = '\0';
+        unitStr[0] = '\0';
+        val.f32var = 0.0f;
+    }
+
+    inline void setName(const char* _name)
+    {
+        if (_name)
+            strncpy_s(name, _name, sizeof(name) - 1);
+        else
+            memset(name, 0, sizeof(name));
+    }
+
+    inline void setUnit(const char* _unit)
+    {
+        if (_unit)
+            strncpy_s(unitStr, _unit, sizeof(unitStr) - 1);
+        else
+            memset(unitStr, 0, sizeof(unitStr));
+    }
+};
+
+
+struct UIDataMgr
+{
+    std::unordered_map<HashId, ProfileTarget> profiles;
+    std::vector<HashId> ordered_ids;
+
+    // uint32_t profile 
+    void setProfile(const char* _name, uint32_t _var, const char* _unit)
+    {
+        const HashId id = hash_fnv1a(_name);
+        ProfileTarget& tgt = profiles[id];
+
+        if (0 == tgt.id)
+        {
+            tgt.id = id;
+            tgt.setName(_name);
+            tgt.setUnit(_unit);
+            tgt.enabled = true;
+
+            ordered_ids.push_back(id);
+        }
+
+        tgt.val.u32var = _var;
+    }
+
+    // float profile
+    void setProfile(const char* _name, float _var, const char* _unit)
+    {
+        const HashId id = hash_fnv1a(_name);
+        ProfileTarget& tgt = profiles[id];
+        if (0 == tgt.id)
+        {
+            tgt.id = id;
+            tgt.setName(_name);
+            tgt.setUnit(_unit);
+            tgt.enabled = true;
+            ordered_ids.push_back(id);
+        }
+        tgt.val.f32var = _var;
+    }
+
+    void clearProfiles()
+    {
+        profiles.clear();
+        ordered_ids.clear();
+    }
+
+    const std::vector<HashId>& getOrderedIds() const
+    {
+        return ordered_ids;
+    }
+};
+
+static UIDataMgr s_uiDataMgr;
+
+
+void setUIProfile(const char* _name, uint32_t _val, const char* _unit)
+{
+    s_uiDataMgr.setProfile(_name, _val, _unit);
+}
+
+void setUIProfile(const char* _name, float _val, const char* _unit)
+{
+    s_uiDataMgr.setProfile(_name, _val, _unit);
+}
 
 constexpr uint32_t kInitialVertexBufferSize = 1024 * 1024; // 1MB
 constexpr uint32_t kInitialIndexBufferSize = 1024 * 1024; // 1MB
@@ -96,7 +208,7 @@ void recordUI(const UIRendering& _ui)
     kage::endRec();
 }
 
-void prepareUI(UIRendering& _ui, kage::ImageHandle _color, kage::ImageHandle _depth, float _scale /*= 1.f*/, bool _useChinese /*= false*/)
+void initUI(UIRendering& _ui, kage::ImageHandle _color, kage::ImageHandle _depth, float _scale /*= 1.f*/, bool _useChinese /*= false*/)
 {
     KG_ZoneScopedC(kage::Color::blue);
 
@@ -301,66 +413,28 @@ void updateContentBrx(Dbg_Brixel& _brx)
     ImGui::End();
 }
 
-void updateContentCommon(Dbg_Common& _common, const DebugProfilingData& _pd, const DebugLogicData& _ld)
+void updateContentCommon(Dbg_Common& _common, const DebugLogicData& _ld)
 {
     KG_ZoneScopedC(kage::Color::blue);
-
     ImGui::NewFrame();
-    ImGui::SetNextWindowSize({ 400, 450 }, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize({ 400, 150 }, ImGuiCond_FirstUseEver);
     ImGui::Begin("info:");
-
-    ImGui::Text("fps: [%.2f]", 1000.f / _pd.avgCpuTime);
-
     ImGui::Checkbox("pause cull transform", &_common.dbgPauseCullTransform);
 
-    ImGui::Text("avg cpu: [%.3f]ms", _pd.avgCpuTime);
-    ImGui::Text("avg gpu: [%.3f]ms", _pd.avgGpuTime);
-    ImGui::Text("cull early: [%.3f]ms", _pd.cullEarlyTime);
-    ImGui::Text("draw early: [%.3f]ms", _pd.drawEarlyTime);
-
-    if (_common.ocEnabled)
+    if(ImGui::TreeNode("time:")) 
     {
-        ImGui::Text("pyramid: [%.3f]ms", _pd.pyramidTime);
-        ImGui::Text("cull late: [%.3f]ms", _pd.cullLateTime);
-        ImGui::Text("draw late: [%.3f]ms", _pd.drawLateTime);
-        ImGui::Text("cull alpha: [%.3f]ms", _pd.cullAlphaTime);
-        ImGui::Text("draw alpha: [%.3f]ms", _pd.drawAlphaTime);
-    }
-
-    if (ImGui::TreeNode("Mix Raster:"))
-    {
-        ImGui::Text("mlt cull early: [%.3f]ms", _pd.mltCullEarlyTime);
-        ImGui::Text("mlt cull late: [%.3f]ms", _pd.mltCullLateTime);
-        ImGui::Text("modify2mlt cull early: [%.3f]ms", _pd.modify2MltCullEarly);
-        ImGui::Text("modify2mlt cull late: [%.3f]ms", _pd.modify2MltCullLate);
-
-        ImGui::Text("tri cull early: [%.3f]ms", _pd.triCullEarlyTime);
-        ImGui::Text("tri cull late: [%.3f]ms", _pd.triCullLateTime);
-        ImGui::Text("modify2tri cull early: [%.3f]ms", _pd.modify2TriCullEarly);
-        ImGui::Text("modify2tri cull late: [%.3f]ms", _pd.modify2TriCullLate);
-
-        ImGui::Text("soft raster early: [%.3f]ms", _pd.softRasterEarlyTime);
-        ImGui::Text("soft raster late: [%.3f]ms", _pd.softRasterLateTime);
-        ImGui::Text("modify2soft raster early: [%.3f]ms", _pd.modify2SoftRasterEarly);
-        ImGui::Text("modify2soft raster late: [%.3f]ms", _pd.modify2SoftRasterLate);
-
+        const std::vector<HashId>& ids = s_uiDataMgr.getOrderedIds();
+        for (HashId id : ids)
+        {
+            const ProfileTarget& tgt = s_uiDataMgr.profiles[id];
+            if (tgt.enabled)
+            {
+                ImGui::Text("%s: %.3f %s", tgt.name, tgt.val.f32var, tgt.unitStr);
+            }
+        }
         ImGui::TreePop();
     }
-
-    ImGui::Text("ui: [%.3f]ms", _pd.uiTime);
-    ImGui::Text("deferred: [%.3f]ms", _pd.deferredTime);
-
-    if (ImGui::TreeNode("Static Data:"))
-    {
-        ImGui::Text("primitives : [%d]", _pd.primitiveCount);
-        ImGui::Text("meshlets/clusters: [%d]", _pd.meshletCount);
-        ImGui::Text("tri E: [%.3f]M", _pd.triangleEarlyCount * 1e-6);
-        ImGui::Text("tri L: [%.3f]M", _pd.triangleLateCount * 1e-6);
-        ImGui::Text("triangles: [%.3f]M", _pd.triangleCount * 1e-6);
-        ImGui::Text("tri/sec: [%.2f]B", (1000.f / _pd.avgCpuTime) * _pd.triangleCount * 1e-9);
-        ImGui::TreePop();
-    }
-
+    
     if (ImGui::TreeNode("camera:"))
     {
         ImGui::SliderFloat("speed", &_common.speed, 1.f, 50.f);
@@ -368,15 +442,14 @@ void updateContentCommon(Dbg_Common& _common, const DebugProfilingData& _pd, con
         ImGui::Text("dir: %.2f, %.2f, %.2f", _ld.frontX, _ld.frontY, _ld.frontZ);
         ImGui::TreePop();
     }
-
     ImGui::End();
 }
 
-void updateImGuiContent(DebugFeatures& _ft, const DebugProfilingData& _pd, const DebugLogicData& _ld)
+void updateImGuiContent(DebugFeatures& _ft, const DebugLogicData& _ld)
 {
     KG_ZoneScopedC(kage::Color::blue);
 
-    updateContentCommon(_ft.common, _pd, _ld);
+    updateContentCommon(_ft.common, _ld);
 
     if(_ft.common.dbgBrx)
         updateContentBrx(_ft.brx);
@@ -388,13 +461,13 @@ void updateImGuiContent(DebugFeatures& _ft, const DebugProfilingData& _pd, const
         updateRc2d(_ft.rc2d);
 }
 
-void updateImGui(const UIInput& input, DebugFeatures& ft, const DebugProfilingData& pd, const DebugLogicData& ld)
+void updateImGui(const UIInput& input, DebugFeatures& ft, const DebugLogicData& ld)
 {
     KG_ZoneScopedC(kage::Color::blue);
 
     updateImGuiIO(input);
 
-    updateImGuiContent(ft, pd, ld);
+    updateImGuiContent(ft, ld);
 
     ImGui::Render();
 }
@@ -443,11 +516,10 @@ void updateUI(
     UIRendering& _ui
     , const UIInput& _input
     , DebugFeatures& _features
-    , const DebugProfilingData& _pd
     , const DebugLogicData& _ld
 )
 {
-    updateImGui(_input, _features, _pd, _ld);
+    updateImGui(_input, _features, _ld);
     updateUIRenderData(_ui);
     recordUI(_ui);
 }

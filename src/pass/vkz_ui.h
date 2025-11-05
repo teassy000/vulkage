@@ -32,7 +32,7 @@ struct UIRendering
 };
 
 
-void prepareUI(
+void initUI(
     UIRendering& _ui
     , kage::ImageHandle _color
     , kage::ImageHandle _depth
@@ -46,6 +46,8 @@ void updateUI(
     UIRendering& _ui
     , const UIInput& _input
     , DebugFeatures& _features
-    , const DebugProfilingData& _pd
     , const DebugLogicData& _ld
 );
+
+void setUIProfile(const char* _name, uint32_t _val, const char* _unit);
+void setUIProfile(const char* _name, float _val, const char* _unit);

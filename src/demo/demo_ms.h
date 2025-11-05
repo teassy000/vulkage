@@ -238,47 +238,42 @@ namespace
 
             {
                 m_demoData.dbg_features.brx.presentImg = m_useBrixelizer ? m_brixel.debugDestImg : kage::ImageHandle{};
-                updateUI(m_ui, m_demoData.input, m_demoData.dbg_features, m_demoData.profiling, m_demoData.logic);
+                updateUI(m_ui, m_demoData.input, m_demoData.dbg_features, m_demoData.logic);
             }
 
             // render
             kage::render();
 
-            static float avgCpuTime = 0.0f;
-            avgCpuTime = avgCpuTime * 0.95f + (deltaTimeMS) * 0.05f;
+            // update profiling info
+            {
+                static float avgCpuTime = 0.0f;
+                avgCpuTime = avgCpuTime * 0.95f + (deltaTimeMS) * 0.05f;
+                setUIProfile("cpu(avg)", avgCpuTime, "ms");
+                static float avgGpuTime = 0.0f;
+                avgGpuTime = avgGpuTime * 0.95f + (float)kage::getGpuTime() * 0.05f;
+                setUIProfile("gpu(avg)", avgGpuTime, "ms");
+                setUIProfile("mesh cull (E)", (float)kage::getPassTime(m_culling.pass), "ms");
+                setUIProfile("mesh draw (E)", (float)kage::getPassTime(m_meshShading.pass), "ms");
+                setUIProfile("mesh cull (L)", (float)kage::getPassTime(m_cullingLate.pass), "ms");
+                setUIProfile("mesh draw (L)", (float)kage::getPassTime(m_meshShadingLate.pass), "ms");
+                setUIProfile("mesh cull (A)", (float)kage::getPassTime(m_cullingAlpha.pass), "ms");
+                setUIProfile("mesh draw (A)", (float)kage::getPassTime(m_meshShadingAlpha.pass), "ms");
+                setUIProfile("pyramid", (float)kage::getPassTime(m_pyramid.pass), "ms");
+                setUIProfile("ui", (float)kage::getPassTime(m_ui.pass), "ms");
+                setUIProfile("smaa_luma", (float)kage::getPassTime(m_smaa.m_edgeLuma.pass), "ms");
+                setUIProfile("smaa_color", (float)kage::getPassTime(m_smaa.m_edgeColor.pass), "ms");
+                setUIProfile("smaa_depth", (float)kage::getPassTime(m_smaa.m_edgeDepth.pass), "ms");
+                setUIProfile("smaa_weight", (float)kage::getPassTime(m_smaa.m_weight.pass), "ms");
+                setUIProfile("smaa_blend", (float)kage::getPassTime(m_smaa.m_blend.pass), "ms");
+                setUIProfile("skybox", (float)kage::getPassTime(m_skybox.pass), "ms");
+                setUIProfile("deferred", (float)kage::getPassTime(m_deferred.pass), "ms");
 
-            static float avgGpuTime = 0.0f;
-            avgGpuTime = avgGpuTime * 0.95f + (float)kage::getGpuTime() * 0.05f;
-            m_demoData.profiling.avgCpuTime = avgCpuTime;
-            m_demoData.profiling.avgGpuTime = avgGpuTime;
-            m_demoData.profiling.cullEarlyTime = (float)kage::getPassTime(m_culling.pass);
-            m_demoData.profiling.drawEarlyTime = (float)kage::getPassTime(m_meshShading.pass);
-            m_demoData.profiling.cullLateTime = (float)kage::getPassTime(m_cullingLate.pass);
-            m_demoData.profiling.drawLateTime = (float)kage::getPassTime(m_meshShadingLate.pass);
-            m_demoData.profiling.cullAlphaTime = (float)kage::getPassTime(m_cullingAlpha.pass);
-            m_demoData.profiling.drawAlphaTime = (float)kage::getPassTime(m_meshShadingAlpha.pass);
-            m_demoData.profiling.pyramidTime = (float)kage::getPassTime(m_pyramid.pass);
-            m_demoData.profiling.uiTime = (float)kage::getPassTime(m_ui.pass);
-            m_demoData.profiling.deferredTime = (float)kage::getPassTime(m_deferred.pass);
-
-            if (m_useRc3d) {
-                m_demoData.profiling.buildCascadeTime = (float)kage::getPassTime(m_radianceCascade.build.pass);
-                m_demoData.profiling.mergeCascadeRayTime = (float)kage::getPassTime(m_radianceCascade.mergeRay.pass);
-                m_demoData.profiling.mergeCascadeProbeTime = (float)kage::getPassTime(m_radianceCascade.mergeProbe.pass);
-
-                m_demoData.profiling.debugProbeGenTime = (float)kage::getPassTime(m_probDebug.cmdGen.pass);
-                m_demoData.profiling.debugProbeDrawTime = (float)kage::getPassTime(m_probDebug.draw.pass);
+                float triCnt = (float)(kage::getPassClipping(m_meshShading.pass)) + (float)(kage::getPassClipping(m_meshShadingLate.pass));
+                setUIProfile("tri count", triCnt, "");
+                setUIProfile("prim count", ((float)(m_scene.geometry.indices.size()) / 3.f) * 1e-6f, "M");
             }
-
-            m_demoData.profiling.triangleEarlyCount = (float)(kage::getPassClipping(m_meshShading.pass));
-            m_demoData.profiling.triangleLateCount = (float)(kage::getPassClipping(m_meshShadingLate.pass));
-            m_demoData.profiling.triangleCount = m_demoData.profiling.triangleEarlyCount + m_demoData.profiling.triangleLateCount;
-
-            m_demoData.profiling.meshletCount = kage::kSeamlessLod ?
-                                                    (uint32_t)m_scene.geometry.clusters.size() :
-                                                    (uint32_t)m_scene.geometry.meshlets.size();
-            m_demoData.profiling.primitiveCount = (uint32_t)(m_scene.geometry.indices.size()) / 3; // include all lods
-
+            
+            
             KG_FrameMark;
 
             return true;
@@ -736,7 +731,7 @@ namespace
                 kage::ImageHandle uiColorIn = m_smaa.m_outAliasImg;
                 //kage::ImageHandle uiColorIn = m_rc2d.use.rtOutAlias;
                 kage::ImageHandle uiDepthIn = m_supportMeshShading ? m_meshShadingAlpha.depthOutAlias : m_vtxShadingLate.depthOutAlias;
-                prepareUI(m_ui, uiColorIn, uiDepthIn, 1.3f);
+                initUI(m_ui, uiColorIn, uiDepthIn, 1.3f);
             }
         }
 
