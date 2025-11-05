@@ -4250,7 +4250,7 @@ namespace kage { namespace vk
         }
         else
         {
-            message(DebugMsgType::error, "not a valid execute queue! where does this pass belong?");
+            message(DebugMsgType::error, "no valid recorded code for pass 0x%8x : \"%s\". Did startRec(PassHandle) called correctly?", _passId, getName(PassHandle{ _passId }));
         }
     }
      
