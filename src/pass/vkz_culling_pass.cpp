@@ -417,6 +417,8 @@ void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& 
     _tric.prog = prog;
     _tric.pass = pass;
 
+    _tric.stage = _stage;
+
     // read-only
     _tric.meshletPayloadBuf = _initData.meshletPayloadBuf;
     _tric.meshletPayloadCntBuf = _initData.meshletPayloadCntBuf;
@@ -452,7 +454,11 @@ void recTriangleCulling(const TriangleCulling& _tric, const Constants& _consts)
     kage::startRec(_tric.pass);
     kage::setConstants(mem);
 
-    kage::fillBuffer(_tric.triCountBuf, 0);
+    // clear payload buffer in late pass
+    if (PassStage::late == _tric.stage)
+    {
+        kage::fillBuffer(_tric.hwTriPayloadBuf, 0);
+    }
 
     kage::Binding binds[] =
     {
@@ -464,9 +470,8 @@ void recTriangleCulling(const TriangleCulling& _tric, const Constants& _consts)
         { _tric.meshletDataBuf,         BindingAccess::read,        Stage::compute_shader },
         { _tric.meshletPayloadCntBuf,   BindingAccess::read,        Stage::compute_shader },
         { _tric.hwTriPayloadBuf,        BindingAccess::write,       Stage::compute_shader },
-        { _tric.swTriPayloadBuf,        BindingAccess::write,       Stage::compute_shader },
         { _tric.triCountBuf,            BindingAccess::write,       Stage::compute_shader },
-        {_tric.pyramid,                 _tric.pyrSampler,           Stage::compute_shader }
+        { _tric.pyramid,                _tric.pyrSampler,           Stage::compute_shader }
     };
     kage::pushBindings(binds, COUNTOF(binds));
     

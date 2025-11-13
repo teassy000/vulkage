@@ -1,11 +1,24 @@
 #version 450
 
+
+// ============================================
+// the triangle culling compute shader
+// - each workgroup process one meshlet
+// - each invocation process one triangle
+// output layout:
+// RasterMeshletPayload --
+//                       |-- 64bits bitmask for triangle visibility
+//                       |-- ids (drawId, meshletIdx): locate to the meshlet instance
+
 #extension GL_EXT_shader_16bit_storage: require
 #extension GL_EXT_shader_8bit_storage: require
 
 // for using uint8_t in general code
 #extension GL_EXT_shader_explicit_arithmetic_types: require
 #extension GL_EXT_shader_explicit_arithmetic_types_int8: require
+
+// for atomic operations on uint64_t
+#extension GL_EXT_shader_atomic_int64: require
 
 #extension GL_GOOGLE_include_directive: require
 
@@ -69,40 +82,49 @@ layout(binding = 6) readonly buffer MeshletCount
 // writeonly
 layout(binding = 7) buffer OutMSTriangles
 {
-    TrianglePayload out_hw_tri [];
-};
-
-layout(binding = 8) buffer OutSubTexelTriangles
-{
-    TrianglePayload out_sw_tri [];
+    RasterMeshletPayload out_payloads [];
 };
 
 // idx 0: sub-texel triangle(soft-ware) count
 // idx 1: hw triangle count
-layout(binding = 9) buffer OutCounts
+layout(binding = 8) buffer OutCounts
 {
     IndirectDispatchCommand outTriCnts[];
 };
 
 // pyramid
-layout(binding = 10) uniform sampler2D pyramid;
+layout(binding = 9) uniform sampler2D pyramid;
 
 shared vec3 vertexClip[MESH_MAX_VTX];
 
 void main()
 {
-    // each workgroup.y process one triangle/vertex
+    // each workgroup process MR_TRIANGLEGP_SIZE triangles
     uint ti = gl_LocalInvocationID.x;
 
-    // each workgroup process MR_TRIANGLEGP_SIZE meshlets
-    uint gid = gl_WorkGroupID.x;
+    // each workgroup process one meshlet
+    uint mlti = gl_WorkGroupID.x;
 
     uint count = indirectCmdCount.count;
-    if (gid >= count)
+
+    if (mlti >= count)
         return;
 
-    uint mi = payloads[gid].meshletIdx;
-    uint drawId = payloads[gid].drawId;
+    uint mi = payloads[mlti].meshletIdx;
+    uint drawId = payloads[mlti].drawId;
+
+    // set payload info
+    if(ti == 0)
+    {
+        out_payloads[mlti].drawId = drawId;
+        out_payloads[mlti].meshletIdx = mi;
+    }
+
+    if(ti == 0 && mlti == 0)
+    {
+        outTriCnts[0].count = count;
+        outTriCnts[1].count = count;
+    }
 
     MeshDraw meshDraw = meshDraws[drawId];
 
@@ -132,6 +154,7 @@ void main()
     uint vertexOffset = dataOffset;
     uint indexOffset = dataOffset + vertexCount;
 
+
 #if DEBUG
     for (uint i = 0; i < vertexCount; i ++)
 #else
@@ -148,12 +171,11 @@ void main()
     }
 
 #if !DEBUG
-    // make sure all vertex are transformed
+    // make sure all vertex are transformed in current workgroup
     barrier();
 #endif
 
-// cull triangles
-
+    // cull triangles
     for (uint i = ti; i < triangleCount; i += MR_TRIANGLEGP_SIZE)
     {
         uint offset = indexOffset * 4 + i * 3; // x4 for uint8_t
@@ -195,8 +217,8 @@ void main()
         culled = culled || (area_abs < 0.5f); // 0.5 pixel area
 
         // occlusion culling
-        // TODO: this when wrong with error, need to be fixed later
-        // some triangles are culled even they are clearly visible¡¢
+        // TODO: this went wrong with error, need to be fixed later
+        // some triangles are culled even they are clearly visible
         // calculate the aabb of the triangle in screen space
         vec4 aabb = vec4(min(p0_ndc.xy, min(p1_ndc.xy, p2_ndc.xy)), max(p0_ndc.xy, max(p1_ndc.xy,p2_ndc.xy)));
         aabb = clamp(aabb, vec4(0.f), vec4(1.f));
@@ -218,16 +240,14 @@ void main()
 
         if (!culled) {
             // if the area is less than or equal to 1 pixel, consider it as sub-texel triangle
-            if (area_abs <= 1.f) {
-                uint triBase = atomicAdd(outTriCnts[0].count, 1);
-                out_sw_tri[triBase].drawId = drawId;
-                out_sw_tri[triBase].meshletIdx = mi;
-                out_sw_tri[triBase].triIdx = i;
-            } else {
-                uint triBase = atomicAdd(outTriCnts[1].count, 1);
-                out_hw_tri[triBase].drawId = drawId;
-                out_hw_tri[triBase].meshletIdx = mi;
-                out_hw_tri[triBase].triIdx = i;
+            if (area_abs <= 1.f)
+            {
+                // set the bit mask to indicate sub-texel triangle
+                uint64_t mask = atomicOr(out_payloads[mlti].sr_bitmask, 1ul << (i & 63)); // corrected the bitwise operation
+            }
+            else
+            {
+                uint64_t mask = atomicOr(out_payloads[mlti].hr_bitmask, 1ul << (i & 63)); // corrected the bitwise operation
             }
         }
     }

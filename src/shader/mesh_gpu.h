@@ -1,11 +1,17 @@
 #define TASKGP_SIZE 128
 #define MESHGP_SIZE 64
-#define MESH_MAX_VTX 96
-#define MESH_MAX_TRI 128
+#define MESH_MAX_VTX 64
+#define MESH_MAX_TRI 64
 #define MR_MESHLETGP_SIZE 128
 #define MR_TRIANGLEGP_SIZE 64
-#define MR_SOFT_RASTGP_SIZE 1
-#define MR_SOFT_RAST_TILE_SIZE 16
+#define MR_SOFT_RASTGP_SIZE 64
+
+
+#extension GL_EXT_shader_16bit_storage : require
+#extension GL_EXT_shader_8bit_storage : require
+
+// for using 64bit in storage
+#extension GL_EXT_shader_explicit_arithmetic_types : require
 
 struct Vertex
 {
@@ -200,11 +206,16 @@ struct MeshletPayload
     uint drawId;
 };
 
-struct TrianglePayload
+// each struct for one meshlet
+// used in meshlet rasterization
+// 64 bits for 64 triangles
+struct RasterMeshletPayload
 {
     uint drawId;
     uint meshletIdx;
-    uint triIdx;
+
+    uint64_t sr_bitmask; // bitmask for soft-raster triangle visibility
+    uint64_t hr_bitmask; // bitmask for hard-raster triangle visibility
 };
 
 // terrain

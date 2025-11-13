@@ -108,6 +108,8 @@ struct TriangleCulling
     kage::ShaderHandle cs;
     kage::ProgramHandle prog;
 
+    PassStage stage;
+
     // read-only
     kage::BufferHandle meshletPayloadBuf;
     kage::BufferHandle meshletPayloadCntBuf;

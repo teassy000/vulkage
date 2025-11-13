@@ -224,6 +224,8 @@ namespace kage{ namespace vk
         features12.descriptorBindingVariableDescriptorCount = true;
         // enable for ffx using StorageBufferArrayNonUniformIndexing
         features12.shaderStorageBufferArrayNonUniformIndexing = true;
+        // enable 64bit atomic operations
+        features12.shaderBufferInt64Atomics = true;
         
 
         VkPhysicalDeviceVulkan13Features features13 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };

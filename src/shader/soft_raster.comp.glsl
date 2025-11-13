@@ -16,7 +16,7 @@
 #include "math.h"
 #include "debug_gpu.h"
 
-layout(local_size_x = MR_SOFT_RASTGP_SIZE, local_size_y = MR_SOFT_RAST_TILE_SIZE, local_size_z = MR_SOFT_RAST_TILE_SIZE) in;
+layout(local_size_x = MR_SOFT_RASTGP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
 layout(push_constant) uniform block
 {
@@ -57,12 +57,12 @@ layout(binding = 4) readonly buffer MeshletData8
 
 layout(binding = 5) readonly buffer TrianglePayloads
 {
-    TrianglePayload tri_data [];
+    RasterMeshletPayload in_payloads [];
 };
 
 layout(binding = 6) readonly buffer TriangleCount
 {
-    IndirectDispatchCommand indirectCmdCount;
+    IndirectDispatchCommand in_payloadCnt;
 };
 
 layout(binding = 7) uniform sampler2D pyramid;
@@ -71,6 +71,8 @@ layout(binding = 8) uniform writeonly image2D out_color;
 layout(binding = 9, r32ui) uniform uimage2D out_uDepth;
 layout(binding = 10, r32f) uniform writeonly image2D out_depth;
 layout(binding = 11, r32ui) uniform uimage2D debug_image;
+
+shared vec3 vertexClip[MESH_MAX_VTX];
 
 // =========================================
 // depth conversion functions===============
@@ -113,105 +115,108 @@ float calcDepth(vec2 _pos, vec3 _v0, vec3 _v1, vec3 _v2) {
 
 void main()
 {
-    ivec2 pid = ivec2(gl_GlobalInvocationID.yz); // the pixel position
-    uint zid = uint(gl_GlobalInvocationID.x); // the triangle id to process
+    uint ti = uint(gl_LocalInvocationID.x); // the triangle id to process
+    uint mlti = uint(gl_WorkGroupID.x);
+    uint glti = gl_GlobalInvocationID.x;
 
-    if (pid.x >= int(viewportSize.x) || pid.y >= int(viewportSize.y)) {
-        return; // out of bounds
-    }
+    RasterMeshletPayload payload = in_payloads[ti];
 
-    if(indirectCmdCount.count <= zid) {
-        return; // out of bounds
-    }
-
-    vec2 uv = vec2(pid.x / viewportSize.x, pid.y / viewportSize.y); // simple gradient uv based on x position
-
-    TrianglePayload tri = tri_data[zid];
-
-    MeshDraw md = meshDraws[tri.drawId];
-    Meshlet mlt = meshlets[tri.meshletIdx];
-    uint tid = tri.triIdx;
-    uint baseIdxOffset = mlt.vertexCount + mlt.dataOffset;
-    uint baseIdxOffset8 = baseIdxOffset * 4 + tid * 3; // in bytes
-    // calculate vertex ids of the triangle
-    uvec3 idxes = uvec3(
-        uint(meshletData8[baseIdxOffset8 + 0]),
-        uint(meshletData8[baseIdxOffset8 + 1]),
-        uint(meshletData8[baseIdxOffset8 + 2])
-    );
-
-    // get global vertex ids
-    uint vid0 = meshletData[mlt.dataOffset + idxes.x] + md.vertexOffset;
-    uint vid1 = meshletData[mlt.dataOffset + idxes.y] + md.vertexOffset;
-    uint vid2 = meshletData[mlt.dataOffset + idxes.z] + md.vertexOffset;
-
-    // get vertices
-    Vertex v0 = vertices[vid0];
-    Vertex v1 = vertices[vid1];
-    Vertex v2 = vertices[vid2];
-
-    // positions
-    vec3 p0 = vec3(v0.vx, v0.vy, v0.vz);
-    vec3 p1 = vec3(v1.vx, v1.vy, v1.vz);
-    vec3 p2 = vec3(v2.vx, v2.vy, v2.vz);
-
-    // transform
-    vec3 wp0 = rotateQuat(p0, md.orit) * md.scale + md.pos;
-    vec3 wp1 = rotateQuat(p1, md.orit) * md.scale + md.pos;
-    vec3 wp2 = rotateQuat(p2, md.orit) * md.scale + md.pos;
-
-    vec4 tp0 = (trans.proj * trans.view * vec4(wp0, 1.0));
-    vec4 tp1 = (trans.proj * trans.view * vec4(wp1, 1.0));
-    vec4 tp2 = (trans.proj * trans.view * vec4(wp2, 1.0));
-
-    // perspective divide to NDC
-    vec3 ndc0 = tp0.xyz / tp0.w;
-    vec3 ndc1 = tp1.xyz / tp1.w;
-    vec3 ndc2 = tp2.xyz / tp2.w;
-
-    // flip y for screen space
-    ndc0.y = -ndc0.y;
-    ndc1.y = -ndc1.y;
-    ndc2.y = -ndc2.y;
-
-    // to screen space [0.f, 1.f], z is ndc.z with inverse-z projected
-    vec3 sp0 = vec3(ndc0.xy * 0.5 + 0.5, ndc0.z);
-    vec3 sp1 = vec3(ndc1.xy * 0.5 + 0.5, ndc1.z);
-    vec3 sp2 = vec3(ndc2.xy * 0.5 + 0.5, ndc2.z);
+    MeshDraw md = meshDraws[payload.drawId];
+    Meshlet mlt = meshlets[payload.meshletIdx];
     
-    // depth
-    float newDepth = calcDepth(uv, sp0, sp1, sp2);
-
-    if (newDepth < 0.f) {
-        return; // not covered
-    }
-
-    uint newUdepth = depthToComparableUint(newDepth);
-    uint oldUdepth = imageLoad(out_uDepth, pid).r; // Load the current depth value
-
-    if (newUdepth <= oldUdepth){
-        return; // not closer
-    }
-
-    uint mhash = hash(tid);
-    vec4 hashCol = vec4(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255), 255) / 255.0;
-
-    // try to update the depth
-    uint prev = imageAtomicMax(out_uDepth, pid, newUdepth);
-
-    if (prev < newUdepth)
+    uint vertexCount = 0;
+    uint triangleCount = 0;
+    uint dataOffset = 0;
     {
-        uint uDepth = imageLoad(out_uDepth, pid).r; // Load the current depth value again
-        if (uDepth == newUdepth)
-        {
-            vec3 col = hashCol.rgb; // simple color based on triangle id
+        // use meshlet info
+        Meshlet mlt = meshlets[mlti];
+        vertexCount = uint(mlt.vertexCount);
+        triangleCount = uint(mlt.triangleCount);
+        dataOffset = mlt.dataOffset;
+    }
 
-            //vec3 col = vec3(float(zid) / 1000.f);
-            float currDepth = uintToDepth(uDepth);
-            float newDepth = uintToDepth(newUdepth);
-            imageStore(out_color, pid, vec4(col, 1.0)); // write uv
-            imageStore(out_depth, pid, vec4(currDepth, 0.0, 0.0, 1.0)); // write depth
-            imageStore(debug_image, pid, uvec4(tid, 0, 0, 0)); // write debug info
+    uint indexOffset = dataOffset + vertexCount;
+
+    // transform vertices
+    for (uint ii = ti; ii < vertexCount; ii += MR_SOFT_RASTGP_SIZE)
+    {
+        uint vi = meshletData[dataOffset + ii] + md.vertexOffset;
+
+        vec3 pos = vec3(vertices[vi].vx, vertices[vi].vy, vertices[vi].vz);
+        vec3 norm = vec3(int(vertices[vi].nx), int(vertices[vi].ny), int(vertices[vi].nz)) / 127.0 - 1.0;
+        vec4 tan = vec4(int(vertices[vi].tx), int(vertices[vi].ty), int(vertices[vi].tz), int(vertices[vi].tw)) / 127.0 - 1.0;
+        vec2 uv = vec2(vertices[vi].tu, vertices[vi].tv);
+
+        vec3 wPos = rotateQuat(pos, md.orit) * md.scale + md.pos;
+
+        vec4 result = trans.proj * trans.view * vec4(wPos, 1.0);
+
+        
+        vertexClip[ii].xyz = result.xyz / result.w;
+    }
+
+    barrier();
+
+    // process triangles
+    for (uint ii = ti; ii < triangleCount; ii += MR_SOFT_RASTGP_SIZE)
+    {
+        // read the mask to check if triangle is visiable
+        uint64_t triBit = (payload.sr_bitmask & (1ul << ii));
+
+        if (triBit == 0) {
+            continue; // not visiable, skip
+        }
+
+        uint offset = indexOffset * 4 + ii * 3; // x4 for uint8_t
+
+        uint idx0 = uint(meshletData8[offset + 0]);
+        uint idx1 = uint(meshletData8[offset + 1]);
+        uint idx2 = uint(meshletData8[offset + 2]);
+
+        vec3 pa = vertexClip[idx0].xyz;
+        vec3 pb = vertexClip[idx1].xyz;
+        vec3 pc = vertexClip[idx2].xyz;
+
+        // transform to screen space
+        vec2 p0_ndc = (pa.xy * 0.5 + vec2(0.5));
+        vec2 p1_ndc = (pb.xy * 0.5 + vec2(0.5));
+        vec2 p2_ndc = (pc.xy * 0.5 + vec2(0.5));
+
+        // convert to pixel space
+        vec2 p0_sc = p0_ndc * viewportSize;
+        vec2 p1_sc = p1_ndc * viewportSize;
+        vec2 p2_sc = p2_ndc * viewportSize;
+
+        float newDepth = pa.z;
+
+        if(newDepth < 0.f) {
+            continue; // behind near plane
+        }
+
+        uint new_ud = depthToComparableUint(newDepth);
+        uint old_ud = imageLoad(out_uDepth, ivec2(p1_sc)).r;
+
+        if (new_ud <= old_ud){
+            continue; // not closer
+        }
+
+        uint mhash = hash(glti);
+        vec4 hashCol = vec4(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255), 255) / 255.0;
+
+        uint prev = imageAtomicMax(out_uDepth, ivec2(p0_sc), new_ud);
+        if(prev < new_ud)
+        {
+            uint uDepth = imageLoad(out_uDepth, ivec2(p0_sc)).r; // Load the current depth value again
+            if (uDepth == new_ud)
+            {
+                vec3 col = hashCol.rgb; // simple color based on triangle id
+                //vec3 col = vec3(float(ti) / 1000.f);
+                float currDepth = uintToDepth(uDepth);
+                float newDepth = uintToDepth(new_ud);
+                imageStore(out_color, ivec2(p0_sc), vec4(col, 1.0)); // write uv
+                imageStore(out_depth, ivec2(p0_sc), vec4(currDepth, 0.0, 0.0, 1.0)); // write depth
+                imageStore(debug_image, ivec2(p0_sc), uvec4(glti, 0, 0, 0)); // write debug info
+            }
         }
     }
 }

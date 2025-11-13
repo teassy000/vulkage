@@ -156,7 +156,7 @@ void recHardRaster(const HardRaster& _hr, const Constants& _consts)
     };
     kage::setDepthAttachment(depthAttachment);
 
-    kage::drawMeshTask(_hr.triPayloadCountBuffer, sizeof(IndirectDispatchCommand) + 4, 1, 0);
+    kage::drawMeshTask(_hr.triPayloadCountBuffer, offsetof(IndirectDispatchCommand, x), 1, sizeof(IndirectDispatchCommand));
 
     kage::endRec();
 

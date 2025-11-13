@@ -77,7 +77,7 @@ layout(binding = 1) buffer MeshletCommands
 
 layout(binding = 1) buffer TriangleCommands
 {
-    TrianglePayload triCmds [];
+    RasterMeshletPayload triCmds [];
 };
 
 layout(binding = 1) buffer TaskCommands
@@ -118,14 +118,14 @@ void main()
         }
         else if (DISPATCH_MODE == _SOFT_RASTER)
         {
-            cmd[cmd_idx].local_x = min((count + gp_size - 1) / gp_size, 65535);
-            cmd[cmd_idx].local_y = (res.x + MR_SOFT_RAST_TILE_SIZE  - 1 )/ MR_SOFT_RAST_TILE_SIZE;
-            cmd[cmd_idx].local_z = (res.y + MR_SOFT_RAST_TILE_SIZE  - 1 )/ MR_SOFT_RAST_TILE_SIZE;
+            cmd[cmd_idx].local_x = count;
+            cmd[cmd_idx].local_y = 1;
+            cmd[cmd_idx].local_z = 1;
         }
         else if (DISPATCH_MODE == _HARD_RASTER)
         {
-            cmd[cmd_idx].local_x = min((count + gp_size - 1) / gp_size, 65535);
-            cmd[cmd_idx].local_y = gp_size;
+            cmd[cmd_idx].local_x = count;
+            cmd[cmd_idx].local_y = 1;
             cmd[cmd_idx].local_z = 1;
         }
         else if (DISPATCH_MODE == _TASK_MODIFY)
@@ -164,7 +164,7 @@ void main()
             }
             else if (DISPATCH_MODE == _SOFT_RASTER)
             {
-                TrianglePayload dummy = {};
+                RasterMeshletPayload dummy = {};
                 dummy.drawId = 5000 + id;
                 dummy.meshletIdx = 5000 + id;
 
@@ -172,7 +172,7 @@ void main()
             }
             else if (DISPATCH_MODE == _HARD_RASTER)
             {
-                TrianglePayload dummy = {};
+                RasterMeshletPayload dummy = {};
                 dummy.drawId = 6000 + id;
                 dummy.meshletIdx = 6000 + id;
 

@@ -67,7 +67,7 @@ layout(binding = 7) buffer MeshletPayloads
     MeshletPayload payloads[];
 };
 
-layout(binding = 8) buffer VisibleMeshletCount
+layout(binding = 8) buffer MeshletPayloadCount
 {
     IndirectDispatchCommand meshletCount;
 };
@@ -79,9 +79,7 @@ layout(binding = 9) uniform sampler2D pyramid;
 void main()
 {
     uint mid = gl_WorkGroupID.x;
-
-    if( mid >= indirectCmdCnt.count )
-        return;
+    uint mLocalId = gl_LocalInvocationID.x;
 
     MeshTaskCommand cmd = meshletCmds[mid];
 
@@ -94,7 +92,6 @@ void main()
     uint taskCount = cmd.taskCount;
     uint taskOffset = cmd.taskOffset;
 
-    uint mLocalId = gl_LocalInvocationID.x;
     uint mi = mLocalId + taskOffset;
 
     uint mvIdx = cmd.meshletVisibilityOffset + mLocalId;

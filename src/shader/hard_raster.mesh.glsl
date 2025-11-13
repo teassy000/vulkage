@@ -27,7 +27,6 @@ layout(binding = 0) readonly uniform Transform
     TransformData trans;
 };
 
-
 layout(binding = 1) readonly buffer Vertices
 {
     Vertex vertices [];
@@ -62,12 +61,12 @@ layout(binding = 4) readonly buffer MeshletData8
 
 layout(binding = 5) readonly buffer TrianglePayloads
 {
-    TrianglePayload triPayloads [];
+    RasterMeshletPayload in_payloads [];
 };
 
 layout(binding = 6) readonly buffer TrianglePayloadCount
 {
-    IndirectDispatchCommand triPayloadCount;
+    IndirectDispatchCommand in_payloadCnt;
 };
 
 layout(location = 0) out flat uint out_drawId[] ;
@@ -77,48 +76,65 @@ layout(location = 3) out vec4 out_tan[];
 layout(location = 4) out vec2 out_uv[];
 layout(location = 5) out flat uint out_triId[];
 
+shared vec3 vertexClip[MESH_MAX_VTX] ;
 
 void main()
 {
-    uint ti = gl_GlobalInvocationID.x;
+    uint ti = gl_LocalInvocationID.x;
+    uint mlti = gl_WorkGroupID.x;
 
-    if(ti >= triPayloadCount.count)
-        return;
+    RasterMeshletPayload payload = in_payloads[mlti];
 
-    TrianglePayload tri = triPayloads[ti];
-    MeshDraw md = meshDraws[tri.drawId];
-    Meshlet mlt = meshlets[tri.meshletIdx];
+    MeshDraw md = meshDraws[payload.drawId];
+    Meshlet mlt = meshlets[payload.meshletIdx];
 
-    uint tid = tri.triIdx;
-    uint baseIdxOffset = mlt.vertexCount + mlt.dataOffset;
-    uint baseIdxOffset8 = baseIdxOffset * 4 + tid * 3; // in bytes
-    // calculate vertex ids of the triangle
-    uvec3 idxes = uvec3(
-        uint(meshletData8[baseIdxOffset8 + 0]),
-        uint(meshletData8[baseIdxOffset8 + 1]),
-        uint(meshletData8[baseIdxOffset8 + 2])
-    );
+    uint vertexCount = mlt.vertexCount;
+    uint triangleCount = mlt.triangleCount;
+    uint dataOffset = mlt.dataOffset;
 
-    vec3 v[3];
-    SetMeshOutputsEXT(3, 1);
+    SetMeshOutputsEXT(vertexCount, triangleCount);
 
-    for (int i = 0; i < 3; i++) {
-        // get global vertex ids
-        uint vid = meshletData[mlt.dataOffset + idxes[i]] + md.vertexOffset;
-        // get vertices
-        Vertex vert = vertices[vid];
-        // positions
-        vec3 p = vec3(vert.vx, vert.vy, vert.vz);
-        // transform
-        vec3 wp = rotateQuat(p, md.orit) * md.scale + md.pos;
-        v[i] = wp;
+    // transform vertices
+    for (uint ii = ti; ii < vertexCount; ii += MESHGP_SIZE)
+    {
+        uint vi = meshletData[dataOffset + ii] + md.vertexOffset;
 
-        vec4 tp = (trans.proj * trans.view * vec4(wp, 1.0));
-        v[i] = tp.xyz / tp.w;
+        vec3 norm = vec3(int(vertices[vi].nx), int(vertices[vi].ny), int(vertices[vi].nz)) / 127.0 - 1.0;
+        vec4 tan = vec4(int(vertices[vi].tx), int(vertices[vi].ty), int(vertices[vi].tz), int(vertices[vi].tw)) / 127.0 - 1.0;
+        vec2 uv = vec2(vertices[vi].tu, vertices[vi].tv);
 
-        gl_MeshVerticesEXT[i].gl_Position = vec4(v[i], 1.0);
+        vec3 pos = vec3(vertices[vi].vx, vertices[vi].vy, vertices[vi].vz);
+        vec3 wPos = rotateQuat(pos, md.orit) * md.scale + md.pos;
+        vec4 result = trans.proj * trans.view * vec4(wPos, 1.0);
+
+        norm = rotateQuat(norm, md.orit);
+        //mltiresult.xyz = result.xyz / result.w;
+
+        gl_MeshVerticesEXT[ii].gl_Position = result;
+        out_drawId[ii] = payload.meshletIdx;
+        out_norm[ii] = norm;
+        out_wPos[ii] = wPos;
+        out_tan[ii] = tan;
+        out_uv[ii] = uv;
+        out_triId[ii] = ii; // for debug
+
     }
 
-    gl_PrimitiveTriangleIndicesEXT[ti] = uvec3(0, 1, 2);
+    barrier();
 
+    uint indexOffset = dataOffset + vertexCount;
+    for (uint ii = ti; ii < triangleCount; ii += MESHGP_SIZE)
+    {
+        uint offset = indexOffset * 4 + ii * 3; // *4 for uint8_t
+
+        uint idx0 = uint(meshletData8[offset + 0]);
+        uint idx1 = uint(meshletData8[offset + 1]);
+        uint idx2 = uint(meshletData8[offset + 2]);
+
+        gl_PrimitiveTriangleIndicesEXT[ii] = uvec3(idx0, idx1, idx2);
+
+        // read the mask to check if triangle is visiable
+        uint64_t triBit = (payload.sr_bitmask & (1ul << ii));
+        //gl_MeshPrimitivesEXT[ii].gl_CullPrimitiveEXT = (triBit == 0);
+    }
 }
