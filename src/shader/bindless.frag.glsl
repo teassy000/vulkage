@@ -43,6 +43,9 @@ void main()
 #if DEBUG_MESHLET
 	uint mhash = hash(in_drawId);
 	out_emissive = vec4(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255), 255) / 255.0;
+#elif DEBUG_TRIANGLE
+    uint thash = hash(in_triId);
+    out_emissive = vec4(float(thash & 255), float((thash >> 8) & 255), float((thash >> 16) & 255), 255) / 255.0;
 #else
     MeshDraw mDraw = meshDraws[in_drawId];
     

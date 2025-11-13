@@ -116,7 +116,7 @@ void main()
         out_wPos[ii] = wPos;
         out_tan[ii] = tan;
         out_uv[ii] = uv;
-        out_triId[ii] = ii; // for debug
+        out_triId[ii] = payload.meshletIdx << 8 | ii;
 
     }
 
@@ -134,7 +134,7 @@ void main()
         gl_PrimitiveTriangleIndicesEXT[ii] = uvec3(idx0, idx1, idx2);
 
         // read the mask to check if triangle is visiable
-        uint64_t triBit = (payload.sr_bitmask & (1ul << ii));
-        //gl_MeshPrimitivesEXT[ii].gl_CullPrimitiveEXT = (triBit == 0);
+        uint64_t triBit = (payload.hr_bitmask & (1ul << ii));
+        gl_MeshPrimitivesEXT[ii].gl_CullPrimitiveEXT = (triBit == 0);
     }
 }
