@@ -112,8 +112,8 @@ void main()
         }
         else if (DISPATCH_MODE == _TRIANGLE_CULLING)
         {
-            cmd[cmd_idx].local_x = count;
-            cmd[cmd_idx].local_y = 1;
+            cmd[cmd_idx].local_x = (count + 63) / 64;
+            cmd[cmd_idx].local_y = 64;
             cmd[cmd_idx].local_z = 1;
         }
         else if (DISPATCH_MODE == _SOFT_RASTER)

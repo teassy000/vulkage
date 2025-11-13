@@ -123,13 +123,11 @@ struct TriangleCulling
     kage::SamplerHandle pyrSampler;
 
     // write
-    kage::BufferHandle hwTriPayloadBuf;
-    kage::BufferHandle swTriPayloadBuf;
+    kage::BufferHandle triPayloadBuf;
     kage::BufferHandle triCountBuf;
 
     // out alias
-    kage::BufferHandle hwTriBufOutAlias;
-    kage::BufferHandle swTriBufOutAlias;
+    kage::BufferHandle triBufOutAlias;
     kage::BufferHandle triCountBufOutAlias;
 };
 

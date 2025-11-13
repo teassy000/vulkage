@@ -547,7 +547,7 @@ namespace
                 initModifyIndirectCmds(
                     m_modify2SoftRasterEarly
                     , m_triangleCullingEarly.triCountBufOutAlias
-                    , m_triangleCullingEarly.hwTriBufOutAlias
+                    , m_triangleCullingEarly.triBufOutAlias
                     , ModifyCommandMode::to_soft_raster
                     , PassStage::early
                 );
@@ -582,7 +582,7 @@ namespace
                 initModifyIndirectCmds(
                     m_modify2HardRasterEarly
                     , m_triangleCullingEarly.triCountBufOutAlias
-                    , m_triangleCullingEarly.hwTriBufOutAlias
+                    , m_triangleCullingEarly.triBufOutAlias
                     , ModifyCommandMode::to_hard_raster
                     , PassStage::early
                 );
@@ -688,7 +688,7 @@ namespace
                 initModifyIndirectCmds(
                     m_modify2SoftRasterLate
                     , m_triangleCullingLate.triCountBufOutAlias
-                    , m_triangleCullingLate.hwTriBufOutAlias
+                    , m_triangleCullingLate.triBufOutAlias
                     , ModifyCommandMode::to_soft_raster
                     , PassStage::late
                 );
@@ -724,7 +724,7 @@ namespace
                 initModifyIndirectCmds(
                     m_modify2HardRasterLate
                     , m_triangleCullingLate.triCountBufOutAlias
-                    , m_triangleCullingLate.hwTriBufOutAlias
+                    , m_triangleCullingLate.triBufOutAlias
                     , ModifyCommandMode::to_hard_raster
                     , PassStage::late
                 );

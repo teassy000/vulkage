@@ -22,7 +22,7 @@
 
 #extension GL_GOOGLE_include_directive: require
 
-#define DEBUG 1
+#define DEBUG 0
 
 #include "mesh_gpu.h"
 #include "math.h"
@@ -103,7 +103,7 @@ void main()
     uint ti = gl_LocalInvocationID.x;
 
     // each workgroup process one meshlet
-    uint mlti = gl_WorkGroupID.x;
+    uint mlti = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_WorkGroupID.y;
 
     uint count = indirectCmdCount.count;
 
@@ -243,11 +243,11 @@ void main()
             if (area_abs <= 1.f)
             {
                 // set the bit mask to indicate sub-texel triangle
-                uint64_t mask = atomicOr(out_payloads[mlti].sr_bitmask, 1ul << (i & 63)); // corrected the bitwise operation
+                atomicOr(out_payloads[mlti].sr_bitmask, 1ul << (i & 63)); // corrected the bitwise operation
             }
             else
             {
-                uint64_t mask = atomicOr(out_payloads[mlti].hr_bitmask, 1ul << (i & 63)); // corrected the bitwise operation
+                atomicOr(out_payloads[mlti].hr_bitmask, 1ul << (i & 63)); // corrected the bitwise operation
             }
         }
     }

@@ -315,17 +315,11 @@ void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& 
     std::string passName = getPassName("triangle_culling", _stage, RenderPipeline::mixed);
     kage::PassHandle pass = kage::registPass(passName.c_str(), passDesc);
 
-    kage::BufferDesc hwTriPayloadBuf;
-    hwTriPayloadBuf.size = 128 * 1024 * 1024; // 128M
-    hwTriPayloadBuf.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
-    hwTriPayloadBuf.memFlags = kage::MemoryPropFlagBits::device_local;
-    kage::BufferHandle hwTriPayload = kage::registBuffer("hw_tri_payload", hwTriPayloadBuf);
-
-    kage::BufferDesc swTriPayloadBufDesc;
-    swTriPayloadBufDesc.size = 128 * 1024 * 1024; // 128M
-    swTriPayloadBufDesc.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
-    swTriPayloadBufDesc.memFlags = kage::MemoryPropFlagBits::device_local;
-    kage::BufferHandle swTriPayload = kage::registBuffer("sw_tri_payload", swTriPayloadBufDesc);
+    kage::BufferDesc triPayloadBuf;
+    triPayloadBuf.size = 512 * 1024 * 1024; // 512M
+    triPayloadBuf.usage = kage::BufferUsageFlagBits::storage | kage::BufferUsageFlagBits::transfer_dst;
+    triPayloadBuf.memFlags = kage::MemoryPropFlagBits::device_local;
+    kage::BufferHandle triPayload = kage::registBuffer("tri_payload", triPayloadBuf);
 
     // 2 dispatch indirect commands, 1st: for hardware rasterization, 2nd: for software rasterization
     kage::BufferDesc  trianglePayloadCntDesc;
@@ -334,8 +328,7 @@ void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& 
     trianglePayloadCntDesc.memFlags = kage::MemoryPropFlagBits::device_local;
     kage::BufferHandle trianglePayloadCntBuf = kage::registBuffer("triangle_payload_cnt", trianglePayloadCntDesc);
 
-    kage::BufferHandle hwTriPayloadBufOutAlias = kage::alias(hwTriPayload);
-    kage::BufferHandle swTriPayloadBufOutAlias = kage::alias(swTriPayload);
+    kage::BufferHandle triPayloadBufOutAlias = kage::alias(triPayload);
     kage::BufferHandle trianglePayloadCntOutAlias = kage::alias(trianglePayloadCntBuf);
 
     kage::bindBuffer(pass
@@ -384,17 +377,10 @@ void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& 
 
     // write buffers
     kage::bindBuffer(pass
-        , hwTriPayload
+        , triPayload
         , Stage::compute_shader
         , Access::shader_write
-        , hwTriPayloadBufOutAlias
-    );
-
-    kage::bindBuffer(pass
-        , swTriPayload
-        , Stage::compute_shader
-        , Access::shader_write
-        , swTriPayloadBufOutAlias
+        , triPayloadBufOutAlias
     );
 
     kage::bindBuffer(pass
@@ -432,13 +418,11 @@ void initTriangleCulling(TriangleCulling& _tric, const TriangleCullingInitData& 
     _tric.pyrSampler = pyrSamp;
     
     // read-write
-    _tric.hwTriPayloadBuf = hwTriPayload;
-    _tric.swTriPayloadBuf = swTriPayload;
+    _tric.triPayloadBuf = triPayload;
     _tric.triCountBuf = trianglePayloadCntBuf;
     
     // out-alias
-    _tric.hwTriBufOutAlias = hwTriPayloadBufOutAlias;
-    _tric.swTriBufOutAlias = swTriPayloadBufOutAlias;
+    _tric.triBufOutAlias = triPayloadBufOutAlias;
     _tric.triCountBufOutAlias = trianglePayloadCntOutAlias;
 
 }
@@ -457,7 +441,7 @@ void recTriangleCulling(const TriangleCulling& _tric, const Constants& _consts)
     // clear payload buffer in late pass
     if (PassStage::late == _tric.stage)
     {
-        kage::fillBuffer(_tric.hwTriPayloadBuf, 0);
+        kage::fillBuffer(_tric.triPayloadBuf, 0);
     }
 
     kage::Binding binds[] =
@@ -469,7 +453,7 @@ void recTriangleCulling(const TriangleCulling& _tric, const Constants& _consts)
         { _tric.meshletBuf,             BindingAccess::read,        Stage::compute_shader },
         { _tric.meshletDataBuf,         BindingAccess::read,        Stage::compute_shader },
         { _tric.meshletPayloadCntBuf,   BindingAccess::read,        Stage::compute_shader },
-        { _tric.hwTriPayloadBuf,        BindingAccess::write,       Stage::compute_shader },
+        { _tric.triPayloadBuf,          BindingAccess::write,       Stage::compute_shader },
         { _tric.triCountBuf,            BindingAccess::write,       Stage::compute_shader },
         { _tric.pyramid,                _tric.pyrSampler,           Stage::compute_shader }
     };
